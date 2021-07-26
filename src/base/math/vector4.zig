@@ -1,3 +1,5 @@
+usingnamespace @import("vector2.zig");
+
 pub fn Vec4(comptime T: type) type {
     return struct {
         v: [4]T = undefined,
@@ -41,6 +43,10 @@ pub fn Vec4(comptime T: type) type {
             return init3(a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2]);
         }
 
+        pub fn neg3(v: Vec4(T)) Vec4(T) {
+            return init3(-v.v[0], -v.v[1], -v.v[2]);
+        }
+
         pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {
             return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
         }
@@ -68,6 +74,23 @@ pub fn Vec4(comptime T: type) type {
 
         pub fn normalize3(v: Vec4(T)) Vec4(T) {
             return v.divScalar3(length3(v));
+        }
+
+        pub fn cross3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
+            return init3(
+                a.v[1] * b.v[2] - a.v[2] * b.v[1],
+                a.v[2] * b.v[0] - a.v[0] * b.v[2],
+                a.v[0] * b.v[1] - a.v[1] * b.v[0],
+            );
+        }
+
+        pub fn toVec4i(v: Vec4(f32)) Vec4(i32) {
+            return Vec4(i32).init4(
+                @floatToInt(i32, v.v[0]),
+                @floatToInt(i32, v.v[1]),
+                @floatToInt(i32, v.v[2]),
+                @floatToInt(i32, v.v[3]),
+            );
         }
     };
 }

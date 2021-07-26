@@ -10,8 +10,16 @@ pub fn Vec2(comptime T: type) type {
             return .{ .v = [2]T{ x, y } };
         }
 
+        pub fn subScalar(self: Vec2(T), s: T) Vec2(T) {
+            return init2(self.v[0] - s, self.v[1] - s);
+        }
+
         pub fn add(a: Vec2(T), b: Vec2(T)) Vec2(T) {
             return init2(a.v[0] + b.v[0], a.v[1] + b.v[1]);
+        }
+
+        pub fn mulScalar(self: Vec2(T), s: T) Vec2(T) {
+            return init2(self.v[0] * s, self.v[1] * s);
         }
 
         pub fn toVec2f(v: Vec2(i32)) Vec2(f32) {

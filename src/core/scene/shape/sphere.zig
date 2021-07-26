@@ -1,11 +1,13 @@
 const base = @import("base");
 usingnamespace base;
 
-//const Vec4f = base.math.Vec4f;
+const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
 
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
 const Intersection = @import("../shape/intersection.zig").Intersection;
+
+const std = @import("std");
 
 pub const Sphere = struct {
     fn intersectDetail(hit_t: f32, ray: *const Ray, trafo: *const Transformation, isec: *Intersection) void {
@@ -15,6 +17,25 @@ pub const Sphere = struct {
         isec.p = p;
         isec.geo_n = n;
         isec.n = n;
+
+        const xyz = trafo.rotation.transformVectorTransposed(n).normalize3();
+
+        const phi = -std.math.atan2(f32, xyz.v[0], xyz.v[2]) + std.math.pi;
+        const theta = std.math.acos(xyz.v[1]);
+
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+        // avoid singularity at poles
+        const sin_theta = std.math.max(@sin(theta), 0.00001);
+
+        const t = trafo.rotation.transformVector(Vec4f.init3(
+            sin_theta * cos_phi,
+            0.0,
+            sin_theta * sin_phi,
+        )).normalize3();
+
+        isec.t = t;
+        isec.b = t.cross3(n).neg3();
     }
 
     pub fn intersect(ray: *Ray, trafo: *const Transformation, isec: *Intersection) bool {
@@ -41,7 +62,7 @@ pub const Sphere = struct {
 
             const t1 = b + dist;
             if (t1 > ray.minT() and t1 < ray.maxT()) {
-                intersectDetail(t0, ray, trafo, isec);
+                intersectDetail(t1, ray, trafo, isec);
 
                 ray.setMaxT(t1);
                 return true;

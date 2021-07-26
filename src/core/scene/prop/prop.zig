@@ -1,10 +1,9 @@
 pub const Intersection = @import("intersection.zig").Intersection;
 
+const Ray = @import("../ray.zig").Ray;
+
 const base = @import("base");
 usingnamespace base;
-
-//const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
 
 const Scene = @import("../scene.zig").Scene;
 
@@ -30,6 +29,6 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersect(ray, trafo, isec);
+        return scene.propShape(entity).intersect(&ray.ray, trafo, isec);
     }
 };

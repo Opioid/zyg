@@ -12,6 +12,10 @@ pub fn Vec3(comptime T: type) type {
             return .{ .v = [3]T{ x, y, 0 } };
         }
 
+        pub fn init2_1(vxy: Vec2(T), z: T) Vec3(T) {
+            return .{ .v = [3]T{ vxy.v[0], vxy.v[1], z } };
+        }
+
         pub fn init3(x: T, y: T, z: T) Vec3(T) {
             return .{ .v = [3]T{ x, y, z } };
         }

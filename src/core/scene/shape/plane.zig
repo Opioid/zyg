@@ -16,9 +16,13 @@ pub const Plane = struct {
 
         if (hit_t > ray.minT() and hit_t < ray.maxT()) {
             const p = ray.point(hit_t);
+            const t = trafo.rotation.r[0].neg3();
+            const b = trafo.rotation.r[1].neg3();
 
             isec.p = p;
             isec.geo_n = n;
+            isec.t = t;
+            isec.b = b;
             isec.n = n;
 
             ray.setMaxT(hit_t);

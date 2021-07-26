@@ -11,6 +11,10 @@ pub const Ray = struct {
         };
     }
 
+    pub fn setDirection(self: *Ray, direction: Vec4f) void {
+        self.direction = Vec4f.init3_1(direction, self.direction.v[3]);
+    }
+
     pub fn minT(self: Ray) f32 {
         return self.origin.v[3];
     }

@@ -5,13 +5,14 @@ const Intersection = @import("prop/intersection.zig").Intersection;
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
 
+const Ray = @import("ray.zig").Ray;
+
 const Transformation = @import("composed_transformation.zig").Composed_transformation;
 
 const base = @import("base");
 usingnamespace base;
 
 const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -51,9 +52,6 @@ pub const Scene = struct {
 
     pub fn intersect(self: Scene, ray: *Ray, isec: *Intersection) bool {
         var hit: bool = false;
-
-        _ = self;
-        _ = ray;
 
         for (self.props.items) |p, i| {
             if (p.intersect(i, ray, self, &isec.geo)) {

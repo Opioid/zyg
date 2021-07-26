@@ -1,7 +1,7 @@
 pub const Take = @import("take.zig").Take;
 pub const View = @import("take.zig").View;
 
-const camera = @import("../camera/perspective.zig");
+const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 
 const Scene = @import("../scene/scene.zig").Scene;
@@ -38,7 +38,7 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
 
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            try loadCamera(alloc, &take.view.cam, entry.value_ptr.*, scene);
+            loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
         } else if (std.mem.eql(u8, "scene", entry.key_ptr.*)) {
             const string = entry.value_ptr.String;
             take.scene_filename = try alloc.alloc(u8, string.len);
@@ -51,7 +51,7 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
     return take;
 }
 
-fn loadCamera(alloc: *Allocator, cam: *camera.Perspective, value: std.json.Value, scene: *Scene) !void {
+fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -80,12 +80,11 @@ fn loadCamera(alloc: *Allocator, cam: *camera.Perspective, value: std.json.Value
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
                 const fov = entry.value_ptr.Object.get("fov") orelse continue;
-                cam.fov = math.degreesToRadians(json.readFloat(fov));
+                camera.fov = math.degreesToRadians(json.readFloat(fov));
             } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                 json.readTransformation(entry.value_ptr.*, &trafo);
             } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {
                 sensor_value_ptr = entry.value_ptr;
-                //    cam.resolution = json.readVec2iMember(entry.value_ptr.*, "resolution", math.Vec2i.init2(16, 16));
             }
         }
     }
@@ -93,9 +92,9 @@ fn loadCamera(alloc: *Allocator, cam: *camera.Perspective, value: std.json.Value
     if (sensor_value_ptr) |sensor_value| {
         const resolution = json.readVec2iMember(sensor_value.*, "resolution", math.Vec2i.init1(0));
 
-        cam.resolution = resolution;
+        camera.resolution = resolution;
 
-        try cam.setSensor(alloc, loadSensor(sensor_value.*));
+        camera.setSensor(loadSensor(sensor_value.*));
     } else {
         return;
     }
@@ -104,7 +103,7 @@ fn loadCamera(alloc: *Allocator, cam: *camera.Perspective, value: std.json.Value
 
     scene.propSetWorldTransformation(prop_id, trafo);
 
-    cam.entity = prop_id;
+    camera.entity = prop_id;
 }
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {

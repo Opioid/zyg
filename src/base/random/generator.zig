@@ -1,15 +1,22 @@
 pub const Generator = struct {
-    state: u64,
-    inc: u64,
+    state: u64 = undefined,
+    inc: u64 = undefined,
 
     pub fn init(state: u64, sequence: u64) Generator {
-        var g = Generator{ .state = 0, .inc = (sequence << 1) | 1 };
+        var g = Generator{};
 
-        _ = g.randomUint();
-        g.state += state;
-        _ = g.randomUint();
+        g.start(state, sequence);
 
         return g;
+    }
+
+    pub fn start(self: *Generator, state: u64, sequence: u64) void {
+        self.state = 0;
+        self.inc = (sequence << 1) | 1;
+
+        _ = self.randomUint();
+        self.state += state;
+        _ = self.randomUint();
     }
 
     pub fn randomUint(self: *Generator) u32 {

@@ -4,5 +4,7 @@ usingnamespace base.math;
 pub const Intersection = struct {
     p: Vec4f = undefined,
     geo_n: Vec4f = undefined,
+    t: Vec4f = undefined,
+    b: Vec4f = undefined,
     n: Vec4f = undefined,
 };

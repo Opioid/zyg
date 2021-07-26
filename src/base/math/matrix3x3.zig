@@ -63,4 +63,20 @@ pub const Mat3x3 = struct {
             a.m(2, 0) * b.m(0, 2) + a.m(2, 1) * b.m(1, 2) + a.m(2, 2) * b.m(2, 2),
         );
     }
+
+    pub fn transformVector(self: Mat3x3, v: Vec4f) Vec4f {
+        return Vec4f.init3(
+            v.v[0] * self.m(0, 0) + v.v[1] * self.m(1, 0) + v.v[2] * self.m(2, 0),
+            v.v[0] * self.m(0, 1) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(2, 1),
+            v.v[0] * self.m(0, 2) + v.v[1] * self.m(1, 2) + v.v[2] * self.m(2, 2),
+        );
+    }
+
+    pub fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
+        return Vec4f.init3(
+            v.v[0] * self.m(0, 0) + v.v[1] * self.m(0, 1) + v.v[2] * self.m(0, 2),
+            v.v[0] * self.m(1, 0) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(1, 2),
+            v.v[0] * self.m(2, 0) + v.v[1] * self.m(2, 1) + v.v[2] * self.m(2, 2),
+        );
+    }
 };

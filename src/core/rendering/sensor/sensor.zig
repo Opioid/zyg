@@ -6,7 +6,9 @@ const Sample = @import("../../sampler/sampler.zig").Camera_sample;
 
 const Float4 = @import("../../image/image.zig").Float4;
 
-usingnamespace @import("base").math;
+const base = @import("base");
+const Vec2i = base.math.Vec2i;
+const Vec4f = base.math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

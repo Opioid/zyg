@@ -17,15 +17,13 @@ pub const Opaque = struct {
     }
 
     pub fn resize(self: *Opaque, alloc: *Allocator, dimensions: Vec2i) !void {
+        self.base.dimensions = dimensions;
+
         const len = dimensions.v[0] * dimensions.v[1];
 
-        if (self.pixels.len != len) {
-            alloc.free(self.pixels);
-
-            self.pixels = try alloc.alloc(Vec4f, @intCast(usize, len));
+        if (len > self.pixels.len) {
+            self.pixels = try alloc.realloc(self.pixels, @intCast(usize, len));
         }
-
-        self.base.dimensions = dimensions;
     }
 
     pub fn clear(self: *Opaque, weight: f32) void {
@@ -35,11 +33,6 @@ pub const Opaque = struct {
     }
 
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
-        //         auto const d = dimensions();
-
-        // auto& value = pixels_[d[0] * pixel[1] + pixel[0]];
-        // value += float4(weight * color.xyz(), weight);
-
         const d = self.base.dimensions;
 
         var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];

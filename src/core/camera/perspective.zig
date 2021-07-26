@@ -1,12 +1,13 @@
-const base = @import("base");
-usingnamespace base.math;
+usingnamespace @import("base");
+
+const Vec2i = math.Vec2i;
+const Vec4f = math.Vec4f;
 
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
-
 const prp = @import("../scene/prop/prop.zig");
 const Sample = @import("../sampler/sampler.zig").Camera_sample;
-
 const Scene = @import("../scene/scene.zig").Scene;
+const Ray = @import("../scene/ray.zig").Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -28,10 +29,12 @@ pub const Perspective = struct {
         self.sensor.deinit(alloc);
     }
 
-    pub fn setSensor(self: *Perspective, alloc: *Allocator, sensor: Sensor) !void {
-        self.sensor = sensor;
+    pub fn sensorDimensions(self: Perspective) Vec2i {
+        return self.resolution;
+    }
 
-        try self.sensor.resize(alloc, self.resolution);
+    pub fn setSensor(self: *Perspective, sensor: Sensor) void {
+        self.sensor = sensor;
     }
 
     pub fn update(self: *Perspective) void {
@@ -49,7 +52,7 @@ pub const Perspective = struct {
         self.d_y = left_bottom.sub3(left_top).divScalar3(fr.v[1]);
     }
 
-    pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?base.math.Ray {
+    pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
         const coordinates = sample.pixel.toVec2f().add(sample.pixel_uv);
 
         var direction = self.left_top.add3(self.d_x.mulScalar3(coordinates.v[0])).add3(self.d_y.mulScalar3(coordinates.v[1]));
