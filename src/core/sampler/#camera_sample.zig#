@@ -1,0 +1,7 @@
+const base = @import("base");
+usingnamespace base.math;
+
+pub const Camera_sample = struct {
+    pixel: Vec2i,
+    pixel_uv: Vec2f,
+};

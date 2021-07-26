@@ -1,0 +1,8 @@
+zig-*/
+data/
+system/
+source/base/platform/version.hpp
+.directory
+\#*#
+*.*~
+TAGS
