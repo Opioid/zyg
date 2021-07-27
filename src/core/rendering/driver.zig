@@ -4,6 +4,7 @@ const Worker = @import("worker.zig").Worker;
 const TileQueue = @import("tile_queue.zig").TileQueue;
 
 const img = @import("../image/image.zig");
+const progress = @import("../progress/std_out.zig");
 
 usingnamespace @import("base").math;
 
@@ -15,9 +16,11 @@ pub const Driver = struct {
 
     workers: []Worker = &.{},
 
-    tile_queue: TileQueue = undefined,
+    tiles: TileQueue = undefined,
 
     target: img.Float4 = .{},
+
+    progressor: progress.StdOut = undefined,
 
     pub fn init(alloc: *Allocator) !Driver {
         return Driver{
@@ -44,7 +47,7 @@ pub const Driver = struct {
             w.configure(view, scene);
         }
 
-        self.tile_queue.configure(camera.crop, 32, 0);
+        self.tiles.configure(camera.crop, 32, 0);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
     }
@@ -60,10 +63,14 @@ pub const Driver = struct {
 
         camera.sensor.clear(0.0);
 
-        self.tile_queue.restart();
+        self.progressor.start(self.tiles.size());
 
-        while (self.tile_queue.pop()) |tile| {
+        self.tiles.restart();
+
+        while (self.tiles.pop()) |tile| {
             self.workers[0].render(tile);
+
+            self.progressor.tick();
         }
     }
 

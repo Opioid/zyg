@@ -26,6 +26,10 @@ pub const TileQueue = struct {
         self.current_consume = 0;
     }
 
+    pub fn size(self: TileQueue) u32 {
+        return @intCast(u32, self.num_tiles);
+    }
+
     pub fn restart(self: *TileQueue) void {
         self.current_consume = 0;
     }

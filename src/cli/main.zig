@@ -11,7 +11,9 @@ const Options = @import("options/options.zig").Options;
 const std = @import("std");
 
 pub fn main() !void {
-    std.debug.print("Welcome to zyg!\n", .{});
+    const stdout = std.io.getStdOut().writer();
+
+    stdout.print("Welcome to zyg!\n", .{}) catch unreachable;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
@@ -41,8 +43,6 @@ pub fn main() !void {
     };
     defer take.deinit(alloc);
 
-    std.debug.print("scene {s} \n", .{take.scene_filename});
-
     scene_loader.load(alloc, &scene) catch |err| {
         std.debug.print("error {} \n", .{err});
         return;
@@ -58,7 +58,7 @@ pub fn main() !void {
     driver.render();
     driver.exportFrame();
 
-    std.debug.print("Rendering time {} s\n", .{chrono.secondsSince(rendering_start)});
+    stdout.print("Rendering time {} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
     var png_writer = Png_writer{};

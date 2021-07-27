@@ -114,6 +114,30 @@ pub const Options = struct {
     }
 
     fn help() void {
-        std.debug.print("We need help\n", .{});
+        const stdout = std.io.getStdOut().writer();
+
+        const text =
+            \\zyg is a global illumination renderer experiment
+            \\Usage:
+            \\  zyg [OPTION..]
+            \\
+            \\  -h, --help                     Print help.
+            \\  -f, --frame       int          Index of the first frame to render.
+            \\                                 The default value is 0.
+            \\  -n, --num-frames  int          Number of frames to render.
+            \\                                 The default value is 1.
+            \\  -i, --input       file/string  Path of the take file to render,
+            \\                                 or json-string describing the take.
+            \\  -m, --mount       path+        Specifies a mount point for the data directory.
+            \\                                 The default value is "../data/"
+            \\  -t, --threads     int          Specifies the number of threads used by sprout.
+            \\                                 0 creates one thread for each logical CPU.
+            \\                                 -x creates as many threads as the number of
+            \\                                 logical CPUs minus x.
+            \\                                 The default value is 0.
+            \\
+        ;
+
+        stdout.print(text, .{}) catch return;
     }
 };
