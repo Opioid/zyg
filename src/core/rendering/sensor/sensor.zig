@@ -8,6 +8,7 @@ const Float4 = @import("../../image/image.zig").Float4;
 
 const base = @import("base");
 const Vec2i = base.math.Vec2i;
+const Vec4i = base.math.Vec4i;
 const Vec4f = base.math.Vec4f;
 
 const std = @import("std");
@@ -34,7 +35,9 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) void {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, isolated: Vec4i, offset: Vec2i, bounds: Vec4i) void {
+        _ = isolated;
+        _ = bounds;
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
         }
@@ -44,5 +47,15 @@ pub const Sensor = union(enum) {
         switch (self) {
             .Unfiltered_opaque => |s| s.sensor.resolve(target),
         }
+    }
+
+    pub fn filterRadiusInt(self: Sensor) i32 {
+        _ = self;
+        return 0;
+    }
+
+    pub fn isolatedTile(self: Sensor, tile: Vec4i) Vec4i {
+        _ = self;
+        return tile;
     }
 };

@@ -49,7 +49,7 @@ pub const Sphere = struct {
 
         const discriminant = radius * radius - remedy_term.dot3(remedy_term);
 
-        if (discriminant >= 0.0) {
+        if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
 
@@ -84,7 +84,7 @@ pub const Sphere = struct {
 
         const discriminant = radius * radius - remedy_term.dot3(remedy_term);
 
-        if (discriminant >= 0.0) {
+        if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
 

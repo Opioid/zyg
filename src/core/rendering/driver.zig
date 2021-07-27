@@ -1,6 +1,7 @@
 const View = @import("../take/take.zig").View;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("worker.zig").Worker;
+const TileQueue = @import("tile_queue.zig").TileQueue;
 
 const img = @import("../image/image.zig");
 
@@ -13,6 +14,8 @@ pub const Driver = struct {
     scene: *Scene = undefined,
 
     workers: []Worker = &.{},
+
+    tile_queue: TileQueue = undefined,
 
     target: img.Float4 = .{},
 
@@ -41,6 +44,8 @@ pub const Driver = struct {
             w.configure(view, scene);
         }
 
+        self.tile_queue.configure(camera.crop, 32, 0);
+
         try self.target.resize(alloc, img.Description.init2D(dim));
     }
 
@@ -55,7 +60,11 @@ pub const Driver = struct {
 
         camera.sensor.clear(0.0);
 
-        self.workers[0].render();
+        self.tile_queue.restart();
+
+        while (self.tile_queue.pop()) |tile| {
+            self.workers[0].render(tile);
+        }
     }
 
     pub fn exportFrame(self: *Driver) void {

@@ -1,6 +1,7 @@
 usingnamespace @import("base");
 
 const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
@@ -15,7 +16,8 @@ const Allocator = std.mem.Allocator;
 pub const Perspective = struct {
     entity: u32 = prp.Null,
 
-    resolution: Vec2i = Vec2i.init2(0, 0),
+    resolution: Vec2i = Vec2i.init1(0),
+    crop: Vec4i = Vec4i.init1(0),
 
     sensor: Sensor = undefined,
 
@@ -31,6 +33,15 @@ pub const Perspective = struct {
 
     pub fn sensorDimensions(self: Perspective) Vec2i {
         return self.resolution;
+    }
+
+    pub fn setResolution(self: *Perspective, resolution: Vec2i, crop: Vec4i) void {
+        self.resolution = resolution;
+
+        self.crop.v[0] = std.math.max(0, crop.v[0]);
+        self.crop.v[1] = std.math.max(0, crop.v[1]);
+        self.crop.v[2] = std.math.min(resolution.v[0], crop.v[2]);
+        self.crop.v[3] = std.math.min(resolution.v[1], crop.v[3]);
     }
 
     pub fn setSensor(self: *Perspective, sensor: Sensor) void {
@@ -55,7 +66,7 @@ pub const Perspective = struct {
     pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
         const coordinates = sample.pixel.toVec2f().add(sample.pixel_uv);
 
-        var direction = self.left_top.add3(self.d_x.mulScalar3(coordinates.v[0])).add3(self.d_y.mulScalar3(coordinates.v[1]));
+        const direction = self.left_top.add3(self.d_x.mulScalar3(coordinates.v[0])).add3(self.d_y.mulScalar3(coordinates.v[1]));
 
         const origin = Vec4f.init1(0.0);
 
@@ -63,8 +74,7 @@ pub const Perspective = struct {
 
         const origin_w = trafo.objectToWorldPoint(origin);
 
-        direction = direction.normalize3();
-        const direction_w = trafo.objectToWorldVector(direction);
+        const direction_w = trafo.objectToWorldVector(direction.normalize3());
 
         return Ray.init(origin_w, direction_w, 0.0, 1000.0);
     }

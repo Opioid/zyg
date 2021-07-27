@@ -24,6 +24,18 @@ pub fn Vec4(comptime T: type) type {
             return .{ .v = [4]T{ x, y, z, w } };
         }
 
+        pub fn init2_2(a: Vec2(T), b: Vec2(T)) Vec4(T) {
+            return .{ .v = [4]T{ a.v[0], a.v[1], b.v[0], b.v[1] } };
+        }
+
+        pub fn xy(v: Vec4(T)) Vec2(T) {
+            return Vec2(T).init2(v.v[0], v.v[1]);
+        }
+
+        pub fn zw(v: Vec4(T)) Vec2(T) {
+            return Vec2(T).init2(v.v[2], v.v[3]);
+        }
+
         pub fn add3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
             return init3(a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2]);
         }

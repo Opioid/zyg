@@ -60,7 +60,7 @@ pub fn initMat3x3(q: Quaternion) Mat3x3 {
     const tz = 2.0 * z;
     const xy = ty * x;
     const xz = tz * x;
-    const yz = ty * x;
+    const yz = ty * z;
     const wx = tx * w;
     const wy = ty * w;
     const wz = tz * w;

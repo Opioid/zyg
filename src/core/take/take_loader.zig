@@ -90,9 +90,10 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
     }
 
     if (sensor_value_ptr) |sensor_value| {
-        const resolution = json.readVec2iMember(sensor_value.*, "resolution", math.Vec2i.init1(0));
+        const resolution = json.readVec2iMember(sensor_value.*, "resolution", Vec2i.init1(0));
+        const crop = json.readVec4iMember(sensor_value.*, "crop", Vec4i.init2_2(Vec2i.init1(0), resolution));
 
-        camera.resolution = resolution;
+        camera.setResolution(resolution, crop);
 
         camera.setSensor(loadSensor(sensor_value.*));
     } else {
