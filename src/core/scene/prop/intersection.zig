@@ -11,9 +11,9 @@ pub const Intersection = struct {
         return self.geo.geo_n.dot3(v) > 0.0;
     }
 
-    pub fn offsetP(self: Intersection, v: Vec4f) Vec4f {
+    pub fn offsetP(self: Intersection, n: Vec4f) Vec4f {
         const p = self.geo.p;
 
-        return offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else self.geo.geo_n.neg3());
+        return offsetRay(p, n);
     }
 };

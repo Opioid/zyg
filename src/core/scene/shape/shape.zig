@@ -22,4 +22,12 @@ pub const Shape = union(enum) {
             .Sphere => Sphere.intersect(ray, trafo, isec),
         };
     }
+
+    pub fn intersectP(self: Shape, ray: *const Ray, trafo: *const Transformation) bool {
+        return switch (self) {
+            .Null => false,
+            .Plane => Plane.intersectP(ray, trafo),
+            .Sphere => Sphere.intersectP(ray, trafo),
+        };
+    }
 };

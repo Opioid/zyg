@@ -5,7 +5,7 @@ pub const Ray = struct {
     direction: Vec4f,
 
     pub fn init(origin: Vec4f, direction: Vec4f, min_t: f32, max_t: f32) Ray {
-        return Ray{
+        return .{
             .origin = Vec4f.init3_1(origin, min_t),
             .direction = Vec4f.init3_1(direction, max_t),
         };

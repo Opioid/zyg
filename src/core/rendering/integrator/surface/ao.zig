@@ -21,8 +21,8 @@ pub const AO = struct {
         var occlusion_ray: Ray = undefined;
 
         occlusion_ray.ray.origin = isec.offsetP(isec.geo.geo_n); // isec.geo.p.add3(isec.geo.geo_n.mulScalar3(0.01));
-        occlusion_ray.ray.setMinT(0.1);
-        occlusion_ray.ray.setMaxT(1.0);
+        //occlusion_ray.ray.setMinT(0.1);
+        occlusion_ray.ray.setMaxT(5.0);
 
         const sample = self.sampler.sample2D(&worker.worker.rng);
 
@@ -32,12 +32,12 @@ pub const AO = struct {
 
         //     std.debug.print("{}\n", .{occlusion_ray.ray.maxT()});
 
-        if (worker.worker.intersect(&occlusion_ray, isec)) {
+        if (worker.worker.intersectP(&occlusion_ray)) {
             return Vec4f.init1(0.0);
         } else {
             return Vec4f.init1(1.0);
         }
 
-        //    return isec.geo.b.addScalar3(1.0).mulScalar3(0.5);
+        // return isec.geo.b.addScalar3(1.0).mulScalar3(0.5);
     }
 };

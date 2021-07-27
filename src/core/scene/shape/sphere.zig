@@ -61,10 +61,40 @@ pub const Sphere = struct {
             }
 
             const t1 = b + dist;
+
             if (t1 > ray.minT() and t1 < ray.maxT()) {
                 intersectDetail(t1, ray, trafo, isec);
 
                 ray.setMaxT(t1);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn intersectP(ray: *const Ray, trafo: *const Transformation) bool {
+        const v = trafo.position.sub3(ray.origin);
+
+        const b = ray.direction.dot3(v);
+
+        const remedy_term = v.sub3(ray.direction.mulScalar3(b));
+
+        const radius = trafo.scaleX();
+
+        const discriminant = radius * radius - remedy_term.dot3(remedy_term);
+
+        if (discriminant >= 0.0) {
+            const dist = @sqrt(discriminant);
+            const t0 = b - dist;
+
+            if (t0 > ray.minT() and t0 < ray.maxT()) {
+                return true;
+            }
+
+            const t1 = b + dist;
+
+            if (t1 > ray.minT() and t1 < ray.maxT()) {
                 return true;
             }
         }

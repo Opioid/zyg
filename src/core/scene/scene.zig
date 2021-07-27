@@ -62,6 +62,16 @@ pub const Scene = struct {
         return hit;
     }
 
+    pub fn intersectP(self: Scene, ray: *const Ray) bool {
+        for (self.props.items) |p, i| {
+            if (p.intersectP(i, ray, self)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     pub fn createEntity(self: *Scene, alloc: *Allocator) u32 {
         const p = self.allocateProp(alloc) catch return prop.Null;
 

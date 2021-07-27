@@ -31,4 +31,17 @@ pub const Plane = struct {
 
         return false;
     }
+
+    pub fn intersectP(ray: *const Ray, trafo: *const Transformation) bool {
+        const n = trafo.rotation.r[2];
+
+        const d = n.dot3(trafo.position);
+        const hit_t = -(n.dot3(ray.origin) - d) / n.dot3(ray.direction);
+
+        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+            return true;
+        }
+
+        return false;
+    }
 };

@@ -20,4 +20,8 @@ pub const Worker = struct {
     pub fn intersect(self: Worker, ray: *Ray, isec: *Intersection) bool {
         return self.scene.intersect(ray, isec);
     }
+
+    pub fn intersectP(self: Worker, ray: *const Ray) bool {
+        return self.scene.intersectP(ray);
+    }
 };
