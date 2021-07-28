@@ -29,6 +29,14 @@ pub fn main() !void {
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
 
+    const num_workers = thread.Pool.availableCores(options.threads);
+
+    stdout.print("#Threads {}\n", .{num_workers}) catch unreachable;
+
+    var threads: thread.Pool = undefined;
+    try threads.configure(alloc, num_workers);
+    defer threads.deinit(alloc);
+
     var resources = resource.Manager.init(alloc);
     defer resources.deinit(alloc);
 
@@ -48,6 +56,8 @@ pub fn main() !void {
         return;
     };
 
+    stdout.print("Rendering...\n", .{}) catch unreachable;
+
     const rendering_start = std.time.milliTimestamp();
 
     var driver = try rendering.Driver.init(alloc);
@@ -58,12 +68,12 @@ pub fn main() !void {
     driver.render();
     driver.exportFrame();
 
-    stdout.print("Rendering time {} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
+    stdout.print("Rendering time {d} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
     var png_writer = Png_writer{};
     defer png_writer.deinit(alloc);
     try png_writer.write(alloc, driver.target);
 
-    std.debug.print("Export time {} s\n", .{chrono.secondsSince(export_start)});
+    stdout.print("Export time {d} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
 }
