@@ -3,7 +3,7 @@ pub const View = @import("take.zig").View;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
-
+const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 
 const base = @import("base");
@@ -34,11 +34,17 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
 
     const root = document.root;
 
-    var iter = root.Object.iterator();
+    var integrator_value_ptr: ?*std.json.Value = null;
+    var sampler_value_ptr: ?*std.json.Value = null;
 
+    var iter = root.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
             loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
+        } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
+            integrator_value_ptr = entry.value_ptr;
+        } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+            sampler_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "scene", entry.key_ptr.*)) {
             const string = entry.value_ptr.String;
             take.scene_filename = try alloc.alloc(u8, string.len);
@@ -46,6 +52,14 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
                 std.mem.copy(u8, filename, string);
             }
         }
+    }
+
+    if (integrator_value_ptr) |integrator_value| {
+        loadIntegrators(integrator_value.*, &take.view);
+    }
+
+    if (sampler_value_ptr) |sampler_value| {
+        loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
 
     return take;
@@ -76,7 +90,6 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
 
     if (type_value_ptr) |type_value| {
         var iter = type_value.Object.iterator();
-
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
                 const fov = entry.value_ptr.Object.get("fov") orelse continue;
@@ -111,4 +124,39 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     _ = value;
 
     return snsr.Sensor{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque){} };
+}
+
+fn loadIntegrators(value: std.json.Value, view: *View) void {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
+            loadSurfaceIntegrator(entry.value_ptr.*, view);
+        }
+    }
+}
+
+fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "AO", entry.key_ptr.*)) {
+            const num_samples = json.readUintMember(entry.value_ptr.*, "num_samples", 1);
+
+            const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
+
+            view.surfaces = surface.Factory{ .AO = surface.AO_factory{
+                .settings = .{ .num_samples = num_samples, .radius = radius },
+            } };
+        }
+    }
+}
+
+fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) void {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        num_samples_per_pixel.* = json.readUintMember(entry.value_ptr.*, "samples_per_pixel", 1);
+
+        if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
+            return;
+        }
+    }
 }

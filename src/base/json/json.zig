@@ -10,6 +10,18 @@ pub fn readFloat(value: Value) f32 {
     };
 }
 
+pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
+    const member = value.Object.get(name) orelse return default;
+
+    return readFloat(member);
+}
+
+pub fn readUintMember(value: Value, name: []const u8, default: u32) u32 {
+    const member = value.Object.get(name) orelse return default;
+
+    return @intCast(u32, member.Integer);
+}
+
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
     const member = value.Object.get(name) orelse return default;
 

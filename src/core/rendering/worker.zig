@@ -1,32 +1,51 @@
-const View = @import("../take/take.zig").View;
+const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Scene_worker = @import("../scene/worker.zig").Worker;
 
-const srfc = @import("integrator/surface/integrator.zig");
+const surface = @import("integrator/surface/integrator.zig");
 
 usingnamespace @import("base");
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-//const std = @import("std");
+const Allocator = @import("std").mem.Allocator;
 
 pub const Worker = struct {
     worker: Scene_worker,
 
     sampler: Sampler,
 
-    surface: srfc.Integrator,
+    surface_integrator: surface.Integrator,
 
-    pub fn configure(self: *Worker, view: *View, scene: *Scene) void {
-        self.worker.configure(view, scene);
+    pub fn deinit(self: *Worker, alloc: *Allocator) void {
+        self.surface_integrator.deinit(alloc);
     }
 
-    pub fn render(self: *Worker, tile: Vec4i) void {
-        var camera = &self.worker.view.camera;
+    // pub fn init(surface_integrator: surface.Integrator) Worker {
+    //     return .{.surface_integrator = surface_integrator};
+    // }
+
+    pub fn configure(
+        self: *Worker,
+        alloc: *Allocator,
+        camera: *cam.Perspective,
+        scene: *Scene,
+        num_samples_per_pixel: u32,
+        surfaces: surface.Factory,
+    ) !void {
+        self.worker.configure(camera, scene);
+
+        self.sampler = .{ .Random = {} };
+
+        self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
+    }
+
+    pub fn render(self: *Worker, tile: Vec4i, num_samples: u32) void {
+        var camera = self.worker.camera;
         const sensor = &camera.sensor;
         const scene = self.worker.scene;
 
@@ -59,7 +78,7 @@ pub const Worker = struct {
             while (x <= x_back) : (x += 1) {
                 self.worker.rng.start(0, o1 + @intCast(u64, x + fr));
 
-                const num_samples = 16;
+                self.surface_integrator.startPixel();
 
                 const pixel = Vec2i.init2(x, y);
 
@@ -78,11 +97,11 @@ pub const Worker = struct {
         }
     }
 
-    pub fn li(self: *Worker, ray: *Ray) Vec4f {
+    fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
 
         if (self.worker.intersect(ray, &isec)) {
-            return self.surface.li(ray, &isec, self);
+            return self.surface_integrator.li(ray, &isec, self);
         }
 
         return Vec4f.init1(0.0);

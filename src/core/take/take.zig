@@ -1,10 +1,16 @@
 const cam = @import("../camera/perspective.zig");
 
+const Surface_factory = @import("../rendering/integrator/surface/integrator.zig").Factory;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const View = struct {
+    surfaces: Surface_factory = undefined,
+
     camera: cam.Perspective,
+
+    num_samples_per_pixel: u32 = 1,
 };
 
 pub const Take = struct {

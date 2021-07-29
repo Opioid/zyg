@@ -3,6 +3,7 @@ pub const Quaternion = quaternion.Quaternion;
 pub usingnamespace @import("matrix3x3.zig");
 pub usingnamespace @import("matrix4x4.zig");
 pub usingnamespace @import("ray.zig");
+pub usingnamespace @import("sample_distribution.zig");
 pub const sample = @import("sample.zig");
 pub usingnamespace @import("transformation.zig");
 pub usingnamespace @import("vector2.zig");

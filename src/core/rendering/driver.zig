@@ -38,6 +38,11 @@ pub const Driver = struct {
 
     pub fn deinit(self: *Driver, alloc: *Allocator) void {
         self.target.deinit(alloc);
+
+        for (self.workers) |*w| {
+            w.deinit(alloc);
+        }
+
         alloc.free(self.workers);
     }
 
@@ -52,7 +57,7 @@ pub const Driver = struct {
         try camera.sensor.resize(alloc, dim);
 
         for (self.workers) |*w| {
-            w.configure(view, scene);
+            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.surfaces);
         }
 
         self.tiles.configure(camera.crop, 32, 0);
@@ -61,6 +66,10 @@ pub const Driver = struct {
     }
 
     pub fn render(self: *Driver) void {
+        if (0 == self.view.num_samples_per_pixel) {
+            return;
+        }
+
         var camera = &self.view.camera;
 
         const camera_pos = self.scene.propWorldPosition(camera.entity);
@@ -85,8 +94,10 @@ pub const Driver = struct {
     fn renderTiles(context: *ThreadContext, id: u32) void {
         const self = @ptrCast(*Driver, context);
 
+        const num_samples = self.view.num_samples_per_pixel;
+
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(tile);
+            self.workers[id].render(tile, num_samples);
 
             self.progressor.tick();
         }
