@@ -60,7 +60,7 @@ pub fn main() !void {
 
     const rendering_start = std.time.milliTimestamp();
 
-    var driver = try rendering.Driver.init(alloc);
+    var driver = try rendering.Driver.init(alloc, &threads);
     defer driver.deinit(alloc);
 
     try driver.configure(alloc, &take.view, &scene);
@@ -68,12 +68,12 @@ pub fn main() !void {
     driver.render();
     driver.exportFrame();
 
-    stdout.print("Rendering time {d} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
+    stdout.print("Rendering time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
     var png_writer = Png_writer{};
     defer png_writer.deinit(alloc);
     try png_writer.write(alloc, driver.target);
 
-    stdout.print("Export time {d} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
+    stdout.print("Export time {d:.2} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
 }

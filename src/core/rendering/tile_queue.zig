@@ -35,9 +35,7 @@ pub const TileQueue = struct {
     }
 
     pub fn pop(self: *TileQueue) ?Vec4i {
-        const current = self.current_consume;
-
-        self.current_consume += 1;
+        const current = @atomicRmw(i32, &self.current_consume, .Add, 1, .Monotonic);
 
         if (current >= self.num_tiles) {
             return null;

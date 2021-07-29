@@ -6,11 +6,18 @@ const TileQueue = @import("tile_queue.zig").TileQueue;
 const img = @import("../image/image.zig");
 const progress = @import("../progress/std_out.zig");
 
-usingnamespace @import("base").math;
+const base = @import("base");
+usingnamespace base;
+usingnamespace base.math;
 
+const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
+const ThreadContext = thread.Pool.Context;
+
 pub const Driver = struct {
+    threads: *thread.Pool,
+
     view: *View = undefined,
     scene: *Scene = undefined,
 
@@ -22,9 +29,10 @@ pub const Driver = struct {
 
     progressor: progress.StdOut = undefined,
 
-    pub fn init(alloc: *Allocator) !Driver {
+    pub fn init(alloc: *Allocator, threads: *thread.Pool) !Driver {
         return Driver{
-            .workers = try alloc.alloc(Worker, 1),
+            .threads = threads,
+            .workers = try alloc.alloc(Worker, threads.numThreads()),
         };
     }
 
@@ -67,14 +75,20 @@ pub const Driver = struct {
 
         self.tiles.restart();
 
-        while (self.tiles.pop()) |tile| {
-            self.workers[0].render(tile);
-
-            self.progressor.tick();
-        }
+        self.threads.runParallel(self, renderTiles);
     }
 
     pub fn exportFrame(self: *Driver) void {
         self.view.camera.sensor.resolve(&self.target);
+    }
+
+    fn renderTiles(context: *ThreadContext, id: u32) void {
+        const self = @ptrCast(*Driver, context);
+
+        while (self.tiles.pop()) |tile| {
+            self.workers[id].render(tile);
+
+            self.progressor.tick();
+        }
     }
 };

@@ -11,8 +11,17 @@ const Unique = struct {
 };
 
 pub const Pool = struct {
+    pub const Context = u64;
+
+    const ParalllelProgram = fn (context: *Context, id: u32) void;
+
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
+
+    parallel_context: *Context,
+    parallel_program: ParalllelProgram,
+
+    quit: bool,
 
     pub fn availableCores(request: i32) u32 {
         const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
@@ -41,7 +50,9 @@ pub const Pool = struct {
     }
 
     pub fn deinit(self: *Pool, alloc: *Allocator) void {
-        self.wake_all();
+        self.quit = true;
+
+        self.wakeAll();
 
         for (self.threads) |thread| {
             thread.join();
@@ -51,10 +62,25 @@ pub const Pool = struct {
         alloc.free(self.uniques);
     }
 
-    fn wake_all(self: *const Pool) void {
-        for (self.uniques) |*u| {
-            std.debug.print("we wait\n", .{});
+    pub fn numThreads(self: Pool) u32 {
+        return @intCast(u32, self.threads.len);
+    }
 
+    pub fn runParallel(self: *Pool, context: anytype, program: ParalllelProgram) void {
+        self.runParallelInt(@ptrCast(*Context, context), program);
+    }
+
+    fn runParallelInt(self: *Pool, context: *Context, program: ParalllelProgram) void {
+        self.parallel_context = context;
+        self.parallel_program = program;
+
+        self.wakeAll();
+
+        self.waitAll();
+    }
+
+    fn wakeAll(self: *const Pool) void {
+        for (self.uniques) |*u| {
             const lock = u.mutex.acquire();
             u.wake = true;
             lock.release();
@@ -63,20 +89,36 @@ pub const Pool = struct {
         }
     }
 
+    fn waitAll(self: *const Pool) void {
+        for (self.uniques) |*u| {
+            const lock = u.mutex.acquire();
+            defer lock.release();
+
+            while (u.wake) {
+                u.done_signal.wait(&u.mutex);
+            }
+        }
+    }
+
     fn loop(self: *Pool, id: u32) void {
         var u = &self.uniques[id];
 
-        const lock = u.mutex.acquire();
+        while (true) {
+            const lock = u.mutex.acquire();
+            defer lock.release();
 
-        std.debug.print("We come here\n", .{});
+            while (!u.wake) {
+                u.wake_signal.wait(&u.mutex);
+            }
 
-        while (!u.wake) {
-            u.wake_signal.wait(&u.mutex);
+            if (self.quit) {
+                break;
+            }
+
+            self.parallel_program(self.parallel_context, id);
+
+            u.wake = false;
+            u.done_signal.signal();
         }
-
-        u.wake = false;
-        lock.release();
-
-        std.debug.print("I'm thread {}!\n", .{id});
     }
 };
