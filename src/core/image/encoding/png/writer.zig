@@ -9,7 +9,11 @@ const c = @cImport({
 });
 
 pub const Writer = struct {
-    srgb: Srgb = Srgb{},
+    srgb: Srgb = undefined,
+
+    pub fn init(alpha: bool) Writer {
+        return .{ .srgb = .{ .alpha = alpha } };
+    }
 
     pub fn deinit(self: *Writer, alloc: *Allocator) void {
         self.srgb.deinit(alloc);
@@ -29,7 +33,7 @@ pub const Writer = struct {
             @ptrCast(*const c_void, self.srgb.buffer.ptr),
             d.v[0],
             d.v[1],
-            3,
+            if (self.srgb.alpha) 4 else 3,
             &buffer_len,
         );
 

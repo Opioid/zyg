@@ -121,9 +121,20 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
 }
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
-    _ = value;
+    var alpha_transparency = false;
 
-    return snsr.Sensor{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque){} };
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
+            alpha_transparency = json.readBool(entry.value_ptr.*);
+        }
+    }
+
+    if (alpha_transparency) {
+        return snsr.Sensor{ .Unfiltered_transparent = .{} };
+    }
+
+    return snsr.Sensor{ .Unfiltered_opaque = .{} };
 }
 
 fn loadIntegrators(value: std.json.Value, view: *View) void {

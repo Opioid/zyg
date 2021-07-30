@@ -2,6 +2,13 @@ usingnamespace @import("../math/math.zig");
 const std = @import("std");
 const Value = std.json.Value;
 
+pub fn readBool(value: Value) bool {
+    return switch (value) {
+        .Bool => |b| b,
+        else => false,
+    };
+}
+
 pub fn readFloat(value: Value) f32 {
     return switch (value) {
         .Integer => |int| @intToFloat(f32, int),

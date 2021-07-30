@@ -1,5 +1,4 @@
 const Base = @import("base.zig").Base;
-
 const Float4 = @import("../../image/image.zig").Float4;
 
 usingnamespace @import("base").math;
@@ -19,10 +18,10 @@ pub const Opaque = struct {
     pub fn resize(self: *Opaque, alloc: *Allocator, dimensions: Vec2i) !void {
         self.base.dimensions = dimensions;
 
-        const len = dimensions.v[0] * dimensions.v[1];
+        const len = @intCast(usize, dimensions.v[0] * dimensions.v[1]);
 
         if (len > self.pixels.len) {
-            self.pixels = try alloc.realloc(self.pixels, @intCast(usize, len));
+            self.pixels = try alloc.realloc(self.pixels, len);
         }
     }
 

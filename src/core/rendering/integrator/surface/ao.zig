@@ -51,7 +51,7 @@ pub const AO = struct {
         occlusion_ray.ray.setDirection(ws);
 
         if (worker.worker.intersectP(&occlusion_ray)) {
-            return Vec4f.init1(0.0);
+            return Vec4f.init4(0.0, 0.0, 0.0, 1.0);
         } else {
             return Vec4f.init1(1.0);
         }

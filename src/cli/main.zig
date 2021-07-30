@@ -71,7 +71,7 @@ pub fn main() !void {
     stdout.print("Rendering time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
-    var png_writer = Png_writer{};
+    var png_writer = Png_writer.init(take.view.camera.sensor.alphaTransparency());
     defer png_writer.deinit(alloc);
     try png_writer.write(alloc, driver.target);
 

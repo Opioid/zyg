@@ -76,6 +76,11 @@ pub fn Vec4(comptime T: type) type {
             return init3(v.v[0] * is, v.v[1] * is, v.v[2] * is);
         }
 
+        pub fn divScalar4(v: Vec4(T), s: T) Vec4(T) {
+            const is = 1.0 / s;
+            return init4(v.v[0] * is, v.v[1] * is, v.v[2] * is, v.v[3] * is);
+        }
+
         pub fn dot3(a: Vec4(T), b: Vec4(T)) T {
             return a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2];
         }
