@@ -1,4 +1,4 @@
-usingnamespace @import("../math/math.zig");
+usingnamespace @import("math/math.zig");
 const std = @import("std");
 const Value = std.json.Value;
 

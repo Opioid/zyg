@@ -90,6 +90,8 @@ pub const Pool = struct {
     }
 
     fn waitAll(self: *const Pool) void {
+        //  std.debug.print("waitAll\n", .{});
+
         for (self.uniques) |*u| {
             const lock = u.mutex.acquire();
             defer lock.release();
@@ -98,6 +100,8 @@ pub const Pool = struct {
                 u.done_signal.wait(&u.mutex);
             }
         }
+
+        //      std.debug.print("after waitAll\n", .{});
     }
 
     fn loop(self: *Pool, id: u32) void {
@@ -107,13 +111,18 @@ pub const Pool = struct {
             const lock = u.mutex.acquire();
             defer lock.release();
 
+            //      std.debug.print("before wait\n", .{});
+
             while (!u.wake) {
                 u.wake_signal.wait(&u.mutex);
             }
 
             if (self.quit) {
+                //   std.debug.print("quit{}\n", .{self.quit});
                 break;
             }
+
+            //    std.debug.print("before working\n", .{});
 
             self.parallel_program(self.parallel_context, id);
 
