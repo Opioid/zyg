@@ -40,3 +40,23 @@ pub const Sampler = union(enum) {
         };
     }
 };
+
+pub const Factory = union(enum) {
+    Random,
+    Golden_ratio,
+
+    pub fn create(
+        self: Factory,
+        alloc: *Allocator,
+        num_dimensions_1D: u32,
+        num_dimensions_2D: u32,
+        max_samples: u32,
+    ) !Sampler {
+        return switch (self) {
+            .Random => Sampler{ .Random = {} },
+            .Golden_ratio => Sampler{
+                .Golden_ratio = try Golden_ratio.init(alloc, num_dimensions_1D, num_dimensions_2D, max_samples),
+            },
+        };
+    }
+};

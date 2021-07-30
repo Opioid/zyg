@@ -1,3 +1,5 @@
+pub const interpolated_function = @import("interpolated_function.zig");
+pub usingnamespace interpolated_function;
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;
 pub usingnamespace @import("matrix3x3.zig");
@@ -14,4 +16,9 @@ const std = @import("std");
 
 pub fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
     return degrees * std.math.pi / 180.0;
+}
+
+pub fn lerp(a: f32, b: f32, t: f32) f32 {
+    const u = 1.0 - t;
+    return u * a + t * b;
 }

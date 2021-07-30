@@ -57,7 +57,7 @@ pub const Driver = struct {
         try camera.sensor.resize(alloc, dim);
 
         for (self.workers) |*w| {
-            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.surfaces);
+            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.samplers, view.surfaces);
         }
 
         self.tiles.configure(camera.crop, 32, 0);

@@ -13,15 +13,15 @@ const Unique = struct {
 pub const Pool = struct {
     pub const Context = u64;
 
-    const ParalllelProgram = fn (context: *Context, id: u32) void;
+    const ParallelProgram = fn (context: *Context, id: u32) void;
 
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
 
     parallel_context: *Context,
-    parallel_program: ParalllelProgram,
+    parallel_program: ParallelProgram,
 
-    quit: bool,
+    quit: bool = false,
 
     pub fn availableCores(request: i32) u32 {
         const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
@@ -66,11 +66,11 @@ pub const Pool = struct {
         return @intCast(u32, self.threads.len);
     }
 
-    pub fn runParallel(self: *Pool, context: anytype, program: ParalllelProgram) void {
+    pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram) void {
         self.runParallelInt(@ptrCast(*Context, context), program);
     }
 
-    fn runParallelInt(self: *Pool, context: *Context, program: ParalllelProgram) void {
+    fn runParallelInt(self: *Pool, context: *Context, program: ParallelProgram) void {
         self.parallel_context = context;
         self.parallel_program = program;
 

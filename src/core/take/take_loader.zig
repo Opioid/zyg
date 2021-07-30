@@ -3,6 +3,7 @@ pub const View = @import("take.zig").View;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
+const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 
@@ -59,7 +60,7 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
     }
 
     if (sampler_value_ptr) |sampler_value| {
-        loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
+        take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
 
     return take;
@@ -120,13 +121,68 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
     camera.entity = prop_id;
 }
 
+fn identity(x: f32) f32 {
+    return x;
+}
+
+const Blackman = struct {
+    r: f32,
+
+    pub fn eval(self: Blackman, x: f32) f32 {
+        const a0 = 0.35875;
+        const a1 = 0.48829;
+        const a2 = 0.14128;
+        const a3 = 0.01168;
+
+        const b = (std.math.pi * (x + self.r)) / self.r;
+
+        return a0 - a1 * @cos(b) + a2 * @cos(2.0 * b) - a3 * @cos(3.0 * b);
+    }
+};
+
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
 
-    var iter = value.Object.iterator();
-    while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
-            alpha_transparency = json.readBool(entry.value_ptr.*);
+    var filter_value_ptr: ?*std.json.Value = null;
+
+    {
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
+                alpha_transparency = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
+                filter_value_ptr = entry.value_ptr;
+            }
+        }
+    }
+
+    if (filter_value_ptr) |filter_value| {
+        var iter = filter_value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "Gaussian", entry.key_ptr.*) or
+                std.mem.eql(u8, "Blackman", entry.key_ptr.*) or
+                std.mem.eql(u8, "Mitchell", entry.key_ptr.*))
+            {
+                const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
+
+                if (alpha_transparency) {} else {
+                    if (radius <= 1.0) {
+                        return snsr.Sensor{
+                            .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    } else if (radius <= 2.0) {
+                        return snsr.Sensor{
+                            .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    }
+                }
+            }
         }
     }
 
@@ -161,13 +217,19 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
     }
 }
 
-fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) void {
+fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         num_samples_per_pixel.* = json.readUintMember(entry.value_ptr.*, "samples_per_pixel", 1);
 
+        if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
+            return .{ .Random = {} };
+        }
+
         if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
-            return;
+            return .{ .Golden_ratio = {} };
         }
     }
+
+    return .{ .Random = {} };
 }

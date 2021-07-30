@@ -2,7 +2,8 @@ const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
-const Sampler = @import("../sampler/sampler.zig").Sampler;
+const smpl = @import("../sampler/sampler.zig");
+const Sampler = smpl.Sampler;
 const Scene_worker = @import("../scene/worker.zig").Worker;
 
 const surface = @import("integrator/surface/integrator.zig");
@@ -23,11 +24,8 @@ pub const Worker = struct {
 
     pub fn deinit(self: *Worker, alloc: *Allocator) void {
         self.surface_integrator.deinit(alloc);
+        self.sampler.deinit(alloc);
     }
-
-    // pub fn init(surface_integrator: surface.Integrator) Worker {
-    //     return .{.surface_integrator = surface_integrator};
-    // }
 
     pub fn configure(
         self: *Worker,
@@ -35,11 +33,12 @@ pub const Worker = struct {
         camera: *cam.Perspective,
         scene: *Scene,
         num_samples_per_pixel: u32,
+        samplers: smpl.Factory,
         surfaces: surface.Factory,
     ) !void {
         self.worker.configure(camera, scene);
 
-        self.sampler = .{ .Random = {} };
+        self.sampler = try samplers.create(alloc, 1, 1, num_samples_per_pixel);
 
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
     }
@@ -78,6 +77,7 @@ pub const Worker = struct {
             while (x <= x_back) : (x += 1) {
                 self.worker.rng.start(0, o1 + @intCast(u64, x + fr));
 
+                self.sampler.startPixel();
                 self.surface_integrator.startPixel();
 
                 const pixel = Vec2i.init2(x, y);
@@ -88,9 +88,9 @@ pub const Worker = struct {
 
                     if (camera.generateRay(sample, scene.*)) |*ray| {
                         const color = self.li(ray);
-                        sensor.addSample(sample, color, isolated_bounds, offset, crop);
+                        sensor.addSample(sample, color, offset, isolated_bounds, crop);
                     } else {
-                        sensor.addSample(sample, Vec4f.init1(0.0), isolated_bounds, offset, crop);
+                        sensor.addSample(sample, Vec4f.init1(0.0), offset, isolated_bounds, crop);
                     }
                 }
             }
