@@ -24,7 +24,12 @@ pub const AO = struct {
 
         return AO{
             .settings = settings,
-            .sampler = sampler.Sampler{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 1, 1, total_samples_per_pixel) },
+            .sampler = sampler.Sampler{ .Golden_ratio = try sampler.Golden_ratio.init(
+                alloc,
+                0,
+                1,
+                total_samples_per_pixel,
+            ) },
         };
     }
 
@@ -39,22 +44,29 @@ pub const AO = struct {
     pub fn li(self: *AO, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         _ = ray;
 
+        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+
+        var result: f32 = 0.0;
+
         var occlusion_ray: Ray = undefined;
 
         occlusion_ray.ray.origin = isec.offsetP(isec.geo.geo_n);
         occlusion_ray.ray.setMaxT(self.settings.radius);
 
-        const sample = self.sampler.sample2D(&worker.worker.rng, 0);
+        var i = self.settings.num_samples;
+        while (i > 0) : (i -= 1) {
+            const sample = self.sampler.sample2D(&worker.worker.rng, 0);
 
-        const ws = math.sample.oriented_hemisphere_cosine(sample, isec.geo.t, isec.geo.b, isec.geo.n);
+            const ws = math.sample.oriented_hemisphere_cosine(sample, isec.geo.t, isec.geo.b, isec.geo.n);
 
-        occlusion_ray.ray.setDirection(ws);
+            occlusion_ray.ray.setDirection(ws);
 
-        if (worker.worker.intersectP(&occlusion_ray)) {
-            return Vec4f.init4(0.0, 0.0, 0.0, 1.0);
-        } else {
-            return Vec4f.init1(1.0);
+            if (!worker.worker.intersectP(&occlusion_ray)) {
+                result += num_samples_reciprocal;
+            }
         }
+
+        return Vec4f.init4(result, result, result, 1.0);
     }
 };
 
