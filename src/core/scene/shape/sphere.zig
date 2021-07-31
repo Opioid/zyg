@@ -10,7 +10,7 @@ const Intersection = @import("../shape/intersection.zig").Intersection;
 const std = @import("std");
 
 pub const Sphere = struct {
-    fn intersectDetail(hit_t: f32, ray: *const Ray, trafo: *const Transformation, isec: *Intersection) void {
+    fn intersectDetail(hit_t: f32, ray: Ray, trafo: Transformation, isec: *Intersection) void {
         const p = ray.point(hit_t);
         const n = p.sub3(trafo.position).normalize3();
 
@@ -38,7 +38,7 @@ pub const Sphere = struct {
         isec.b = t.cross3(n).neg3();
     }
 
-    pub fn intersect(ray: *Ray, trafo: *const Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         const v = trafo.position.sub3(ray.origin);
 
         const b = ray.direction.dot3(v);
@@ -54,7 +54,7 @@ pub const Sphere = struct {
             const t0 = b - dist;
 
             if (t0 > ray.minT() and t0 < ray.maxT()) {
-                intersectDetail(t0, ray, trafo, isec);
+                intersectDetail(t0, ray.*, trafo, isec);
 
                 ray.setMaxT(t0);
                 return true;
@@ -63,7 +63,7 @@ pub const Sphere = struct {
             const t1 = b + dist;
 
             if (t1 > ray.minT() and t1 < ray.maxT()) {
-                intersectDetail(t1, ray, trafo, isec);
+                intersectDetail(t1, ray.*, trafo, isec);
 
                 ray.setMaxT(t1);
                 return true;
@@ -73,7 +73,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn intersectP(ray: *const Ray, trafo: *const Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
         const v = trafo.position.sub3(ray.origin);
 
         const b = ray.direction.dot3(v);

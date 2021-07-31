@@ -62,7 +62,7 @@ pub const Scene = struct {
         return hit;
     }
 
-    pub fn intersectP(self: Scene, ray: *const Ray) bool {
+    pub fn intersectP(self: Scene, ray: Ray) bool {
         for (self.props.items) |p, i| {
             if (p.intersectP(i, ray, self)) {
                 return true;
@@ -92,8 +92,8 @@ pub const Scene = struct {
         return self.prop_world_positions.items[entity];
     }
 
-    pub fn propTransformationAt(self: Scene, entity: usize) *const Transformation {
-        return &self.prop_world_transformations.items[entity];
+    pub fn propTransformationAt(self: Scene, entity: usize) Transformation {
+        return self.prop_world_transformations.items[entity];
     }
 
     pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {

@@ -32,11 +32,11 @@ pub const Prop = struct {
         return scene.propShape(entity).intersect(&ray.ray, trafo, isec);
     }
 
-    pub fn intersectP(self: Prop, entity: usize, ray: *const Ray, scene: Scene) bool {
+    pub fn intersectP(self: Prop, entity: usize, ray: Ray, scene: Scene) bool {
         _ = self;
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersectP(&ray.ray, trafo);
+        return scene.propShape(entity).intersectP(ray.ray, trafo);
     }
 };

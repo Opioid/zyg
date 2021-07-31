@@ -15,7 +15,7 @@ pub const Shape = union(enum) {
     Plane: Plane,
     Sphere: Sphere,
 
-    pub fn intersect(self: Shape, ray: *Ray, trafo: *const Transformation, isec: *Intersection) bool {
+    pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
             .Plane => Plane.intersect(ray, trafo, isec),
@@ -23,7 +23,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersectP(self: Shape, ray: *const Ray, trafo: *const Transformation) bool {
+    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation) bool {
         return switch (self) {
             .Null => false,
             .Plane => Plane.intersectP(ray, trafo),

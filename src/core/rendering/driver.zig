@@ -78,6 +78,10 @@ pub const Driver = struct {
 
         camera.update();
 
+        std.debug.print("Tracing camera rays...\n", .{});
+
+        const start = std.time.milliTimestamp();
+
         camera.sensor.clear(0.0);
 
         self.progressor.start(self.tiles.size());
@@ -85,6 +89,8 @@ pub const Driver = struct {
         self.tiles.restart();
 
         self.threads.runParallel(self, renderTiles);
+
+        std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(start)});
     }
 
     pub fn exportFrame(self: *Driver) void {

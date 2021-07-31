@@ -8,9 +8,8 @@ const Transformation = @import("../composed_transformation.zig").Composed_transf
 const Intersection = @import("../shape/intersection.zig").Intersection;
 
 pub const Plane = struct {
-    pub fn intersect(ray: *Ray, trafo: *const Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         const n = trafo.rotation.r[2];
-
         const d = n.dot3(trafo.position);
         const hit_t = -(n.dot3(ray.origin) - d) / n.dot3(ray.direction);
 
@@ -32,9 +31,8 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn intersectP(ray: *const Ray, trafo: *const Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
         const n = trafo.rotation.r[2];
-
         const d = n.dot3(trafo.position);
         const hit_t = -(n.dot3(ray.origin) - d) / n.dot3(ray.direction);
 

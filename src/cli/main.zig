@@ -56,12 +56,12 @@ pub fn main() !void {
         return;
     };
 
+    var driver = try rendering.Driver.init(alloc, &threads);
+    defer driver.deinit(alloc);
+
     stdout.print("Rendering...\n", .{}) catch unreachable;
 
     const rendering_start = std.time.milliTimestamp();
-
-    var driver = try rendering.Driver.init(alloc, &threads);
-    defer driver.deinit(alloc);
 
     try driver.configure(alloc, &take.view, &scene);
 

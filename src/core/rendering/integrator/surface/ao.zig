@@ -61,7 +61,7 @@ pub const AO = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (!worker.worker.intersectP(&occlusion_ray)) {
+            if (!worker.worker.intersectP(occlusion_ray)) {
                 result += num_samples_reciprocal;
             }
         }
