@@ -18,8 +18,8 @@ pub const Pool = struct {
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
 
-    parallel_context: *Context,
-    parallel_program: ParallelProgram,
+    parallel_context: *Context = undefined,
+    parallel_program: ParallelProgram = undefined,
 
     quit: bool = false,
 
@@ -79,7 +79,7 @@ pub const Pool = struct {
         self.waitAll();
     }
 
-    fn wakeAll(self: *const Pool) void {
+    fn wakeAll(self: Pool) void {
         for (self.uniques) |*u| {
             const lock = u.mutex.acquire();
             u.wake = true;
@@ -89,7 +89,7 @@ pub const Pool = struct {
         }
     }
 
-    fn waitAll(self: *const Pool) void {
+    fn waitAll(self: Pool) void {
         //  std.debug.print("waitAll\n", .{});
 
         for (self.uniques) |*u| {

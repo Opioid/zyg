@@ -33,7 +33,7 @@ pub fn main() !void {
 
     stdout.print("#Threads {}\n", .{num_workers}) catch unreachable;
 
-    var threads: thread.Pool = undefined;
+    var threads: thread.Pool = .{};
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
