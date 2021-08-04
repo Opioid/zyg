@@ -56,6 +56,13 @@ pub fn build(b: *std.build.Builder) void {
     run_cmd.cwd = "/home/beni/workspace/zyg/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
+    } else {
+        run_cmd.addArgs(&[_][]const u8{
+            "-i",
+            "takes/imrod.take",
+            "-t",
+            "8",
+        });
     }
 
     const run_step = b.step("run", "Run the app");

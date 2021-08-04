@@ -8,6 +8,7 @@ const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
+const ReadStream = @import("../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
 usingnamespace base;
@@ -22,9 +23,8 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: *Allocator, scene: *Scene, resources: *Resources) !Take {
-    var stream = try resources.fs.readStream("takes/imrod.take");
-    defer stream.deinit();
+pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *Resources) !Take {
+    _ = resources;
 
     const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
     defer alloc.free(buffer);
@@ -56,8 +56,6 @@ pub fn load(alloc: *Allocator, scene: *Scene, resources: *Resources) !Take {
             std.mem.copy(u8, take.scene_filename, string);
         }
     }
-
-    std.debug.print("{s}\n", .{take.scene_filename});
 
     if (0 == take.scene_filename.len) {
         return Error.NoScene;

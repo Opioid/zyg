@@ -11,23 +11,6 @@ const Options = @import("options/options.zig").Options;
 const std = @import("std");
 
 pub fn main() !void {
-    // const f = try std.fs.cwd().openFile("text.txt", .{});
-    // //    var reader = std.io.bufferedReader(f.reader());
-
-    // var read_stream = file.ReadStream.init(f);
-    // defer read_stream.deinit();
-
-    // var buf: [4]u8 = undefined;
-
-    // //_ = try reader.read(buf[0..]);
-    // _ = try read_stream.read(buf[0..]);
-    // std.debug.print("{s}", .{buf});
-
-    // try read_stream.seekTo(0);
-
-    // _ = try read_stream.read(buf[0..]);
-    // std.debug.print("{s}", .{buf});
-
     const stdout = std.io.getStdOut().writer();
 
     stdout.print("Welcome to zyg!\n", .{}) catch unreachable;
@@ -75,7 +58,9 @@ pub fn main() !void {
     var scene = try scn.Scene.init(alloc, &resources.shapes.resources, scene_loader.null_shape);
     defer scene.deinit(alloc);
 
-    var take = tk.load(alloc, &scene, &resources) catch |err| {
+    var stream = try resources.fs.readStream("takes/imrod.take");
+
+    var take = tk.load(alloc, &stream, &scene, &resources) catch |err| {
         std.debug.print("Loading take {} \n", .{err});
         return;
     };
