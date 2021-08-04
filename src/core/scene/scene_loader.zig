@@ -1,7 +1,8 @@
 pub const Scene = @import("scene.zig").Scene;
 pub const prp = @import("prop/prop.zig");
 const resource = @import("../resource/manager.zig");
-const shp = @import("shape/shape.zig");
+const Resources = resource.Manager;
+const Shape = @import("shape/shape.zig").Shape;
 
 const base = @import("base");
 usingnamespace base;
@@ -11,28 +12,26 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Loader = struct {
-    resources: *resource.Manager,
+    resources: *Resources,
 
     null_shape: u32,
     plane: u32,
     sphere: u32,
 
-    pub fn init(alloc: *Allocator, resources: *resource.Manager) !Loader {
+    pub fn init(alloc: *Allocator, resources: *Resources) Loader {
         return Loader{
             .resources = resources,
-            .null_shape = try resources.shapes.store(alloc, shp.Shape{ .Null = {} }),
-            .plane = try resources.shapes.store(alloc, shp.Shape{ .Plane = shp.Plane{} }),
-            .sphere = try resources.shapes.store(alloc, shp.Shape{ .Sphere = shp.Sphere{} }),
+            .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }),
+            .plane = resources.shapes.store(alloc, Shape{ .Plane = .{} }),
+            .sphere = resources.shapes.store(alloc, Shape{ .Sphere = .{} }),
         };
     }
 
-    pub fn load(self: *Loader, alloc: *Allocator, scene: *Scene) !void {
-        var file = try std.fs.cwd().openFile("imrod.scene", .{});
-        defer file.close();
+    pub fn load(self: *Loader, alloc: *Allocator, filename: []const u8, scene: *Scene) !void {
+        var stream = try self.resources.fs.readStream(filename);
+        defer stream.deinit();
 
-        const reader = file.reader();
-
-        const buffer = try reader.readAllAlloc(alloc, std.math.maxInt(u64));
+        const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
         defer alloc.free(buffer);
 
         var parser = std.json.Parser.init(alloc, false);
@@ -44,7 +43,6 @@ pub const Loader = struct {
         const root = document.root;
 
         var iter = root.Object.iterator();
-
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                 try self.loadEntities(alloc, entry.value_ptr.*, scene);
@@ -112,12 +110,10 @@ pub const Loader = struct {
             return self.getShape(type_name);
         }
 
-        // const file = json.readStringMember(value, "file", "");
-        // if (type_name.len > 0) {
-        //     return file(type_name);
-        // }
-
-        _ = alloc;
+        const file = json.readStringMember(value, "file", "");
+        if (file.len > 0) {
+            return self.resources.load(Shape, alloc, file) catch resource.Null;
+        }
 
         return resource.Null;
     }

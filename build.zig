@@ -45,11 +45,15 @@ pub fn build(b: *std.build.Builder) void {
     zyg.setTarget(target);
     zyg.setBuildMode(mode);
     zyg.linkLibC();
+
+    // zyg.sanitize_thread = true;
     // zyg.strip = true;
+
     zyg.install();
 
     const run_cmd = zyg.run();
     run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.cwd = "/home/beni/workspace/zyg/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }

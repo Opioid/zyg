@@ -5,7 +5,7 @@ const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
 
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
-const Intersection = @import("../shape/intersection.zig").Intersection;
+const Intersection = @import("intersection.zig").Intersection;
 
 const std = @import("std");
 

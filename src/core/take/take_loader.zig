@@ -1,11 +1,13 @@
-pub const Take = @import("take.zig").Take;
-pub const View = @import("take.zig").View;
+const tk = @import("take.zig");
+pub const Take = tk.Take;
+pub const View = tk.View;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Scene = @import("../scene/scene.zig").Scene;
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 usingnamespace base;
@@ -16,15 +18,15 @@ const Allocator = std.mem.Allocator;
 
 usingnamespace @import("base");
 
-pub fn load(alloc: *Allocator, scene: *Scene) !Take {
-    var take = Take.init();
+const Error = error{
+    NoScene,
+};
 
-    var file = try std.fs.cwd().openFile("imrod.take", .{});
-    defer file.close();
+pub fn load(alloc: *Allocator, scene: *Scene, resources: *Resources) !Take {
+    var stream = try resources.fs.readStream("takes/imrod.take");
+    defer stream.deinit();
 
-    const reader = file.reader();
-
-    const buffer = try reader.readAllAlloc(alloc, 100000);
+    const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
     defer alloc.free(buffer);
 
     var parser = std.json.Parser.init(alloc, false);
@@ -32,6 +34,8 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
 
     var document = try parser.parse(buffer);
     defer document.deinit();
+
+    var take = Take.init();
 
     const root = document.root;
 
@@ -49,10 +53,14 @@ pub fn load(alloc: *Allocator, scene: *Scene) !Take {
         } else if (std.mem.eql(u8, "scene", entry.key_ptr.*)) {
             const string = entry.value_ptr.String;
             take.scene_filename = try alloc.alloc(u8, string.len);
-            if (take.scene_filename) |filename| {
-                std.mem.copy(u8, filename, string);
-            }
+            std.mem.copy(u8, take.scene_filename, string);
         }
+    }
+
+    std.debug.print("{s}\n", .{take.scene_filename});
+
+    if (0 == take.scene_filename.len) {
+        return Error.NoScene;
     }
 
     if (integrator_value_ptr) |integrator_value| {

@@ -1,4 +1,5 @@
 pub const camera = @import("camera/perspective.zig");
+pub const file = @import("file/read_stream.zig");
 pub const image = @import("image/image.zig");
 pub const rendering = @import("rendering/driver.zig");
 pub const resource = @import("resource/manager.zig");

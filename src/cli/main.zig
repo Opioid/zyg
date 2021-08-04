@@ -11,6 +11,23 @@ const Options = @import("options/options.zig").Options;
 const std = @import("std");
 
 pub fn main() !void {
+    // const f = try std.fs.cwd().openFile("text.txt", .{});
+    // //    var reader = std.io.bufferedReader(f.reader());
+
+    // var read_stream = file.ReadStream.init(f);
+    // defer read_stream.deinit();
+
+    // var buf: [4]u8 = undefined;
+
+    // //_ = try reader.read(buf[0..]);
+    // _ = try read_stream.read(buf[0..]);
+    // std.debug.print("{s}", .{buf});
+
+    // try read_stream.seekTo(0);
+
+    // _ = try read_stream.read(buf[0..]);
+    // std.debug.print("{s}", .{buf});
+
     const stdout = std.io.getStdOut().writer();
 
     stdout.print("Welcome to zyg!\n", .{}) catch unreachable;
@@ -37,22 +54,35 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager.init(alloc);
+    var resources = resource.Manager{};
+
+    resources.shapes = resource.Shapes.init(alloc, resource.Triangle_mesh_provider{});
+
     defer resources.deinit(alloc);
 
-    var scene_loader = try scn.Loader.init(alloc, &resources);
+    var fs = &resources.fs;
+
+    if (0 == options.mounts.items.len) {
+        try fs.pushMount(alloc, "../data");
+    } else {
+        for (options.mounts.items) |i| {
+            try fs.pushMount(alloc, i);
+        }
+    }
+
+    var scene_loader = scn.Loader.init(alloc, &resources);
 
     var scene = try scn.Scene.init(alloc, &resources.shapes.resources, scene_loader.null_shape);
     defer scene.deinit(alloc);
 
-    var take = tk.load(alloc, &scene) catch |err| {
-        std.debug.print("error {} \n", .{err});
+    var take = tk.load(alloc, &scene, &resources) catch |err| {
+        std.debug.print("Loading take {} \n", .{err});
         return;
     };
     defer take.deinit(alloc);
 
-    scene_loader.load(alloc, &scene) catch |err| {
-        std.debug.print("error {} \n", .{err});
+    scene_loader.load(alloc, take.scene_filename, &scene) catch |err| {
+        std.debug.print("Loading scene {} \n", .{err});
         return;
     };
 

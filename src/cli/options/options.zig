@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 pub const Options = struct {
     take: ?[]u8 = null,
 
-    mounts: std.ArrayListUnmanaged([]u8),
+    mounts: std.ArrayListUnmanaged([]u8) = .{},
 
     threads: i32 = 0,
 
@@ -16,13 +16,13 @@ pub const Options = struct {
             alloc.free(mount);
         }
 
+        self.mounts.deinit(alloc);
+
         if (self.take) |take| alloc.free(take);
     }
 
     pub fn parse(alloc: *Allocator, args: std.process.ArgIterator) !Options {
-        var options = Options{
-            .mounts = std.ArrayListUnmanaged([]u8){},
-        };
+        var options = Options{};
 
         var iter = args;
 

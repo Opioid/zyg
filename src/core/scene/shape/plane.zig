@@ -5,7 +5,7 @@ usingnamespace base;
 const Ray = base.math.Ray;
 
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
-const Intersection = @import("../shape/intersection.zig").Intersection;
+const Intersection = @import("intersection.zig").Intersection;
 
 pub const Plane = struct {
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {

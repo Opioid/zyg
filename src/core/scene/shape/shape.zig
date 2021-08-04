@@ -1,5 +1,6 @@
 pub const Plane = @import("plane.zig").Plane;
 pub const Sphere = @import("sphere.zig").Sphere;
+pub const Triangle_mesh = @import("triangle/mesh.zig").Mesh;
 const Intersection = @import("intersection.zig").Intersection;
 
 const base = @import("base");
@@ -14,12 +15,14 @@ pub const Shape = union(enum) {
     Null,
     Plane: Plane,
     Sphere: Sphere,
+    Triangle_mesh: Triangle_mesh,
 
     pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
             .Plane => Plane.intersect(ray, trafo, isec),
             .Sphere => Sphere.intersect(ray, trafo, isec),
+            .Triangle_mesh => |m| m.intersect(ray, trafo, isec),
         };
     }
 
@@ -28,6 +31,7 @@ pub const Shape = union(enum) {
             .Null => false,
             .Plane => Plane.intersectP(ray, trafo),
             .Sphere => Sphere.intersectP(ray, trafo),
+            .Triangle_mesh => |m| m.intersectP(ray, trafo),
         };
     }
 };

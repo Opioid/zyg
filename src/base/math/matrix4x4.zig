@@ -58,4 +58,20 @@ pub const Mat4x4 = struct {
     pub fn setElem(self: *Mat4x4, y: u32, x: u32, s: f32) void {
         self.r[y].v[x] = s;
     }
+
+    pub fn transformVector(self: Mat4x4, v: Vec4f) Vec4f {
+        return Vec4f.init3(
+            v.v[0] * self.m(0, 0) + v.v[1] * self.m(1, 0) + v.v[2] * self.m(2, 0),
+            v.v[0] * self.m(0, 1) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(2, 1),
+            v.v[0] * self.m(0, 2) + v.v[1] * self.m(1, 2) + v.v[2] * self.m(2, 2),
+        );
+    }
+
+    pub fn transformPoint(self: Mat4x4, v: Vec4f) Vec4f {
+        return Vec4f.init3(
+            v.v[0] * self.m(0, 0) + v.v[1] * self.m(1, 0) + v.v[2] * self.m(2, 0) + self.m(3, 0),
+            v.v[0] * self.m(0, 1) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(2, 1) + self.m(3, 1),
+            v.v[0] * self.m(0, 2) + v.v[1] * self.m(1, 2) + v.v[2] * self.m(2, 2) + self.m(3, 2),
+        );
+    }
 };
