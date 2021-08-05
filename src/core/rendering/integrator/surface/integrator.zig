@@ -35,10 +35,18 @@ pub const Integrator = union(enum) {
 };
 
 pub const Factory = union(enum) {
+    pub const Error = error{
+        Invalid,
+    };
+
+    Invalid,
     AO: AO_factory,
 
     pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !Integrator {
+        //  std.debug.print("{}", .{self});
+
         return switch (self) {
+            .Invalid => Error.Invalid,
             .AO => |ao| Integrator{ .AO = try ao.create(alloc, max_samples_per_pixel) },
         };
     }

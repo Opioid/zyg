@@ -7,7 +7,7 @@ const Vec4f = math.Vec4f;
 
 const Allocator = @import("std").mem.Allocator;
 
-//const std = @import("std");
+const std = @import("std");
 
 pub const AO = struct {
     pub const Settings = struct {
@@ -15,9 +15,9 @@ pub const AO = struct {
         radius: f32,
     };
 
-    settings: Settings,
+    settings: Settings = Settings{ .num_samples = 1, .radius = 1.0 },
 
-    sampler: sampler.Sampler,
+    sampler: sampler.Sampler = sampler.Sampler{ .Random = {} },
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !AO {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
@@ -71,7 +71,7 @@ pub const AO = struct {
 };
 
 pub const Factory = struct {
-    settings: AO.Settings,
+    settings: AO.Settings = .{ .num_samples = 1, .radius = 1.0 },
 
     pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !AO {
         return try AO.init(alloc, self.settings, max_samples_per_pixel);

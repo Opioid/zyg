@@ -16,11 +16,11 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Worker = struct {
-    worker: Scene_worker,
+    worker: Scene_worker = undefined,
 
-    sampler: Sampler,
+    sampler: Sampler = undefined,
 
-    surface_integrator: surface.Integrator,
+    surface_integrator: surface.Integrator = undefined,
 
     pub fn deinit(self: *Worker, alloc: *Allocator) void {
         self.surface_integrator.deinit(alloc);

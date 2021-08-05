@@ -6,10 +6,17 @@ const Ray = base.math.Ray;
 
 const Transformation = @import("../../composed_transformation.zig").Composed_transformation;
 const Intersection = @import("../intersection.zig").Intersection;
-const bvh = @import("bvh/tree.zig");
+pub const bvh = @import("bvh/tree.zig");
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Mesh = struct {
-    tree: bvh.Tree,
+    tree: bvh.Tree = .{},
+
+    pub fn deinit(self: *Mesh, alloc: *Allocator) void {
+        self.tree.deinit(alloc);
+    }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         var tray = Ray.init(

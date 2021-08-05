@@ -16,12 +16,14 @@ pub const Loader = struct {
 
     null_shape: u32,
     plane: u32,
+    rectangle: u32,
     sphere: u32,
 
     pub fn init(alloc: *Allocator, resources: *Resources) Loader {
         return Loader{
             .resources = resources,
             .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }),
+            .rectangle = resources.shapes.store(alloc, Shape{ .Rectangle = .{} }),
             .plane = resources.shapes.store(alloc, Shape{ .Plane = .{} }),
             .sphere = resources.shapes.store(alloc, Shape{ .Sphere = .{} }),
         };
@@ -123,9 +125,9 @@ pub const Loader = struct {
             return self.plane;
         }
 
-        // if (std.mem.eql(u8, "Rectangle", type_name)) {
-        //     return 0;
-        // }
+        if (std.mem.eql(u8, "Rectangle", type_name)) {
+            return self.rectangle;
+        }
 
         if (std.mem.eql(u8, "Sphere", type_name)) {
             return self.sphere;

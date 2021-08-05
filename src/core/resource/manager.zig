@@ -26,7 +26,7 @@ pub const Manager = struct {
     }
 
     pub fn load(self: *Manager, comptime T: type, alloc: *Allocator, name: []const u8) !u32 {
-        if (@TypeOf(Shape) == T) {
+        if (Shape == T) {
             return try self.shapes.load(alloc, name, self);
         }
 

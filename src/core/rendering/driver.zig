@@ -30,9 +30,15 @@ pub const Driver = struct {
     progressor: progress.StdOut = undefined,
 
     pub fn init(alloc: *Allocator, threads: *thread.Pool) !Driver {
+        var workers = try alloc.alloc(Worker, threads.numThreads());
+
+        for (workers) |*w| {
+            w.* = .{};
+        }
+
         return Driver{
             .threads = threads,
-            .workers = try alloc.alloc(Worker, threads.numThreads()),
+            .workers = workers,
         };
     }
 

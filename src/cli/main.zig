@@ -29,6 +29,11 @@ pub fn main() !void {
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
 
+    if (options.take == null) {
+        stdout.print("No take specified\n", .{}) catch unreachable;
+        return;
+    }
+
     const num_workers = thread.Pool.availableCores(options.threads);
 
     stdout.print("#Threads {}\n", .{num_workers}) catch unreachable;
@@ -58,7 +63,7 @@ pub fn main() !void {
     var scene = try scn.Scene.init(alloc, &resources.shapes.resources, scene_loader.null_shape);
     defer scene.deinit(alloc);
 
-    var stream = try resources.fs.readStream("takes/imrod.take");
+    var stream = try resources.fs.readStream(options.take.?);
 
     var take = tk.load(alloc, &stream, &scene, &resources) catch |err| {
         std.debug.print("Loading take {} \n", .{err});

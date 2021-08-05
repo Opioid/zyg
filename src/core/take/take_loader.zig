@@ -65,6 +65,12 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         loadIntegrators(integrator_value.*, &take.view);
     }
 
+    if (surface.Factory.Invalid == take.view.surfaces) {
+        take.view.surfaces = surface.Factory{ .AO = .{
+            .settings = .{ .num_samples = 1, .radius = 1.0 },
+        } };
+    }
+
     if (sampler_value_ptr) |sampler_value| {
         take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
@@ -216,7 +222,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
 
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
-            view.surfaces = surface.Factory{ .AO = surface.AO_factory{
+            view.surfaces = surface.Factory{ .AO = .{
                 .settings = .{ .num_samples = num_samples, .radius = radius },
             } };
         }

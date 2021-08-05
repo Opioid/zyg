@@ -1,3 +1,5 @@
+const Resources = @import("manager.zig").Manager;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -17,6 +19,10 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         }
 
         pub fn deinit(self: *Self, alloc: *Allocator) void {
+            for (self.resources.items) |*r| {
+                r.deinit(alloc);
+            }
+
             self.resources.deinit(alloc);
         }
 

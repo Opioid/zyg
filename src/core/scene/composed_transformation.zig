@@ -19,10 +19,16 @@ pub const Composed_transformation = struct {
 
     pub fn setPosition(self: *Self, p: Vec4f) void {
         self.position = p;
+
+        self.world_to_object = self.objectToWorld().affineInverted();
     }
 
     pub fn scaleX(self: Self) f32 {
         return self.rotation.m(0, 3);
+    }
+
+    pub fn scaleY(self: Self) f32 {
+        return self.rotation.m(1, 3);
     }
 
     pub fn objectToWorld(self: Self) Mat4x4 {

@@ -53,13 +53,13 @@ pub fn build(b: *std.build.Builder) void {
 
     const run_cmd = zyg.run();
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/zyg/system";
+    run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
-            "takes/imrod.take",
+            "takes/cornell.take",
             "-t",
             "8",
         });

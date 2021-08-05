@@ -1,9 +1,12 @@
-const Indexed_data = @import("indexed_data.zig").Indexed_data;
+pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const base = @import("base");
 usingnamespace base;
 
 //const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
     pub const Intersection = struct {
@@ -12,7 +15,11 @@ pub const Tree = struct {
         index: u32 = 0xFFFFFFFF,
     };
 
-    data: Indexed_data,
+    data: Indexed_data = .{},
+
+    pub fn deinit(self: *Tree, alloc: *Allocator) void {
+        self.data.deinit(alloc);
+    }
 
     pub fn intersect(self: Tree, ray: *Ray) ?Intersection {
         var isec: Intersection = .{};

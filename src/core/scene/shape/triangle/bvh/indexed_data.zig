@@ -21,27 +21,47 @@ pub const Indexed_data = struct {
         part: u31,
     };
 
-    triangles: []Triangle,
-    positions: []Vec4f,
-    frames: []Vec4f,
-    uvs: []Vec2f,
+    triangles: []Triangle = &.{},
+    positions: []Vec4f = &.{},
+    frames: []Vec4f = &.{},
+    uvs: []Vec2f = &.{},
 
     const Self = @This();
 
+    pub fn init(alloc: *Allocator, num_triangles: u32) !Indexed_data {
+        return Indexed_data{ .triangles = try alloc.alloc(Triangle, num_triangles) };
+    }
+
+    pub fn deinit(self: *Self, alloc: *Allocator) void {
+        alloc.free(self.positions);
+        alloc.free(self.triangles);
+    }
+
     pub fn intersect(self: Self, ray: *Ray, index: usize) ?Intersection {
-        _ = self;
-        _ = ray;
-        _ = index;
+        const tri = self.triangles[index];
+
+        const ap = self.positions[tri.a];
+        const bp = self.positions[tri.b];
+        const cp = self.positions[tri.c];
+
+        var u: f32 = undefined;
+        var v: f32 = undefined;
+
+        if (triangle.intersect(ray, ap, bp, cp, &u, &v)) {
+            return Intersection{ .u = u, .v = v };
+        }
 
         return null;
     }
 
     pub fn intersectP(self: Self, ray: Ray, index: usize) bool {
-        _ = self;
-        _ = ray;
-        _ = index;
+        const tri = self.triangles[index];
 
-        return false;
+        const ap = self.positions[tri.a];
+        const bp = self.positions[tri.b];
+        const cp = self.positions[tri.c];
+
+        return triangle.intersectP(ray, ap, bp, cp);
     }
 
     pub fn interpolateP(self: Self, u: f32, v: f32, index: u32) Vec4f {
