@@ -1,6 +1,8 @@
 const Vec4f = @import("vector4.zig").Vec4f;
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 
+const std = @import("std");
+
 pub const Quaternion = Vec4f;
 
 pub const identity = Quaternion.init4(0.0, 0.0, 0.0, 1.0);
@@ -36,6 +38,20 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     const tbn = Mat3x3.init3(t, b, n);
 
     var q = initFromMat3x3(tbn);
+
+    const threshold = 0.000001;
+    const renormalization = comptime @sqrt(1.0 - threshold * threshold);
+
+    if (std.math.fabs(q.v[3]) < threshold) {
+        q.v[0] *= renormalization;
+        q.v[1] *= renormalization;
+        q.v[2] *= renormalization;
+        q.v[3] = if (q.v[3] < 0.0) -threshold else threshold;
+    }
+
+    if (q.v[3] < 0.0) {
+        q = q.neg4();
+    }
 
     return q;
 }

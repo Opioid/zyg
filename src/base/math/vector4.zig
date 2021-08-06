@@ -59,6 +59,10 @@ pub fn Vec4(comptime T: type) type {
             return init3(-v.v[0], -v.v[1], -v.v[2]);
         }
 
+        pub fn neg4(v: Vec4(T)) Vec4(T) {
+            return init4(-v.v[0], -v.v[1], -v.v[2], -v.v[3]);
+        }
+
         pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {
             return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
         }
