@@ -1,7 +1,7 @@
 const base = @import("base");
 usingnamespace base;
 
-//const Vec4f = base.math.Vec4f;
+const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
 
 const Transformation = @import("../../composed_transformation.zig").Composed_transformation;
@@ -32,6 +32,13 @@ pub const Mesh = struct {
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
 
             isec.p = trafo.objectToWorldPoint(p);
+
+            var n: Vec4f = undefined;
+            var t: Vec4f = undefined;
+            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &n, &t);
+
+            isec.t = trafo.rotation.transformVector(t);
+            isec.n = trafo.rotation.transformVector(n);
 
             return true;
         }

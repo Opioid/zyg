@@ -1,3 +1,4 @@
+const VertexStream = @import("../vertex_stream.zig").VertexStream;
 const triangle = @import("../triangle.zig");
 
 const base = @import("base");
@@ -28,11 +29,26 @@ pub const Indexed_data = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, num_triangles: u32) !Indexed_data {
-        return Indexed_data{ .triangles = try alloc.alloc(Triangle, num_triangles) };
+    pub fn init(alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !Indexed_data {
+        const num_vertices = vertices.numVertices();
+
+        var data = Indexed_data{
+            .triangles = try alloc.alloc(Triangle, num_triangles),
+            .positions = try alloc.alloc(Vec4f, num_vertices),
+            .frames = try alloc.alloc(Vec4f, num_vertices),
+        };
+
+        var i: u32 = 0;
+        while (i < num_vertices) : (i += 1) {
+            data.positions[i] = vertices.position(i);
+            data.frames[i] = vertices.frame(i);
+        }
+
+        return data;
     }
 
     pub fn deinit(self: *Self, alloc: *Allocator) void {
+        alloc.free(self.frames);
         alloc.free(self.positions);
         alloc.free(self.triangles);
     }
@@ -72,5 +88,14 @@ pub const Indexed_data = struct {
         const cp = self.positions[tri.c];
 
         return triangle.interpolateP(ap, bp, cp, u, v);
+    }
+
+    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, n: *Vec4f, t: *Vec4f) void {
+        _ = self;
+        _ = u;
+        _ = v;
+        _ = index;
+        _ = n;
+        _ = t;
     }
 };

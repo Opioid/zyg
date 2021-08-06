@@ -1,6 +1,7 @@
 const Mesh = @import("mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
+const VertexStream = @import("vertex_stream.zig").VertexStream;
 const triangle = @import("triangle.zig");
 const bvh = @import("bvh/tree.zig");
 const base = @import("base");
@@ -19,13 +20,18 @@ const Part = struct {
 const Handler = struct {
     pub const Parts = std.ArrayListUnmanaged(Part);
     pub const Triangles = std.ArrayListUnmanaged(triangle.Index_triangle);
-    pub const Positions = std.ArrayListUnmanaged(Vec3f);
+    pub const Vec3fs = std.ArrayListUnmanaged(Vec3f);
+    pub const Vec4fs = std.ArrayListUnmanaged(Vec4f);
 
     parts: Parts = .{},
     triangles: Triangles = .{},
-    positions: Positions = .{},
+    positions: Vec3fs = .{},
+    normals: Vec3fs = .{},
+    tangents: Vec4fs = .{},
 
     pub fn deinit(self: *Handler, alloc: *Allocator) void {
+        self.tangents.deinit(alloc);
+        self.normals.deinit(alloc);
         self.positions.deinit(alloc);
         self.triangles.deinit(alloc);
         self.parts.deinit(alloc);
@@ -66,9 +72,15 @@ pub const Provider = struct {
         //     std.debug.print("{}\n", .{p});
         // }
 
+        const vertices = VertexStream{ .Json = .{
+            .positions = handler.positions.items,
+            .normals = handler.normals.items,
+            .tangents = handler.tangents.items,
+        } };
+
         var mesh = Mesh{
             .tree = .{
-                .data = try bvh.Indexed_data.init(alloc, @intCast(u32, handler.triangles.items.len)),
+                .data = try bvh.Indexed_data.init(alloc, @intCast(u32, handler.triangles.items.len), vertices),
             },
         };
 
@@ -80,13 +92,6 @@ pub const Provider = struct {
                 .bts = 0,
                 .part = 0,
             };
-        }
-
-        const positions = handler.positions.items;
-        mesh.tree.data.positions = try alloc.alloc(Vec4f, positions.len);
-
-        for (positions) |p, i| {
-            mesh.tree.data.positions[i] = Vec4f.init3(p.v[0], p.v[1], p.v[2]);
         }
 
         return Shape{ .Triangle_mesh = mesh };
@@ -119,7 +124,7 @@ pub const Provider = struct {
                         const positions = ventry.value_ptr.*.Array.items;
                         const num_positions = positions.len / 3;
 
-                        handler.positions = try Handler.Positions.initCapacity(alloc, num_positions);
+                        handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
                         try handler.positions.resize(alloc, num_positions);
 
                         for (handler.positions.items) |*p, i| {
@@ -127,6 +132,35 @@ pub const Provider = struct {
                                 json.readFloat(positions[i * 3 + 0]),
                                 json.readFloat(positions[i * 3 + 1]),
                                 json.readFloat(positions[i * 3 + 2]),
+                            );
+                        }
+                    } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
+                        const normals = ventry.value_ptr.*.Array.items;
+                        const num_normals = normals.len / 3;
+
+                        handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
+                        try handler.normals.resize(alloc, num_normals);
+
+                        for (handler.normals.items) |*n, i| {
+                            n.* = Vec3f.init3(
+                                json.readFloat(normals[i * 3 + 0]),
+                                json.readFloat(normals[i * 3 + 1]),
+                                json.readFloat(normals[i * 3 + 2]),
+                            );
+                        }
+                    } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
+                        const tangents = ventry.value_ptr.*.Array.items;
+                        const num_tangents = tangents.len / 4;
+
+                        handler.tangents = try Handler.Vec4fs.initCapacity(alloc, num_tangents);
+                        try handler.tangents.resize(alloc, num_tangents);
+
+                        for (handler.tangents.items) |*t, i| {
+                            t.* = Vec4f.init4(
+                                json.readFloat(tangents[i * 4 + 0]),
+                                json.readFloat(tangents[i * 4 + 1]),
+                                json.readFloat(tangents[i * 4 + 2]),
+                                json.readFloat(tangents[i * 4 + 3]),
                             );
                         }
                     }

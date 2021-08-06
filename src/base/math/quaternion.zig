@@ -30,6 +30,16 @@ pub fn initFromMat3x3(m: Mat3x3) Quaternion {
     return q.mulScalar4(0.5 / @sqrt(t));
 }
 
+pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
+    const b = n.cross3(n);
+
+    const tbn = Mat3x3.init3(t, b, n);
+
+    var q = initFromMat3x3(tbn);
+
+    return q;
+}
+
 pub fn initMat3x3(q: Quaternion) Mat3x3 {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {

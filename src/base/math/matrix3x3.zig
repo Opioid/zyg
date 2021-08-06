@@ -21,6 +21,10 @@ pub const Mat3x3 = struct {
         } };
     }
 
+    pub fn init3(x: Vec4f, y: Vec4f, z: Vec4f) Mat3x3 {
+        return .{ .r = [3]Vec4f{ x, y, z } };
+    }
+
     pub fn initRotationX(a: f32) Mat3x3 {
         const c = @cos(a);
         const s = @sin(a);
