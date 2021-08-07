@@ -83,19 +83,38 @@ pub const Indexed_data = struct {
     pub fn interpolateP(self: Self, u: f32, v: f32, index: u32) Vec4f {
         const tri = self.triangles[index];
 
-        const ap = self.positions[tri.a];
-        const bp = self.positions[tri.b];
-        const cp = self.positions[tri.c];
+        const a = self.positions[tri.a];
+        const b = self.positions[tri.b];
+        const c = self.positions[tri.c];
 
-        return triangle.interpolateP(ap, bp, cp, u, v);
+        return triangle.interpolateP(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, n: *Vec4f, t: *Vec4f) void {
-        _ = self;
-        _ = u;
-        _ = v;
-        _ = index;
-        _ = n;
-        _ = t;
+    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f) void {
+        const tri = self.triangles[index];
+
+        const tna = quaternion.initMat3x3(self.frames[tri.a]);
+        const tnb = quaternion.initMat3x3(self.frames[tri.b]);
+        const tnc = quaternion.initMat3x3(self.frames[tri.c]);
+
+        t.* = triangle.interpolateP(tna.r[0], tnb.r[0], tnc.r[0], u, v).normalize3();
+        n.* = triangle.interpolateP(tna.r[2], tnb.r[2], tnc.r[2], u, v).normalize3();
+    }
+
+    pub fn normal(self: Self, index: u32) Vec4f {
+        const tri = self.triangles[index];
+
+        const a = self.positions[tri.a];
+        const b = self.positions[tri.b];
+        const c = self.positions[tri.c];
+
+        const e1 = b.sub3(a);
+        const e2 = c.sub3(a);
+
+        return e1.cross3(e2).normalize3();
+    }
+
+    pub fn bitangentSign(self: self, index: u32) f32 {
+        return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
 };

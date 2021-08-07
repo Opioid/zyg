@@ -25,6 +25,12 @@ pub const VertexStream = union(enum) {
             .Json => |js| js.frame(i),
         };
     }
+
+    pub fn bitangentSign(self: VertexStream, i: usize) bool {
+        return switch (self) {
+            .Json => |js| js.bitangentSign(i),
+        };
+    }
 };
 
 const VertexStreamJson = struct {
@@ -44,5 +50,9 @@ const VertexStreamJson = struct {
         const t = self.tangents[i];
 
         return quaternion.initFromTN(t, n);
+    }
+
+    pub fn bitangentSign(self: Self, i: usize) bool {
+        return self.tangents[i] > 0.0;
     }
 };

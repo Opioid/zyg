@@ -30,15 +30,22 @@ pub const Mesh = struct {
             ray.setMaxT(tray.maxT());
 
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
-
             isec.p = trafo.objectToWorldPoint(p);
 
-            var n: Vec4f = undefined;
-            var t: Vec4f = undefined;
-            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &n, &t);
+            const geo_n = self.tree.data.normal(hit.index);
+            isec.geo_n = trafo.rotation.transformVector(geo_n);
 
-            isec.t = trafo.rotation.transformVector(t);
-            isec.n = trafo.rotation.transformVector(n);
+            var t: Vec4f = undefined;
+            var n: Vec4f = undefined;
+            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n);
+
+            const t_w = trafo.rotation.transformVector(t);
+            const n_w = trafo.rotation.transformVector(n);
+            const b_w = n_w.cross3(t_w).mulScalar3(self.tree.data.bitangentSign(hit.index));
+
+            isec.t = t_w;
+            isec.b = b_w;
+            isec.n = n_w;
 
             return true;
         }

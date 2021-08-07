@@ -85,11 +85,21 @@ pub const Provider = struct {
         };
 
         for (handler.triangles.items) |t, i| {
+            const a = t.i[0];
+            const b = t.i[1];
+            const c = t.i[2];
+
+            const abts = vertices.bitangentSign(a);
+            const bbts = vertices.bitangentSign(b);
+            const cbts = vertices.bitangentSign(c);
+
+            const bitanget_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
+
             mesh.tree.data.triangles[i] = .{
-                .a = t.i[0],
-                .b = t.i[1],
-                .c = t.i[2],
-                .bts = 0,
+                .a = a,
+                .b = b,
+                .c = c,
+                .bts = bitangent_sign,
                 .part = 0,
             };
         }
