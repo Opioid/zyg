@@ -114,7 +114,7 @@ pub const Indexed_data = struct {
         return e1.cross3(e2).normalize3();
     }
 
-    pub fn bitangentSign(self: self, index: u32) f32 {
+    pub fn bitangentSign(self: Self, index: u32) f32 {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
 };

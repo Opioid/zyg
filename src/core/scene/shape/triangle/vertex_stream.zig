@@ -53,6 +53,6 @@ const VertexStreamJson = struct {
     }
 
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return self.tangents[i] > 0.0;
+        return self.tangents[i].v[3] > 0.0;
     }
 };

@@ -93,13 +93,13 @@ pub const Provider = struct {
             const bbts = vertices.bitangentSign(b);
             const cbts = vertices.bitangentSign(c);
 
-            const bitanget_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
+            const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
 
             mesh.tree.data.triangles[i] = .{
                 .a = a,
                 .b = b,
                 .c = c,
-                .bts = bitangent_sign,
+                .bts = if (bitangent_sign) 1 else 0,
                 .part = 0,
             };
         }

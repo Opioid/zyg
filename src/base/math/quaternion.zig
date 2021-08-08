@@ -33,7 +33,7 @@ pub fn initFromMat3x3(m: Mat3x3) Quaternion {
 }
 
 pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
-    const b = n.cross3(n);
+    const b = n.cross3(t);
 
     const tbn = Mat3x3.init3(t, b, n);
 
