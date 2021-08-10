@@ -1,6 +1,8 @@
 const Srgb = @import("../srgb.zig").Srgb;
 const Float4 = @import("../../image.zig").Float4;
 
+usingnamespace @import("base");
+
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
@@ -19,14 +21,14 @@ pub const Writer = struct {
         self.srgb.deinit(alloc);
     }
 
-    pub fn write(self: *Writer, alloc: *Allocator, image: Float4) !void {
+    pub fn write(self: *Writer, alloc: *Allocator, image: Float4, threads: *thread.Pool) !void {
         const d = image.description.dimensions;
 
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
 
         try self.srgb.resize(alloc, num_pixels);
 
-        self.srgb.toSrgb(image);
+        self.srgb.toSrgb(&image, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(

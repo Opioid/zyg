@@ -2,6 +2,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const Unique = struct {
+    begin: u32 = 0,
+    end: u32 = 0,
+
     wake_signal: std.Thread.Condition = .{},
     done_signal: std.Thread.Condition = .{},
 
@@ -14,12 +17,15 @@ pub const Pool = struct {
     pub const Context = u64;
 
     const ParallelProgram = fn (context: *Context, id: u32) void;
+    const RangeProgram = fn (context: *Context, id: u32, begin: u32, end: u32) void;
+
+    const Program = union(enum) { Parallel: ParallelProgram, Range: RangeProgram };
 
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
 
-    parallel_context: *Context = undefined,
-    parallel_program: ParallelProgram = undefined,
+    context: *Context = undefined,
+    program: Program = undefined,
 
     quit: bool = false,
 
@@ -70,11 +76,24 @@ pub const Pool = struct {
         self.runParallelInt(@ptrCast(*Context, context), program);
     }
 
+    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
+        self.runRangeInt(@ptrCast(*Context, context), program, begin, end);
+    }
+
     fn runParallelInt(self: *Pool, context: *Context, program: ParallelProgram) void {
-        self.parallel_context = context;
-        self.parallel_program = program;
+        self.context = context;
+        self.program = .{ .Parallel = program };
 
         self.wakeAll();
+
+        self.waitAll();
+    }
+
+    fn runRangeInt(self: *Pool, context: *Context, program: RangeProgram, begin: u32, end: u32) void {
+        self.context = context;
+        self.program = .{ .Range = program };
+
+        self.wakeAllRange(begin, end);
 
         self.waitAll();
     }
@@ -84,14 +103,32 @@ pub const Pool = struct {
             const lock = u.mutex.acquire();
             u.wake = true;
             lock.release();
+            u.wake_signal.signal();
+        }
+    }
 
+    fn wakeAllRange(self: Pool, begin: u32, end: u32) void {
+        const range = @intToFloat(f32, end - begin);
+        const num_threads = @intToFloat(f32, self.threads.len);
+
+        const step = @floatToInt(u32, @ceil(range / num_threads));
+
+        var e = begin;
+
+        for (self.uniques) |*u| {
+            const b = e;
+            e += step;
+
+            const lock = u.mutex.acquire();
+            u.begin = b;
+            u.end = std.math.min(e, end);
+            u.wake = true;
+            lock.release();
             u.wake_signal.signal();
         }
     }
 
     fn waitAll(self: Pool) void {
-        //  std.debug.print("waitAll\n", .{});
-
         for (self.uniques) |*u| {
             const lock = u.mutex.acquire();
             defer lock.release();
@@ -100,8 +137,6 @@ pub const Pool = struct {
                 u.done_signal.wait(&u.mutex);
             }
         }
-
-        //      std.debug.print("after waitAll\n", .{});
     }
 
     fn loop(self: *Pool, id: u32) void {
@@ -111,20 +146,18 @@ pub const Pool = struct {
             const lock = u.mutex.acquire();
             defer lock.release();
 
-            //      std.debug.print("before wait\n", .{});
-
             while (!u.wake) {
                 u.wake_signal.wait(&u.mutex);
             }
 
             if (self.quit) {
-                //   std.debug.print("quit{}\n", .{self.quit});
                 break;
             }
 
-            //    std.debug.print("before working\n", .{});
-
-            self.parallel_program(self.parallel_context, id);
+            switch (self.program) {
+                .Parallel => |p| p(self.context, id),
+                .Range => |p| p(self.context, id, u.begin, u.end),
+            }
 
             u.wake = false;
             u.done_signal.signal();

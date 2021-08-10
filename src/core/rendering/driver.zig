@@ -10,10 +10,10 @@ const base = @import("base");
 usingnamespace base;
 usingnamespace base.math;
 
+const ThreadContext = thread.Pool.Context;
+
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
-
-const ThreadContext = thread.Pool.Context;
 
 pub const Driver = struct {
     threads: *thread.Pool,

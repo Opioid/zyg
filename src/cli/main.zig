@@ -93,7 +93,7 @@ pub fn main() !void {
 
     var png_writer = Png_writer.init(take.view.camera.sensor.alphaTransparency());
     defer png_writer.deinit(alloc);
-    try png_writer.write(alloc, driver.target);
+    try png_writer.write(alloc, driver.target, &threads);
 
     stdout.print("Export time {d:.2} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
 }
