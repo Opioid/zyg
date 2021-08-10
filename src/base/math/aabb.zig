@@ -4,11 +4,8 @@ const Ray = @import("ray.zig").Ray;
 
 const std = @import("std");
 
-const infinity_int: u32 = 0x7F800000;
-const neg_infinity_int: u32 = ~infinity_int;
-
-const infinity = Vec4f.init1(@bitCast(f32, infinity_int));
-const neg_infinity = Vec4f.init1(@bitCast(f32, neg_infinity_int));
+const infinity = Vec4f.init1(@bitCast(f32, @as(u32, 0x7F800000)));
+const neg_infinity = Vec4f.init1(@bitCast(f32, ~@as(u32, 0x7F800000)));
 
 pub const AABB = struct {
     bounds: [2]Vec4f = undefined,
