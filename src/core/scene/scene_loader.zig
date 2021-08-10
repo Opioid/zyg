@@ -60,7 +60,6 @@ pub const Loader = struct {
             var entity_id: u32 = prp.Null;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                std.debug.print("A light \n", .{});
                 entity_id = self.loadProp(alloc, entity, scene);
             } else if (std.mem.eql(u8, "Prop", type_name)) {
                 entity_id = self.loadProp(alloc, entity, scene);

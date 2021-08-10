@@ -93,12 +93,12 @@ pub const Indexed_data = struct {
     pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f) void {
         const tri = self.triangles[index];
 
-        const tna = quaternion.initMat3x3(self.frames[tri.a]);
-        const tnb = quaternion.initMat3x3(self.frames[tri.b]);
-        const tnc = quaternion.initMat3x3(self.frames[tri.c]);
+        const tna = quaternion.initTN(self.frames[tri.a]);
+        const tnb = quaternion.initTN(self.frames[tri.b]);
+        const tnc = quaternion.initTN(self.frames[tri.c]);
 
-        t.* = triangle.interpolateP(tna.r[0], tnb.r[0], tnc.r[0], u, v).normalize3();
-        n.* = triangle.interpolateP(tna.r[2], tnb.r[2], tnc.r[2], u, v).normalize3();
+        t.* = triangle.interpolateP(tna[0], tnb[0], tnc[0], u, v).normalize3();
+        n.* = triangle.interpolateP(tna[1], tnb[1], tnc[1], u, v).normalize3();
     }
 
     pub fn normal(self: Self, index: u32) Vec4f {

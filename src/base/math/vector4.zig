@@ -1,5 +1,7 @@
 usingnamespace @import("vector2.zig");
 
+const std = @import("std");
+
 pub fn Vec4(comptime T: type) type {
     return struct {
         v: [4]T = undefined,
@@ -63,6 +65,10 @@ pub fn Vec4(comptime T: type) type {
             return init4(-v.v[0], -v.v[1], -v.v[2], -v.v[3]);
         }
 
+        pub fn mul3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
+            return init3(a.v[0] * b.v[0], a.v[1] * b.v[1], a.v[2] * b.v[2]);
+        }
+
         pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {
             return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
         }
@@ -97,11 +103,31 @@ pub fn Vec4(comptime T: type) type {
             return v.divScalar3(length3(v));
         }
 
+        pub fn reciprocal3(v: Vec4(T)) Vec4(T) {
+            return init3(1.0 / v.v[0], 1.0 / v.v[1], 1.0 / v.v[2]);
+        }
+
         pub fn cross3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
             return init3(
                 a.v[1] * b.v[2] - a.v[2] * b.v[1],
                 a.v[2] * b.v[0] - a.v[0] * b.v[2],
                 a.v[0] * b.v[1] - a.v[1] * b.v[0],
+            );
+        }
+
+        pub fn min3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
+            return init3(
+                std.math.min(a.v[0], b.v[0]),
+                std.math.min(a.v[1], b.v[1]),
+                std.math.min(a.v[2], b.v[2]),
+            );
+        }
+
+        pub fn max3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
+            return init3(
+                std.math.max(a.v[0], b.v[0]),
+                std.math.max(a.v[1], b.v[1]),
+                std.math.max(a.v[2], b.v[2]),
             );
         }
 

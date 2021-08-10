@@ -3,16 +3,19 @@ const Vec4f = @import("vector4.zig").Vec4f;
 pub const Ray = struct {
     origin: Vec4f,
     direction: Vec4f,
+    inv_direction: Vec4f,
 
     pub fn init(origin: Vec4f, direction: Vec4f, min_t: f32, max_t: f32) Ray {
         return .{
             .origin = Vec4f.init3_1(origin, min_t),
             .direction = Vec4f.init3_1(direction, max_t),
+            .inv_direction = direction.reciprocal3(),
         };
     }
 
     pub fn setDirection(self: *Ray, direction: Vec4f) void {
         self.direction = Vec4f.init3_1(direction, self.direction.v[3]);
+        self.inv_direction = direction.reciprocal3();
     }
 
     pub fn minT(self: Ray) f32 {

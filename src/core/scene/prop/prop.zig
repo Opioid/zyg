@@ -14,8 +14,12 @@ pub const Null = 0xFFFFFFFF;
 pub const Prop = struct {
     shape: u32 = Null,
 
-    pub fn configure(self: *Prop, shape: u32) void {
+    is_complex: bool = false,
+
+    pub fn configure(self: *Prop, shape: u32, scene: Scene) void {
         self.shape = shape;
+
+        self.is_complex = scene.shape(shape).isComplex();
     }
 
     pub fn intersect(
@@ -25,7 +29,9 @@ pub const Prop = struct {
         scene: Scene,
         isec: *shp.Intersection,
     ) bool {
-        _ = self;
+        if (self.is_complex and !scene.propAabbIntersectP(entity, ray.*)) {
+            return false;
+        }
 
         const trafo = scene.propTransformationAt(entity);
 
@@ -33,7 +39,9 @@ pub const Prop = struct {
     }
 
     pub fn intersectP(self: Prop, entity: usize, ray: Ray, scene: Scene) bool {
-        _ = self;
+        if (self.is_complex and !scene.propAabbIntersectP(entity, ray)) {
+            return false;
+        }
 
         const trafo = scene.propTransformationAt(entity);
 

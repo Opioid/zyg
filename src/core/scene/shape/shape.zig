@@ -8,8 +8,9 @@ const Transformation = @import("../composed_transformation.zig").Composed_transf
 const base = @import("base");
 usingnamespace base;
 
-//const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
+const AABB = math.AABB;
+const Vec4f = base.math.Vec4f;
+const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -23,12 +24,25 @@ pub const Shape = union(enum) {
 
     pub fn deinit(self: *Shape, alloc: *Allocator) void {
         switch (self.*) {
-            .Null => {},
-            .Plane => {},
-            .Rectangle => {},
-            .Sphere => {},
             .Triangle_mesh => |*m| m.deinit(alloc),
+            else => {},
         }
+    }
+
+    pub fn isComplex(self: Shape) bool {
+        return switch (self) {
+            .Triangle_mesh => true,
+            else => false,
+        };
+    }
+
+    pub fn aabb(self: Shape) AABB {
+        return switch (self) {
+            .Null, .Plane => math.aabb.empty,
+            .Rectangle => AABB.init(Vec4f.init3(-1.0, -1.0, -0.01), Vec4f.init3(1.0, 1.0, 0.01)),
+            .Sphere => AABB.init(Vec4f.init1(-1.0), Vec4f.init1(1.0)),
+            .Triangle_mesh => |m| m.tree.aabb(),
+        };
     }
 
     pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {

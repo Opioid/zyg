@@ -78,9 +78,19 @@ pub const Provider = struct {
             .tangents = handler.tangents.items,
         } };
 
+        var bounds = math.aabb.empty;
+
+        for (handler.positions.items) |p| {
+            const p4 = Vec4f.init3(p.v[0], p.v[1], p.v[2]);
+
+            bounds.bounds[0] = bounds.bounds[0].min3(p4);
+            bounds.bounds[1] = bounds.bounds[1].max3(p4);
+        }
+
         var mesh = Mesh{
             .tree = .{
                 .data = try bvh.Indexed_data.init(alloc, @intCast(u32, handler.triangles.items.len), vertices),
+                .box = bounds,
             },
         };
 

@@ -99,3 +99,47 @@ pub fn initMat3x3(q: Quaternion) Mat3x3 {
 
     return Mat3x3.init9(t0 + t1, xy - wz, xz + wy, xy + wz, t2 + t3, yz - wx, xz - wy, yz + wx, t2 - t3);
 }
+
+pub fn initTN(q: Quaternion) [2]Vec4f {
+    //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
+    // {
+    //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
+    //   float tx = 2*x,  ty = 2*y,  tz = 2*z;
+    //   float xy = ty*x, xz = tz*x, yz = ty*z;
+    //   float wx = tx*w, wy = ty*w, wz = tz*w;
+
+    //   // diagonal terms
+    //   float t0 = (w+y)*(w-y), t1 = (x+z)*(x-z);
+    //   float t2 = (w+x)*(w-x), t3 = (y+z)*(y-z);
+    //   m->m00 = t0+t1;
+    //   m->m11 = t2+t3;
+    //   m->m22 = t2-t3;
+
+    //   m->m10 = xy+wz; m->m01 = xy-wz;
+    //   m->m20 = xz-wy; m->m02 = xz+wy;
+    //   m->m21 = yz+wx; m->m12 = yz-wx;
+    // }
+
+    const x = q.v[0];
+    const y = q.v[1];
+    const z = q.v[2];
+    const w = q.v[3];
+
+    const tx = 2.0 * x;
+    const ty = 2.0 * y;
+    const tz = 2.0 * z;
+    const xy = ty * x;
+    const xz = tz * x;
+    const yz = ty * z;
+    const wx = tx * w;
+    const wy = ty * w;
+    const wz = tz * w;
+
+    // diagonal terms
+    const t0 = (w + y) * (w - y);
+    const t1 = (x + z) * (x - z);
+    const t2 = (w + x) * (w - x);
+    const t3 = (y + z) * (y - z);
+
+    return .{ Vec4f.init3(t0 + t1, xy - wz, xz + wy), Vec4f.init3(xz - wy, yz + wx, t2 - t3) };
+}

@@ -1,3 +1,5 @@
+pub const aabb = @import("aabb.zig");
+pub const AABB = aabb.AABB;
 pub const interpolated_function = @import("interpolated_function.zig");
 pub usingnamespace interpolated_function;
 pub const quaternion = @import("quaternion.zig");

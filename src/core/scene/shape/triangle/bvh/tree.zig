@@ -3,6 +3,7 @@ const base = @import("base");
 usingnamespace base;
 
 //const Vec4f = base.math.Vec4f;
+const AABB = base.math.AABB;
 const Ray = base.math.Ray;
 
 const std = @import("std");
@@ -17,8 +18,14 @@ pub const Tree = struct {
 
     data: Indexed_data = .{},
 
+    box: AABB,
+
     pub fn deinit(self: *Tree, alloc: *Allocator) void {
         self.data.deinit(alloc);
+    }
+
+    pub fn aabb(self: Tree) AABB {
+        return self.box;
     }
 
     pub fn intersect(self: Tree, ray: *Ray) ?Intersection {
