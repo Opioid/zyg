@@ -41,23 +41,19 @@ pub const Srgb = struct {
         const self = @ptrCast(*Srgb, context);
 
         if (self.alpha) {
-            var i = begin;
-            while (i < end) : (i += 1) {
-                const p = self.image.pixels[i];
-
-                self.buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                self.buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                self.buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                self.buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
+            for (self.image.pixels[begin..end]) |p, i| {
+                const j = begin + i;
+                self.buffer[j * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                self.buffer[j * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                self.buffer[j * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                self.buffer[j * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
             }
         } else {
-            var i = begin;
-            while (i < end) : (i += 1) {
-                const p = self.image.pixels[i];
-
-                self.buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                self.buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                self.buffer[i * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+            for (self.image.pixels[begin..end]) |p, i| {
+                const j = begin + i;
+                self.buffer[j * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                self.buffer[j * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                self.buffer[j * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
             }
         }
     }
