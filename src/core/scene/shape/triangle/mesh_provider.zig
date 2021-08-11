@@ -23,15 +23,17 @@ const Handler = struct {
     pub const Parts = std.ArrayListUnmanaged(Part);
     pub const Triangles = std.ArrayListUnmanaged(triangle.IndexTriangle);
     pub const Vec3fs = std.ArrayListUnmanaged(Vec3f);
-    pub const Vec4fs = std.ArrayListUnmanaged(Vec4f);
+    pub const u8s = std.ArrayListUnmanaged(u8);
 
     parts: Parts = .{},
     triangles: Triangles = .{},
     positions: Vec3fs = .{},
     normals: Vec3fs = .{},
-    tangents: Vec4fs = .{},
+    tangents: Vec3fs = .{},
+    bitangent_signs: u8s = .{},
 
     pub fn deinit(self: *Handler, alloc: *Allocator) void {
+        self.bitangent_signs.deinit(alloc);
         self.tangents.deinit(alloc);
         self.normals.deinit(alloc);
         self.positions.deinit(alloc);
@@ -93,6 +95,7 @@ pub const Provider = struct {
             .positions = handler.positions.items,
             .normals = handler.normals.items,
             .tangents = handler.tangents.items,
+            .bitangent_signs = handler.bitangent_signs.items,
         } };
 
         var bounds = math.aabb.empty;
@@ -138,8 +141,6 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                //loadGeometry(alloc, &handler, entry.value_ptr.*);
-
                 const parts = entry.value_ptr.*.Array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
@@ -189,16 +190,53 @@ pub const Provider = struct {
                         const tangents = ventry.value_ptr.*.Array.items;
                         const num_tangents = tangents.len / 4;
 
-                        handler.tangents = try Handler.Vec4fs.initCapacity(alloc, num_tangents);
+                        handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangents);
                         try handler.tangents.resize(alloc, num_tangents);
 
+                        handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangents);
+                        try handler.bitangent_signs.resize(alloc, num_tangents);
+
                         for (handler.tangents.items) |*t, i| {
-                            t.* = Vec4f.init4(
-                                json.readFloat(tangents[i * 4 + 0]),
-                                json.readFloat(tangents[i * 4 + 1]),
-                                json.readFloat(tangents[i * 4 + 2]),
-                                json.readFloat(tangents[i * 4 + 3]),
+                            t.* = Vec3f.init3(json.readFloat(tangents[i * 4 + 0]), json.readFloat(tangents[i * 4 + 1]), json.readFloat(tangents[i * 4 + 2]));
+
+                            handler.bitangent_signs.items[i] = if (json.readFloat(tangents[i * 4 + 3]) > 0.0) 0 else 1;
+                        }
+                    } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
+                        const tangent_spaces = ventry.value_ptr.*.Array.items;
+                        const num_tangent_spaces = tangent_spaces.len / 4;
+
+                        handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
+                        try handler.normals.resize(alloc, num_tangent_spaces);
+
+                        handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
+                        try handler.tangents.resize(alloc, num_tangent_spaces);
+
+                        handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangent_spaces);
+                        try handler.bitangent_signs.resize(alloc, num_tangent_spaces);
+
+                        for (handler.normals.items) |*n, i| {
+                            var ts = Quaternion.init4(
+                                json.readFloat(tangent_spaces[i * 4 + 0]),
+                                json.readFloat(tangent_spaces[i * 4 + 1]),
+                                json.readFloat(tangent_spaces[i * 4 + 2]),
+                                json.readFloat(tangent_spaces[i * 4 + 3]),
                             );
+
+                            var bts: bool = false;
+
+                            if (ts.v[3] < 0.0) {
+                                ts.v[3] = -ts.v[3];
+                                bts = true;
+                            }
+
+                            const tbn = quaternion.initMat3x3(ts);
+
+                            n.* = Vec3f.init3(tbn.r[2].v[0], tbn.r[2].v[1], tbn.r[2].v[1]);
+
+                            var t = &handler.tangents.items[i];
+                            t.* = Vec3f.init3(tbn.r[0].v[0], tbn.r[0].v[1], tbn.r[0].v[1]);
+
+                            handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
                     }
                 }

@@ -54,7 +54,8 @@ pub const VertexStream = union(enum) {
 const Json = struct {
     positions: []Vec3f,
     normals: []Vec3f,
-    tangents: []Vec4f,
+    tangents: []Vec3f,
+    bitangent_signs: []u8,
 
     const Self = @This();
 
@@ -65,13 +66,14 @@ const Json = struct {
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
         const n = Vec4f.init3(n3.v[0], n3.v[1], n3.v[2]);
-        const t = self.tangents[i];
+        const t3 = self.tangents[i];
+        const t = Vec4f.init3(t3.v[0], t3.v[1], t3.v[2]);
 
         return quaternion.initFromTN(t, n);
     }
 
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return self.tangents[i].v[3] > 0.0;
+        return self.bitangent_signs[i] > 0;
     }
 };
 
