@@ -4,7 +4,7 @@ usingnamespace base.math;
 
 const std = @import("std");
 
-pub const Index_triangle = struct {
+pub const IndexTriangle = struct {
     i: [3]u32,
     part: u32,
 };

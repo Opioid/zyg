@@ -218,7 +218,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "AO", entry.key_ptr.*)) {
-            const num_samples = json.readUintMember(entry.value_ptr.*, "num_samples", 1);
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
 
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
@@ -232,7 +232,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
 fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        num_samples_per_pixel.* = json.readUintMember(entry.value_ptr.*, "samples_per_pixel", 1);
+        num_samples_per_pixel.* = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
             return .{ .Random = {} };

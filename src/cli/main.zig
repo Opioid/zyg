@@ -42,11 +42,10 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager{};
+    var resources = resource.Manager.init(&threads);
+    defer resources.deinit(alloc);
 
     resources.shapes = resource.Shapes.init(alloc, resource.Triangle_mesh_provider{});
-
-    defer resources.deinit(alloc);
 
     var fs = &resources.fs;
 

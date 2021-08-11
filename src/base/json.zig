@@ -23,10 +23,20 @@ pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
     return readFloat(member);
 }
 
-pub fn readUintMember(value: Value, name: []const u8, default: u32) u32 {
+pub fn readUInt(value: Value) u32 {
+    return @intCast(u32, value.Integer);
+}
+
+pub fn readUIntMember(value: Value, name: []const u8, default: u32) u32 {
     const member = value.Object.get(name) orelse return default;
 
     return @intCast(u32, member.Integer);
+}
+
+pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
+    const member = value.Object.get(name) orelse return default;
+
+    return @intCast(u64, member.Integer);
 }
 
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
