@@ -80,9 +80,14 @@ pub const Provider = struct {
             }
         }
 
-        // for (handler.positions.items) |p| {
-        //     std.debug.print("{}\n", .{p});
-        // }
+        for (handler.parts.items) |p, i| {
+            const triangles_start = p.start_index / 3;
+            const triangles_end = (p.start_index + p.num_indices) / 3;
+
+            for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
+                t.*.part = @intCast(u32, i);
+            }
+        }
 
         const vertices = vs.VertexStream{ .Json = .{
             .positions = handler.positions.items,
@@ -208,8 +213,6 @@ pub const Provider = struct {
                     t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
                     t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
                     t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
-
-                    t.*.part = 0;
                 }
             }
         }
