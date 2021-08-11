@@ -81,10 +81,10 @@ pub const Compact = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *std.mem.Allocator, num_vertices: u32) !Self {
+    pub fn init(positions: []Vec3f, normals: []Vec3f) !Self {
         return Self{
-            .positions = try alloc.alloc(Vec3f, num_vertices),
-            .normals = try alloc.alloc(Vec3f, num_vertices),
+            .positions = positions,
+            .normals = normals,
         };
     }
 
@@ -96,7 +96,7 @@ pub const Compact = struct {
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
         const n = Vec4f.init3(n3.v[0], n3.v[1], n3.v[2]);
-        const t = Vec4f.init3(0.0, 1.0, 0.0);
+        const t = n.tangent3();
 
         return quaternion.initFromTN(t, n);
     }

@@ -122,7 +122,7 @@ pub const Provider = struct {
                 .b = b,
                 .c = c,
                 .bts = if (bitangent_sign) 1 else 0,
-                .part = 0,
+                .part = @intCast(u31, t.part),
             };
         }
 
@@ -208,6 +208,8 @@ pub const Provider = struct {
                     t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
                     t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
                     t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
+
+                    t.*.part = 0;
                 }
             }
         }
@@ -274,7 +276,7 @@ pub const Provider = struct {
                         parts[i].material_index = json.readUIntMember(p, "material_index", 0);
                     }
                 } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
-                    var viter = geometry_node.Object.iterator();
+                    var viter = entry.value_ptr.Object.iterator();
                     while (viter.next()) |vn| {
                         if (std.mem.eql(u8, "binary", vn.key_ptr.*)) {
                             vertices_offset = json.readUInt64Member(vn.value_ptr.*, "offset", 0);
@@ -282,9 +284,8 @@ pub const Provider = struct {
                         } else if (std.mem.eql(u8, "num_vertices", vn.key_ptr.*)) {
                             num_vertices = json.readUInt(vn.value_ptr.*);
                         } else if (std.mem.eql(u8, "layout", vn.key_ptr.*)) {
-                            var liter = geometry_node.Object.iterator();
-                            while (liter.next()) |ln| {
-                                const semantic_name = json.readStringMember(ln.value_ptr.*, "semantic_name", "");
+                            for (vn.value_ptr.Array.items) |ln| {
+                                const semantic_name = json.readStringMember(ln, "semantic_name", "");
                                 if (std.mem.eql(u8, "Tangent", semantic_name)) {
                                     has_tangents = true;
                                 } else if (std.mem.eql(u8, "Tangent_space", semantic_name)) {
@@ -292,11 +293,11 @@ pub const Provider = struct {
                                 } else if (std.mem.eql(u8, "Texture_coordinate", semantic_name)) {
                                     has_uvs = true;
                                 } else if (std.mem.eql(u8, "Bitangent_sign", semantic_name)) {
-                                    if (!std.mem.eql(u8, "UInt8", json.readStringMember(ln.value_ptr.*, "encoding", ""))) {
+                                    if (!std.mem.eql(u8, "UInt8", json.readStringMember(ln, "encoding", ""))) {
                                         return Error.BitangentSignNotUInt8;
                                     }
 
-                                    if (0 == json.readUIntMember(ln.value_ptr.*, "stream", 0)) {
+                                    if (0 == json.readUIntMember(ln, "stream", 0)) {
                                         interleaved_vertex_stream = true;
                                     }
                                 }
@@ -304,7 +305,7 @@ pub const Provider = struct {
                         }
                     }
                 } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                    var iiter = geometry_node.Object.iterator();
+                    var iiter = entry.value_ptr.Object.iterator();
                     while (iiter.next()) |in| {
                         if (std.mem.eql(u8, "binary", in.key_ptr.*)) {
                             indices_offset = json.readUInt64Member(in.value_ptr.*, "offset", 0);
@@ -312,7 +313,7 @@ pub const Provider = struct {
                         } else if (std.mem.eql(u8, "num_indices", in.key_ptr.*)) {
                             num_indices = json.readUInt(in.value_ptr.*);
                         } else if (std.mem.eql(u8, "encoding", in.key_ptr.*)) {
-                            const enc = json.readStringMember(in.value_ptr.*, "encoding", "");
+                            const enc = json.readString(in.value_ptr.*);
 
                             if (std.mem.eql(u8, "Int16", enc)) {
                                 index_bytes = 2;
@@ -343,22 +344,141 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             std.debug.print("interleaved\n", .{});
         } else {
-            std.debug.print("not interleaved\n", .{});
+            std.debug.print("not interleaved {}\n", .{num_vertices});
 
-            vertices = vs.VertexStream{ .Compact = try vs.Compact.init(alloc, num_vertices) };
+            var positions = try alloc.alloc(Vec3f, num_vertices);
 
-            _ = try stream.read(std.mem.sliceAsBytes(vertices.Compact.positions));
+            _ = try stream.read(std.mem.sliceAsBytes(positions));
+
+            if (tangent_space_as_quaternion) {} else {
+                var normals = try alloc.alloc(Vec3f, num_vertices);
+
+                _ = try stream.read(std.mem.sliceAsBytes(normals));
+
+                vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
+            }
         }
 
         try stream.seekTo(binary_start + indices_offset);
 
-        var indices = try alloc.alloc(u8, num_indices);
+        var indices = try alloc.alloc(u8, indices_size);
+        defer alloc.free(indices);
         _ = try stream.read(indices);
 
         const num_triangles = num_indices / 3;
         var triangles = try alloc.alloc(triangle.IndexTriangle, num_triangles);
         defer alloc.free(triangles);
 
-        return Shape{ .Null = {} };
+        if (4 == index_bytes) {
+            if (delta_indices) {
+                fillTrianglesDelta(i32, parts, indices, triangles);
+            } else {
+                fillTriangles(u32, parts, indices, triangles);
+            }
+        } else {
+            if (delta_indices) {
+                fillTrianglesDelta(i16, parts, indices, triangles);
+            } else {
+                fillTriangles(u16, parts, indices, triangles);
+            }
+        }
+
+        var bounds = math.aabb.empty;
+
+        {
+            var i: u32 = 0;
+            while (i < num_vertices) : (i += 1) {
+                const p = vertices.position(i);
+
+                bounds.bounds[0] = bounds.bounds[0].min3(p);
+                bounds.bounds[1] = bounds.bounds[1].max3(p);
+            }
+        }
+
+        var mesh = Mesh{
+            .tree = .{
+                .data = try bvh.Indexed_data.init(alloc, @intCast(u32, triangles.len), vertices),
+                .box = bounds,
+            },
+        };
+
+        for (triangles) |t, i| {
+            const a = t.i[0];
+            const b = t.i[1];
+            const c = t.i[2];
+
+            const abts = vertices.bitangentSign(a);
+            const bbts = vertices.bitangentSign(b);
+            const cbts = vertices.bitangentSign(c);
+
+            const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
+
+            mesh.tree.data.triangles[i] = .{
+                .a = a,
+                .b = b,
+                .c = c,
+                .bts = if (bitangent_sign) 1 else 0,
+                .part = @intCast(u31, t.part),
+            };
+        }
+
+        return Shape{ .Triangle_mesh = mesh };
+    }
+
+    fn fillTriangles(
+        comptime I: type,
+        parts: []const Part,
+        index_buffer: []const u8,
+        triangles: []triangle.IndexTriangle,
+    ) void {
+        const indices = std.mem.bytesAsSlice(I, index_buffer);
+
+        for (parts) |p, i| {
+            const triangles_start = p.start_index / 3;
+            const triangles_end = (p.start_index + p.num_indices) / 3;
+
+            for (triangles[triangles_start..triangles_end]) |*t, j| {
+                const jj = triangles_start + j;
+
+                t.*.i[0] = @intCast(u32, indices[jj * 3 + 0]);
+                t.*.i[1] = @intCast(u32, indices[jj * 3 + 1]);
+                t.*.i[2] = @intCast(u32, indices[jj * 3 + 2]);
+
+                t.*.part = @intCast(u32, i);
+            }
+        }
+    }
+
+    fn fillTrianglesDelta(
+        comptime I: type,
+        parts: []const Part,
+        index_buffer: []const u8,
+        triangles: []triangle.IndexTriangle,
+    ) void {
+        const indices = std.mem.bytesAsSlice(I, index_buffer);
+
+        var previous_index: i32 = 0;
+
+        for (parts) |p, i| {
+            const triangles_start = p.start_index / 3;
+            const triangles_end = (p.start_index + p.num_indices) / 3;
+
+            for (triangles[triangles_start..triangles_end]) |*t, j| {
+                const jj = triangles_start + j;
+
+                const a = previous_index + @intCast(i32, indices[jj * 3 + 0]);
+                t.*.i[0] = @intCast(u32, a);
+
+                const b = a + @intCast(i32, indices[jj * 3 + 1]);
+                t.*.i[1] = @intCast(u32, b);
+
+                const c = b + @intCast(i32, indices[jj * 3 + 2]);
+                t.*.i[2] = @intCast(u32, c);
+
+                t.*.part = @intCast(u32, i);
+
+                previous_index = c;
+            }
+        }
     }
 };

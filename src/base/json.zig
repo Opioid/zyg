@@ -67,6 +67,10 @@ pub fn readVec4f3(value: Value) Vec4f {
     );
 }
 
+pub fn readString(value: Value) []const u8 {
+    return value.String;
+}
+
 pub fn readStringMember(value: Value, name: []const u8, default: []const u8) []const u8 {
     const member = value.Object.get(name) orelse return default;
 

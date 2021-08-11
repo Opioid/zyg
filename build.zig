@@ -61,7 +61,7 @@ pub fn build(b: *std.build.Builder) void {
             "-i",
             "takes/cornell.take",
             "-t",
-            "8",
+            "16",
         });
     }
 

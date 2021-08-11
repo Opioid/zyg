@@ -131,6 +131,14 @@ pub fn Vec4(comptime T: type) type {
             );
         }
 
+        pub fn tangent3(n: Vec4(T)) Vec4(T) {
+            const sign = std.math.copysign(f32, 1.0, n.v[2]);
+            const c = -1.0 / (sign + n.v[2]);
+            const d = n.v[0] * n.v[1] * c;
+
+            return init3(1.0 + sign * n.v[0] * n.v[0], sign * d, -sign * n.v[0]);
+        }
+
         pub fn toVec4i(v: Vec4(f32)) Vec4(i32) {
             return Vec4(i32).init4(
                 @floatToInt(i32, v.v[0]),
