@@ -14,6 +14,11 @@ pub const AABB = struct {
         return .{ .bounds = .{ min, max } };
     }
 
+    pub fn surfaceArea(self: AABB) f32 {
+        const d = self.bounds[1].sub3(self.bounds[0]);
+        return 2.0 * (d.v[0] * d.v[1] + d.v[0] * d.v[2] + d.v[1] * d.v[2]);
+    }
+
     pub fn intersectP(self: AABB, ray: Ray) bool {
         const l1 = self.bounds[0].sub3(ray.origin).mul3(ray.inv_direction);
         const l2 = self.bounds[1].sub3(ray.origin).mul3(ray.inv_direction);
@@ -58,6 +63,19 @@ pub const AABB = struct {
             xa.min3(xb).add3(ya.min3(yb)).add3(za.min3(zb)).add3(mw),
             xa.max3(xb).add3(ya.max3(yb)).add3(za.max3(zb)).add3(mw),
         );
+    }
+
+    pub fn mergeAssign(self: *AABB, other: AABB) void {
+        self.bounds[0] = self.bounds[0].min3(other.bounds[0]);
+        self.bounds[1] = self.bounds[1].max3(other.bounds[1]);
+    }
+
+    pub fn clipMin(self: *AABB, d: f32, axis: u8) void {
+        self.bounds[0].v[axis] = std.math.max(d, self.bounds[0].v[axis]);
+    }
+
+    pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
+        self.bounds[1].v[axis] = std.math.min(d, self.bounds[1].v[axis]);
     }
 };
 

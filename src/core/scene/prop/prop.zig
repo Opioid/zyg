@@ -1,13 +1,9 @@
-pub const Intersection = @import("intersection.zig").Intersection;
-
 const Ray = @import("../ray.zig").Ray;
+const Scene = @import("../scene.zig").Scene;
+const shp = @import("../shape/intersection.zig");
 
 const base = @import("base");
 usingnamespace base;
-
-const Scene = @import("../scene.zig").Scene;
-
-const shp = @import("../shape/intersection.zig");
 
 pub const Null = 0xFFFFFFFF;
 

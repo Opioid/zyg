@@ -2,7 +2,7 @@ const Mesh = @import("mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
 const vs = @import("vertex_stream.zig");
-const triangle = @import("triangle.zig");
+const IndexTriangle = @import("triangle.zig").IndexTriangle;
 const bvh = @import("bvh/tree.zig");
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
@@ -21,7 +21,7 @@ const Part = struct {
 
 const Handler = struct {
     pub const Parts = std.ArrayListUnmanaged(Part);
-    pub const Triangles = std.ArrayListUnmanaged(triangle.IndexTriangle);
+    pub const Triangles = std.ArrayListUnmanaged(IndexTriangle);
     pub const Vec3fs = std.ArrayListUnmanaged(Vec3f);
     pub const u8s = std.ArrayListUnmanaged(u8);
 
@@ -407,7 +407,7 @@ pub const Provider = struct {
         _ = try stream.read(indices);
 
         const num_triangles = num_indices / 3;
-        var triangles = try alloc.alloc(triangle.IndexTriangle, num_triangles);
+        var triangles = try alloc.alloc(IndexTriangle, num_triangles);
         defer alloc.free(triangles);
 
         if (4 == index_bytes) {
@@ -470,7 +470,7 @@ pub const Provider = struct {
         comptime I: type,
         parts: []const Part,
         index_buffer: []const u8,
-        triangles: []triangle.IndexTriangle,
+        triangles: []IndexTriangle,
     ) void {
         const indices = std.mem.bytesAsSlice(I, index_buffer);
 
@@ -494,7 +494,7 @@ pub const Provider = struct {
         comptime I: type,
         parts: []const Part,
         index_buffer: []const u8,
-        triangles: []triangle.IndexTriangle,
+        triangles: []IndexTriangle,
     ) void {
         const indices = std.mem.bytesAsSlice(I, index_buffer);
 
