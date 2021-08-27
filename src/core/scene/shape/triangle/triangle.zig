@@ -9,6 +9,14 @@ pub const IndexTriangle = struct {
     part: u32,
 };
 
+pub fn min(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
+    return a.min3(b.min3(c));
+}
+
+pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
+    return a.max3(b.max3(c));
+}
+
 pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f32) bool {
     const e1 = b.sub3(a);
     const e2 = c.sub3(a);

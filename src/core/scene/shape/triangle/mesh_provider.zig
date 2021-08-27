@@ -4,6 +4,7 @@ const Resources = @import("../../../resource/manager.zig").Manager;
 const vs = @import("vertex_stream.zig");
 const IndexTriangle = @import("triangle.zig").IndexTriangle;
 const bvh = @import("bvh/tree.zig");
+const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
@@ -98,19 +99,9 @@ pub const Provider = struct {
             .bitangent_signs = handler.bitangent_signs.items,
         } };
 
-        var bounds = math.aabb.empty;
-
-        for (handler.positions.items) |p| {
-            const p4 = Vec4f.init3(p.v[0], p.v[1], p.v[2]);
-
-            bounds.bounds[0] = bounds.bounds[0].min3(p4);
-            bounds.bounds[1] = bounds.bounds[1].max3(p4);
-        }
-
         var mesh = Mesh{
             .tree = .{
                 .data = try bvh.Indexed_data.init(alloc, @intCast(u32, handler.triangles.items.len), vertices),
-                .box = bounds,
             },
         };
 
@@ -133,6 +124,8 @@ pub const Provider = struct {
                 .part = @intCast(u31, t.part),
             };
         }
+
+        try buildBVH(alloc, &mesh, handler.triangles.items, vertices);
 
         return Shape{ .Triangle_mesh = mesh };
     }
@@ -424,22 +417,9 @@ pub const Provider = struct {
             }
         }
 
-        var bounds = math.aabb.empty;
-
-        {
-            var i: u32 = 0;
-            while (i < num_vertices) : (i += 1) {
-                const p = vertices.position(i);
-
-                bounds.bounds[0] = bounds.bounds[0].min3(p);
-                bounds.bounds[1] = bounds.bounds[1].max3(p);
-            }
-        }
-
         var mesh = Mesh{
             .tree = .{
                 .data = try bvh.Indexed_data.init(alloc, @intCast(u32, triangles.len), vertices),
-                .box = bounds,
             },
         };
 
@@ -463,7 +443,15 @@ pub const Provider = struct {
             };
         }
 
+        try buildBVH(alloc, &mesh, triangles, vertices);
+
         return Shape{ .Triangle_mesh = mesh };
+    }
+
+    fn buildBVH(alloc: *Allocator, mesh: *Mesh, triangles: []const IndexTriangle, vertices: vs.VertexStream) !void {
+        var builder = Builder.init();
+
+        try builder.build(alloc, &mesh.tree, triangles, vertices);
     }
 
     fn fillTriangles(

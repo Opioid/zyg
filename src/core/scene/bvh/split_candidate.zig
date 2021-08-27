@@ -14,8 +14,8 @@ pub const Reference = struct {
 
     pub fn aabb(self: Reference) AABB {
         return AABB.init(
-            Vec4f.init3(bounds[0].v[0], bounds[0].v[1], bounds[0].v[2]),
-            Vec4f.init3(bounds[1].v[0], bounds[1].v[1], bounds[1].v[2]),
+            Vec4f.init3(self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2]),
+            Vec4f.init3(self.bounds[1].v[0], self.bounds[1].v[1], self.bounds[1].v[2]),
         );
     }
 
@@ -23,11 +23,11 @@ pub const Reference = struct {
         return self.bounds[0].index;
     }
 
-    pub fn set(self: *Reference, min: Vec4f, max: Vec4f, primitive: u32) void {
+    pub fn set(self: *Reference, min: Vec4f, max: Vec4f, prim: u32) void {
         self.bounds[0].v[0] = min.v[0];
         self.bounds[0].v[1] = min.v[1];
         self.bounds[0].v[2] = min.v[2];
-        self.bounds[0].index = primitive;
+        self.bounds[0].index = prim;
 
         self.bounds[1].v[0] = max.v[0];
         self.bounds[1].v[1] = max.v[1];
@@ -72,7 +72,7 @@ pub const SplitCandidate = struct {
         };
     }
 
-    pub fn evaluate(self: *Self, referenes: []const Reference, aabb_surface_area: f32) void {
+    pub fn evaluate(self: *Self, references: []const Reference, aabb_surface_area: f32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var aabbs: [2]AABB = .{ math.aabb.emtpy, math.aabb.empty };
 

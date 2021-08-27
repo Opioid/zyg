@@ -18,7 +18,7 @@ pub const Tree = struct {
 
     data: Indexed_data = .{},
 
-    box: AABB,
+    box: AABB = undefined,
 
     pub fn deinit(self: *Tree, alloc: *Allocator) void {
         self.data.deinit(alloc);
