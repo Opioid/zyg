@@ -99,31 +99,7 @@ pub const Provider = struct {
             .bitangent_signs = handler.bitangent_signs.items,
         } };
 
-        var mesh = Mesh{
-            .tree = .{
-                .data = try bvh.Indexed_data.init(alloc, @intCast(u32, handler.triangles.items.len), vertices),
-            },
-        };
-
-        for (handler.triangles.items) |t, i| {
-            const a = t.i[0];
-            const b = t.i[1];
-            const c = t.i[2];
-
-            const abts = vertices.bitangentSign(a);
-            const bbts = vertices.bitangentSign(b);
-            const cbts = vertices.bitangentSign(c);
-
-            const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
-
-            mesh.tree.data.triangles[i] = .{
-                .a = a,
-                .b = b,
-                .c = c,
-                .bts = if (bitangent_sign) 1 else 0,
-                .part = @intCast(u31, t.part),
-            };
-        }
+        var mesh = Mesh{};
 
         try buildBVH(alloc, &mesh, handler.triangles.items, vertices);
 
@@ -417,31 +393,7 @@ pub const Provider = struct {
             }
         }
 
-        var mesh = Mesh{
-            .tree = .{
-                .data = try bvh.Indexed_data.init(alloc, @intCast(u32, triangles.len), vertices),
-            },
-        };
-
-        for (triangles) |t, i| {
-            const a = t.i[0];
-            const b = t.i[1];
-            const c = t.i[2];
-
-            const abts = vertices.bitangentSign(a);
-            const bbts = vertices.bitangentSign(b);
-            const cbts = vertices.bitangentSign(c);
-
-            const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
-
-            mesh.tree.data.triangles[i] = .{
-                .a = a,
-                .b = b,
-                .c = c,
-                .bts = if (bitangent_sign) 1 else 0,
-                .part = @intCast(u31, t.part),
-            };
-        }
+        var mesh = Mesh{};
 
         try buildBVH(alloc, &mesh, triangles, vertices);
 
@@ -449,7 +401,8 @@ pub const Provider = struct {
     }
 
     fn buildBVH(alloc: *Allocator, mesh: *Mesh, triangles: []const IndexTriangle, vertices: vs.VertexStream) !void {
-        var builder = Builder.init();
+        var builder = try Builder.init(alloc, 16, 64, 4);
+        defer builder.deinit(alloc);
 
         try builder.build(alloc, &mesh.tree, triangles, vertices);
     }

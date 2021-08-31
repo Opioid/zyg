@@ -14,6 +14,14 @@ pub const AABB = struct {
         return .{ .bounds = .{ min, max } };
     }
 
+    pub fn position(self: AABB) Vec4f {
+        return self.bounds[0].add3(self.bounds[1]).mulScalar3(0.5);
+    }
+
+    pub fn extent(self: AABB) Vec4f {
+        return self.bounds[1].sub3(self.bounds[0]);
+    }
+
     pub fn surfaceArea(self: AABB) f32 {
         const d = self.bounds[1].sub3(self.bounds[0]);
         return 2.0 * (d.v[0] * d.v[1] + d.v[0] * d.v[2] + d.v[1] * d.v[2]);
@@ -76,6 +84,10 @@ pub const AABB = struct {
 
     pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
         self.bounds[1].v[axis] = std.math.min(d, self.bounds[1].v[axis]);
+    }
+
+    pub fn equals(self: AABB, other: AABB) bool {
+        return self.bounds[0].equals3(other.bounds[0]) and self.bounds[1].equals3(other.bounds[1]);
     }
 };
 

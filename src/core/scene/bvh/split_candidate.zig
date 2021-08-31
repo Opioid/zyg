@@ -3,6 +3,7 @@ usingnamespace base;
 usingnamespace base.math;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Reference = struct {
     const Vector = struct {
@@ -17,6 +18,10 @@ pub const Reference = struct {
             Vec4f.init3(self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2]),
             Vec4f.init3(self.bounds[1].v[0], self.bounds[1].v[1], self.bounds[1].v[2]),
         );
+    }
+
+    pub fn bound(self: Reference, comptime i: comptime_int) Vec4f {
+        return Vec4f.init3(self.bounds[i].v[0], self.bounds[i].v[1], self.bounds[i].v[2]);
     }
 
     pub fn primitive(self: Reference) u32 {
@@ -47,19 +52,18 @@ pub const Reference = struct {
 
         bounds1.v[axis] = std.math.min(d, bounds1.v[axis]);
 
-        return .{ .bounds = .{ self.bounds[0], bounds[1] } };
+        return .{ .bounds = .{ self.bounds[0], bounds1 } };
     }
 };
+
+pub const References = std.ArrayListUnmanaged(Reference);
 
 pub const SplitCandidate = struct {
     aabbs: [2]AABB = undefined,
     num_sides: [2]u32 = undefined,
-
     d: f32,
     cost: f32 = undefined,
-
     axis: u8,
-
     spatial: bool,
 
     const Self = @This();
@@ -74,7 +78,7 @@ pub const SplitCandidate = struct {
 
     pub fn evaluate(self: *Self, references: []const Reference, aabb_surface_area: f32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var aabbs: [2]AABB = .{ math.aabb.emtpy, math.aabb.empty };
+        var aabbs: [2]AABB = .{ aabb.empty, aabb.empty };
 
         if (self.spatial) {
             var used_spatial: bool = false;
@@ -140,7 +144,39 @@ pub const SplitCandidate = struct {
         self.aabbs[1] = aabbs[1];
     }
 
-    pub fn beind(self: Self, point: Vec4f) bool {
+    pub fn distribute(
+        self: Self,
+        alloc: *Allocator,
+        references: []const Reference,
+        references0: *References,
+        references1: *References,
+    ) !void {
+        references0.* = try References.initCapacity(alloc, self.num_sides[0]);
+        references1.* = try References.initCapacity(alloc, self.num_sides[1]);
+
+        if (self.spatial) {
+            for (references) |r| {
+                if (self.behind(r.bound(1))) {
+                    references0.appendAssumeCapacity(r);
+                } else if (!self.behind(r.bound(0))) {
+                    references1.appendAssumeCapacity(r);
+                } else {
+                    references0.appendAssumeCapacity(r.clippedMax(self.d, self.axis));
+                    references1.appendAssumeCapacity(r.clippedMin(self.d, self.axis));
+                }
+            }
+        } else {
+            for (references) |r| {
+                if (self.behind(r.bound(1))) {
+                    references0.appendAssumeCapacity(r);
+                } else {
+                    references1.appendAssumeCapacity(r);
+                }
+            }
+        }
+    }
+
+    pub fn behind(self: Self, point: Vec4f) bool {
         return point.v[self.axis] < self.d;
     }
 };

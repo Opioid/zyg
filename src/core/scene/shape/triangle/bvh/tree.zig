@@ -1,4 +1,5 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
+const Node = @import("../../../bvh/node.zig").Node;
 const base = @import("base");
 usingnamespace base;
 
@@ -16,12 +17,21 @@ pub const Tree = struct {
         index: u32 = 0xFFFFFFFF,
     };
 
+    nodes: []Node = &.{},
+
     data: Indexed_data = .{},
 
     box: AABB = undefined,
 
+    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) ![]Node {
+        self.nodes = try alloc.alloc(Node, num_nodes);
+
+        return self.nodes;
+    }
+
     pub fn deinit(self: *Tree, alloc: *Allocator) void {
         self.data.deinit(alloc);
+        alloc.free(self.nodes);
     }
 
     pub fn aabb(self: Tree) AABB {

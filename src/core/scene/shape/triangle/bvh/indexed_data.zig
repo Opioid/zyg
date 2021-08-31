@@ -29,28 +29,48 @@ pub const Indexed_data = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !Indexed_data {
-        const num_vertices = vertices.numVertices();
-
-        var data = Indexed_data{
-            .triangles = try alloc.alloc(Triangle, num_triangles),
-            .positions = try alloc.alloc(Vec4f, num_vertices),
-            .frames = try alloc.alloc(Vec4f, num_vertices),
-        };
-
-        var i: u32 = 0;
-        while (i < num_vertices) : (i += 1) {
-            data.positions[i] = vertices.position(i);
-            data.frames[i] = vertices.frame(i);
-        }
-
-        return data;
-    }
-
     pub fn deinit(self: *Self, alloc: *Allocator) void {
         alloc.free(self.frames);
         alloc.free(self.positions);
         alloc.free(self.triangles);
+    }
+
+    pub fn allocateTriangles(self: *Self, alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !void {
+        const num_vertices = vertices.numVertices();
+
+        self.triangles = try alloc.alloc(Triangle, num_triangles);
+        self.positions = try alloc.alloc(Vec4f, num_vertices);
+        self.frames = try alloc.alloc(Vec4f, num_vertices);
+
+        var i: u32 = 0;
+        while (i < num_vertices) : (i += 1) {
+            self.positions[i] = vertices.position(i);
+            self.frames[i] = vertices.frame(i);
+        }
+    }
+
+    pub fn setTriangle(
+        self: *Self,
+        a: u32,
+        b: u32,
+        c: u32,
+        part: u32,
+        vertices: VertexStream,
+        triangle_id: u32,
+    ) void {
+        const abts = vertices.bitangentSign(a);
+        const bbts = vertices.bitangentSign(b);
+        const cbts = vertices.bitangentSign(c);
+
+        const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
+
+        self.triangles[triangle_id] = .{
+            .a = a,
+            .b = b,
+            .c = c,
+            .bts = if (bitangent_sign) 1 else 0,
+            .part = @intCast(u31, part),
+        };
     }
 
     pub fn intersect(self: Self, ray: *Ray, index: usize) ?Intersection {

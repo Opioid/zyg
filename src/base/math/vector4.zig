@@ -115,6 +115,10 @@ pub fn Vec4(comptime T: type) type {
             );
         }
 
+        pub fn equals3(a: Vec4(T), b: Vec4(T)) bool {
+            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2];
+        }
+
         pub fn min3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
             return init3(
                 std.math.min(a.v[0], b.v[0]),
@@ -129,6 +133,14 @@ pub fn Vec4(comptime T: type) type {
                 std.math.max(a.v[1], b.v[1]),
                 std.math.max(a.v[2], b.v[2]),
             );
+        }
+
+        pub fn indexMaxComponent3(v: Vec4(T)) u32 {
+            if (v.v[0] > v.v[1]) {
+                return if (v.v[0] > v.v[2]) 0 else 2;
+            }
+
+            return if (v.v[1] > v.v[2]) 1 else 2;
         }
 
         pub fn tangent3(n: Vec4(T)) Vec4(T) {
