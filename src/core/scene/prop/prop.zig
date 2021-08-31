@@ -1,5 +1,6 @@
 const Ray = @import("../ray.zig").Ray;
 const Scene = @import("../scene.zig").Scene;
+const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");
 
 const base = @import("base");
@@ -22,25 +23,34 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: *Ray,
-        scene: Scene,
+        worker: *Worker,
         isec: *shp.Intersection,
     ) bool {
+        const scene = worker.scene;
+
         if (self.is_complex and !scene.propAabbIntersectP(entity, ray.*)) {
             return false;
         }
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersect(&ray.ray, trafo, isec);
+        return scene.propShape(entity).intersect(&ray.ray, trafo, worker, isec);
     }
 
-    pub fn intersectP(self: Prop, entity: usize, ray: Ray, scene: Scene) bool {
+    pub fn intersectP(
+        self: Prop,
+        entity: usize,
+        ray: Ray,
+        worker: *Worker,
+    ) bool {
+        const scene = worker.scene;
+
         if (self.is_complex and !scene.propAabbIntersectP(entity, ray)) {
             return false;
         }
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersectP(ray.ray, trafo);
+        return scene.propShape(entity).intersectP(ray.ray, trafo, worker);
     }
 };

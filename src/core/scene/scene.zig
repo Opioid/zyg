@@ -1,12 +1,10 @@
 const prop = @import("prop/prop.zig");
 const Prop = prop.Prop;
 const Intersection = @import("prop/intersection.zig").Intersection;
-
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
-
 const Ray = @import("ray.zig").Ray;
-
+const Worker = @import("worker.zig").Worker;
 const Transformation = @import("composed_transformation.zig").Composed_transformation;
 
 const base = @import("base");
@@ -54,11 +52,13 @@ pub const Scene = struct {
         }
     }
 
-    pub fn intersect(self: Scene, ray: *Ray, isec: *Intersection) bool {
+    pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+        worker.node_stack.clear();
+
         var hit: bool = false;
 
         for (self.props.items) |p, i| {
-            if (p.intersect(i, ray, self, &isec.geo)) {
+            if (p.intersect(i, ray, worker, &isec.geo)) {
                 hit = true;
             }
         }
@@ -66,9 +66,11 @@ pub const Scene = struct {
         return hit;
     }
 
-    pub fn intersectP(self: Scene, ray: Ray) bool {
+    pub fn intersectP(self: Scene, ray: Ray, worker: *Worker) bool {
+        worker.node_stack.clear();
+
         for (self.props.items) |p, i| {
-            if (p.intersectP(i, ray, self)) {
+            if (p.intersectP(i, ray, worker)) {
                 return true;
             }
         }

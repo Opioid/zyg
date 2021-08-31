@@ -1,4 +1,5 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
+const NodeStack = @import("../../node_stack.zig").NodeStack;
 const Node = @import("../../../bvh/node.zig").Node;
 const base = @import("base");
 usingnamespace base;
@@ -38,25 +39,93 @@ pub const Tree = struct {
         return self.box;
     }
 
-    pub fn intersect(self: Tree, ray: *Ray) ?Intersection {
+    pub fn intersect(self: Tree, ray: *Ray, nodes: *NodeStack) ?Intersection {
+        const ray_signs = [3]u32{
+            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+        };
+
+        nodes.push(0xFFFFFFFF);
+        var n: u32 = 0;
+
         var isec: Intersection = .{};
 
-        for (self.data.triangles) |_, i| {
-            if (self.data.intersect(ray, i)) |hit| {
-                isec.u = hit.u;
-                isec.v = hit.v;
-                isec.index = @intCast(u32, i);
+        while (0xFFFFFFFF != n) {
+            const node = self.nodes[n];
+
+            if (node.intersectP(ray.*)) {
+                if (0 == node.numIndices()) {
+                    const a = node.children();
+                    const b = a + 1;
+
+                    if (0 == ray_signs[node.axis()]) {
+                        nodes.push(b);
+                        n = a;
+                    } else {
+                        nodes.push(a);
+                        n = b;
+                    }
+
+                    continue;
+                }
+
+                var i = node.indicesStart();
+                const e = node.indicesEnd();
+                while (i < e) : (i += 1) {
+                    if (self.data.intersect(ray, i)) |hit| {
+                        isec.u = hit.u;
+                        isec.v = hit.v;
+                        isec.index = i;
+                    }
+                }
             }
+
+            n = nodes.pop();
         }
 
         return if (0xFFFFFFFF != isec.index) isec else null;
     }
 
-    pub fn intersectP(self: Tree, ray: Ray) bool {
-        for (self.data.triangles) |_, i| {
-            if (self.data.intersectP(ray, i)) {
-                return true;
+    pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
+        const ray_signs = [3]u32{
+            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+        };
+
+        nodes.push(0xFFFFFFFF);
+        var n: u32 = 0;
+
+        while (0xFFFFFFFF != n) {
+            const node = self.nodes[n];
+
+            if (node.intersectP(ray)) {
+                if (0 == node.numIndices()) {
+                    const a = node.children();
+                    const b = a + 1;
+
+                    if (0 == ray_signs[node.axis()]) {
+                        nodes.push(b);
+                        n = a;
+                    } else {
+                        nodes.push(a);
+                        n = b;
+                    }
+
+                    continue;
+                }
+
+                var i = node.indicesStart();
+                const e = node.indicesEnd();
+                while (i < e) : (i += 1) {
+                    if (self.data.intersectP(ray, i)) {
+                        return true;
+                    }
+                }
             }
+
+            n = nodes.pop();
         }
 
         return false;

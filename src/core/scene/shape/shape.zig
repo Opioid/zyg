@@ -2,6 +2,7 @@ pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const Triangle_mesh = @import("triangle/mesh.zig").Mesh;
+const Worker = @import("../worker.zig").Worker;
 const Intersection = @import("intersection.zig").Intersection;
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
 
@@ -45,23 +46,23 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, worker: *Worker, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
             .Plane => Plane.intersect(ray, trafo, isec),
             .Rectangle => Rectangle.intersect(ray, trafo, isec),
             .Sphere => Sphere.intersect(ray, trafo, isec),
-            .Triangle_mesh => |m| m.intersect(ray, trafo, isec),
+            .Triangle_mesh => |m| m.intersect(ray, trafo, &worker.node_stack, isec),
         };
     }
 
-    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
         return switch (self) {
             .Null => false,
             .Plane => Plane.intersectP(ray, trafo),
             .Rectangle => Rectangle.intersectP(ray, trafo),
             .Sphere => Sphere.intersectP(ray, trafo),
-            .Triangle_mesh => |m| m.intersectP(ray, trafo),
+            .Triangle_mesh => |m| m.intersectP(ray, trafo, &worker.node_stack),
         };
     }
 };

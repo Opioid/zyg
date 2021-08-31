@@ -1,12 +1,12 @@
+const Transformation = @import("../../composed_transformation.zig").Composed_transformation;
+const NodeStack = @import("../node_stack.zig").NodeStack;
+const Intersection = @import("../intersection.zig").Intersection;
+pub const bvh = @import("bvh/tree.zig");
 const base = @import("base");
 usingnamespace base;
 
 const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
-
-const Transformation = @import("../../composed_transformation.zig").Composed_transformation;
-const Intersection = @import("../intersection.zig").Intersection;
-pub const bvh = @import("bvh/tree.zig");
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -18,7 +18,7 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, nodes: *NodeStack, isec: *Intersection) bool {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -26,7 +26,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        if (self.tree.intersect(&tray)) |hit| {
+        if (self.tree.intersect(&tray, nodes)) |hit| {
             ray.setMaxT(tray.maxT());
 
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
@@ -53,7 +53,7 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation, nodes: *NodeStack) bool {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -61,6 +61,6 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.intersectP(tray);
+        return self.tree.intersectP(tray, nodes);
     }
 };
