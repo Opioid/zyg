@@ -11,11 +11,44 @@ const Ray = base.math.Ray;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const Part = struct {
+    material: u32,
+};
+
 pub const Mesh = struct {
     tree: bvh.Tree = .{},
 
+    parts: []Part,
+
+    pub fn init(alloc: *Allocator, num_parts: u32) !Mesh {
+        return Mesh{ .parts = try alloc.alloc(Part, num_parts) };
+    }
+
     pub fn deinit(self: *Mesh, alloc: *Allocator) void {
+        alloc.free(self.parts);
         self.tree.deinit(alloc);
+    }
+
+    pub fn numParts(self: Mesh) u32 {
+        return @intCast(u32, self.parts.len);
+    }
+
+    pub fn numMaterials(self: Mesh) u32 {
+        var id: u32 = 0;
+
+        for (self.parts) |p| {
+            id = std.math.max(id, p.material);
+        }
+
+        return id + 1;
+    }
+
+    pub fn partIdToMaterialId(self: Mesh, part: u32) u32 {
+        return self.parts[part].material;
+    }
+
+    pub fn setMaterialForPart(self: *Mesh, part: usize, material: u32) void {
+        self.parts[part].material = material;
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, nodes: *NodeStack, isec: *Intersection) bool {
@@ -34,6 +67,9 @@ pub const Mesh = struct {
 
             const geo_n = self.tree.data.normal(hit.index);
             isec.geo_n = trafo.rotation.transformVector(geo_n);
+
+            isec.part = self.tree.data.part(hit.index);
+            isec.primitive = hit.index;
 
             var t: Vec4f = undefined;
             var n: Vec4f = undefined;

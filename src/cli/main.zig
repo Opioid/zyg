@@ -42,10 +42,8 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager.init(&threads);
+    var resources = resource.Manager.init(alloc, &threads);
     defer resources.deinit(alloc);
-
-    resources.shapes = resource.Shapes.init(alloc, resource.Triangle_mesh_provider{});
 
     var fs = &resources.fs;
 
@@ -57,9 +55,15 @@ pub fn main() !void {
         }
     }
 
-    var scene_loader = scn.Loader.init(alloc, &resources);
+    var scene_loader = scn.Loader.init(alloc, &resources, scn.mat.Provider.createFallbackMaterial());
+    defer scene_loader.deinit(alloc);
 
-    var scene = try scn.Scene.init(alloc, &resources.shapes.resources, scene_loader.null_shape);
+    var scene = try scn.Scene.init(
+        alloc,
+        &resources.materials.resources,
+        &resources.shapes.resources,
+        scene_loader.null_shape,
+    );
     defer scene.deinit(alloc);
 
     var stream = try resources.fs.readStream(options.take.?);

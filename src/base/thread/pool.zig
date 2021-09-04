@@ -14,17 +14,17 @@ const Unique = struct {
 };
 
 pub const Pool = struct {
-    pub const Context = u64;
+    pub const Context = usize;
 
-    const ParallelProgram = fn (context: *Context, id: u32) void;
-    const RangeProgram = fn (context: *Context, id: u32, begin: u32, end: u32) void;
+    const ParallelProgram = fn (context: Context, id: u32) void;
+    const RangeProgram = fn (context: Context, id: u32, begin: u32, end: u32) void;
 
     const Program = union(enum) { Parallel: ParallelProgram, Range: RangeProgram };
 
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
 
-    context: *Context = undefined,
+    context: Context = undefined,
     program: Program = undefined,
 
     quit: bool = false,
@@ -73,14 +73,14 @@ pub const Pool = struct {
     }
 
     pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram) void {
-        self.runParallelInt(@ptrCast(*Context, context), program);
+        self.runParallelInt(@ptrToInt(context), program);
     }
 
     pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
-        self.runRangeInt(@ptrCast(*Context, context), program, begin, end);
+        self.runRangeInt(@ptrToInt(context), program, begin, end);
     }
 
-    fn runParallelInt(self: *Pool, context: *Context, program: ParallelProgram) void {
+    fn runParallelInt(self: *Pool, context: Context, program: ParallelProgram) void {
         self.context = context;
         self.program = .{ .Parallel = program };
 
@@ -89,7 +89,7 @@ pub const Pool = struct {
         self.waitAll();
     }
 
-    fn runRangeInt(self: *Pool, context: *Context, program: RangeProgram, begin: u32, end: u32) void {
+    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) void {
         self.context = context;
         self.program = .{ .Range = program };
 

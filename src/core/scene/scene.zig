@@ -1,6 +1,7 @@
-const prop = @import("prop/prop.zig");
-const Prop = prop.Prop;
+const prp = @import("prop/prop.zig");
+const Prop = prp.Prop;
 const Intersection = @import("prop/intersection.zig").Intersection;
+const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
@@ -15,32 +16,47 @@ const Vec4f = base.math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ALU = std.ArrayListUnmanaged;
 
 const Num_reserved_props = 32;
 
 pub const Scene = struct {
-    shapes: *std.ArrayListUnmanaged(Shape),
+    materials: *ALU(Material),
+    shapes: *ALU(Shape),
 
     null_shape: u32,
 
-    props: std.ArrayListUnmanaged(Prop),
-    prop_world_transformations: std.ArrayListUnmanaged(Transformation),
-    prop_world_positions: std.ArrayListUnmanaged(Vec4f),
-    prop_aabbs: std.ArrayListUnmanaged(AABB),
+    props: ALU(Prop),
+    prop_world_transformations: ALU(Transformation),
+    prop_world_positions: ALU(Vec4f),
+    prop_parts: ALU(u32),
+    prop_aabbs: ALU(AABB),
 
-    pub fn init(alloc: *Allocator, shapes: *std.ArrayListUnmanaged(Shape), null_shape: u32) !Scene {
+    material_ids: ALU(u32),
+
+    pub fn init(
+        alloc: *Allocator,
+        materials: *ALU(Material),
+        shapes: *ALU(Shape),
+        null_shape: u32,
+    ) !Scene {
         return Scene{
-            .props = try std.ArrayListUnmanaged(Prop).initCapacity(alloc, Num_reserved_props),
-            .prop_world_transformations = try std.ArrayListUnmanaged(Transformation).initCapacity(alloc, Num_reserved_props),
-            .prop_world_positions = try std.ArrayListUnmanaged(Vec4f).initCapacity(alloc, Num_reserved_props),
-            .prop_aabbs = try std.ArrayListUnmanaged(AABB).initCapacity(alloc, Num_reserved_props),
+            .materials = materials,
             .shapes = shapes,
             .null_shape = null_shape,
+            .props = try ALU(Prop).initCapacity(alloc, Num_reserved_props),
+            .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
+            .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
+            .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
+            .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
+        self.material_ids.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
+        self.prop_parts.deinit(alloc);
         self.prop_world_positions.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
         self.props.deinit(alloc);
@@ -56,13 +72,16 @@ pub const Scene = struct {
         worker.node_stack.clear();
 
         var hit: bool = false;
+        var prop: usize = prp.Null;
 
         for (self.props.items) |p, i| {
             if (p.intersect(i, ray, worker, &isec.geo)) {
                 hit = true;
+                prop = i;
             }
         }
 
+        isec.prop = @intCast(u32, prop);
         return hit;
     }
 
@@ -79,17 +98,31 @@ pub const Scene = struct {
     }
 
     pub fn createEntity(self: *Scene, alloc: *Allocator) u32 {
-        const p = self.allocateProp(alloc) catch return prop.Null;
+        const p = self.allocateProp(alloc) catch return prp.Null;
 
-        self.props.items[p].configure(self.null_shape, self.*);
+        self.props.items[p].configure(self.null_shape, &.{}, self.*);
 
         return p;
     }
 
-    pub fn createProp(self: *Scene, alloc: *Allocator, shape_id: u32) u32 {
-        const p = self.allocateProp(alloc) catch return prop.Null;
+    pub fn createProp(self: *Scene, alloc: *Allocator, shape_id: u32, materials: []u32) u32 {
+        const p = self.allocateProp(alloc) catch return prp.Null;
 
-        self.props.items[p].configure(shape_id, self.*);
+        self.props.items[p].configure(shape_id, materials, self.*);
+
+        const shape_inst = self.shape(shape_id);
+        const num_parts = shape_inst.numParts();
+
+        const parts_start = @intCast(u32, self.material_ids.items.len);
+        self.prop_parts.items[p] = parts_start;
+
+        var i: u32 = 0;
+        while (i < num_parts) : (i += 1) {
+            self.material_ids.append(
+                alloc,
+                materials[shape_inst.partIdToMaterialId(i)],
+            ) catch return prp.Null;
+        }
 
         return p;
     }
@@ -111,6 +144,11 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersectP(ray.ray);
     }
 
+    pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
+        const p = self.prop_parts.items[entity] + part;
+        return self.materials.items[self.material_ids.items[p]];
+    }
+
     pub fn propShape(self: Scene, entity: usize) Shape {
         return self.shapes.items[self.props.items[entity].shape];
     }
@@ -123,6 +161,7 @@ pub const Scene = struct {
         try self.props.append(alloc, .{});
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
+        try self.prop_parts.append(alloc, 0);
         try self.prop_aabbs.append(alloc, .{});
 
         return @intCast(u32, self.props.items.len - 1);

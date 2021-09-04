@@ -35,10 +35,10 @@ pub const Srgb = struct {
         threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.numPixels()));
     }
 
-    fn toSrgbRange(context: *ThreadContext, id: u32, begin: u32, end: u32) void {
+    fn toSrgbRange(context: ThreadContext, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @ptrCast(*Srgb, context);
+        const self = @intToPtr(*Srgb, context);
 
         if (self.alpha) {
             for (self.image.pixels[begin..end]) |p, i| {

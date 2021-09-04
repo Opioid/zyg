@@ -5,9 +5,8 @@ const sampler = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
-const Allocator = @import("std").mem.Allocator;
-
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const AO = struct {
     pub const Settings = struct {
@@ -48,6 +47,12 @@ pub const AO = struct {
 
         var result: f32 = 0.0;
 
+        const wo = ray.ray.direction.neg3();
+
+        const mat_sample = isec.sample(wo, ray.*, worker.super);
+
+        _ = mat_sample;
+
         var occlusion_ray: Ray = undefined;
 
         occlusion_ray.ray.origin = isec.offsetP(isec.geo.geo_n);
@@ -55,13 +60,17 @@ pub const AO = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = self.sampler.sample2D(&worker.worker.rng, 0);
+            const sample = self.sampler.sample2D(&worker.super.rng, 0);
 
-            const ws = math.sample.oriented_hemisphere_cosine(sample, isec.geo.t, isec.geo.b, isec.geo.n);
+            const t = mat_sample.super().shadingTangent();
+            const b = mat_sample.super().shadingBitangent();
+            const n = mat_sample.super().shadingNormal();
+
+            const ws = math.sample.oriented_hemisphere_cosine(sample, t, b, n);
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (!worker.worker.intersectP(occlusion_ray)) {
+            if (!worker.super.intersectP(occlusion_ray)) {
                 result += num_samples_reciprocal;
             }
         }

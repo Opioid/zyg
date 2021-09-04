@@ -103,8 +103,8 @@ pub const Driver = struct {
         self.view.camera.sensor.resolve(&self.target);
     }
 
-    fn renderTiles(context: *ThreadContext, id: u32) void {
-        const self = @ptrCast(*Driver, context);
+    fn renderTiles(context: ThreadContext, id: u32) void {
+        const self = @intToPtr(*Driver, context);
 
         const num_samples = self.view.num_samples_per_pixel;
 

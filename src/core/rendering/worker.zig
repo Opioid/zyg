@@ -16,7 +16,7 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Worker = struct {
-    worker: Scene_worker = undefined,
+    super: Scene_worker = undefined,
 
     sampler: Sampler = undefined,
 
@@ -36,7 +36,7 @@ pub const Worker = struct {
         samplers: smpl.Factory,
         surfaces: surface.Factory,
     ) !void {
-        self.worker.configure(camera, scene);
+        self.super.configure(camera, scene);
 
         self.sampler = try samplers.create(alloc, 1, 1, num_samples_per_pixel);
 
@@ -44,9 +44,9 @@ pub const Worker = struct {
     }
 
     pub fn render(self: *Worker, tile: Vec4i, num_samples: u32) void {
-        var camera = self.worker.camera;
+        var camera = self.super.camera;
         const sensor = &camera.sensor;
-        const scene = self.worker.scene;
+        const scene = self.super.scene;
 
         const offset = Vec2i.init1(0);
 
@@ -75,7 +75,7 @@ pub const Worker = struct {
             const x_back = tile.v[2];
             var x: i32 = tile.v[0];
             while (x <= x_back) : (x += 1) {
-                self.worker.rng.start(0, o1 + @intCast(u64, x + fr));
+                self.super.rng.start(0, o1 + @intCast(u64, x + fr));
 
                 self.sampler.startPixel();
                 self.surface_integrator.startPixel();
@@ -84,7 +84,7 @@ pub const Worker = struct {
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.sample(&self.worker.rng, pixel);
+                    const sample = self.sampler.sample(&self.super.rng, pixel);
 
                     if (camera.generateRay(sample, scene.*)) |*ray| {
                         const color = self.li(ray);
@@ -100,7 +100,7 @@ pub const Worker = struct {
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
 
-        if (self.worker.intersect(ray, &isec)) {
+        if (self.super.intersect(ray, &isec)) {
             return self.surface_integrator.li(ray, &isec, self);
         }
 

@@ -54,7 +54,7 @@ pub const Indexed_data = struct {
         a: u32,
         b: u32,
         c: u32,
-        part: u32,
+        p: u32,
         vertices: VertexStream,
         triangle_id: u32,
     ) void {
@@ -69,7 +69,7 @@ pub const Indexed_data = struct {
             .b = b,
             .c = c,
             .bts = if (bitangent_sign) 1 else 0,
-            .part = @intCast(u31, part),
+            .part = @intCast(u31, p),
         };
     }
 
@@ -119,6 +119,10 @@ pub const Indexed_data = struct {
 
         t.* = triangle.interpolateP(tna[0], tnb[0], tnc[0], u, v).normalize3();
         n.* = triangle.interpolateP(tna[1], tnb[1], tnc[1], u, v).normalize3();
+    }
+
+    pub fn part(self: Self, index: u32) u32 {
+        return self.triangles[index].part;
     }
 
     pub fn normal(self: Self, index: u32) Vec4f {

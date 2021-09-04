@@ -1,7 +1,7 @@
 const base = @import("base");
 usingnamespace base.math;
 
-pub const Intersection = struct {
+pub const Renderstate = struct {
     p: Vec4f = undefined,
     geo_n: Vec4f = undefined,
     t: Vec4f = undefined,
@@ -9,6 +9,7 @@ pub const Intersection = struct {
     n: Vec4f = undefined,
     uv: Vec2f = undefined,
 
+    prop: u32 = undefined,
     part: u32 = undefined,
     primitive: u32 = undefined,
 };

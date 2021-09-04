@@ -30,6 +30,27 @@ pub const Shape = union(enum) {
         }
     }
 
+    pub fn numParts(self: Shape) u32 {
+        return switch (self) {
+            .Triangle_mesh => |m| m.numParts(),
+            else => 1,
+        };
+    }
+
+    pub fn numMaterials(self: Shape) u32 {
+        return switch (self) {
+            .Triangle_mesh => |m| m.numMaterials(),
+            else => 1,
+        };
+    }
+
+    pub fn partIdToMaterialId(self: Shape, part: u32) u32 {
+        return switch (self) {
+            .Triangle_mesh => |m| m.partIdToMaterialId(part),
+            else => part,
+        };
+    }
+
     pub fn isComplex(self: Shape) bool {
         return switch (self) {
             .Triangle_mesh => true,

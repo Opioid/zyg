@@ -24,6 +24,8 @@ pub const Plane = struct {
             isec.b = b;
             isec.n = n;
 
+            isec.part = 0;
+
             ray.setMaxT(hit_t);
             return true;
         }

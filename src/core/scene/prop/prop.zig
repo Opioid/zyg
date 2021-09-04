@@ -1,4 +1,5 @@
 const Ray = @import("../ray.zig").Ray;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");
@@ -13,10 +14,12 @@ pub const Prop = struct {
 
     is_complex: bool = false,
 
-    pub fn configure(self: *Prop, shape: u32, scene: Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []u32, scene: Scene) void {
         self.shape = shape;
 
         self.is_complex = scene.shape(shape).isComplex();
+
+        _ = materials;
     }
 
     pub fn intersect(

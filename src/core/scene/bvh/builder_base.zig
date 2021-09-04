@@ -18,8 +18,8 @@ pub const Base = struct {
     spatial_split_threshold: u32,
 
     split_candidates: std.ArrayListUnmanaged(SplitCandidate),
-    reference_ids: std.ArrayListUnmanaged(u32) = undefined,
-    build_nodes: std.ArrayListUnmanaged(Node) = undefined,
+    reference_ids: std.ArrayListUnmanaged(u32) = .{},
+    build_nodes: std.ArrayListUnmanaged(Node) = .{},
 
     current_node: u32 = undefined,
     nodes: []Node = undefined,
@@ -195,17 +195,18 @@ pub const Base = struct {
     }
 
     pub fn reserve(self: *Base, alloc: *Allocator, num_primitives: u32) !void {
-        self.build_nodes = try std.ArrayListUnmanaged(Node).initCapacity(
+        try self.build_nodes.ensureTotalCapacity(
             alloc,
             std.math.max((3 * num_primitives) / self.max_primitives, 1),
         );
         self.build_nodes.clearRetainingCapacity();
         try self.build_nodes.append(alloc, .{});
 
-        self.reference_ids = try std.ArrayListUnmanaged(u32).initCapacity(
+        try self.reference_ids.ensureTotalCapacity(
             alloc,
             (num_primitives * 12) / 10,
         );
+        self.reference_ids.clearRetainingCapacity();
 
         self.current_node = 0;
     }

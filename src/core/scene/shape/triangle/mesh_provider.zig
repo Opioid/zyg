@@ -44,7 +44,7 @@ const Handler = struct {
 };
 
 pub const Provider = struct {
-    pub fn load(self: Provider, alloc: *Allocator, name: []const u8, resources: *Resources) !Shape {
+    pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, resources: *Resources) !Shape {
         _ = self;
 
         var handler = Handler{};
@@ -99,7 +99,11 @@ pub const Provider = struct {
             .bitangent_signs = handler.bitangent_signs.items,
         } };
 
-        var mesh = Mesh{};
+        var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
+
+        for (handler.parts.items) |p, i| {
+            mesh.setMaterialForPart(i, p.material_index);
+        }
 
         try buildBVH(alloc, &mesh, handler.triangles.items, vertices);
 
@@ -228,6 +232,7 @@ pub const Provider = struct {
     const Error = error{
         NoGeometryNode,
         BitangentSignNotUInt8,
+        PartIndicesOutOfBounds,
     };
 
     fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *thread.Pool) !Shape {
@@ -393,7 +398,15 @@ pub const Provider = struct {
             }
         }
 
-        var mesh = Mesh{};
+        var mesh = try Mesh.init(alloc, @intCast(u32, parts.len));
+
+        for (parts) |p, i| {
+            if (p.start_index + p.num_indices > num_indices) {
+                return Error.PartIndicesOutOfBounds;
+            }
+
+            mesh.setMaterialForPart(i, p.material_index);
+        }
 
         try buildBVH(alloc, &mesh, triangles, vertices);
 

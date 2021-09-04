@@ -19,7 +19,6 @@ pub const Tree = struct {
     };
 
     nodes: []Node = &.{},
-
     data: Indexed_data = .{},
 
     box: AABB = undefined,
