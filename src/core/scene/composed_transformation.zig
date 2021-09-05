@@ -31,14 +31,12 @@ pub const Composed_transformation = struct {
         return self.rotation.m(1, 3);
     }
 
-    pub fn objectToWorld(self: Self) Mat4x4 {
-        const scale = Vec4f.init3(
-            self.rotation.m(0, 3),
-            self.rotation.m(1, 3),
-            self.rotation.m(2, 3),
-        );
+    pub fn scale(self: Self) Vec4f {
+        return Vec4f.init3(self.rotation.m(0, 3), self.rotation.m(1, 3), self.rotation.m(2, 3));
+    }
 
-        return Mat4x4.compose(self.rotation, scale, self.position);
+    pub fn objectToWorld(self: Self) Mat4x4 {
+        return Mat4x4.compose(self.rotation, self.scale(), self.position);
     }
 
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {

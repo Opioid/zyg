@@ -1,5 +1,8 @@
-const Material = @import("material.zig").Material;
+const mat = @import("material.zig");
+const Material = mat.Material;
 const Resources = @import("../../resource/manager.zig").Manager;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -68,6 +71,10 @@ pub const Provider = struct {
     fn loadLight(value: std.json.Value) !Material {
         _ = value;
 
-        return Material{ .Light = .{} };
+        var material = mat.Light{};
+
+        material.emittance.setRadiance(Vec4f.init1(10.0));
+
+        return Material{ .Light = material };
     }
 };

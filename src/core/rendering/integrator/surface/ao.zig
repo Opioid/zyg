@@ -14,9 +14,9 @@ pub const AO = struct {
         radius: f32,
     };
 
-    settings: Settings = Settings{ .num_samples = 1, .radius = 1.0 },
+    settings: Settings,
 
-    sampler: sampler.Sampler = sampler.Sampler{ .Random = {} },
+    sampler: sampler.Sampler,
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !AO {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
@@ -49,9 +49,7 @@ pub const AO = struct {
 
         const wo = ray.ray.direction.neg3();
 
-        const mat_sample = isec.sample(wo, ray.*, worker.super);
-
-        _ = mat_sample;
+        const mat_sample = isec.sample(wo, ray.*, &worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -80,7 +78,7 @@ pub const AO = struct {
 };
 
 pub const Factory = struct {
-    settings: AO.Settings = .{ .num_samples = 1, .radius = 1.0 },
+    settings: AO.Settings,
 
     pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !AO {
         return try AO.init(alloc, self.settings, max_samples_per_pixel);

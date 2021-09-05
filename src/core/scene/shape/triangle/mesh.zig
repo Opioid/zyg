@@ -13,6 +13,7 @@ const Allocator = std.mem.Allocator;
 
 const Part = struct {
     material: u32,
+    area: f32,
 };
 
 pub const Mesh = struct {
@@ -49,6 +50,11 @@ pub const Mesh = struct {
 
     pub fn setMaterialForPart(self: *Mesh, part: usize, material: u32) void {
         self.parts[part].material = material;
+    }
+
+    pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
+        // HACK: This only really works for uniform scales!
+        return self.parts[part].area * (scale.v[0] * scale.v[1]);
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, nodes: *NodeStack, isec: *Intersection) bool {

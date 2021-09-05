@@ -67,6 +67,15 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
+        return switch (self) {
+            .Null, .Plane => 0.0,
+            .Rectangle => 4.0 * scale.v[0] * scale.v[1],
+            .Sphere => (4.0 * std.math.pi) * (scale.v[0] * scale.v[0]),
+            .Triangle_mesh => |m| m.area(part, scale),
+        };
+    }
+
     pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, worker: *Worker, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,

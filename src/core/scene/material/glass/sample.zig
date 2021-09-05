@@ -7,6 +7,6 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f) Sample {
-        return .{ .super = Base.init(rs, wo) };
+        return .{ .super = Base.init(rs, wo, Vec4f.init1(1.0), Vec4f.init1(0.0)) };
     }
 };

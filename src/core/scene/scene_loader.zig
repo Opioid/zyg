@@ -89,8 +89,6 @@ pub const Loader = struct {
             const name_node = m.Object.get("name") orelse continue;
 
             try local_materials.materials.put(name_node.String, m);
-
-            std.debug.print("mat: {s}\n", .{name_node.String});
         }
     }
 
@@ -108,11 +106,17 @@ pub const Loader = struct {
             var entity_id: u32 = prp.Null;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, scene);
+                const prop_id = try self.loadProp(alloc, entity, local_materials, scene);
+
+                if (prp.Null != prop_id) {
+                    try scene.createLight(alloc, prop_id);
+                }
+
+                entity_id = prop_id;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
                 entity_id = try self.loadProp(alloc, entity, local_materials, scene);
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                entity_id = scene.createEntity(alloc);
+                entity_id = try scene.createEntity(alloc);
             }
 
             if (prp.Null == entity_id) {
@@ -175,7 +179,7 @@ pub const Loader = struct {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        return scene.createProp(alloc, shape, self.materials.items);
+        return try scene.createProp(alloc, shape, self.materials.items);
     }
 
     fn loadShape(self: Loader, alloc: *Allocator, value: std.json.Value) u32 {

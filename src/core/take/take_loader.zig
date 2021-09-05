@@ -45,7 +45,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     var iter = root.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
+            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
             integrator_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
@@ -78,7 +78,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     return take;
 }
 
-fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) void {
+fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -126,7 +126,7 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         return;
     }
 
-    const prop_id = scene.createEntity(alloc);
+    const prop_id = try scene.createEntity(alloc);
 
     scene.propSetWorldTransformation(prop_id, trafo);
 
@@ -215,6 +215,9 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
 }
 
 fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
+    const Default_min_bounces = 4;
+    const Default_max_bounces = 8;
+
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "AO", entry.key_ptr.*)) {
@@ -224,6 +227,19 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
 
             view.surfaces = surface.Factory{ .AO = .{
                 .settings = .{ .num_samples = num_samples, .radius = radius },
+            } };
+        } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+
+            const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+
+            view.surfaces = surface.Factory{ .PT = .{
+                .settings = .{
+                    .num_samples = num_samples,
+                    .min_bounces = min_bounces,
+                    .max_bounces = max_bounces,
+                },
             } };
         }
     }

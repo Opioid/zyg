@@ -17,10 +17,10 @@ pub const Intersection = struct {
         return worker.scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn sample(self: Self, wo: Vec4f, ray: Ray, worker: Worker) mat.Sample {
+    pub fn sample(self: Self, wo: Vec4f, ray: Ray, worker: *Worker) mat.Sample {
         _ = ray;
 
-        const m = self.material(worker);
+        const m = self.material(worker.*);
 
         var rs: Renderstate = undefined;
         rs.p = self.geo.p;
@@ -35,7 +35,7 @@ pub const Intersection = struct {
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
 
-        return m.sample(wo, rs);
+        return m.sample(wo, rs, worker);
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

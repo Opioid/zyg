@@ -14,15 +14,19 @@ pub const SampleBase = struct {
     geo_n: Vec4f,
     n: Vec4f,
     wo: Vec4f,
+    albedo: Vec4f,
+    radiance: Vec4f,
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) SampleBase {
         return .{
             .layer = .{ .t = rs.t, .b = rs.b, .n = rs.n },
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
+            .albedo = albedo,
+            .radiance = radiance,
         };
     }
 
@@ -36,5 +40,9 @@ pub const SampleBase = struct {
 
     pub fn shadingBitangent(self: Self) Vec4f {
         return self.layer.b;
+    }
+
+    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
+        return self.geo_n.dot3(v) > 0.0;
     }
 };
