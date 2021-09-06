@@ -3,6 +3,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const sampler = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
+//usingnamespace math.sampling;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -64,7 +65,7 @@ pub const AO = struct {
             const b = mat_sample.super().shadingBitangent();
             const n = mat_sample.super().shadingNormal();
 
-            const ws = math.sample.oriented_hemisphere_cosine(sample, t, b, n);
+            const ws = math.sampleOrientedHemisphereCosine(sample, t, b, n);
 
             occlusion_ray.ray.setDirection(ws);
 

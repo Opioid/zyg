@@ -33,3 +33,10 @@ pub fn sampleHemisphereCosine(uv: Vec2f) Vec4f {
 
     return Vec4f.init3(xy.v[0], xy.v[1], z);
 }
+
+pub fn sampleOrientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+    const xy = sampleDiskConcentric(uv);
+    const za = @sqrt(std.math.max(0.0, 1.0 - xy.v[0] * xy.v[0] - xy.v[1] * xy.v[1]));
+
+    return x.mulScalar3(xy.v[0]).add3(y.mulScalar3(xy.v[1])).add3(z.mulScalar3(za));
+}
