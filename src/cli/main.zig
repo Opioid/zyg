@@ -91,7 +91,7 @@ pub fn main() !void {
     driver.render();
     driver.exportFrame();
 
-    stdout.print("Rendering time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
+    stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
     var png_writer = Png_writer.init(take.view.camera.sensor.alphaTransparency());

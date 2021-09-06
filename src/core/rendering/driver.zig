@@ -2,7 +2,6 @@ const View = @import("../take/take.zig").View;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("worker.zig").Worker;
 const TileQueue = @import("tile_queue.zig").TileQueue;
-
 const img = @import("../image/image.zig");
 const progress = @import("../progress/std_out.zig");
 
@@ -97,10 +96,19 @@ pub const Driver = struct {
         self.threads.runParallel(self, renderTiles);
 
         std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(start)});
+
+        std.debug.print("Render time {d:.2} s\n", .{chrono.secondsSince(start)});
+
+        const pp_start = std.time.milliTimestamp();
+
+        self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
+
+        std.debug.print("Post-process time {d:.2} s\n", .{chrono.secondsSince(pp_start)});
     }
 
     pub fn exportFrame(self: *Driver) void {
-        self.view.camera.sensor.resolve(&self.target);
+        _ = self;
+        //self.view.camera.sensor.resolve(&self.target);
     }
 
     fn renderTiles(context: ThreadContext, id: u32) void {

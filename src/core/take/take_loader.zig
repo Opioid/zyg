@@ -40,6 +40,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     const root = document.root;
 
     var integrator_value_ptr: ?*std.json.Value = null;
+    var post_value_ptr: ?*std.json.Value = null;
     var sampler_value_ptr: ?*std.json.Value = null;
 
     var iter = root.Object.iterator();
@@ -48,6 +49,8 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
             try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
             integrator_value_ptr = entry.value_ptr;
+        } else if (std.mem.eql(u8, "post", entry.key_ptr.*)) {
+            post_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
             sampler_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "scene", entry.key_ptr.*)) {
@@ -74,6 +77,12 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     if (sampler_value_ptr) |sampler_value| {
         take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
+
+    if (post_value_ptr) |post_value| {
+        loadPostProcessors(post_value.*, &take.view);
+    }
+
+    try take.view.configure(alloc);
 
     return take;
 }
@@ -261,3 +270,19 @@ fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory 
 
     return .{ .Random = {} };
 }
+
+fn loadPostProcessors(value: std.json.Value, view: *View) void {
+    for (value.Array.items) |pp| {
+        if (pp.Object.iterator().next()) |entry| {
+            if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
+                _ = view;
+
+                std.debug.print("tonemapper", .{});
+            }
+        }
+    }
+}
+
+// fn loadTonemapper(value: std.json.Value) Tonemapper {
+
+// }
