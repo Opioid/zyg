@@ -42,6 +42,12 @@ pub fn Vec4(comptime T: type) type {
             return init3(a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2]);
         }
 
+        pub fn addAssign3(self: *Vec4(T), other: Vec4(T)) void {
+            self.v[0] += other.v[0];
+            self.v[1] += other.v[1];
+            self.v[2] += other.v[2];
+        }
+
         pub fn add4(a: Vec4(T), b: Vec4(T)) Vec4(T) {
             return init4(a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2], a.v[3] + b.v[3]);
         }
@@ -67,6 +73,12 @@ pub fn Vec4(comptime T: type) type {
 
         pub fn mul3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
             return init3(a.v[0] * b.v[0], a.v[1] * b.v[1], a.v[2] * b.v[2]);
+        }
+
+        pub fn mulAssign3(self: *Vec4(T), other: Vec4(T)) void {
+            self.v[0] *= other.v[0];
+            self.v[1] *= other.v[1];
+            self.v[2] *= other.v[2];
         }
 
         pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {

@@ -100,7 +100,7 @@ pub const Worker = struct {
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
 
-        if (self.super.intersect(ray, &isec)) {
+        if (self.super.intersectAndResolveMask(ray, &isec)) {
             return self.surface_integrator.li(ray, &isec, self);
         }
 

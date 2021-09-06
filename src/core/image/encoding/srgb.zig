@@ -3,9 +3,8 @@ usingnamespace @import("base");
 
 const ThreadContext = thread.Pool.Context;
 
-const Allocator = @import("std").mem.Allocator;
-
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Srgb = struct {
     buffer: []u8 = &.{},

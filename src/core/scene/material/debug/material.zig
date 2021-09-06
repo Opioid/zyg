@@ -4,8 +4,16 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Material = struct {
-    pub fn sample(self: Material, rs: Renderstate, wo: Vec4f) Sample {
-        _ = self;
-        return Sample.init(rs, wo, Vec4f.init1(1.0));
+    const color_front = Vec4f.init3(0.4, 0.9, 0.1);
+    const color_back = Vec4f.init3(0.9, 0.1, 0.4);
+
+    pub fn sample(rs: Renderstate, wo: Vec4f) Sample {
+        const n = rs.t.cross3(rs.b);
+
+        const same_side = n.dot3(rs.n) > 0.0;
+
+        const color = if (same_side) color_front else color_back;
+
+        return Sample.init(rs, wo, color);
     }
 };

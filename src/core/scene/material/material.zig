@@ -32,7 +32,7 @@ pub const Material = union(enum) {
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         return switch (self) {
-            .Debug => |d| .{ .Debug = d.sample(rs, wo) },
+            .Debug => .{ .Debug = Debug.sample(rs, wo) },
             .Glass => |g| .{ .Glass = g.sample(rs, wo) },
             .Light => |l| .{ .Light = l.sample(rs, wo, worker) },
             .Substitute => |s| .{ .Substitute = s.sample(rs, wo) },

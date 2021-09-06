@@ -42,9 +42,19 @@ pub const Intersection = struct {
         return self.geo.geo_n.dot3(v) > 0.0;
     }
 
-    pub fn offsetP(self: Self, n: Vec4f) Vec4f {
+    pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
 
-        return offsetRay(p, n);
+        return offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else self.geo.geo_n.neg3());
+    }
+
+    pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
+        const p = self.geo.p;
+
+        if (translucent) {
+            return Vec4f.init4(p.v[0], p.v[1], p.v[2], 0.0);
+        }
+
+        return offsetRay(p, geo_n);
     }
 };

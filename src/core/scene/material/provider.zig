@@ -1,11 +1,40 @@
 const mat = @import("material.zig");
 const Material = mat.Material;
 const Resources = @import("../../resource/manager.zig").Manager;
-const math = @import("base").math;
+const base = @import("base");
+usingnamespace base;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
+fn mapColor(color: Vec4f) Vec4f {
+    return spectrum.sRGBtoAP1(color);
+}
+
+fn readColor(value: std.json.Value) Vec4f {
+    return switch (value) {
+        .Array => mapColor(json.readVec4f3(value)),
+        .Float => |f| mapColor(Vec4f.init1(@floatCast(f32, f))),
+        else => Vec4f.init1(0.0),
+    };
+}
+
+fn MappedValue(comptime Value: type) type {
+    return struct {
+        value: Value = undefined,
+
+        const Self = @This();
+
+        pub fn read(value: std.json.Value) Self {
+            if (Vec4f == Value) {
+                return switch (value) {
+                    else => .{ .value = readColor(value) },
+                };
+            } else unreachable;
+        }
+    };
+}
 
 pub const Provider = struct {
     const Error = error{
@@ -53,28 +82,50 @@ pub const Provider = struct {
         var iter = rendering_node.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
-                return try loadDebug(entry.value_ptr.*);
+                return Material{ .Debug = .{} };
             } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
                 return try loadLight(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
+                return try loadSubstitute(entry.value_ptr.*);
             }
         }
 
         return Error.UnknownMaterial;
     }
 
-    fn loadDebug(value: std.json.Value) !Material {
-        _ = value;
-
-        return Material{ .Debug = .{} };
-    }
-
     fn loadLight(value: std.json.Value) !Material {
-        _ = value;
+        var emission: MappedValue(Vec4f) = .{ .value = Vec4f.init1(10.0) };
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
+                //     color.value = readColor(entry.value_ptr.*);
+                emission = MappedValue(Vec4f).read(entry.value_ptr.*);
+            }
+        }
 
         var material = mat.Light{};
 
-        material.emittance.setRadiance(Vec4f.init1(10.0));
+        material.emittance.setRadiance(emission.value);
 
         return Material{ .Light = material };
+    }
+
+    fn loadSubstitute(value: std.json.Value) !Material {
+        var color: MappedValue(Vec4f) = .{ .value = Vec4f.init1(0.5) };
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
+                //     color.value = readColor(entry.value_ptr.*);
+                color = MappedValue(Vec4f).read(entry.value_ptr.*);
+            }
+        }
+
+        var material = mat.Substitute{};
+
+        material.color = color.value;
+
+        return Material{ .Substitute = material };
     }
 };

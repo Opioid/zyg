@@ -27,4 +27,8 @@ pub const Worker = struct {
     pub fn intersectP(self: *Worker, ray: Ray) bool {
         return self.scene.intersectP(ray, self);
     }
+
+    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, isec: *Intersection) bool {
+        return self.intersect(ray, isec);
+    }
 };

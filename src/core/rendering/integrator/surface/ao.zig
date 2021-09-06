@@ -23,7 +23,7 @@ pub const AO = struct {
 
         return AO{
             .settings = settings,
-            .sampler = sampler.Sampler{ .Golden_ratio = try sampler.Golden_ratio.init(
+            .sampler = .{ .Golden_ratio = try sampler.Golden_ratio.init(
                 alloc,
                 0,
                 1,
@@ -53,7 +53,7 @@ pub const AO = struct {
 
         var occlusion_ray: Ray = undefined;
 
-        occlusion_ray.ray.origin = isec.offsetP(isec.geo.geo_n);
+        occlusion_ray.ray.origin = isec.offsetPN(isec.geo.geo_n, false);
         occlusion_ray.ray.setMaxT(self.settings.radius);
 
         var i = self.settings.num_samples;

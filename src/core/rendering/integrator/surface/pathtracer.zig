@@ -1,6 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+usingnamespace @import("../../../scene/constants.zig");
 const sampler = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -9,6 +10,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Pathtracer = struct {
+    const Num_dedicated_samplers = 3;
+
     pub const Settings = struct {
         num_samples: u32,
         min_bounces: u32,
@@ -17,7 +20,7 @@ pub const Pathtracer = struct {
 
     settings: Settings,
 
-    sampler: sampler.Sampler,
+    samplers: [Num_dedicated_samplers + 1]sampler.Sampler,
 
     const Self = @This();
 
@@ -25,20 +28,29 @@ pub const Pathtracer = struct {
         _ = alloc;
         _ = max_samples_per_pixel;
 
-        //const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
+        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return Pathtracer{
             .settings = settings,
-            .sampler = sampler.Sampler{ .Random = .{} },
+            .samplers = .{
+                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .Random = .{} },
+            },
         };
     }
 
     pub fn deinit(self: *Self, alloc: *Allocator) void {
-        self.sampler.deinit(alloc);
+        for (self.samplers) |*s| {
+            s.deinit(alloc);
+        }
     }
 
     pub fn startPixel(self: *Self) void {
-        self.sampler.startPixel();
+        for (self.samplers) |*s| {
+            s.startPixel();
+        }
     }
 
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
@@ -61,11 +73,55 @@ pub const Pathtracer = struct {
         _ = self;
         _ = ray;
 
-        const wo = ray.ray.direction.neg3();
+        var throughput = Vec4f.init1(1.0);
+        var result = Vec4f.init1(0.0);
 
-        const mat_sample = isec.sample(wo, ray.*, &worker.super);
+        var i: u32 = 0;
+        while (true) : (i += 1) {
+            const wo = ray.ray.direction.neg3();
 
-        return mat_sample.super().radiance;
+            const mat_sample = isec.sample(wo, ray.*, &worker.super);
+
+            if (mat_sample.super().sameHemisphere(wo)) {
+                result.addAssign3(throughput.mul3(mat_sample.super().radiance));
+            }
+
+            if (mat_sample.isPureEmissive()) {
+                break;
+            }
+
+            if (ray.depth >= self.settings.max_bounces) {
+                break;
+            }
+
+            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            if (0.0 == sample_result.pdf) {
+                break;
+            }
+
+            ray.depth += 1;
+
+            ray.ray.origin = isec.offsetP(sample_result.wi);
+            ray.ray.setDirection(sample_result.wi);
+
+            ray.ray.setMaxT(Ray_max_t);
+
+            throughput.mulAssign3(sample_result.reflection.divScalar3(sample_result.pdf));
+
+            if (!worker.super.intersectAndResolveMask(ray, isec)) {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    fn materialSampler(self: *Self, bounce: u32) *sampler.Sampler {
+        if (bounce < Num_dedicated_samplers) {
+            return &self.samplers[bounce];
+        }
+
+        return &self.samplers[Num_dedicated_samplers];
     }
 };
 

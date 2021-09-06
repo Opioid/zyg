@@ -1,4 +1,5 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
+usingnamespace @import("sample_helper.zig");
 const base = @import("base");
 usingnamespace base.math;
 
@@ -6,6 +7,18 @@ pub const Layer = struct {
     t: Vec4f,
     b: Vec4f,
     n: Vec4f,
+
+    pub fn tangentToWorld(self: Layer, v: Vec4f) Vec4f {
+        return Vec4f.init3(
+            v.v[0] * self.t.v[0] + v.v[1] * self.b.v[0] + v.v[2] * self.n.v[0],
+            v.v[0] * self.t.v[1] + v.v[1] * self.b.v[1] + v.v[2] * self.n.v[1],
+            v.v[0] * self.t.v[2] + v.v[1] * self.b.v[2] + v.v[2] * self.n.v[2],
+        );
+    }
+
+    pub fn clampNdot(self: Layer, v: Vec4f) f32 {
+        return clampDot(self.n, v);
+    }
 };
 
 pub const SampleBase = struct {
