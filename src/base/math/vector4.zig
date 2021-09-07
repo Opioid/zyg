@@ -168,7 +168,7 @@ pub fn Vec4(comptime T: type) type {
             const c = -1.0 / (sign + n.v[2]);
             const d = n.v[0] * n.v[1] * c;
 
-            return init3(1.0 + sign * n.v[0] * n.v[0], sign * d, -sign * n.v[0]);
+            return init3(1.0 + sign * n.v[0] * n.v[0] * c, sign * d, -sign * n.v[0]);
         }
 
         pub fn toVec4i(v: Vec4(f32)) Vec4(i32) {

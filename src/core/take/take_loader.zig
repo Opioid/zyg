@@ -287,7 +287,7 @@ fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
     while (iter.next()) |entry| {
         std.debug.print("{s}\n", .{entry.key_ptr.*});
 
-        const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 1.0);
+        const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 0.0);
 
         if (std.mem.eql(u8, "ACES", entry.key_ptr.*)) {
             return .{ .ACES = tm.ACES.init(exposure) };
@@ -298,5 +298,5 @@ fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
         }
     }
 
-    return .{ .Linear = tm.Linear.init(1.0) };
+    return .{ .Linear = tm.Linear.init(0.0) };
 }

@@ -9,7 +9,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Pipeline = struct {
-    tonemapper: tm.Tonemapper = .{ .Linear = tm.Linear.init(1.0) },
+    tonemapper: tm.Tonemapper = .{ .Linear = tm.Linear.init(0.0) },
 
     scratch: img.Float4 = .{},
 
