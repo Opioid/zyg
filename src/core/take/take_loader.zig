@@ -6,6 +6,7 @@ const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
+const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
@@ -275,14 +276,27 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
     for (value.Array.items) |pp| {
         if (pp.Object.iterator().next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
-                _ = view;
-
-                std.debug.print("tonemapper", .{});
+                view.pipeline.tonemapper = loadTonemapper(entry.value_ptr.*);
             }
         }
     }
 }
 
-// fn loadTonemapper(value: std.json.Value) Tonemapper {
+fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        std.debug.print("{s}\n", .{entry.key_ptr.*});
 
-// }
+        const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 1.0);
+
+        if (std.mem.eql(u8, "ACES", entry.key_ptr.*)) {
+            return .{ .ACES = tm.ACES.init(exposure) };
+        }
+
+        if (std.mem.eql(u8, "Linear", entry.key_ptr.*)) {
+            return .{ .Linear = tm.Linear.init(exposure) };
+        }
+    }
+
+    return .{ .Linear = tm.Linear.init(1.0) };
+}

@@ -8,7 +8,11 @@ const ThreadContext = thread.Pool.Context;
 const std = @import("std");
 
 pub const Linear = struct {
-    super: Base = .{},
+    super: Base,
+
+    pub fn init(exposure: f32) Linear {
+        return .{ .super = Base.init(exposure) };
+    }
 
     pub fn applyRange(context: ThreadContext, id: u32, begin: u32, end: u32) void {
         _ = id;

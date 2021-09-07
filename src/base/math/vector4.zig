@@ -81,8 +81,16 @@ pub fn Vec4(comptime T: type) type {
             self.v[2] *= other.v[2];
         }
 
+        pub fn div3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
+            return init3(a.v[0] / b.v[0], a.v[1] / b.v[1], a.v[2] / b.v[2]);
+        }
+
         pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {
             return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
+        }
+
+        pub fn subScalar3(v: Vec4(T), s: T) Vec4(T) {
+            return init3(v.v[0] - s, v.v[1] - s, v.v[2] - s);
         }
 
         pub fn mulScalar3(v: Vec4(T), s: T) Vec4(T) {

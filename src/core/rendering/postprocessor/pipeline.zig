@@ -1,4 +1,4 @@
-const Tonemapper = @import("tonemapping/tonemapper.zig").Tonemapper;
+const tm = @import("tonemapping/tonemapper.zig");
 const Sensor = @import("../sensor/sensor.zig").Sensor;
 const cam = @import("../../camera/perspective.zig");
 const img = @import("../../image/image.zig");
@@ -9,7 +9,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Pipeline = struct {
-    tonemapper: Tonemapper = .{ .Linear = .{} },
+    tonemapper: tm.Tonemapper = .{ .Linear = tm.Linear.init(1.0) },
 
     scratch: img.Float4 = .{},
 
