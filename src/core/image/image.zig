@@ -1,9 +1,21 @@
 pub const encoding = @import("encoding/encoding.zig");
-
+const ti = @import("typed_image.zig");
+pub const Description = ti.Description;
+pub const Byte3 = ti.Typed_image(Vec3b);
+pub const Float4 = ti.Typed_image(Vec4f);
 usingnamespace @import("base").math;
 
-const typed_image = @import("typed_image.zig");
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
-pub const Description = typed_image.Description;
+pub const Image = union(enum) {
+    Byte3: Byte3,
+    Float4: Float4,
 
-pub const Float4 = typed_image.Typed_image(Vec4f);
+    pub fn deinit(self: *Image, alloc: *Allocator) void {
+        switch (self.*) {
+            .Byte3 => |*i| i.deinit(alloc),
+            .Float4 => |*i| i.deinit(alloc),
+        }
+    }
+};

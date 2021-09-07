@@ -55,5 +55,6 @@ pub fn Vec3(comptime T: type) type {
     };
 }
 
+pub const Vec3b = Vec3(u8);
 pub const Vec3i = Vec3(i32);
 pub const Vec3f = Vec3(f32);

@@ -75,7 +75,15 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return id;
         }
 
-        pub fn get(self: Self, name: []const u8) ?u32 {
+        pub fn get(self: Self, id: u32) ?*T {
+            if (id < self.resources.items.len) {
+                return &self.resources.items[id];
+            }
+
+            return null;
+        }
+
+        pub fn getByName(self: Self, name: []const u8) ?u32 {
             if (self.entries.get(name)) |entry| {
                 return entry;
             }

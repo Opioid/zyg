@@ -18,7 +18,9 @@ pub const Options = struct {
 
         self.mounts.deinit(alloc);
 
-        if (self.take) |take| alloc.free(take);
+        if (self.take) |take| {
+            alloc.free(take);
+        }
     }
 
     pub fn parse(alloc: *Allocator, args: std.process.ArgIterator) !Options {
