@@ -4,7 +4,7 @@ const Intersection = @import("../intersection.zig").Intersection;
 pub const bvh = @import("bvh/tree.zig");
 const base = @import("base");
 usingnamespace base;
-
+const Vec2f = base.math.Vec2f;
 const Vec4f = base.math.Vec4f;
 const Ray = base.math.Ray;
 
@@ -79,7 +79,8 @@ pub const Mesh = struct {
 
             var t: Vec4f = undefined;
             var n: Vec4f = undefined;
-            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n);
+            var uv: Vec2f = undefined;
+            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
 
             const t_w = trafo.rotation.transformVector(t);
             const n_w = trafo.rotation.transformVector(n);
@@ -88,6 +89,7 @@ pub const Mesh = struct {
             isec.t = t_w;
             isec.b = b_w;
             isec.n = n_w;
+            isec.uv = uv;
 
             return true;
         }

@@ -60,6 +60,7 @@ pub fn main() !void {
 
     var scene = try scn.Scene.init(
         alloc,
+        &resources.images.resources,
         &resources.materials.resources,
         &resources.shapes.resources,
         scene_loader.null_shape,

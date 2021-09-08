@@ -24,6 +24,7 @@ const Handler = struct {
     pub const Parts = std.ArrayListUnmanaged(Part);
     pub const Triangles = std.ArrayListUnmanaged(IndexTriangle);
     pub const Vec3fs = std.ArrayListUnmanaged(Vec3f);
+    pub const Vec2fs = std.ArrayListUnmanaged(Vec2f);
     pub const u8s = std.ArrayListUnmanaged(u8);
 
     parts: Parts = .{},
@@ -31,10 +32,12 @@ const Handler = struct {
     positions: Vec3fs = .{},
     normals: Vec3fs = .{},
     tangents: Vec3fs = .{},
+    uvs: Vec2fs = .{},
     bitangent_signs: u8s = .{},
 
     pub fn deinit(self: *Handler, alloc: *Allocator) void {
         self.bitangent_signs.deinit(alloc);
+        self.uvs.deinit(alloc);
         self.tangents.deinit(alloc);
         self.normals.deinit(alloc);
         self.positions.deinit(alloc);
@@ -44,6 +47,11 @@ const Handler = struct {
 };
 
 pub const Provider = struct {
+    pub fn deinit(self: *Provider, alloc: *Allocator) void {
+        _ = self;
+        _ = alloc;
+    }
+
     pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, resources: *Resources) !Shape {
         _ = self;
 
@@ -96,7 +104,8 @@ pub const Provider = struct {
             .positions = handler.positions.items,
             .normals = handler.normals.items,
             .tangents = handler.tangents.items,
-            .bitangent_signs = handler.bitangent_signs.items,
+            .uvs = handler.uvs.items,
+            .bts = handler.bitangent_signs.items,
         } };
 
         var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
@@ -210,6 +219,19 @@ pub const Provider = struct {
                             t.* = Vec3f.init3(tbn.r[0].v[0], tbn.r[0].v[1], tbn.r[0].v[1]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
+                        }
+                    } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
+                        const uvs = ventry.value_ptr.*.Array.items;
+                        const num_uvs = uvs.len / 2;
+
+                        handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
+                        try handler.uvs.resize(alloc, num_uvs);
+
+                        for (handler.uvs.items) |*uv, i| {
+                            uv.* = Vec2f.init2(
+                                json.readFloat(uvs[i * 2 + 0]),
+                                json.readFloat(uvs[i * 2 + 1]),
+                            );
                         }
                     }
                 }
@@ -349,6 +371,8 @@ pub const Provider = struct {
             }
         }
 
+        const has_uvs_and_tangents = has_uvs and has_tangents;
+
         const binary_start = json_size + 4 + @sizeOf(u64);
 
         try stream.seekTo(binary_start + vertices_offset);
@@ -367,10 +391,28 @@ pub const Provider = struct {
 
             if (tangent_space_as_quaternion) {} else {
                 var normals = try alloc.alloc(Vec3f, num_vertices);
-
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
-                vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
+                if (has_uvs_and_tangents) {
+                    var tangents = try alloc.alloc(Vec3f, num_vertices);
+                    _ = try stream.read(std.mem.sliceAsBytes(tangents));
+
+                    var uvs = try alloc.alloc(Vec2f, num_vertices);
+                    _ = try stream.read(std.mem.sliceAsBytes(uvs));
+
+                    var bts = try alloc.alloc(u8, num_vertices);
+                    _ = try stream.read(bts);
+
+                    vertices = vs.VertexStream{ .Separate = try vs.Separate.init(
+                        positions,
+                        normals,
+                        tangents,
+                        uvs,
+                        bts,
+                    ) };
+                } else {
+                    vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
+                }
             }
         }
 

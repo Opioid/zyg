@@ -1,7 +1,7 @@
 const base = @import("base");
 usingnamespace base;
 
-//const Vec4f = base.math.Vec4f;
+const Vec2f = base.math.Vec2f;
 const Ray = base.math.Ray;
 
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
@@ -15,6 +15,7 @@ pub const Plane = struct {
 
         if (hit_t > ray.minT() and hit_t < ray.maxT()) {
             const p = ray.point(hit_t);
+            const k = p.sub3(trafo.position);
             const t = trafo.rotation.r[0].neg3();
             const b = trafo.rotation.r[1].neg3();
 
@@ -23,7 +24,7 @@ pub const Plane = struct {
             isec.t = t;
             isec.b = b;
             isec.n = n;
-
+            isec.uv = Vec2f.init2(t.dot3(k), b.dot3(k));
             isec.part = 0;
 
             ray.setMaxT(hit_t);

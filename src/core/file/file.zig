@@ -16,6 +16,10 @@ pub fn queryType(stream: *ReadStream) Type {
         return .GZIP;
     }
 
+    if (std.mem.startsWith(u8, &header, "\x89PNG")) {
+        return .PNG;
+    }
+
     if (std.mem.startsWith(u8, &header, "SUB\x00")) {
         return .SUB;
     }

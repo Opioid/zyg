@@ -1,8 +1,8 @@
 const base = @import("base");
 usingnamespace base;
-
-const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 
 const Transformation = @import("../composed_transformation.zig").Composed_transformation;
 const Intersection = @import("intersection.zig").Intersection;
@@ -37,6 +37,7 @@ pub const Sphere = struct {
 
         isec.t = t;
         isec.b = t.cross3(n).neg3();
+        isec.uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
     }
 
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {

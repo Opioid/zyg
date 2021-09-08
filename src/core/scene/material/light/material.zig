@@ -8,7 +8,7 @@ const Vec4f = math.Vec4f;
 pub const Material = struct {
     emittance: Emittance = undefined,
 
-    pub fn sample(self: Material, rs: Renderstate, wo: Vec4f, worker: *Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         _ = self;
 
         const radiance = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));

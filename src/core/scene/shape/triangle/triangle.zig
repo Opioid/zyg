@@ -76,7 +76,12 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
     return false;
 }
 
-pub fn interpolateP(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
+pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
+    const w = 1.0 - u - v;
+    return a.mulScalar(w).add(b.mulScalar(u)).add(c.mulScalar(v));
+}
+
+pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
     return a.mulScalar3(w).add3(b.mulScalar3(u)).add3(c.mulScalar3(v));
 }

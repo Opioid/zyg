@@ -7,7 +7,7 @@ pub const Material = struct {
     const color_front = Vec4f.init3(0.4, 0.9, 0.1);
     const color_back = Vec4f.init3(0.9, 0.1, 0.4);
 
-    pub fn sample(rs: Renderstate, wo: Vec4f) Sample {
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
         const n = rs.t.cross3(rs.b);
 
         const same_side = n.dot3(rs.n) > 0.0;

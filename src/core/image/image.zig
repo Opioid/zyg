@@ -18,4 +18,11 @@ pub const Image = union(enum) {
             .Float4 => |*i| i.deinit(alloc),
         }
     }
+
+    pub fn description(self: Image) Description {
+        return switch (self) {
+            .Byte3 => |i| i.description,
+            .Float4 => |i| i.description,
+        };
+    }
 };

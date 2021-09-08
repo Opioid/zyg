@@ -21,7 +21,7 @@ pub fn Vec3(comptime T: type) type {
         }
 
         pub fn xy(self: Vec3(T)) Vec2(T) {
-            Vec2(T).init(self.v[0], self.v[1]);
+            return Vec2(T).init2(self.v[0], self.v[1]);
         }
 
         pub fn add(a: Vec3(T), b: Vec3(T)) Vec3(T) {

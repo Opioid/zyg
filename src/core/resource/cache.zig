@@ -28,6 +28,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             self.resources.deinit(alloc);
+
+            self.provider.deinit(alloc);
         }
 
         pub fn loadFile(self: *Self, alloc: *Allocator, name: []const u8, resources: *Resources) !u32 {

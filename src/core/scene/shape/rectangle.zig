@@ -40,7 +40,8 @@ pub const Rectangle = struct {
             isec.b = b;
             isec.n = normal;
             isec.geo_n = normal;
-
+            isec.uv.v[0] = 0.5 * (u + 1.0);
+            isec.uv.v[1] = 0.5 * (v + 1.0);
             isec.part = 0;
 
             ray.setMaxT(hit_t);

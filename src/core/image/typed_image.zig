@@ -52,13 +52,13 @@ pub fn Typed_image(comptime T: type) type {
         }
 
         pub fn getXY(self: Self, x: i32, y: i32) T {
-            const i = y * self.dimensions.v[1] + x;
+            const i = y * self.description.dimensions.v[1] + x;
 
             return self.pixels[@intCast(usize, i)];
         }
 
-        pub fn getXYZ(self: Self, x: i32) T {
-            const d = self.dimensions.xy();
+        pub fn getXYZ(self: Self, x: i32, y: i32, z: i32) T {
+            const d = self.description.dimensions.xy();
             const i = (@intCast(u64, z) * @intCast(u64, d.v[1]) + @intCast(u64, y)) * @intCast(u64, d.v[0]) + @intCast(u64, x);
 
             return self.pixels[@intCast(usize, i)];

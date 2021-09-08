@@ -10,6 +10,7 @@ pub const ReadStream = struct {
     file: std.fs.File,
     reader: Reader,
     seeker: Seeker,
+    //   cur: u64,
 
     const Self = @This();
 
@@ -18,6 +19,7 @@ pub const ReadStream = struct {
             .file = file,
             .reader = Reader{ .unbuffered_reader = file.reader() },
             .seeker = file.seekableStream(),
+            //       .cur = 0,
         };
     }
 
@@ -32,6 +34,12 @@ pub const ReadStream = struct {
     pub fn seekTo(self: *Self, pos: u64) SeekError!void {
         self.reader.fifo.head = 0;
         self.reader.fifo.count = 0;
+        //    self.cur = pos;
         return try self.seeker.seekTo(pos);
+    }
+
+    pub fn seekBy(self: *Self, count: u64) !void {
+        const pos = (try self.seeker.getPos()) - self.reader.fifo.count;
+        return try self.seekTo(pos + count);
     }
 };

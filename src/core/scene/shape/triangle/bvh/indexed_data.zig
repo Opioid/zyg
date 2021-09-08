@@ -30,6 +30,7 @@ pub const Indexed_data = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: *Allocator) void {
+        alloc.free(self.uvs);
         alloc.free(self.frames);
         alloc.free(self.positions);
         alloc.free(self.triangles);
@@ -41,11 +42,13 @@ pub const Indexed_data = struct {
         self.triangles = try alloc.alloc(Triangle, num_triangles);
         self.positions = try alloc.alloc(Vec4f, num_vertices);
         self.frames = try alloc.alloc(Vec4f, num_vertices);
+        self.uvs = try alloc.alloc(Vec2f, num_vertices);
 
         var i: u32 = 0;
         while (i < num_vertices) : (i += 1) {
             self.positions[i] = vertices.position(i);
             self.frames[i] = vertices.frame(i);
+            self.uvs[i] = vertices.uv(i);
         }
     }
 
@@ -107,18 +110,24 @@ pub const Indexed_data = struct {
         const b = self.positions[tri.b];
         const c = self.positions[tri.c];
 
-        return triangle.interpolateP(a, b, c, u, v);
+        return triangle.interpolate3(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f) void {
+    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
         const tri = self.triangles[index];
 
         const tna = quaternion.initTN(self.frames[tri.a]);
         const tnb = quaternion.initTN(self.frames[tri.b]);
         const tnc = quaternion.initTN(self.frames[tri.c]);
 
-        t.* = triangle.interpolateP(tna[0], tnb[0], tnc[0], u, v).normalize3();
-        n.* = triangle.interpolateP(tna[1], tnb[1], tnc[1], u, v).normalize3();
+        t.* = triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v).normalize3();
+        n.* = triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v).normalize3();
+
+        const uva = self.uvs[tri.a];
+        const uvb = self.uvs[tri.a];
+        const uvc = self.uvs[tri.a];
+
+        uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
     }
 
     pub fn part(self: Self, index: u32) u32 {

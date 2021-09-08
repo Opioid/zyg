@@ -1,6 +1,7 @@
 const prp = @import("prop/prop.zig");
 const Prop = prp.Prop;
 const Light = @import("light/light.zig").Light;
+const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
@@ -22,6 +23,7 @@ const ALU = std.ArrayListUnmanaged;
 const Num_reserved_props = 32;
 
 pub const Scene = struct {
+    images: *ALU(Image),
     materials: *ALU(Material),
     shapes: *ALU(Shape),
 
@@ -40,11 +42,13 @@ pub const Scene = struct {
 
     pub fn init(
         alloc: *Allocator,
+        images: *ALU(Image),
         materials: *ALU(Material),
         shapes: *ALU(Shape),
         null_shape: u32,
     ) !Scene {
         return Scene{
+            .images = images,
             .materials = materials,
             .shapes = shapes,
             .null_shape = null_shape,
@@ -185,6 +189,10 @@ pub const Scene = struct {
 
     pub fn propShape(self: Scene, prop: usize) Shape {
         return self.shapes.items[self.props.items[prop].shape];
+    }
+
+    pub fn image(self: Scene, image_id: u32) Image {
+        return self.images.items[image_id];
     }
 
     pub fn shape(self: Scene, shape_id: u32) Shape {

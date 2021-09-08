@@ -37,7 +37,7 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersect(&ray.ray, trafo, worker, isec);
+        return scene.propShape(entity).intersect(ray, trafo, worker, isec);
     }
 
     pub fn intersectP(
@@ -54,6 +54,6 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAt(entity);
 
-        return scene.propShape(entity).intersectP(ray.ray, trafo, worker);
+        return scene.propShape(entity).intersectP(ray, trafo, worker);
     }
 };
