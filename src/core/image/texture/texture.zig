@@ -2,9 +2,8 @@ const Null = @import("../../resource/cache.zig").Null;
 const Description = @import("../typed_image.zig").Description;
 const Scene = @import("../../scene/scene.zig").Scene;
 
-const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 pub const Texture = struct {
     pub const Type = enum {

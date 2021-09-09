@@ -1,13 +1,13 @@
 const img = @import("../../image.zig");
 const Image = img.Image;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
-const base = @import("base");
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const c = @cImport({
+const mz = @cImport({
     @cInclude("miniz/miniz.h");
 });
 
@@ -19,6 +19,8 @@ pub const Reader = struct {
         PNGBitDepthNotSupported,
         InterlacedPNGNotSupported,
         IndexedPNGNotSupperted,
+        InitMZStreamFailed,
+        InflateMZStreamFailed,
         UnexpectedError,
     };
 
@@ -38,7 +40,7 @@ pub const Reader = struct {
         }
     };
 
-    const Filter = enum { None, Sub, Up, Average, Path };
+    const Filter = enum(u8) { None, Sub, Up, Average, Paeth };
 
     const ColorType = enum(u8) {
         Grayscale = 0,
@@ -53,17 +55,21 @@ pub const Reader = struct {
         width: i32 = 0,
         height: i32 = 0,
 
-        num_channels: i32 = 0,
-        bytes_per_pixel: i32 = 0,
+        num_channels: u32 = 0,
+        bytes_per_pixel: u32 = 0,
 
         // parsing state
         current_filter: Filter = undefined,
         filter_byte: bool = undefined,
-        current_byte: i32 = undefined,
-        current_byte_total: i32 = undefined,
+        current_byte: u32 = undefined,
+        current_byte_total: u32 = undefined,
+
+        buffer: []u8 = &.{},
+        current_row_data: [*]u8 = undefined,
+        previous_row_data: [*]u8 = undefined,
 
         // miniz
-        stream: c.mz_stream = undefined,
+        stream: mz.mz_stream = undefined,
 
         pub fn init() Info {
             var info = Info{};
@@ -75,13 +81,36 @@ pub const Reader = struct {
         }
 
         pub fn deinit(self: *Info, alloc: *Allocator) void {
-            _ = alloc;
-
             std.debug.print("Info.deinit()\n", .{});
 
             if (self.stream.zfree) |_| {
                 std.debug.print("freelyfree\n", .{});
-                _ = c.mz_inflateEnd(&self.stream);
+                _ = mz.mz_inflateEnd(&self.stream);
+            }
+
+            alloc.free(self.buffer);
+        }
+
+        pub fn allocate(self: *Info, alloc: *Allocator) !void {
+            const row_size = @intCast(u32, self.width) * self.num_channels;
+            const buffer_size = row_size * @intCast(u32, self.height);
+            const num_bytes = buffer_size + 2 * row_size;
+
+            if (self.buffer.len < num_bytes) {
+                self.buffer = try alloc.realloc(self.buffer, num_bytes);
+            }
+
+            self.current_row_data = self.buffer.ptr + buffer_size;
+            self.previous_row_data = self.current_row_data + buffer_size;
+
+            if (self.stream.zalloc) |_| {
+                if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
+                    return Error.InitMZStreamFailed;
+                }
+            } else {
+                if (mz.MZ_OK != mz.mz_inflateInit(&self.stream)) {
+                    return Error.InitMZStreamFailed;
+                }
             }
         }
     };
@@ -150,7 +179,14 @@ pub const Reader = struct {
             parseHeader(alloc, chunk, info) catch return false;
 
             return true;
-            //&& parse_header(chunk, info);
+        }
+
+        // IDAT: 0x54414449
+        if (0x54414449 == chunk_type) {
+            readChunk(alloc, stream, chunk) catch return false;
+            parseData(alloc, chunk, info) catch return false;
+
+            return true;
         }
 
         // IEND: 0x444E4549
@@ -173,9 +209,7 @@ pub const Reader = struct {
         try stream.seekBy(4);
     }
 
-    fn parseHeader(alloc: *Allocator, chunk: *Chunk, info: *Info) !void {
-        _ = alloc;
-
+    fn parseHeader(alloc: *Allocator, chunk: *const Chunk, info: *Info) !void {
         info.width = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[0..4]));
         info.height = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[4..8]));
 
@@ -209,5 +243,116 @@ pub const Reader = struct {
         info.filter_byte = true;
         info.current_byte = 0;
         info.current_byte_total = 0;
+
+        try info.allocate(alloc);
+    }
+
+    fn parseData(alloc: *Allocator, chunk: *const Chunk, info: *Info) !void {
+        _ = alloc;
+        _ = chunk;
+        _ = info;
+
+        const buffer_size = 8192;
+        var buffer: [buffer_size]u8 = undefined;
+
+        info.stream.next_in = chunk.data.ptr;
+        info.stream.avail_in = chunk.length;
+
+        const row_size = @intCast(u32, info.width) * info.num_channels;
+
+        var cond = true;
+        while (cond) {
+            info.stream.next_out = &buffer;
+            info.stream.avail_out = buffer_size;
+
+            const status = mz.mz_inflate(&info.stream, mz.MZ_NO_FLUSH);
+            if (status != mz.MZ_OK and status != mz.MZ_STREAM_END and status != mz.MZ_BUF_ERROR and status != mz.MZ_NEED_DICT) {
+                return Error.InflateMZStreamFailed;
+            }
+
+            const decompressed = buffer_size - info.stream.avail_out;
+            for (buffer[0..decompressed]) |b| {
+                if (info.filter_byte) {
+                    info.current_filter = @intToEnum(Filter, b);
+                    info.filter_byte = false;
+                } else {
+                    const r = filter(b, info.current_filter, info);
+                    info.current_row_data[info.current_byte] = r;
+                    info.buffer[info.current_byte_total] = r;
+
+                    info.current_byte += 1;
+                    info.current_byte_total += 1;
+
+                    if (row_size == info.current_byte) {
+                        info.current_byte = 0;
+                        std.mem.swap([*]u8, &info.current_row_data, &info.previous_row_data);
+                        info.filter_byte = true;
+                    }
+                }
+            }
+
+            cond = info.stream.avail_in > 0 or 0 == info.stream.avail_out;
+        }
+    }
+
+    fn filter(byte: u8, f: Filter, info: *const Info) u8 {
+        return switch (f) {
+            .None => byte,
+            .Sub => byte + raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
+            .Up => byte + prior(@intCast(i32, info.current_byte), info),
+            .Average => byte + average(
+                raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
+                prior(@intCast(i32, info.current_byte), info),
+            ),
+            .Paeth => byte + paethPredictor(
+                raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
+                prior(@intCast(i32, info.current_byte), info),
+                prior(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
+            ),
+        };
+    }
+
+    fn raw(column: i32, info: *const Info) u8 {
+        if (column < 0) {
+            return 0;
+        }
+
+        return info.current_row_data[@intCast(u32, column)];
+    }
+
+    fn prior(column: i32, info: *const Info) u8 {
+        if (column < 0) {
+            return 0;
+        }
+
+        return info.previous_row_data[@intCast(u32, column)];
+    }
+
+    fn average(a: u8, b: u8) u8 {
+        return @truncate(u8, (@intCast(u32, a) + @intCast(u32, b)) >> 1);
+    }
+
+    fn paethPredictor(a: u8, b: u8, c: u8) u8 {
+        _ = a;
+        _ = b;
+        _ = c;
+        return 0;
+        // const A = @intCast(i32, a);
+        // const B = @intCast(i32, b);
+        // const C = @intCast(i32, c);
+        // const p = A + B - C;
+        // const pa = std.math.abs(p - A);
+        // const pb = std.math.abs(p - B);
+        // const pc = std.math.abs(p - C);
+
+        // if (pa <= pb and pa <= pc) {
+        //     return a;
+        // }
+
+        // if (pb <= pc) {
+        //     return b;
+        // }
+
+        // return c;
     }
 };

@@ -1,5 +1,5 @@
-const base = @import("base");
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 pub const Emittance = struct {
     const Quantity = enum {

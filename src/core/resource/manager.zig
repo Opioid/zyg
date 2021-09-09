@@ -11,7 +11,8 @@ const Materials = Cache(Material, MaterialProvider);
 const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
 const Shapes = Cache(Shape, TriangleMeshProvider);
 
-usingnamespace @import("base");
+const base = @import("base");
+const Threads = base.thread.Pool;
 
 pub const Null = cache.Null;
 
@@ -23,7 +24,7 @@ const Error = error{
 };
 
 pub const Manager = struct {
-    threads: *thread.Pool,
+    threads: *Threads,
 
     fs: Filesystem = .{},
 
@@ -31,7 +32,7 @@ pub const Manager = struct {
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(alloc: *Allocator, threads: *thread.Pool) Manager {
+    pub fn init(alloc: *Allocator, threads: *Threads) Manager {
         return .{
             .threads = threads,
             .images = Images.init(alloc, ImageProvider{}),

@@ -1,10 +1,10 @@
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const prp = @import("../scene/prop/prop.zig");
-const Sample = @import("../sampler/sampler.zig").Camera_sample;
+const Sample = @import("../sampler/camera_sample.zig").CameraSample;
 const Scene = @import("../scene/scene.zig").Scene;
-usingnamespace @import("../scene/constants.zig");
+const scn = @import("../scene/constants.zig");
 const Ray = @import("../scene/ray.zig").Ray;
-usingnamespace @import("base");
+const math = @import("base").math;
 
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
@@ -76,6 +76,6 @@ pub const Perspective = struct {
 
         const direction_w = trafo.objectToWorldVector(direction.normalize3());
 
-        return Ray.init(origin_w, direction_w, 0.0, Ray_max_t);
+        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t);
     }
 };

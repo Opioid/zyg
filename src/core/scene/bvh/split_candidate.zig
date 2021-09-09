@@ -1,6 +1,7 @@
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const math = base.math;
+const AABB = math.AABB;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -78,7 +79,7 @@ pub const SplitCandidate = struct {
 
     pub fn evaluate(self: *Self, references: []const Reference, aabb_surface_area: f32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var aabbs: [2]AABB = .{ aabb.empty, aabb.empty };
+        var aabbs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
 
         if (self.spatial) {
             var used_spatial: bool = false;

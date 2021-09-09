@@ -1,5 +1,6 @@
-const base = @import("base");
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 
 pub const Renderstate = struct {
     p: Vec4f = undefined,

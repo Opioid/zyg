@@ -5,10 +5,9 @@ const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Scene_worker = @import("../scene/worker.zig").Worker;
-
 const surface = @import("integrator/surface/integrator.zig");
 
-usingnamespace @import("base");
+const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;

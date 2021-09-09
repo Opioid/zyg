@@ -1,6 +1,11 @@
-usingnamespace @import("base").math;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
+const Mat4x4 = math.Mat4x4;
+const quaternion = math.quaternion;
+const Transformation = math.Transformation;
 
-pub const Composed_transformation = struct {
+pub const ComposedTransformation = struct {
     world_to_object: Mat4x4 = undefined,
     rotation: Mat3x3 = undefined,
     position: Vec4f = undefined,

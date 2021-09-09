@@ -1,4 +1,6 @@
-usingnamespace @import("base").math;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
 
 pub const TileQueue = struct {
     crop: Vec4i,

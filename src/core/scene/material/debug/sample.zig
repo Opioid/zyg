@@ -3,7 +3,8 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
-usingnamespace base.math;
+const math = base.math;
+const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
 pub const Sample = struct {
@@ -16,12 +17,12 @@ pub const Sample = struct {
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const s2d = sampler.sample2D(rng, 0);
 
-        const is = sampleHemisphereCosine(s2d);
+        const is = math.smpl.hemisphereCosine(s2d);
         const wi = self.super.layer.tangentToWorld(is).normalize3();
 
         const n_dot_wi = self.super.layer.clampNdot(wi);
 
-        const pdf = n_dot_wi * pi_inv;
+        const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = self.super.albedo.mulScalar3(pdf);
 

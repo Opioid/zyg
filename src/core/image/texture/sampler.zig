@@ -1,8 +1,10 @@
 const Scene = @import("../../scene/scene.zig").Scene;
 const Texture = @import("texture.zig").Texture;
 const am = @import("address_mode.zig");
-const base = @import("base");
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 

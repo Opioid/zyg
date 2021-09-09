@@ -1,15 +1,12 @@
 const base = @import("base");
-usingnamespace base;
-
+const math = base.math;
+const Vec2f = math.Vec2f;
+const rnd = base.rnd;
 const RNG = rnd.Generator;
-
-usingnamespace base.math;
 
 const Allocator = @import("std").mem.Allocator;
 
-const std = @import("std");
-
-pub const Golden_ratio = struct {
+pub const GoldenRatio = struct {
     num_dimensions_1D: u32,
     num_dimensions_2D: u32,
 
@@ -22,8 +19,8 @@ pub const Golden_ratio = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !Golden_ratio {
-        return Golden_ratio{
+    pub fn init(alloc: *Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !GoldenRatio {
+        return GoldenRatio{
             .num_dimensions_1D = num_dimensions_1D,
             .num_dimensions_2D = num_dimensions_2D,
             .num_samples = max_samples,
@@ -66,7 +63,7 @@ pub const Golden_ratio = struct {
         var slice = self.samples_2D[begin..end];
 
         const r = Vec2f.init2(rng.randomFloat(), rng.randomFloat());
-        goldenRatio2D(slice, r);
+        math.goldenRatio2D(slice, r);
 
         rnd.biasedShuffle(Vec2f, slice, rng);
     }

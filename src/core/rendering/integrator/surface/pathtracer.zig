@@ -1,7 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
-usingnamespace @import("../../../scene/constants.zig");
+const scn = @import("../../../scene/constants.zig");
 const sampler = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -33,9 +33,9 @@ pub const Pathtracer = struct {
         return Pathtracer{
             .settings = settings,
             .samplers = .{
-                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
-                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
-                .{ .Golden_ratio = try sampler.Golden_ratio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
                 .{ .Random = .{} },
             },
         };
@@ -104,7 +104,7 @@ pub const Pathtracer = struct {
             ray.ray.origin = isec.offsetP(sample_result.wi);
             ray.ray.setDirection(sample_result.wi);
 
-            ray.ray.setMaxT(Ray_max_t);
+            ray.ray.setMaxT(scn.Ray_max_t);
 
             throughput.mulAssign3(sample_result.reflection.divScalar3(sample_result.pdf));
 

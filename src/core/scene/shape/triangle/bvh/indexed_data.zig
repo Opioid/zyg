@@ -1,9 +1,11 @@
 const VertexStream = @import("../vertex_stream.zig").VertexStream;
 const triangle = @import("../triangle.zig");
 
-const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
+const Ray = math.Ray;
+const quaternion = math.quaternion;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

@@ -1,6 +1,9 @@
-const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec2f = math.Vec2f;
+const Vec3f = math.Vec3f;
+const Vec4f = math.Vec4f;
+const quaternion = math.quaternion;
+const Quaternion = math.Quaternion;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

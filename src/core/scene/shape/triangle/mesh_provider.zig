@@ -8,8 +8,14 @@ const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const json = base.json;
+const math = base.math;
+const Vec2f = math.Vec2f;
+const Vec3f = math.Vec3f;
+const Vec4f = math.Vec4f;
+const quaternion = math.quaternion;
+const Quaternion = math.Quaternion;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -257,7 +263,7 @@ pub const Provider = struct {
         PartIndicesOutOfBounds,
     };
 
-    fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *thread.Pool) !Shape {
+    fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
         _ = threads;
 
         try stream.seekTo(4);

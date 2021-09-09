@@ -7,8 +7,11 @@ const Material = @import("material/material.zig").Material;
 pub const mat = @import("material/provider.zig");
 
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const json = base.json;
+const math = base.math;
+const Vec4f = math.Vec4f;
+const Transformation = math.Transformation;
+
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

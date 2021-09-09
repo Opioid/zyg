@@ -6,13 +6,14 @@ pub const Transparent = @import("transparent.zig").Transparent;
 pub const Filtered_1p0_opaque = filtered.Filtered_1p0(Opaque);
 pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
 
-const Sample = @import("../../sampler/sampler.zig").Camera_sample;
+const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
 const Float4 = @import("../../image/image.zig").Float4;
 
 const base = @import("base");
-const Vec2i = base.math.Vec2i;
-const Vec4i = base.math.Vec4i;
-const Vec4f = base.math.Vec4f;
+const math = base.math;
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

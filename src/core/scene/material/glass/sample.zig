@@ -3,7 +3,8 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
-usingnamespace base.math;
+const math = base.math;
+const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
 pub const Sample = struct {

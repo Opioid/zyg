@@ -5,13 +5,13 @@ pub const Triangle_mesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
 const Intersection = @import("intersection.zig").Intersection;
-const Transformation = @import("../composed_transformation.zig").Composed_transformation;
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
-usingnamespace base;
+const math = base.math;
 
 const AABB = math.AABB;
-const Vec4f = base.math.Vec4f;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

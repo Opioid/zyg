@@ -1,7 +1,9 @@
 const Float4 = @import("../../image/image.zig").Float4;
-usingnamespace @import("base");
-
-const ThreadContext = thread.Pool.Context;
+const base = @import("base");
+const Threads = base.thread.Pool;
+const ThreadContext = base.thread.Pool.Context;
+const encoding = base.encoding;
+const spectrum = base.spectrum;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -28,7 +30,7 @@ pub const Srgb = struct {
         }
     }
 
-    pub fn toSrgb(self: *Srgb, image: *const Float4, threads: *thread.Pool) void {
+    pub fn toSrgb(self: *Srgb, image: *const Float4, threads: *Threads) void {
         self.image = image;
 
         threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.numPixels()));

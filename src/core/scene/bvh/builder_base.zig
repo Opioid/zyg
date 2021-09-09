@@ -4,8 +4,7 @@ const SplitCandidate = spc.SplitCandidate;
 const Reference = spc.Reference;
 const References = spc.References;
 const base = @import("base");
-usingnamespace base;
-//usingnamespace base.math;
+const math = base.math;
 const AABB = math.AABB;
 
 const std = @import("std");

@@ -4,8 +4,10 @@ const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const Resources = @import("../../resource/manager.zig").Manager;
 const base = @import("base");
-usingnamespace base;
+const math = base.math;
 const Vec4f = math.Vec4f;
+const json = base.json;
+const spectrum = base.spectrum;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

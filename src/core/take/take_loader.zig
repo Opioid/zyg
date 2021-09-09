@@ -12,13 +12,16 @@ const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
+const json = base.json;
+const math = base.math;
+
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
+const Vec4f = math.Vec4f;
+const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
-usingnamespace @import("base");
 
 const Error = error{
     NoScene,
@@ -265,7 +268,7 @@ fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory 
         }
 
         if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
-            return .{ .Golden_ratio = {} };
+            return .{ .GoldenRatio = {} };
         }
     }
 

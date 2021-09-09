@@ -4,18 +4,16 @@ const Worker = @import("worker.zig").Worker;
 const TileQueue = @import("tile_queue.zig").TileQueue;
 const img = @import("../image/image.zig");
 const progress = @import("../progress/std_out.zig");
-
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
-
-const ThreadContext = thread.Pool.Context;
+const chrono = base.chrono;
+const Threads = base.thread.Pool;
+const ThreadContext = base.thread.Pool.Context;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
 pub const Driver = struct {
-    threads: *thread.Pool,
+    threads: *Threads,
 
     view: *View = undefined,
     scene: *Scene = undefined,
@@ -28,7 +26,7 @@ pub const Driver = struct {
 
     progressor: progress.StdOut = undefined,
 
-    pub fn init(alloc: *Allocator, threads: *thread.Pool) !Driver {
+    pub fn init(alloc: *Allocator, threads: *Threads) !Driver {
         var workers = try alloc.alloc(Worker, threads.numThreads());
 
         for (workers) |*w| {

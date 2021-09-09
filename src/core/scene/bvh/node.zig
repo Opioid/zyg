@@ -1,6 +1,5 @@
 const base = @import("base");
-usingnamespace base;
-//usingnamespace base.math;
+const math = base.math;
 const Vec4f = math.Vec4f;
 const AABB = math.AABB;
 const Ray = math.Ray;

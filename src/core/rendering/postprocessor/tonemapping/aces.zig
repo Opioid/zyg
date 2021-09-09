@@ -1,9 +1,10 @@
 const Base = @import("tonemapper_base.zig").Base;
 
 const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
-const ThreadContext = thread.Pool.Context;
+const math = base.math;
+const Vec4f = math.Vec4f;
+const spectrum = base.spectrum;
+const ThreadContext = base.thread.Pool.Context;
 
 // https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
 

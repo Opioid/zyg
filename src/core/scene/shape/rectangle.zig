@@ -1,18 +1,17 @@
-const base = @import("base");
-usingnamespace base;
-
-const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
-
-const Transformation = @import("../composed_transformation.zig").Composed_transformation;
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+
+const base = @import("base");
+const math = base.math;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 
 const std = @import("std");
 
 pub const Rectangle = struct {
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         const normal = trafo.rotation.r[2];
-
         const d = normal.dot3(trafo.position);
         const denom = -normal.dot3(ray.direction);
         const numer = normal.dot3(ray.origin) - d;
@@ -53,7 +52,6 @@ pub const Rectangle = struct {
 
     pub fn intersectP(ray: Ray, trafo: Transformation) bool {
         const normal = trafo.rotation.r[2];
-
         const d = normal.dot3(trafo.position);
         const denom = -normal.dot3(ray.direction);
         const numer = normal.dot3(ray.origin) - d;

@@ -1,4 +1,4 @@
-usingnamespace @import("vector2.zig");
+const Vec2 = @import("vector2.zig").Vec2;
 
 pub fn Vec3(comptime T: type) type {
     return struct {

@@ -1,11 +1,9 @@
-const base = @import("base");
-usingnamespace base;
-
-const Vec2f = base.math.Vec2f;
-const Ray = base.math.Ray;
-
-const Transformation = @import("../composed_transformation.zig").Composed_transformation;
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+
+const math = @import("base").math;
+const Vec2f = math.Vec2f;
+const Ray = math.Ray;
 
 pub const Plane = struct {
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {

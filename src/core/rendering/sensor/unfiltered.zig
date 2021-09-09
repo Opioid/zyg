@@ -1,8 +1,8 @@
-const Sample = @import("../../sampler/sampler.zig").Camera_sample;
+const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
 
-const base = @import("base");
-const Vec2i = base.math.Vec2i;
-const Vec4f = base.math.Vec4f;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec4f = math.Vec4f;
 
 pub fn Unfiltered(comptime T: type) type {
     return struct {

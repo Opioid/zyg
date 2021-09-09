@@ -1,7 +1,8 @@
 const Srgb = @import("../srgb.zig").Srgb;
 const Float4 = @import("../../image.zig").Float4;
 
-usingnamespace @import("base");
+const base = @import("base");
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
@@ -21,7 +22,7 @@ pub const Writer = struct {
         self.srgb.deinit(alloc);
     }
 
-    pub fn write(self: *Writer, alloc: *Allocator, image: Float4, threads: *thread.Pool) !void {
+    pub fn write(self: *Writer, alloc: *Allocator, image: Float4, threads: *Threads) !void {
         const d = image.description.dimensions;
 
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);

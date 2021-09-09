@@ -5,8 +5,7 @@ const VertexStream = @import("../vertex_stream.zig").VertexStream;
 const Reference = @import("../../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../../bvh/builder_base.zig").Base;
 const base = @import("base");
-usingnamespace base;
-// usingnamespace base.math;
+const math = base.math;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

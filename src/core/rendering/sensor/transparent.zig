@@ -1,7 +1,8 @@
 const Base = @import("base.zig").Base;
 const Float4 = @import("../../image/image.zig").Float4;
-
-usingnamespace @import("base").math;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec4f = math.Vec4f;
 
 const Allocator = @import("std").mem.Allocator;
 

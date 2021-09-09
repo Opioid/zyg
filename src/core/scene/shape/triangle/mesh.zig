@@ -1,12 +1,12 @@
-const Transformation = @import("../../composed_transformation.zig").Composed_transformation;
+const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
 const NodeStack = @import("../node_stack.zig").NodeStack;
 const Intersection = @import("../intersection.zig").Intersection;
 pub const bvh = @import("bvh/tree.zig");
 const base = @import("base");
-usingnamespace base;
-const Vec2f = base.math.Vec2f;
-const Vec4f = base.math.Vec4f;
-const Ray = base.math.Ray;
+const math = base.math;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

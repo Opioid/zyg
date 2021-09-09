@@ -1,4 +1,4 @@
-usingnamespace @import("vector2.zig");
+const Vec2f = @import("vector2.zig").Vec2f;
 
 pub fn goldenRatio1D(samples: []f32, r: f32) void {
     // set the initial second coordinate

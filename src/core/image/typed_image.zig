@@ -1,4 +1,6 @@
-usingnamespace @import("base").math;
+const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec3i = math.Vec3i;
 
 const Allocator = @import("std").mem.Allocator;
 

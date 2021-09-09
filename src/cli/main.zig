@@ -1,12 +1,16 @@
-const base = @import("base");
-usingnamespace base;
-usingnamespace base.math;
-
-usingnamespace @import("core");
-
-const Png_writer = image.encoding.png.Writer;
-
 const Options = @import("options/options.zig").Options;
+
+const core = @import("core");
+const rendering = core.rendering;
+const resource = core.resource;
+const scn = core.scn;
+const thread = base.thread;
+const tk = core.tk;
+const PngWriter = core.image.encoding.png.Writer;
+
+const base = @import("base");
+const chrono = base.chrono;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 
@@ -34,11 +38,11 @@ pub fn main() !void {
         return;
     }
 
-    const num_workers = thread.Pool.availableCores(options.threads);
+    const num_workers = Threads.availableCores(options.threads);
 
     stdout.print("#Threads {}\n", .{num_workers}) catch unreachable;
 
-    var threads: thread.Pool = .{};
+    var threads: Threads = .{};
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
@@ -95,7 +99,7 @@ pub fn main() !void {
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
-    var png_writer = Png_writer.init(take.view.camera.sensor.alphaTransparency());
+    var png_writer = PngWriter.init(take.view.camera.sensor.alphaTransparency());
     defer png_writer.deinit(alloc);
     try png_writer.write(alloc, driver.target, &threads);
 

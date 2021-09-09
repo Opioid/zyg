@@ -1,4 +1,4 @@
-usingnamespace @import("math.zig");
+const math = @import("math.zig");
 
 const std = @import("std");
 
@@ -41,7 +41,7 @@ pub fn InterpolatedFunction_1D_N(comptime N: u32) type {
             const offset = @floatToInt(u32, o);
             const t = o - @intToFloat(f32, offset);
 
-            return lerp(self.samples[offset], self.samples[std.math.min(offset + 1, N - 1)], t);
+            return math.lerp(self.samples[offset], self.samples[std.math.min(offset + 1, N - 1)], t);
         }
     };
 }

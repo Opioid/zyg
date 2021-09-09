@@ -1,7 +1,7 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
-usingnamespace @import("sample_helper.zig");
-const base = @import("base");
-usingnamespace base.math;
+const hlp = @import("sample_helper.zig");
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 pub const Layer = struct {
     t: Vec4f,
@@ -17,7 +17,7 @@ pub const Layer = struct {
     }
 
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {
-        return clampDot(self.n, v);
+        return hlp.clampDot(self.n, v);
     }
 };
 

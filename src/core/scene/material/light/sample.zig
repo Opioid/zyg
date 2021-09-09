@@ -1,8 +1,8 @@
 const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
-const base = @import("base");
-usingnamespace base.math;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 pub const Sample = struct {
     super: Base,

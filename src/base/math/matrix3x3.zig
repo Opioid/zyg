@@ -1,4 +1,4 @@
-usingnamespace @import("vector4.zig");
+const Vec4f = @import("vector4.zig").Vec4f;
 
 pub const Mat3x3 = struct {
     r: [3]Vec4f,

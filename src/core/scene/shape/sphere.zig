@@ -1,11 +1,11 @@
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Intersection = @import("intersection.zig").Intersection;
+
 const base = @import("base");
-usingnamespace base;
+const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
-
-const Transformation = @import("../composed_transformation.zig").Composed_transformation;
-const Intersection = @import("intersection.zig").Intersection;
 
 const std = @import("std");
 

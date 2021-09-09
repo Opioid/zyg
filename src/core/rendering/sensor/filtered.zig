@@ -1,17 +1,15 @@
-const Sample = @import("../../sampler/sampler.zig").Camera_sample;
-
+const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
 const base = @import("base");
-const Vec2i = base.math.Vec2i;
-const Vec4i = base.math.Vec4i;
-const Vec4f = base.math.Vec4f;
-
-usingnamespace base.math.interpolated_function;
+const math = base.math;
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
 pub fn Base(comptime T: type) type {
     return struct {
-        const Func = InterpolatedFunction_1D_N(30);
+        const Func = math.InterpolatedFunction_1D_N(30);
 
         sensor: T = .{},
 

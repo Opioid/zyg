@@ -1,5 +1,5 @@
-usingnamespace @import("matrix3x3.zig");
-usingnamespace @import("vector4.zig");
+const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
+const Vec4f = @import("vector4.zig").Vec4f;
 
 pub const Mat4x4 = struct {
     r: [4]Vec4f,
