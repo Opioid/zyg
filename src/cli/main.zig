@@ -46,7 +46,7 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager.init(alloc, &threads);
+    var resources = resource.Manager.init(&threads);
     defer resources.deinit(alloc);
 
     var fs = &resources.fs;

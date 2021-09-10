@@ -8,11 +8,21 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
+pub fn sample2D_2(texture: Texture, uv: Vec2f, scene: *const Scene) Vec2f {
+    return Nearest2D.sample_2(texture, uv, scene);
+}
+
 pub fn sample2D_3(texture: Texture, uv: Vec2f, scene: *const Scene) Vec4f {
     return Nearest2D.sample_3(texture, uv, scene);
 }
 
 const Nearest2D = struct {
+    pub fn sample_2(texture: Texture, uv: Vec2f, scene: *const Scene) Vec2f {
+        const xy = map(texture.description(scene).dimensions.xy(), uv);
+
+        return texture.get2D_2(xy.v[0], xy.v[1], scene);
+    }
+
     pub fn sample_3(texture: Texture, uv: Vec2f, scene: *const Scene) Vec4f {
         const xy = map(texture.description(scene).dimensions.xy(), uv);
 

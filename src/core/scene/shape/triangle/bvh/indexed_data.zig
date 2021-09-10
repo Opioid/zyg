@@ -126,8 +126,8 @@ pub const Indexed_data = struct {
         n.* = triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v).normalize3();
 
         const uva = self.uvs[tri.a];
-        const uvb = self.uvs[tri.a];
-        const uvc = self.uvs[tri.a];
+        const uvb = self.uvs[tri.b];
+        const uvc = self.uvs[tri.c];
 
         uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
     }

@@ -163,6 +163,24 @@ pub fn Vec4(comptime T: type) type {
             return if (v.v[1] > v.v[2]) 1 else 2;
         }
 
+        pub fn reflect3(n: Vec4(T), v: Vec4(T)) Vec4(T) {
+            return n.mulScalar3(2.0 * v.dot3(n)).sub3(v);
+        }
+
+        pub fn orthonormalBasis3(n: Vec4(T)) [2]Vec4(T) {
+            // Building an Orthonormal Basis, Revisited
+            // http://jcgt.org/published/0006/01/01/
+
+            const sign = std.math.copysign(f32, 1.0, n.v[2]);
+            const c = -1.0 / (sign + n.v[2]);
+            const d = n.v[0] * n.v[1] * c;
+
+            return .{
+                init3(1.0 + sign * n.v[0] * n.v[0] * c, sign * d, -sign * n.v[0]),
+                init3(d, sign + n.v[1] * n.v[1] * c, -n.v[1]),
+            };
+        }
+
         pub fn tangent3(n: Vec4(T)) Vec4(T) {
             const sign = std.math.copysign(f32, 1.0, n.v[2]);
             const c = -1.0 / (sign + n.v[2]);
@@ -184,7 +202,3 @@ pub fn Vec4(comptime T: type) type {
 
 pub const Vec4i = Vec4(i32);
 pub const Vec4f = Vec4(f32);
-
-// pub fn vec2iTof(v: Vec2i) Vec2f {
-//     return Vec2f.init2(@intToFloat(f32, v.v[0]), @intToFloat(f32, v.v[1]));
-// }

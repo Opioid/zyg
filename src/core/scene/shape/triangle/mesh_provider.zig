@@ -16,6 +16,7 @@ const Vec4f = math.Vec4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
+const Variants = base.memory.VariantMap;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -58,8 +59,9 @@ pub const Provider = struct {
         _ = alloc;
     }
 
-    pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, resources: *Resources) !Shape {
+    pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
         _ = self;
+        _ = options;
 
         var handler = Handler{};
         defer handler.deinit(alloc);
@@ -389,10 +391,7 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             std.debug.print("interleaved\n", .{});
         } else {
-            std.debug.print("not interleaved {}\n", .{num_vertices});
-
             var positions = try alloc.alloc(Vec3f, num_vertices);
-
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
             if (tangent_space_as_quaternion) {} else {

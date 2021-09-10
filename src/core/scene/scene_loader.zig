@@ -12,7 +12,6 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 const Transformation = math.Transformation;
 
-
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -193,7 +192,7 @@ pub const Loader = struct {
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            return self.resources.loadFile(Shape, alloc, file) catch resource.Null;
+            return self.resources.loadFile(Shape, alloc, file, .{}) catch resource.Null;
         }
 
         return resource.Null;
@@ -245,14 +244,14 @@ pub const Loader = struct {
         if (local_materials.materials.get(name)) |material_node| {
             const data = @ptrToInt(material_node);
 
-            const material = self.resources.loadData(Material, alloc, name, data) catch resource.Null;
+            const material = self.resources.loadData(Material, alloc, name, data, .{}) catch resource.Null;
             if (resource.Null != material) {
                 return material;
             }
         }
 
         // Lastly, try loading the material from the filesystem.
-        const material = self.resources.loadFile(Material, alloc, name) catch {
+        const material = self.resources.loadFile(Material, alloc, name, .{}) catch {
             std.debug.print("Using fallback for material \"{s}\"\n", .{name});
 
             return self.fallback_material;

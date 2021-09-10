@@ -13,6 +13,7 @@ const Shapes = Cache(Shape, TriangleMeshProvider);
 
 const base = @import("base");
 const Threads = base.thread.Pool;
+const Variants = base.memory.VariantMap;
 
 pub const Null = cache.Null;
 
@@ -32,12 +33,12 @@ pub const Manager = struct {
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(alloc: *Allocator, threads: *Threads) Manager {
+    pub fn init(threads: *Threads) Manager {
         return .{
             .threads = threads,
-            .images = Images.init(alloc, ImageProvider{}),
-            .materials = Materials.init(alloc, MaterialProvider{}),
-            .shapes = Shapes.init(alloc, TriangleMeshProvider{}),
+            .images = Images.init(ImageProvider{}),
+            .materials = Materials.init(MaterialProvider{}),
+            .shapes = Shapes.init(TriangleMeshProvider{}),
         };
     }
 
@@ -48,29 +49,42 @@ pub const Manager = struct {
         self.fs.deinit(alloc);
     }
 
-    pub fn loadFile(self: *Manager, comptime T: type, alloc: *Allocator, name: []const u8) !u32 {
+    pub fn loadFile(
+        self: *Manager,
+        comptime T: type,
+        alloc: *Allocator,
+        name: []const u8,
+        options: Variants,
+    ) !u32 {
         if (Image == T) {
-            return try self.images.loadFile(alloc, name, self);
+            return try self.images.loadFile(alloc, name, options, self);
         }
 
         if (Material == T) {
-            return try self.materials.loadFile(alloc, name, self);
+            return try self.materials.loadFile(alloc, name, options, self);
         }
 
         if (Shape == T) {
-            return try self.shapes.loadFile(alloc, name, self);
+            return try self.shapes.loadFile(alloc, name, options, self);
         }
 
         return Error.UnknownResource;
     }
 
-    pub fn loadData(self: *Manager, comptime T: type, alloc: *Allocator, name: []const u8, data: usize) !u32 {
+    pub fn loadData(
+        self: *Manager,
+        comptime T: type,
+        alloc: *Allocator,
+        name: []const u8,
+        data: usize,
+        options: Variants,
+    ) !u32 {
         if (Material == T) {
-            return try self.materials.loadData(alloc, name, data, self);
+            return try self.materials.loadData(alloc, name, data, options, self);
         }
 
         if (Shape == T) {
-            return try self.shapes.loadData(alloc, name, data, self);
+            return try self.shapes.loadData(alloc, name, data, options, self);
         }
 
         return Error.UnknownResource;

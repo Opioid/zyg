@@ -14,6 +14,10 @@ pub const Sample = struct {
         return .{ .super = Base.init(rs, wo, albedo, radiance) };
     }
 
+    pub fn initN(rs: Renderstate, shading_n: Vec4f, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) Sample {
+        return .{ .super = Base.initN(rs, shading_n, wo, albedo, radiance) };
+    }
+
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const s2d = sampler.sample2D(rng, 0);
 

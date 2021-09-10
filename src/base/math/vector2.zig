@@ -47,6 +47,10 @@ pub fn Vec2(comptime T: type) type {
             self.v[1] *= s;
         }
 
+        pub fn dot(a: Vec2(T), b: Vec2(T)) T {
+            return a.v[0] * b.v[0] + a.v[1] * b.v[1];
+        }
+
         pub fn toVec2f(v: Vec2(i32)) Vec2(f32) {
             return Vec2(f32).init2(@intToFloat(f32, v.v[0]), @intToFloat(f32, v.v[1]));
         }
@@ -57,5 +61,6 @@ pub fn Vec2(comptime T: type) type {
     };
 }
 
+pub const Vec2b = Vec2(u8);
 pub const Vec2i = Vec2(i32);
 pub const Vec2f = Vec2(f32);

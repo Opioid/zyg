@@ -43,6 +43,19 @@ pub const SampleBase = struct {
         };
     }
 
+    pub fn initN(rs: Renderstate, shading_n: Vec4f, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) SampleBase {
+        const tb = Vec4f.orthonormalBasis3(shading_n);
+
+        return .{
+            .layer = .{ .t = tb[0], .b = tb[1], .n = shading_n },
+            .geo_n = rs.geo_n,
+            .n = rs.n,
+            .wo = wo,
+            .albedo = albedo,
+            .radiance = radiance,
+        };
+    }
+
     pub fn shadingNormal(self: Self) Vec4f {
         return self.layer.n;
     }
