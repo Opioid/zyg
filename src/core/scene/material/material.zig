@@ -30,6 +30,14 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn isTwoSided(self: Material) bool {
+        return switch (self) {
+            .Debug => true,
+            .Substitute => |m| m.super.properties.is(.Two_sided),
+            else => false,
+        };
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         return switch (self) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },

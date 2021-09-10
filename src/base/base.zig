@@ -1,5 +1,6 @@
 pub const chrono = @import("chrono.zig");
 pub const encoding = @import("encoding.zig");
+pub const flags = @import("flags.zig");
 pub const math = @import("math/math.zig");
 pub const memory = @import("memory/memory.zig");
 pub const json = @import("json.zig");

@@ -17,6 +17,10 @@ pub const Material = struct {
 
     color: Vec4f = undefined,
 
+    pub fn init(two_sided: bool) Material {
+        return .{ .super = Base.init(two_sided) };
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         const color = if (self.super.color_map.isValid()) ts.sample2D_3(self.super.color_map, rs.uv, worker.scene) else self.color;
 

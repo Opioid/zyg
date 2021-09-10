@@ -112,16 +112,20 @@ pub const Provider = struct {
 
         var normal_map = Texture{};
 
+        var two_sided = false;
+
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, resources);
+            } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
+                two_sided = json.readBool(entry.value_ptr.*);
             }
         }
 
-        var material = mat.Substitute{};
+        var material = mat.Substitute.init(two_sided);
 
         material.super.color_map = color.texture;
 

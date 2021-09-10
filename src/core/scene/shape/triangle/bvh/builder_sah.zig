@@ -50,8 +50,6 @@ pub const BuilderSAH = struct {
             bounds.bounds[1] = bounds.bounds[1].max3(max);
         }
 
-        tree.box = bounds;
-
         try self.super.split(alloc, 0, references, bounds, 0, threads);
 
         try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.reference_ids.items.len), vertices);

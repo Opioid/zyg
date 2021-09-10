@@ -27,8 +27,13 @@ pub const Intersection = struct {
         rs.t = self.geo.t;
         rs.b = self.geo.b;
 
-        rs.geo_n = self.geo.geo_n;
-        rs.n = self.geo.n;
+        if (m.isTwoSided() and !self.sameHemisphere(wo)) {
+            rs.geo_n = self.geo.geo_n.neg3();
+            rs.n = self.geo.n.neg3();
+        } else {
+            rs.geo_n = self.geo.geo_n;
+            rs.n = self.geo.n;
+        }
 
         rs.uv = self.geo.uv;
         rs.prop = self.prop;

@@ -16,7 +16,7 @@ pub const Indexed_data = struct {
         v: f32,
     };
 
-    const Triangle = struct {
+    const Triangle = packed struct {
         a: u32,
         b: u32,
         c: u32,

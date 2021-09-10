@@ -21,8 +21,6 @@ pub const Tree = struct {
     nodes: []Node = &.{},
     data: Indexed_data = .{},
 
-    box: AABB = undefined,
-
     pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) ![]Node {
         self.nodes = try alloc.alloc(Node, num_nodes);
 
@@ -35,7 +33,7 @@ pub const Tree = struct {
     }
 
     pub fn aabb(self: Tree) AABB {
-        return self.box;
+        return self.nodes[0].aabb();
     }
 
     pub fn intersect(self: Tree, ray: *Ray, nodes: *NodeStack) ?Intersection {
