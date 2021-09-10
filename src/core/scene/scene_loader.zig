@@ -8,6 +8,7 @@ pub const mat = @import("material/provider.zig");
 
 const base = @import("base");
 const json = base.json;
+const string = base.string;
 const math = base.math;
 const Vec4f = math.Vec4f;
 const Transformation = math.Transformation;
@@ -55,7 +56,9 @@ pub const Loader = struct {
     }
 
     pub fn load(self: *Loader, alloc: *Allocator, filename: []const u8, scene: *Scene) !void {
-        var stream = try self.resources.fs.readStream(filename);
+        const fs = &self.resources.fs;
+
+        var stream = try fs.readStream(filename);
         defer stream.deinit();
 
         const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
@@ -76,12 +79,16 @@ pub const Loader = struct {
             try readMaterials(materials_node, &local_materials);
         }
 
+        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
+
         var iter = root.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                 try self.loadEntities(alloc, entry.value_ptr.*, local_materials, scene);
             }
         }
+
+        fs.popMount(alloc);
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
@@ -192,7 +199,12 @@ pub const Loader = struct {
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            return self.resources.loadFile(Shape, alloc, file, .{}) catch resource.Null;
+            const id = self.resources.loadFile(Shape, alloc, file, .{}) catch |e| {
+                std.debug.print("Could not load file \"{s}\": {}\n", .{ file, e });
+                return resource.Null;
+            };
+
+            return id;
         }
 
         return resource.Null;

@@ -6,9 +6,13 @@ const References = spc.References;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Threads = base.thread.Pool;
+const ThreadContext = base.thread.Pool.Context;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
+const Parallelize_threshold = 1024;
 
 pub const Base = struct {
     num_slices: u32,
@@ -22,6 +26,9 @@ pub const Base = struct {
 
     current_node: u32 = undefined,
     nodes: []Node = undefined,
+
+    aabb_surface_area: f32 = undefined,
+    references: []const Reference = undefined,
 
     pub fn init(
         alloc: *Allocator,
@@ -37,7 +44,7 @@ pub const Base = struct {
             .spatial_split_threshold = spatial_split_threshold,
             .split_candidates = try std.ArrayListUnmanaged(SplitCandidate).initCapacity(
                 alloc,
-                3 + std.math.max(3 * sweep_threshold, 3 * num_slices),
+                3 + std.math.max(3 * sweep_threshold, 3 * 2 * num_slices),
             ),
         };
     }
@@ -59,6 +66,7 @@ pub const Base = struct {
         references: []const Reference,
         aabb: AABB,
         depth: u32,
+        threads: *Threads,
     ) SplitError!void {
         defer alloc.free(references);
 
@@ -69,7 +77,7 @@ pub const Base = struct {
         if (num_primitives <= self.max_primitives) {
             try self.assign(alloc, node, references);
         } else {
-            const spo = self.splittingPlane(references, aabb, depth);
+            const spo = self.splittingPlane(references, aabb, depth, threads);
             if (spo) |sp| {
                 if (num_primitives <= 0xFF and @intToFloat(f32, num_primitives) <= sp.cost) {
                     try self.assign(alloc, node, references);
@@ -91,8 +99,8 @@ pub const Base = struct {
                         try self.build_nodes.append(alloc, .{});
 
                         const next_depth = depth + 1;
-                        try self.split(alloc, child0, references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth);
-                        try self.split(alloc, child0 + 1, references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth);
+                        try self.split(alloc, child0, references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth, threads);
+                        try self.split(alloc, child0 + 1, references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth, threads);
                     }
                 }
             } else {
@@ -105,12 +113,10 @@ pub const Base = struct {
         }
     }
 
-    pub fn splittingPlane(self: *Base, references: []const Reference, aabb: AABB, depth: u32) ?SplitCandidate {
+    pub fn splittingPlane(self: *Base, references: []const Reference, aabb: AABB, depth: u32, threads: *Threads) ?SplitCandidate {
         const X = 0;
         const Y = 1;
         const Z = 2;
-
-        _ = depth;
 
         self.split_candidates.clearRetainingCapacity();
 
@@ -133,7 +139,7 @@ pub const Base = struct {
             const extent = aabb.extent();
             const min = aabb.bounds[0];
 
-            const la = min.indexMaxComponent3();
+            const la = extent.indexMaxComponent3();
             const step = extent.v[la] / @intToFloat(f32, self.num_slices);
 
             const ax = [_]u8{ 0, 1, 2 };
@@ -159,8 +165,15 @@ pub const Base = struct {
 
         const aabb_surface_area = aabb.surfaceArea();
 
-        for (self.split_candidates.items) |*sc| {
-            sc.evaluate(references, aabb_surface_area);
+        if (references.len < Parallelize_threshold) {
+            for (self.split_candidates.items) |*sc| {
+                sc.evaluate(references, aabb_surface_area);
+            }
+        } else {
+            self.aabb_surface_area = aabb_surface_area;
+            self.references = references;
+
+            threads.runRange(self, evaluateRange, 0, @intCast(u32, self.split_candidates.items.len));
         }
 
         var sc: usize = 0;
@@ -181,6 +194,19 @@ pub const Base = struct {
         }
 
         return sp;
+    }
+
+    fn evaluateRange(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+        _ = id;
+
+        const self = @intToPtr(*Base, context);
+
+        const aabb_surface_area = self.aabb_surface_area;
+        const references = self.references;
+
+        for (self.split_candidates.items[begin..end]) |*sc| {
+            sc.evaluate(references, aabb_surface_area);
+        }
     }
 
     pub fn assign(self: *Base, alloc: *Allocator, node: *Node, references: []const Reference) !void {

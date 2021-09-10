@@ -122,7 +122,7 @@ pub const Provider = struct {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
-        try buildBVH(alloc, &mesh, handler.triangles.items, vertices);
+        try buildBVH(alloc, &mesh, handler.triangles.items, vertices, resources.threads);
 
         return Shape{ .Triangle_mesh = mesh };
     }
@@ -266,8 +266,6 @@ pub const Provider = struct {
     };
 
     fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
-        _ = threads;
-
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -455,16 +453,22 @@ pub const Provider = struct {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
-        try buildBVH(alloc, &mesh, triangles, vertices);
+        try buildBVH(alloc, &mesh, triangles, vertices, threads);
 
         return Shape{ .Triangle_mesh = mesh };
     }
 
-    fn buildBVH(alloc: *Allocator, mesh: *Mesh, triangles: []const IndexTriangle, vertices: vs.VertexStream) !void {
+    fn buildBVH(
+        alloc: *Allocator,
+        mesh: *Mesh,
+        triangles: []const IndexTriangle,
+        vertices: vs.VertexStream,
+        threads: *Threads,
+    ) !void {
         var builder = try Builder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
-        try builder.build(alloc, &mesh.tree, triangles, vertices);
+        try builder.build(alloc, &mesh.tree, triangles, vertices, threads);
     }
 
     fn fillTriangles(

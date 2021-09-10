@@ -86,16 +86,16 @@ pub const Pool = struct {
 
         self.wakeAll();
 
-        self.waitAll();
+        self.waitAll(self.uniques.len);
     }
 
     fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) void {
         self.context = context;
         self.program = .{ .Range = program };
 
-        self.wakeAllRange(begin, end);
+        const num = self.wakeAllRange(begin, end);
 
-        self.waitAll();
+        self.waitAll(num);
     }
 
     fn wakeAll(self: Pool) void {
@@ -107,7 +107,7 @@ pub const Pool = struct {
         }
     }
 
-    fn wakeAllRange(self: Pool, begin: u32, end: u32) void {
+    fn wakeAllRange(self: Pool, begin: u32, end: u32) usize {
         const range = @intToFloat(f32, end - begin);
         const num_threads = @intToFloat(f32, self.threads.len);
 
@@ -115,9 +115,13 @@ pub const Pool = struct {
 
         var e = begin;
 
-        for (self.uniques) |*u| {
+        for (self.uniques) |*u, i| {
             const b = e;
             e += step;
+
+            if (b >= end) {
+                return i;
+            }
 
             const lock = u.mutex.acquire();
             u.begin = b;
@@ -126,10 +130,12 @@ pub const Pool = struct {
             lock.release();
             u.wake_signal.signal();
         }
+
+        return self.uniques.len;
     }
 
-    fn waitAll(self: Pool) void {
-        for (self.uniques) |*u| {
+    fn waitAll(self: Pool, num: usize) void {
+        for (self.uniques[0..num]) |*u| {
             const lock = u.mutex.acquire();
             defer lock.release();
 

@@ -6,6 +6,7 @@ const Reference = @import("../../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../../bvh/builder_base.zig").Base;
 const base = @import("base");
 const math = base.math;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -27,6 +28,7 @@ pub const BuilderSAH = struct {
         tree: *Tree,
         triangles: []const IndexTriangle,
         vertices: VertexStream,
+        threads: *Threads,
     ) !void {
         try self.super.reserve(alloc, @intCast(u32, triangles.len));
 
@@ -50,7 +52,7 @@ pub const BuilderSAH = struct {
 
         tree.box = bounds;
 
-        try self.super.split(alloc, 0, references, bounds, 0);
+        try self.super.split(alloc, 0, references, bounds, 0, threads);
 
         try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.reference_ids.items.len), vertices);
         self.super.nodes = try tree.allocateNodes(alloc, @intCast(u32, self.super.build_nodes.items.len));

@@ -73,6 +73,10 @@ pub fn main() !void {
 
     var stream = try resources.fs.readStream(options.take.?);
 
+    stdout.print("Loading...\n", .{}) catch unreachable;
+
+    const loading_start = std.time.milliTimestamp();
+
     var take = tk.load(alloc, &stream, &scene, &resources) catch |err| {
         std.debug.print("Loading take {} \n", .{err});
         return;
@@ -84,12 +88,14 @@ pub fn main() !void {
         return;
     };
 
-    var driver = try rendering.Driver.init(alloc, &threads);
-    defer driver.deinit(alloc);
+    stdout.print("Loading time {d:.2} s\n", .{chrono.secondsSince(loading_start)}) catch unreachable;
 
     stdout.print("Rendering...\n", .{}) catch unreachable;
 
     const rendering_start = std.time.milliTimestamp();
+
+    var driver = try rendering.Driver.init(alloc, &threads);
+    defer driver.deinit(alloc);
 
     try driver.configure(alloc, &take.view, &scene);
 

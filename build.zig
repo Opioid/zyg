@@ -59,7 +59,8 @@ pub fn build(b: *std.build.Builder) void {
     } else {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
-            "takes/cornell.take",
+            //"takes/cornell.take",
+            "takes/bistro_day.take",
             "-t",
             "16",
         });

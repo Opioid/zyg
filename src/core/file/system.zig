@@ -8,6 +8,8 @@ pub const System = struct {
 
     name_buffer: [256]u8 = undefined,
 
+    resolved_name_len: u32 = undefined,
+
     pub fn deinit(self: *System, alloc: *Allocator) void {
         for (self.mounts.items) |mount| {
             alloc.free(mount);
@@ -30,10 +32,16 @@ pub const System = struct {
         try self.mounts.append(alloc, buffer);
     }
 
+    pub fn popMount(self: *System, alloc: *Allocator) void {
+        const mount = self.mounts.pop();
+        alloc.free(mount);
+    }
+
     pub fn readStream(self: *System, name: []const u8) !ReadStream {
         for (self.mounts.items) |m| {
             std.mem.copy(u8, self.name_buffer[0..], m);
             std.mem.copy(u8, self.name_buffer[m.len..], name);
+            self.resolved_name_len = @intCast(u32, m.len + name.len);
 
             const resolved_name = self.name_buffer[0 .. m.len + name.len];
 
@@ -44,6 +52,13 @@ pub const System = struct {
             return ReadStream.init(file);
         }
 
+        std.mem.copy(u8, self.name_buffer[0..], name);
+        self.resolved_name_len = @intCast(u32, name.len);
+
         return ReadStream.init(try std.fs.cwd().openFile(name, .{}));
+    }
+
+    pub fn lastResolvedName(self: System) []const u8 {
+        return self.name_buffer[0..self.resolved_name_len];
     }
 };
