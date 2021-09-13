@@ -8,6 +8,10 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
+pub fn sample2D_1(texture: Texture, uv: Vec2f, scene: *const Scene) f32 {
+    return Nearest2D.sample_1(texture, uv, scene);
+}
+
 pub fn sample2D_2(texture: Texture, uv: Vec2f, scene: *const Scene) Vec2f {
     return Nearest2D.sample_2(texture, uv, scene);
 }
@@ -17,6 +21,12 @@ pub fn sample2D_3(texture: Texture, uv: Vec2f, scene: *const Scene) Vec4f {
 }
 
 const Nearest2D = struct {
+    pub fn sample_1(texture: Texture, uv: Vec2f, scene: *const Scene) f32 {
+        const xy = map(texture.description(scene).dimensions.xy(), uv);
+
+        return texture.get2D_1(xy.v[0], xy.v[1], scene);
+    }
+
     pub fn sample_2(texture: Texture, uv: Vec2f, scene: *const Scene) Vec2f {
         const xy = map(texture.description(scene).dimensions.xy(), uv);
 
@@ -32,8 +42,8 @@ const Nearest2D = struct {
     fn map(d: Vec2i, uv: Vec2f) Vec2i {
         const df = d.toVec2f();
 
-        const u = am.Clamp.f(uv.v[0]);
-        const v = am.Clamp.f(uv.v[1]);
+        const u = am.Repeat.f(uv.v[0]);
+        const v = am.Repeat.f(uv.v[1]);
 
         const b = d.subScalar(1);
 

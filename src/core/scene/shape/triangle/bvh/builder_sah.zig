@@ -58,8 +58,6 @@ pub const BuilderSAH = struct {
         var current_triangle: u32 = 0;
         self.super.newNode();
         self.serialize(0, 0, tree, triangles, vertices, &current_triangle);
-
-        std.debug.print("before/after {}/{}\n", .{ triangles.len, self.super.kernel.reference_ids.items.len });
     }
 
     fn serialize(

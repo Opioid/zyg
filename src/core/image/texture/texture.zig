@@ -10,6 +10,7 @@ const Vec4f = math.Vec4f;
 
 pub const Texture = struct {
     pub const Type = enum {
+        Byte1_unorm,
         Byte2_snorm,
         Byte3_sRGB,
     };
@@ -19,6 +20,18 @@ pub const Texture = struct {
 
     pub fn isValid(self: Texture) bool {
         return self.image != Null;
+    }
+
+    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
+        const image = scene.image(self.image);
+
+        switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.getXY(x, y);
+                return enc.cachedUnormToFloat(value);
+            },
+            else => unreachable,
+        }
     }
 
     pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {

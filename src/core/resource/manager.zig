@@ -95,6 +95,10 @@ pub const Manager = struct {
             return self.images.get(id);
         }
 
+        if (Material == T) {
+            return self.materials.get(id);
+        }
+
         return null;
     }
 

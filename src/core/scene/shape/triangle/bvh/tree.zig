@@ -1,12 +1,12 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
+const Worker = @import("../../../worker.zig").Worker;
 const NodeStack = @import("../../node_stack.zig").NodeStack;
 const Node = @import("../../../bvh/node.zig").Node;
 const base = @import("base");
-usingnamespace base;
-
-//const Vec4f = base.math.Vec4f;
-const AABB = base.math.AABB;
-const Ray = base.math.Ray;
+const math = base.math;
+const Vec4f = math.Vec4f;
+const AABB = math.AABB;
+const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -126,5 +126,68 @@ pub const Tree = struct {
         }
 
         return false;
+    }
+
+    pub fn visibility(self: Tree, ray: *Ray, entity: usize, worker: *Worker, vis: *Vec4f) bool {
+        const ray_signs = [3]u32{
+            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+        };
+
+        var nodes = worker.node_stack;
+
+        nodes.push(0xFFFFFFFF);
+        var n: u32 = 0;
+
+        var local_vis = Vec4f.init1(1.0);
+
+        const max_t = ray.maxT();
+
+        while (0xFFFFFFFF != n) {
+            const node = self.nodes[n];
+
+            if (node.intersectP(ray.*)) {
+                if (0 == node.numIndices()) {
+                    const a = node.children();
+                    const b = a + 1;
+
+                    if (0 == ray_signs[node.axis()]) {
+                        nodes.push(b);
+                        n = a;
+                    } else {
+                        nodes.push(a);
+                        n = b;
+                    }
+
+                    continue;
+                }
+
+                var i = node.indicesStart();
+                const e = node.indicesEnd();
+                while (i < e) : (i += 1) {
+                    if (self.data.intersect(ray, i)) |hit| {
+                        const uv = self.data.interpolateUV(hit.u, hit.v, i);
+
+                        const material = worker.scene.propMaterial(entity, self.data.part(i));
+
+                        var tv: Vec4f = undefined;
+                        if (!material.visibility(uv, worker.*, &tv)) {
+                            return false;
+                        }
+
+                        local_vis.mulAssign3(tv);
+
+                        // ray_max_t has changed if intersect() returns true!
+                        ray.setMaxT(max_t);
+                    }
+                }
+            }
+
+            n = nodes.pop();
+        }
+
+        vis.* = local_vis;
+        return true;
     }
 };

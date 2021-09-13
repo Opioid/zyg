@@ -1,3 +1,4 @@
+const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
@@ -6,7 +7,13 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Material = struct {
+    super: Base = undefined,
+
     emittance: Emittance = undefined,
+
+    pub fn init(two_sided: bool) Material {
+        return .{ .super = Base.init(two_sided) };
+    }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         _ = self;

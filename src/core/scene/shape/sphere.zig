@@ -1,5 +1,6 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+const Worker = @import("../worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -20,7 +21,6 @@ pub const Sphere = struct {
         isec.part = 0;
 
         const xyz = trafo.rotation.transformVectorTransposed(n).normalize3();
-
         const phi = -std.math.atan2(f32, xyz.v[0], xyz.v[2]) + std.math.pi;
         const theta = std.math.acos(xyz.v[1]);
 
@@ -42,19 +42,16 @@ pub const Sphere = struct {
 
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
         const v = trafo.position.sub3(ray.origin);
-
         const b = ray.direction.dot3(v);
 
         const remedy_term = v.sub3(ray.direction.mulScalar3(b));
-
         const radius = trafo.scaleX();
-
         const discriminant = radius * radius - remedy_term.dot3(remedy_term);
 
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
-            const t0 = b - dist;
 
+            const t0 = b - dist;
             if (t0 > ray.minT() and t0 < ray.maxT()) {
                 intersectDetail(t0, ray.*, trafo, isec);
 
@@ -63,7 +60,6 @@ pub const Sphere = struct {
             }
 
             const t1 = b + dist;
-
             if (t1 > ray.minT() and t1 < ray.maxT()) {
                 intersectDetail(t1, ray.*, trafo, isec);
 
@@ -77,13 +73,10 @@ pub const Sphere = struct {
 
     pub fn intersectP(ray: Ray, trafo: Transformation) bool {
         const v = trafo.position.sub3(ray.origin);
-
         const b = ray.direction.dot3(v);
 
         const remedy_term = v.sub3(ray.direction.mulScalar3(b));
-
         const radius = trafo.scaleX();
-
         const discriminant = radius * radius - remedy_term.dot3(remedy_term);
 
         if (discriminant > 0.0) {
@@ -98,6 +91,45 @@ pub const Sphere = struct {
 
             if (t1 > ray.minT() and t1 < ray.maxT()) {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, worker: Worker, vis: *Vec4f) bool {
+        const v = trafo.position.sub3(ray.origin);
+        const b = ray.direction.dot3(v);
+
+        const remedy_term = v.sub3(ray.direction.mulScalar3(b));
+        const radius = trafo.scaleX();
+        const discriminant = radius * radius - remedy_term.dot3(remedy_term);
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+
+            const t0 = b - dist;
+            if (t0 > ray.minT() and t0 < ray.maxT()) {
+                const p = ray.point(t0);
+                const n = p.sub3(trafo.position).normalize3();
+                const xyz = trafo.rotation.transformVectorTransposed(n).normalize3();
+                const phi = -std.math.atan2(f32, xyz.v[0], xyz.v[2]) + std.math.pi;
+                const theta = std.math.acos(xyz.v[1]);
+                const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
+
+                return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
+            }
+
+            const t1 = b + dist;
+            if (t1 > ray.minT() and t1 < ray.maxT()) {
+                const p = ray.point(t1);
+                const n = p.sub3(trafo.position).normalize3();
+                const xyz = trafo.rotation.transformVectorTransposed(n).normalize3();
+                const phi = -std.math.atan2(f32, xyz.v[0], xyz.v[2]) + std.math.pi;
+                const theta = std.math.acos(xyz.v[1]);
+                const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
+
+                return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
             }
         }
 

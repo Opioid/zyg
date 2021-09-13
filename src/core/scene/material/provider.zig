@@ -66,7 +66,7 @@ pub const Provider = struct {
     }
 
     pub fn createFallbackMaterial() Material {
-        return Material{ .Debug = .{} };
+        return Material{ .Debug = .{ .super = .{ .mask = Texture{}, .properties = .{} } } };
     }
 
     fn loadMaterial(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
@@ -80,6 +80,8 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
                 return Material{ .Debug = .{} };
+            } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
+                return try loadGlass(alloc, entry.value_ptr.*, resources);
             } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
                 return try loadLight(alloc, entry.value_ptr.*, resources);
             } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
@@ -90,17 +92,50 @@ pub const Provider = struct {
         return Error.UnknownMaterial;
     }
 
-    fn loadLight(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var emission = MappedValue(Vec4f).init(Vec4f.init1(10.0));
+    fn loadGlass(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        var mask = Texture{};
+
+        var thickness: f32 = 0.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
+            if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+            } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
+                thickness = json.readFloat(entry.value_ptr.*);
             }
         }
 
-        var material = mat.Light{};
+        var material = mat.Glass{};
+
+        material.super.mask = mask;
+
+        material.thickness = thickness;
+
+        return Material{ .Glass = material };
+    }
+
+    fn loadLight(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        var emission = MappedValue(Vec4f).init(Vec4f.init1(10.0));
+
+        var mask = Texture{};
+
+        var two_sided = false;
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+            } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
+                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
+            } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
+                two_sided = json.readBool(entry.value_ptr.*);
+            }
+        }
+
+        var material = mat.Light.init(two_sided);
+
+        material.super.mask = mask;
 
         material.emittance.setRadiance(emission.value);
 
@@ -110,13 +145,16 @@ pub const Provider = struct {
     fn loadSubstitute(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var color = MappedValue(Vec4f).init(Vec4f.init1(0.5));
 
+        var mask = Texture{};
         var normal_map = Texture{};
 
         var two_sided = false;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
+            if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+            } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, resources);
@@ -127,6 +165,7 @@ pub const Provider = struct {
 
         var material = mat.Substitute.init(two_sided);
 
+        material.super.mask = mask;
         material.super.color_map = color.texture;
 
         material.normal_map = normal_map;

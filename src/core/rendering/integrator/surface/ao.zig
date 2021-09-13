@@ -53,7 +53,7 @@ pub const AO = struct {
 
         var occlusion_ray: Ray = undefined;
 
-        occlusion_ray.ray.origin = isec.offsetPN(isec.geo.geo_n, false);
+        occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
         occlusion_ray.ray.setMaxT(self.settings.radius);
 
         var i = self.settings.num_samples;
@@ -68,7 +68,8 @@ pub const AO = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (!worker.super.intersectP(occlusion_ray)) {
+            var vis: Vec4f = undefined;
+            if (worker.super.visibility(occlusion_ray, &vis)) {
                 result += num_samples_reciprocal;
             }
         }

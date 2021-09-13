@@ -39,6 +39,8 @@ pub const Scene = struct {
     material_ids: ALU(u32),
     light_ids: ALU(u32),
 
+    has_tinted_shadow: bool = undefined,
+
     pub fn init(
         alloc: *Allocator,
         images: *ALU(Image),
@@ -74,8 +76,12 @@ pub const Scene = struct {
     }
 
     pub fn compile(self: *Scene, camera_pos: Vec4f) void {
-        for (self.props.items) |_, i| {
+        self.has_tinted_shadow = false;
+
+        for (self.props.items) |p, i| {
             self.propCalculateWorldTransformation(i, camera_pos);
+
+            self.has_tinted_shadow = self.has_tinted_shadow or p.hasTintedShadow();
         }
 
         for (self.lights.items) |l, i| {
@@ -112,6 +118,30 @@ pub const Scene = struct {
         return false;
     }
 
+    pub fn visibility(self: Scene, ray: Ray, worker: *Worker, vis: *Vec4f) bool {
+        if (self.has_tinted_shadow) {
+            worker.node_stack.clear();
+
+            var local_vis = Vec4f.init1(1.0);
+
+            for (self.props.items) |p, i| {
+                var tv: Vec4f = undefined;
+                if (!p.visibility(i, ray, worker, &tv)) {
+                    return false;
+                }
+
+                local_vis.mulAssign3(tv);
+            }
+
+            vis.* = local_vis;
+            return true;
+        }
+
+        const ip = self.intersectP(ray, worker);
+        vis.* = Vec4f.init1(if (ip) 0.0 else 1.0);
+        return !ip;
+    }
+
     pub fn createEntity(self: *Scene, alloc: *Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
@@ -140,15 +170,15 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createLight(self: *Scene, alloc: *Allocator, prop: u32) !void {
-        const shape_inst = self.propShape(prop);
+    pub fn createLight(self: *Scene, alloc: *Allocator, entity: u32) !void {
+        const shape_inst = self.propShape(entity);
 
         var i: u32 = 0;
         const len = shape_inst.numParts();
         while (i < len) : (i += 1) {
-            const material = self.propMaterial(prop, i);
-            if (material.isEmissive()) {
-                try self.allocateLight(alloc, prop, i);
+            const mat = self.propMaterial(entity, i);
+            if (mat.isEmissive()) {
+                try self.allocateLight(alloc, entity, i);
             }
         }
     }
@@ -157,19 +187,19 @@ pub const Scene = struct {
         return self.prop_world_positions.items[entity];
     }
 
-    pub fn propTransformationAt(self: Scene, prop: usize) Transformation {
-        return self.prop_world_transformations.items[prop];
+    pub fn propTransformationAt(self: Scene, entity: usize) Transformation {
+        return self.prop_world_transformations.items[entity];
     }
 
-    pub fn propSetWorldTransformation(self: *Scene, prop: u32, t: math.Transformation) void {
-        self.prop_world_transformations.items[prop].prepare(t);
-        self.prop_world_positions.items[prop] = t.position;
+    pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
+        self.prop_world_transformations.items[entity].prepare(t);
+        self.prop_world_positions.items[entity] = t.position;
     }
 
-    pub fn propPrepareSampling(self: *Scene, prop: u32, part: u32, light_id: usize) void {
-        const shape_inst = self.propShape(prop);
+    pub fn propPrepareSampling(self: *Scene, entity: u32, part: u32, light_id: usize) void {
+        const shape_inst = self.propShape(entity);
 
-        const trafo = self.propTransformationAt(prop);
+        const trafo = self.propTransformationAt(entity);
         const scale = trafo.scale();
 
         const extent = shape_inst.area(part, scale);
@@ -177,29 +207,33 @@ pub const Scene = struct {
         self.lights.items[light_id].extent = extent;
     }
 
-    pub fn propAabbIntersectP(self: Scene, prop: usize, ray: Ray) bool {
-        return self.prop_aabbs.items[prop].intersectP(ray.ray);
+    pub fn propAabbIntersectP(self: Scene, entity: usize, ray: Ray) bool {
+        return self.prop_aabbs.items[entity].intersectP(ray.ray);
     }
 
-    pub fn propMaterial(self: Scene, prop: usize, part: u32) Material {
-        const p = self.prop_parts.items[prop] + part;
+    pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
+        const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];
     }
 
-    pub fn propShape(self: Scene, prop: usize) Shape {
-        return self.shapes.items[self.props.items[prop].shape];
+    pub fn propShape(self: Scene, entity: usize) Shape {
+        return self.shapes.items[self.props.items[entity].shape];
     }
 
     pub fn image(self: Scene, image_id: u32) Image {
         return self.images.items[image_id];
     }
 
+    pub fn material(self: Scene, material_id: u32) Material {
+        return self.materials.items[material_id];
+    }
+
     pub fn shape(self: Scene, shape_id: u32) Shape {
         return self.shapes.items[shape_id];
     }
 
-    pub fn lightArea(self: Scene, prop: u32, part: u32) f32 {
-        const p = self.prop_parts.items[prop] + part;
+    pub fn lightArea(self: Scene, entity: u32, part: u32) f32 {
+        const p = self.prop_parts.items[entity] + part;
         const light_id = self.light_ids.items[p];
 
         if (prp.Null == light_id) {
@@ -219,8 +253,8 @@ pub const Scene = struct {
         return @intCast(u32, self.props.items.len - 1);
     }
 
-    fn allocateLight(self: *Scene, alloc: *Allocator, prop: u32, part: u32) !void {
-        try self.lights.append(alloc, .{ .prop = prop, .part = part });
+    fn allocateLight(self: *Scene, alloc: *Allocator, entity: u32, part: u32) !void {
+        try self.lights.append(alloc, .{ .prop = entity, .part = part });
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {

@@ -1,4 +1,5 @@
 const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
+const Worker = @import("../../worker.zig").Worker;
 const NodeStack = @import("../node_stack.zig").NodeStack;
 const Intersection = @import("../intersection.zig").Intersection;
 pub const bvh = @import("bvh/tree.zig");
@@ -106,5 +107,16 @@ pub const Mesh = struct {
         );
 
         return self.tree.intersectP(tray, nodes);
+    }
+
+    pub fn visibility(self: Mesh, ray: Ray, trafo: Transformation, entity: usize, worker: *Worker, vis: *Vec4f) bool {
+        var tray = Ray.init(
+            trafo.world_to_object.transformPoint(ray.origin),
+            trafo.world_to_object.transformVector(ray.direction),
+            ray.minT(),
+            ray.maxT(),
+        );
+
+        return self.tree.visibility(&tray, entity, worker, vis);
     }
 };

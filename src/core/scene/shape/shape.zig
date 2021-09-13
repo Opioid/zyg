@@ -51,9 +51,16 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn isFinite(self: Shape) bool {
+        return switch (self) {
+            .Plane => false,
+            else => true,
+        };
+    }
+
     pub fn isComplex(self: Shape) bool {
         return switch (self) {
-            .Triangle_mesh => true,
+            .Null, .Triangle_mesh => true,
             else => false,
         };
     }
@@ -93,6 +100,19 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
             .Triangle_mesh => |m| m.intersectP(ray.ray, trafo, &worker.node_stack),
+        };
+    }
+
+    pub fn visibility(self: Shape, ray: Ray, trafo: Transformation, entity: usize, worker: *Worker, vis: *Vec4f) bool {
+        return switch (self) {
+            .Null => {
+                vis.* = Vec4f.init1(1.0);
+                return true;
+            },
+            .Plane => Plane.visibility(ray.ray, trafo, entity, worker.*, vis),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, worker.*, vis),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, worker.*, vis),
+            .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, worker, vis),
         };
     }
 };

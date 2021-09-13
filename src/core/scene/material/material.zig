@@ -3,10 +3,13 @@ pub const Glass = @import("glass/material.zig").Material;
 pub const Light = @import("light/material.zig").Material;
 pub const Substitute = @import("substitute/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
+const Base = @import("material_base.zig").Base;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Worker = @import("../worker.zig").Worker;
+const ts = @import("../../image/texture/sampler.zig");
 
 const math = @import("base").math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -23,17 +26,38 @@ pub const Material = union(enum) {
         _ = alloc;
     }
 
-    pub fn isEmissive(self: Material) bool {
+    pub fn super(self: Material) Base {
         return switch (self) {
-            .Light => true,
-            else => false,
+            .Debug => |m| m.super,
+            .Glass => |m| m.super,
+            .Light => |m| m.super,
+            .Substitute => |m| m.super,
         };
+    }
+
+    pub fn commit(self: *Material) void {
+        switch (self.*) {
+            .Glass => |*m| m.commit(),
+            else => {},
+        }
     }
 
     pub fn isTwoSided(self: Material) bool {
         return switch (self) {
             .Debug => true,
+            .Glass => |m| m.super.properties.is(.Two_sided),
             .Substitute => |m| m.super.properties.is(.Two_sided),
+            else => false,
+        };
+    }
+
+    pub fn isMasked(self: Material) bool {
+        return self.super().mask.isValid();
+    }
+
+    pub fn isEmissive(self: Material) bool {
+        return switch (self) {
+            .Light => true,
             else => false,
         };
     }
@@ -45,5 +69,20 @@ pub const Material = union(enum) {
             .Light => |l| .{ .Light = l.sample(wo, rs, worker) },
             .Substitute => |s| .{ .Substitute = s.sample(wo, rs, worker) },
         };
+    }
+
+    pub fn opacity(self: Material, uv: Vec2f, worker: Worker) f32 {
+        const mask = self.super().mask;
+        if (mask.isValid()) {
+            return ts.sample2D_1(mask, uv, worker.scene);
+        }
+
+        return 1.0;
+    }
+
+    pub fn visibility(self: Material, uv: Vec2f, worker: Worker, vis: *Vec4f) bool {
+        const o = self.opacity(uv, worker);
+        vis.* = Vec4f.init1(1.0 - o);
+        return o < 1.0;
     }
 };

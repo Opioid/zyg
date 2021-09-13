@@ -8,10 +8,15 @@ const Vec3b = math.Vec3b;
 const Vec4f = math.Vec4f;
 
 const SRGB_FLOAT = calculateSnormToFloat();
+const UNORM_FLOAT = calculateUnormToFloat();
 const SNORM_FLOAT = calculateSnormToFloat();
 
 pub fn cachedSrgbToFloat3(byte: Vec3b) Vec4f {
     return Vec4f.init3(SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]]);
+}
+
+pub fn cachedUnormToFloat(byte: u8) f32 {
+    return UNORM_FLOAT[byte];
 }
 
 pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
@@ -26,6 +31,17 @@ fn calculateSrgbToFloat() [Num_samples]f32 {
     var i: u32 = 0;
     while (i < Num_samples) : (i += 1) {
         buf[i] = spectrum.gammaToLinear_sRGB(@floatCast(f32, i) * (1.0 / 255.0));
+    }
+
+    return buf;
+}
+
+fn calculateUnormToFloat() [Num_samples]f32 {
+    var buf: [Num_samples]f32 = undefined;
+
+    var i: u32 = 0;
+    while (i < Num_samples) : (i += 1) {
+        buf[i] = enc.unormToFloat(@intCast(u8, i));
     }
 
     return buf;

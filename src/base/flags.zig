@@ -13,5 +13,17 @@ pub fn Flags(comptime T: type) type {
         pub fn is(self: Self, flag: T) bool {
             return 0 != (self.values & @enumToInt(flag));
         }
+
+        pub fn set(self: *Self, flag: T, value: bool) void {
+            if (value) {
+                self.values |= @enumToInt(flag);
+            } else {
+                self.values &= ~@enumToInt(flag);
+            }
+        }
+
+        pub fn clear(self: *Self) void {
+            self.values = 0;
+        }
     };
 }

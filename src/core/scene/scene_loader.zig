@@ -258,6 +258,9 @@ pub const Loader = struct {
 
             const material = self.resources.loadData(Material, alloc, name, data, .{}) catch resource.Null;
             if (resource.Null != material) {
+                if (self.resources.get(Material, material)) |mp| {
+                    mp.commit();
+                }
                 return material;
             }
         }
@@ -265,10 +268,10 @@ pub const Loader = struct {
         // Lastly, try loading the material from the filesystem.
         const material = self.resources.loadFile(Material, alloc, name, .{}) catch {
             std.debug.print("Using fallback for material \"{s}\"\n", .{name});
-
             return self.fallback_material;
         };
 
+        if (self.resources.get(Material, material)) |mp| mp.commit();
         return material;
     }
 };

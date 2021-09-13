@@ -44,11 +44,10 @@ pub const Provider = struct {
         const image = resources.get(Image, image_id) orelse unreachable;
 
         return switch (image.*) {
+            .Byte1 => Texture{ .type = Texture.Type.Byte1_unorm, .image = image_id },
             .Byte2 => Texture{ .type = Texture.Type.Byte2_snorm, .image = image_id },
             .Byte3 => Texture{ .type = Texture.Type.Byte3_sRGB, .image = image_id },
             else => Error.UnsupportedImageType,
         };
-
-        //   return Texture{ .image = image_id };
     }
 };

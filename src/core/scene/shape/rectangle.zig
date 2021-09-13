@@ -1,5 +1,6 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+const Worker = @import("../worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -78,5 +79,39 @@ pub const Rectangle = struct {
         }
 
         return false;
+    }
+
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, worker: Worker, vis: *Vec4f) bool {
+        const normal = trafo.rotation.r[2];
+        const d = normal.dot3(trafo.position);
+        const denom = -normal.dot3(ray.direction);
+        const numer = normal.dot3(ray.origin) - d;
+        const hit_t = numer / denom;
+
+        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+            const p = ray.point(hit_t);
+            const k = p.sub3(trafo.position);
+            const t = trafo.rotation.r[0].neg3();
+
+            const u = t.dot3(k.divScalar3(trafo.scaleX()));
+            if (u > 1.0 or u < -1.0) {
+                vis.* = Vec4f.init1(1.0);
+                return true;
+            }
+
+            const b = trafo.rotation.r[1].neg3();
+
+            const v = b.dot3(k.divScalar3(trafo.scaleY()));
+            if (v > 1.0 or v < -1.0) {
+                vis.* = Vec4f.init1(1.0);
+                return true;
+            }
+
+            const uv = Vec2f.init2(0.5 * (u + 1.0), 0.5 * (v + 1.0));
+            return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
+        }
+
+        vis.* = Vec4f.init1(1.0);
+        return true;
     }
 };

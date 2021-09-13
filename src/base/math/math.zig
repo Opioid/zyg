@@ -25,3 +25,7 @@ pub fn lerp(a: f32, b: f32, t: f32) f32 {
     const u = 1.0 - t;
     return u * a + t * b;
 }
+
+pub fn frac(x: f32) f32 {
+    return x - std.math.floor(x);
+}

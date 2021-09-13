@@ -132,6 +132,16 @@ pub const Indexed_data = struct {
         uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
     }
 
+    pub fn interpolateUV(self: Self, u: f32, v: f32, index: u32) Vec2f {
+        const tri = self.triangles[index];
+
+        const uva = self.uvs[tri.a];
+        const uvb = self.uvs[tri.b];
+        const uvc = self.uvs[tri.c];
+
+        return triangle.interpolate2(uva, uvb, uvc, u, v);
+    }
+
     pub fn part(self: Self, index: u32) u32 {
         return self.triangles[index].part;
     }

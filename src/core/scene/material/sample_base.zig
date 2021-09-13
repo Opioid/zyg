@@ -56,6 +56,10 @@ pub const SampleBase = struct {
         };
     }
 
+    pub fn geometricNormal(self: Self) Vec4f {
+        return self.geo_n;
+    }
+
     pub fn shadingNormal(self: Self) Vec4f {
         return self.layer.n;
     }

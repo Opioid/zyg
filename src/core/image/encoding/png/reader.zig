@@ -101,7 +101,9 @@ pub const Reader = struct {
             }
 
             self.current_row_data = self.buffer.ptr + buffer_size;
-            self.previous_row_data = self.current_row_data + buffer_size;
+            self.previous_row_data = self.current_row_data + row_size;
+
+            self.current_row_data[row_size - 1] = 124;
 
             if (self.stream.zalloc) |_| {
                 if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
@@ -146,8 +148,6 @@ pub const Reader = struct {
     }
 
     fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle) !Image {
-        std.debug.print("{}\n", .{swizzle});
-
         var num_channels: u32 = undefined;
         var swap_xy = false;
         switch (swizzle) {
@@ -171,7 +171,34 @@ pub const Reader = struct {
 
         const dimensions = Vec2i.init2(info.width, info.height);
 
-        if (2 == num_channels) {
+        if (1 == num_channels) {
+            var image = try img.Byte1.init(alloc, img.Description.init2D(dimensions));
+
+            if (byte_compatible) {
+                std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
+            }
+
+            var c: u32 = switch (swizzle) {
+                .W => 3,
+                else => 0,
+            };
+
+            if (c >= info.num_channels) {
+                c = 0;
+            }
+
+            var i: u32 = 0;
+            const len = @intCast(u32, info.width * info.height);
+            while (i < len) : (i += 1) {
+                const o = i * info.num_channels;
+
+                const color = info.buffer[o + c];
+
+                image.pixels[i] = color;
+            }
+
+            return Image{ .Byte1 = image };
+        } else if (2 == num_channels) {
             var image = try img.Byte2.init(alloc, img.Description.init2D(dimensions));
 
             if (byte_compatible) {

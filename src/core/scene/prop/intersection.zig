@@ -17,6 +17,10 @@ pub const Intersection = struct {
         return worker.scene.propMaterial(self.prop, self.geo.part);
     }
 
+    pub fn opacity(self: Self, worker: Worker) f32 {
+        return self.material(worker).opacity(self.geo.uv, worker);
+    }
+
     pub fn sample(self: Self, wo: Vec4f, ray: Ray, worker: *Worker) mat.Sample {
         _ = ray;
 

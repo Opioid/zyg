@@ -24,3 +24,7 @@ pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
         if (@fabs(p.v[2]) < origin) std.math.fma(f32, float_scale, n.v[2], p.v[2]) else p_i.v[2],
     );
 }
+
+pub fn offsetF(t: f32) f32 {
+    return if (t < origin) t + float_scale else @bitCast(f32, @bitCast(i32, t) + @floatToInt(i32, int_scale));
+}
