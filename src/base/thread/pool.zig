@@ -28,6 +28,7 @@ pub const Pool = struct {
     program: Program = undefined,
 
     quit: bool = false,
+    running_parallel: bool = false,
 
     pub fn availableCores(request: i32) u32 {
         const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
@@ -58,7 +59,7 @@ pub const Pool = struct {
     pub fn deinit(self: *Pool, alloc: *Allocator) void {
         self.quit = true;
 
-        self.wakeAll();
+        _ = self.wakeAll(0);
 
         for (self.threads) |thread| {
             thread.join();
@@ -72,21 +73,21 @@ pub const Pool = struct {
         return @intCast(u32, self.threads.len);
     }
 
-    pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram) void {
-        self.runParallelInt(@ptrToInt(context), program);
+    pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram, num_tasks_hint: u32) void {
+        self.runParallelInt(@ptrToInt(context), program, num_tasks_hint);
     }
 
     pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
         self.runRangeInt(@ptrToInt(context), program, begin, end);
     }
 
-    fn runParallelInt(self: *Pool, context: Context, program: ParallelProgram) void {
+    fn runParallelInt(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
         self.context = context;
         self.program = .{ .Parallel = program };
 
-        self.wakeAll();
+        const num = self.wakeAll(num_tasks_hint);
 
-        self.waitAll(self.uniques.len);
+        self.waitAll(num);
     }
 
     fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) void {
@@ -98,16 +99,27 @@ pub const Pool = struct {
         self.waitAll(num);
     }
 
-    fn wakeAll(self: Pool) void {
-        for (self.uniques) |*u| {
+    fn wakeAll(self: *Pool, num_tasks_hint: u32) usize {
+        self.running_parallel = true;
+
+        const num_tasks = if (0 == num_tasks_hint) self.uniques.len else std.math.min(
+            @as(usize, num_tasks_hint),
+            self.uniques.len,
+        );
+
+        for (self.uniques[0..num_tasks]) |*u| {
             const lock = u.mutex.acquire();
             u.wake = true;
             lock.release();
             u.wake_signal.signal();
         }
+
+        return num_tasks;
     }
 
-    fn wakeAllRange(self: Pool, begin: u32, end: u32) usize {
+    fn wakeAllRange(self: *Pool, begin: u32, end: u32) usize {
+        self.running_parallel = true;
+
         const range = @intToFloat(f32, end - begin);
         const num_threads = @intToFloat(f32, self.threads.len);
 
@@ -134,7 +146,7 @@ pub const Pool = struct {
         return self.uniques.len;
     }
 
-    fn waitAll(self: Pool, num: usize) void {
+    fn waitAll(self: *Pool, num: usize) void {
         for (self.uniques[0..num]) |*u| {
             const lock = u.mutex.acquire();
             defer lock.release();
@@ -143,6 +155,8 @@ pub const Pool = struct {
                 u.done_signal.wait(&u.mutex);
             }
         }
+
+        self.running_parallel = false;
     }
 
     fn loop(self: *Pool, id: u32) void {

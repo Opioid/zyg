@@ -15,7 +15,7 @@ pub const BuilderSAH = struct {
     super: Base,
 
     pub fn init(alloc: *Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !BuilderSAH {
-        return BuilderSAH{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives, 0) };
+        return BuilderSAH{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
     }
 
     pub fn deinit(self: *BuilderSAH, alloc: *Allocator) void {
@@ -50,16 +50,16 @@ pub const BuilderSAH = struct {
             bounds.bounds[1] = bounds.bounds[1].max3(max);
         }
 
-        try self.super.split(alloc, 0, references, bounds, 0, threads);
+        try self.super.split(alloc, references, bounds, threads);
 
-        try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.reference_ids.items.len), vertices);
-        self.super.nodes = try tree.allocateNodes(alloc, @intCast(u32, self.super.build_nodes.items.len));
+        try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.kernel.reference_ids.items.len), vertices);
+        self.super.nodes = try tree.allocateNodes(alloc, @intCast(u32, self.super.kernel.build_nodes.items.len));
 
         var current_triangle: u32 = 0;
         self.super.newNode();
         self.serialize(0, 0, tree, triangles, vertices, &current_triangle);
 
-        std.debug.print("before/after {}/{}\n", .{ triangles.len, self.super.reference_ids.items.len });
+        std.debug.print("before/after {}/{}\n", .{ triangles.len, self.super.kernel.reference_ids.items.len });
     }
 
     fn serialize(
@@ -71,7 +71,7 @@ pub const BuilderSAH = struct {
         vertices: VertexStream,
         current_triangle: *u32,
     ) void {
-        const node = &self.super.build_nodes.items[source_node];
+        const node = &self.super.kernel.build_nodes.items[source_node];
 
         var n = &self.super.nodes[dest_node];
 
@@ -101,7 +101,7 @@ pub const BuilderSAH = struct {
             var end = ro + num;
 
             while (p < end) : (p += 1) {
-                const t = triangles[self.super.reference_ids.items[p]];
+                const t = triangles[self.super.kernel.reference_ids.items[p]];
                 tree.data.setTriangle(t.i[0], t.i[1], t.i[2], t.part, vertices, i);
 
                 i += 1;

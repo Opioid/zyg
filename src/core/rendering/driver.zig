@@ -91,7 +91,7 @@ pub const Driver = struct {
 
         self.tiles.restart();
 
-        self.threads.runParallel(self, renderTiles);
+        self.threads.runParallel(self, renderTiles, 0);
 
         std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(start)});
 

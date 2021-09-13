@@ -86,8 +86,13 @@ pub const AABB = struct {
         self.bounds[1].v[axis] = std.math.min(d, self.bounds[1].v[axis]);
     }
 
-    pub fn equals(self: AABB, other: AABB) bool {
-        return self.bounds[0].equals3(other.bounds[0]) and self.bounds[1].equals3(other.bounds[1]);
+    pub fn covers(self: AABB, other: AABB) bool {
+        return self.bounds[0].v[0] <= other.bounds[0].v[0] and
+            self.bounds[0].v[1] <= other.bounds[0].v[1] and
+            self.bounds[0].v[2] <= other.bounds[0].v[2] and
+            self.bounds[1].v[0] >= other.bounds[1].v[0] and
+            self.bounds[1].v[1] >= other.bounds[1].v[1] and
+            self.bounds[1].v[2] >= other.bounds[1].v[2];
     }
 };
 

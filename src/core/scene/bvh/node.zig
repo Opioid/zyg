@@ -25,6 +25,13 @@ pub const Node = struct {
     min: Min = undefined,
     max: Max = undefined,
 
+    pub fn initFrom(other: Node, o: u32) Node {
+        return .{
+            .min = .{ .v = other.min.v, .children_or_data = other.min.children_or_data + o },
+            .max = other.max,
+        };
+    }
+
     pub fn aabb(self: Node) AABB {
         return AABB.init(
             Vec4f.init3(self.min.v[0], self.min.v[1], self.min.v[2]),
@@ -71,6 +78,10 @@ pub const Node = struct {
     pub fn setLeafNode(self: *Node, start_primitive: u32, num_primitives: u8) void {
         self.min.children_or_data = start_primitive;
         self.max.num_indices = num_primitives;
+    }
+
+    pub fn offset(self: *Node, o: u32) void {
+        self.min.children_or_data += o;
     }
 
     pub fn intersectP(self: Node, ray: Ray) bool {
