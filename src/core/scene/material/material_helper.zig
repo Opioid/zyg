@@ -27,7 +27,7 @@ pub fn sampleNormalUV(
 ) Vec4f {
     const nm = ts.sample2D_2(map, uv, scene);
     const nmz = @sqrt(std.math.max(1.0 - nm.dot(nm), hlp.Dot_min));
-    const n = rs.tangentToWorld3(Vec4f.init3(nm.v[0], nm.v[1], nmz));
+    const n = rs.tangentToWorld3(Vec4f.init3(nm.v[0], nm.v[1], nmz)).normalize3();
 
     // Normal mapping can lead to normals facing away from the view direction.
     // I believe the following is the (imperfect) workaround referred to as "flipping" by
