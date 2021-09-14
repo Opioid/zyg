@@ -35,7 +35,7 @@ pub const Prop = struct {
         self.properties.set(.Test_AABB, shape_ptr.isFinite() and shape_ptr.isComplex());
 
         for (materials) |mid| {
-            const m = scene.material(materials[mid]);
+            const m = scene.material(mid);
 
             if (m.isMasked()) {
                 self.properties.set(.Tinted_shadow, true);
