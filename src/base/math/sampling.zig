@@ -31,12 +31,12 @@ pub fn hemisphereCosine(uv: Vec2f) Vec4f {
     const xy = diskConcentric(uv);
     const z = @sqrt(std.math.max(0.0, 1.0 - xy.v[0] * xy.v[0] - xy.v[1] * xy.v[1]));
 
-    return Vec4f.init3(xy.v[0], xy.v[1], z);
+    return .{ xy.v[0], xy.v[1], z, 0.0 };
 }
 
 pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const xy = diskConcentric(uv);
     const za = @sqrt(std.math.max(0.0, 1.0 - xy.v[0] * xy.v[0] - xy.v[1] * xy.v[1]));
 
-    return x.mulScalar3(xy.v[0]).add3(y.mulScalar3(xy.v[1])).add3(z.mulScalar3(za));
+    return @splat(4, xy.v[0]) * x + @splat(4, xy.v[1]) * y + @splat(4, za) * z;
 }

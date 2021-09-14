@@ -122,8 +122,8 @@ pub const Indexed_data = struct {
         const tnb = quaternion.initTN(self.frames[tri.b]);
         const tnc = quaternion.initTN(self.frames[tri.c]);
 
-        t.* = triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v).normalize3();
-        n.* = triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v).normalize3();
+        t.* = math.normalize3(triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v));
+        n.* = math.normalize3(triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v));
 
         const uva = self.uvs[tri.a];
         const uvb = self.uvs[tri.b];
@@ -153,10 +153,10 @@ pub const Indexed_data = struct {
         const b = self.positions[tri.b];
         const c = self.positions[tri.c];
 
-        const e1 = b.sub3(a);
-        const e2 = c.sub3(a);
+        const e1 = b - a;
+        const e2 = c - a;
 
-        return e1.cross3(e2).normalize3();
+        return math.normalize3(math.cross3(e1, e2));
     }
 
     pub fn bitangentSign(self: Self, index: u32) f32 {

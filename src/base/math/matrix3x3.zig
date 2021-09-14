@@ -15,9 +15,9 @@ pub const Mat3x3 = struct {
         m22: f32,
     ) Mat3x3 {
         return .{ .r = [3]Vec4f{
-            Vec4f.init3(m00, m01, m02),
-            Vec4f.init3(m10, m11, m12),
-            Vec4f.init3(m20, m21, m22),
+            .{ m00, m01, m02, 0.0 },
+            .{ m10, m11, m12, 0.0 },
+            .{ m20, m21, m22, 0.0 },
         } };
     }
 
@@ -47,11 +47,11 @@ pub const Mat3x3 = struct {
     }
 
     pub fn m(self: Mat3x3, y: u32, x: u32) f32 {
-        return self.r[y].v[x];
+        return self.r[y][x];
     }
 
     pub fn setElem(self: *Mat3x3, y: u32, x: u32, s: f32) void {
-        self.r[y].v[x] = s;
+        self.r[y][x] = s;
     }
 
     pub fn mul(a: Mat3x3, b: Mat3x3) Mat3x3 {
@@ -69,18 +69,20 @@ pub const Mat3x3 = struct {
     }
 
     pub fn transformVector(self: Mat3x3, v: Vec4f) Vec4f {
-        return Vec4f.init3(
-            v.v[0] * self.m(0, 0) + v.v[1] * self.m(1, 0) + v.v[2] * self.m(2, 0),
-            v.v[0] * self.m(0, 1) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(2, 1),
-            v.v[0] * self.m(0, 2) + v.v[1] * self.m(1, 2) + v.v[2] * self.m(2, 2),
-        );
+        return .{
+            v[0] * self.m(0, 0) + v[1] * self.m(1, 0) + v[2] * self.m(2, 0),
+            v[0] * self.m(0, 1) + v[1] * self.m(1, 1) + v[2] * self.m(2, 1),
+            v[0] * self.m(0, 2) + v[1] * self.m(1, 2) + v[2] * self.m(2, 2),
+            0.0,
+        };
     }
 
     pub fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
-        return Vec4f.init3(
-            v.v[0] * self.m(0, 0) + v.v[1] * self.m(0, 1) + v.v[2] * self.m(0, 2),
-            v.v[0] * self.m(1, 0) + v.v[1] * self.m(1, 1) + v.v[2] * self.m(1, 2),
-            v.v[0] * self.m(2, 0) + v.v[1] * self.m(2, 1) + v.v[2] * self.m(2, 2),
-        );
+        return .{
+            v[0] * self.m(0, 0) + v[1] * self.m(0, 1) + v[2] * self.m(0, 2),
+            v[0] * self.m(1, 0) + v[1] * self.m(1, 1) + v[2] * self.m(1, 2),
+            v[0] * self.m(2, 0) + v[1] * self.m(2, 1) + v[2] * self.m(2, 2),
+            0.0,
+        };
     }
 };

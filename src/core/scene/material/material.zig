@@ -82,7 +82,7 @@ pub const Material = union(enum) {
 
     pub fn visibility(self: Material, uv: Vec2f, worker: Worker, vis: *Vec4f) bool {
         const o = self.opacity(uv, worker);
-        vis.* = Vec4f.init1(1.0 - o);
+        vis.* = @splat(4, 1.0 - o);
         return o < 1.0;
     }
 };

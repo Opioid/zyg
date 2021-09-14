@@ -109,8 +109,8 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
     var sensor_value_ptr: ?*std.json.Value = null;
 
     var trafo = Transformation{
-        .position = Vec4f.init1(0.0),
-        .scale = Vec4f.init1(1.0),
+        .position = @splat(4, @as(f32, 0.0)),
+        .scale = @splat(4, @as(f32, 1.0)),
         .rotation = math.quaternion.identity,
     };
 

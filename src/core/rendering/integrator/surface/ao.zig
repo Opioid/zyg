@@ -47,7 +47,7 @@ pub const AO = struct {
 
         var result: f32 = 0.0;
 
-        const wo = ray.ray.direction.neg3();
+        const wo = -ray.ray.direction;
 
         const mat_sample = isec.sample(wo, ray.*, &worker.super);
 
@@ -74,7 +74,7 @@ pub const AO = struct {
             }
         }
 
-        return Vec4f.init4(result, result, result, 1.0);
+        return .{ result, result, result, 1.0 };
     }
 };
 

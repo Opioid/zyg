@@ -38,9 +38,9 @@ pub const Tree = struct {
 
     pub fn intersect(self: Tree, ray: *Ray, nodes: *NodeStack) ?Intersection {
         const ray_signs = [3]u32{
-            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+            if (ray.inv_direction[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction[2] >= 0.0) 0 else 1,
         };
 
         nodes.push(0xFFFFFFFF);
@@ -86,9 +86,9 @@ pub const Tree = struct {
 
     pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
         const ray_signs = [3]u32{
-            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+            if (ray.inv_direction[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction[2] >= 0.0) 0 else 1,
         };
 
         nodes.push(0xFFFFFFFF);
@@ -130,9 +130,9 @@ pub const Tree = struct {
 
     pub fn visibility(self: Tree, ray: *Ray, entity: usize, worker: *Worker, vis: *Vec4f) bool {
         const ray_signs = [3]u32{
-            if (ray.inv_direction.v[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction.v[2] >= 0.0) 0 else 1,
+            if (ray.inv_direction[0] >= 0.0) 0 else 1,
+            if (ray.inv_direction[1] >= 0.0) 0 else 1,
+            if (ray.inv_direction[2] >= 0.0) 0 else 1,
         };
 
         var nodes = worker.node_stack;
@@ -140,7 +140,7 @@ pub const Tree = struct {
         nodes.push(0xFFFFFFFF);
         var n: u32 = 0;
 
-        var local_vis = Vec4f.init1(1.0);
+        var local_vis = @splat(4, @as(f32, 1.0));
 
         const max_t = ray.maxT();
 
@@ -176,7 +176,7 @@ pub const Tree = struct {
                             return false;
                         }
 
-                        local_vis.mulAssign3(tv);
+                        local_vis *= tv;
 
                         // ray_max_t has changed if intersect() returns true!
                         ray.setMaxT(max_t);

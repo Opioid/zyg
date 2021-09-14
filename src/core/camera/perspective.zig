@@ -23,9 +23,9 @@ pub const Perspective = struct {
 
     fov: f32 = 0.0,
 
-    left_top: Vec4f = Vec4f.init3(0.0, 0.0, 0.0),
-    d_x: Vec4f = Vec4f.init3(0.0, 0.0, 0.0),
-    d_y: Vec4f = Vec4f.init3(0.0, 0.0, 0.0),
+    left_top: Vec4f = @splat(4, @as(f32, 0.0)),
+    d_x: Vec4f = @splat(4, @as(f32, 0.0)),
+    d_y: Vec4f = @splat(4, @as(f32, 0.0)),
 
     pub fn deinit(self: *Perspective, alloc: *Allocator) void {
         self.sensor.deinit(alloc);
@@ -54,27 +54,25 @@ pub const Perspective = struct {
 
         const z = 1.0 / std.math.tan(0.5 * self.fov);
 
-        const left_top = Vec4f.init3(-1.0, ratio, z);
-        const right_top = Vec4f.init3(1.0, ratio, z);
-        const left_bottom = Vec4f.init3(-1.0, -ratio, z);
+        const left_top = Vec4f{ -1.0, ratio, z, 0.0 };
+        const right_top = Vec4f{ 1.0, ratio, z, 0.0 };
+        const left_bottom = Vec4f{ -1.0, -ratio, z, 0.0 };
 
         self.left_top = left_top;
-        self.d_x = right_top.sub3(left_top).divScalar3(fr.v[0]);
-        self.d_y = left_bottom.sub3(left_top).divScalar3(fr.v[1]);
+        self.d_x = (right_top - left_top) / @splat(4, fr.v[0]);
+        self.d_y = (left_bottom - left_top) / @splat(4, fr.v[1]);
     }
 
     pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
         const coordinates = sample.pixel.toVec2f().add(sample.pixel_uv);
 
-        const direction = self.left_top.add3(self.d_x.mulScalar3(coordinates.v[0])).add3(self.d_y.mulScalar3(coordinates.v[1]));
-
-        const origin = Vec4f.init1(0.0);
+        const direction = self.left_top + self.d_x * @splat(4, coordinates.v[0]) + self.d_y * @splat(4, coordinates.v[1]);
+        const origin = @splat(4, @as(f32, 0.0));
 
         const trafo = scene.propTransformationAt(self.entity);
 
         const origin_w = trafo.objectToWorldPoint(origin);
-
-        const direction_w = trafo.objectToWorldVector(direction.normalize3());
+        const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t);
     }

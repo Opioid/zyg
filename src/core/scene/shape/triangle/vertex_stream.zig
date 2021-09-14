@@ -33,15 +33,15 @@ pub const VertexStream = union(enum) {
         switch (self) {
             .Json => |v| {
                 const p = v.positions[i];
-                return Vec4f.init3(p.v[0], p.v[1], p.v[2]);
+                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
             .Separate => |v| {
                 const p = v.positions[i];
-                return Vec4f.init3(p.v[0], p.v[1], p.v[2]);
+                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
             .Compact => |v| {
                 const p = v.positions[i];
-                return Vec4f.init3(p.v[0], p.v[1], p.v[2]);
+                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
         }
     }
@@ -82,9 +82,9 @@ const Json = struct {
 
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
-        const n = Vec4f.init3(n3.v[0], n3.v[1], n3.v[2]);
+        const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
         const t3 = self.tangents[i];
-        const t = Vec4f.init3(t3.v[0], t3.v[1], t3.v[2]);
+        const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
 
         return quaternion.initFromTN(t, n);
     }
@@ -123,9 +123,9 @@ pub const Separate = struct {
 
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
-        const n = Vec4f.init3(n3.v[0], n3.v[1], n3.v[2]);
+        const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
         const t3 = self.tangents[i];
-        const t = Vec4f.init3(t3.v[0], t3.v[1], t3.v[2]);
+        const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
 
         return quaternion.initFromTN(t, n);
     }
@@ -155,8 +155,8 @@ pub const Compact = struct {
 
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
-        const n = Vec4f.init3(n3.v[0], n3.v[1], n3.v[2]);
-        const t = n.tangent3();
+        const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
+        const t = math.tangent3(n);
 
         return quaternion.initFromTN(t, n);
     }

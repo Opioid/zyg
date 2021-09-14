@@ -35,7 +35,7 @@ pub const Transparent = struct {
         }
 
         for (self.pixels) |*p| {
-            p.* = Vec4f.init1(0.0);
+            p.* = @splat(4, @as(f32, 0.0));
         }
     }
 
@@ -44,13 +44,13 @@ pub const Transparent = struct {
         const i = @intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0]);
 
         self.pixel_weights[i] += weight;
-        self.pixels[i].addAssign4(color.mulScalar4(weight));
+        self.pixels[i] += @splat(4, weight) * color;
     }
 
     pub fn resolve(self: Transparent, target: *Float4) void {
         for (self.pixels) |p, i| {
             const weight = self.pixel_weights[i];
-            const color = p.divScalar4(weight);
+            const color = p / @splat(4, weight);
 
             target.setX(@intCast(i32, i), color);
         }

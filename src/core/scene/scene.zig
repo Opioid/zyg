@@ -122,7 +122,7 @@ pub const Scene = struct {
         if (self.has_tinted_shadow) {
             worker.node_stack.clear();
 
-            var local_vis = Vec4f.init1(1.0);
+            var local_vis = @splat(4, @as(f32, 1.0));
 
             for (self.props.items) |p, i| {
                 var tv: Vec4f = undefined;
@@ -130,7 +130,7 @@ pub const Scene = struct {
                     return false;
                 }
 
-                local_vis.mulAssign3(tv);
+                local_vis *= tv;
             }
 
             vis.* = local_vis;
@@ -138,7 +138,7 @@ pub const Scene = struct {
         }
 
         const ip = self.intersectP(ray, worker);
-        vis.* = Vec4f.init1(if (ip) 0.0 else 1.0);
+        vis.* = @splat(4, @as(f32, if (ip) 0.0 else 1.0));
         return !ip;
     }
 
@@ -262,7 +262,7 @@ pub const Scene = struct {
 
         var trafo = &self.prop_world_transformations.items[entity];
 
-        trafo.setPosition(self.prop_world_positions.items[entity].sub3(camera_pos));
+        trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
 
         self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
     }

@@ -9,11 +9,12 @@ pub const Layer = struct {
     n: Vec4f,
 
     pub fn tangentToWorld(self: Layer, v: Vec4f) Vec4f {
-        return Vec4f.init3(
-            v.v[0] * self.t.v[0] + v.v[1] * self.b.v[0] + v.v[2] * self.n.v[0],
-            v.v[0] * self.t.v[1] + v.v[1] * self.b.v[1] + v.v[2] * self.n.v[1],
-            v.v[0] * self.t.v[2] + v.v[1] * self.b.v[2] + v.v[2] * self.n.v[2],
-        );
+        return .{
+            v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
+            v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
+            v[0] * self.t[2] + v[1] * self.b[2] + v[2] * self.n[2],
+            0.0,
+        };
     }
 
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {
@@ -44,7 +45,7 @@ pub const SampleBase = struct {
     }
 
     pub fn initN(rs: Renderstate, shading_n: Vec4f, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) SampleBase {
-        const tb = Vec4f.orthonormalBasis3(shading_n);
+        const tb = math.orthonormalBasis3(shading_n);
 
         return .{
             .layer = .{ .t = tb[0], .b = tb[1], .n = shading_n },
@@ -73,6 +74,6 @@ pub const SampleBase = struct {
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {
-        return self.geo_n.dot3(v) > 0.0;
+        return math.dot3(self.geo_n, v) > 0.0;
     }
 };

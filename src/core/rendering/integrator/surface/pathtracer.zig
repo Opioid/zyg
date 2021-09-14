@@ -56,14 +56,14 @@ pub const Pathtracer = struct {
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
-        var result = Vec4f.init1(0.0);
+        var result = @splat(4, @as(f32, 0.0));
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
             var split_ray = ray.*;
             var split_isec = isec.*;
 
-            result.addAssign4(self.integrate(&split_ray, &split_isec, worker).mulScalar4(num_samples_reciprocal));
+            result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
         }
 
         return result;
@@ -73,17 +73,17 @@ pub const Pathtracer = struct {
         _ = self;
         _ = ray;
 
-        var throughput = Vec4f.init1(1.0);
-        var result = Vec4f.init1(0.0);
+        var throughput = @splat(4, @as(f32, 1.0));
+        var result = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            const wo = ray.ray.direction.neg3();
+            const wo = -ray.ray.direction;
 
             const mat_sample = isec.sample(wo, ray.*, &worker.super);
 
             if (mat_sample.super().sameHemisphere(wo)) {
-                result.addAssign3(throughput.mul3(mat_sample.super().radiance));
+                result += throughput * mat_sample.super().radiance;
             }
 
             if (mat_sample.isPureEmissive()) {
@@ -106,7 +106,7 @@ pub const Pathtracer = struct {
 
             ray.ray.setMaxT(scn.Ray_max_t);
 
-            throughput.mulAssign3(sample_result.reflection.divScalar3(sample_result.pdf));
+            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (!worker.super.intersectAndResolveMask(ray, isec)) {
                 break;

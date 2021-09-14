@@ -28,7 +28,7 @@ pub const Opaque = struct {
 
     pub fn clear(self: *Opaque, weight: f32) void {
         for (self.pixels) |*p| {
-            p.* = Vec4f.init4(0.0, 0.0, 0.0, weight);
+            p.* = .{ 0.0, 0.0, 0.0, weight };
         }
     }
 
@@ -36,25 +36,31 @@ pub const Opaque = struct {
         const d = self.base.dimensions;
 
         var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];
-        value.addAssign4(Vec4f.init3_1(color.mulScalar3(weight), weight));
+        const wc = @splat(4, weight) * color;
+        value.* += Vec4f{ wc[0], wc[1], wc[2], weight };
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
-        const d = self.base.dimensions;
+        _ = self;
+        _ = pixel;
+        _ = color;
+        _ = weight;
 
-        var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];
+        // const d = self.base.dimensions;
 
-        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color.v[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color.v[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color.v[2], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[3], .Add, weight, .Monotonic);
+        // var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];
+
+        // _ = @atomicRmw(f32, &value[0], .Add, weight * color[0], .Monotonic);
+        // _ = @atomicRmw(f32, &value[1], .Add, weight * color[1], .Monotonic);
+        // _ = @atomicRmw(f32, &value[2], .Add, weight * color[2], .Monotonic);
+        // _ = @atomicRmw(f32, &value[3], .Add, weight, .Monotonic);
     }
 
     pub fn resolve(self: Opaque, target: *Float4) void {
         for (self.pixels) |p, i| {
-            const color = p.divScalar3(p.v[3]);
+            const color = p / @splat(4, p[3]);
 
-            target.setX(@intCast(i32, i), Vec4f.init3_1(color, 1.0));
+            target.setX(@intCast(i32, i), .{ color[0], color[1], color[2], 1.0 });
         }
     }
 };

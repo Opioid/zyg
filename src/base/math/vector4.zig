@@ -111,30 +111,6 @@ pub fn Vec4(comptime T: type) type {
             return init4(v.v[0] * is, v.v[1] * is, v.v[2] * is, v.v[3] * is);
         }
 
-        pub fn dot3(a: Vec4(T), b: Vec4(T)) T {
-            return a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2];
-        }
-
-        pub fn length3(v: Vec4(T)) T {
-            return @sqrt(v.dot3(v));
-        }
-
-        pub fn normalize3(v: Vec4(T)) Vec4(T) {
-            return v.divScalar3(length3(v));
-        }
-
-        pub fn reciprocal3(v: Vec4(T)) Vec4(T) {
-            return init3(1.0 / v.v[0], 1.0 / v.v[1], 1.0 / v.v[2]);
-        }
-
-        pub fn cross3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(
-                a.v[1] * b.v[2] - a.v[2] * b.v[1],
-                a.v[2] * b.v[0] - a.v[0] * b.v[2],
-                a.v[0] * b.v[1] - a.v[1] * b.v[0],
-            );
-        }
-
         pub fn equals3(a: Vec4(T), b: Vec4(T)) bool {
             return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2];
         }
@@ -154,51 +130,96 @@ pub fn Vec4(comptime T: type) type {
                 std.math.max(a.v[2], b.v[2]),
             );
         }
-
-        pub fn indexMaxComponent3(v: Vec4(T)) u32 {
-            if (v.v[0] > v.v[1]) {
-                return if (v.v[0] > v.v[2]) 0 else 2;
-            }
-
-            return if (v.v[1] > v.v[2]) 1 else 2;
-        }
-
-        pub fn reflect3(n: Vec4(T), v: Vec4(T)) Vec4(T) {
-            return n.mulScalar3(2.0 * v.dot3(n)).sub3(v);
-        }
-
-        pub fn orthonormalBasis3(n: Vec4(T)) [2]Vec4(T) {
-            // Building an Orthonormal Basis, Revisited
-            // http://jcgt.org/published/0006/01/01/
-
-            const sign = std.math.copysign(f32, 1.0, n.v[2]);
-            const c = -1.0 / (sign + n.v[2]);
-            const d = n.v[0] * n.v[1] * c;
-
-            return .{
-                init3(1.0 + sign * n.v[0] * n.v[0] * c, sign * d, -sign * n.v[0]),
-                init3(d, sign + n.v[1] * n.v[1] * c, -n.v[1]),
-            };
-        }
-
-        pub fn tangent3(n: Vec4(T)) Vec4(T) {
-            const sign = std.math.copysign(f32, 1.0, n.v[2]);
-            const c = -1.0 / (sign + n.v[2]);
-            const d = n.v[0] * n.v[1] * c;
-
-            return init3(1.0 + sign * n.v[0] * n.v[0] * c, sign * d, -sign * n.v[0]);
-        }
-
-        pub fn toVec4i(v: Vec4(f32)) Vec4(i32) {
-            return Vec4(i32).init4(
-                @floatToInt(i32, v.v[0]),
-                @floatToInt(i32, v.v[1]),
-                @floatToInt(i32, v.v[2]),
-                @floatToInt(i32, v.v[3]),
-            );
-        }
     };
 }
 
 pub const Vec4i = Vec4(i32);
-pub const Vec4f = Vec4(f32);
+//pub const Vec4f = Vec4(f32);
+
+pub const Vec4f = std.meta.Vector(4, f32);
+
+pub fn dot3(a: Vec4f, b: Vec4f) f32 {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+pub fn length3(v: Vec4f) f32 {
+    return @sqrt(dot3(v, v));
+}
+
+pub fn normalize3(v: Vec4f) Vec4f {
+    return v / @splat(4, length3(v));
+}
+
+pub fn reciprocal3(v: Vec4f) Vec4f {
+    return @splat(4, @as(f32, 1.0)) / v;
+}
+
+pub fn cross3(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+        0.0,
+    };
+}
+
+pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
+    return @splat(4, 2.0 * dot3(v, n)) * n - v;
+}
+
+pub fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
+    // Building an Orthonormal Basis, Revisited
+    // http://jcgt.org/published/0006/01/01/
+
+    const sign = std.math.copysign(f32, 1.0, n[2]);
+    const c = -1.0 / (sign + n[2]);
+    const d = n[0] * n[1] * c;
+
+    return .{
+        .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 },
+        .{ d, sign + n[1] * n[1] * c, -n[1], 0.0 },
+    };
+}
+
+pub fn tangent3(n: Vec4f) Vec4f {
+    const sign = std.math.copysign(f32, 1.0, n[2]);
+    const c = -1.0 / (sign + n[2]);
+    const d = n[0] * n[1] * c;
+
+    return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
+}
+
+pub fn min3(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.min(a[0], b[0]),
+        std.math.min(a[1], b[1]),
+        std.math.min(a[2], b[2]),
+        0.0,
+    };
+}
+
+pub fn max3(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.max(a[0], b[0]),
+        std.math.max(a[1], b[1]),
+        std.math.max(a[2], b[2]),
+        0.0,
+    };
+}
+
+pub fn indexMaxComponent3(v: Vec4f) u32 {
+    if (v[0] > v[1]) {
+        return if (v[0] > v[2]) 0 else 2;
+    }
+
+    return if (v[1] > v[2]) 1 else 2;
+}
+
+pub fn vec4f_to_i(v: Vec4f) Vec4(i32) {
+    return Vec4(i32).init4(
+        @floatToInt(i32, v[0]),
+        @floatToInt(i32, v[1]),
+        @floatToInt(i32, v[2]),
+        @floatToInt(i32, v[3]),
+    );
+}

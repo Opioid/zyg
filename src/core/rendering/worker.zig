@@ -89,7 +89,7 @@ pub const Worker = struct {
                         const color = self.li(ray);
                         sensor.addSample(sample, color, offset, isolated_bounds, crop);
                     } else {
-                        sensor.addSample(sample, Vec4f.init1(0.0), offset, isolated_bounds, crop);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, isolated_bounds, crop);
                     }
                 }
             }
@@ -103,6 +103,6 @@ pub const Worker = struct {
             return self.surface_integrator.li(ray, &isec, self);
         }
 
-        return Vec4f.init1(0.0);
+        return @splat(4, @as(f32, 0.0));
     }
 };

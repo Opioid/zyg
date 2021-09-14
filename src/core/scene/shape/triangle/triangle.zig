@@ -11,25 +11,25 @@ pub const IndexTriangle = struct {
 };
 
 pub fn min(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return a.min3(b.min3(c));
+    return math.min3(a, math.min3(b, c));
 }
 
 pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return a.max3(b.max3(c));
+    return math.max3(a, math.max3(b, c));
 }
 
 pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f32) bool {
-    const e1 = b.sub3(a);
-    const e2 = c.sub3(a);
+    const e1 = b - a;
+    const e2 = c - a;
 
-    const tvec = ray.origin.sub3(a);
-    const pvec = ray.direction.cross3(e2);
-    const qvec = tvec.cross3(e1);
+    const tvec = ray.origin - a;
+    const pvec = math.cross3(ray.direction, e2);
+    const qvec = math.cross3(tvec, e1);
 
-    const e1_d_pv = e1.dot3(pvec);
-    const tv_d_pv = tvec.dot3(pvec);
-    const di_d_qv = ray.direction.dot3(qvec);
-    const e2_d_qv = e2.dot3(qvec);
+    const e1_d_pv = math.dot3(e1, pvec);
+    const tv_d_pv = math.dot3(tvec, pvec);
+    const di_d_qv = math.dot3(ray.direction, qvec);
+    const e2_d_qv = math.dot3(e2, qvec);
 
     const inv_det = 1.0 / e1_d_pv;
 
@@ -50,17 +50,17 @@ pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f
 }
 
 pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
-    const e1 = b.sub3(a);
-    const e2 = c.sub3(a);
+    const e1 = b - a;
+    const e2 = c - a;
 
-    const tvec = ray.origin.sub3(a);
-    const pvec = ray.direction.cross3(e2);
-    const qvec = tvec.cross3(e1);
+    const tvec = ray.origin - a;
+    const pvec = math.cross3(ray.direction, e2);
+    const qvec = math.cross3(tvec, e1);
 
-    const e1_d_pv = e1.dot3(pvec);
-    const tv_d_pv = tvec.dot3(pvec);
-    const di_d_qv = ray.direction.dot3(qvec);
-    const e2_d_qv = e2.dot3(qvec);
+    const e1_d_pv = math.dot3(e1, pvec);
+    const tv_d_pv = math.dot3(tvec, pvec);
+    const di_d_qv = math.dot3(ray.direction, qvec);
+    const e2_d_qv = math.dot3(e2, qvec);
 
     const inv_det = 1.0 / e1_d_pv;
 
@@ -84,5 +84,5 @@ pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
 
 pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
-    return a.mulScalar3(w).add3(b.mulScalar3(u)).add3(c.mulScalar3(v));
+    return a * @splat(4, w) + b * @splat(4, u) + c * @splat(4, v);
 }

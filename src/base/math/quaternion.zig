@@ -1,11 +1,12 @@
-const Vec4f = @import("vector4.zig").Vec4f;
+const math = @import("vector4.zig");
+const Vec4f = math.Vec4f;
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 
 const std = @import("std");
 
 pub const Quaternion = Vec4f;
 
-pub const identity = Quaternion.init4(0.0, 0.0, 0.0, 1.0);
+pub const identity = Quaternion{ 0.0, 0.0, 0.0, 1.0 };
 
 pub fn initFromMat3x3(m: Mat3x3) Quaternion {
     var t: f32 = undefined;
@@ -14,26 +15,26 @@ pub fn initFromMat3x3(m: Mat3x3) Quaternion {
     if (m.m(2, 2) < 0.0) {
         if (m.m(0, 0) > m.m(1, 1)) {
             t = 1.0 + m.m(0, 0) - m.m(1, 1) - m.m(2, 2);
-            q = Quaternion.init4(t, m.m(0, 1) + m.m(1, 0), m.m(2, 0) + m.m(0, 2), m.m(2, 1) - m.m(1, 2));
+            q = .{ t, m.m(0, 1) + m.m(1, 0), m.m(2, 0) + m.m(0, 2), m.m(2, 1) - m.m(1, 2) };
         } else {
             t = 1.0 - m.m(0, 0) + m.m(1, 1) - m.m(2, 2);
-            q = Quaternion.init4(m.m(0, 1) + m.m(1, 0), t, m.m(1, 2) + m.m(2, 1), m.m(0, 2) - m.m(2, 0));
+            q = .{ m.m(0, 1) + m.m(1, 0), t, m.m(1, 2) + m.m(2, 1), m.m(0, 2) - m.m(2, 0) };
         }
     } else {
         if (m.m(0, 0) < -m.m(1, 1)) {
             t = 1.0 - m.m(0, 0) - m.m(1, 1) + m.m(2, 2);
-            q = Quaternion.init4(m.m(2, 0) + m.m(0, 2), m.m(1, 2) + m.m(2, 1), t, m.m(1, 0) - m.m(0, 1));
+            q = .{ m.m(2, 0) + m.m(0, 2), m.m(1, 2) + m.m(2, 1), t, m.m(1, 0) - m.m(0, 1) };
         } else {
             t = 1.0 + m.m(0, 0) + m.m(1, 1) + m.m(2, 2);
-            q = Quaternion.init4(m.m(2, 1) - m.m(1, 2), m.m(0, 2) - m.m(2, 0), m.m(1, 0) - m.m(0, 1), t);
+            q = .{ m.m(2, 1) - m.m(1, 2), m.m(0, 2) - m.m(2, 0), m.m(1, 0) - m.m(0, 1), t };
         }
     }
 
-    return q.mulScalar4(0.5 / @sqrt(t));
+    return q * @splat(4, 0.5 / @sqrt(t));
 }
 
 pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
-    const b = n.cross3(t);
+    const b = math.cross3(n, t);
 
     const tbn = Mat3x3.init3(t, b, n);
 
@@ -42,15 +43,15 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     const threshold = 0.000001;
     const renormalization = comptime @sqrt(1.0 - threshold * threshold);
 
-    if (std.math.fabs(q.v[3]) < threshold) {
-        q.v[0] *= renormalization;
-        q.v[1] *= renormalization;
-        q.v[2] *= renormalization;
-        q.v[3] = if (q.v[3] < 0.0) -threshold else threshold;
+    if (std.math.fabs(q[3]) < threshold) {
+        q[0] *= renormalization;
+        q[1] *= renormalization;
+        q[2] *= renormalization;
+        q[3] = if (q[3] < 0.0) -threshold else threshold;
     }
 
-    if (q.v[3] < 0.0) {
-        q = q.neg4();
+    if (q[3] < 0.0) {
+        q = -q;
     }
 
     return q;
@@ -76,10 +77,10 @@ pub fn initMat3x3(q: Quaternion) Mat3x3 {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const x = q.v[0];
-    const y = q.v[1];
-    const z = q.v[2];
-    const w = q.v[3];
+    const x = q[0];
+    const y = q[1];
+    const z = q[2];
+    const w = q[3];
 
     const tx = 2.0 * x;
     const ty = 2.0 * y;
@@ -120,10 +121,10 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const x = q.v[0];
-    const y = q.v[1];
-    const z = q.v[2];
-    const w = q.v[3];
+    const x = q[0];
+    const y = q[1];
+    const z = q[2];
+    const w = q[3];
 
     const tx = 2.0 * x;
     const ty = 2.0 * y;
@@ -141,5 +142,5 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     const t2 = (w + x) * (w - x);
     const t3 = (y + z) * (y - z);
 
-    return .{ Vec4f.init3(t0 + t1, xy - wz, xz + wy), Vec4f.init3(xz - wy, yz + wx, t2 - t3) };
+    return .{ .{ t0 + t1, xy - wz, xz + wy, 0.0 }, .{ xz - wy, yz + wx, t2 - t3, 0.0 } };
 }

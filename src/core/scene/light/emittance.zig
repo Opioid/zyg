@@ -20,7 +20,7 @@ pub const Emittance = struct {
 
     pub fn radiance(self: Emittance, area: f32) Vec4f {
         if (self.quantity == Quantity.Intensity) {
-            return self.value.divScalar3(area);
+            return self.value / @splat(4, area);
         }
 
         return self.value;

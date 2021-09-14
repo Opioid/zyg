@@ -159,12 +159,12 @@ const Kernel = struct {
             const extent = aabb.extent();
             const min = aabb.bounds[0];
 
-            const la = extent.indexMaxComponent3();
-            const step = extent.v[la] / @intToFloat(f32, settings.num_slices);
+            const la = math.indexMaxComponent3(extent);
+            const step = extent[la] / @intToFloat(f32, settings.num_slices);
 
             const ax = [_]u8{ 0, 1, 2 };
             for (ax) |a| {
-                const extent_a = extent.v[a];
+                const extent_a = extent[a];
                 const num_steps = @floatToInt(u32, std.math.ceil(extent_a / step));
                 const step_a = extent_a / @intToFloat(f32, num_steps);
 
@@ -173,7 +173,7 @@ const Kernel = struct {
                     const fi = @intToFloat(f32, i);
 
                     var slice = position;
-                    slice.v[a] = min.v[a] + fi * step_a;
+                    slice[a] = min[a] + fi * step_a;
                     self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a, slice, false));
 
                     if (depth < settings.spatial_split_threshold) {

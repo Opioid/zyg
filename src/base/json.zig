@@ -67,11 +67,12 @@ pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
 }
 
 pub fn readVec4f3(value: Value) Vec4f {
-    return Vec4f.init3(
+    return .{
         readFloat(value.Array.items[0]),
         readFloat(value.Array.items[1]),
         readFloat(value.Array.items[2]),
-    );
+        0.0,
+    };
 }
 
 pub fn readString(value: Value) []const u8 {
@@ -85,9 +86,9 @@ pub fn readStringMember(value: Value, name: []const u8, default: []const u8) []c
 }
 
 fn createRotationMatrix(xyz: Vec4f) Mat3x3 {
-    const rot_x = Mat3x3.initRotationX(math.degreesToRadians(xyz.v[0]));
-    const rot_y = Mat3x3.initRotationY(math.degreesToRadians(xyz.v[1]));
-    const rot_z = Mat3x3.initRotationZ(math.degreesToRadians(xyz.v[2]));
+    const rot_x = Mat3x3.initRotationX(math.degreesToRadians(xyz[0]));
+    const rot_y = Mat3x3.initRotationY(math.degreesToRadians(xyz[1]));
+    const rot_z = Mat3x3.initRotationZ(math.degreesToRadians(xyz[2]));
 
     return rot_z.mul(rot_x).mul(rot_y);
 }

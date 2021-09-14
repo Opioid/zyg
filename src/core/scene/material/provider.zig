@@ -116,7 +116,7 @@ pub const Provider = struct {
     }
 
     fn loadLight(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var emission = MappedValue(Vec4f).init(Vec4f.init1(10.0));
+        var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 10.0)));
 
         var mask = Texture{};
 
@@ -143,7 +143,7 @@ pub const Provider = struct {
     }
 
     fn loadSubstitute(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var color = MappedValue(Vec4f).init(Vec4f.init1(0.5));
+        var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
 
         var mask = Texture{};
         var normal_map = Texture{};
@@ -210,8 +210,8 @@ fn mapColor(color: Vec4f) Vec4f {
 fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
         .Array => mapColor(json.readVec4f3(value)),
-        .Float => |f| mapColor(Vec4f.init1(@floatCast(f32, f))),
-        else => Vec4f.init1(0.0),
+        .Float => |f| mapColor(@splat(4, @floatCast(f32, f))),
+        else => @splat(4, @as(f32, 0.0)),
     };
 }
 

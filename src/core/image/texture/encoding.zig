@@ -12,7 +12,7 @@ const UNORM_FLOAT = calculateUnormToFloat();
 const SNORM_FLOAT = calculateSnormToFloat();
 
 pub fn cachedSrgbToFloat3(byte: Vec3b) Vec4f {
-    return Vec4f.init3(SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]]);
+    return .{ SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]], 0.0 };
 }
 
 pub fn cachedUnormToFloat(byte: u8) f32 {

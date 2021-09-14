@@ -23,11 +23,11 @@ pub const Linear = struct {
         const factor = self.super.exposure_factor;
 
         for (self.super.source.pixels[begin..end]) |p, i| {
-            const scaled = p.mulScalar3(factor);
+            const scaled = @splat(4, factor) * p;
             const srgb = spectrum.AP1tosRGB(scaled);
 
             const j = begin + i;
-            self.super.destination.pixels[j] = Vec4f.init3_1(srgb, p.v[3]);
+            self.super.destination.pixels[j] = .{ srgb[0], srgb[1], srgb[2], p[3] };
         }
     }
 };

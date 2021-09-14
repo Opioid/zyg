@@ -11,7 +11,7 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f) Sample {
-        return .{ .super = Base.init(rs, wo, Vec4f.init1(1.0), Vec4f.init1(0.0)) };
+        return .{ .super = Base.init(rs, wo, @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 0.0))) };
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {

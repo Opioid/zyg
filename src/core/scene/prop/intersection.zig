@@ -3,7 +3,8 @@ const Ray = @import("../ray.zig").Ray;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Worker = @import("../worker.zig").Worker;
 const mat = @import("../material/material.zig");
-const Vec4f = @import("base").math.Vec4f;
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 const ro = @import("../ray_offset.zig");
 
 pub const Intersection = struct {
@@ -32,8 +33,8 @@ pub const Intersection = struct {
         rs.b = self.geo.b;
 
         if (m.isTwoSided() and !self.sameHemisphere(wo)) {
-            rs.geo_n = self.geo.geo_n.neg3();
-            rs.n = self.geo.n.neg3();
+            rs.geo_n = -self.geo.geo_n;
+            rs.n = -self.geo.n;
         } else {
             rs.geo_n = self.geo.geo_n;
             rs.n = self.geo.n;
@@ -48,20 +49,20 @@ pub const Intersection = struct {
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {
-        return self.geo.geo_n.dot3(v) > 0.0;
+        return math.dot3(self.geo.geo_n, v) > 0.0;
     }
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
 
-        return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else self.geo.geo_n.neg3());
+        return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n);
     }
 
     pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
         const p = self.geo.p;
 
         if (translucent) {
-            return Vec4f.init4(p.v[0], p.v[1], p.v[2], 0.0);
+            return .{ p[0], p[1], p[2], 0.0 };
         }
 
         return ro.offsetRay(p, geo_n);

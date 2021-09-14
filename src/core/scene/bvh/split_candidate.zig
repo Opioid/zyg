@@ -16,13 +16,13 @@ pub const Reference = struct {
 
     pub fn aabb(self: Reference) AABB {
         return AABB.init(
-            Vec4f.init3(self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2]),
-            Vec4f.init3(self.bounds[1].v[0], self.bounds[1].v[1], self.bounds[1].v[2]),
+            .{ self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2], 0.0 },
+            .{ self.bounds[1].v[0], self.bounds[1].v[1], self.bounds[1].v[2], 0.0 },
         );
     }
 
     pub fn bound(self: Reference, comptime i: comptime_int) Vec4f {
-        return Vec4f.init3(self.bounds[i].v[0], self.bounds[i].v[1], self.bounds[i].v[2]);
+        return .{ self.bounds[i].v[0], self.bounds[i].v[1], self.bounds[i].v[2], 0.0 };
     }
 
     pub fn primitive(self: Reference) u32 {
@@ -30,14 +30,14 @@ pub const Reference = struct {
     }
 
     pub fn set(self: *Reference, min: Vec4f, max: Vec4f, prim: u32) void {
-        self.bounds[0].v[0] = min.v[0];
-        self.bounds[0].v[1] = min.v[1];
-        self.bounds[0].v[2] = min.v[2];
+        self.bounds[0].v[0] = min[0];
+        self.bounds[0].v[1] = min[1];
+        self.bounds[0].v[2] = min[2];
         self.bounds[0].index = prim;
 
-        self.bounds[1].v[0] = max.v[0];
-        self.bounds[1].v[1] = max.v[1];
-        self.bounds[1].v[2] = max.v[2];
+        self.bounds[1].v[0] = max[0];
+        self.bounds[1].v[1] = max[1];
+        self.bounds[1].v[2] = max[2];
     }
 
     pub fn clippedMin(self: Reference, d: f32, axis: u8) Reference {
@@ -71,7 +71,7 @@ pub const SplitCandidate = struct {
 
     pub fn init(split_axis: u8, p: Vec4f, spatial: bool) SplitCandidate {
         return .{
-            .d = p.v[split_axis],
+            .d = p[split_axis],
             .axis = split_axis,
             .spatial = spatial,
         };
@@ -180,6 +180,6 @@ pub const SplitCandidate = struct {
     }
 
     pub fn behind(self: Self, point: Vec4f) bool {
-        return point.v[self.axis] < self.d;
+        return point[self.axis] < self.d;
     }
 };

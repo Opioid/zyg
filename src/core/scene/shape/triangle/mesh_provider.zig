@@ -205,26 +205,26 @@ pub const Provider = struct {
                         try handler.bitangent_signs.resize(alloc, num_tangent_spaces);
 
                         for (handler.normals.items) |*n, i| {
-                            var ts = Quaternion.init4(
+                            var ts = Quaternion{
                                 json.readFloat(tangent_spaces[i * 4 + 0]),
                                 json.readFloat(tangent_spaces[i * 4 + 1]),
                                 json.readFloat(tangent_spaces[i * 4 + 2]),
                                 json.readFloat(tangent_spaces[i * 4 + 3]),
-                            );
+                            };
 
                             var bts: bool = false;
 
-                            if (ts.v[3] < 0.0) {
-                                ts.v[3] = -ts.v[3];
+                            if (ts[3] < 0.0) {
+                                ts[3] = -ts[3];
                                 bts = true;
                             }
 
                             const tbn = quaternion.initMat3x3(ts);
 
-                            n.* = Vec3f.init3(tbn.r[2].v[0], tbn.r[2].v[1], tbn.r[2].v[1]);
+                            n.* = Vec3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
 
                             var t = &handler.tangents.items[i];
-                            t.* = Vec3f.init3(tbn.r[0].v[0], tbn.r[0].v[1], tbn.r[0].v[1]);
+                            t.* = Vec3f.init3(tbn.r[0][0], tbn.r[0][1], tbn.r[0][1]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }

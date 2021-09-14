@@ -15,9 +15,9 @@ pub const ComposedTransformation = struct {
     pub fn prepare(self: *Self, t: Transformation) void {
         self.rotation = quaternion.initMat3x3(t.rotation);
 
-        self.rotation.setElem(0, 3, t.scale.v[0]);
-        self.rotation.setElem(1, 3, t.scale.v[1]);
-        self.rotation.setElem(2, 3, t.scale.v[2]);
+        self.rotation.setElem(0, 3, t.scale[0]);
+        self.rotation.setElem(1, 3, t.scale[1]);
+        self.rotation.setElem(2, 3, t.scale[2]);
 
         self.position = t.position;
     }
@@ -37,7 +37,7 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn scale(self: Self) Vec4f {
-        return Vec4f.init3(self.rotation.m(0, 3), self.rotation.m(1, 3), self.rotation.m(2, 3));
+        return .{ self.rotation.m(0, 3), self.rotation.m(1, 3), self.rotation.m(2, 3), 0.0 };
     }
 
     pub fn objectToWorld(self: Self) Mat4x4 {
@@ -45,24 +45,26 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
-        const s = Vec4f.init3(
+        const s = Vec4f{
             self.rotation.m(0, 3),
             self.rotation.m(1, 3),
             self.rotation.m(2, 3),
-        );
+            0.0,
+        };
 
-        const a = self.rotation.r[0].mulScalar3(s.v[0]);
-        const b = self.rotation.r[1].mulScalar3(s.v[1]);
-        const c = self.rotation.r[2].mulScalar3(s.v[2]);
+        const a = self.rotation.r[0] * @splat(4, s[0]);
+        const b = self.rotation.r[1] * @splat(4, s[1]);
+        const c = self.rotation.r[2] * @splat(4, s[2]);
 
-        return Vec4f.init3(
-            (v.v[0] * a.v[0] + v.v[1] * b.v[0] + v.v[2] * c.v[0]),
-            (v.v[0] * a.v[1] + v.v[1] * b.v[1] + v.v[2] * c.v[1]),
-            (v.v[0] * a.v[2] + v.v[1] * b.v[2] + v.v[2] * c.v[2]),
-        );
+        return Vec4f{
+            v[0] * a[0] + v[1] * b[0] + v[2] * c[0],
+            v[0] * a[1] + v[1] * b[1] + v[2] * c[1],
+            v[0] * a[2] + v[1] * b[2] + v[2] * c[2],
+            0.0,
+        };
     }
 
     pub fn objectToWorldPoint(self: Self, v: Vec4f) Vec4f {
-        return self.objectToWorldVector(v).add3(self.position);
+        return self.objectToWorldVector(v) + self.position;
     }
 };

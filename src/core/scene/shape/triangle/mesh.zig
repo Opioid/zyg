@@ -55,7 +55,7 @@ pub const Mesh = struct {
 
     pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
         // HACK: This only really works for uniform scales!
-        return self.parts[part].area * (scale.v[0] * scale.v[1]);
+        return self.parts[part].area * (scale[0] * scale[1]);
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, nodes: *NodeStack, isec: *Intersection) bool {
@@ -85,7 +85,7 @@ pub const Mesh = struct {
 
             const t_w = trafo.rotation.transformVector(t);
             const n_w = trafo.rotation.transformVector(n);
-            const b_w = n_w.cross3(t_w).mulScalar3(self.tree.data.bitangentSign(hit.index));
+            const b_w = @splat(4, self.tree.data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
 
             isec.t = t_w;
             isec.b = b_w;

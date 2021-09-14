@@ -15,10 +15,11 @@ pub const Renderstate = struct {
     primitive: u32 = undefined,
 
     pub fn tangentToWorld3(self: Renderstate, v: Vec4f) Vec4f {
-        return Vec4f.init3(
-            v.v[0] * self.t.v[0] + v.v[1] * self.b.v[0] + v.v[2] * self.n.v[0],
-            v.v[0] * self.t.v[1] + v.v[1] * self.b.v[1] + v.v[2] * self.n.v[1],
-            v.v[0] * self.t.v[2] + v.v[1] * self.b.v[2] + v.v[2] * self.n.v[2],
-        );
+        return .{
+            v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
+            v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
+            v[0] * self.t[2] + v[1] * self.b[2] + v[2] * self.n[2],
+            0.0,
+        };
     }
 };

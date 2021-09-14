@@ -26,9 +26,9 @@ pub const Material = struct {
 
         if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, worker.scene);
-            return Sample.initN(rs, n, wo, color, Vec4f.init1(0.0));
+            return Sample.initN(rs, n, wo, color, @splat(4, @as(f32, 0.0)));
         }
 
-        return Sample.init(rs, wo, color, Vec4f.init1(0.0));
+        return Sample.init(rs, wo, color, @splat(4, @as(f32, 0.0)));
     }
 };

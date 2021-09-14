@@ -35,7 +35,7 @@ pub const Prop = struct {
         self.properties.set(.Test_AABB, shape_ptr.isFinite() and shape_ptr.isComplex());
 
         for (materials) |mid| {
-            const m = scene.material(materials[mid]);
+            const m = scene.material(mid);
 
             if (m.isMasked()) {
                 self.properties.set(.Tinted_shadow, true);
@@ -81,7 +81,7 @@ pub const Prop = struct {
     pub fn visibility(self: Prop, entity: usize, ray: Ray, worker: *Worker, v: *Vec4f) bool {
         if (!self.hasTintedShadow()) {
             const ip = self.intersectP(entity, ray, worker);
-            v.* = Vec4f.init1(if (ip) 0.0 else 1.0);
+            v.* = @splat(4, @as(f32, if (ip) 0.0 else 1.0));
             return !ip;
         }
 

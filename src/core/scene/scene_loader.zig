@@ -133,8 +133,8 @@ pub const Loader = struct {
             }
 
             var trafo = Transformation{
-                .position = Vec4f.init1(0.0),
-                .scale = Vec4f.init1(1.0),
+                .position = @splat(4, @as(f32, 0.0)),
+                .scale = @splat(4, @as(f32, 1.0)),
                 .rotation = math.quaternion.identity,
             };
 
@@ -181,8 +181,6 @@ pub const Loader = struct {
         if (materials_value_ptr) |materials_value| {
             try self.loadMaterials(alloc, materials_value.*, local_materials);
         }
-
-        // if (self.materals.len > 1 or)
 
         while (self.materials.items.len < num_materials) {
             self.materials.appendAssumeCapacity(self.fallback_material);

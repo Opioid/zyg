@@ -68,8 +68,8 @@ pub const Shape = union(enum) {
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
             .Null, .Plane => math.aabb.empty,
-            .Rectangle => AABB.init(Vec4f.init3(-1.0, -1.0, -0.01), Vec4f.init3(1.0, 1.0, 0.01)),
-            .Sphere => AABB.init(Vec4f.init1(-1.0), Vec4f.init1(1.0)),
+            .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
+            .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
         };
     }
@@ -77,8 +77,8 @@ pub const Shape = union(enum) {
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,
-            .Rectangle => 4.0 * scale.v[0] * scale.v[1],
-            .Sphere => (4.0 * std.math.pi) * (scale.v[0] * scale.v[0]),
+            .Rectangle => 4.0 * scale[0] * scale[1],
+            .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
             .Triangle_mesh => |m| m.area(part, scale),
         };
     }
@@ -106,7 +106,7 @@ pub const Shape = union(enum) {
     pub fn visibility(self: Shape, ray: Ray, trafo: Transformation, entity: usize, worker: *Worker, vis: *Vec4f) bool {
         return switch (self) {
             .Null => {
-                vis.* = Vec4f.init1(1.0);
+                vis.* = @splat(4, @as(f32, 1.0));
                 return true;
             },
             .Plane => Plane.visibility(ray.ray, trafo, entity, worker.*, vis),
