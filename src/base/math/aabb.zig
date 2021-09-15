@@ -16,7 +16,7 @@ pub const AABB = struct {
     }
 
     pub fn position(self: AABB) Vec4f {
-        return self.bounds[0] + @splat(4, @as(f32, 0.5)) * self.bounds[1];
+        return @splat(4, @as(f32, 0.5)) * (self.bounds[0] + self.bounds[1]);
     }
 
     pub fn extent(self: AABB) Vec4f {
