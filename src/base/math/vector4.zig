@@ -134,8 +134,6 @@ pub fn Vec4(comptime T: type) type {
 }
 
 pub const Vec4i = Vec4(i32);
-//pub const Vec4f = Vec4(f32);
-
 pub const Vec4f = std.meta.Vector(4, f32);
 
 pub fn dot3(a: Vec4f, b: Vec4f) f32 {
@@ -147,7 +145,8 @@ pub fn length3(v: Vec4f) f32 {
 }
 
 pub fn normalize3(v: Vec4f) Vec4f {
-    return v / @splat(4, length3(v));
+    const i = 1.0 / length3(v);
+    return @splat(4, i) * v;
 }
 
 pub fn reciprocal3(v: Vec4f) Vec4f {
