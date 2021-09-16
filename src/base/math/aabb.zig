@@ -38,11 +38,16 @@ pub const AABB = struct {
         const filtered_l1b = math.max(l1, math.Neg_infinity);
         const filtered_l2b = math.max(l2, math.Neg_infinity);
 
+        // now that we're back on our feet, test those slabs.
         const max_t3 = math.max(filtered_l1a, filtered_l2a);
         const min_t3 = math.min(filtered_l1b, filtered_l2b);
 
-        const max_t = std.math.min(max_t3[0], std.math.min(max_t3[1], max_t3[2]));
-        const min_t = std.math.max(min_t3[0], std.math.max(min_t3[1], min_t3[2]));
+        // unfold back. try to hide the latency of the shufps & co.
+        var max_t = std.math.min(max_t3[0], max_t3[1]);
+        var min_t = std.math.max(min_t3[0], min_t3[1]);
+
+        max_t = std.math.min(max_t, max_t3[2]);
+        min_t = std.math.max(min_t, min_t3[2]);
 
         const ray_min_t = ray.minT();
         const ray_max_t = ray.maxT();
