@@ -38,6 +38,7 @@ pub const Material = union(enum) {
     pub fn commit(self: *Material) void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
+            .Substitute => |*m| m.commit(),
             else => {},
         }
     }
@@ -58,6 +59,13 @@ pub const Material = union(enum) {
     pub fn isEmissive(self: Material) bool {
         return switch (self) {
             .Light => true,
+            .Substitute => |m| {
+                if (m.super.properties.is(.Emission_map)) {
+                    return true;
+                }
+
+                return math.anyGreaterZero(m.super.emission);
+            },
             else => false,
         };
     }

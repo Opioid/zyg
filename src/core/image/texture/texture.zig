@@ -25,37 +25,37 @@ pub const Texture = struct {
     pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
         const image = scene.image(self.image);
 
-        switch (self.type) {
+        return switch (self.type) {
             .Byte1_unorm => {
                 const value = image.Byte1.getXY(x, y);
                 return enc.cachedUnormToFloat(value);
             },
-            else => unreachable,
-        }
+            else => 0.0,
+        };
     }
 
     pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
         const image = scene.image(self.image);
 
-        switch (self.type) {
+        return switch (self.type) {
             .Byte2_snorm => {
                 const value = image.Byte2.getXY(x, y);
                 return enc.cachedSnormToFloat2(value);
             },
-            else => unreachable,
-        }
+            else => Vec2f.init1(0.0),
+        };
     }
 
     pub fn get2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
         const image = scene.image(self.image);
 
-        switch (self.type) {
+        return switch (self.type) {
             .Byte3_sRGB => {
                 const value = image.Byte3.getXY(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
             },
-            else => unreachable,
-        }
+            else => @splat(4, @as(f32, 0.0)),
+        };
     }
 
     pub fn description(self: Texture, scene: *const Scene) Description {

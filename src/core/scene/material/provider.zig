@@ -154,11 +154,14 @@ pub const Provider = struct {
 
     fn loadSubstitute(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
+        var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.0)));
 
         var mask = Texture{};
         var normal_map = Texture{};
 
         var two_sided = false;
+
+        var emission_factor: f32 = 1.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
@@ -168,8 +171,12 @@ pub const Provider = struct {
                 color.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, self.tex, resources);
+            } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
+                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
+                emission_factor = json.readFloat(entry.value_ptr.*);
             }
         }
 
@@ -177,10 +184,13 @@ pub const Provider = struct {
 
         material.super.mask = mask;
         material.super.color_map = color.texture;
-
         material.normal_map = normal_map;
+        material.emission_map = emission.texture;
 
         material.color = color.value;
+        material.super.emission = emission.value;
+
+        material.emission_factor = emission_factor;
 
         return Material{ .Substitute = material };
     }

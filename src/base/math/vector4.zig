@@ -228,6 +228,15 @@ pub fn indexMaxComponent3(v: Vec4f) u32 {
     return if (v[1] > v[2]) 1 else 2;
 }
 
+pub fn anyGreaterZero(v: Vec4f) bool {
+    if (v[0] > 0.0) return true;
+    if (v[1] > 0.0) return true;
+    if (v[2] > 0.0) return true;
+    if (v[3] > 0.0) return true;
+
+    return false;
+}
+
 pub fn vec4f_to_i(v: Vec4f) Vec4(i32) {
     return Vec4(i32).init4(
         @floatToInt(i32, v[0]),
