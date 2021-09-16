@@ -1,28 +1,45 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Unique = struct {
-    begin: u32 = 0,
-    end: u32 = 0,
-
-    wake_signal: std.Thread.Condition = .{},
-    done_signal: std.Thread.Condition = .{},
-
-    mutex: std.Thread.Mutex = .{},
-
-    wake: bool = false,
-};
-
 pub const Pool = struct {
     pub const Context = usize;
 
     const ParallelProgram = fn (context: Context, id: u32) void;
     const RangeProgram = fn (context: Context, id: u32, begin: u32, end: u32) void;
+    const AsyncProgram = fn (context: Context) void;
 
     const Program = union(enum) { Parallel: ParallelProgram, Range: RangeProgram };
 
+    const Unique = struct {
+        begin: u32 = 0,
+        end: u32 = 0,
+
+        wake_signal: std.Thread.Condition = .{},
+        done_signal: std.Thread.Condition = .{},
+
+        mutex: std.Thread.Mutex = .{},
+
+        wake: bool = false,
+    };
+
+    const Async = struct {
+        context: Context = undefined,
+        program: AsyncProgram = undefined,
+
+        wake_signal: std.Thread.Condition = .{},
+        done_signal: std.Thread.Condition = .{},
+
+        mutex: std.Thread.Mutex = .{},
+
+        wake: bool = false,
+        quit: bool = false,
+    };
+
     uniques: []Unique = &.{},
     threads: []std.Thread = &.{},
+
+    asyncp: Async = .{},
+    async_thread: std.Thread = undefined,
 
     context: Context = undefined,
     program: Program = undefined,
@@ -54,6 +71,8 @@ pub const Pool = struct {
         for (self.threads) |*thread, i| {
             thread.* = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
         }
+
+        self.async_thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
     }
 
     pub fn deinit(self: *Pool, alloc: *Allocator) void {
@@ -64,6 +83,10 @@ pub const Pool = struct {
         for (self.threads) |thread| {
             thread.join();
         }
+
+        self.asyncp.quit = true;
+        self.wakeAsync();
+        self.async_thread.join();
 
         alloc.free(self.threads);
         alloc.free(self.uniques);
@@ -79,6 +102,10 @@ pub const Pool = struct {
 
     pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
         self.runRangeInt(@ptrToInt(context), program, begin, end);
+    }
+
+    pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
+        self.runAsyncInt(@ptrToInt(context), program);
     }
 
     fn runParallelInt(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
@@ -97,6 +124,15 @@ pub const Pool = struct {
         const num = self.wakeAllRange(begin, end);
 
         self.waitAll(num);
+    }
+
+    fn runAsyncInt(self: *Pool, context: Context, program: AsyncProgram) void {
+        self.waitAsync();
+
+        self.asyncp.context = context;
+        self.asyncp.program = program;
+
+        self.wakeAsync();
     }
 
     fn wakeAll(self: *Pool, num_tasks_hint: u32) usize {
@@ -146,6 +182,13 @@ pub const Pool = struct {
         return self.uniques.len;
     }
 
+    fn wakeAsync(self: *Pool) void {
+        const lock = self.asyncp.mutex.acquire();
+        self.asyncp.wake = true;
+        lock.release();
+        self.asyncp.wake_signal.signal();
+    }
+
     fn waitAll(self: *Pool, num: usize) void {
         for (self.uniques[0..num]) |*u| {
             const lock = u.mutex.acquire();
@@ -159,12 +202,20 @@ pub const Pool = struct {
         self.running_parallel = false;
     }
 
+    pub fn waitAsync(self: *Pool) void {
+        const lock = self.asyncp.mutex.acquire();
+        defer lock.release();
+
+        while (self.asyncp.wake) {
+            self.asyncp.done_signal.wait(&self.asyncp.mutex);
+        }
+    }
+
     fn loop(self: *Pool, id: u32) void {
         var u = &self.uniques[id];
 
         while (true) {
             const lock = u.mutex.acquire();
-            defer lock.release();
 
             while (!u.wake) {
                 u.wake_signal.wait(&u.mutex);
@@ -180,7 +231,28 @@ pub const Pool = struct {
             }
 
             u.wake = false;
+            lock.release();
             u.done_signal.signal();
+        }
+    }
+
+    fn asyncLoop(self: *Async) void {
+        while (true) {
+            const lock = self.mutex.acquire();
+
+            while (!self.wake) {
+                self.wake_signal.wait(&self.mutex);
+            }
+
+            if (self.quit) {
+                break;
+            }
+
+            self.program(self.context);
+
+            self.wake = false;
+            lock.release();
+            self.done_signal.signal();
         }
     }
 };

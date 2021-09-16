@@ -16,6 +16,7 @@ const Vec4f = math.Vec4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
+const ThreadContext = Threads.Context;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -54,13 +55,22 @@ const Handler = struct {
 };
 
 pub const Provider = struct {
+    num_indices: u32 = undefined,
+    index_bytes: u64 = undefined,
+    delta_indices: bool = undefined,
+    mesh: *Mesh = undefined,
+    parts: []Part = undefined,
+    indices: []u8 = undefined,
+    vertices: vs.VertexStream = undefined,
+    alloc: *Allocator = undefined,
+    threads: *Threads = undefined,
+
     pub fn deinit(self: *Provider, alloc: *Allocator) void {
         _ = self;
         _ = alloc;
     }
 
-    pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
-        _ = self;
+    pub fn loadFile(self: *Provider, alloc: *Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
         _ = options;
 
         var handler = Handler{};
@@ -71,7 +81,7 @@ pub const Provider = struct {
             defer stream.deinit();
 
             if (file.Type.SUB == file.queryType(&stream)) {
-                return loadBinary(alloc, &stream, resources.threads) catch |e| {
+                return self.loadBinary(alloc, &stream, resources.threads) catch |e| {
                     std.debug.print("Loading mesh \"{s}\": {}\n", .{ name, e });
                     return e;
                 };
@@ -265,11 +275,11 @@ pub const Provider = struct {
         PartIndicesOutOfBounds,
     };
 
-    fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
+    fn loadBinary(self: *Provider, alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
-        defer alloc.free(parts);
+        //     defer alloc.free(parts);
 
         var vertices_offset: u64 = 0;
         var vertices_size: u64 = 0;
@@ -384,7 +394,7 @@ pub const Provider = struct {
         try stream.seekTo(binary_start + vertices_offset);
 
         var vertices: vs.VertexStream = undefined;
-        defer vertices.deinit(alloc);
+        //   defer vertices.deinit(alloc);
 
         if (interleaved_vertex_stream) {
             std.debug.print("interleaved\n", .{});
@@ -422,26 +432,8 @@ pub const Provider = struct {
         try stream.seekTo(binary_start + indices_offset);
 
         var indices = try alloc.alloc(u8, indices_size);
-        defer alloc.free(indices);
+        //     defer alloc.free(indices);
         _ = try stream.read(indices);
-
-        const num_triangles = num_indices / 3;
-        var triangles = try alloc.alloc(IndexTriangle, num_triangles);
-        defer alloc.free(triangles);
-
-        if (4 == index_bytes) {
-            if (delta_indices) {
-                fillTrianglesDelta(i32, parts, indices, triangles);
-            } else {
-                fillTriangles(u32, parts, indices, triangles);
-            }
-        } else {
-            if (delta_indices) {
-                fillTrianglesDelta(i16, parts, indices, triangles);
-            } else {
-                fillTriangles(u16, parts, indices, triangles);
-            }
-        }
 
         var mesh = try Mesh.init(alloc, @intCast(u32, parts.len));
 
@@ -453,9 +445,69 @@ pub const Provider = struct {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
-        try buildBVH(alloc, &mesh, triangles, vertices, threads);
+        // const num_triangles = num_indices / 3;
+        // var triangles = try alloc.alloc(IndexTriangle, num_triangles);
+        // defer alloc.free(triangles);
+
+        // if (4 == index_bytes) {
+        //     if (delta_indices) {
+        //         fillTrianglesDelta(i32, parts, indices, triangles);
+        //     } else {
+        //         fillTriangles(u32, parts, indices, triangles);
+        //     }
+        // } else {
+        //     if (delta_indices) {
+        //         fillTrianglesDelta(i16, parts, indices, triangles);
+        //     } else {
+        //         fillTriangles(u16, parts, indices, triangles);
+        //     }
+        // }
+
+        // try buildBVH(alloc, &mesh, triangles, vertices, threads);
+
+        _ = self;
+
+        self.num_indices = num_indices;
+        self.index_bytes = index_bytes;
+        self.delta_indices = delta_indices;
+        self.mesh = &mesh;
+        self.parts = parts;
+        self.indices = indices;
+        self.vertices = vertices;
+        self.indices = indices;
+        self.alloc = alloc;
+        self.threads = threads;
+
+        threads.runAsync(self, buildBinaryAsync);
 
         return Shape{ .Triangle_mesh = mesh };
+    }
+
+    fn buildBinaryAsync(context: ThreadContext) void {
+        const self = @intToPtr(*Provider, context);
+
+        const num_triangles = self.num_indices / 3;
+        var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
+        defer self.alloc.free(triangles);
+
+        if (4 == self.index_bytes) {
+            if (self.delta_indices) {
+                fillTrianglesDelta(i32, self.parts, self.indices, triangles);
+            } else {
+                fillTriangles(u32, self.parts, self.indices, triangles);
+            }
+        } else {
+            if (self.delta_indices) {
+                fillTrianglesDelta(i16, self.parts, self.indices, triangles);
+            } else {
+                fillTriangles(u16, self.parts, self.indices, triangles);
+            }
+        }
+
+        buildBVH(self.alloc, self.mesh, triangles, self.vertices, self.threads) catch {};
+
+        self.alloc.free(self.indices);
+        self.alloc.free(self.parts);
     }
 
     fn buildBVH(
