@@ -31,14 +31,14 @@ pub const Material = struct {
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         const color = if (self.super.color_map.isValid()) ts.sample2D_3(self.super.color_map, rs.uv, worker.scene) else self.color;
 
+        const ef = @splat(4, self.emission_factor);
+        const radiance = if (self.emission_map.isValid()) ef * ts.sample2D_3(self.emission_map, rs.uv, worker.scene) else ef * self.super.emission;
+
         if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, worker.scene);
-            return Sample.initN(rs, n, wo, color, @splat(4, @as(f32, 0.0)));
+            return Sample.initN(rs, n, wo, color, radiance);
         }
 
-        //     const ef = @splat(4, self.emission_factor);
-        //    const radiance = if (self.emission_map.isValid()) ef * ts.sample2D_3(self.emission_map, rs.uv, worker.scene) else ef * self.super.emission;
-
-        return Sample.init(rs, wo, color, @splat(4, @as(f32, 0.0)));
+        return Sample.init(rs, wo, color, radiance);
     }
 };
