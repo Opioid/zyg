@@ -9,12 +9,21 @@ pub const Layer = struct {
     n: Vec4f,
 
     pub fn tangentToWorld(self: Layer, v: Vec4f) Vec4f {
-        return .{
-            v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
-            v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
-            v[0] * self.t[2] + v[1] * self.b[2] + v[2] * self.n[2],
-            0.0,
-        };
+        // return .{
+        //     v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
+        //     v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
+        //     v[0] * self.t[2] + v[1] * self.b[2] + v[2] * self.n[2],
+        //     0.0,
+        // };
+
+        var result = @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        result = result * self.t;
+        var temp = @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        temp = temp * self.b;
+        result = result + temp;
+        temp = @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = temp * self.n;
+        return result + temp;
     }
 
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {

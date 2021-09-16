@@ -69,12 +69,21 @@ pub const Mat3x3 = struct {
     }
 
     pub fn transformVector(self: Mat3x3, v: Vec4f) Vec4f {
-        return .{
-            v[0] * self.m(0, 0) + v[1] * self.m(1, 0) + v[2] * self.m(2, 0),
-            v[0] * self.m(0, 1) + v[1] * self.m(1, 1) + v[2] * self.m(2, 1),
-            v[0] * self.m(0, 2) + v[1] * self.m(1, 2) + v[2] * self.m(2, 2),
-            0.0,
-        };
+        // return .{
+        //     v[0] * self.m(0, 0) + v[1] * self.m(1, 0) + v[2] * self.m(2, 0),
+        //     v[0] * self.m(0, 1) + v[1] * self.m(1, 1) + v[2] * self.m(2, 1),
+        //     v[0] * self.m(0, 2) + v[1] * self.m(1, 2) + v[2] * self.m(2, 2),
+        //     0.0,
+        // };
+
+        var result = @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        result = result * self.r[0];
+        var temp = @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        temp = temp * self.r[1];
+        result = result + temp;
+        temp = @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = temp * self.r[2];
+        return result + temp;
     }
 
     pub fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
