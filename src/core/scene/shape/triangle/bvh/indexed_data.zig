@@ -130,6 +130,32 @@ pub const Indexed_data = struct {
         const uvc = self.uvs[tri.c];
 
         uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
+
+        // const tri = self.triangles[index];
+
+        // const tna = quaternion.initTN(self.frames[tri.a]);
+        // const tnb = quaternion.initTN(self.frames[tri.b]);
+        // const tnc = quaternion.initTN(self.frames[tri.c]);
+
+        // const uva = self.uvs[tri.a];
+        // const uvb = self.uvs[tri.b];
+        // const uvc = self.uvs[tri.c];
+
+        // const tua = Vec4f{ tna[0][0], tna[0][1], tna[0][2], uva.v[0] };
+        // const tub = Vec4f{ tnb[0][0], tnb[0][1], tnb[0][2], uvb.v[0] };
+        // const tuc = Vec4f{ tnc[0][0], tnc[0][1], tnc[0][2], uvc.v[0] };
+
+        // const nva = Vec4f{ tna[1][0], tna[1][1], tna[1][2], uva.v[1] };
+        // const nvb = Vec4f{ tnb[1][0], tnb[1][1], tnb[1][2], uvb.v[1] };
+        // const nvc = Vec4f{ tnc[1][0], tnc[1][1], tnc[1][2], uvc.v[1] };
+
+        // const tu = triangle.interpolate3(tua, tub, tuc, u, v);
+        // const nv = triangle.interpolate3(nva, nvb, nvc, u, v);
+
+        // t.* = math.normalize3(tu);
+        // n.* = math.normalize3(nv);
+
+        // uv.* = Vec2f.init2(tu[3], nv[3]);
     }
 
     pub fn interpolateUV(self: Self, u: f32, v: f32, index: u32) Vec2f {

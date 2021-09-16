@@ -77,28 +77,30 @@ pub fn initMat3x3(q: Quaternion) Mat3x3 {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const x = q[0];
-    const y = q[1];
-    const z = q[2];
-    const w = q[3];
+    const tq = @splat(4, @as(f32, 2.0)) * q;
 
-    const tx = 2.0 * x;
-    const ty = 2.0 * y;
-    const tz = 2.0 * z;
-    const xy = ty * x;
-    const xz = tz * x;
-    const yz = ty * z;
-    const wx = tx * w;
-    const wy = ty * w;
-    const wz = tz * w;
+    const xy = tq[1] * q[0];
+    const xz = tq[2] * q[0];
+    const yz = tq[1] * q[2];
+
+    const w = tq * @splat(4, q[3]);
 
     // diagonal terms
-    const t0 = (w + y) * (w - y);
-    const t1 = (x + z) * (x - z);
-    const t2 = (w + x) * (w - x);
-    const t3 = (y + z) * (y - z);
+    const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
+    const b = @shuffle(f32, q, q, [4]i32{ 1, 2, 0, 2 });
+    const t = (a + b) * (a - b);
 
-    return Mat3x3.init9(t0 + t1, xy - wz, xz + wy, xy + wz, t2 + t3, yz - wx, xz - wy, yz + wx, t2 - t3);
+    return Mat3x3.init9(
+        t[0] + t[1],
+        xy - w[2],
+        xz + w[1],
+        xy + w[2],
+        t[2] + t[3],
+        yz - w[0],
+        xz - w[1],
+        yz + w[0],
+        t[2] - t[3],
+    );
 }
 
 pub fn initTN(q: Quaternion) [2]Vec4f {
@@ -121,26 +123,18 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const x = q[0];
-    const y = q[1];
-    const z = q[2];
-    const w = q[3];
+    const tq = @splat(4, @as(f32, 2.0)) * q;
 
-    const tx = 2.0 * x;
-    const ty = 2.0 * y;
-    const tz = 2.0 * z;
-    const xy = ty * x;
-    const xz = tz * x;
-    const yz = ty * z;
-    const wx = tx * w;
-    const wy = ty * w;
-    const wz = tz * w;
+    const xy = tq[1] * q[0];
+    const xz = tq[2] * q[0];
+    const yz = tq[1] * q[2];
+
+    const w = tq * @splat(4, q[3]);
 
     // diagonal terms
-    const t0 = (w + y) * (w - y);
-    const t1 = (x + z) * (x - z);
-    const t2 = (w + x) * (w - x);
-    const t3 = (y + z) * (y - z);
+    const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
+    const b = @shuffle(f32, q, q, [4]i32{ 1, 2, 0, 2 });
+    const t = (a + b) * (a - b);
 
-    return .{ .{ t0 + t1, xy - wz, xz + wy, 0.0 }, .{ xz - wy, yz + wx, t2 - t3, 0.0 } };
+    return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
