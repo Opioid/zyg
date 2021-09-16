@@ -49,6 +49,8 @@ pub fn main() !void {
     var resources = resource.Manager.init(&threads);
     defer resources.deinit(alloc);
 
+    resources.materials.provider.setSettings(options.no_tex);
+
     var fs = &resources.fs;
 
     if (0 == options.mounts.items.len) {

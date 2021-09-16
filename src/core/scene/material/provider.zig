@@ -20,9 +20,19 @@ pub const Provider = struct {
         UnknownMaterial,
     };
 
+    const Tex = enum { All, No, DWIM };
+
+    tex: Tex = .All,
+
     pub fn deinit(self: *Provider, alloc: *Allocator) void {
         _ = self;
         _ = alloc;
+    }
+
+    pub fn setSettings(self: *Provider, no_tex: bool) void {
+        if (no_tex) {
+            self.tex = .No;
+        }
     }
 
     pub fn loadFile(
@@ -81,18 +91,18 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
                 return Material{ .Debug = .{} };
             } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
-                return try loadGlass(alloc, entry.value_ptr.*, resources);
+                return try self.loadGlass(alloc, entry.value_ptr.*, resources);
             } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
-                return try loadLight(alloc, entry.value_ptr.*, resources);
+                return try self.loadLight(alloc, entry.value_ptr.*, resources);
             } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
-                return try loadSubstitute(alloc, entry.value_ptr.*, resources);
+                return try self.loadSubstitute(alloc, entry.value_ptr.*, resources);
             }
         }
 
         return Error.UnknownMaterial;
     }
 
-    fn loadGlass(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadGlass(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var mask = Texture{};
 
         var thickness: f32 = 0.0;
@@ -100,7 +110,7 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 thickness = json.readFloat(entry.value_ptr.*);
             }
@@ -115,7 +125,7 @@ pub const Provider = struct {
         return Material{ .Glass = material };
     }
 
-    fn loadLight(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadLight(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 10.0)));
 
         var mask = Texture{};
@@ -125,9 +135,9 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
+                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             }
@@ -142,7 +152,7 @@ pub const Provider = struct {
         return Material{ .Light = material };
     }
 
-    fn loadSubstitute(alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadSubstitute(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
 
         var mask = Texture{};
@@ -153,11 +163,11 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                color.read(alloc, entry.value_ptr.*, TexUsage.Color, resources);
+                color.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
-                normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, resources);
+                normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             }
@@ -219,12 +229,13 @@ fn readTexture(
     alloc: *Allocator,
     value: std.json.Value,
     usage: TexUsage,
+    tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
     var desc = TextureDescription.init(alloc, value) catch return .{};
     defer desc.deinit(alloc);
 
-    return createTexture(alloc, desc, usage, resources);
+    return createTexture(alloc, desc, usage, tex, resources);
 }
 
 fn MappedValue(comptime Value: type) type {
@@ -244,6 +255,7 @@ fn MappedValue(comptime Value: type) type {
             alloc: *Allocator,
             value: std.json.Value,
             usage: TexUsage,
+            tex: Provider.Tex,
             resources: *Resources,
         ) void {
             if (Vec4f == Value) {
@@ -252,7 +264,7 @@ fn MappedValue(comptime Value: type) type {
                         var desc = TextureDescription.init(alloc, value) catch return;
                         defer desc.deinit(alloc);
 
-                        self.texture = createTexture(alloc, desc, usage, resources);
+                        self.texture = createTexture(alloc, desc, usage, tex, resources);
 
                         if (value.Object.get("value")) |n| {
                             self.value = readColor(n);
@@ -269,8 +281,13 @@ fn createTexture(
     alloc: *Allocator,
     desc: TextureDescription,
     usage: TexUsage,
+    tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
+    if (tex == .No) {
+        return .{};
+    }
+
     if (desc.filename) |filename| {
         var options: Variants = .{};
         defer options.deinit(alloc);

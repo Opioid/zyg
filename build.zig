@@ -63,6 +63,7 @@ pub fn build(b: *std.build.Builder) void {
             "takes/bistro_day.take",
             "-t",
             "16",
+            "--no-tex",
         });
     }
 
