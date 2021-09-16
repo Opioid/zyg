@@ -2,6 +2,9 @@ const Vec2 = @import("vector2.zig").Vec2;
 
 const std = @import("std");
 
+pub const Infinity = @splat(4, @bitCast(f32, @as(u32, 0x7F800000)));
+pub const Neg_infinity = @splat(4, @bitCast(f32, ~@as(u32, 0x7F800000)));
+
 pub fn Vec4(comptime T: type) type {
     return struct {
         v: [4]T = undefined,
@@ -155,12 +158,22 @@ pub fn reciprocal3(v: Vec4f) Vec4f {
 }
 
 pub fn cross3(a: Vec4f, b: Vec4f) Vec4f {
-    return .{
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-        0.0,
-    };
+    // return .{
+    //     a[1] * b[2] - a[2] * b[1],
+    //     a[2] * b[0] - a[0] * b[2],
+    //     a[0] * b[1] - a[1] * b[0],
+    //     0.0,
+    // };
+
+    var tmp0 = @shuffle(f32, b, b, [_]i32{ 1, 2, 0, 3 });
+    var tmp1 = @shuffle(f32, a, a, [_]i32{ 1, 2, 0, 3 });
+
+    tmp0 = tmp0 * a;
+    tmp1 = tmp1 * b;
+
+    const tmp2 = tmp0 - tmp1;
+
+    return @shuffle(f32, tmp2, tmp2, [_]i32{ 1, 2, 0, 3 });
 }
 
 pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
