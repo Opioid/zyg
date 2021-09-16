@@ -2,6 +2,7 @@ const Base = @import("tonemapper_base.zig").Base;
 
 const base = @import("base");
 const math = base.math;
+const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 const ThreadContext = base.thread.Pool.Context;
@@ -23,14 +24,14 @@ pub const ACES = struct {
         const factor = self.super.exposure_factor;
 
         for (self.super.source.pixels[begin..end]) |p, i| {
-            const scaled = @splat(4, factor) * p;
+            const scaled = @splat(4, factor) * Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] };
 
             const rrt = spectrum.AP1toRRT_SAT(scaled);
             const odt = spectrum.RRTandODT(rrt);
             const srgb = spectrum.ODTSATtosRGB(odt);
 
             const j = begin + i;
-            self.super.destination.pixels[j] = .{ srgb[0], srgb[1], srgb[2], p[3] };
+            self.super.destination.pixels[j] = Pack4f.init4(srgb[0], srgb[1], srgb[2], p.v[3]);
         }
     }
 };

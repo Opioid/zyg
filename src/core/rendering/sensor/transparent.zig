@@ -2,6 +2,7 @@ const Base = @import("base.zig").Base;
 const Float4 = @import("../../image/image.zig").Float4;
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
+const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
 
 const Allocator = @import("std").mem.Allocator;
@@ -11,7 +12,7 @@ pub const Transparent = struct {
 
     pixel_weights: []f32 = &.{},
 
-    pixels: []Vec4f = &.{},
+    pixels: []Pack4f = &.{},
 
     pub fn deinit(self: Transparent, alloc: *Allocator) void {
         alloc.free(self.pixels);
@@ -35,7 +36,7 @@ pub const Transparent = struct {
         }
 
         for (self.pixels) |*p| {
-            p.* = @splat(4, @as(f32, 0.0));
+            p.* = Pack4f.init1(0.0);
         }
     }
 
@@ -44,15 +45,17 @@ pub const Transparent = struct {
         const i = @intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0]);
 
         self.pixel_weights[i] += weight;
-        self.pixels[i] += @splat(4, weight) * color;
+
+        const wc = @splat(4, weight) * color;
+        self.pixels[i].addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], wc[3]));
     }
 
     pub fn resolve(self: Transparent, target: *Float4) void {
         for (self.pixels) |p, i| {
             const weight = self.pixel_weights[i];
-            const color = p / @splat(4, weight);
+            const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
-            target.setX(@intCast(i32, i), color);
+            target.setX(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], color[3]));
         }
     }
 };

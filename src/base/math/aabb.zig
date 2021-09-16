@@ -35,14 +35,14 @@ pub const AABB = struct {
         // the order we use for those min/max is vital to filter out
         // NaNs that happens when an inv_dir is +/- inf and
         // (box_min - pos) is 0. inf * 0 = NaN
-        const filtered_l1a = math.min3(l1, infinity);
-        const filtered_l2a = math.min3(l2, infinity);
+        const filtered_l1a = math.min(l1, infinity);
+        const filtered_l2a = math.min(l2, infinity);
 
-        const filtered_l1b = math.max3(l1, neg_infinity);
-        const filtered_l2b = math.max3(l2, neg_infinity);
+        const filtered_l1b = math.max(l1, neg_infinity);
+        const filtered_l2b = math.max(l2, neg_infinity);
 
-        const max_t3 = math.max3(filtered_l1a, filtered_l2a);
-        const min_t3 = math.min3(filtered_l1b, filtered_l2b);
+        const max_t3 = math.max(filtered_l1a, filtered_l2a);
+        const min_t3 = math.min(filtered_l1b, filtered_l2b);
 
         const max_t = std.math.min(max_t3[0], std.math.min(max_t3[1], max_t3[2]));
         const min_t = std.math.max(min_t3[0], std.math.max(min_t3[1], min_t3[2]));
@@ -69,14 +69,14 @@ pub const AABB = struct {
         const mw = m.r[3];
 
         return init(
-            math.min3(xa, xb) + math.min3(ya, yb) + math.min3(za, zb) + mw,
-            math.max3(xa, xb) + math.max3(ya, yb) + math.max3(za, zb) + mw,
+            math.min(xa, xb) + math.min(ya, yb) + math.min(za, zb) + mw,
+            math.max(xa, xb) + math.max(ya, yb) + math.max(za, zb) + mw,
         );
     }
 
     pub fn mergeAssign(self: *AABB, other: AABB) void {
-        self.bounds[0] = math.min3(self.bounds[0], other.bounds[0]);
-        self.bounds[1] = math.max3(self.bounds[1], other.bounds[1]);
+        self.bounds[0] = math.min(self.bounds[0], other.bounds[0]);
+        self.bounds[1] = math.max(self.bounds[1], other.bounds[1]);
     }
 
     pub fn clipMin(self: *AABB, d: f32, axis: u8) void {

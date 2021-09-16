@@ -134,6 +134,7 @@ pub fn Vec4(comptime T: type) type {
 }
 
 pub const Vec4i = Vec4(i32);
+pub const Pack4f = Vec4(f32);
 pub const Vec4f = std.meta.Vector(4, f32);
 
 pub fn dot3(a: Vec4f, b: Vec4f) f32 {
@@ -188,21 +189,21 @@ pub fn tangent3(n: Vec4f) Vec4f {
     return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
 }
 
-pub fn min3(a: Vec4f, b: Vec4f) Vec4f {
+pub fn min(a: Vec4f, b: Vec4f) Vec4f {
     return .{
         std.math.min(a[0], b[0]),
         std.math.min(a[1], b[1]),
         std.math.min(a[2], b[2]),
-        0.0,
+        std.math.min(a[3], b[3]),
     };
 }
 
-pub fn max3(a: Vec4f, b: Vec4f) Vec4f {
+pub fn max(a: Vec4f, b: Vec4f) Vec4f {
     return .{
         std.math.max(a[0], b[0]),
         std.math.max(a[1], b[1]),
         std.math.max(a[2], b[2]),
-        0.0,
+        std.math.max(a[3], b[3]),
     };
 }
 

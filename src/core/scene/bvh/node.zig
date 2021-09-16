@@ -91,14 +91,14 @@ pub const Node = struct {
         // the order we use for those min/max is vital to filter out
         // NaNs that happens when an inv_dir is +/- inf and
         // (box_min - pos) is 0. inf * 0 = NaN
-        const filtered_l1a = math.min3(l1, infinity);
-        const filtered_l2a = math.min3(l2, infinity);
+        const filtered_l1a = math.min(l1, infinity);
+        const filtered_l2a = math.min(l2, infinity);
 
-        const filtered_l1b = math.max3(l1, neg_infinity);
-        const filtered_l2b = math.max3(l2, neg_infinity);
+        const filtered_l1b = math.max(l1, neg_infinity);
+        const filtered_l2b = math.max(l2, neg_infinity);
 
-        const max_t3 = math.max3(filtered_l1a, filtered_l2a);
-        const min_t3 = math.min3(filtered_l1b, filtered_l2b);
+        const max_t3 = math.max(filtered_l1a, filtered_l2a);
+        const min_t3 = math.min(filtered_l1b, filtered_l2b);
 
         const max_t = std.math.min(max_t3[0], std.math.min(max_t3[1], max_t3[2]));
         const min_t = std.math.max(min_t3[0], std.math.max(min_t3[1], min_t3[2]));

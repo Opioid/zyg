@@ -46,8 +46,8 @@ pub const BuilderSAH = struct {
 
             references[i].set(min, max, @intCast(u32, i));
 
-            bounds.bounds[0] = math.min3(bounds.bounds[0], min);
-            bounds.bounds[1] = math.max3(bounds.bounds[1], max);
+            bounds.bounds[0] = math.min(bounds.bounds[0], min);
+            bounds.bounds[1] = math.max(bounds.bounds[1], max);
         }
 
         try self.super.split(alloc, references, bounds, threads);

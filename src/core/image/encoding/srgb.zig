@@ -44,17 +44,17 @@ pub const Srgb = struct {
         if (self.alpha) {
             for (self.image.pixels[begin..end]) |p, i| {
                 const j = begin + i;
-                self.buffer[j * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[0]));
-                self.buffer[j * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[1]));
-                self.buffer[j * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[2]));
-                self.buffer[j * 4 + 3] = encoding.floatToUnorm(std.math.min(p[3], 1.0));
+                self.buffer[j * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                self.buffer[j * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                self.buffer[j * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                self.buffer[j * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
             }
         } else {
             for (self.image.pixels[begin..end]) |p, i| {
                 const j = begin + i;
-                self.buffer[j * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[0]));
-                self.buffer[j * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[1]));
-                self.buffer[j * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p[2]));
+                self.buffer[j * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                self.buffer[j * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                self.buffer[j * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
             }
         }
     }
