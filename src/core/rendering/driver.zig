@@ -79,7 +79,7 @@ pub const Driver = struct {
 
         self.scene.compile(camera_pos);
 
-        camera.update();
+        camera.update(&self.workers[0].super);
 
         std.debug.print("Tracing camera rays...\n", .{});
 

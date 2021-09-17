@@ -34,10 +34,11 @@ pub const Sampler = union(enum) {
         };
     }
 
-    pub fn sample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
+    pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
         return .{
             .pixel = pixel,
             .pixel_uv = self.sample2D(rng, 0),
+            .lens_uv = self.sample2D(rng, 1),
         };
     }
 };

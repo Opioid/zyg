@@ -37,7 +37,7 @@ pub const Worker = struct {
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = try samplers.create(alloc, 1, 1, num_samples_per_pixel);
+        self.sampler = try samplers.create(alloc, 1, 2, num_samples_per_pixel);
 
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
     }
@@ -83,7 +83,7 @@ pub const Worker = struct {
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.sample(&self.super.rng, pixel);
+                    const sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     if (camera.generateRay(sample, scene.*)) |*ray| {
                         const color = self.li(ray);
@@ -98,7 +98,6 @@ pub const Worker = struct {
 
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
-
         if (self.super.intersectAndResolveMask(ray, &isec)) {
             return self.surface_integrator.li(ray, &isec, self);
         }

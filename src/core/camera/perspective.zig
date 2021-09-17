@@ -2,10 +2,14 @@ const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const prp = @import("../scene/prop/prop.zig");
 const Sample = @import("../sampler/camera_sample.zig").CameraSample;
 const Scene = @import("../scene/scene.zig").Scene;
+const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
 const Ray = @import("../scene/ray.zig").Ray;
-const math = @import("base").math;
+const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 
+const base = @import("base");
+const json = base.json;
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
@@ -14,6 +18,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Perspective = struct {
+    const Focus = struct {
+        point: Vec4f = undefined,
+        distance: f32 = undefined,
+        use_point: bool = false,
+    };
+
     entity: u32 = prp.Null,
 
     resolution: Vec2i = Vec2i.init1(0),
@@ -21,11 +31,15 @@ pub const Perspective = struct {
 
     sensor: Sensor = undefined,
 
-    fov: f32 = 0.0,
-
     left_top: Vec4f = @splat(4, @as(f32, 0.0)),
     d_x: Vec4f = @splat(4, @as(f32, 0.0)),
     d_y: Vec4f = @splat(4, @as(f32, 0.0)),
+
+    fov: f32 = 0.0,
+    lens_radius: f32 = 0.0,
+    focus_distance: f32 = 0.0,
+
+    focus: Focus = .{},
 
     pub fn deinit(self: *Perspective, alloc: *Allocator) void {
         self.sensor.deinit(alloc);
@@ -48,7 +62,7 @@ pub const Perspective = struct {
         self.sensor = sensor;
     }
 
-    pub fn update(self: *Perspective) void {
+    pub fn update(self: *Perspective, worker: *Worker) void {
         const fr = self.resolution.toVec2f();
         const ratio = fr.v[1] / fr.v[0];
 
@@ -61,13 +75,27 @@ pub const Perspective = struct {
         self.left_top = left_top;
         self.d_x = (right_top - left_top) / @splat(4, fr.v[0]);
         self.d_y = (left_bottom - left_top) / @splat(4, fr.v[1]);
+
+        self.updateFocus(worker);
     }
 
     pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
         const coordinates = sample.pixel.toVec2f().add(sample.pixel_uv);
 
-        const direction = self.left_top + self.d_x * @splat(4, coordinates.v[0]) + self.d_y * @splat(4, coordinates.v[1]);
-        const origin = @splat(4, @as(f32, 0.0));
+        var direction = self.left_top + self.d_x * @splat(4, coordinates.v[0]) + self.d_y * @splat(4, coordinates.v[1]);
+        var origin: Vec4f = undefined;
+
+        if (self.lens_radius > 0.0) {
+            const lens = math.smpl.diskConcentric(sample.lens_uv).mulScalar(self.lens_radius);
+
+            origin = Vec4f{ lens.v[0], lens.v[1], 0.0, 0.0 };
+
+            const t = @splat(4, self.focus_distance / direction[2]);
+            const focus = t * direction;
+            direction = focus - origin;
+        } else {
+            origin = @splat(4, @as(f32, 0.0));
+        }
 
         const trafo = scene.propTransformationAt(self.entity);
 
@@ -75,5 +103,61 @@ pub const Perspective = struct {
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t);
+    }
+
+    pub fn setParameters(self: *Perspective, value: std.json.Value) void {
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
+                const fov = json.readFloat(entry.value_ptr.*);
+                self.fov = math.degreesToRadians(fov);
+            } else if (std.mem.eql(u8, "lens", entry.key_ptr.*)) {
+                self.lens_radius = json.readFloatMember(entry.value_ptr.*, "radius", 0.0);
+            } else if (std.mem.eql(u8, "focus", entry.key_ptr.*)) {
+                self.setFocus(loadFocus(entry.value_ptr.*));
+            }
+        }
+    }
+
+    fn setFocus(self: *Perspective, focus: Focus) void {
+        self.focus = focus;
+        self.focus.point[0] *= @intToFloat(f32, self.resolution.v[0]);
+        self.focus.point[1] *= @intToFloat(f32, self.resolution.v[1]);
+        self.focus_distance = focus.distance;
+    }
+
+    fn updateFocus(self: *Perspective, worker: *Worker) void {
+        if (self.focus.use_point and self.lens_radius > 0.0) {
+            const direction = math.normalize3(
+                self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
+            );
+
+            const trafo = worker.scene.propTransformationAt(self.entity);
+
+            var ray = Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, scn.Ray_max_t);
+
+            var isec = Intersection{};
+            if (worker.intersect(&ray, &isec)) {
+                self.focus_distance = ray.ray.maxT() + self.focus.point[2];
+            } else {
+                self.focus_distance = self.focus_distance;
+            }
+        }
+    }
+
+    fn loadFocus(value: std.json.Value) Focus {
+        var focus = Focus{};
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "point", entry.key_ptr.*)) {
+                focus.point = json.readVec4f3(entry.value_ptr.*);
+                focus.use_point = true;
+            } else if (std.mem.eql(u8, "distance", entry.key_ptr.*)) {
+                focus.distance = json.readFloat(entry.value_ptr.*);
+            }
+        }
+
+        return focus;
     }
 };
