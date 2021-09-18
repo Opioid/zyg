@@ -7,6 +7,7 @@ const math = base.math;
 const spectrum = base.spectrum;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
 
 pub const Texture = struct {
     pub const Type = enum {
@@ -28,7 +29,7 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Byte1_unorm => {
-                const value = image.Byte1.getXY(x, y);
+                const value = image.Byte1.get2D(x, y);
                 return enc.cachedUnormToFloat(value);
             },
             else => 0.0,
@@ -40,7 +41,7 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Byte2_snorm => {
-                const value = image.Byte2.getXY(x, y);
+                const value = image.Byte2.get2D(x, y);
                 return enc.cachedSnormToFloat2(value);
             },
             else => Vec2f.init1(0.0),
@@ -52,12 +53,12 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Byte3_sRGB => {
-                const value = image.Byte3.getXY(x, y);
+                const value = image.Byte3.get2D(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
             },
             .Half3 => {
-                const value = image.Half3.getXY(x, y);
-                return Vec4f{
+                const value = image.Half3.get2D(x, y);
+                return .{
                     @floatCast(f32, value.v[0]),
                     @floatCast(f32, value.v[1]),
                     @floatCast(f32, value.v[2]),
@@ -65,6 +66,57 @@ pub const Texture = struct {
                 };
             },
             else => @splat(4, @as(f32, 0.0)),
+        };
+    }
+
+    pub fn gather2D_3(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec4f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Byte3_sRGB => {
+                const values = image.Byte3.gather2D(xy_xy1);
+                return .{
+                    spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(values[0])),
+                    spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(values[1])),
+                    spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(values[2])),
+                    spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(values[3])),
+                };
+            },
+            .Half3 => {
+                const values = image.Half3.gather2D(xy_xy1);
+                return .{
+                    .{
+                        @floatCast(f32, values[0].v[0]),
+                        @floatCast(f32, values[0].v[1]),
+                        @floatCast(f32, values[0].v[2]),
+                        0.0,
+                    },
+                    .{
+                        @floatCast(f32, values[1].v[0]),
+                        @floatCast(f32, values[1].v[1]),
+                        @floatCast(f32, values[1].v[2]),
+                        0.0,
+                    },
+                    .{
+                        @floatCast(f32, values[2].v[0]),
+                        @floatCast(f32, values[2].v[1]),
+                        @floatCast(f32, values[2].v[2]),
+                        0.0,
+                    },
+                    .{
+                        @floatCast(f32, values[3].v[0]),
+                        @floatCast(f32, values[3].v[1]),
+                        @floatCast(f32, values[3].v[2]),
+                        0.0,
+                    },
+                };
+            },
+            else => .{
+                @splat(4, @as(f32, 0.0)),
+                @splat(4, @as(f32, 0.0)),
+                @splat(4, @as(f32, 0.0)),
+                @splat(4, @as(f32, 0.0)),
+            },
         };
     }
 

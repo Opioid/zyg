@@ -55,7 +55,7 @@ pub const Transparent = struct {
             const weight = self.pixel_weights[i];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
-            target.setX(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], color[3]));
+            target.set1D(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], color[3]));
         }
     }
 };

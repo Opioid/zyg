@@ -172,7 +172,7 @@ pub const Reader = struct {
                 rgbe[3] = scanline_buffer[i + 3 * scanline_width];
 
                 const color = rgbeTofloat3(rgbe);
-                image.setX(offset, Vec3h.init3(
+                image.set1D(offset, Vec3h.init3(
                     @floatCast(f16, color.v[0]),
                     @floatCast(f16, color.v[1]),
                     @floatCast(f16, color.v[2]),
@@ -191,7 +191,7 @@ pub const Reader = struct {
             _ = try stream.read(&rgbe);
 
             const color = rgbeTofloat3(rgbe);
-            image.setX(o, Vec3h.init3(
+            image.set1D(o, Vec3h.init3(
                 @floatCast(f16, color.v[0]),
                 @floatCast(f16, color.v[1]),
                 @floatCast(f16, color.v[2]),
@@ -205,7 +205,7 @@ pub const Reader = struct {
     fn rgbeTofloat3(rgbe: [4]u8) Vec3f {
         if (rgbe[3] > 0) {
             // nonzero pixel
-            const f = @as(f32, 0.5); // 1std.math.complex.ldexp_cexp(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
+            const f = @as(f32, 0.5); // std.math.complex.ldexp_cexp(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
 
             const srgb = Vec4f{
                 (@intToFloat(f32, rgbe[0]) + 0.5) * f,
