@@ -1,4 +1,5 @@
 const Vec2 = @import("vector2.zig").Vec2;
+const Vec3f = @import("vector3.zig").Vec3f;
 
 const std = @import("std");
 
@@ -237,11 +238,15 @@ pub fn anyGreaterZero(v: Vec4f) bool {
     return false;
 }
 
-pub fn vec4f_to_i(v: Vec4f) Vec4(i32) {
+pub fn vec4fTo4i(v: Vec4f) Vec4(i32) {
     return Vec4(i32).init4(
         @floatToInt(i32, v[0]),
         @floatToInt(i32, v[1]),
         @floatToInt(i32, v[2]),
         @floatToInt(i32, v[3]),
     );
+}
+
+pub fn vec4fTo3f(v: Vec4f) Vec3f {
+    return Vec3f.init3(v[0], v[1], v[2]);
 }

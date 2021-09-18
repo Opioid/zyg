@@ -294,8 +294,6 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
 fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        std.debug.print("{s}\n", .{entry.key_ptr.*});
-
         const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 0.0);
 
         if (std.mem.eql(u8, "ACES", entry.key_ptr.*)) {

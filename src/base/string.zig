@@ -5,7 +5,7 @@ pub fn parentDirectory(path: []const u8) []const u8 {
         return path;
     }
 
-    const i = std.mem.lastIndexOfLinear(u8, path, "/") orelse (path.len - 1);
+    const i = std.mem.lastIndexOfScalar(u8, path, '/') orelse (path.len - 1);
 
     return path[0 .. i + 1];
 }
