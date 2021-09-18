@@ -33,7 +33,7 @@ pub const Reader = struct {
         data: []u8 = &.{},
 
         pub fn allocate(self: *Chunk, alloc: *Allocator) !void {
-            if (self.length >= self.data.len) {
+            if (self.data.len < self.length) {
                 self.data = try alloc.realloc(self.data, self.length);
             }
         }
@@ -103,8 +103,6 @@ pub const Reader = struct {
             self.current_row_data = self.buffer.ptr + buffer_size;
             self.previous_row_data = self.current_row_data + row_size;
 
-            self.current_row_data[row_size - 1] = 124;
-
             if (self.stream.zalloc) |_| {
                 if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
                     return Error.InitMZStreamFailed;
@@ -132,10 +130,7 @@ pub const Reader = struct {
     }
 
     pub fn read(self: *Reader, alloc: *Allocator, stream: *ReadStream, swizzle: Swizzle) !Image {
-        _ = self;
-
         var signature: [Signature.len]u8 = undefined;
-
         _ = try stream.read(&signature);
 
         if (!std.mem.eql(u8, &signature, &Signature)) {
@@ -198,7 +193,9 @@ pub const Reader = struct {
             }
 
             return Image{ .Byte1 = image };
-        } else if (2 == num_channels) {
+        }
+
+        if (2 == num_channels) {
             var image = try img.Byte2.init(alloc, img.Description.init2D(dimensions));
 
             if (byte_compatible) {
@@ -363,26 +360,29 @@ pub const Reader = struct {
     fn filter(byte: u8, f: Filter, info: *const Info) u8 {
         return switch (f) {
             .None => byte,
-            .Sub => @truncate(u8, @as(u32, byte) + @as(u32, raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info))),
-            .Up => @truncate(u8, @as(u32, byte) + @as(u32, prior(@intCast(i32, info.current_byte), info))),
-            .Average => @truncate(u8, @as(u32, byte) + @as(u32, average(
+            .Sub => @truncate(u8, @as(u32, byte) + raw(@intCast(i32, info.current_byte) -
+                @intCast(i32, info.bytes_per_pixel), info)),
+            .Up => @truncate(u8, @as(u32, byte) +
+                @as(u32, prior(@intCast(i32, info.current_byte), info))),
+            .Average => @truncate(u8, @as(u32, byte) +
+                @as(u32, average(
                 raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
                 prior(@intCast(i32, info.current_byte), info),
             ))),
-            .Paeth => @truncate(u8, @as(u32, byte) + @as(u32, paethPredictor(
+            .Paeth => @truncate(u8, @as(u32, byte) + paethPredictor(
                 raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
                 prior(@intCast(i32, info.current_byte), info),
                 prior(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-            ))),
+            )),
         };
     }
 
-    fn raw(column: i32, info: *const Info) u8 {
+    fn raw(column: i32, info: *const Info) u32 {
         if (column < 0) {
             return 0;
         }
 
-        return info.current_row_data[@intCast(u32, column)];
+        return @as(u32, info.current_row_data[@intCast(u32, column)]);
     }
 
     fn prior(column: i32, info: *const Info) u8 {
@@ -393,14 +393,14 @@ pub const Reader = struct {
         return info.previous_row_data[@intCast(u32, column)];
     }
 
-    fn average(a: u8, b: u8) u8 {
-        return @truncate(u8, (@as(u32, a) + @as(u32, b)) >> 1);
+    fn average(a: u32, b: u32) u8 {
+        return @truncate(u8, (a + b) >> 1);
     }
 
-    fn paethPredictor(a: u8, b: u8, c: u8) u8 {
-        const A = @as(i32, a);
-        const B = @as(i32, b);
-        const C = @as(i32, c);
+    fn paethPredictor(a: u32, b: u32, c: u32) u32 {
+        const A = @intCast(i32, a);
+        const B = @intCast(i32, b);
+        const C = @intCast(i32, c);
         const p = A + B - C;
         const pa = std.math.absInt(p - A) catch unreachable;
         const pb = std.math.absInt(p - B) catch unreachable;

@@ -15,10 +15,10 @@ pub usingnamespace @import("vector4.zig");
 
 const std = @import("std");
 
-pub const pi_inv = std.math.pi / 1.0;
+pub const pi_inv = 1.0 / std.math.pi;
 
 pub fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
-    return degrees * std.math.pi / 180.0;
+    return degrees * (std.math.pi / 180.0);
 }
 
 pub fn lerp(a: f32, b: f32, t: f32) f32 {

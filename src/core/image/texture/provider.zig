@@ -47,6 +47,7 @@ pub const Provider = struct {
             .Byte1 => Texture{ .type = Texture.Type.Byte1_unorm, .image = image_id },
             .Byte2 => Texture{ .type = Texture.Type.Byte2_snorm, .image = image_id },
             .Byte3 => Texture{ .type = Texture.Type.Byte3_sRGB, .image = image_id },
+            .Half3 => Texture{ .type = Texture.Type.Half3, .image = image_id },
             else => Error.UnsupportedImageType,
         };
     }

@@ -31,6 +31,10 @@ pub const ReadStream = struct {
         return try self.reader.read(dest);
     }
 
+    pub fn readUntilDelimiter(self: *Self, buf: []u8, delimiter: u8) ![]u8 {
+        return try self.reader.reader().readUntilDelimiter(buf, delimiter);
+    }
+
     pub fn seekTo(self: *Self, pos: u64) SeekError!void {
         self.reader.fifo.head = 0;
         self.reader.fifo.count = 0;

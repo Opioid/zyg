@@ -43,7 +43,7 @@ const Nearest2D = struct {
         const df = d.toVec2f();
 
         const u = am.Repeat.f(uv.v[0]);
-        const v = am.Repeat.f(uv.v[1]);
+        const v = am.Clamp.f(uv.v[1]);
 
         const b = d.subScalar(1);
 

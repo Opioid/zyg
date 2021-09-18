@@ -132,6 +132,8 @@ pub const Provider = struct {
 
         var two_sided = false;
 
+        var emission_factor: f32 = 1.0;
+
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -140,14 +142,19 @@ pub const Provider = struct {
                 emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
+                emission_factor = json.readFloat(entry.value_ptr.*);
             }
         }
 
         var material = mat.Light.init(two_sided);
 
         material.super.mask = mask;
+        material.emission_map = emission.texture;
 
         material.emittance.setRadiance(emission.value);
+
+        material.emission_factor = emission_factor;
 
         return Material{ .Light = material };
     }

@@ -20,6 +20,10 @@ pub fn queryType(stream: *ReadStream) Type {
         return .PNG;
     }
 
+    if (std.mem.startsWith(u8, &header, "#?")) {
+        return .RGBE;
+    }
+
     if (std.mem.startsWith(u8, &header, "SUB\x00")) {
         return .SUB;
     }

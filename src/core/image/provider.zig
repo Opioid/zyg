@@ -3,6 +3,7 @@ const img = @import("image.zig");
 const Swizzle = img.Swizzle;
 const Image = img.Image;
 const PngReader = @import("encoding/png/reader.zig").Reader;
+const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
 const Resources = @import("../resource/manager.zig").Manager;
 const Variants = @import("base").memory.VariantMap;
 
@@ -35,6 +36,10 @@ pub const Provider = struct {
         if (file.Type.PNG == file_type) {
             const swizzle = options.query("swizzle", Swizzle.XYZ);
             return try self.png_reader.read(alloc, &stream, swizzle);
+        }
+
+        if (file.Type.RGBE == file_type) {
+            return RgbeReader.read(alloc, &stream);
         }
 
         return Error.UnknownImageType;

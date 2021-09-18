@@ -43,7 +43,10 @@ pub fn Cache(comptime T: type, comptime P: type) type {
                 return entry;
             }
 
-            const item = try self.provider.loadFile(alloc, name, options, resources);
+            const item = self.provider.loadFile(alloc, name, options, resources) catch |e| {
+                std.debug.print("Cannot load file \"{s}\": {}\n", .{ name, e });
+                return e;
+            };
 
             try self.resources.append(alloc, item);
 

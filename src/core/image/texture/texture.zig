@@ -13,6 +13,7 @@ pub const Texture = struct {
         Byte1_unorm,
         Byte2_snorm,
         Byte3_sRGB,
+        Half3,
     };
 
     type: Type = undefined,
@@ -53,6 +54,15 @@ pub const Texture = struct {
             .Byte3_sRGB => {
                 const value = image.Byte3.getXY(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+            },
+            .Half3 => {
+                const value = image.Half3.getXY(x, y);
+                return Vec4f{
+                    @floatCast(f32, value.v[0]),
+                    @floatCast(f32, value.v[1]),
+                    @floatCast(f32, value.v[2]),
+                    0.0,
+                };
             },
             else => @splat(4, @as(f32, 0.0)),
         };

@@ -1,3 +1,4 @@
+pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
 pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
@@ -9,7 +10,6 @@ const Transformation = @import("../composed_transformation.zig").ComposedTransfo
 
 const base = @import("base");
 const math = base.math;
-
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
 
@@ -18,6 +18,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
     Null,
+    InfiniteSphere: InfiniteSphere,
     Plane: Plane,
     Rectangle: Rectangle,
     Sphere: Sphere,
@@ -53,21 +54,21 @@ pub const Shape = union(enum) {
 
     pub fn isFinite(self: Shape) bool {
         return switch (self) {
-            .Plane => false,
+            .InfiniteSphere, .Plane => false,
             else => true,
         };
     }
 
     pub fn isComplex(self: Shape) bool {
         return switch (self) {
-            .Null, .Triangle_mesh => true,
+            .Triangle_mesh => true,
             else => false,
         };
     }
 
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
-            .Null, .Plane => math.aabb.empty,
+            .Null, .InfiniteSphere, .Plane => math.aabb.empty,
             .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
@@ -77,6 +78,7 @@ pub const Shape = union(enum) {
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,
+            .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
             .Triangle_mesh => |m| m.area(part, scale),
@@ -86,6 +88,7 @@ pub const Shape = union(enum) {
     pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, worker: *Worker, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
+            .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
             .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
@@ -95,7 +98,7 @@ pub const Shape = union(enum) {
 
     pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
         return switch (self) {
-            .Null => false,
+            .Null, .InfiniteSphere => false,
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
@@ -105,7 +108,7 @@ pub const Shape = union(enum) {
 
     pub fn visibility(self: Shape, ray: Ray, trafo: Transformation, entity: usize, worker: *Worker, vis: *Vec4f) bool {
         return switch (self) {
-            .Null => {
+            .Null, .InfiniteSphere => {
                 vis.* = @splat(4, @as(f32, 1.0));
                 return true;
             },

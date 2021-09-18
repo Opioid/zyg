@@ -77,7 +77,7 @@ pub fn initMat3x3(q: Quaternion) Mat3x3 {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const tq = @splat(4, @as(f32, 2.0)) * q;
+    const tq = q + q;
 
     const xy = tq[1] * q[0];
     const xz = tq[2] * q[0];
@@ -123,7 +123,7 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     //   m->m21 = yz+wx; m->m12 = yz-wx;
     // }
 
-    const tq = @splat(4, @as(f32, 2.0)) * q;
+    const tq = q + q;
 
     const xy = tq[1] * q[0];
     const xz = tq[2] * q[0];

@@ -12,7 +12,9 @@ pub const Description = struct {
     }
 
     pub fn numPixels(self: Description) u64 {
-        return @intCast(u64, self.dimensions.v[0]) * @intCast(u64, self.dimensions.v[1]) * @intCast(u64, self.dimensions.v[2]);
+        return @intCast(u64, self.dimensions.v[0]) *
+            @intCast(u64, self.dimensions.v[1]) *
+            @intCast(u64, self.dimensions.v[2]);
     }
 };
 
@@ -40,7 +42,7 @@ pub fn Typed_image(comptime T: type) type {
 
             const len = description.numPixels();
 
-            if (len > self.pixels.len) {
+            if (self.pixels.len < len) {
                 self.pixels = try alloc.realloc(self.pixels, len);
             }
         }
@@ -54,7 +56,7 @@ pub fn Typed_image(comptime T: type) type {
         }
 
         pub fn getXY(self: Self, x: i32, y: i32) T {
-            const i = y * self.description.dimensions.v[1] + x;
+            const i = y * self.description.dimensions.v[0] + x;
 
             return self.pixels[@intCast(usize, i)];
         }
