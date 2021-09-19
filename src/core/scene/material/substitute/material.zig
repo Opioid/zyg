@@ -20,8 +20,8 @@ pub const Material = struct {
 
     emission_factor: f32 = undefined,
 
-    pub fn init(two_sided: bool) Material {
-        return .{ .super = Base.init(two_sided) };
+    pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
+        return .{ .super = Base.init(sampler_key, two_sided) };
     }
 
     pub fn commit(self: *Material) void {
@@ -29,13 +29,25 @@ pub const Material = struct {
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
-        const color = if (self.super.color_map.isValid()) ts.sample2D_3(self.super.color_map, rs.uv, worker.scene) else self.color;
+        const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+
+        const color = if (self.super.color_map.isValid()) ts.sample2D_3(
+            key,
+            self.super.color_map,
+            rs.uv,
+            worker.scene,
+        ) else self.color;
 
         const ef = @splat(4, self.emission_factor);
-        const radiance = if (self.emission_map.isValid()) ef * ts.sample2D_3(self.emission_map, rs.uv, worker.scene) else ef * self.super.emission;
+        const radiance = if (self.emission_map.isValid()) ef * ts.sample2D_3(
+            key,
+            self.emission_map,
+            rs.uv,
+            worker.scene,
+        ) else ef * self.super.emission;
 
         if (self.normal_map.isValid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, worker.scene);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene);
             return Sample.initN(rs, n, wo, color, radiance);
         }
 

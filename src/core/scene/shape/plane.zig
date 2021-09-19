@@ -1,7 +1,7 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Worker = @import("../worker.zig").Worker;
-
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -46,7 +46,14 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, worker: Worker, vis: *Vec4f) bool {
+    pub fn visibility(
+        ray: Ray,
+        trafo: Transformation,
+        entity: usize,
+        filter: ?Filter,
+        worker: Worker,
+        vis: *Vec4f,
+    ) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -56,7 +63,7 @@ pub const Plane = struct {
             const k = p - trafo.position;
             const uv = Vec2f.init2(-math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k));
 
-            return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
+            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
         }
 
         vis.* = @splat(4, @as(f32, 1.0));

@@ -36,6 +36,23 @@ pub const Texture = struct {
         };
     }
 
+    pub fn gather2D_1(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]f32 {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Byte1_unorm => {
+                const values = image.Byte1.gather2D(xy_xy1);
+                return .{
+                    enc.cachedUnormToFloat(values[0]),
+                    enc.cachedUnormToFloat(values[1]),
+                    enc.cachedUnormToFloat(values[2]),
+                    enc.cachedUnormToFloat(values[3]),
+                };
+            },
+            else => .{ 0.0, 0.0, 0.0, 0.0 },
+        };
+    }
+
     pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
         const image = scene.image(self.image);
 
@@ -45,6 +62,28 @@ pub const Texture = struct {
                 return enc.cachedSnormToFloat2(value);
             },
             else => Vec2f.init1(0.0),
+        };
+    }
+
+    pub fn gather2D_2(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec2f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Byte2_snorm => {
+                const values = image.Byte2.gather2D(xy_xy1);
+                return .{
+                    enc.cachedSnormToFloat2(values[0]),
+                    enc.cachedSnormToFloat2(values[1]),
+                    enc.cachedSnormToFloat2(values[2]),
+                    enc.cachedSnormToFloat2(values[3]),
+                };
+            },
+            else => .{
+                Vec2f.init1(0.0),
+                Vec2f.init1(0.0),
+                Vec2f.init1(0.0),
+                Vec2f.init1(0.0),
+            },
         };
     }
 

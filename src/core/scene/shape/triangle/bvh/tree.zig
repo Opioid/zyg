@@ -1,5 +1,6 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Worker = @import("../../../worker.zig").Worker;
+const Filter = @import("../../../../image/texture/sampler.zig").Filter;
 const NodeStack = @import("../../node_stack.zig").NodeStack;
 const Node = @import("../../../bvh/node.zig").Node;
 const base = @import("base");
@@ -128,7 +129,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: *Ray, entity: usize, worker: *Worker, vis: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker, vis: *Vec4f) bool {
         const ray_signs = [3]u32{
             if (ray.inv_direction[0] >= 0.0) 0 else 1,
             if (ray.inv_direction[1] >= 0.0) 0 else 1,
@@ -172,7 +173,7 @@ pub const Tree = struct {
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
                         var tv: Vec4f = undefined;
-                        if (!material.visibility(uv, worker.*, &tv)) {
+                        if (!material.visibility(uv, filter, worker.*, &tv)) {
                             return false;
                         }
 

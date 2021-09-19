@@ -9,22 +9,24 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Material = struct {
-    super: Base = undefined,
+    super: Base,
 
     emission_map: Texture = undefined,
     emittance: Emittance = undefined,
     emission_factor: f32 = undefined,
 
-    pub fn init(two_sided: bool) Material {
-        return .{ .super = Base.init(two_sided) };
+    pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
+        return .{ .super = Base.init(sampler_key, two_sided) };
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         var radiance: Vec4f = undefined;
 
         if (self.emission_map.isValid()) {
+            const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+
             const ef = @splat(4, self.emission_factor);
-            radiance = ef * ts.sample2D_3(self.emission_map, rs.uv, worker.scene);
+            radiance = ef * ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
         } else {
             radiance = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
         }

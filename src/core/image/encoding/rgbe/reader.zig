@@ -205,7 +205,7 @@ pub const Reader = struct {
     fn rgbeTofloat3(rgbe: [4]u8) Vec3f {
         if (rgbe[3] > 0) {
             // nonzero pixel
-            const f = @as(f32, 0.5); // std.math.complex.ldexp_cexp(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
+            const f = std.math.scalbn(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
 
             const srgb = Vec4f{
                 (@intToFloat(f32, rgbe[0]) + 0.5) * f,

@@ -5,6 +5,7 @@ pub const Sphere = @import("sphere.zig").Sphere;
 pub const Triangle_mesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const Intersection = @import("intersection.zig").Intersection;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
@@ -106,16 +107,24 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn visibility(self: Shape, ray: Ray, trafo: Transformation, entity: usize, worker: *Worker, vis: *Vec4f) bool {
+    pub fn visibility(
+        self: Shape,
+        ray: Ray,
+        trafo: Transformation,
+        entity: usize,
+        filter: ?Filter,
+        worker: *Worker,
+        vis: *Vec4f,
+    ) bool {
         return switch (self) {
             .Null, .InfiniteSphere => {
                 vis.* = @splat(4, @as(f32, 1.0));
                 return true;
             },
-            .Plane => Plane.visibility(ray.ray, trafo, entity, worker.*, vis),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, worker.*, vis),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, worker.*, vis),
-            .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, worker, vis),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
+            .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker, vis),
         };
     }
 };

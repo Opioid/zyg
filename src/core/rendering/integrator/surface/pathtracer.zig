@@ -1,6 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const sampler = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
@@ -80,7 +81,9 @@ pub const Pathtracer = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const mat_sample = isec.sample(wo, ray.*, &worker.super);
+            const filter: ?Filter = if (ray.depth <= 1) null else .Nearest;
+
+            const mat_sample = isec.sample(wo, ray.*, filter, &worker.super);
 
             if (mat_sample.super().sameHemisphere(wo)) {
                 result += throughput * mat_sample.super().radiance;
@@ -108,7 +111,7 @@ pub const Pathtracer = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (!worker.super.intersectAndResolveMask(ray, isec)) {
+            if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
         }

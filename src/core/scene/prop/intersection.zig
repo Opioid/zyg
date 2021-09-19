@@ -2,6 +2,7 @@ const shape = @import("../shape/intersection.zig");
 const Ray = @import("../ray.zig").Ray;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Worker = @import("../worker.zig").Worker;
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const mat = @import("../material/material.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -18,16 +19,16 @@ pub const Intersection = struct {
         return worker.scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn opacity(self: Self, worker: Worker) f32 {
-        return self.material(worker).opacity(self.geo.uv, worker);
+    pub fn opacity(self: Self, filter: ?Filter, worker: Worker) f32 {
+        return self.material(worker).opacity(self.geo.uv, filter, worker);
     }
 
-    pub fn sample(self: Self, wo: Vec4f, ray: Ray, worker: *Worker) mat.Sample {
+    pub fn sample(self: Self, wo: Vec4f, ray: Ray, filter: ?Filter, worker: *Worker) mat.Sample {
         _ = ray;
 
         const m = self.material(worker.*);
 
-        var rs: Renderstate = undefined;
+        var rs = Renderstate{};
         rs.p = self.geo.p;
         rs.t = self.geo.t;
         rs.b = self.geo.b;
@@ -44,6 +45,7 @@ pub const Intersection = struct {
         rs.prop = self.prop;
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
+        rs.filter = filter;
 
         return m.sample(wo, rs, worker);
     }

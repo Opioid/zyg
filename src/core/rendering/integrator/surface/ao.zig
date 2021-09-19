@@ -49,7 +49,7 @@ pub const AO = struct {
 
         const wo = -ray.ray.direction;
 
-        const mat_sample = isec.sample(wo, ray.*, &worker.super);
+        const mat_sample = isec.sample(wo, ray.*, null, &worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -69,7 +69,7 @@ pub const AO = struct {
             occlusion_ray.ray.setDirection(ws);
 
             var vis: Vec4f = undefined;
-            if (worker.super.visibility(occlusion_ray, &vis)) {
+            if (worker.super.visibility(occlusion_ray, null, &vis)) {
                 result += num_samples_reciprocal;
             }
         }

@@ -1,7 +1,7 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Worker = @import("../worker.zig").Worker;
-
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -98,7 +98,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, worker: Worker, vis: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, worker: Worker, vis: *Vec4f) bool {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -118,7 +118,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
+                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
             }
 
             const t1 = b + dist;
@@ -130,7 +130,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, worker, vis);
+                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
             }
         }
 

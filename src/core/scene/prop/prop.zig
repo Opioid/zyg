@@ -1,5 +1,6 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");
@@ -78,7 +79,7 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo, worker);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, worker: *Worker, v: *Vec4f) bool {
+    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker, v: *Vec4f) bool {
         if (!self.hasTintedShadow()) {
             const ip = self.intersectP(entity, ray, worker);
             v.* = @splat(4, @as(f32, if (ip) 0.0 else 1.0));
@@ -92,6 +93,6 @@ pub const Prop = struct {
         }
 
         const trafo = scene.propTransformationAt(entity);
-        return scene.propShape(entity).visibility(ray, trafo, entity, worker, v);
+        return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker, v);
     }
 };

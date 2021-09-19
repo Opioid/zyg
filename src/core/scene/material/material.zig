@@ -79,17 +79,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn opacity(self: Material, uv: Vec2f, worker: Worker) f32 {
+    pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
+        const key = ts.resolveKey(self.super().sampler_key, filter);
         const mask = self.super().mask;
         if (mask.isValid()) {
-            return ts.sample2D_1(mask, uv, worker.scene);
+            return ts.sample2D_1(key, mask, uv, worker.scene);
         }
 
         return 1.0;
     }
 
-    pub fn visibility(self: Material, uv: Vec2f, worker: Worker, vis: *Vec4f) bool {
-        const o = self.opacity(uv, worker);
+    pub fn visibility(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker, vis: *Vec4f) bool {
+        const o = self.opacity(uv, filter, worker);
         vis.* = @splat(4, 1.0 - o);
         return o < 1.0;
     }

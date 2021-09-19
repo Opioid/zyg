@@ -3,6 +3,7 @@ const Material = mat.Material;
 const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
+const ts = @import("../../image/texture/sampler.zig");
 const Resources = @import("../../resource/manager.zig").Manager;
 const base = @import("base");
 const math = base.math;
@@ -76,7 +77,11 @@ pub const Provider = struct {
     }
 
     pub fn createFallbackMaterial() Material {
-        return Material{ .Debug = .{ .super = .{ .mask = Texture{}, .properties = .{} } } };
+        return Material{ .Debug = .{ .super = .{
+            .properties = .{},
+            .sampler_key = .{},
+            .mask = .{},
+        } } };
     }
 
     fn loadMaterial(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
@@ -103,6 +108,8 @@ pub const Provider = struct {
     }
 
     fn loadGlass(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        var sampler_key = ts.Key{};
+
         var mask = Texture{};
 
         var thickness: f32 = 0.0;
@@ -113,10 +120,12 @@ pub const Provider = struct {
                 mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 thickness = json.readFloat(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+                sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
 
-        var material = mat.Glass{};
+        var material = mat.Glass.init(sampler_key);
 
         material.super.mask = mask;
 
@@ -126,6 +135,8 @@ pub const Provider = struct {
     }
 
     fn loadLight(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        var sampler_key = ts.Key{};
+
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 10.0)));
 
         var mask = Texture{};
@@ -144,10 +155,12 @@ pub const Provider = struct {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
                 emission_factor = json.readFloat(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+                sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
 
-        var material = mat.Light.init(two_sided);
+        var material = mat.Light.init(sampler_key, two_sided);
 
         material.super.mask = mask;
         material.emission_map = emission.texture;
@@ -160,6 +173,8 @@ pub const Provider = struct {
     }
 
     fn loadSubstitute(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        var sampler_key = ts.Key{};
+
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.0)));
 
@@ -184,10 +199,12 @@ pub const Provider = struct {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
                 emission_factor = json.readFloat(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+                sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
 
-        var material = mat.Substitute.init(two_sided);
+        var material = mat.Substitute.init(sampler_key, two_sided);
 
         material.super.mask = mask;
         material.super.color_map = color.texture;
@@ -229,6 +246,47 @@ const TextureDescription = struct {
         }
     }
 };
+
+fn readSamplerKey(value: std.json.Value) ts.Key {
+    var key = ts.Key{};
+
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
+            const filter = json.readString(entry.value_ptr.*);
+
+            if (std.mem.eql(u8, "Nearest", filter)) {
+                key.filter = .Nearest;
+            } else if (std.mem.eql(u8, "Linear", filter)) {
+                key.filter = .Linear;
+            }
+        } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
+            switch (entry.value_ptr.*) {
+                .Array => |a| {
+                    key.address.u = readAddress(a.items[0]);
+                    key.address.v = readAddress(a.items[1]);
+                },
+                else => {
+                    const adr = readAddress(entry.value_ptr.*);
+                    key.address.u = adr;
+                    key.address.v = adr;
+                },
+            }
+        }
+    }
+
+    return key;
+}
+
+fn readAddress(value: std.json.Value) ts.AddressMode {
+    const address = json.readString(value);
+
+    if (std.mem.eql(u8, "Clamp", address)) {
+        return .Clamp;
+    }
+
+    return .Repeat;
+}
 
 fn mapColor(color: Vec4f) Vec4f {
     return spectrum.sRGBtoAP1(color);

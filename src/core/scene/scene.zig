@@ -7,6 +7,7 @@ const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
+const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 
@@ -118,7 +119,7 @@ pub const Scene = struct {
         return false;
     }
 
-    pub fn visibility(self: Scene, ray: Ray, worker: *Worker, vis: *Vec4f) bool {
+    pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker, vis: *Vec4f) bool {
         if (self.has_tinted_shadow) {
             worker.node_stack.clear();
 
@@ -126,7 +127,7 @@ pub const Scene = struct {
 
             for (self.props.items) |p, i| {
                 var tv: Vec4f = undefined;
-                if (!p.visibility(i, ray, worker, &tv)) {
+                if (!p.visibility(i, ray, filter, worker, &tv)) {
                     return false;
                 }
 

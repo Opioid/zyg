@@ -5,6 +5,7 @@ const ro = @import("ray_offset.zig");
 const Ray = @import("ray.zig").Ray;
 const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
+const Filter = @import("../image/texture/sampler.zig").Filter;
 
 const base = @import("base");
 const math = base.math;
@@ -28,22 +29,22 @@ pub const Worker = struct {
         return self.scene.intersect(ray, self, isec);
     }
 
-    pub fn visibility(self: *Worker, ray: Ray, v: *Vec4f) bool {
-        return self.scene.visibility(ray, self, v);
+    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter, v: *Vec4f) bool {
+        return self.scene.visibility(ray, filter, self, v);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, isec: *Intersection) bool {
+    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
         if (!self.intersect(ray, isec)) {
             return false;
         }
 
-        return self.resolveMask(ray, isec);
+        return self.resolveMask(ray, filter, isec);
     }
 
-    fn resolveMask(self: *Worker, ray: *Ray, isec: *Intersection) bool {
+    fn resolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
         const start_min_t = ray.ray.minT();
 
-        var o = isec.opacity(self.*);
+        var o = isec.opacity(filter, self.*);
 
         while (o < 1.0) // : (o = isec.opacity(self.*))
         {
@@ -60,7 +61,7 @@ pub const Worker = struct {
                 return false;
             }
 
-            o = isec.opacity(self.*);
+            o = isec.opacity(filter, self.*);
         }
 
         ray.ray.setMinT(start_min_t);

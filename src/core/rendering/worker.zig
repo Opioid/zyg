@@ -5,6 +5,7 @@ const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Scene_worker = @import("../scene/worker.zig").Worker;
+const Filter = @import("../image/texture/sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 
 const math = @import("base").math;
@@ -98,7 +99,7 @@ pub const Worker = struct {
 
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
-        if (self.super.intersectAndResolveMask(ray, &isec)) {
+        if (self.super.intersectAndResolveMask(ray, null, &isec)) {
             return self.surface_integrator.li(ray, &isec, self);
         }
 
