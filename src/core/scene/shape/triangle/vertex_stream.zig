@@ -58,7 +58,7 @@ pub const VertexStream = union(enum) {
         return switch (self) {
             .Json => |v| v.uvs[i],
             .Separate => |v| v.uvs[i],
-            .Compact => Vec2f.init1(0.0),
+            .Compact => @splat(2, @as(f32, 0.0)),
         };
     }
 

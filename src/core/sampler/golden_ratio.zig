@@ -61,7 +61,7 @@ pub const GoldenRatio = struct {
         const end = begin + num_samples;
 
         var slice = self.samples_2D[begin..end];
-        const r = Vec2f.init2(rng.randomFloat(), rng.randomFloat());
+        const r = Vec2f{ rng.randomFloat(), rng.randomFloat() };
         math.goldenRatio2D(slice, r);
 
         rnd.biasedShuffle(Vec2f, slice, rng);

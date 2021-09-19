@@ -24,7 +24,7 @@ pub const Plane = struct {
             isec.t = t;
             isec.b = b;
             isec.n = n;
-            isec.uv = Vec2f.init2(math.dot3(t, k), math.dot3(b, k));
+            isec.uv = Vec2f{ math.dot3(t, k), math.dot3(b, k) };
             isec.part = 0;
 
             ray.setMaxT(hit_t);
@@ -61,7 +61,7 @@ pub const Plane = struct {
         if (hit_t > ray.minT() and hit_t < ray.maxT()) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
-            const uv = Vec2f.init2(-math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k));
+            const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };
 
             return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
         }

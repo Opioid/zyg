@@ -18,10 +18,10 @@ pub const InfiniteSphere = struct {
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
-        isec.uv.v[0] = std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5;
-        isec.uv.v[1] = std.math.acos(xyz[1]) * math.pi_inv;
-
-        //  std.debug.print("{}\n", .{isec.uv});
+        isec.uv = Vec2f{
+            std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.acos(xyz[1]) * math.pi_inv,
+        };
 
         isec.p = ray.point(scn.Ray_max_t);
 

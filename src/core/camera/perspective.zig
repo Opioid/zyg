@@ -64,7 +64,7 @@ pub const Perspective = struct {
 
     pub fn update(self: *Perspective, worker: *Worker) void {
         const fr = self.resolution.toVec2f();
-        const ratio = fr.v[1] / fr.v[0];
+        const ratio = fr[1] / fr[0];
 
         const z = 1.0 / std.math.tan(0.5 * self.fov);
 
@@ -73,22 +73,22 @@ pub const Perspective = struct {
         const left_bottom = Vec4f{ -1.0, -ratio, z, 0.0 };
 
         self.left_top = left_top;
-        self.d_x = (right_top - left_top) / @splat(4, fr.v[0]);
-        self.d_y = (left_bottom - left_top) / @splat(4, fr.v[1]);
+        self.d_x = (right_top - left_top) / @splat(4, fr[0]);
+        self.d_y = (left_bottom - left_top) / @splat(4, fr[1]);
 
         self.updateFocus(worker);
     }
 
     pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
-        const coordinates = sample.pixel.toVec2f().add(sample.pixel_uv);
+        const coordinates = sample.pixel.toVec2f() + sample.pixel_uv;
 
-        var direction = self.left_top + self.d_x * @splat(4, coordinates.v[0]) + self.d_y * @splat(4, coordinates.v[1]);
+        var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
         var origin: Vec4f = undefined;
 
         if (self.lens_radius > 0.0) {
-            const lens = math.smpl.diskConcentric(sample.lens_uv).mulScalar(self.lens_radius);
+            const lens = math.smpl.diskConcentric(sample.lens_uv) * @splat(2, self.lens_radius);
 
-            origin = Vec4f{ lens.v[0], lens.v[1], 0.0, 0.0 };
+            origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
 
             const t = @splat(4, self.focus_distance / direction[2]);
             const focus = t * direction;

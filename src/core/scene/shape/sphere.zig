@@ -38,7 +38,7 @@ pub const Sphere = struct {
 
         isec.t = t;
         isec.b = -math.cross3(t, n);
-        isec.uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
+        isec.uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
     }
 
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
@@ -116,7 +116,7 @@ pub const Sphere = struct {
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
                 const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
-                const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
+                const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
                 return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
             }
@@ -128,7 +128,7 @@ pub const Sphere = struct {
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
                 const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
-                const uv = Vec2f.init2(phi * (0.5 * math.pi_inv), theta * math.pi_inv);
+                const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
                 return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
             }

@@ -84,8 +84,8 @@ pub fn Filtered_1p0(comptime T: type) type {
             const x = offset.v[0] + sample.pixel.v[0];
             const y = offset.v[1] + sample.pixel.v[1];
 
-            const ox = sample.pixel_uv.v[0] - 0.5;
-            const oy = sample.pixel_uv.v[1] - 0.5;
+            const ox = sample.pixel_uv[0] - 0.5;
+            const oy = sample.pixel_uv[1] - 0.5;
 
             const wx0 = self.base.eval(ox + 1.0);
             const wx1 = self.base.eval(ox);
@@ -129,8 +129,8 @@ pub fn Filtered_2p0(comptime T: type) type {
             const x = offset.v[0] + sample.pixel.v[0];
             const y = offset.v[1] + sample.pixel.v[1];
 
-            const ox = sample.pixel_uv.v[0] - 0.5;
-            const oy = sample.pixel_uv.v[1] - 0.5;
+            const ox = sample.pixel_uv[0] - 0.5;
+            const oy = sample.pixel_uv[1] - 0.5;
 
             const wx0 = self.base.eval(ox + 2.0);
             const wx1 = self.base.eval(ox + 1.0);

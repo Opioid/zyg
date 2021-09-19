@@ -61,7 +61,7 @@ pub const Texture = struct {
                 const value = image.Byte2.get2D(x, y);
                 return enc.cachedSnormToFloat2(value);
             },
-            else => Vec2f.init1(0.0),
+            else => @splat(2, @as(f32, 0.0)),
         };
     }
 
@@ -79,10 +79,10 @@ pub const Texture = struct {
                 };
             },
             else => .{
-                Vec2f.init1(0.0),
-                Vec2f.init1(0.0),
-                Vec2f.init1(0.0),
-                Vec2f.init1(0.0),
+                @splat(2, @as(f32, 0.0)),
+                @splat(2, @as(f32, 0.0)),
+                @splat(2, @as(f32, 0.0)),
+                @splat(2, @as(f32, 0.0)),
             },
         };
     }

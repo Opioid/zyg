@@ -40,8 +40,7 @@ pub const Rectangle = struct {
             isec.b = b;
             isec.n = normal;
             isec.geo_n = normal;
-            isec.uv.v[0] = 0.5 * (u + 1.0);
-            isec.uv.v[1] = 0.5 * (v + 1.0);
+            isec.uv = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
             isec.part = 0;
 
             ray.setMaxT(hit_t);
@@ -114,7 +113,7 @@ pub const Rectangle = struct {
                 return true;
             }
 
-            const uv = Vec2f.init2(0.5 * (u + 1.0), 0.5 * (v + 1.0));
+            const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
             return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
         }
 

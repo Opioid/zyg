@@ -17,12 +17,12 @@ pub fn goldenRatio1D(samples: []f32, r: f32) void {
 
 pub fn goldenRatio2D(samples: []Vec2f, r: Vec2f) void {
     // set the initial first coordinate
-    var x = r.v[0];
+    var x = r[0];
     var min = x;
     var idx: u32 = 0;
     // set the first coordinates
     for (samples) |*s, i| {
-        s.*.v[1] = x;
+        s.*[1] = x;
         // keep the minimum
         if (x < min) {
             min = x;
@@ -55,7 +55,7 @@ pub fn goldenRatio2D(samples: []Vec2f, r: Vec2f) void {
     }
 
     // permute the first coordinates
-    samples[0].v[0] = samples[idx].v[1];
+    samples[0][0] = samples[idx][1];
     var i: u32 = 1;
     while (i < samples.len) : (i += 1) {
         if (idx < dec) {
@@ -66,14 +66,14 @@ pub fn goldenRatio2D(samples: []Vec2f, r: Vec2f) void {
         } else {
             idx -= dec;
         }
-        samples[i].v[0] = samples[idx].v[1];
+        samples[i][0] = samples[idx][1];
     }
 
     // set the initial second coordinate
-    var y = r.v[1];
+    var y = r[1];
     // set the second coordinates
     for (samples) |*s| {
-        s.*.v[1] = y;
+        s.*[1] = y;
 
         // increment the coordinate
         y += 0.618033988749894;

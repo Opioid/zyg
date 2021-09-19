@@ -71,14 +71,14 @@ const Nearest2D = struct {
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
         const df = d.toVec2f();
 
-        const u = adr.u.f(uv.v[0]);
-        const v = adr.v.f(uv.v[1]);
+        const u = adr.u.f(uv[0]);
+        const v = adr.v.f(uv[1]);
 
         const b = d.subScalar(1);
 
         return Vec2i.init2(
-            std.math.min(@floatToInt(i32, u * df.v[0]), b.v[0]),
-            std.math.min(@floatToInt(i32, v * df.v[1]), b.v[1]),
+            std.math.min(@floatToInt(i32, u * df[0]), b.v[0]),
+            std.math.min(@floatToInt(i32, v * df[1]), b.v[1]),
         );
     }
 };
@@ -92,26 +92,26 @@ const Linear2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) f32 {
         const m = map(texture.description(scene).dimensions.xy(), uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
-        return bilinear1(c, m.w.v[0], m.w.v[1]);
+        return bilinear1(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
         const m = map(texture.description(scene).dimensions.xy(), uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
-        return bilinear2(c, m.w.v[0], m.w.v[1]);
+        return bilinear2(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec4f {
         const m = map(texture.description(scene).dimensions.xy(), uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
-        return bilinear3(c, m.w.v[0], m.w.v[1]);
+        return bilinear3(c, m.w[0], m.w[1]);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
         const df = d.toVec2f();
 
-        const u = adr.u.f(uv.v[0]) * df.v[0] - 0.5;
-        const v = adr.v.f(uv.v[1]) * df.v[1] - 0.5;
+        const u = adr.u.f(uv[0]) * df[0] - 0.5;
+        const v = adr.v.f(uv[1]) * df[1] - 0.5;
 
         const fu = std.math.floor(u);
         const fv = std.math.floor(v);
@@ -122,7 +122,7 @@ const Linear2D = struct {
         const b = d.subScalar(1);
 
         return .{
-            .w = Vec2f.init2(u - fu, v - fv),
+            .w = .{ u - fu, v - fv },
             .xy_xy1 = Vec4i.init4(
                 adr.u.lowerBound(x, b.v[0]),
                 adr.v.lowerBound(y, b.v[1]),
@@ -140,10 +140,13 @@ const Linear2D = struct {
     }
 
     fn bilinear2(c: [4]Vec2f, s: f32, t: f32) Vec2f {
-        const _s = 1.0 - s;
-        const _t = 1.0 - t;
+        const vs = @splat(2, s);
+        const vt = @splat(2, t);
 
-        return (c[0].mulScalar(_s).add(c[1].mulScalar(s))).mulScalar(_t).add((c[2].mulScalar(_s).add(c[3].mulScalar(s))).mulScalar(t));
+        const _s = @splat(2, @as(f32, 1.0)) - vs;
+        const _t = @splat(2, @as(f32, 1.0)) - vt;
+
+        return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
     }
 
     fn bilinear3(c: [4]Vec4f, s: f32, t: f32) Vec4f {

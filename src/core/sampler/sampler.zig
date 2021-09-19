@@ -29,7 +29,7 @@ pub const Sampler = union(enum) {
 
     pub fn sample2D(self: *Sampler, rng: *RNG, dimension: u32) Vec2f {
         return switch (self.*) {
-            .Random => Vec2f.init2(rng.randomFloat(), rng.randomFloat()),
+            .Random => .{ rng.randomFloat(), rng.randomFloat() },
             .GoldenRatio => |*gr| gr.sample2D(rng, dimension),
         };
     }

@@ -236,10 +236,10 @@ pub const Provider = struct {
                         try handler.uvs.resize(alloc, num_uvs);
 
                         for (handler.uvs.items) |*uv, i| {
-                            uv.* = Vec2f.init2(
+                            uv.* = .{
                                 json.readFloat(uvs[i * 2 + 0]),
                                 json.readFloat(uvs[i * 2 + 1]),
-                            );
+                            };
                         }
                     }
                 }

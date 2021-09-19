@@ -20,8 +20,8 @@ pub const TileQueue = struct {
         const dim = crop.zw().sub(crop.xy()).toVec2f();
         const tdf = @intToFloat(f32, tile_dimensions);
 
-        const tiles_per_row = @floatToInt(i32, @ceil(dim.v[0] / tdf));
-        const tiles_per_col = @floatToInt(i32, @ceil(dim.v[1] / tdf));
+        const tiles_per_row = @floatToInt(i32, @ceil(dim[0] / tdf));
+        const tiles_per_col = @floatToInt(i32, @ceil(dim[1] / tdf));
 
         self.tiles_per_row = tiles_per_row;
         self.num_tiles = tiles_per_row * tiles_per_col;

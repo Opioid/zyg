@@ -51,8 +51,8 @@ pub fn Vec2(comptime T: type) type {
             return a.v[0] * b.v[0] + a.v[1] * b.v[1];
         }
 
-        pub fn toVec2f(v: Vec2(i32)) Vec2(f32) {
-            return Vec2(f32).init2(@intToFloat(f32, v.v[0]), @intToFloat(f32, v.v[1]));
+        pub fn toVec2f(v: Vec2(i32)) Vec2f {
+            return .{ @intToFloat(f32, v.v[0]), @intToFloat(f32, v.v[1]) };
         }
 
         pub fn min(a: Vec2(T), b: Vec2(T)) Vec2(T) {
@@ -63,4 +63,9 @@ pub fn Vec2(comptime T: type) type {
 
 pub const Vec2b = Vec2(u8);
 pub const Vec2i = Vec2(i32);
-pub const Vec2f = Vec2(f32);
+
+pub const Vec2f = std.meta.Vector(2, f32);
+
+pub fn dot2(a: Vec2f, b: Vec2f) f32 {
+    return a[0] * b[0] + a[1] * b[1];
+}
