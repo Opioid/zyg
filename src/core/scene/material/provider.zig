@@ -177,12 +177,16 @@ pub const Provider = struct {
 
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.0)));
+        var roughness = MappedValue(f32).init(0.8);
+        var rotation = MappedValue(f32).init(0.0);
 
         var mask = Texture{};
         var normal_map = Texture{};
 
         var two_sided = false;
 
+        var metallic: f32 = 0.0;
+        var anisotropy: f32 = 0.0;
         var emission_factor: f32 = 1.0;
 
         var iter = value.Object.iterator();
@@ -195,6 +199,14 @@ pub const Provider = struct {
                 normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
                 emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
+            } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
+                roughness.read(alloc, entry.value_ptr.*, TexUsage.Roughness, self.tex, resources);
+            } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
+                rotation.read(alloc, entry.value_ptr.*, TexUsage.Roughness, self.tex, resources);
+            } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
+                anisotropy = json.readFloat(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
+                metallic = json.readFloat(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
@@ -215,6 +227,9 @@ pub const Provider = struct {
         material.super.emission = emission.value;
 
         material.emission_factor = emission_factor;
+        material.setRoughness(roughness.value, anisotropy);
+        material.rotation = rotation.value;
+        material.metallic = metallic;
 
         return Material{ .Substitute = material };
     }
@@ -347,7 +362,19 @@ fn MappedValue(comptime Value: type) type {
                     },
                     else => self.value = readColor(value),
                 }
-            } else unreachable;
+            } else {
+                switch (value) {
+                    .Object => {
+                        var desc = TextureDescription.init(alloc, value) catch return;
+                        defer desc.deinit(alloc);
+
+                        self.texture = createTexture(alloc, desc, usage, tex, resources);
+
+                        self.value = json.readFloatMember(value, "value", self.value);
+                    },
+                    else => self.value = json.readFloat(value),
+                }
+            }
         }
     };
 }

@@ -146,7 +146,7 @@ pub const Reader = struct {
         var num_channels: u32 = undefined;
         var swap_xy = false;
         switch (swizzle) {
-            .W => {
+            .X, .W => {
                 num_channels = 1;
             },
             .XY => {
@@ -155,7 +155,7 @@ pub const Reader = struct {
             .XYZ => {
                 num_channels = 3;
             },
-            else => {
+            .Undefined => {
                 num_channels = 3;
             },
         }

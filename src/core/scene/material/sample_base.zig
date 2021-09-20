@@ -1,6 +1,7 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const hlp = @import("sample_helper.zig");
 const math = @import("base").math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Layer = struct {
@@ -29,6 +30,21 @@ pub const Layer = struct {
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {
         return hlp.clampDot(self.n, v);
     }
+
+    pub fn clampAbsNdot(self: Layer, v: Vec4f) f32 {
+        return hlp.clampAbsDot(self.n, v);
+    }
+
+    pub fn rotateTangenFrame(self: *Layer, a: f32) void {
+        const t = self.t;
+        const b = self.b;
+
+        const sin_a = @splat(4, @sin(a));
+        const cos_a = @splat(4, @cos(a));
+
+        self.t = cos_a * t + sin_a * b;
+        self.b = -sin_a * t + cos_a * b;
+    }
 };
 
 pub const SampleBase = struct {
@@ -40,9 +56,17 @@ pub const SampleBase = struct {
     albedo: Vec4f,
     radiance: Vec4f,
 
+    alpha: Vec2f,
+
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) SampleBase {
+    pub fn init(
+        rs: Renderstate,
+        wo: Vec4f,
+        albedo: Vec4f,
+        radiance: Vec4f,
+        alpha: Vec2f,
+    ) SampleBase {
         return .{
             .layer = .{ .t = rs.t, .b = rs.b, .n = rs.n },
             .geo_n = rs.geo_n,
@@ -50,10 +74,18 @@ pub const SampleBase = struct {
             .wo = wo,
             .albedo = albedo,
             .radiance = radiance,
+            .alpha = alpha,
         };
     }
 
-    pub fn initN(rs: Renderstate, shading_n: Vec4f, wo: Vec4f, albedo: Vec4f, radiance: Vec4f) SampleBase {
+    pub fn initN(
+        rs: Renderstate,
+        shading_n: Vec4f,
+        wo: Vec4f,
+        albedo: Vec4f,
+        radiance: Vec4f,
+        alpha: Vec2f,
+    ) SampleBase {
         const tb = math.orthonormalBasis3(shading_n);
 
         return .{
@@ -63,6 +95,7 @@ pub const SampleBase = struct {
             .wo = wo,
             .albedo = albedo,
             .radiance = radiance,
+            .alpha = alpha,
         };
     }
 

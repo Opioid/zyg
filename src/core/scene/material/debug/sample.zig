@@ -11,7 +11,13 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
-        return .{ .super = Base.init(rs, wo, albedo, @splat(4, @as(f32, 0.0))) };
+        return .{ .super = Base.init(
+            rs,
+            wo,
+            albedo,
+            @splat(4, @as(f32, 0.0)),
+            @splat(2, @as(f32, 1.0)),
+        ) };
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
@@ -26,6 +32,13 @@ pub const Sample = struct {
 
         const reflection = @splat(4, pdf) * self.super.albedo;
 
-        return .{ .reflection = reflection, .wi = wi, .pdf = pdf };
+        return .{
+            .reflection = reflection,
+            .wi = wi,
+            .h = undefined,
+            .pdf = pdf,
+            .h_dot_wi = undefined,
+            .typef = undefined,
+        };
     }
 };

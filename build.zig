@@ -60,9 +60,9 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
             //"takes/bistro_day.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/imrod.take",
-            "takes/model_test.take",
+            //"takes/model_test.take",
             "-t",
             "16",
             //"--no-tex",

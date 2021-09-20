@@ -15,7 +15,7 @@ pub const Float4 = ti.Typed_image(Pack4f);
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Swizzle = enum { Undefined, W, XY, XYZ };
+pub const Swizzle = enum { Undefined, X, W, XY, XYZ };
 
 pub const Image = union(enum) {
     Byte1: Byte1,

@@ -11,7 +11,7 @@ const Error = error{
     UnsupportedImageType,
 };
 
-pub const Usage = enum { Color, Normal, Mask };
+pub const Usage = enum { Color, Normal, Roughness, Mask };
 
 pub const Provider = struct {
     pub fn loadFile(
@@ -29,6 +29,9 @@ pub const Provider = struct {
             },
             .Normal => {
                 swizzle = .XY;
+            },
+            .Roughness => {
+                swizzle = .X;
             },
             .Mask => {
                 swizzle = .W;

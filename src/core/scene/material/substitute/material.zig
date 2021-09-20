@@ -1,11 +1,13 @@
 const Base = @import("../material_base.zig").Base;
 const hlp = @import("../material_helper.zig");
+const ggx = @import("../ggx.zig");
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const math = @import("base").math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 //const std = @import("std");
@@ -18,6 +20,11 @@ pub const Material = struct {
 
     color: Vec4f = undefined,
 
+    alpha: Vec2f = undefined,
+
+    anisotropy: f32 = undefined,
+    rotation: f32 = undefined,
+    metallic: f32 = undefined,
     emission_factor: f32 = undefined,
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
@@ -26,6 +33,19 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.Emission_map, self.emission_map.isValid());
+    }
+
+    pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {
+        const r = ggx.clampRoughness(roughness);
+
+        if (anisotropy > 0.0) {
+            const rv = ggx.clampRoughness(roughness * (1.0 - anisotropy));
+            self.alpha = .{ r * r, rv * rv };
+        } else {
+            self.alpha = @splat(2, r * r);
+        }
+
+        self.anisotropy = anisotropy;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
@@ -46,11 +66,15 @@ pub const Material = struct {
             worker.scene,
         ) else ef * self.super.emission;
 
-        if (self.normal_map.isValid()) {
+        var result = if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene);
-            return Sample.initN(rs, n, wo, color, radiance);
+            return Sample.initN(rs, n, wo, color, radiance, self.alpha, self.metallic);
+        } else Sample.init(rs, wo, color, radiance, self.alpha, self.metallic);
+
+        if (self.rotation > 0.0) {
+            result.super.layer.rotateTangenFrame(self.rotation);
         }
 
-        return Sample.init(rs, wo, color, radiance);
+        return result;
     }
 };

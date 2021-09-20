@@ -11,13 +11,26 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f) Sample {
-        return .{ .super = Base.init(rs, wo, @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 0.0))) };
+        return .{ .super = Base.init(
+            rs,
+            wo,
+            @splat(4, @as(f32, 1.0)),
+            @splat(4, @as(f32, 0.0)),
+            @splat(2, @as(f32, 1.0)),
+        ) };
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         _ = self;
         _ = sampler;
         _ = rng;
-        return .{ .reflection = undefined, .wi = undefined, .pdf = 0.0 };
+        return .{
+            .reflection = undefined,
+            .wi = undefined,
+            .h = undefined,
+            .pdf = 0.0,
+            .h_dot_wi = undefined,
+            .typef = undefined,
+        };
     }
 };
