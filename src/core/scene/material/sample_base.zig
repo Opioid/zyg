@@ -27,12 +27,27 @@ pub const Layer = struct {
         return result + temp;
     }
 
+    pub fn worldToTangent(self: Layer, v: Vec4f) Vec4f {
+        return .{
+            v[0] * self.t[0] + v[1] * self.t[1] + v[2] * self.t[2],
+            v[0] * self.b[0] + v[1] * self.b[1] + v[2] * self.b[2],
+            v[0] * self.n[0] + v[1] * self.n[1] + v[2] * self.n[2],
+            0.0,
+        };
+    }
+
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {
         return hlp.clampDot(self.n, v);
     }
 
     pub fn clampAbsNdot(self: Layer, v: Vec4f) f32 {
         return hlp.clampAbsDot(self.n, v);
+    }
+
+    pub fn setTangentFrame(self: *Layer, t: Vec4f, b: Vec4f, n: Vec4f) void {
+        self.t = t;
+        self.b = b;
+        self.n = n;
     }
 
     pub fn rotateTangenFrame(self: *Layer, a: f32) void {
@@ -48,7 +63,7 @@ pub const Layer = struct {
 };
 
 pub const SampleBase = struct {
-    layer: Layer,
+    layer: Layer = undefined,
 
     geo_n: Vec4f,
     n: Vec4f,
@@ -68,28 +83,6 @@ pub const SampleBase = struct {
         alpha: Vec2f,
     ) SampleBase {
         return .{
-            .layer = .{ .t = rs.t, .b = rs.b, .n = rs.n },
-            .geo_n = rs.geo_n,
-            .n = rs.n,
-            .wo = wo,
-            .albedo = albedo,
-            .radiance = radiance,
-            .alpha = alpha,
-        };
-    }
-
-    pub fn initN(
-        rs: Renderstate,
-        shading_n: Vec4f,
-        wo: Vec4f,
-        albedo: Vec4f,
-        radiance: Vec4f,
-        alpha: Vec2f,
-    ) SampleBase {
-        const tb = math.orthonormalBasis3(shading_n);
-
-        return .{
-            .layer = .{ .t = tb[0], .b = tb[1], .n = shading_n },
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,

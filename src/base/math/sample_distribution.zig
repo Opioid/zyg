@@ -10,7 +10,7 @@ pub fn goldenRatio1D(samples: []f32, r: f32) void {
         // increment the coordinate
         x += 0.618033988749894;
         if (x >= 1.0) {
-            --x;
+            x -= 1.0;
         }
     }
 }

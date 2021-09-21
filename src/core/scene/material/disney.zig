@@ -7,6 +7,20 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Iso = struct {
+    pub fn reflection(
+        h_dot_wi: f32,
+        n_dot_wi: f32,
+        n_dot_wo: f32,
+        alpha: f32,
+        color: Vec4f,
+    ) bxdf.Result {
+        const refl = evaluate(h_dot_wi, n_dot_wi, n_dot_wo, alpha, color);
+
+        const pdf = n_dot_wi * math.pi_inv;
+
+        return bxdf.Result.init(refl, pdf);
+    }
+
     pub fn reflect(
         wo: Vec4f,
         n_dot_wo: f32,

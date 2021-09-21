@@ -27,6 +27,13 @@ pub const Sampler = union(enum) {
         }
     }
 
+    pub fn sample1D(self: *Sampler, rng: *RNG, dimension: u32) f32 {
+        return switch (self.*) {
+            .Random => rng.randomFloat(),
+            .GoldenRatio => |*gr| gr.sample1D(rng, dimension),
+        };
+    }
+
     pub fn sample2D(self: *Sampler, rng: *RNG, dimension: u32) Vec2f {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat() },

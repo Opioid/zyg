@@ -11,7 +11,9 @@ pub const smpl = @import("sampling.zig");
 pub usingnamespace @import("transformation.zig");
 pub usingnamespace @import("vector2.zig");
 pub usingnamespace @import("vector3.zig");
-pub usingnamespace @import("vector4.zig");
+const vec4 = @import("vector4.zig");
+//const Vec4f = vec4.Vec4f;
+pub usingnamespace vec4;
 
 const std = @import("std");
 
@@ -21,9 +23,18 @@ pub fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
     return degrees * (std.math.pi / 180.0);
 }
 
+pub fn saturate(x: f32) f32 {
+    return std.math.clamp(x, 0.0, 1.0);
+}
+
 pub fn lerp(a: f32, b: f32, t: f32) f32 {
     const u = 1.0 - t;
     return u * a + t * b;
+}
+
+pub fn lerp3(a: vec4.Vec4f, b: vec4.Vec4f, t: f32) vec4.Vec4f {
+    const u = @splat(4, 1.0 - t);
+    return u * a + @splat(4, t) * b;
 }
 
 pub fn frac(x: f32) f32 {

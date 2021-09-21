@@ -1,6 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
+const fresnel = @import("../fresnel.zig");
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
@@ -66,10 +67,24 @@ pub const Material = struct {
             worker.scene,
         ) else ef * self.super.emission;
 
-        var result = if (self.normal_map.isValid()) {
+        var result = Sample.init(
+            rs,
+            wo,
+            color,
+            radiance,
+            self.alpha,
+            fresnel.Schlick.F0(self.super.ior, 1.0),
+            self.metallic,
+        );
+
+        if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene);
-            return Sample.initN(rs, n, wo, color, radiance, self.alpha, self.metallic);
-        } else Sample.init(rs, wo, color, radiance, self.alpha, self.metallic);
+            const tb = math.orthonormalBasis3(n);
+
+            result.super.layer.setTangentFrame(tb[0], tb[1], n);
+        } else {
+            result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        }
 
         if (self.rotation > 0.0) {
             result.super.layer.rotateTangenFrame(self.rotation);

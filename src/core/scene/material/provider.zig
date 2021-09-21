@@ -186,6 +186,7 @@ pub const Provider = struct {
         var two_sided = false;
 
         var metallic: f32 = 0.0;
+        var ior: f32 = 1.46;
         var anisotropy: f32 = 0.0;
         var emission_factor: f32 = 1.0;
 
@@ -207,6 +208,8 @@ pub const Provider = struct {
                 anisotropy = json.readFloat(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
                 metallic = json.readFloat(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
+                ior = json.readFloat(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
@@ -229,6 +232,7 @@ pub const Provider = struct {
         material.emission_factor = emission_factor;
         material.setRoughness(roughness.value, anisotropy);
         material.rotation = rotation.value;
+        material.super.ior = ior;
         material.metallic = metallic;
 
         return Material{ .Substitute = material };

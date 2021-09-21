@@ -3,6 +3,22 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 const Flags = base.flags.Flags;
 
+pub const Result = struct {
+    reflection: Vec4f,
+
+    pub fn init(reflection: Vec4f, p: f32) Result {
+        return .{ .reflection = .{ reflection[0], reflection[1], reflection[2], p } };
+    }
+
+    pub fn pdf(self: Result) f32 {
+        return self.reflection[3];
+    }
+
+    pub fn setPdf(self: *Result, p: f32) void {
+        self.reflection[3] = p;
+    }
+};
+
 pub const Type = enum(u32) {
     Reflection = 1 << 0,
     Transmission = 1 << 1,

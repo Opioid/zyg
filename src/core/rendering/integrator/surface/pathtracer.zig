@@ -26,17 +26,14 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        _ = alloc;
-        _ = max_samples_per_pixel;
-
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return Pathtracer{
             .settings = settings,
             .samplers = .{
-                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try sampler.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
                 .{ .Random = .{} },
             },
         };

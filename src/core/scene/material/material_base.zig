@@ -21,6 +21,8 @@ pub const Base = struct {
 
     emission: Vec4f = undefined,
 
+    ior: f32 = undefined,
+
     pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
         return .{
             .properties = Flags(Property).init1(if (two_sided) .Two_sided else .None),

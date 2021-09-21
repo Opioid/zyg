@@ -42,6 +42,19 @@ pub const GoldenRatio = struct {
         }
     }
 
+    pub fn sample1D(self: *Self, rng: *RNG, dimension: u32) f32 {
+        var cs = &self.current_samples[dimension];
+
+        const current = cs.*;
+        cs.* += 1;
+
+        if (0 == current) {
+            self.generate1D(rng, dimension);
+        }
+
+        return self.samples_1D[dimension * self.num_samples + current];
+    }
+
     pub fn sample2D(self: *Self, rng: *RNG, dimension: u32) Vec2f {
         var cs = &self.current_samples[self.num_dimensions_1D + dimension];
 
@@ -53,6 +66,18 @@ pub const GoldenRatio = struct {
         }
 
         return self.samples_2D[dimension * self.num_samples + current];
+    }
+
+    fn generate1D(self: *Self, rng: *RNG, dimension: u32) void {
+        const num_samples = self.num_samples;
+        const begin = dimension * num_samples;
+        const end = begin + num_samples;
+
+        var slice = self.samples_1D[begin..end];
+        const r = rng.randomFloat();
+        math.goldenRatio1D(slice, r);
+
+        rnd.biasedShuffle(f32, slice, rng);
     }
 
     fn generate2D(self: *Self, rng: *RNG, dimension: u32) void {

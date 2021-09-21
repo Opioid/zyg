@@ -3,6 +3,8 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const disney = @import("../disney.zig");
+const fresnel = @import("../fresnel.zig");
+const ggx = @import("../ggx.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -12,6 +14,9 @@ const RNG = base.rnd.Generator;
 pub const Sample = struct {
     super: Base,
 
+    albedo: Vec4f,
+    f0: Vec4f,
+
     metallic: f32,
 
     pub fn init(
@@ -20,25 +25,13 @@ pub const Sample = struct {
         albedo: Vec4f,
         radiance: Vec4f,
         alpha: Vec2f,
+        f0: f32,
         metallic: f32,
     ) Sample {
         return .{
             .super = Base.init(rs, wo, albedo, radiance, alpha),
-            .metallic = metallic,
-        };
-    }
-
-    pub fn initN(
-        rs: Renderstate,
-        shading_n: Vec4f,
-        wo: Vec4f,
-        albedo: Vec4f,
-        radiance: Vec4f,
-        alpha: Vec2f,
-        metallic: f32,
-    ) Sample {
-        return .{
-            .super = Base.initN(rs, shading_n, wo, albedo, radiance, alpha),
+            .albedo = @splat(4, 1.0 - metallic) * albedo,
+            .f0 = math.lerp3(@splat(4, f0), albedo, metallic),
             .metallic = metallic,
         };
     }
@@ -58,13 +51,27 @@ pub const Sample = struct {
         // return .{ .reflection = reflection, .wi = wi, .pdf = pdf };
 
         var result = bxdf.Sample{};
-        self.diffuseSample(sampler, rng, &result);
+
+        if (1.0 == self.metallic) {
+            self.pureGlossSample(sampler, rng, &result);
+        } else {
+            const p = sampler.sample1D(rng, 0);
+
+            if (p < 0.5) {
+                self.diffuseSample(sampler, rng, &result);
+            } else {
+                self.glossSample(sampler, rng, &result);
+            }
+        }
+
         return result;
     }
 
     fn diffuseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
         const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+
         const xi = sampler.sample2D(rng, 0);
+
         const n_dot_wi = disney.Iso.reflect(
             self.super.wo,
             n_dot_wo,
@@ -75,6 +82,70 @@ pub const Sample = struct {
             result,
         );
 
-        result.reflection = @splat(4, n_dot_wi) * result.reflection;
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        var gg = ggx.Aniso.reflection(
+            result.wi,
+            self.super.wo,
+            result.h,
+            n_dot_wi,
+            n_dot_wo,
+            result.h_dot_wi,
+            self.super.alpha,
+            schlick,
+            self.super.layer,
+        );
+
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection);
+        result.pdf = 0.5 * (result.pdf + gg.pdf());
+    }
+
+    fn glossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        const xi = sampler.sample2D(rng, 0);
+
+        const n_dot_wi = ggx.Aniso.reflect(
+            self.super.wo,
+            n_dot_wo,
+            self.super.alpha,
+            xi,
+            schlick,
+            self.super.layer,
+            result,
+        );
+
+        const d = disney.Iso.reflection(
+            result.h_dot_wi,
+            n_dot_wi,
+            n_dot_wo,
+            self.super.alpha[0],
+            self.super.albedo,
+        );
+
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + d.reflection);
+        result.pdf = 0.5 * (result.pdf + d.pdf());
+    }
+
+    fn pureGlossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        const xi = sampler.sample2D(rng, 0);
+
+        const n_dot_wi = ggx.Aniso.reflect(
+            self.super.wo,
+            n_dot_wo,
+            self.super.alpha,
+            xi,
+            schlick,
+            self.super.layer,
+            result,
+        );
+
+        result.reflection *= @splat(4, n_dot_wi);
     }
 };
