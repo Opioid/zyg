@@ -9,7 +9,7 @@ pub const Description = struct {
     dimensions: Vec3i = Vec3i.init1(0),
 
     pub fn init2D(dim: Vec2i) Description {
-        return .{ .dimensions = Vec3i.init2_1(dim, 1) };
+        return .{ .dimensions = Vec3i.init3(dim[0], dim[1], 1) };
     }
 
     pub fn numPixels(self: Description) u64 {

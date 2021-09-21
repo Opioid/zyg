@@ -32,7 +32,7 @@ pub const Reader = struct {
 
         const header = try readHeader(stream);
 
-        const dimensions = Vec2i.init2(@intCast(i32, header.width), @intCast(i32, header.height));
+        const dimensions = Vec2i{ @intCast(i32, header.width), @intCast(i32, header.height) };
 
         var image = try img.Half3.init(alloc, img.Description.init2D(dimensions));
 

@@ -11,7 +11,7 @@ pub fn Unfiltered(comptime T: type) type {
         const Self = @This();
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) void {
-            const pixel = sample.pixel.add(offset);
+            const pixel = sample.pixel + offset;
 
             self.sensor.addPixel(pixel, color, 1.0);
         }

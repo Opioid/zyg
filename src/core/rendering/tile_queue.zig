@@ -17,7 +17,9 @@ pub const TileQueue = struct {
         self.tile_dimensions = tile_dimensions;
         self.filter_radius = filter_radius;
 
-        const dim = crop.zw().sub(crop.xy()).toVec2f();
+        const xy = Vec2i{ crop.v[0], crop.v[1] };
+        const zw = Vec2i{ crop.v[2], crop.v[3] };
+        const dim = math.vec2iTo2f(zw - xy);
         const tdf = @intToFloat(f32, tile_dimensions);
 
         const tiles_per_row = @floatToInt(i32, @ceil(dim[0] / tdf));
@@ -48,30 +50,31 @@ pub const TileQueue = struct {
         const filter_radius = self.filter_radius;
 
         var start: Vec2i = undefined;
-        start.v[1] = @divTrunc(current, self.tiles_per_row);
-        start.v[0] = current - start.v[1] * self.tiles_per_row;
+        start[1] = @divTrunc(current, self.tiles_per_row);
+        start[0] = current - start[1] * self.tiles_per_row;
 
-        start.mulAssignScalar(tile_dimensions);
-        start.addAssign(crop.xy());
+        start *= @splat(2, tile_dimensions);
+        start += Vec2i{ crop.v[0], crop.v[1] };
 
-        var end = start.addScalar(tile_dimensions).min(crop.zw());
+        var end = math.min2(start + @splat(2, tile_dimensions), Vec2i{ crop.v[2], crop.v[3] });
 
-        if (crop.v[1] == start.v[1]) {
-            start.v[1] -= filter_radius;
+        if (crop.v[1] == start[1]) {
+            start[1] -= filter_radius;
         }
 
-        if (crop.v[3] == end.v[1]) {
-            end.v[1] += filter_radius;
+        if (crop.v[3] == end[1]) {
+            end[1] += filter_radius;
         }
 
-        if (crop.v[0] == start.v[0]) {
-            start.v[0] -= filter_radius;
+        if (crop.v[0] == start[0]) {
+            start[0] -= filter_radius;
         }
 
-        if (crop.v[2] == end.v[0]) {
-            end.v[0] += filter_radius;
+        if (crop.v[2] == end[0]) {
+            end[0] += filter_radius;
         }
 
-        return Vec4i.init2_2(start, end.subScalar(1));
+        const back = end - @splat(2, @as(i32, 1));
+        return Vec4i.init4(start[0], start[1], back[0], back[1]);
     }
 };

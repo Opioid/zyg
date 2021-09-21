@@ -22,7 +22,7 @@ pub const Transparent = struct {
     pub fn resize(self: *Transparent, alloc: *Allocator, dimensions: Vec2i) !void {
         self.base.dimensions = dimensions;
 
-        const len = @intCast(usize, dimensions.v[0] * dimensions.v[1]);
+        const len = @intCast(usize, dimensions[0] * dimensions[1]);
 
         if (len > self.pixels.len) {
             self.pixel_weights = try alloc.realloc(self.pixel_weights, len);
@@ -42,7 +42,7 @@ pub const Transparent = struct {
 
     pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
-        const i = @intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0]);
+        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
         self.pixel_weights[i] += weight;
 

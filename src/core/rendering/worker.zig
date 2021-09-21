@@ -48,15 +48,17 @@ pub const Worker = struct {
         const sensor = &camera.sensor;
         const scene = self.super.scene;
 
-        const offset = Vec2i.init1(0);
+        const offset = @splat(2, @as(i32, 0));
 
         var crop = camera.crop;
         crop.v[2] -= crop.v[0] + 1;
         crop.v[3] -= crop.v[1] + 1;
-        crop.v[0] += offset.v[0];
-        crop.v[1] += offset.v[1];
+        crop.v[0] += offset[0];
+        crop.v[1] += offset[1];
 
-        const view_tile = Vec4i.init2_2(offset.add(tile.xy()), offset.add(tile.zw()));
+        const xy = offset + Vec2i{ tile.v[0], tile.v[1] };
+        const zw = offset + Vec2i{ tile.v[2], tile.v[3] };
+        const view_tile = Vec4i.init4(xy[0], xy[1], zw[0], zw[1]);
 
         var isolated_bounds = sensor.isolatedTile(view_tile);
         isolated_bounds.v[2] -= isolated_bounds.v[0];
@@ -64,14 +66,14 @@ pub const Worker = struct {
 
         const fr = sensor.filterRadiusInt();
 
-        const r = camera.resolution.addScalar(2 * fr);
+        const r = camera.resolution + @splat(2, 2 * fr);
 
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
         const y_back = tile.v[3];
         var y: i32 = tile.v[1];
         while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, (y + fr) * r.v[0]) + o0;
+            const o1 = @intCast(u64, (y + fr) * r[0]) + o0;
             const x_back = tile.v[2];
             var x: i32 = tile.v[0];
             while (x <= x_back) : (x += 1) {
@@ -80,7 +82,7 @@ pub const Worker = struct {
                 self.sampler.startPixel();
                 self.surface_integrator.startPixel();
 
-                const pixel = Vec2i.init2(x, y);
+                const pixel = Vec2i{ x, y };
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {

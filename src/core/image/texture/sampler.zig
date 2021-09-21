@@ -54,32 +54,35 @@ pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: *const Scene) Ve
 
 const Nearest2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) f32 {
-        const xy = map(texture.description(scene).dimensions.xy(), uv, adr);
-        return texture.get2D_1(xy.v[0], xy.v[1], scene);
+        const d = texture.description(scene).dimensions;
+        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        return texture.get2D_1(xy[0], xy[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
-        const xy = map(texture.description(scene).dimensions.xy(), uv, adr);
-        return texture.get2D_2(xy.v[0], xy.v[1], scene);
+        const d = texture.description(scene).dimensions;
+        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        return texture.get2D_2(xy[0], xy[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec4f {
-        const xy = map(texture.description(scene).dimensions.xy(), uv, adr);
-        return texture.get2D_3(xy.v[0], xy.v[1], scene);
+        const d = texture.description(scene).dimensions;
+        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        return texture.get2D_3(xy[0], xy[1], scene);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
-        const df = d.toVec2f();
+        const df = math.vec2iTo2f(d);
 
         const u = adr.u.f(uv[0]);
         const v = adr.v.f(uv[1]);
 
-        const b = d.subScalar(1);
+        const b = d - @splat(2, @as(i32, 1));
 
-        return Vec2i.init2(
-            std.math.min(@floatToInt(i32, u * df[0]), b.v[0]),
-            std.math.min(@floatToInt(i32, v * df[1]), b.v[1]),
-        );
+        return .{
+            std.math.min(@floatToInt(i32, u * df[0]), b[0]),
+            std.math.min(@floatToInt(i32, v * df[1]), b[1]),
+        };
     }
 };
 
@@ -90,25 +93,28 @@ const Linear2D = struct {
     };
 
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) f32 {
-        const m = map(texture.description(scene).dimensions.xy(), uv, adr);
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
         return bilinear1(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
-        const m = map(texture.description(scene).dimensions.xy(), uv, adr);
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
         return bilinear2(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec4f {
-        const m = map(texture.description(scene).dimensions.xy(), uv, adr);
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
         return bilinear3(c, m.w[0], m.w[1]);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
-        const df = d.toVec2f();
+        const df = math.vec2iTo2f(d);
 
         const u = adr.u.f(uv[0]) * df[0] - 0.5;
         const v = adr.v.f(uv[1]) * df[1] - 0.5;
@@ -119,15 +125,15 @@ const Linear2D = struct {
         const x = @floatToInt(i32, fu);
         const y = @floatToInt(i32, fv);
 
-        const b = d.subScalar(1);
+        const b = d - @splat(2, @as(i32, 1));
 
         return .{
             .w = .{ u - fu, v - fv },
             .xy_xy1 = Vec4i.init4(
-                adr.u.lowerBound(x, b.v[0]),
-                adr.v.lowerBound(y, b.v[1]),
-                adr.u.increment(x, b.v[0]),
-                adr.v.increment(y, b.v[1]),
+                adr.u.lowerBound(x, b[0]),
+                adr.v.lowerBound(y, b[1]),
+                adr.u.increment(x, b[0]),
+                adr.v.increment(y, b[1]),
             ),
         };
     }

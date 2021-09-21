@@ -1,4 +1,5 @@
 const math = @import("math.zig");
+const Vec2f = math.Vec2f;
 
 const std = @import("std");
 
@@ -45,3 +46,20 @@ pub fn InterpolatedFunction_1D_N(comptime N: u32) type {
         }
     };
 }
+
+// pub fn InterpolatedFunction_2D_N(comptime X: u32, comptime Y: u32) type {
+//     samples: [X * Y]f32 = undefined,
+
+//     const Self = @This();
+
+//     return struct {
+
+//         pub fn eval(self: Self, x: f32, y: f32) f32 {
+//             const mx = std.math.min(x, 1.0);
+//             const my = std.math.min(y, 1.0);
+
+//             const o = Vec2f{x, y} - Vec2f{@intToFloat(f32, X - 1), @intToFloat(f32, Y - 1)};
+//         }
+//     };
+
+// }

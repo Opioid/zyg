@@ -20,7 +20,7 @@ pub const Opaque = struct {
     pub fn resize(self: *Opaque, alloc: *Allocator, dimensions: Vec2i) !void {
         self.base.dimensions = dimensions;
 
-        const len = @intCast(usize, dimensions.v[0] * dimensions.v[1]);
+        const len = @intCast(usize, dimensions[0] * dimensions[1]);
 
         if (len > self.pixels.len) {
             self.pixels = try alloc.realloc(self.pixels, len);
@@ -36,7 +36,7 @@ pub const Opaque = struct {
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
-        var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];
+        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
         const wc = @splat(4, weight) * color;
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
     }
@@ -44,7 +44,7 @@ pub const Opaque = struct {
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
-        var value = &self.pixels[@intCast(usize, d.v[0] * pixel.v[1] + pixel.v[0])];
+        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
 
         _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
         _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);

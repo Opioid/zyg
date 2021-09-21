@@ -164,7 +164,7 @@ pub const Reader = struct {
 
         num_channels = std.math.min(num_channels, info.num_channels);
 
-        const dimensions = Vec2i.init2(info.width, info.height);
+        const dimensions = Vec2i{ info.width, info.height };
 
         if (1 == num_channels) {
             var image = try img.Byte1.init(alloc, img.Description.init2D(dimensions));

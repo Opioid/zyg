@@ -26,7 +26,7 @@ pub const Perspective = struct {
 
     entity: u32 = prp.Null,
 
-    resolution: Vec2i = Vec2i.init1(0),
+    resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = Vec4i.init1(0),
 
     sensor: Sensor = undefined,
@@ -54,8 +54,8 @@ pub const Perspective = struct {
 
         self.crop.v[0] = std.math.max(0, crop.v[0]);
         self.crop.v[1] = std.math.max(0, crop.v[1]);
-        self.crop.v[2] = std.math.min(resolution.v[0], crop.v[2]);
-        self.crop.v[3] = std.math.min(resolution.v[1], crop.v[3]);
+        self.crop.v[2] = std.math.min(resolution[0], crop.v[2]);
+        self.crop.v[3] = std.math.min(resolution[1], crop.v[3]);
     }
 
     pub fn setSensor(self: *Perspective, sensor: Sensor) void {
@@ -63,7 +63,7 @@ pub const Perspective = struct {
     }
 
     pub fn update(self: *Perspective, worker: *Worker) void {
-        const fr = self.resolution.toVec2f();
+        const fr = math.vec2iTo2f(self.resolution);
         const ratio = fr[1] / fr[0];
 
         const z = 1.0 / std.math.tan(0.5 * self.fov);
@@ -80,7 +80,7 @@ pub const Perspective = struct {
     }
 
     pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
-        const coordinates = sample.pixel.toVec2f() + sample.pixel_uv;
+        const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
         var origin: Vec4f = undefined;
@@ -121,8 +121,8 @@ pub const Perspective = struct {
 
     fn setFocus(self: *Perspective, focus: Focus) void {
         self.focus = focus;
-        self.focus.point[0] *= @intToFloat(f32, self.resolution.v[0]);
-        self.focus.point[1] *= @intToFloat(f32, self.resolution.v[1]);
+        self.focus.point[0] *= @intToFloat(f32, self.resolution[0]);
+        self.focus.point[1] *= @intToFloat(f32, self.resolution[1]);
         self.focus_distance = focus.distance;
     }
 
