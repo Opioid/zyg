@@ -71,6 +71,8 @@ pub const Pathtracer = struct {
         _ = self;
         _ = ray;
 
+        var primary_ray: bool = true;
+
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
@@ -78,7 +80,7 @@ pub const Pathtracer = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1) null else .Nearest;
+            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
 
             const mat_sample = isec.sample(wo, ray.*, filter, &worker.super);
 
@@ -97,6 +99,10 @@ pub const Pathtracer = struct {
             const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
+            }
+
+            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no(.Straight)) {
+                primary_ray = false;
             }
 
             ray.depth += 1;

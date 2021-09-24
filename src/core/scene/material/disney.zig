@@ -42,7 +42,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = n_dot_wi * math.pi_inv;
         result.h_dot_wi = h_dot_wi;
-        result.typef = undefined;
+        result.typef.clearWith(.Diffuse_reflection);
 
         return n_dot_wi;
     }

@@ -19,21 +19,28 @@ pub const Result = struct {
     }
 };
 
-pub const Type = enum(u32) {
-    Reflection = 1 << 0,
-    Transmission = 1 << 1,
-    Diffuse = 1 << 2,
-    Glossy = 1 << 3,
-    Specular = 1 << 4,
-    Straight = 1 << 5,
+const Reflection = 1 << 0;
+const Transmission = 1 << 1;
+const Diffuse = 1 << 2;
+const Glossy = 1 << 3;
+const Specular = 1 << 4;
+const Straight = 1 << 5;
 
-    // diffuse_reflection = @enumToInt(.Reflection) | @enumToInt(.Diffuse),
-    // Glossy_reflection = .Reflection | .Glossy,
-    // Specular_reflection = .Reflection | .Specular,
-    // Diffuse_transmission = .Transmission | .Diffuse,
-    // Glossy_transmission = .Transmission | .Glossy,
-    // Specular_transmission = .Transmission | .Specular,
-    // Straight_transmission = .Transmission | .Straight,
+pub const Type = enum(u32) {
+    Reflection = Reflection,
+    Transmission = Transmission,
+    Diffuse = Diffuse,
+    Glossy = Glossy,
+    Specular = Specular,
+    Straight = Straight,
+
+    Diffuse_reflection = Reflection | Diffuse,
+    Glossy_reflection = Reflection | Glossy,
+    Specular_reflection = Reflection | Specular,
+    Diffuse_transmission = Transmission | Diffuse,
+    Glossy_transmission = Transmission | Glossy,
+    Specular_transmission = Transmission | Specular,
+    Straight_transmission = Transmission | Straight,
 };
 
 const TypeFlag = Flags(Type);

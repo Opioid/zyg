@@ -15,6 +15,8 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 
 pub fn main() !void {
+    // try core.ggx_integrate.integrate();
+
     const stdout = std.io.getStdOut().writer();
 
     stdout.print("Welcome to zyg!\n", .{}) catch unreachable;

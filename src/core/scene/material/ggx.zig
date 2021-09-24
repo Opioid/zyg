@@ -1,6 +1,7 @@
 const bxdf = @import("bxdf.zig");
 const Layer = @import("sample_base.zig").Layer;
 const hlp = @import("sample_helper.zig");
+const integral = @import("ggx_integral.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -10,6 +11,12 @@ const std = @import("std");
 
 pub const Min_roughness: f32 = 0.01314;
 pub const Min_alpha: f32 = Min_roughness * Min_roughness;
+
+const E_tex = math.InterpolatedFunction_2D_N(integral.E_size, integral.E_size).fromArray(&integral.E);
+
+pub fn ilmEpConductor(f0: Vec4f, n_dot_wo: f32, alpha: f32, metallic: f32) Vec4f {
+    return @splat(4, @as(f32, 1.0)) + @splat(4, metallic / E_tex.eval(n_dot_wo, alpha) - 1.0) * f0;
+}
 
 pub fn clampRoughness(roughness: f32) f32 {
     return std.math.max(roughness, Min_roughness);
@@ -64,9 +71,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        //  result.type.clear(bxdf::Type::Glossy_reflection);
-
-        // SOFT_ASSERT(testing::check(result, wo, layer));
+        result.typef.clearWith(.Glossy_reflection);
 
         return n_dot_wi;
     }
@@ -173,7 +178,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        //  result.type.clear(bxdf::Type::Glossy_reflection);
+        result.typef.clearWith(.Glossy_reflection);
 
         // SOFT_ASSERT(testing::check(result, wo, layer));
 

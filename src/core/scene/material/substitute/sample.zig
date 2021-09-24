@@ -96,6 +96,8 @@ pub const Sample = struct {
             self.super.layer,
         );
 
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
+
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection);
         result.pdf = 0.5 * (result.pdf + gg.pdf());
     }
@@ -116,6 +118,8 @@ pub const Sample = struct {
             self.super.layer,
             result,
         );
+
+        result.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
 
         const d = disney.Iso.reflection(
             result.h_dot_wi,
@@ -146,6 +150,7 @@ pub const Sample = struct {
             result,
         );
 
-        result.reflection *= @splat(4, n_dot_wi);
+        result.reflection *= @splat(4, n_dot_wi) *
+            ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
     }
 };

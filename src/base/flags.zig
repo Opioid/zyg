@@ -14,6 +14,10 @@ pub fn Flags(comptime T: type) type {
             return 0 != (self.values & @enumToInt(flag));
         }
 
+        pub fn no(self: Self, flag: T) bool {
+            return 0 == (self.values & @enumToInt(flag));
+        }
+
         pub fn set(self: *Self, flag: T, value: bool) void {
             if (value) {
                 self.values |= @enumToInt(flag);
@@ -24,6 +28,10 @@ pub fn Flags(comptime T: type) type {
 
         pub fn clear(self: *Self) void {
             self.values = 0;
+        }
+
+        pub fn clearWith(self: *Self, flag: T) void {
+            self.values = @enumToInt(flag);
         }
     };
 }

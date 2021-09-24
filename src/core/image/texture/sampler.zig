@@ -96,7 +96,7 @@ const Linear2D = struct {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d.v[0], d.v[1] }, uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
-        return bilinear1(c, m.w[0], m.w[1]);
+        return math.bilinear1(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
@@ -136,13 +136,6 @@ const Linear2D = struct {
                 adr.v.increment(y, b[1]),
             ),
         };
-    }
-
-    fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
-        const _s = 1.0 - s;
-        const _t = 1.0 - t;
-
-        return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
     }
 
     fn bilinear2(c: [4]Vec2f, s: f32, t: f32) Vec2f {

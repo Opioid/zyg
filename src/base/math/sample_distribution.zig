@@ -1,5 +1,23 @@
 const Vec2f = @import("vector2.zig").Vec2f;
 
+pub fn hammersley(i: u32, num_samples: u32, r: u32) Vec2f {
+    return .{ @intToFloat(f32, i) / @intToFloat(f32, num_samples), radicalInverseVcd(i, r) };
+}
+
+fn radicalInverseVcd(bits: u32, r: u32) f32 {
+    var out: u32 = undefined;
+
+    out = (bits << 16) | (bits >> 16);
+    out = ((out & 0x55555555) << 1) | ((out & 0xAAAAAAAA) >> 1);
+    out = ((out & 0x33333333) << 2) | ((out & 0xCCCCCCCC) >> 2);
+    out = ((out & 0x0F0F0F0F) << 4) | ((out & 0xF0F0F0F0) >> 4);
+    out = ((out & 0x00FF00FF) << 8) | ((out & 0xFF00FF00) >> 8);
+
+    out ^= r;
+
+    return @intToFloat(f32, out) * 2.3283064365386963e-10; // / 0x100000000
+}
+
 pub fn goldenRatio1D(samples: []f32, r: f32) void {
     // set the initial second coordinate
     var x = r;

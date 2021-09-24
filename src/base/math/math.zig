@@ -46,3 +46,10 @@ pub fn pow5(x: f32) f32 {
     const x4 = x2 * x2;
     return x4 * x;
 }
+
+pub fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
+    const _s = 1.0 - s;
+    const _t = 1.0 - t;
+
+    return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
+}
