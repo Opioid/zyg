@@ -8,8 +8,8 @@ const Flags = base.flags.Flags;
 pub const Base = struct {
     pub const Property = enum(u32) {
         None = 0,
-        Two_sided = 1 << 0,
-        Emission_map = 1 << 1,
+        TwoSided = 1 << 0,
+        EmissionMap = 1 << 1,
     };
 
     properties: Flags(Property),
@@ -25,7 +25,7 @@ pub const Base = struct {
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
         return .{
-            .properties = Flags(Property).init1(if (two_sided) .Two_sided else .None),
+            .properties = Flags(Property).init1(if (two_sided) .TwoSided else .None),
             .sampler_key = sampler_key,
         };
     }

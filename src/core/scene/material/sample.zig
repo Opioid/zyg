@@ -7,6 +7,8 @@ const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
+const math = base.math;
+const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
 const std = @import("std");
@@ -37,6 +39,20 @@ pub const Sample = union(enum) {
             .Light => true,
             else => false,
         };
+    }
+
+    pub fn isTranslucent(self: Sample) bool {
+        return self.super().properties.is(.Translucent);
+    }
+
+    pub fn canEvaluate(self: Sample) bool {
+        return self.super().properties.is(.Can_evaluate);
+    }
+
+    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+        _ = self;
+        _ = wi;
+        return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0);
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {

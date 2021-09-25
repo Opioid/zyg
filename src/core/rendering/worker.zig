@@ -99,6 +99,8 @@ pub const Worker = struct {
         }
     }
 
+    //  pub fn transmitted
+
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};
         if (self.super.intersectAndResolveMask(ray, null, &isec)) {

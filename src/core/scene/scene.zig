@@ -15,12 +15,15 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
+const Distribution1D = math.Distribution1D;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ALU = std.ArrayListUnmanaged;
 
 const Num_reserved_props = 32;
+
+const LightPick = Distribution1D.Discrete;
 
 pub const Scene = struct {
     images: *ALU(Image),
@@ -178,8 +181,16 @@ pub const Scene = struct {
         const len = shape_inst.numParts();
         while (i < len) : (i += 1) {
             const mat = self.propMaterial(entity, i);
-            if (mat.isEmissive()) {
-                try self.allocateLight(alloc, entity, i);
+            if (!mat.isEmissive()) {
+                continue;
+            }
+
+            const two_sided = mat.isTwoSided();
+
+            if (shape_inst.isAnalytical()) {
+                try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
+            } else {
+                try self.allocateLight(alloc, .Prop, two_sided, entity, i);
             }
         }
     }
@@ -233,6 +244,32 @@ pub const Scene = struct {
         return self.shapes.items[shape_id];
     }
 
+    pub fn light(self: Scene, id: u32) Light {
+        return self.lights.items[id];
+    }
+
+    pub fn randomLight(
+        self: Scene,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        random: f32,
+        split: bool,
+        buffer: *Worker.Lights,
+    ) []LightPick {
+        _ = self;
+        _ = p;
+        _ = n;
+        _ = total_sphere;
+        _ = random;
+        _ = split;
+
+        buffer[0].offset = 0;
+        buffer[0].pdf = 1.0;
+
+        return buffer[0..1];
+    }
+
     pub fn lightArea(self: Scene, entity: u32, part: u32) f32 {
         const p = self.prop_parts.items[entity] + part;
         const light_id = self.light_ids.items[p];
@@ -254,8 +291,15 @@ pub const Scene = struct {
         return @intCast(u32, self.props.items.len - 1);
     }
 
-    fn allocateLight(self: *Scene, alloc: *Allocator, entity: u32, part: u32) !void {
-        try self.lights.append(alloc, .{ .prop = entity, .part = part });
+    fn allocateLight(
+        self: *Scene,
+        alloc: *Allocator,
+        typef: Light.Type,
+        two_sided: bool,
+        entity: u32,
+        part: u32,
+    ) !void {
+        try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {

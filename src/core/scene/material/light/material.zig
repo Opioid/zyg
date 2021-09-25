@@ -19,6 +19,10 @@ pub const Material = struct {
         return .{ .super = Base.init(sampler_key, two_sided) };
     }
 
+    pub fn commit(self: *Material) void {
+        self.super.properties.set(.EmissionMap, self.emission_map.isValid());
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         var radiance: Vec4f = undefined;
 
@@ -31,6 +35,8 @@ pub const Material = struct {
             radiance = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
         }
 
-        return Sample.init(rs, wo, radiance);
+        var result = Sample.init(rs, wo, radiance);
+        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        return result;
     }
 };

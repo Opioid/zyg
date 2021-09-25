@@ -9,7 +9,7 @@ const Allocator = std.mem.Allocator;
 pub const View = struct {
     samplers: Sampler_factory = undefined,
 
-    surfaces: Surface_factory = Surface_factory{ .Invalid = .{} },
+    surfaces: ?Surface_factory = null,
 
     camera: cam.Perspective,
 

@@ -64,7 +64,10 @@ pub const Intersection = struct {
         const p = self.geo.p;
 
         if (translucent) {
-            return .{ p[0], p[1], p[2], 0.0 };
+            const t = math.maxComponent3(math.abs(p * geo_n));
+            const d = ro.offsetF(t) - t;
+
+            return .{ p[0], p[1], p[2], d };
         }
 
         return ro.offsetRay(p, geo_n);

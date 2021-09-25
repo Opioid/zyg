@@ -38,6 +38,7 @@ pub const Material = union(enum) {
     pub fn commit(self: *Material) void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
+            .Light => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
             else => {},
         }
@@ -46,8 +47,8 @@ pub const Material = union(enum) {
     pub fn isTwoSided(self: Material) bool {
         return switch (self) {
             .Debug => true,
-            .Glass => |m| m.super.properties.is(.Two_sided),
-            .Substitute => |m| m.super.properties.is(.Two_sided),
+            .Glass => |m| m.super.properties.is(.TwoSided),
+            .Substitute => |m| m.super.properties.is(.TwoSided),
             else => false,
         };
     }
@@ -60,7 +61,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => true,
             .Substitute => |m| {
-                if (m.super.properties.is(.Emission_map)) {
+                if (m.super.properties.is(.EmissionMap)) {
                     return true;
                 }
 
@@ -68,6 +69,10 @@ pub const Material = union(enum) {
             },
             else => false,
         };
+    }
+
+    pub fn hasEmissionMap(self: Material) bool {
+        return self.super().hasEmissionMap();
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {

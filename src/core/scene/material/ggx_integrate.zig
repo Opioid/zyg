@@ -85,8 +85,6 @@ fn make_f_ss_table(writer: anytype, buffer: []u8) !void {
             n_dot_wo += step;
         }
 
-        //  _ = try writer.write(",\n");
-
         if (a < Num_samples - 1) {
             _ = try writer.write("\n");
         } else {

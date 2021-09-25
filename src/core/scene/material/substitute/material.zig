@@ -33,7 +33,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.Emission_map, self.emission_map.isValid());
+        self.super.properties.set(.EmissionMap, self.emission_map.isValid());
     }
 
     pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {

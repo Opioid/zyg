@@ -10,15 +10,20 @@ const Filter = @import("../image/texture/sampler.zig").Filter;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
+const Distribution1D = math.Distribution1D;
 const RNG = base.rnd.Generator;
 
 pub const Worker = struct {
+    pub const Lights = [4]Distribution1D.Discrete;
+
     camera: *cam.Perspective = undefined,
     scene: *Scene = undefined,
 
     rng: RNG,
 
     node_stack: NodeStack = .{},
+
+    lights: Lights,
 
     pub fn configure(self: *Worker, camera: *cam.Perspective, scene: *Scene) void {
         self.camera = camera;

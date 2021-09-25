@@ -221,6 +221,19 @@ pub fn max(a: Vec4f, b: Vec4f) Vec4f {
     };
 }
 
+pub fn abs(v: Vec4f) Vec4f {
+    return .{
+        std.math.fabs(v[0]),
+        std.math.fabs(v[1]),
+        std.math.fabs(v[2]),
+        std.math.fabs(v[3]),
+    };
+}
+
+pub fn maxComponent3(v: Vec4f) f32 {
+    return std.math.max(v[0], std.math.max(v[1], v[2]));
+}
+
 pub fn indexMaxComponent3(v: Vec4f) u32 {
     if (v[0] > v[1]) {
         return if (v[0] > v[2]) 0 else 2;

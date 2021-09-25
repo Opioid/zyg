@@ -17,11 +17,13 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.Two_sided, if (self.thickness > 0.0) true else false);
+        self.super.properties.set(.TwoSided, if (self.thickness > 0.0) true else false);
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate) Sample {
         _ = self;
-        return Sample.init(rs, wo);
+        var result = Sample.init(rs, wo);
+        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        return result;
     }
 };

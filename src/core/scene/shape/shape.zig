@@ -60,6 +60,13 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn isAnalytical(self: Shape) bool {
+        return switch (self) {
+            .Triangle_mesh => false,
+            else => true,
+        };
+    }
+
     pub fn isComplex(self: Shape) bool {
         return switch (self) {
             .Triangle_mesh => true,

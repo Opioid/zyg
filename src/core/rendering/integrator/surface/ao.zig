@@ -1,7 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
-const sampler = @import("../../../sampler/sampler.zig");
+const smp = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -16,19 +16,16 @@ pub const AO = struct {
 
     settings: Settings,
 
-    sampler: sampler.Sampler,
+    sampler: smp.Sampler,
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !AO {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return AO{
             .settings = settings,
-            .sampler = .{ .GoldenRatio = try sampler.GoldenRatio.init(
-                alloc,
-                0,
-                1,
-                total_samples_per_pixel,
-            ) },
+            .sampler = .{
+                .GoldenRatio = try smp.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel),
+            },
         };
     }
 
@@ -41,8 +38,6 @@ pub const AO = struct {
     }
 
     pub fn li(self: *AO, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
-        _ = ray;
-
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result: f32 = 0.0;

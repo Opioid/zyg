@@ -1,8 +1,10 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const hlp = @import("sample_helper.zig");
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Flags = base.flags.Flags;
 
 pub const Layer = struct {
     t: Vec4f,
@@ -63,6 +65,14 @@ pub const Layer = struct {
 };
 
 pub const SampleBase = struct {
+    pub const Property = enum(u32) {
+        None = 0,
+        Pure_emissive = 1 << 0,
+        Translucent = 1 << 1,
+        Can_evaluate = 1 << 2,
+        Avoid_caustics = 1 << 3,
+    };
+
     layer: Layer = undefined,
 
     geo_n: Vec4f,
@@ -72,6 +82,8 @@ pub const SampleBase = struct {
     radiance: Vec4f,
 
     alpha: Vec2f,
+
+    properties: Flags(Property),
 
     const Self = @This();
 
@@ -89,6 +101,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .radiance = radiance,
             .alpha = alpha,
+            .properties = Flags(Property).init1(.Can_evaluate),
         };
     }
 

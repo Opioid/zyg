@@ -72,7 +72,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         loadIntegrators(integrator_value.*, &take.view);
     }
 
-    if (surface.Factory.Invalid == take.view.surfaces) {
+    if (null == take.view.surfaces) {
         take.view.surfaces = surface.Factory{ .AO = .{
             .settings = .{ .num_samples = 1, .radius = 1.0 },
         } };
@@ -249,11 +249,22 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
             } };
         } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
-
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
 
             view.surfaces = surface.Factory{ .PT = .{
+                .settings = .{
+                    .num_samples = num_samples,
+                    .min_bounces = min_bounces,
+                    .max_bounces = max_bounces,
+                },
+            } };
+        } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+            const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+
+            view.surfaces = surface.Factory{ .PTDL = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,

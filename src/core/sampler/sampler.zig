@@ -27,17 +27,17 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn sample1D(self: *Sampler, rng: *RNG, dimension: u32) f32 {
+    pub fn sample1D(self: *Sampler, rng: *RNG, dimension: usize) f32 {
         return switch (self.*) {
             .Random => rng.randomFloat(),
-            .GoldenRatio => |*gr| gr.sample1D(rng, dimension),
+            .GoldenRatio => |*gr| gr.sample1D(rng, @intCast(u32, dimension)),
         };
     }
 
-    pub fn sample2D(self: *Sampler, rng: *RNG, dimension: u32) Vec2f {
+    pub fn sample2D(self: *Sampler, rng: *RNG, dimension: usize) Vec2f {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat() },
-            .GoldenRatio => |*gr| gr.sample2D(rng, dimension),
+            .GoldenRatio => |*gr| gr.sample2D(rng, @intCast(u32, dimension)),
         };
     }
 

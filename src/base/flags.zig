@@ -18,6 +18,10 @@ pub fn Flags(comptime T: type) type {
             return 0 == (self.values & @enumToInt(flag));
         }
 
+        pub fn equals(self: Self, flag: T) bool {
+            return self.values == @enumToInt(flag);
+        }
+
         pub fn set(self: *Self, flag: T, value: bool) void {
             if (value) {
                 self.values |= @enumToInt(flag);
