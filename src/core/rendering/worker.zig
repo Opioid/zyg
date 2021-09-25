@@ -99,7 +99,18 @@ pub const Worker = struct {
         }
     }
 
-    //  pub fn transmitted
+    pub fn transmitted(
+        self: *Worker,
+        ray: *Ray,
+        wo: Vec4f,
+        isec: Intersection,
+        filter: ?Filter,
+    ) ?Vec4f {
+        _ = wo;
+        _ = isec;
+
+        return self.super.visibility(ray.*, filter);
+    }
 
     fn li(self: *Worker, ray: *Ray) Vec4f {
         var isec = Intersection{};

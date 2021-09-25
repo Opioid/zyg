@@ -180,11 +180,15 @@ pub const PathtracerDL = struct {
             shadow_ray.ray.setDirection(light_sample.wi);
             shadow_ray.ray.setMaxT(light_sample.t());
 
+            const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
+
             const bxdf = mat_sample.evaluate(light_sample.wi);
+
+            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
-            result += @splat(4, weight) * (bxdf.reflection);
+            result += @splat(4, weight) * (tr * radiance * bxdf.reflection);
         }
 
         return result;

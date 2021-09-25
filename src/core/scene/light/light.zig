@@ -1,6 +1,7 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../worker.zig").Worker;
+const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 
@@ -44,5 +45,14 @@ pub const Light = packed struct {
         _ = worker;
 
         return null;
+    }
+
+    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, worker: Worker) Vec4f {
+        _ = self;
+        _ = sample;
+        _ = filter;
+        _ = worker;
+
+        return @splat(4, @as(f32, 1.0));
     }
 };
