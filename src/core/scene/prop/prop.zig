@@ -79,20 +79,22 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo, worker);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker, v: *Vec4f) bool {
+    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (!self.hasTintedShadow()) {
-            const ip = self.intersectP(entity, ray, worker);
-            v.* = @splat(4, @as(f32, if (ip) 0.0 else 1.0));
-            return !ip;
+            if (self.intersectP(entity, ray, worker)) {
+                return null;
+            }
+
+            return @splat(4, @as(f32, 1.0));
         }
 
         const scene = worker.scene;
 
         if (self.properties.is(.Test_AABB) and !scene.propAabbIntersectP(entity, ray)) {
-            return false;
+            return @splat(4, @as(f32, 1.0));
         }
 
         const trafo = scene.propTransformationAt(entity);
-        return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker, v);
+        return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker);
     }
 };

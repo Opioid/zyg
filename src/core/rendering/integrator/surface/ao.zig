@@ -63,8 +63,7 @@ pub const AO = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            var vis: Vec4f = undefined;
-            if (worker.super.visibility(occlusion_ray, null, &vis)) {
+            if (worker.super.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
         }

@@ -129,7 +129,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker, vis: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
         const ray_signs = [3]u32{
             if (ray.inv_direction[0] >= 0.0) 0 else 1,
             if (ray.inv_direction[1] >= 0.0) 0 else 1,
@@ -141,7 +141,7 @@ pub const Tree = struct {
         nodes.push(0xFFFFFFFF);
         var n: u32 = 0;
 
-        var local_vis = @splat(4, @as(f32, 1.0));
+        var vis = @splat(4, @as(f32, 1.0));
 
         const max_t = ray.maxT();
 
@@ -172,12 +172,9 @@ pub const Tree = struct {
 
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
-                        var tv: Vec4f = undefined;
-                        if (!material.visibility(uv, filter, worker.*, &tv)) {
-                            return false;
-                        }
+                        const tv = material.visibility(uv, filter, worker.*) orelse return null;
 
-                        local_vis *= tv;
+                        vis *= tv;
 
                         // ray_max_t has changed if intersect() returns true!
                         ray.setMaxT(max_t);
@@ -188,7 +185,6 @@ pub const Tree = struct {
             n = nodes.pop();
         }
 
-        vis.* = local_vis;
-        return true;
+        return vis;
     }
 };

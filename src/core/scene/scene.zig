@@ -122,28 +122,26 @@ pub const Scene = struct {
         return false;
     }
 
-    pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker, vis: *Vec4f) bool {
+    pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.has_tinted_shadow) {
             worker.node_stack.clear();
 
-            var local_vis = @splat(4, @as(f32, 1.0));
+            var vis = @splat(4, @as(f32, 1.0));
 
             for (self.props.items) |p, i| {
-                var tv: Vec4f = undefined;
-                if (!p.visibility(i, ray, filter, worker, &tv)) {
-                    return false;
-                }
+                const tv = p.visibility(i, ray, filter, worker) orelse return null;
 
-                local_vis *= tv;
+                vis *= tv;
             }
 
-            vis.* = local_vis;
-            return true;
+            return vis;
         }
 
-        const ip = self.intersectP(ray, worker);
-        vis.* = @splat(4, @as(f32, if (ip) 0.0 else 1.0));
-        return !ip;
+        if (self.intersectP(ray, worker)) {
+            return null;
+        }
+
+        return @splat(4, @as(f32, 1.0));
     }
 
     pub fn createEntity(self: *Scene, alloc: *Allocator) !u32 {

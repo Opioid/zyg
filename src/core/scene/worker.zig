@@ -34,8 +34,8 @@ pub const Worker = struct {
         return self.scene.intersect(ray, self, isec);
     }
 
-    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter, v: *Vec4f) bool {
-        return self.scene.visibility(ray, filter, self, v);
+    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
+        return self.scene.visibility(ray, filter, self);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {

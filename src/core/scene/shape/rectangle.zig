@@ -86,8 +86,7 @@ pub const Rectangle = struct {
         entity: usize,
         filter: ?Filter,
         worker: Worker,
-        vis: *Vec4f,
-    ) bool {
+    ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -101,23 +100,20 @@ pub const Rectangle = struct {
 
             const u = math.dot3(t, k / @splat(4, trafo.scaleX()));
             if (u > 1.0 or u < -1.0) {
-                vis.* = @splat(4, @as(f32, 1.0));
-                return true;
+                return @splat(4, @as(f32, 1.0));
             }
 
             const b = -trafo.rotation.r[1];
 
             const v = math.dot3(b, k / @splat(4, trafo.scaleY()));
             if (v > 1.0 or v < -1.0) {
-                vis.* = @splat(4, @as(f32, 1.0));
-                return true;
+                return @splat(4, @as(f32, 1.0));
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
+            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
         }
 
-        vis.* = @splat(4, @as(f32, 1.0));
-        return true;
+        return @splat(4, @as(f32, 1.0));
     }
 };

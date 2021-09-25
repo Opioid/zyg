@@ -52,8 +52,7 @@ pub const Plane = struct {
         entity: usize,
         filter: ?Filter,
         worker: Worker,
-        vis: *Vec4f,
-    ) bool {
+    ) ?Vec4f {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -63,10 +62,9 @@ pub const Plane = struct {
             const k = p - trafo.position;
             const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };
 
-            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
+            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
         }
 
-        vis.* = @splat(4, @as(f32, 1.0));
-        return true;
+        return @splat(4, @as(f32, 1.0));
     }
 };

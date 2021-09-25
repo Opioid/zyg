@@ -117,8 +117,7 @@ pub const Mesh = struct {
         entity: usize,
         filter: ?Filter,
         worker: *Worker,
-        vis: *Vec4f,
-    ) bool {
+    ) ?Vec4f {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -126,6 +125,6 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.visibility(&tray, entity, filter, worker, vis);
+        return self.tree.visibility(&tray, entity, filter, worker);
     }
 };

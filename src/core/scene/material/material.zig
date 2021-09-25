@@ -94,9 +94,13 @@ pub const Material = union(enum) {
         return 1.0;
     }
 
-    pub fn visibility(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker, vis: *Vec4f) bool {
+    pub fn visibility(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
         const o = self.opacity(uv, filter, worker);
-        vis.* = @splat(4, 1.0 - o);
-        return o < 1.0;
+
+        if (o < 1.0) {
+            return @splat(4, 1.0 - o);
+        }
+
+        return null;
     }
 };

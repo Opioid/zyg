@@ -98,7 +98,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, worker: Worker, vis: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, worker: Worker) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -118,7 +118,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
+                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
             }
 
             const t1 = b + dist;
@@ -130,10 +130,10 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker, vis);
+                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
             }
         }
 
-        return false;
+        return @splat(4, @as(f32, 1.0));
     }
 };

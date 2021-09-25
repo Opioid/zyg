@@ -121,17 +121,15 @@ pub const Shape = union(enum) {
         entity: usize,
         filter: ?Filter,
         worker: *Worker,
-        vis: *Vec4f,
-    ) bool {
+    ) ?Vec4f {
         return switch (self) {
             .Null, .InfiniteSphere => {
-                vis.* = @splat(4, @as(f32, 1.0));
-                return true;
+                return @splat(4, @as(f32, 1.0));
             },
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*, vis),
-            .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker, vis),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*),
+            .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
         };
     }
 };
