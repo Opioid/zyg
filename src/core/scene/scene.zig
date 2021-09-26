@@ -185,7 +185,7 @@ pub const Scene = struct {
 
             const two_sided = mat.isTwoSided();
 
-            if (shape_inst.isAnalytical()) {
+            if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {
                 try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
             } else {
                 try self.allocateLight(alloc, .Prop, two_sided, entity, i);

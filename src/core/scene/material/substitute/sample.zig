@@ -4,12 +4,15 @@ const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const disney = @import("../disney.zig");
 const fresnel = @import("../fresnel.zig");
+const hlp = @import("../sample_helper.zig");
 const ggx = @import("../ggx.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
+
+const std = @import("std");
 
 pub const Sample = struct {
     super: Base,
@@ -36,20 +39,21 @@ pub const Sample = struct {
         };
     }
 
+    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+        const wo = self.super.wo;
+
+        const h = math.normalize3(wo + wi);
+
+        const wo_dot_h = hlp.clampDot(wo, h);
+
+        if (1.0 == self.metallic) {
+            return self.pureGlossEvaluate(wi, wo, h, wo_dot_h);
+        }
+
+        return self.baseEvaluate(wi, wo, h, wo_dot_h);
+    }
+
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        // const s2d = sampler.sample2D(rng, 0);
-
-        // const is = math.smpl.hemisphereCosine(s2d);
-        // const wi = math.normalize3(self.super.layer.tangentToWorld(is));
-
-        // const n_dot_wi = self.super.layer.clampNdot(wi);
-
-        // const pdf = n_dot_wi * math.pi_inv;
-
-        // const reflection = @splat(4, pdf) * self.super.albedo;
-
-        // return .{ .reflection = reflection, .wi = wi, .pdf = pdf };
-
         var result = bxdf.Sample{};
 
         if (1.0 == self.metallic) {
@@ -67,7 +71,63 @@ pub const Sample = struct {
         return result;
     }
 
+    fn baseEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+        const alpha = self.super.alpha;
+
+        const n_dot_wi = self.super.layer.clampNdot(wi);
+        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+
+        const d = disney.Iso.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.albedo);
+
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        var gg = ggx.Aniso.reflection(
+            wi,
+            wo,
+            h,
+            n_dot_wi,
+            n_dot_wo,
+            wo_dot_h,
+            alpha,
+            schlick,
+            self.super.layer,
+        );
+
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+
+        const pdf = 0.5 * (d.pdf() + gg.pdf());
+
+        return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection), pdf);
+    }
+
+    fn pureGlossEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+        const alpha = self.super.alpha;
+
+        const n_dot_wi = self.super.layer.clampNdot(wi);
+        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        var gg = ggx.Aniso.reflection(
+            wi,
+            wo,
+            h,
+            n_dot_wi,
+            n_dot_wo,
+            wo_dot_h,
+            alpha,
+            schlick,
+            self.super.layer,
+        );
+
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+
+        return bxdf.Result.init(@splat(4, n_dot_wi) * gg.reflection, gg.pdf());
+    }
+
     fn diffuseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        const alpha = self.super.alpha;
+
         const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
 
         const xi = sampler.sample2D(rng, 0);
@@ -76,7 +136,7 @@ pub const Sample = struct {
             self.super.wo,
             n_dot_wo,
             self.super.layer,
-            self.super.alpha[0],
+            alpha[0],
             self.super.albedo,
             xi,
             result,
@@ -91,12 +151,12 @@ pub const Sample = struct {
             n_dot_wi,
             n_dot_wo,
             result.h_dot_wi,
-            self.super.alpha,
+            alpha,
             schlick,
             self.super.layer,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
 
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection);
         result.pdf = 0.5 * (result.pdf + gg.pdf());

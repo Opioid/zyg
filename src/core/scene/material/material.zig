@@ -72,7 +72,7 @@ pub const Material = union(enum) {
     }
 
     pub fn hasEmissionMap(self: Material) bool {
-        return self.super().hasEmissionMap();
+        return self.super().properties.is(.EmissionMap);
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
@@ -81,6 +81,24 @@ pub const Material = union(enum) {
             .Glass => |g| .{ .Glass = g.sample(wo, rs) },
             .Light => |l| .{ .Light = l.sample(wo, rs, worker) },
             .Substitute => |s| .{ .Substitute = s.sample(wo, rs, worker) },
+        };
+    }
+
+    pub fn evaluateRadiance(
+        self: Material,
+        wi: Vec4f,
+        n: Vec4f,
+        uvw: Vec4f,
+        extent: f32,
+        filter: ?ts.Filter,
+        worker: Worker,
+    ) Vec4f {
+        _ = wi;
+        _ = n;
+        return switch (self) {
+            .Light => |m| m.evaluateRadiance(extent),
+            .Substitute => |m| m.evaluateRadiance(uvw, filter, worker),
+            else => @splat(4, @as(f32, 0.0)),
         };
     }
 

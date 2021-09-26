@@ -39,4 +39,8 @@ pub const Material = struct {
         result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
+
+    pub fn evaluateRadiance(self: Material, extent: f32) Vec4f {
+        return self.emittance.radiance(extent);
+    }
 };

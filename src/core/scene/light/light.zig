@@ -4,6 +4,7 @@ const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -36,23 +37,58 @@ pub const Light = packed struct {
         sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
-        _ = self;
-        _ = p;
-        _ = n;
-        _ = total_sphere;
-        _ = sampler;
-        _ = sampler_d;
-        _ = worker;
+        const trafo = worker.scene.propTransformationAt(self.prop);
 
-        return null;
+        return switch (self.typef) {
+            .Prop => self.propSampleTo(
+                p,
+                n,
+                trafo,
+                total_sphere,
+                sampler,
+                sampler_d,
+                worker,
+            ),
+            else => null,
+        };
     }
 
     pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, worker: Worker) Vec4f {
-        _ = self;
-        _ = sample;
-        _ = filter;
-        _ = worker;
+        const material = worker.scene.propMaterial(self.prop, self.part);
 
-        return @splat(4, @as(f32, 1.0));
+        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, self.extent, filter, worker);
+    }
+
+    fn propSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Transformation,
+        total_sphere: bool,
+        sampler: *Sampler,
+        sampler_d: usize,
+        worker: *Worker,
+    ) ?SampleTo {
+        const shape = worker.scene.propShape(self.prop);
+
+        const result = shape.sampleTo(
+            self.part,
+            self.variant,
+            p,
+            n,
+            trafo,
+            self.extent,
+            self.two_sided,
+            total_sphere,
+            sampler,
+            &worker.rng,
+            sampler_d,
+        ) orelse return null;
+
+        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
+            return result;
+        }
+
+        return null;
     }
 };

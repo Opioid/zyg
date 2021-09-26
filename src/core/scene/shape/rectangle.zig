@@ -1,8 +1,14 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const SampleTo = @import("sample.zig").To;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
+const ro = @import("../ray_offset.zig");
+const Dot_min = @import("../material/sample_helper.zig").Dot_min;
+
 const base = @import("base");
+const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -115,5 +121,39 @@ pub const Rectangle = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn sampleTo(
+        p: Vec4f,
+        trafo: Transformation,
+        area: f32,
+        two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) ?SampleTo {
+        const r = sampler.sample2D(rng, sampler_d);
+        const uv = r;
+
+        const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
+        const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+        const ws = trafo.objectToWorldPoint(ls);
+        var wn = trafo.rotation.r[2];
+
+        if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+            wn = -wn;
+        }
+
+        const axis = ro.offsetRay(ws, wn) - p;
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+        const dir = axis / @splat(4, t);
+        const c = -math.dot3(wn, dir);
+
+        if (c < Dot_min) {
+            return null;
+        }
+
+        return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area), t);
     }
 };

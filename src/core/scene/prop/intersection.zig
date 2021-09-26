@@ -4,9 +4,9 @@ const Renderstate = @import("../renderstate.zig").Renderstate;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const mat = @import("../material/material.zig");
+const ro = @import("../ray_offset.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
-const ro = @import("../ray_offset.zig");
 
 pub const Intersection = struct {
     geo: shape.Intersection = undefined,

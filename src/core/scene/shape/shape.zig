@@ -6,10 +6,13 @@ pub const Triangle_mesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Intersection = @import("intersection.zig").Intersection;
+const SampleTo = @import("sample.zig").To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
+const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
@@ -130,6 +133,31 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Triangle_mesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
+        };
+    }
+
+    pub fn sampleTo(
+        self: Shape,
+        part: u32,
+        variant: u32,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+        total_sphere: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) ?SampleTo {
+        _ = part;
+        _ = variant;
+        _ = n;
+        _ = total_sphere;
+
+        return switch (self) {
+            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
+            else => null,
         };
     }
 };

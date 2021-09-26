@@ -7,7 +7,6 @@ const shp = @import("../shape/intersection.zig");
 const base = @import("base");
 const Vec4f = base.math.Vec4f;
 const Flags = base.flags.Flags;
-//usingnamespace base;
 
 pub const Null = 0xFFFFFFFF;
 
@@ -58,7 +57,6 @@ pub const Prop = struct {
         }
 
         const trafo = scene.propTransformationAt(entity);
-
         return scene.propShape(entity).intersect(ray, trafo, worker, isec);
     }
 
@@ -75,7 +73,6 @@ pub const Prop = struct {
         }
 
         const trafo = scene.propTransformationAt(entity);
-
         return scene.propShape(entity).intersectP(ray, trafo, worker);
     }
 

@@ -145,6 +145,10 @@ pub fn dot3(a: Vec4f, b: Vec4f) f32 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+pub fn squaredLength3(v: Vec4f) f32 {
+    return dot3(v, v);
+}
+
 pub fn length3(v: Vec4f) f32 {
     return @sqrt(dot3(v, v));
 }
