@@ -193,17 +193,19 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, .Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                color.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
+                color.read(alloc, entry.value_ptr.*, .Color, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
-                normal_map = readTexture(alloc, entry.value_ptr.*, TexUsage.Normal, self.tex, resources);
+                normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
+                emission.read(alloc, entry.value_ptr.*, .Color, self.tex, resources);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                roughness.read(alloc, entry.value_ptr.*, TexUsage.Roughness, self.tex, resources);
+                roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
+            } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
+                roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                rotation.read(alloc, entry.value_ptr.*, TexUsage.Roughness, self.tex, resources);
+                rotation.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 anisotropy = json.readFloat(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
@@ -224,6 +226,7 @@ pub const Provider = struct {
         material.super.mask = mask;
         material.super.color_map = color.texture;
         material.normal_map = normal_map;
+        material.surface_map = roughness.texture;
         material.emission_map = emission.texture;
 
         material.color = color.value;

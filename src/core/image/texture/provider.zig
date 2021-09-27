@@ -11,7 +11,7 @@ const Error = error{
     UnsupportedImageType,
 };
 
-pub const Usage = enum { Color, Normal, Roughness, Mask };
+pub const Usage = enum { Color, Normal, Roughness, Surface, Mask };
 
 pub const Provider = struct {
     pub fn loadFile(
@@ -22,21 +22,12 @@ pub const Provider = struct {
     ) !Texture {
         const usage = options.query("usage", Usage.Color);
 
-        var swizzle: img.Swizzle = undefined;
-        switch (usage) {
-            .Color => {
-                swizzle = .XYZ;
-            },
-            .Normal => {
-                swizzle = .XY;
-            },
-            .Roughness => {
-                swizzle = .X;
-            },
-            .Mask => {
-                swizzle = .W;
-            },
-        }
+        const swizzle: img.Swizzle = switch (usage) {
+            .Color => .XYZ,
+            .Normal, .Surface => .XY,
+            .Roughness => .X,
+            .Mask => .W,
+        };
 
         var image_options = Variants{};
         defer image_options.deinit(alloc);
@@ -47,10 +38,10 @@ pub const Provider = struct {
         const image = resources.get(Image, image_id) orelse unreachable;
 
         return switch (image.*) {
-            .Byte1 => Texture{ .type = Texture.Type.Byte1_unorm, .image = image_id },
-            .Byte2 => Texture{ .type = Texture.Type.Byte2_snorm, .image = image_id },
-            .Byte3 => Texture{ .type = Texture.Type.Byte3_sRGB, .image = image_id },
-            .Half3 => Texture{ .type = Texture.Type.Half3, .image = image_id },
+            .Byte1 => Texture{ .type = .Byte1_unorm, .image = image_id },
+            .Byte2 => Texture{ .type = if (.Normal == usage) .Byte2_snorm else .Byte2_unorm, .image = image_id },
+            .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id },
+            .Half3 => Texture{ .type = .Half3, .image = image_id },
             else => Error.UnsupportedImageType,
         };
     }

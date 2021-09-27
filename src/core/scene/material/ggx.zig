@@ -22,6 +22,10 @@ pub fn clampRoughness(roughness: f32) f32 {
     return std.math.max(roughness, Min_roughness);
 }
 
+pub fn mapRoughness(roughness: f32) f32 {
+    return roughness * (1.0 - Min_roughness) + Min_roughness;
+}
+
 pub const Iso = struct {
     pub fn reflection(
         n_dot_wi: f32,

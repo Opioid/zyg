@@ -17,6 +17,7 @@ pub const Material = struct {
     super: Base = undefined,
 
     normal_map: Texture = undefined,
+    surface_map: Texture = undefined,
     emission_map: Texture = undefined,
 
     color: Vec4f = undefined,
@@ -67,14 +68,32 @@ pub const Material = struct {
             worker.scene,
         ) else ef * self.super.emission;
 
+        var alpha: Vec2f = undefined;
+        var metallic: f32 = undefined;
+
+        const nc = self.surface_map.numChannels();
+        if (nc >= 2) {
+            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, worker.scene);
+            const r = ggx.mapRoughness(surface[0]);
+            alpha = anisotropicAlpha(r, self.anisotropy);
+            metallic = surface[1];
+        } else if (1 == nc) {
+            const r = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene));
+            alpha = anisotropicAlpha(r, self.anisotropy);
+            metallic = self.metallic;
+        } else {
+            alpha = self.alpha;
+            metallic = self.metallic;
+        }
+
         var result = Sample.init(
             rs,
             wo,
             color,
             radiance,
-            self.alpha,
+            alpha,
             fresnel.Schlick.F0(self.super.ior, 1.0),
-            self.metallic,
+            metallic,
         );
 
         if (self.normal_map.isValid()) {
@@ -101,5 +120,14 @@ pub const Material = struct {
         }
 
         return ef * self.super.emission;
+    }
+
+    fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {
+        if (anisotropy > 0.0) {
+            const rv = ggx.clampRoughness(r * (1.0 - anisotropy));
+            return .{ r * r, rv * rv };
+        }
+
+        return @splat(2, r * r);
     }
 };

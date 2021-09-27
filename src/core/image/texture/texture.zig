@@ -12,6 +12,7 @@ const Vec4i = math.Vec4i;
 pub const Texture = struct {
     pub const Type = enum {
         Byte1_unorm,
+        Byte2_unorm,
         Byte2_snorm,
         Byte3_sRGB,
         Half3,
@@ -22,6 +23,16 @@ pub const Texture = struct {
 
     pub fn isValid(self: Texture) bool {
         return self.image != Null;
+    }
+
+    pub fn numChannels(self: Texture) u32 {
+        const nc: u32 = switch (self.type) {
+            .Byte1_unorm => 1,
+            .Byte2_unorm, .Byte2_snorm => 2,
+            .Byte3_sRGB, .Half3 => 3,
+        };
+
+        return if (Null == self.image) 0 else nc;
     }
 
     pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
@@ -57,6 +68,10 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte2_unorm => {
+                const value = image.Byte2.get2D(x, y);
+                return enc.cachedUnormToFloat2(value);
+            },
             .Byte2_snorm => {
                 const value = image.Byte2.get2D(x, y);
                 return enc.cachedSnormToFloat2(value);
@@ -69,6 +84,15 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte2_unorm => {
+                const values = image.Byte2.gather2D(xy_xy1);
+                return .{
+                    enc.cachedUnormToFloat2(values[0]),
+                    enc.cachedUnormToFloat2(values[1]),
+                    enc.cachedUnormToFloat2(values[2]),
+                    enc.cachedUnormToFloat2(values[3]),
+                };
+            },
             .Byte2_snorm => {
                 const values = image.Byte2.gather2D(xy_xy1);
                 return .{
