@@ -186,4 +186,20 @@ pub const Texture = struct {
     pub fn description(self: Texture, scene: *const Scene) Description {
         return scene.image(self.image).description();
     }
+
+    pub fn average_3(self: Texture, scene: Scene) Vec4f {
+        var average = @splat(4, @as(f32, 0.0));
+
+        const d = self.description(&scene).dimensions;
+        var y: i32 = 0;
+        while (y < d.v[1]) : (y += 1) {
+            var x: i32 = 0;
+            while (x < d.v[0]) : (x += 1) {
+                average += self.get2D_3(x, y, &scene);
+            }
+        }
+
+        const area = @intToFloat(f32, d.v[0]) * @intToFloat(f32, d.v[1]);
+        return average / @splat(4, area);
+    }
 };

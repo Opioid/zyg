@@ -74,7 +74,7 @@ pub const Driver = struct {
         try self.target.resize(alloc, img.Description.init2D(dim));
     }
 
-    pub fn render(self: *Driver) void {
+    pub fn render(self: *Driver, alloc: *Allocator) !void {
         if (0 == self.view.num_samples_per_pixel) {
             return;
         }
@@ -83,7 +83,7 @@ pub const Driver = struct {
 
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
-        self.scene.compile(camera_pos);
+        try self.scene.compile(alloc, camera_pos);
 
         camera.update(&self.workers[0].super);
 

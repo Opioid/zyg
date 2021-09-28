@@ -5,6 +5,7 @@ const fresnel = @import("../fresnel.zig");
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
+const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const math = @import("base").math;
@@ -35,6 +36,14 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.EmissionMap, self.emission_map.isValid());
+    }
+
+    pub fn prepareSampling(self: Material, scene: Scene) Vec4f {
+        if (self.emission_map.isValid()) {
+            return @splat(4, self.emission_factor) * self.emission_map.average_3(scene);
+        }
+
+        return @splat(4, self.emission_factor) * self.super.emission;
     }
 
     pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {

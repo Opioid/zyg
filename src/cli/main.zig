@@ -103,7 +103,7 @@ pub fn main() !void {
 
     try driver.configure(alloc, &take.view, &scene);
 
-    driver.render();
+    try driver.render(alloc);
     driver.exportFrame();
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;

@@ -39,9 +39,13 @@ pub const Scene = struct {
     prop_aabbs: ALU(AABB),
 
     lights: ALU(Light),
+    light_aabbs: ALU(AABB),
 
     material_ids: ALU(u32),
     light_ids: ALU(u32),
+
+    light_temp_powers: []f32 = &.{},
+    light_distribution: Distribution1D = .{},
 
     has_tinted_shadow: bool = undefined,
 
@@ -63,14 +67,18 @@ pub const Scene = struct {
             .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
+            .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
+        self.light_distribution.deinit(alloc);
+        alloc.free(self.light_temp_powers);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
+        self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
         self.prop_parts.deinit(alloc);
@@ -79,7 +87,13 @@ pub const Scene = struct {
         self.props.deinit(alloc);
     }
 
-    pub fn compile(self: *Scene, camera_pos: Vec4f) void {
+    pub fn aabb(self: Scene) AABB {
+        _ = self;
+
+        return AABB.init(.{ 0.0, 0.0, 0.0, 0.0 }, .{ 1.0, 1.0, 1.0, 1.0 });
+    }
+
+    pub fn compile(self: *Scene, alloc: *Allocator, camera_pos: Vec4f) !void {
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -88,9 +102,15 @@ pub const Scene = struct {
             self.has_tinted_shadow = self.has_tinted_shadow or p.hasTintedShadow();
         }
 
+        self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
+
         for (self.lights.items) |l, i| {
             l.prepareSampling(i, self);
+
+            self.light_temp_powers[i] = self.lightPower(0, i);
         }
+
+        try self.light_distribution.configure(alloc, self.light_temp_powers, 0);
     }
 
     pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
@@ -209,12 +229,22 @@ pub const Scene = struct {
     pub fn propPrepareSampling(self: *Scene, entity: u32, part: u32, light_id: usize) void {
         const shape_inst = self.propShape(entity);
 
+        const p = self.prop_parts.items[entity] + part;
+        const m = self.material_ids.items[p];
+
         const trafo = self.propTransformationAt(entity);
         const scale = trafo.scale();
 
         const extent = shape_inst.area(part, scale);
 
         self.lights.items[light_id].extent = extent;
+
+        const mat = &self.materials.items[m];
+        const average_radiance = mat.prepareSampling(shape_inst, part, trafo, extent, self.*);
+
+        self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
+            self.lights.items[light_id].power(average_radiance, self.aabb(), self.*),
+        );
     }
 
     pub fn propAabbIntersectP(self: Scene, entity: usize, ray: Ray) bool {
@@ -255,15 +285,12 @@ pub const Scene = struct {
         split: bool,
         buffer: *Worker.Lights,
     ) []LightPick {
-        _ = self;
         _ = p;
         _ = n;
         _ = total_sphere;
-        _ = random;
         _ = split;
 
-        buffer[0].offset = 0;
-        buffer[0].pdf = 1.0;
+        buffer[0] = self.light_distribution.sampleDiscrete(random);
 
         return buffer[0..1];
     }
@@ -277,6 +304,12 @@ pub const Scene = struct {
         }
 
         return self.lights.items[light_id].extent;
+    }
+
+    pub fn lightPower(self: Scene, variant: u32, light_id: usize) f32 {
+        _ = variant;
+
+        return self.light_aabbs.items[light_id].bounds[1][3];
     }
 
     fn allocateProp(self: *Scene, alloc: *Allocator) !u32 {
@@ -298,6 +331,8 @@ pub const Scene = struct {
         part: u32,
     ) !void {
         try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
+
+        try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {

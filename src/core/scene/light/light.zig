@@ -7,6 +7,7 @@ const SampleTo = shp.To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
 const math = @import("base").math;
+const AABB = math.AABB;
 const Vec4f = math.Vec4f;
 
 pub const Light = packed struct {
@@ -26,6 +27,18 @@ pub const Light = packed struct {
 
     pub fn prepareSampling(self: Light, light_id: usize, scene: *Scene) void {
         scene.propPrepareSampling(self.prop, self.part, light_id);
+    }
+
+    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
+        const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
+
+        const radiance = @splat(4, extent) * average_radiance;
+
+        if (scene.propShape(self.prop).isFinite()) {
+            return radiance;
+        }
+
+        return @splat(4, math.squaredLength3(scene_bb.extent())) * radiance;
     }
 
     pub fn sampleTo(

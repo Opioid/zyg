@@ -5,6 +5,9 @@ pub const Substitute = @import("substitute/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 const Base = @import("material_base.zig").Base;
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const Scene = @import("../scene.zig").Scene;
+const Shape = @import("../shape/shape.zig").Shape;
+const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const ts = @import("../../image/texture/sampler.zig");
 
@@ -22,8 +25,10 @@ pub const Material = union(enum) {
     Substitute: Substitute,
 
     pub fn deinit(self: *Material, alloc: *Allocator) void {
-        _ = self;
-        _ = alloc;
+        switch (self.*) {
+            .Light => |*m| m.deinit(alloc),
+            else => {},
+        }
     }
 
     pub fn super(self: Material) Base {
@@ -42,6 +47,24 @@ pub const Material = union(enum) {
             .Substitute => |*m| m.commit(),
             else => {},
         }
+    }
+
+    pub fn prepareSampling(
+        self: *Material,
+        shape: Shape,
+        part: u32,
+        trafo: Transformation,
+        extent: f32,
+        scene: Scene,
+    ) Vec4f {
+        _ = part;
+        _ = trafo;
+
+        return switch (self.*) {
+            .Light => |*m| m.prepareSampling(shape, extent, scene),
+            .Substitute => |m| m.prepareSampling(scene),
+            else => @splat(4, @as(f32, 0.0)),
+        };
     }
 
     pub fn isTwoSided(self: Material) bool {
