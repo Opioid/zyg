@@ -35,7 +35,7 @@ pub const Texture = struct {
         return if (Null == self.image) 0 else nc;
     }
 
-    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
+    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: Scene) f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -47,7 +47,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather2D_1(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]f32 {
+    pub fn gather2D_1(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -64,7 +64,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
+    pub fn get2D_2(self: Texture, x: i32, y: i32, scene: Scene) Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -80,7 +80,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather2D_2(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec2f {
+    pub fn gather2D_2(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -111,7 +111,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
+    pub fn get2D_3(self: Texture, x: i32, y: i32, scene: Scene) Vec4f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -132,7 +132,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather2D_3(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec4f {
+    pub fn gather2D_3(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]Vec4f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -183,19 +183,19 @@ pub const Texture = struct {
         };
     }
 
-    pub fn description(self: Texture, scene: *const Scene) Description {
+    pub fn description(self: Texture, scene: Scene) Description {
         return scene.image(self.image).description();
     }
 
     pub fn average_3(self: Texture, scene: Scene) Vec4f {
         var average = @splat(4, @as(f32, 0.0));
 
-        const d = self.description(&scene).dimensions;
+        const d = self.description(scene).dimensions;
         var y: i32 = 0;
         while (y < d.v[1]) : (y += 1) {
             var x: i32 = 0;
             while (x < d.v[0]) : (x += 1) {
-                average += self.get2D_3(x, y, &scene);
+                average += self.get2D_3(x, y, scene);
             }
         }
 

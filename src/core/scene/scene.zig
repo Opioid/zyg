@@ -16,6 +16,7 @@ const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
 const Distribution1D = math.Distribution1D;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -93,7 +94,7 @@ pub const Scene = struct {
         return AABB.init(.{ 0.0, 0.0, 0.0, 0.0 }, .{ 1.0, 1.0, 1.0, 1.0 });
     }
 
-    pub fn compile(self: *Scene, alloc: *Allocator, camera_pos: Vec4f) !void {
+    pub fn compile(self: *Scene, alloc: *Allocator, camera_pos: Vec4f, threads: *Threads) !void {
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -105,7 +106,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(i, self);
+            l.prepareSampling(alloc, i, self, threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -226,7 +227,7 @@ pub const Scene = struct {
         self.prop_world_positions.items[entity] = t.position;
     }
 
-    pub fn propPrepareSampling(self: *Scene, entity: u32, part: u32, light_id: usize) void {
+    pub fn propPrepareSampling(self: *Scene, alloc: *Allocator, entity: u32, part: u32, light_id: usize, threads: *Threads) void {
         const shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
@@ -240,7 +241,7 @@ pub const Scene = struct {
         self.lights.items[light_id].extent = extent;
 
         const mat = &self.materials.items[m];
-        const average_radiance = mat.prepareSampling(shape_inst, part, trafo, extent, self.*);
+        const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self.*, threads);
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
             self.lights.items[light_id].power(average_radiance, self.aabb(), self.*),

@@ -5,10 +5,14 @@ const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
-
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Light = packed struct {
     pub const Type = enum(u8) {
@@ -25,8 +29,8 @@ pub const Light = packed struct {
     part: u32,
     extent: f32 = undefined,
 
-    pub fn prepareSampling(self: Light, light_id: usize, scene: *Scene) void {
-        scene.propPrepareSampling(self.prop, self.part, light_id);
+    pub fn prepareSampling(self: Light, alloc: *Allocator, light_id: usize, scene: *Scene, threads: *Threads) void {
+        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, threads);
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {

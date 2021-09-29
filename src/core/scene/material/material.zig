@@ -10,10 +10,11 @@ const Shape = @import("../shape/shape.zig").Shape;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const ts = @import("../../image/texture/sampler.zig");
-
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -51,17 +52,19 @@ pub const Material = union(enum) {
 
     pub fn prepareSampling(
         self: *Material,
+        alloc: *Allocator,
         shape: Shape,
         part: u32,
         trafo: Transformation,
         extent: f32,
         scene: Scene,
+        threads: *Threads,
     ) Vec4f {
         _ = part;
         _ = trafo;
 
         return switch (self.*) {
-            .Light => |*m| m.prepareSampling(shape, extent, scene),
+            .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
             .Substitute => |m| m.prepareSampling(scene),
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -129,7 +132,7 @@ pub const Material = union(enum) {
         const key = ts.resolveKey(self.super().sampler_key, filter);
         const mask = self.super().mask;
         if (mask.isValid()) {
-            return ts.sample2D_1(key, mask, uv, worker.scene);
+            return ts.sample2D_1(key, mask, uv, worker.scene.*);
         }
 
         return 1.0;

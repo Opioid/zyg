@@ -15,6 +15,7 @@ const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -158,6 +159,13 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             else => null,
+        };
+    }
+
+    pub fn uvWeight(self: Shape, uv: Vec2f) f32 {
+        return switch (self) {
+            .InfiniteSphere => @sin(uv[1] * std.math.pi),
+            else => 1.0,
         };
     }
 };

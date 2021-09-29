@@ -1,7 +1,6 @@
 const Float4 = @import("../../image/image.zig").Float4;
 const base = @import("base");
 const Threads = base.thread.Pool;
-const ThreadContext = base.thread.Pool.Context;
 const encoding = base.encoding;
 const spectrum = base.spectrum;
 
@@ -36,7 +35,7 @@ pub const Srgb = struct {
         threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.numPixels()));
     }
 
-    fn toSrgbRange(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+    fn toSrgbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
         const self = @intToPtr(*Srgb, context);

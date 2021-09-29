@@ -66,7 +66,7 @@ pub const Material = struct {
             key,
             self.super.color_map,
             rs.uv,
-            worker.scene,
+            worker.scene.*,
         ) else self.color;
 
         const ef = @splat(4, self.emission_factor);
@@ -74,7 +74,7 @@ pub const Material = struct {
             key,
             self.emission_map,
             rs.uv,
-            worker.scene,
+            worker.scene.*,
         ) else ef * self.super.emission;
 
         var alpha: Vec2f = undefined;
@@ -82,12 +82,12 @@ pub const Material = struct {
 
         const nc = self.surface_map.numChannels();
         if (nc >= 2) {
-            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, worker.scene);
+            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, worker.scene.*);
             const r = ggx.mapRoughness(surface[0]);
             alpha = anisotropicAlpha(r, self.anisotropy);
             metallic = surface[1];
         } else if (1 == nc) {
-            const r = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene));
+            const r = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene.*));
             alpha = anisotropicAlpha(r, self.anisotropy);
             metallic = self.metallic;
         } else {
@@ -106,7 +106,7 @@ pub const Material = struct {
         );
 
         if (self.normal_map.isValid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
             const tb = math.orthonormalBasis3(n);
 
             result.super.layer.setTangentFrame(tb[0], tb[1], n);
@@ -125,7 +125,7 @@ pub const Material = struct {
         const ef = @splat(4, self.emission_factor);
         if (self.emission_map.isValid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ef * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene);
+            return ef * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
         }
 
         return ef * self.super.emission;

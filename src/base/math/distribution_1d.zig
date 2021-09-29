@@ -7,6 +7,11 @@ pub const Distribution1D = struct {
         pdf: f32,
     };
 
+    pub const Continuous = struct {
+        offset: f32,
+        pdf: f32,
+    };
+
     integral: f32 = -1.0,
     lut_range: f32 = 0.0,
 
@@ -53,6 +58,31 @@ pub const Distribution1D = struct {
         const offset = self.sample(r);
 
         return .{ .offset = offset, .pdf = self.cdf[offset + 1] - self.cdf[offset] };
+    }
+
+    pub fn sampleContinous(self: Self, r: f32) Continuous {
+        const offset = self.sample(r);
+
+        const c = self.cdf[offset + 1];
+        const v = c - self.cdf[offset];
+
+        if (0.0 == v) {
+            return .{ .offset = 0.0, .pdf = 0.0 };
+        }
+
+        const t = (c - r) / v;
+        const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, self.cdf.len - 1);
+        return .{ .offset = result, .pdf = v };
+    }
+
+    pub fn pdfI(self: Self, index: u32) f32 {
+        return self.cdf[index + 1] - self.cdf[index];
+    }
+
+    pub fn pdfF(self: Self, u: f32) f32 {
+        const offset = @floatToInt(u32, u * @intToFloat(f32, self.cdf.len - 1));
+
+        return self.cdf[offset + 1] - self.cdf[offset];
     }
 
     fn precompute1DPdfCdf(self: *Self, alloc: *Allocator, data: []f32) !void {
