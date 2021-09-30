@@ -132,9 +132,17 @@ pub const Rectangle = struct {
         rng: *RNG,
         sampler_d: usize,
     ) ?SampleTo {
-        const r = sampler.sample2D(rng, sampler_d);
-        const uv = r;
+        const uv = sampler.sample2D(rng, sampler_d);
+        return sampleToUV(p, uv, trafo, area, two_sided);
+    }
 
+    pub fn sampleToUV(
+        p: Vec4f,
+        uv: Vec2f,
+        trafo: Transformation,
+        area: f32,
+        two_sided: bool,
+    ) ?SampleTo {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);

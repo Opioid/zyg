@@ -153,11 +153,28 @@ pub const Shape = union(enum) {
     ) ?SampleTo {
         _ = part;
         _ = variant;
-        _ = n;
-        _ = total_sphere;
 
         return switch (self) {
+            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
+            else => null,
+        };
+    }
+
+    pub fn sampleToUV(
+        self: Shape,
+        part: u32,
+        p: Vec4f,
+        uv: Vec2f,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+    ) ?SampleTo {
+        _ = part;
+
+        return switch (self) {
+            .InfiniteSphere => InfiniteSphere.sampleToUV(uv, trafo),
+            .Rectangle => Rectangle.sampleToUV(p, uv, trafo, extent, two_sided),
             else => null,
         };
     }

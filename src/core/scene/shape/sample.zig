@@ -18,6 +18,10 @@ pub const To = struct {
         return self.wi[3];
     }
 
+    pub fn mulAssignPdf(self: *To, s: f32) void {
+        self.wi[3] *= s;
+    }
+
     pub fn t(self: To) f32 {
         return self.n[3];
     }

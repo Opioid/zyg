@@ -40,3 +40,25 @@ pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
 
     return @splat(4, xy[0]) * x + @splat(4, xy[1]) * y + @splat(4, za) * z;
 }
+
+pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+    const za = 1.0 - uv[0];
+    const r = @sqrt(std.math.max(0.0, 1.0 - za * za));
+    const phi = uv[1] * (2.0 * std.math.pi);
+
+    const sin_phi = @sin(phi);
+    const cos_phi = @cos(phi);
+
+    return @splat(4, cos_phi * r) * x + @splat(4, sin_phi * r) * y + @splat(4, za) * z;
+}
+
+pub fn sphereUniform(uv: Vec2f) Vec4f {
+    const z = 1.0 - 2.0 * uv[0];
+    const r = @sqrt(std.math.max(0.0, 1.0 - z * z));
+    const phi = uv[1] * (2.0 * std.math.pi);
+
+    const sin_phi = @sin(phi);
+    const cos_phi = @cos(phi);
+
+    return .{ cos_phi * r, sin_phi * r, z, 0.0 };
+}

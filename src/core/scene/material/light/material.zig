@@ -105,6 +105,9 @@ pub const Material = struct {
             threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[1]));
         }
 
+        self.distribution.configure(alloc) catch
+            return @splat(4, @as(f32, 0.0));
+
         return self.average_emission;
     }
 
@@ -127,6 +130,12 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(self: Material, extent: f32) Vec4f {
         return self.emittance.radiance(extent);
+    }
+
+    pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
+        const result = self.distribution.sampleContinous(.{ r3[0], r3[1] });
+
+        return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
     }
 };
 

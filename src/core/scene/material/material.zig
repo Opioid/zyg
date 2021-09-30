@@ -128,6 +128,13 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
+        return switch (self) {
+            .Light => |m| m.radianceSample(r3),
+            else => Base.RadianceSample.init3(r3, 1.0),
+        };
+    }
+
     pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
         const key = ts.resolveKey(self.super().sampler_key, filter);
         const mask = self.super().mask;

@@ -66,6 +66,15 @@ pub const Light = packed struct {
                 sampler_d,
                 worker,
             ),
+            .PropImage => self.propImageSampleTo(
+                p,
+                n,
+                trafo,
+                total_sphere,
+                sampler,
+                sampler_d,
+                worker,
+            ),
             else => null,
         };
     }
@@ -87,7 +96,6 @@ pub const Light = packed struct {
         worker: *Worker,
     ) ?SampleTo {
         const shape = worker.scene.propShape(self.prop);
-
         const result = shape.sampleTo(
             self.part,
             self.variant,
@@ -101,6 +109,44 @@ pub const Light = packed struct {
             &worker.rng,
             sampler_d,
         ) orelse return null;
+
+        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
+            return result;
+        }
+
+        return null;
+    }
+
+    fn propImageSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Transformation,
+        total_sphere: bool,
+        sampler: *Sampler,
+        sampler_d: usize,
+        worker: *Worker,
+    ) ?SampleTo {
+        const s2d = sampler.sample2D(&worker.rng, sampler_d);
+
+        const material = worker.scene.propMaterial(self.prop, self.part);
+        const rs = material.radianceSample(.{ s2d[0], s2d[1], 0.0, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return null;
+        }
+
+        const shape = worker.scene.propShape(self.prop);
+        // this pdf includes the uv weight which adjusts for texture distortion by the shape
+        var result = shape.sampleToUV(
+            self.part,
+            p,
+            .{ rs.uvw[0], rs.uvw[1] },
+            trafo,
+            self.extent,
+            self.two_sided,
+        ) orelse return null;
+
+        result.mulAssignPdf(rs.pdf());
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
             return result;

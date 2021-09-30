@@ -36,7 +36,7 @@ pub const Distribution2D = struct {
     }
 
     pub fn configure(self: *Self, alloc: *Allocator) !void {
-        var integrals = alloc.alloc(f32, self.conditional.len);
+        var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
         for (self.conditional) |c, i| {
@@ -54,7 +54,7 @@ pub const Distribution2D = struct {
 
         const u = self.conditional[c].sampleContinous(r2[0]);
 
-        return .{ .offset = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
+        return .{ .uv = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
     }
 
     pub fn pdf(self: Self, uv: Vec2f) f32 {
