@@ -128,7 +128,13 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, extent: f32) Vec4f {
+    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, worker: Worker) Vec4f {
+        if (self.emission_map.isValid()) {
+            const ef = @splat(4, self.emission_factor);
+            const key = ts.resolveKey(self.super.sampler_key, filter);
+            return ef * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+        }
+
         return self.emittance.radiance(extent);
     }
 

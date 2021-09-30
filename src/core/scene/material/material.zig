@@ -122,7 +122,7 @@ pub const Material = union(enum) {
         _ = wi;
         _ = n;
         return switch (self) {
-            .Light => |m| m.evaluateRadiance(extent),
+            .Light => |m| m.evaluateRadiance(uvw, extent, filter, worker),
             .Substitute => |m| m.evaluateRadiance(uvw, filter, worker),
             else => @splat(4, @as(f32, 0.0)),
         };

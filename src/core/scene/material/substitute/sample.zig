@@ -42,6 +42,10 @@ pub const Sample = struct {
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const wo = self.super.wo;
 
+        // if (!self.super.sameHemisphere(wo)) {
+        //     return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+        // }
+
         const h = math.normalize3(wo + wi);
 
         const wo_dot_h = hlp.clampDot(wo, h);
