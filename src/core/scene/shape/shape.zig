@@ -1,3 +1,4 @@
+pub const Disk = @import("disk.zig").Disk;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
 pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
@@ -23,6 +24,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
     Null,
+    Disk: Disk,
     InfiniteSphere: InfiniteSphere,
     Plane: Plane,
     Rectangle: Rectangle,
@@ -81,7 +83,7 @@ pub const Shape = union(enum) {
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
             .Null, .InfiniteSphere, .Plane => math.aabb.empty,
-            .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
+            .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
         };
@@ -90,6 +92,7 @@ pub const Shape = union(enum) {
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,
+            .Disk => std.math.pi * (scale[0] * scale[0]),
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
@@ -100,6 +103,7 @@ pub const Shape = union(enum) {
     pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, worker: *Worker, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
+            .Disk => Disk.intersect(&ray.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
@@ -111,6 +115,7 @@ pub const Shape = union(enum) {
     pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
         return switch (self) {
             .Null, .InfiniteSphere => false,
+            .Disk => Disk.intersectP(ray.ray, trafo),
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
@@ -130,6 +135,7 @@ pub const Shape = union(enum) {
             .Null, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
+            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*),

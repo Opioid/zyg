@@ -36,6 +36,10 @@ pub const ComposedTransformation = struct {
         return self.rotation.m(1, 3);
     }
 
+    pub fn scaleZ(self: Self) f32 {
+        return self.rotation.m(2, 3);
+    }
+
     pub fn scale(self: Self) Vec4f {
         return .{ self.rotation.m(0, 3), self.rotation.m(1, 3), self.rotation.m(2, 3), 0.0 };
     }

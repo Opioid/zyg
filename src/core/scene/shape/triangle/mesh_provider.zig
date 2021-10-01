@@ -53,6 +53,13 @@ const Handler = struct {
     }
 };
 
+const Error = error{
+    NoVertices,
+    NoGeometryNode,
+    BitangentSignNotUInt8,
+    PartIndicesOutOfBounds,
+};
+
 pub const Provider = struct {
     pub fn deinit(self: *Provider, alloc: *Allocator) void {
         _ = self;
@@ -97,6 +104,10 @@ pub const Provider = struct {
                     try loadGeometry(alloc, &handler, entry.value_ptr.*);
                 }
             }
+        }
+
+        if (0 == handler.positions.items.len) {
+            return Error.NoVertices;
         }
 
         for (handler.parts.items) |p, i| {
@@ -258,12 +269,6 @@ pub const Provider = struct {
             }
         }
     }
-
-    const Error = error{
-        NoGeometryNode,
-        BitangentSignNotUInt8,
-        PartIndicesOutOfBounds,
-    };
 
     fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
         try stream.seekTo(4);
