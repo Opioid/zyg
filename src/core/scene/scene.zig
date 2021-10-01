@@ -37,6 +37,7 @@ pub const Scene = struct {
     prop_world_transformations: ALU(Transformation),
     prop_world_positions: ALU(Vec4f),
     prop_parts: ALU(u32),
+    prop_topology: ALU(Prop.Topology),
     prop_aabbs: ALU(AABB),
 
     lights: ALU(Light),
@@ -66,6 +67,7 @@ pub const Scene = struct {
             .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
             .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
             .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_topology = try ALU(Prop.Topology).initCapacity(alloc, Num_reserved_props),
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
             .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
@@ -82,6 +84,7 @@ pub const Scene = struct {
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
+        self.prop_topology.deinit(alloc);
         self.prop_parts.deinit(alloc);
         self.prop_world_positions.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
@@ -118,16 +121,16 @@ pub const Scene = struct {
         worker.node_stack.clear();
 
         var hit: bool = false;
-        var prop: usize = prp.Null;
+        var prop_id: usize = prp.Null;
 
         for (self.props.items) |p, i| {
             if (p.intersect(i, ray, worker, &isec.geo)) {
                 hit = true;
-                prop = i;
+                prop_id = i;
             }
         }
 
-        isec.prop = @intCast(u32, prop);
+        isec.prop = @intCast(u32, prop_id);
         return hit;
     }
 
@@ -222,9 +225,24 @@ pub const Scene = struct {
         return self.prop_world_transformations.items[entity];
     }
 
+    pub fn propSerializeChild(self: *Scene, parent_id: u32, child_id: u32) void {
+        self.props.items[child_id].setHasParent();
+
+        const pt = &self.prop_topology.items[parent_id];
+        if (prp.Null == pt.child) {
+            pt.child = child_id;
+        } else {
+            self.prop_topology.items[self.prop_topology.items.len - 2].next = child_id;
+        }
+    }
+
     pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
         self.prop_world_transformations.items[entity].prepare(t);
         self.prop_world_positions.items[entity] = t.position;
+    }
+
+    pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
+        self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }
 
     pub fn propPrepareSampling(self: *Scene, alloc: *Allocator, entity: u32, part: u32, light_id: usize, threads: *Threads) void {
@@ -273,6 +291,10 @@ pub const Scene = struct {
         return self.shapes.items[shape_id];
     }
 
+    pub fn prop(self: Scene, index: u32) Prop {
+        return self.props.items[index];
+    }
+
     pub fn light(self: Scene, id: u32) Light {
         return self.lights.items[id];
     }
@@ -318,6 +340,7 @@ pub const Scene = struct {
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
         try self.prop_parts.append(alloc, 0);
+        try self.prop_topology.append(alloc, .{});
         try self.prop_aabbs.append(alloc, .{});
 
         return @intCast(u32, self.props.items.len - 1);

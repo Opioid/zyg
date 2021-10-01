@@ -121,7 +121,7 @@ pub const Loader = struct {
             if (std.mem.eql(u8, "Light", type_name)) {
                 const prop_id = try self.loadProp(alloc, entity, local_materials, scene);
 
-                if (prp.Null != prop_id) {
+                if (prp.Null != prop_id and scene.prop(prop_id).visibleInReflection()) {
                     try scene.createLight(alloc, prop_id);
                 }
 
@@ -163,6 +163,7 @@ pub const Loader = struct {
         var shape: u32 = resource.Null;
 
         var materials_value_ptr: ?*std.json.Value = null;
+        var visibility_ptr: ?*std.json.Value = null;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
@@ -170,6 +171,8 @@ pub const Loader = struct {
                 shape = self.loadShape(alloc, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
                 materials_value_ptr = entry.value_ptr;
+            } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
+                visibility_ptr = entry.value_ptr;
             }
         }
 
@@ -190,7 +193,32 @@ pub const Loader = struct {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        return try scene.createProp(alloc, shape, self.materials.items);
+        const prop = try scene.createProp(alloc, shape, self.materials.items);
+
+        if (visibility_ptr) |visibility| {
+            setVisibility(prop, visibility.*, scene);
+        }
+
+        return prop;
+    }
+
+    fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
+        var in_camera = true;
+        var in_reflection = true;
+        var in_shadow = true;
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "in_camera", entry.key_ptr.*)) {
+                in_camera = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "in_reflection", entry.key_ptr.*)) {
+                in_reflection = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "in_shadow", entry.key_ptr.*)) {
+                in_shadow = json.readBool(entry.value_ptr.*);
+            }
+        }
+
+        scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
     }
 
     fn loadShape(self: Loader, alloc: *Allocator, value: std.json.Value) u32 {
