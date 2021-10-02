@@ -85,10 +85,25 @@ pub const Loader = struct {
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
+        const parent_id: u32 = prp.Null;
+
+        const parent_trafo = Transformation{
+            .position = @splat(4, @as(f32, 0.0)),
+            .scale = @splat(4, @as(f32, 1.0)),
+            .rotation = math.quaternion.identity,
+        };
+
         var iter = root.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
-                try self.loadEntities(alloc, entry.value_ptr.*, local_materials, scene);
+                try self.loadEntities(
+                    alloc,
+                    entry.value_ptr.*,
+                    parent_id,
+                    parent_trafo,
+                    local_materials,
+                    scene,
+                );
             }
         }
 
@@ -109,6 +124,8 @@ pub const Loader = struct {
         self: *Loader,
         alloc: *Allocator,
         value: std.json.Value,
+        parent_id: u32,
+        parent_trafo: Transformation,
         local_materials: LocalMaterials,
         scene: *Scene,
     ) !void {
@@ -142,14 +159,37 @@ pub const Loader = struct {
                 .rotation = math.quaternion.identity,
             };
 
+            var children_ptr: ?*std.json.Value = null;
+
             var iter = entity.Object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                     json.readTransformation(entry.value_ptr.*, &trafo);
+                } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
+                    children_ptr = entry.value_ptr;
                 }
             }
 
+            if (prp.Null != parent_id) {
+                scene.propSerializeChild(parent_id, entity_id);
+            }
+
+            if (prp.Null != parent_id) {
+                trafo = parent_trafo.transform(trafo);
+            }
+
             scene.propSetWorldTransformation(entity_id, trafo);
+
+            if (children_ptr) |children| {
+                try self.loadEntities(
+                    alloc,
+                    children.*,
+                    entity_id,
+                    trafo,
+                    local_materials,
+                    scene,
+                );
+            }
         }
     }
 

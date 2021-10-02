@@ -138,3 +138,12 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
 
     return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
+
+pub fn mul(a: Quaternion, b: Quaternion) Quaternion {
+    return .{
+        (a[3] * b[0] + a[0] * b[3]) + (a[1] * b[2] - a[2] * b[1]),
+        (a[3] * b[1] + a[1] * b[3]) + (a[2] * b[0] - a[0] * b[2]),
+        (a[3] * b[2] + a[2] * b[3]) + (a[0] * b[1] - a[1] * b[0]),
+        (a[3] * b[3] - a[0] * b[0]) - (a[1] * b[1] + a[2] * b[2]),
+    };
+}
