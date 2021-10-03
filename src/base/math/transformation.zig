@@ -9,7 +9,7 @@ pub const Transformation = struct {
     rotation: Quaternion,
 
     pub fn toMat4x4(self: Transformation) Mat4x4 {
-        return Mat4x4.compose(self.rotation.initMat3x3(), self.scale, self.position);
+        return Mat4x4.compose(quaternion.toMat3x3(self.rotation), self.scale, self.position);
     }
 
     pub fn transform(self: Transformation, other: Transformation) Transformation {

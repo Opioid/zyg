@@ -163,6 +163,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
+            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
             else => null,
         };
     }

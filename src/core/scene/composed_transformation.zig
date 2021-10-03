@@ -13,7 +13,7 @@ pub const ComposedTransformation = struct {
     const Self = @This();
 
     pub fn prepare(self: *Self, t: Transformation) void {
-        self.rotation = quaternion.initMat3x3(t.rotation);
+        self.rotation = quaternion.toMat3x3(t.rotation);
 
         self.rotation.setElem(0, 3, t.scale[0]);
         self.rotation.setElem(1, 3, t.scale[1]);

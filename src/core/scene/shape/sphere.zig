@@ -1,8 +1,12 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const SampleTo = @import("sample.zig").To;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
+const ro = @import("../ray_offset.zig");
 const base = @import("base");
+const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -135,5 +139,47 @@ pub const Sphere = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn sampleTo(
+        p: Vec4f,
+        trafo: Transformation,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) ?SampleTo {
+        const v = trafo.position - p;
+        const il = math.rlength3(v);
+        const radius = trafo.scaleX();
+        const sin_theta_max = std.math.min(il * radius, 1.0);
+        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Delta));
+
+        const z = @splat(4, il) * v;
+        const xy = math.orthonormalBasis3(z);
+
+        const r2 = sampler.sample2D(rng, sampler_d);
+        const dir = math.smpl.orientedConeUniform(r2, cos_theta_max, xy[0], xy[1], z);
+
+        const b = math.dot3(dir, v);
+        const remedy_term = v - @splat(4, b) * dir;
+        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+            const t = b - dist;
+
+            const sp = p + @splat(4, t) * dir;
+            const sn = math.normalize3(sp - trafo.position);
+
+            return SampleTo.init(
+                dir,
+                sn,
+                @splat(4, @as(f32, 0.0)),
+                math.smpl.conePdfUniform(cos_theta_max),
+                ro.offsetB(t),
+            );
+        }
+
+        return null;
     }
 };

@@ -28,3 +28,7 @@ pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
 pub fn offsetF(t: f32) f32 {
     return if (t < origin) t + float_scale else @bitCast(f32, @bitCast(i32, t) + @floatToInt(i32, int_scale));
 }
+
+pub fn offsetB(t: f32) f32 {
+    return if (t < origin) t - float_scale else @bitCast(f32, @bitCast(i32, t) - @floatToInt(i32, int_scale));
+}

@@ -17,6 +17,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Loader = struct {
+    pub const Error = error{
+        OutOfMemory,
+    };
+
     resources: *Resources,
 
     null_shape: u32,
@@ -128,7 +132,7 @@ pub const Loader = struct {
         parent_trafo: Transformation,
         local_materials: LocalMaterials,
         scene: *Scene,
-    ) !void {
+    ) Error!void {
         for (value.Array.items) |entity| {
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;

@@ -230,7 +230,7 @@ pub const Provider = struct {
                                 bts = true;
                             }
 
-                            const tbn = quaternion.initMat3x3(ts);
+                            const tbn = quaternion.toMat3x3(ts);
 
                             n.* = Vec3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
 

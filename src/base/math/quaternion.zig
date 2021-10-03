@@ -57,7 +57,7 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     return q;
 }
 
-pub fn initMat3x3(q: Quaternion) Mat3x3 {
+pub fn toMat3x3(q: Quaternion) Mat3x3 {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;

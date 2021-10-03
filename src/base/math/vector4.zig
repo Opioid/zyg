@@ -153,6 +153,10 @@ pub fn length3(v: Vec4f) f32 {
     return @sqrt(dot3(v, v));
 }
 
+pub fn rlength3(v: Vec4f) f32 {
+    return 1.0 / length3(v);
+}
+
 pub fn normalize3(v: Vec4f) Vec4f {
     const i = 1.0 / length3(v);
     return @splat(4, i) * v;
