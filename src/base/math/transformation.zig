@@ -19,4 +19,12 @@ pub const Transformation = struct {
             .rotation = quaternion.mul(other.rotation, self.rotation),
         };
     }
+
+    pub fn lerp(self: Transformation, other: Transformation, t: f32) Transformation {
+        return .{
+            .postion = math.lerp3(self.postion, other.position, t),
+            .rotation = math.lerp3(self.position, other.position, t),
+            .rotation = quaternion.slerp(self.rotation, other.rotation, t),
+        };
+    }
 };

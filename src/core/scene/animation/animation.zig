@@ -36,16 +36,51 @@ pub const Animation = struct {
         alloc.free(self.times);
     }
 
-    pub fn set(self: *Animation, index: u32, keyframe: Keyframe) void {
+    pub fn set(self: *Animation, index: usize, keyframe: Keyframe) void {
         self.times[index] = keyframe.time;
         self.frames[index] = keyframe.k;
     }
 
     pub fn resample(self: *Animation, start: u64, end: u64, frame_length: u64) void {
-        _ = self;
-        _ = start;
-        _ = end;
-        _ = frame_length;
+        const keyframes_back = @intCast(u32, self.times.len - 1);
+
+        const interpolated_frames = self.frames.ptr + self.times.len;
+
+        var last_frame = if (self.last_frame > 2) self.last_frame - 2 else 0;
+
+        var time = start;
+        var i: u32 = 0;
+
+        while (time <= end) : (time += frame_length) {
+            var j = last_frame;
+            while (j < keyframes_back) : (j += 1) {
+                const a_time = self.times[j];
+                const b_time = self.times[j + 1];
+
+                const a_frame = self.frames[j];
+                const b_frame = self.frames[j + 1];
+
+                if (time >= a_time and time < b_time) {
+                    const range = b_time - a_time;
+                    const delta = time - a_time;
+
+                    const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, range));
+
+                    interpolated_frames[i] = a_frame.lerp(b_frame, t);
+
+                    break;
+                }
+
+                if (j + 1 == keyframes_back) {
+                    interpolated_frames[i] = b_frame;
+                    break;
+                }
+
+                last_frame += 1;
+            }
+
+            i += 1;
+        }
     }
 
     pub fn update(self: Animation, scene: *Scene) void {

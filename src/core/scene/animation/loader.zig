@@ -1,3 +1,5 @@
+const Keyframe = @import("animation.zig").Keyframe;
+const scn = @import("../constants.zig");
 const Scene = @import("../scene.zig").Scene;
 const base = @import("base");
 const json = base.json;
@@ -31,27 +33,27 @@ pub fn loadKeyframes(
     entity: u32,
     scene: *Scene,
 ) !bool {
-    _ = alloc;
-    _ = default_trafo;
-
     return switch (value) {
         .Array => |array| {
             const animation = try scene.createAnimation(alloc, entity, @intCast(u32, array.items.len));
 
-            _ = animation;
+            for (array.items) |n, i| {
+                var keyframe = Keyframe{ .k = default_trafo, .time = 0 };
+
+                var iter = n.Object.iterator();
+                while (iter.next()) |entry| {
+                    if (std.mem.eql(u8, "time", entry.key_ptr.*)) {
+                        keyframe.time = scn.time(json.readFloat(f64, entry.value_ptr.*));
+                    } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
+                        json.readTransformation(entry.value_ptr.*, &keyframe.k);
+                    }
+                }
+
+                scene.animationSetFrame(animation, i, keyframe);
+            }
 
             return true;
         },
         else => false,
     };
-
-    // if (value.Array) |array| {
-    //     const animation = scene.createAnimation(entity, @intCast(u32, array.items.len));
-
-    //     _ = animation;
-
-    //     return true;
-    // }
-
-    // return false;
 }

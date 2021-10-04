@@ -5,7 +5,9 @@ const Light = @import("light/light.zig").Light;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Material = @import("material/material.zig").Material;
-const Animation = @import("animation/animation.zig").Animation;
+const anim = @import("animation/animation.zig");
+const Animation = anim.Animation;
+const Keyframe = anim.Keyframe;
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
@@ -112,7 +114,35 @@ pub const Scene = struct {
         return AABB.init(.{ 0.0, 0.0, 0.0, 0.0 }, .{ 1.0, 1.0, 1.0, 1.0 });
     }
 
-    pub fn compile(self: *Scene, alloc: *Allocator, camera_pos: Vec4f, threads: *Threads) !void {
+    pub fn simulate(
+        self: *Scene,
+        alloc: *Allocator,
+        camera_pos: Vec4f,
+        start: u64,
+        end: u64,
+        threads: *Threads,
+    ) !void {
+        const frames_start = start - (start % Tick_duration);
+        const end_rem = end % Tick_duration;
+        const frames_end = end + (if (end_rem > 0) Tick_duration - end_rem else 0);
+
+        for (self.animations.items) |*a| {
+            a.resample(frames_start, frames_end, Tick_duration);
+            a.update(self);
+        }
+
+        self.compile(alloc, camera_pos, start, threads);
+    }
+
+    fn compile(
+        self: *Scene,
+        alloc: *Allocator,
+        camera_pos: Vec4f,
+        time: u64,
+        threads: *Threads,
+    ) !void {
+        _ = time;
+
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -289,6 +319,19 @@ pub const Scene = struct {
         return prp.Null != self.prop_frames.items[entity];
     }
 
+    pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]math.Transformation) void {
+        const num_frames = self.num_interpolation_frames;
+        const f = self.prop_frames[entity];
+
+        const b = f + num_frames;
+        const e = b + num_frames;
+        const local_frames = self.key_frames[b..e];
+
+        for (local_frames) |*lf, i| {
+            lf.* = frames[i];
+        }
+    }
+
     pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
         self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }
@@ -414,6 +457,10 @@ pub const Scene = struct {
         try self.propAllocateFrames(alloc, entity, true);
 
         return @intCast(u32, self.animations.items.len - 1);
+    }
+
+    pub fn animationSetFrame(self: *Scene, animatin: u32, index: usize, keyframe: Keyframe) void {
+        self.animations.items[animation].set(index, keyframe);
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
