@@ -1,3 +1,4 @@
+const math = @import("math.zig");
 const Vec4f = @import("vector4.zig").Vec4f;
 const quaternion = @import("quaternion.zig");
 const Quaternion = quaternion.Quaternion;
@@ -12,6 +13,12 @@ pub const Transformation = struct {
         return Mat4x4.compose(quaternion.toMat3x3(self.rotation), self.scale, self.position);
     }
 
+    pub fn set(self: *Transformation, other: Transformation, camera_pos: Vec4f) void {
+        self.position = other.position - camera_pos;
+        self.scale = other.scale;
+        self.rotation = other.rotation;
+    }
+
     pub fn transform(self: Transformation, other: Transformation) Transformation {
         return .{
             .position = self.toMat4x4().transformPoint(other.position),
@@ -22,8 +29,8 @@ pub const Transformation = struct {
 
     pub fn lerp(self: Transformation, other: Transformation, t: f32) Transformation {
         return .{
-            .postion = math.lerp3(self.postion, other.position, t),
-            .rotation = math.lerp3(self.position, other.position, t),
+            .position = math.lerp3(self.position, other.position, t),
+            .scale = math.lerp3(self.scale, other.scale, t),
             .rotation = quaternion.slerp(self.rotation, other.rotation, t),
         };
     }

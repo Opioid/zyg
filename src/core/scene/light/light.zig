@@ -29,8 +29,15 @@ pub const Light = packed struct {
     part: u32,
     extent: f32 = undefined,
 
-    pub fn prepareSampling(self: Light, alloc: *Allocator, light_id: usize, scene: *Scene, threads: *Threads) void {
-        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, threads);
+    pub fn prepareSampling(
+        self: Light,
+        alloc: *Allocator,
+        light_id: usize,
+        time: u64,
+        scene: *Scene,
+        threads: *Threads,
+    ) void {
+        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, threads);
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
@@ -49,12 +56,13 @@ pub const Light = packed struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
+        time: u64,
         total_sphere: bool,
         sampler: *Sampler,
         sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
-        const trafo = worker.scene.propTransformationAt(self.prop);
+        const trafo = worker.scene.propTransformationAt(self.prop, time);
 
         return switch (self.typef) {
             .Prop => self.propSampleTo(

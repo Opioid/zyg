@@ -27,6 +27,9 @@ const Allocator = std.mem.Allocator;
 const ALU = std.ArrayListUnmanaged;
 
 const Tick_duration = cnst.Units_per_second / 60;
+const Num_steps = 4;
+const Interval = 1.0 / @intToFloat(f32, Num_steps);
+
 const Num_reserved_props = 32;
 
 const LightPick = Distribution1D.Discrete;
@@ -135,7 +138,7 @@ pub const Scene = struct {
             a.update(self);
         }
 
-        self.compile(alloc, camera_pos, start, threads);
+        try self.compile(alloc, camera_pos, start, threads);
     }
 
     fn compile(
@@ -145,8 +148,6 @@ pub const Scene = struct {
         time: u64,
         threads: *Threads,
     ) !void {
-        _ = time;
-
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -158,7 +159,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(alloc, i, self, threads);
+            l.prepareSampling(alloc, i, time, self, threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -278,9 +279,9 @@ pub const Scene = struct {
     fn frameAt(self: Scene, time: u64) Frame {
         const i = (time - self.current_time_start) / Tick_duration;
         const a_time = self.current_time_start + i * Tick_duration;
-        const delta = time - a_t < ime;
+        const delta = time - a_time;
 
-        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(Tick_duration));
+        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, Tick_duration));
 
         return .{ .f = @intCast(u32, i), .w = t };
     }
@@ -289,8 +290,14 @@ pub const Scene = struct {
         return self.prop_world_positions.items[entity];
     }
 
-    pub fn propTransformationAt(self: Scene, entity: usize) Transformation {
-        return self.prop_world_transformations.items[entity];
+    pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
+        const f = self.prop_frames.items[entity];
+
+        if (prp.Null == f) {
+            return self.prop_world_transformations.items[entity];
+        }
+
+        return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
     }
 
     pub fn propTransformationAtMaybeStatic(self: Scene, entity: usize, time: u64, static: bool) Transformation {
@@ -298,7 +305,7 @@ pub const Scene = struct {
             return self.prop_world_transformations.items[entity];
         }
 
-        return self.propAnimatedTransformationAt(entity, time);
+        return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
     }
 
     pub fn propSetTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
@@ -363,13 +370,21 @@ pub const Scene = struct {
         self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }
 
-    pub fn propPrepareSampling(self: *Scene, alloc: *Allocator, entity: u32, part: u32, light_id: usize, threads: *Threads) void {
+    pub fn propPrepareSampling(
+        self: *Scene,
+        alloc: *Allocator,
+        entity: u32,
+        part: u32,
+        light_id: usize,
+        time: u64,
+        threads: *Threads,
+    ) void {
         const shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
         const m = self.material_ids.items[p];
 
-        const trafo = self.propTransformationAt(entity);
+        const trafo = self.propTransformationAt(entity, time);
         const scale = trafo.scale();
 
         const extent = shape_inst.area(part, scale);
@@ -490,7 +505,7 @@ pub const Scene = struct {
         return @intCast(u32, self.animations.items.len - 1);
     }
 
-    pub fn animationSetFrame(self: *Scene, animatin: u32, index: usize, keyframe: Keyframe) void {
+    pub fn animationSetFrame(self: *Scene, animation: u32, index: usize, keyframe: Keyframe) void {
         self.animations.items[animation].set(index, keyframe);
     }
 
@@ -499,7 +514,7 @@ pub const Scene = struct {
             const f = self.prop_frames.items[entity];
 
             if (prp.Null != f) {
-                const frames = self.keyframes.ptr + f;
+                const frames = self.keyframes.items.ptr + f;
 
                 var i: u32 = 0;
                 const len = self.num_interpolation_frames;
@@ -526,7 +541,36 @@ pub const Scene = struct {
 
             var child = self.propTopology(entity).child;
             while (prp.Null != child) {
-                self.propInheritTransformation(child, trafo, camera_pos);
+                self.propInheritTransformation(child, trafo.*, camera_pos);
+
+                child = self.propTopology(child).next;
+            }
+        } else {
+            const frames = self.keyframes.items.ptr + f;
+
+            var bounds = shape_aabb.transform(frames[0].toMat4x4());
+
+            var i: u32 = 0;
+            const len = self.num_interpolation_frames - 1;
+            while (i < len) : (i += 1) {
+                const a = frames[i];
+                const b = frames[i + 1];
+
+                var t = Interval;
+
+                var j: u32 = Num_steps - 1;
+                while (j > 0) : (j -= 1) {
+                    const inter = a.lerp(b, t);
+                    bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
+                    t += Interval;
+                }
+            }
+
+            self.prop_aabbs.items[entity] = bounds;
+
+            var child = self.propTopology(entity).child;
+            while (prp.Null != child) {
+                self.propInheritTransformations(child, frames, camera_pos);
 
                 child = self.propTopology(child).next;
             }
@@ -536,10 +580,10 @@ pub const Scene = struct {
     fn propInheritTransformation(
         self: *Scene,
         entity: u32,
-        transformation: Transformation,
+        trafo: Transformation,
         camera_pos: Vec4f,
     ) void {
-        const f = self.propFrames.items[entity];
+        const f = self.prop_frames.items[entity];
 
         if (prp.Null != f) {
             const frames = self.keyframes.items.ptr + f;
@@ -571,13 +615,13 @@ pub const Scene = struct {
         const len = self.num_interpolation_frames;
         while (i < len) : (i += 1) {
             const lf = if (local_animation) i else 0;
-            tf[i] = frames.transform(tf[len + lf]);
+            tf[i] = frames[i].transform(tf[len + lf]);
         }
 
         self.propPropagateTransformation(entity, camera_pos);
     }
 
-    fn propAnimatedTransformationAt(self: Scene, frame: u32, time: u64) Transformation {
+    fn propAnimatedTransformationAt(self: Scene, frames_id: u32, time: u64) Transformation {
         const f = self.frameAt(time);
 
         const frames = self.keyframes.items.ptr + frames_id;
@@ -585,7 +629,7 @@ pub const Scene = struct {
         const a = frames[f.f];
         const b = frames[f.f + 1];
 
-        return a.lerp(b, f.w);
+        return Transformation.init(a.lerp(b, f.w));
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {

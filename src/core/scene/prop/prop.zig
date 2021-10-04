@@ -39,6 +39,14 @@ pub const Prop = struct {
         return self.properties.is(.VisibleInReflection);
     }
 
+    pub fn hasLocalAnimation(self: Prop) bool {
+        return self.properties.is(.LocalAnimation);
+    }
+
+    pub fn hasNoParent(self: Prop) bool {
+        return self.properties.no(.HasParent);
+    }
+
     pub fn visibleInReflection(self: Prop) bool {
         return self.properties.is(.VisibleInReflection);
     }
@@ -108,7 +116,9 @@ pub const Prop = struct {
             return false;
         }
 
-        const trafo = scene.propTransformationAt(entity);
+        const static = self.properties.is(.Static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+
         return scene.propShape(entity).intersect(ray, trafo, worker, isec);
     }
 
@@ -128,7 +138,9 @@ pub const Prop = struct {
             return false;
         }
 
-        const trafo = scene.propTransformationAt(entity);
+        const static = self.properties.is(.Static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+
         return scene.propShape(entity).intersectP(ray, trafo, worker);
     }
 
@@ -151,7 +163,9 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const trafo = scene.propTransformationAt(entity);
+        const static = self.properties.is(.Static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+
         return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker);
     }
 };

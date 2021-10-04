@@ -176,7 +176,15 @@ pub const PathtracerDL = struct {
         for (lights) |l, i| {
             const light = worker.super.scene.light(l.offset);
 
-            const light_sample = light.sampleTo(p, n, translucent, sampler, i, &worker.super) orelse continue;
+            const light_sample = light.sampleTo(
+                p,
+                n,
+                ray.time,
+                translucent,
+                sampler,
+                i,
+                &worker.super,
+            ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi);
             shadow_ray.ray.setMaxT(light_sample.t());

@@ -170,7 +170,7 @@ pub fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
     // 0.0001 -> some epsillon
     if (1.0 - cosom > 0.0001) {
         // Standard case (slerp)
-        const omega = @acos(cosom); // extract theta from dot product's cos theta
+        const omega = std.math.acos(cosom); // extract theta from dot product's cos theta
         const sinom = @sin(omega);
 
         sclp = @sin((1.0 - t) * omega) / sinom;

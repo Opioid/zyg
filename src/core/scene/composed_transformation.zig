@@ -12,6 +12,15 @@ pub const ComposedTransformation = struct {
 
     const Self = @This();
 
+    pub fn init(t: Transformation) Self {
+        var self = Self{};
+        self.prepare(t);
+
+        self.world_to_object = self.objectToWorld().affineInverted();
+
+        return self;
+    }
+
     pub fn prepare(self: *Self, t: Transformation) void {
         self.rotation = quaternion.toMat3x3(t.rotation);
 
@@ -76,7 +85,7 @@ pub const ComposedTransformation = struct {
         return .{
             .position = self.objectToWorldPoint(other.position),
             .scale = other.scale,
-            .rotation = quaternion.mul(self.rotation, other.rotation),
+            .rotation = quaternion.mul(quaternion.initFromMat3x3(self.rotation), other.rotation),
         };
     }
 };

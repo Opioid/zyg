@@ -87,11 +87,11 @@ pub const Driver = struct {
 
         try self.scene.simulate(alloc, camera_pos, start, start + camera.frame_duration, self.threads);
 
-        camera.update(&self.workers[0].super);
+        camera.update(start, &self.workers[0].super);
 
         std.debug.print("Tracing camera rays...\n", .{});
 
-        const start = std.time.milliTimestamp();
+        const render_start = std.time.milliTimestamp();
 
         camera.sensor.clear(0.0);
 
@@ -101,9 +101,9 @@ pub const Driver = struct {
 
         self.threads.runParallel(self, renderTiles, 0);
 
-        std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(start)});
+        std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(render_start)});
 
-        std.debug.print("Render time {d:.2} s\n", .{chrono.secondsSince(start)});
+        std.debug.print("Render time {d:.2} s\n", .{chrono.secondsSince(render_start)});
 
         const pp_start = std.time.milliTimestamp();
 

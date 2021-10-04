@@ -67,7 +67,7 @@ pub const Perspective = struct {
         self.sensor = sensor;
     }
 
-    pub fn update(self: *Perspective, worker: *Worker) void {
+    pub fn update(self: *Perspective, time: u64, worker: *Worker) void {
         const fr = math.vec2iTo2f(self.resolution);
         const ratio = fr[1] / fr[0];
 
@@ -81,7 +81,7 @@ pub const Perspective = struct {
         self.d_x = (right_top - left_top) / @splat(4, fr[0]);
         self.d_y = (left_bottom - left_top) / @splat(4, fr[1]);
 
-        self.updateFocus(worker);
+        self.updateFocus(time, worker);
     }
 
     pub fn generateRay(self: Perspective, sample: Sample, scene: Scene) ?Ray {
@@ -102,12 +102,14 @@ pub const Perspective = struct {
             origin = @splat(4, @as(f32, 0.0));
         }
 
-        const trafo = scene.propTransformationAt(self.entity);
+        const time: u64 = 0;
+
+        const trafo = scene.propTransformationAt(self.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t);
+        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, time);
     }
 
     pub fn setParameters(self: *Perspective, value: std.json.Value) void {
@@ -146,15 +148,21 @@ pub const Perspective = struct {
         self.focus_distance = focus.distance;
     }
 
-    fn updateFocus(self: *Perspective, worker: *Worker) void {
+    fn updateFocus(self: *Perspective, time: u64, worker: *Worker) void {
         if (self.focus.use_point and self.lens_radius > 0.0) {
             const direction = math.normalize3(
                 self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
             );
 
-            const trafo = worker.scene.propTransformationAt(self.entity);
+            const trafo = worker.scene.propTransformationAt(self.entity, time);
 
-            var ray = Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, scn.Ray_max_t);
+            var ray = Ray.init(
+                trafo.position,
+                trafo.objectToWorldVector(direction),
+                0.0,
+                scn.Ray_max_t,
+                time,
+            );
 
             var isec = Intersection{};
             if (worker.intersect(&ray, &isec)) {
