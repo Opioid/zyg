@@ -164,6 +164,7 @@ pub const PathtracerDL = struct {
         var shadow_ray: Ray = undefined;
         shadow_ray.ray.origin = p;
         shadow_ray.depth = ray.depth;
+        shadow_ray.time = ray.time;
 
         var sampler = self.lightSampler(ray.depth);
 

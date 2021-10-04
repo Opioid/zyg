@@ -40,6 +40,8 @@ pub const Scene = struct {
 
     num_interpolation_frames: u32 = 0,
 
+    current_time_start: u64 = undefined,
+
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
     prop_world_positions: ALU(Vec4f),
@@ -125,6 +127,8 @@ pub const Scene = struct {
         const frames_start = start - (start % Tick_duration);
         const end_rem = end % Tick_duration;
         const frames_end = end + (if (end_rem > 0) Tick_duration - end_rem else 0);
+
+        self.current_time_start = frames_start;
 
         for (self.animations.items) |*a| {
             a.resample(frames_start, frames_end, Tick_duration);
@@ -266,12 +270,35 @@ pub const Scene = struct {
         }
     }
 
+    const Frame = struct {
+        f: u32,
+        w: f32,
+    };
+
+    fn frameAt(self: Scene, time: u64) Frame {
+        const i = (time - self.current_time_start) / Tick_duration;
+        const a_time = self.current_time_start + i * Tick_duration;
+        const delta = time - a_t < ime;
+
+        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(Tick_duration));
+
+        return .{ .f = @intCast(u32, i), .w = t };
+    }
+
     pub fn propWorldPosition(self: Scene, entity: u32) Vec4f {
         return self.prop_world_positions.items[entity];
     }
 
     pub fn propTransformationAt(self: Scene, entity: usize) Transformation {
         return self.prop_world_transformations.items[entity];
+    }
+
+    pub fn propTransformationAtMaybeStatic(self: Scene, entity: usize, time: u64, static: bool) Transformation {
+        if (static) {
+            return self.prop_world_transformations.items[entity];
+        }
+
+        return self.propAnimatedTransformationAt(entity, time);
     }
 
     pub fn propSetTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
@@ -364,6 +391,10 @@ pub const Scene = struct {
     pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
         const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];
+    }
+
+    pub fn propTopology(self: Scene, entity: usize) Prop.Topology {
+        return self.prop_topology.items[entity];
     }
 
     pub fn propShape(self: Scene, entity: usize) Shape {
@@ -464,13 +495,97 @@ pub const Scene = struct {
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
+        if (self.props.items[entity].hasNoParent()) {
+            const f = self.prop_frames.items[entity];
+
+            if (prp.Null != f) {
+                const frames = self.keyframes.ptr + f;
+
+                var i: u32 = 0;
+                const len = self.num_interpolation_frames;
+                while (i < len) : (i += 1) {
+                    frames[i].set(frames[len + i], camera_pos);
+                }
+            }
+
+            self.propPropagateTransformation(entity, camera_pos);
+        }
+    }
+
+    fn propPropagateTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
+        const f = self.prop_frames.items[entity];
+
         const shape_aabb = self.propShape(entity).aabb();
 
-        var trafo = &self.prop_world_transformations.items[entity];
+        if (prp.Null == f) {
+            var trafo = &self.prop_world_transformations.items[entity];
 
-        trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
+            trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
 
-        self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
+            self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
+
+            var child = self.propTopology(entity).child;
+            while (prp.Null != child) {
+                self.propInheritTransformation(child, trafo, camera_pos);
+
+                child = self.propTopology(child).next;
+            }
+        }
+    }
+
+    fn propInheritTransformation(
+        self: *Scene,
+        entity: u32,
+        transformation: Transformation,
+        camera_pos: Vec4f,
+    ) void {
+        const f = self.propFrames.items[entity];
+
+        if (prp.Null != f) {
+            const frames = self.keyframes.items.ptr + f;
+
+            const local_animation = self.prop(entity).hasLocalAnimation();
+
+            var i: u32 = 0;
+            const len = self.num_interpolation_frames;
+            while (i < len) : (i += 1) {
+                const lf = if (local_animation) i else 0;
+                frames[i] = trafo.transform(frames[len + lf]);
+            }
+        }
+
+        self.propPropagateTransformation(entity, camera_pos);
+    }
+
+    fn propInheritTransformations(
+        self: *Scene,
+        entity: u32,
+        frames: [*]math.Transformation,
+        camera_pos: Vec4f,
+    ) void {
+        const local_animation = self.prop(entity).hasLocalAnimation();
+
+        const tf = self.keyframes.items.ptr + self.prop_frames.items[entity];
+
+        var i: u32 = 0;
+        const len = self.num_interpolation_frames;
+        while (i < len) : (i += 1) {
+            const lf = if (local_animation) i else 0;
+            tf[i] = frames.transform(tf[len + lf]);
+        }
+
+        self.propPropagateTransformation(entity, camera_pos);
+    }
+
+    fn propAnimatedTransformationAt(self: Scene, frame: u32, time: u64) Transformation {
+        const f = self.frameAt(time);
+
+        const frames = self.keyframes.items.ptr + frames_id;
+
+        const a = frames[f.f];
+        const b = frames[f.f + 1];
+
+        return a.lerp(b, f.w);
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {

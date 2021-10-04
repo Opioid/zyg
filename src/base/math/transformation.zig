@@ -16,7 +16,7 @@ pub const Transformation = struct {
         return .{
             .position = self.toMat4x4().transformPoint(other.position),
             .scale = other.scale,
-            .rotation = quaternion.mul(other.rotation, self.rotation),
+            .rotation = quaternion.mul(self.rotation, other.rotation),
         };
     }
 

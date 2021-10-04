@@ -71,4 +71,12 @@ pub const ComposedTransformation = struct {
     pub fn objectToWorldPoint(self: Self, v: Vec4f) Vec4f {
         return self.objectToWorldVector(v) + self.position;
     }
+
+    pub fn transform(self: Self, other: Transformation) Transformation {
+        return .{
+            .position = self.objectToWorldPoint(other.position),
+            .scale = other.scale,
+            .rotation = quaternion.mul(self.rotation, other.rotation),
+        };
+    }
 };

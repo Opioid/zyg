@@ -50,6 +50,7 @@ pub const AO = struct {
 
         occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
         occlusion_ray.ray.setMaxT(self.settings.radius);
+        occlusion_ray.time = ray.time;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
