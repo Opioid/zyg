@@ -16,10 +16,10 @@ pub fn readBool(value: Value) bool {
     };
 }
 
-pub fn readFloat(value: Value) f32 {
+pub fn readFloat(comptime T: type, value: Value) T {
     return switch (value) {
-        .Integer => |int| @intToFloat(f32, int),
-        .Float => |float| @floatCast(f32, float),
+        .Integer => |int| @intToFloat(T, int),
+        .Float => |float| @floatCast(T, float),
         else => 0.0,
     };
 }
@@ -27,7 +27,7 @@ pub fn readFloat(value: Value) f32 {
 pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
     const member = value.Object.get(name) orelse return default;
 
-    return readFloat(member);
+    return readFloat(f32, member);
 }
 
 pub fn readUInt(value: Value) u32 {
@@ -68,9 +68,9 @@ pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
 
 pub fn readVec4f3(value: Value) Vec4f {
     return .{
-        readFloat(value.Array.items[0]),
-        readFloat(value.Array.items[1]),
-        readFloat(value.Array.items[2]),
+        readFloat(f32, value.Array.items[0]),
+        readFloat(f32, value.Array.items[1]),
+        readFloat(f32, value.Array.items[2]),
         0.0,
     };
 }

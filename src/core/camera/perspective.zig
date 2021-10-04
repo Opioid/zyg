@@ -24,6 +24,8 @@ pub const Perspective = struct {
         use_point: bool = false,
     };
 
+    const Default_frame_time = scn.Units_per_second / 60;
+
     entity: u32 = prp.Null,
 
     resolution: Vec2i = Vec2i{ 0, 0 },
@@ -40,6 +42,9 @@ pub const Perspective = struct {
     focus_distance: f32 = 0.0,
 
     focus: Focus = .{},
+
+    frame_step: u64 = Default_frame_time,
+    frame_duration: u64 = Default_frame_time,
 
     pub fn deinit(self: *Perspective, alloc: *Allocator) void {
         self.sensor.deinit(alloc);
@@ -79,7 +84,7 @@ pub const Perspective = struct {
         self.updateFocus(worker);
     }
 
-    pub fn generateRay(self: *const Perspective, sample: Sample, scene: Scene) ?Ray {
+    pub fn generateRay(self: Perspective, sample: Sample, scene: Scene) ?Ray {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -106,10 +111,23 @@ pub const Perspective = struct {
     }
 
     pub fn setParameters(self: *Perspective, value: std.json.Value) void {
+        var motion_blur = true;
+
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
-                const fov = json.readFloat(entry.value_ptr.*);
+            if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
+                self.frame_step = scn.time(json.readFloat(f64, entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
+                const fps = json.readFloat(f64, entry.value_ptr.*);
+                if (0.0 == fps) {
+                    self.frame_step = 0;
+                } else {
+                    self.frame_step = @floatToInt(u64, @round(@intToFloat(f64, scn.Units_per_second) / fps));
+                }
+            } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
+                motion_blur = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
+                const fov = json.readFloat(f32, entry.value_ptr.*);
                 self.fov = math.degreesToRadians(fov);
             } else if (std.mem.eql(u8, "lens", entry.key_ptr.*)) {
                 self.lens_radius = json.readFloatMember(entry.value_ptr.*, "radius", 0.0);
@@ -117,6 +135,8 @@ pub const Perspective = struct {
                 self.setFocus(loadFocus(entry.value_ptr.*));
             }
         }
+
+        self.frame_duration = if (motion_blur) self.frame_step else 0;
     }
 
     fn setFocus(self: *Perspective, focus: Focus) void {
@@ -154,7 +174,7 @@ pub const Perspective = struct {
                 focus.point = json.readVec4f3(entry.value_ptr.*);
                 focus.use_point = true;
             } else if (std.mem.eql(u8, "distance", entry.key_ptr.*)) {
-                focus.distance = json.readFloat(entry.value_ptr.*);
+                focus.distance = json.readFloat(f32, entry.value_ptr.*);
             }
         }
 

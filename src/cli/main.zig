@@ -87,7 +87,7 @@ pub fn main() !void {
     };
     defer take.deinit(alloc);
 
-    scene_loader.load(alloc, take.scene_filename, &scene) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
         std.debug.print("Loading scene {} \n", .{err});
         return;
     };

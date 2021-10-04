@@ -24,6 +24,7 @@ pub const Prop = struct {
         TestAABB = 1 << 4,
         HasParent = 1 << 5,
         Static = 1 << 6,
+        LocalAnimation = 1 << 7,
     };
 
     shape: u32 = Null,
@@ -64,8 +65,8 @@ pub const Prop = struct {
         self.properties.set(.VisibleInReflection, true);
         self.properties.set(.VisibleInShadow, true);
 
-        const shape_ptr = scene.shape(shape);
-        self.properties.set(.TestAABB, shape_ptr.isFinite() and shape_ptr.isComplex());
+        const shape_inst = scene.shape(shape);
+        self.properties.set(.TestAABB, shape_inst.isFinite() and shape_inst.isComplex());
 
         self.properties.set(.Static, true);
 
@@ -76,6 +77,14 @@ pub const Prop = struct {
                 self.properties.set(.TintedShadow, true);
             }
         }
+    }
+
+    pub fn configureAnimated(self: *Prop, local_animation: bool, scene: Scene) void {
+        const shape_inst = scene.shape(self.shape);
+
+        self.properties.set(.TestAABB, shape_inst.isFinite());
+        self.properties.set(.Static, false);
+        self.properties.set(.LocalAnimation, local_animation);
     }
 
     pub fn setHasParent(self: *Prop) void {

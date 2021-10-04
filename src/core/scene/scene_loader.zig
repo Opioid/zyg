@@ -2,6 +2,8 @@ pub const Scene = @import("scene.zig").Scene;
 pub const prp = @import("prop/prop.zig");
 const resource = @import("../resource/manager.zig");
 const Resources = resource.Manager;
+const anim = @import("animation/loader.zig");
+const Take = @import("../take/take.zig").Take;
 const Shape = @import("shape/shape.zig").Shape;
 const Material = @import("material/material.zig").Material;
 pub const mat = @import("material/provider.zig");
@@ -63,7 +65,11 @@ pub const Loader = struct {
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: *Allocator, filename: []const u8, scene: *Scene) !void {
+    pub fn load(self: *Loader, alloc: *Allocator, filename: []const u8, take: Take, scene: *Scene) !void {
+        const camera = take.view.camera;
+
+        scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+
         const fs = &self.resources.fs;
 
         var stream = try fs.readStream(filename);
@@ -163,26 +169,39 @@ pub const Loader = struct {
                 .rotation = math.quaternion.identity,
             };
 
+            var animation_ptr: ?*std.json.Value = null;
             var children_ptr: ?*std.json.Value = null;
 
             var iter = entity.Object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                     json.readTransformation(entry.value_ptr.*, &trafo);
+                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
+                    animation_ptr = entry.value_ptr;
                 } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                     children_ptr = entry.value_ptr;
                 }
             }
 
-            if (prp.Null != parent_id) {
-                scene.propSerializeChild(parent_id, entity_id);
-            }
+            const animation = if (animation_ptr) |animation|
+                try anim.load(alloc, animation.*, trafo, entity_id, scene)
+            else
+                false;
 
             if (prp.Null != parent_id) {
-                trafo = parent_trafo.transform(trafo);
+                try scene.propSerializeChild(alloc, parent_id, entity_id);
             }
 
-            scene.propSetWorldTransformation(entity_id, trafo);
+            if (!animation) {
+                if (scene.propHasAnimatedFrames(entity_id)) {
+                    scene.propSetTransformation(entity_id, trafo);
+                } else {
+                    if (prp.Null != parent_id) {
+                        trafo = parent_trafo.transform(trafo);
+                    }
+                    scene.propSetWorldTransformation(entity_id, trafo);
+                }
+            }
 
             if (children_ptr) |children| {
                 try self.loadEntities(

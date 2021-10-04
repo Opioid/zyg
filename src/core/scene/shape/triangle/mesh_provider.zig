@@ -168,9 +168,9 @@ pub const Provider = struct {
 
                         for (handler.positions.items) |*p, i| {
                             p.* = Vec3f.init3(
-                                json.readFloat(positions[i * 3 + 0]),
-                                json.readFloat(positions[i * 3 + 1]),
-                                json.readFloat(positions[i * 3 + 2]),
+                                json.readFloat(f32, positions[i * 3 + 0]),
+                                json.readFloat(f32, positions[i * 3 + 1]),
+                                json.readFloat(f32, positions[i * 3 + 2]),
                             );
                         }
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
@@ -182,9 +182,9 @@ pub const Provider = struct {
 
                         for (handler.normals.items) |*n, i| {
                             n.* = Vec3f.init3(
-                                json.readFloat(normals[i * 3 + 0]),
-                                json.readFloat(normals[i * 3 + 1]),
-                                json.readFloat(normals[i * 3 + 2]),
+                                json.readFloat(f32, normals[i * 3 + 0]),
+                                json.readFloat(f32, normals[i * 3 + 1]),
+                                json.readFloat(f32, normals[i * 3 + 2]),
                             );
                         }
                     } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
@@ -198,9 +198,13 @@ pub const Provider = struct {
                         try handler.bitangent_signs.resize(alloc, num_tangents);
 
                         for (handler.tangents.items) |*t, i| {
-                            t.* = Vec3f.init3(json.readFloat(tangents[i * 4 + 0]), json.readFloat(tangents[i * 4 + 1]), json.readFloat(tangents[i * 4 + 2]));
+                            t.* = Vec3f.init3(
+                                json.readFloat(f32, tangents[i * 4 + 0]),
+                                json.readFloat(f32, tangents[i * 4 + 1]),
+                                json.readFloat(f32, tangents[i * 4 + 2]),
+                            );
 
-                            handler.bitangent_signs.items[i] = if (json.readFloat(tangents[i * 4 + 3]) > 0.0) 0 else 1;
+                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) > 0.0) 0 else 1;
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
                         const tangent_spaces = ventry.value_ptr.*.Array.items;
@@ -217,13 +221,13 @@ pub const Provider = struct {
 
                         for (handler.normals.items) |*n, i| {
                             var ts = Quaternion{
-                                json.readFloat(tangent_spaces[i * 4 + 0]),
-                                json.readFloat(tangent_spaces[i * 4 + 1]),
-                                json.readFloat(tangent_spaces[i * 4 + 2]),
-                                json.readFloat(tangent_spaces[i * 4 + 3]),
+                                json.readFloat(f32, tangent_spaces[i * 4 + 0]),
+                                json.readFloat(f32, tangent_spaces[i * 4 + 1]),
+                                json.readFloat(f32, tangent_spaces[i * 4 + 2]),
+                                json.readFloat(f32, tangent_spaces[i * 4 + 3]),
                             };
 
-                            var bts: bool = false;
+                            var bts = false;
 
                             if (ts[3] < 0.0) {
                                 ts[3] = -ts[3];
@@ -248,8 +252,8 @@ pub const Provider = struct {
 
                         for (handler.uvs.items) |*uv, i| {
                             uv.* = .{
-                                json.readFloat(uvs[i * 2 + 0]),
-                                json.readFloat(uvs[i * 2 + 1]),
+                                json.readFloat(f32, uvs[i * 2 + 0]),
+                                json.readFloat(f32, uvs[i * 2 + 1]),
                             };
                         }
                     }

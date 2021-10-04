@@ -119,7 +119,7 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
-                thickness = json.readFloat(entry.value_ptr.*);
+                thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             }
@@ -154,7 +154,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
-                emission_factor = json.readFloat(entry.value_ptr.*);
+                emission_factor = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             }
@@ -207,15 +207,15 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
                 rotation.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
-                anisotropy = json.readFloat(entry.value_ptr.*);
+                anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                metallic = json.readFloat(entry.value_ptr.*);
+                metallic = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                ior = json.readFloat(entry.value_ptr.*);
+                ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
-                emission_factor = json.readFloat(entry.value_ptr.*);
+                emission_factor = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             }
@@ -379,7 +379,7 @@ fn MappedValue(comptime Value: type) type {
 
                         self.value = json.readFloatMember(value, "value", self.value);
                     },
-                    else => self.value = json.readFloat(value),
+                    else => self.value = json.readFloat(f32, value),
                 }
             }
         }

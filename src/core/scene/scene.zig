@@ -1,9 +1,11 @@
+const cnst = @import("constants.zig");
 const prp = @import("prop/prop.zig");
 const Prop = prp.Prop;
 const Light = @import("light/light.zig").Light;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Material = @import("material/material.zig").Material;
+const Animation = @import("animation/animation.zig").Animation;
 const shp = @import("shape/shape.zig");
 const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
@@ -22,6 +24,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ALU = std.ArrayListUnmanaged;
 
+const Tick_duration = cnst.Units_per_second / 60;
 const Num_reserved_props = 32;
 
 const LightPick = Distribution1D.Discrete;
@@ -33,10 +36,13 @@ pub const Scene = struct {
 
     null_shape: u32,
 
+    num_interpolation_frames: u32 = 0,
+
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
     prop_world_positions: ALU(Vec4f),
     prop_parts: ALU(u32),
+    prop_frames: ALU(u32),
     prop_topology: ALU(Prop.Topology),
     prop_aabbs: ALU(AABB),
 
@@ -45,6 +51,9 @@ pub const Scene = struct {
 
     material_ids: ALU(u32),
     light_ids: ALU(u32),
+
+    keyframes: ALU(math.Transformation),
+    animations: ALU(Animation),
 
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
@@ -67,24 +76,30 @@ pub const Scene = struct {
             .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
             .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
             .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_frames = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .prop_topology = try ALU(Prop.Topology).initCapacity(alloc, Num_reserved_props),
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
             .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
+            .animations = try ALU(Animation).initCapacity(alloc, Num_reserved_props),
         };
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
+        self.animations.deinit(alloc);
+        self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
         self.prop_topology.deinit(alloc);
+        self.prop_frames.deinit(alloc);
         self.prop_parts.deinit(alloc);
         self.prop_world_positions.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
@@ -168,6 +183,10 @@ pub const Scene = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
+    pub fn calculateNumInterpolationFrames(self: *Scene, frame_step: u64, frame_duration: u64) void {
+        self.num_interpolation_frames = countFrames(frame_step, frame_duration) + 1;
+    }
+
     pub fn createEntity(self: *Scene, alloc: *Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
@@ -225,8 +244,23 @@ pub const Scene = struct {
         return self.prop_world_transformations.items[entity];
     }
 
-    pub fn propSerializeChild(self: *Scene, parent_id: u32, child_id: u32) void {
+    pub fn propSetTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
+        const f = self.prop_frames.items[entity];
+        self.keyframes.items[f + self.num_interpolation_frames] = t;
+    }
+
+    pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
+        self.prop_world_transformations.items[entity].prepare(t);
+        self.prop_world_positions.items[entity] = t.position;
+    }
+
+    pub fn propSerializeChild(self: *Scene, alloc: *Allocator, parent_id: u32, child_id: u32) !void {
         self.props.items[child_id].setHasParent();
+
+        if (self.propHasAnimatedFrames(parent_id) and !self.propHasAnimatedFrames(child_id)) {
+            // This is the case if child has no animation attached to it directly
+            try self.propAllocateFrames(alloc, child_id, false);
+        }
 
         const pt = &self.prop_topology.items[parent_id];
         if (prp.Null == pt.child) {
@@ -236,9 +270,23 @@ pub const Scene = struct {
         }
     }
 
-    pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
-        self.prop_world_transformations.items[entity].prepare(t);
-        self.prop_world_positions.items[entity] = t.position;
+    pub fn propAllocateFrames(self: *Scene, alloc: *Allocator, entity: u32, local_animation: bool) !void {
+        self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
+
+        const num_world_frames = self.num_interpolation_frames;
+        const num_local_frames = if (local_animation) num_world_frames else 1;
+        const num_frames = num_world_frames + num_local_frames;
+
+        var i: u32 = 0;
+        while (i < num_frames) : (i += 1) {
+            try self.keyframes.append(alloc, .{});
+        }
+
+        self.props.items[entity].configureAnimated(local_animation, self.*);
+    }
+
+    pub fn propHasAnimatedFrames(self: Scene, entity: u32) bool {
+        return prp.Null != self.prop_frames.items[entity];
     }
 
     pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
@@ -340,6 +388,7 @@ pub const Scene = struct {
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
         try self.prop_parts.append(alloc, 0);
+        try self.prop_frames.append(alloc, prp.Null);
         try self.prop_topology.append(alloc, .{});
         try self.prop_aabbs.append(alloc, .{});
 
@@ -359,6 +408,14 @@ pub const Scene = struct {
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
     }
 
+    pub fn createAnimation(self: *Scene, alloc: *Allocator, entity: u32, count: u32) !u32 {
+        try self.animations.append(alloc, try Animation.init(alloc, entity, count, self.num_interpolation_frames));
+
+        try self.propAllocateFrames(alloc, entity, true);
+
+        return @intCast(u32, self.animations.items.len - 1);
+    }
+
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
         const shape_aabb = self.propShape(entity).aabb();
 
@@ -367,5 +424,17 @@ pub const Scene = struct {
         trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
 
         self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
+    }
+
+    fn countFrames(frame_step: u64, frame_duration: u64) u32 {
+        const a: u32 = std.math.max(@intCast(u32, frame_duration / Tick_duration), 1);
+        const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
+        const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
+
+        return a + b + c;
+    }
+
+    fn matching(a: u64, b: u64) bool {
+        return 0 == (if (a > b) a % b else (if (0 == a) 0 else b % a));
     }
 };
