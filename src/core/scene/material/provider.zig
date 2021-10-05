@@ -1,5 +1,7 @@
 const mat = @import("material.zig");
 const Material = mat.Material;
+const metal = @import("metal_presets.zig");
+const fresnel = @import("fresnel.zig");
 const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
@@ -204,6 +206,10 @@ pub const Provider = struct {
                 roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
+            } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
+                const eta_k = metal.iorAndAbsorption(entry.value_ptr.String);
+                color.value = fresnel.conductor(eta_k[0], eta_k[1], 1.0);
+                metallic = 1.0;
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
                 rotation.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {

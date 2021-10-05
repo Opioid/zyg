@@ -18,3 +18,17 @@ pub const Schlick = struct {
         return t * t;
     }
 };
+
+pub fn conductor(eta: Vec4f, k: Vec4f, wo_dot_h: f32) Vec4f {
+    const tmp_f = eta * eta + k * k;
+
+    const wo_dot_h2 = @splat(4, wo_dot_h * wo_dot_h);
+    const tmp = wo_dot_h2 * tmp_f;
+
+    const a = @splat(4, 2.0 * wo_dot_h) * eta;
+    const r_p = (tmp - a + @splat(4, @as(f32, 1.0))) / (tmp + a + @splat(4, @as(f32, 1.0)));
+
+    const r_o = (tmp_f - a + wo_dot_h2) / (tmp_f + a + wo_dot_h2);
+
+    return @splat(4, @as(f32, 0.5)) * (r_p + r_o);
+}
