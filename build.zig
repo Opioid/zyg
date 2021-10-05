@@ -67,6 +67,8 @@ pub fn build(b: *std.build.Builder) void {
             "-t",
             "16",
             //"--no-tex",
+            "-f",
+            "69",
         });
     }
 

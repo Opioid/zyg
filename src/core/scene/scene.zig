@@ -355,11 +355,11 @@ pub const Scene = struct {
 
     pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]math.Transformation) void {
         const num_frames = self.num_interpolation_frames;
-        const f = self.prop_frames[entity];
+        const f = self.prop_frames.items[entity];
 
         const b = f + num_frames;
         const e = b + num_frames;
-        const local_frames = self.key_frames[b..e];
+        const local_frames = self.keyframes.items[b..e];
 
         for (local_frames) |*lf, i| {
             lf.* = frames[i];

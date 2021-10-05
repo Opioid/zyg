@@ -43,7 +43,7 @@ pub const Worker = struct {
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
     }
 
-    pub fn render(self: *Worker, tile: Vec4i, num_samples: u32) void {
+    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
@@ -88,7 +88,7 @@ pub const Worker = struct {
                 while (s < num_samples) : (s += 1) {
                     const sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
-                    if (camera.generateRay(sample, scene.*)) |*ray| {
+                    if (camera.generateRay(sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray);
                         sensor.addSample(sample, color, offset, isolated_bounds, crop);
                     } else {

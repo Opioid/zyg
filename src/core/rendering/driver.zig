@@ -28,6 +28,8 @@ pub const Driver = struct {
 
     target: img.Float4 = .{},
 
+    frame: u32 = undefined,
+
     progressor: progress.StdOut = undefined,
 
     pub fn init(alloc: *Allocator, threads: *Threads) !Driver {
@@ -98,6 +100,7 @@ pub const Driver = struct {
         self.progressor.start(self.tiles.size());
 
         self.tiles.restart();
+        self.frame = frame;
 
         self.threads.runParallel(self, renderTiles, 0);
 
@@ -123,7 +126,7 @@ pub const Driver = struct {
         const num_samples = self.view.num_samples_per_pixel;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(tile, num_samples);
+            self.workers[id].render(self.frame, tile, num_samples);
 
             self.progressor.tick();
         }

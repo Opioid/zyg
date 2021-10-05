@@ -84,7 +84,7 @@ pub const Perspective = struct {
         self.updateFocus(time, worker);
     }
 
-    pub fn generateRay(self: Perspective, sample: Sample, scene: Scene) ?Ray {
+    pub fn generateRay(self: Perspective, sample: Sample, frame: u32, scene: Scene) ?Ray {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -102,7 +102,7 @@ pub const Perspective = struct {
             origin = @splat(4, @as(f32, 0.0));
         }
 
-        const time: u64 = 0;
+        const time = self.absoluteTime(frame, sample.time);
 
         const trafo = scene.propTransformationAt(self.entity, time);
 
@@ -110,6 +110,15 @@ pub const Perspective = struct {
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, time);
+    }
+
+    fn absoluteTime(self: Perspective, frame: u32, frame_delta: f32) u64 {
+        const delta = @floatCast(f64, frame_delta);
+        const duration = @intToFloat(f64, self.frame_duration);
+
+        const fdi = @floatToInt(u64, @round(delta * duration));
+
+        return @as(u64, frame) * self.frame_step + fdi;
     }
 
     pub fn setParameters(self: *Perspective, value: std.json.Value) void {

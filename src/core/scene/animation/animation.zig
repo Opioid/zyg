@@ -84,7 +84,7 @@ pub const Animation = struct {
     }
 
     pub fn update(self: Animation, scene: *Scene) void {
-        _ = self;
-        _ = scene;
+        const interpolated = self.frames.ptr + self.times.len;
+        scene.propSetFrames(self.entity, interpolated);
     }
 };
