@@ -13,3 +13,9 @@ pub const Intersection = struct {
     part: u32 = undefined,
     primitive: u32 = undefined,
 };
+
+pub const Interpolation = enum {
+    All,
+    NoTangentSpace,
+    Normal,
+};

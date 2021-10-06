@@ -13,11 +13,12 @@ pub const Ray = struct {
         direction: Vec4f,
         min_t: f32,
         max_t: f32,
+        depth: u32,
         time: u64,
     ) Ray {
         return Ray{
             .ray = math.Ray.init(origin, direction, min_t, max_t),
-            .depth = 0,
+            .depth = depth,
             .time = time,
         };
     }

@@ -1,4 +1,5 @@
 pub const Ray_max_t = 3.4027715434167032e+38;
+pub const Almost_ray_max_t = 3.4027713405926072e+38;
 
 pub const Units_per_second: u64 = 705600000;
 

@@ -54,15 +54,15 @@ pub const InfiniteSphere = struct {
         const uv = sampler.sample2D(rng, sampler_d);
 
         var dir: Vec4f = undefined;
-        var pdf: f32 = undefined;
+        var pdf_: f32 = undefined;
 
         if (total_sphere) {
             dir = math.smpl.sphereUniform(uv);
-            pdf = 1.0 / (4.0 * std.math.pi);
+            pdf_ = 1.0 / (4.0 * std.math.pi);
         } else {
             const xy = math.orthonormalBasis3(n);
             dir = math.smpl.orientedHemisphereUniform(uv, xy[0], xy[1], n);
-            pdf = 1.0 / (2.0 * std.math.pi);
+            pdf_ = 1.0 / (2.0 * std.math.pi);
         }
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
@@ -73,10 +73,10 @@ pub const InfiniteSphere = struct {
             0.0,
         };
 
-        return SampleTo.init(dir, @splat(4, @as(f32, 0.0)), uvw, pdf, scn.Ray_max_t);
+        return SampleTo.init(dir, @splat(4, @as(f32, 0.0)), uvw, pdf_, scn.Ray_max_t);
     }
 
-    pub fn sampleToUV(uv: Vec2f, trafo: Transformation) SampleTo {
+    pub fn sampleToUv(uv: Vec2f, trafo: Transformation) SampleTo {
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -95,5 +95,24 @@ pub const InfiniteSphere = struct {
             1.0 / ((4.0 * std.math.pi) * sin_theta),
             scn.Ray_max_t,
         );
+    }
+
+    pub fn pdf(total_sphere: bool) f32 {
+        if (total_sphere) {
+            return 1.0 / (4.0 * std.math.pi);
+        }
+
+        return 1.0 / (2.0 * std.math.pi);
+    }
+
+    pub fn pdfUv(isec: Intersection) f32 {
+        // sin_theta because of the uv weight
+        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+
+        if (0.0 == sin_theta) {
+            return 0.0;
+        }
+
+        return 1.0 / ((4.0 * std.math.pi) * sin_theta);
     }
 };

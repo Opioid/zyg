@@ -2,7 +2,9 @@ const Transformation = @import("../../composed_transformation.zig").ComposedTran
 const Worker = @import("../../worker.zig").Worker;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const NodeStack = @import("../node_stack.zig").NodeStack;
-const Intersection = @import("../intersection.zig").Intersection;
+const int = @import("../intersection.zig");
+const Intersection = int.Intersection;
+const Interpolation = int.Interpolation;
 pub const bvh = @import("bvh/tree.zig");
 const base = @import("base");
 const math = base.math;
@@ -59,7 +61,14 @@ pub const Mesh = struct {
         return self.parts[part].area * (scale[0] * scale[1]);
     }
 
-    pub fn intersect(self: Mesh, ray: *Ray, trafo: Transformation, nodes: *NodeStack, isec: *Intersection) bool {
+    pub fn intersect(
+        self: Mesh,
+        ray: *Ray,
+        trafo: Transformation,
+        nodes: *NodeStack,
+        ipo: Interpolation,
+        isec: *Intersection,
+    ) bool {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -79,19 +88,24 @@ pub const Mesh = struct {
             isec.part = self.tree.data.part(hit.index);
             isec.primitive = hit.index;
 
-            var t: Vec4f = undefined;
-            var n: Vec4f = undefined;
-            var uv: Vec2f = undefined;
-            self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
+            if (.All == ipo) {
+                var t: Vec4f = undefined;
+                var n: Vec4f = undefined;
+                var uv: Vec2f = undefined;
+                self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
 
-            const t_w = trafo.rotation.transformVector(t);
-            const n_w = trafo.rotation.transformVector(n);
-            const b_w = @splat(4, self.tree.data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
+                const t_w = trafo.rotation.transformVector(t);
+                const n_w = trafo.rotation.transformVector(n);
+                const b_w = @splat(4, self.tree.data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
 
-            isec.t = t_w;
-            isec.b = b_w;
-            isec.n = n_w;
-            isec.uv = uv;
+                isec.t = t_w;
+                isec.b = b_w;
+                isec.n = n_w;
+                isec.uv = uv;
+            } else if (.NoTangentSpace == ipo) {
+                const uv = self.tree.data.interpolateUv(hit.u, hit.v, hit.index);
+                isec.uv = uv;
+            }
 
             return true;
         }

@@ -1,4 +1,5 @@
-const shape = @import("../shape/intersection.zig");
+const shp = @import("../shape/intersection.zig");
+const Shape = @import("../shape/shape.zig").Shape;
 const Ray = @import("../ray.zig").Ray;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Worker = @import("../worker.zig").Worker;
@@ -9,7 +10,7 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Intersection = struct {
-    geo: shape.Intersection = undefined,
+    geo: shp.Intersection = undefined,
 
     prop: u32 = undefined,
 
@@ -17,6 +18,18 @@ pub const Intersection = struct {
 
     pub fn material(self: Self, worker: Worker) mat.Material {
         return worker.scene.propMaterial(self.prop, self.geo.part);
+    }
+
+    pub fn shape(self: Self, worker: Worker) Shape {
+        return worker.scene.propShape(self.prop);
+    }
+
+    pub fn lightId(self: Self, worker: Worker) u32 {
+        return worker.scene.propLightId(self.prop, self.geo.part);
+    }
+
+    pub fn visibleInCamera(self: Self, worker: Worker) bool {
+        return worker.scene.prop(self.prop).visibleInCamera();
     }
 
     pub fn opacity(self: Self, filter: ?Filter, worker: Worker) f32 {
@@ -49,6 +62,27 @@ pub const Intersection = struct {
         rs.filter = filter;
 
         return m.sample(wo, rs, worker);
+    }
+
+    pub fn evaluateRadiance(
+        self: Self,
+        wo: Vec4f,
+        filter: ?Filter,
+        worker: Worker,
+        pure_emissive: *bool,
+    ) ?Vec4f {
+        const m = self.material(worker);
+
+        pure_emissive.* = m.isPureEmissive();
+
+        if (!m.isTwoSided() and !self.sameHemisphere(wo)) {
+            return null;
+        }
+
+        const extent = worker.scene.lightArea(self.prop, self.geo.part);
+
+        const uv = self.geo.uv;
+        return m.evaluateRadiance(wo, self.geo.geo_n, .{ uv[0], uv[1], 0.0, 0.0 }, extent, filter, worker);
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

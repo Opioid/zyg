@@ -4,6 +4,7 @@ const Prop = prp.Prop;
 const Light = @import("light/light.zig").Light;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
+const Interpolation = @import("shape/intersection.zig").Interpolation;
 const Material = @import("material/material.zig").Material;
 const anim = @import("animation/animation.zig");
 const Animation = anim.Animation;
@@ -172,14 +173,14 @@ pub const Scene = struct {
         try self.light_distribution.configure(alloc, self.light_temp_powers, 0);
     }
 
-    pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+    pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
         worker.node_stack.clear();
 
-        var hit: bool = false;
+        var hit = false;
         var prop_id: usize = prp.Null;
 
         for (self.props.items) |p, i| {
-            if (p.intersect(i, ray, worker, &isec.geo)) {
+            if (p.intersect(i, ray, worker, ipo, &isec.geo)) {
                 hit = true;
                 prop_id = i;
             }
@@ -387,6 +388,9 @@ pub const Scene = struct {
         const shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
+
+        self.light_ids.items[p] = @intCast(u32, light_id);
+
         const m = self.material_ids.items[p];
 
         const trafo = self.propTransformationAt(entity, time);
@@ -408,6 +412,10 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersectP(ray.ray);
     }
 
+    pub fn propShape(self: Scene, entity: usize) Shape {
+        return self.shapes.items[self.props.items[entity].shape];
+    }
+
     pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
         const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];
@@ -417,8 +425,9 @@ pub const Scene = struct {
         return self.prop_topology.items[entity];
     }
 
-    pub fn propShape(self: Scene, entity: usize) Shape {
-        return self.shapes.items[self.props.items[entity].shape];
+    pub fn propLightId(self: Scene, entity: u32, part: u32) u32 {
+        const p = self.prop_parts.items[entity] + part;
+        return self.light_ids.items[p];
     }
 
     pub fn image(self: Scene, image_id: u32) Image {
@@ -458,6 +467,17 @@ pub const Scene = struct {
         buffer[0] = self.light_distribution.sampleDiscrete(random);
 
         return buffer[0..1];
+    }
+
+    pub fn lightPdf(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+        _ = p;
+        _ = n;
+        _ = total_sphere;
+        _ = split;
+
+        const pdf = self.light_distribution.pdfI(id);
+
+        return .{ .offset = id, .pdf = pdf };
     }
 
     pub fn lightArea(self: Scene, entity: u32, part: u32) f32 {

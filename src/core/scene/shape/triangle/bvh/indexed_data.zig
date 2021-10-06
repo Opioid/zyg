@@ -158,7 +158,7 @@ pub const Indexed_data = struct {
         // uv.* = Vec2f.init2(tu[3], nv[3]);
     }
 
-    pub fn interpolateUV(self: Self, u: f32, v: f32, index: u32) Vec2f {
+    pub fn interpolateUv(self: Self, u: f32, v: f32, index: u32) Vec2f {
         const tri = self.triangles[index];
 
         const uva = self.uvs[tri.a];

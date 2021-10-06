@@ -114,4 +114,37 @@ pub const Disk = struct {
 
         return @splat(4, @as(f32, 1.0));
     }
+
+    pub fn sampleTo(
+        p: Vec4f,
+        trafo: Transformation,
+        area: f32,
+        two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) ?SampleTo {
+        const r2 = sampler.sample2D(rng, sampler_d);
+        const xy = math.smpl.diskConcentric(r2);
+
+        const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
+        var wn = trafo.rotation.r[2];
+
+        if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+            wn = -wn;
+        }
+
+        const axis = ro.offsetRay(ws, wn) - p;
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+        const dir = axis / @splat(4, t);
+        const c = -math.dot3(wn, dir);
+
+        if (c < Dot_min) {
+            return null;
+        }
+
+        return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), sl / (c * area), t);
+    }
 };

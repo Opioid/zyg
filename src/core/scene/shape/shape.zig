@@ -8,7 +8,9 @@ const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Interpolation = int.Interpolation;
 const SampleTo = @import("sample.zig").To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 
@@ -100,7 +102,14 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(self: Shape, ray: *Ray, trafo: Transformation, worker: *Worker, isec: *Intersection) bool {
+    pub fn intersect(
+        self: Shape,
+        ray: *Ray,
+        trafo: Transformation,
+        worker: *Worker,
+        ipo: Interpolation,
+        isec: *Intersection,
+    ) bool {
         return switch (self) {
             .Null => false,
             .Disk => Disk.intersect(&ray.ray, trafo, isec),
@@ -108,7 +117,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
             .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
-            .Triangle_mesh => |m| m.intersect(&ray.ray, trafo, &worker.node_stack, isec),
+            .Triangle_mesh => |m| m.intersect(&ray.ray, trafo, &worker.node_stack, ipo, isec),
         };
     }
 
@@ -161,6 +170,7 @@ pub const Shape = union(enum) {
         _ = variant;
 
         return switch (self) {
+            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
@@ -168,7 +178,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleToUV(
+    pub fn sampleToUv(
         self: Shape,
         part: u32,
         p: Vec4f,
@@ -180,9 +190,49 @@ pub const Shape = union(enum) {
         _ = part;
 
         return switch (self) {
-            .InfiniteSphere => InfiniteSphere.sampleToUV(uv, trafo),
-            .Rectangle => Rectangle.sampleToUV(p, uv, trafo, extent, two_sided),
+            .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
+            .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
             else => null,
+        };
+    }
+
+    pub fn pdf(
+        self: Shape,
+        variant: u32,
+        ray: Ray,
+        p: Vec4f,
+        isec: Intersection,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+        total_sphere: bool,
+    ) f32 {
+        _ = variant;
+        _ = p;
+        _ = isec;
+
+        return switch (self) {
+            .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
+            .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .Sphere => Sphere.pdf(ray.ray, trafo),
+            else => 0.0,
+        };
+    }
+
+    pub fn pdfUv(
+        self: Shape,
+        ray: Ray,
+        isec: Intersection,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+    ) f32 {
+        return switch (self) {
+            .InfiniteSphere => InfiniteSphere.pdfUv(isec),
+            .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
+            else => 0.0,
         };
     }
 

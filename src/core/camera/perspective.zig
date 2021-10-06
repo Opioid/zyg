@@ -119,7 +119,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, time);
+        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, time);
     }
 
     fn absoluteTime(self: Perspective, frame: u32, frame_delta: f32) u64 {
@@ -180,11 +180,12 @@ pub const Perspective = struct {
                 trafo.objectToWorldVector(direction),
                 0.0,
                 scn.Ray_max_t,
+                0,
                 time,
             );
 
             var isec = Intersection{};
-            if (worker.intersect(&ray, &isec)) {
+            if (worker.intersect(&ray, .Normal, &isec)) {
                 self.focus_distance = ray.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

@@ -95,6 +95,12 @@ pub const Stack = struct {
         }
     }
 
+    pub fn pop(self: *Stack) void {
+        if (self.index > 0) {
+            self.index -= 1;
+        }
+    }
+
     pub fn remove(self: *Stack, isec: Intersection) bool {
         const back = self.index - 1;
         var i = @intCast(i32, back);

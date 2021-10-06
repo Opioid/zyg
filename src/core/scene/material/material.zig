@@ -103,6 +103,22 @@ pub const Material = union(enum) {
         return self.super().properties.is(.EmissionMap);
     }
 
+    pub fn isPureEmissive(self: Material) bool {
+        return switch (self) {
+            .Light => true,
+            else => false,
+        };
+    }
+
+    pub fn isScatteringVolume(self: Material) bool {
+        return switch (self) {
+            .Substitute => |m| {
+                return m.super.properties.is(.ScatteringVolume);
+            },
+            else => false,
+        };
+    }
+
     pub fn ior(self: Material) f32 {
         return self.super().ior;
     }
@@ -150,6 +166,13 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
+        };
+    }
+
+    pub fn emissionPdf(self: Material, uvw: Vec4f) f32 {
+        return switch (self) {
+            .Light => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
+            else => 1.0,
         };
     }
 

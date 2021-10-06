@@ -168,7 +168,7 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const uv = self.data.interpolateUV(hit.u, hit.v, i);
+                        const uv = self.data.interpolateUv(hit.u, hit.v, i);
 
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 

@@ -182,4 +182,23 @@ pub const Sphere = struct {
 
         return null;
     }
+
+    pub fn pdf(ray: Ray, trafo: Transformation) f32 {
+        const axis = trafo.position - ray.origin;
+
+        const il = math.rlength3(axis);
+        const radius = trafo.scaleX();
+        const sin_theta_max = std.math.min(il * radius, 1.0);
+        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Delta));
+
+        return math.smpl.conePdfUniform(cos_theta_max);
+    }
+
+    pub fn pdfUv(ray: Ray, isec: Intersection, area: f32) f32 {
+        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+        const max_t = ray.maxT();
+        const sl = max_t * max_t;
+        const c = -math.dot3(isec.geo_n, ray.direction);
+        return sl / (c * area * sin_theta);
+    }
 };

@@ -6,6 +6,7 @@ const Ray = @import("ray.zig").Ray;
 const InterfaceStack = @import("prop/interface.zig").Stack;
 const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
+const Interpolation = @import("shape/intersection.zig").Interpolation;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const base = @import("base");
 const math = base.math;
@@ -48,8 +49,8 @@ pub const Worker = struct {
         self.scene = scene;
     }
 
-    pub fn intersect(self: *Worker, ray: *Ray, isec: *Intersection) bool {
-        return self.scene.intersect(ray, self, isec);
+    pub fn intersect(self: *Worker, ray: *Ray, ipo: Interpolation, isec: *Intersection) bool {
+        return self.scene.intersect(ray, self, ipo, isec);
     }
 
     pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
@@ -57,7 +58,7 @@ pub const Worker = struct {
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
-        if (!self.intersect(ray, isec)) {
+        if (!self.intersect(ray, .All, isec)) {
             return false;
         }
 
@@ -79,7 +80,7 @@ pub const Worker = struct {
             // Slide along ray until opaque surface is found
             ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             ray.ray.setMaxT(scn.Ray_max_t);
-            if (!self.intersect(ray, isec)) {
+            if (!self.intersect(ray, .All, isec)) {
                 ray.ray.setMinT(start_min_t);
                 return false;
             }

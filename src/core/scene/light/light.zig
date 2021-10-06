@@ -1,6 +1,9 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../worker.zig").Worker;
+const Ray = @import("../ray.zig").Ray;
+const prp = @import("../prop/prop.zig");
+const Intersection = @import("../prop/intersection.zig").Intersection;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
@@ -28,6 +31,10 @@ pub const Light = packed struct {
     prop: u32,
     part: u32,
     extent: f32 = undefined,
+
+    pub fn isLight(id: u32) bool {
+        return prp.Null != id;
+    }
 
     pub fn prepareSampling(
         self: Light,
@@ -93,6 +100,16 @@ pub const Light = packed struct {
         return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, self.extent, filter, worker);
     }
 
+    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, worker: Worker) f32 {
+        const trafo = worker.scene.propTransformationAt(self.prop, ray.time);
+
+        return switch (self.typef) {
+            .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, worker),
+            .PropImage => self.propImagePdf(ray, isec, trafo, worker),
+            else => 0.0,
+        };
+    }
+
     fn propSampleTo(
         self: Light,
         p: Vec4f,
@@ -145,7 +162,7 @@ pub const Light = packed struct {
 
         const shape = worker.scene.propShape(self.prop);
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        var result = shape.sampleToUV(
+        var result = shape.sampleToUv(
             self.part,
             p,
             .{ rs.uvw[0], rs.uvw[1] },
@@ -161,5 +178,41 @@ pub const Light = packed struct {
         }
 
         return null;
+    }
+
+    fn propPdf(
+        self: Light,
+        ray: Ray,
+        n: Vec4f,
+        isec: Intersection,
+        trafo: Transformation,
+        total_sphere: bool,
+        worker: Worker,
+    ) f32 {
+        const two_sided = isec.material(worker).isTwoSided();
+
+        return isec.shape(worker).pdf(
+            self.variant,
+            ray,
+            n,
+            isec.geo,
+            trafo,
+            self.extent,
+            two_sided,
+            total_sphere,
+        );
+    }
+
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Transformation, worker: Worker) f32 {
+        const material = isec.material(worker);
+        const two_sided = material.isTwoSided();
+
+        const uv = isec.geo.uv;
+        const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
+
+        // this pdf includes the uv weight which adjusts for texture distortion by the shape
+        const shape_pdf = isec.shape(worker).pdfUv(ray, isec.geo, trafo, self.extent, two_sided);
+
+        return material_pdf * shape_pdf;
     }
 };

@@ -31,6 +31,7 @@ pub const Base = struct {
         None = 0,
         TwoSided = 1 << 0,
         EmissionMap = 1 << 1,
+        ScatteringVolume = 1 << 2,
     };
 
     properties: Flags(Property),

@@ -133,10 +133,10 @@ pub const Rectangle = struct {
         sampler_d: usize,
     ) ?SampleTo {
         const uv = sampler.sample2D(rng, sampler_d);
-        return sampleToUV(p, uv, trafo, area, two_sided);
+        return sampleToUv(p, uv, trafo, area, two_sided);
     }
 
-    pub fn sampleToUV(
+    pub fn sampleToUv(
         p: Vec4f,
         uv: Vec2f,
         trafo: Transformation,
@@ -163,5 +163,19 @@ pub const Rectangle = struct {
         }
 
         return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area), t);
+    }
+
+    pub fn pdf(ray: Ray, trafo: Transformation, area: f32, two_sided: bool) f32 {
+        const n = trafo.rotation.r[2];
+
+        var c = -math.dot3(n, ray.direction);
+
+        if (two_sided) {
+            c = @fabs(c);
+        }
+
+        const max_t = ray.maxT();
+        const sl = max_t * max_t;
+        return sl / (c * area);
     }
 };

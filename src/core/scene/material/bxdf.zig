@@ -49,7 +49,7 @@ pub const Sample = struct {
     reflection: Vec4f = undefined,
     wi: Vec4f = undefined,
     h: Vec4f = undefined, // intermediate result, convenient to store here
-    pdf: f32 = undefined,
+    pdf: f32 = 0.0,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     typef: TypeFlag = undefined,
 };

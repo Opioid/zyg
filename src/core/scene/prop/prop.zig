@@ -47,6 +47,10 @@ pub const Prop = struct {
         return self.properties.no(.HasParent);
     }
 
+    pub fn visibleInCamera(self: Prop) bool {
+        return self.properties.is(.VisibleInCamera);
+    }
+
     pub fn visibleInReflection(self: Prop) bool {
         return self.properties.is(.VisibleInReflection);
     }
@@ -104,6 +108,7 @@ pub const Prop = struct {
         entity: usize,
         ray: *Ray,
         worker: *Worker,
+        ipo: shp.Interpolation,
         isec: *shp.Intersection,
     ) bool {
         if (!self.visible(ray.depth)) {
@@ -119,7 +124,7 @@ pub const Prop = struct {
         const static = self.properties.is(.Static);
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersect(ray, trafo, worker, isec);
+        return scene.propShape(entity).intersect(ray, trafo, worker, ipo, isec);
     }
 
     pub fn intersectP(

@@ -12,6 +12,10 @@ const std = @import("std");
 const Address = struct {
     u: AddressMode,
     v: AddressMode,
+
+    pub fn address(self: Address, uv: Vec2f) Vec2f {
+        return .{ self.u.f(uv[0]), self.v.f(uv[1]) };
+    }
 };
 
 pub const Filter = enum {
