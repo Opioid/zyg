@@ -189,6 +189,33 @@ pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
     return @splat(4, 2.0 * dot3(v, n)) * n - v;
 }
 
+pub fn sqrt(v: Vec4f) Vec4f {
+    return .{
+        @sqrt(v[0]),
+        @sqrt(v[1]),
+        @sqrt(v[2]),
+        @sqrt(v[3]),
+    };
+}
+
+pub fn log(v: Vec4f) Vec4f {
+    return .{
+        std.math.ln(v[0]),
+        std.math.ln(v[1]),
+        std.math.ln(v[2]),
+        std.math.ln(v[3]),
+    };
+}
+
+pub fn exp(v: Vec4f) Vec4f {
+    return .{
+        std.math.exp(v[0]),
+        std.math.exp(v[1]),
+        std.math.exp(v[2]),
+        std.math.exp(v[3]),
+    };
+}
+
 pub fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
     // Building an Orthonormal Basis, Revisited
     // http://jcgt.org/published/0006/01/01/
@@ -235,6 +262,15 @@ pub fn abs(v: Vec4f) Vec4f {
         std.math.fabs(v[1]),
         std.math.fabs(v[2]),
         std.math.fabs(v[3]),
+    };
+}
+
+pub fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
+    return .{
+        std.math.clamp(v[0], mi, ma),
+        std.math.clamp(v[1], mi, ma),
+        std.math.clamp(v[2], mi, ma),
+        std.math.clamp(v[3], mi, ma),
     };
 }
 

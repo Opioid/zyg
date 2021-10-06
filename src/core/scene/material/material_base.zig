@@ -1,10 +1,14 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/sampler.zig");
+const ccoef = @import("collision_coefficients.zig");
+const CC = ccoef.CC;
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Flags = base.flags.Flags;
+
+const std = @import("std");
 
 pub const Base = struct {
     pub const RadianceSample = struct {
@@ -34,16 +38,33 @@ pub const Base = struct {
     sampler_key: ts.Key,
 
     mask: Texture = undefined,
-    color_map: Texture = undefined,
+    color_map: Texture = .{},
+
+    cc: CC = undefined,
 
     emission: Vec4f = undefined,
 
     ior: f32 = undefined,
+    attenuation_distance: f32 = undefined,
+    volumetric_anisotropy: f32 = undefined,
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
         return .{
             .properties = Flags(Property).init1(if (two_sided) .TwoSided else .None),
             .sampler_key = sampler_key,
         };
+    }
+
+    pub fn setVolumetric(
+        self: *Base,
+        attenuation_color: Vec4f,
+        subsurface_color: Vec4f,
+        distance: f32,
+        anisotropy: f32,
+    ) void {
+        const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
+        self.cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, anisotropy);
+        self.attenuation_distance = distance;
+        self.volumetric_anisotropy = aniso;
     }
 };

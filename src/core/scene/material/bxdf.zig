@@ -34,16 +34,16 @@ pub const Type = enum(u32) {
     Specular = Specular,
     Straight = Straight,
 
-    Diffuse_reflection = Reflection | Diffuse,
-    Glossy_reflection = Reflection | Glossy,
-    Specular_reflection = Reflection | Specular,
-    Diffuse_transmission = Transmission | Diffuse,
-    Glossy_transmission = Transmission | Glossy,
-    Specular_transmission = Transmission | Specular,
-    Straight_transmission = Transmission | Straight,
+    DiffuseReflection = Reflection | Diffuse,
+    GlossyReflection = Reflection | Glossy,
+    SpecularReflection = Reflection | Specular,
+    DiffuseTransmission = Transmission | Diffuse,
+    GlossyTransmission = Transmission | Glossy,
+    SpecularTransmission = Transmission | Specular,
+    StraightTransmission = Transmission | Straight,
 };
 
-const TypeFlag = Flags(Type);
+pub const TypeFlag = Flags(Type);
 
 pub const Sample = struct {
     reflection: Vec4f = undefined,
@@ -51,6 +51,5 @@ pub const Sample = struct {
     h: Vec4f = undefined, // intermediate result, convenient to store here
     pdf: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
-
     typef: TypeFlag = undefined,
 };

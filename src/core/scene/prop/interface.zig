@@ -52,6 +52,10 @@ pub const Stack = struct {
         self.index = 0;
     }
 
+    pub fn top(self: Stack) Interface {
+        return self.stack[self.index - 1];
+    }
+
     pub fn topIor(self: Stack, worker: Worker) f32 {
         const index = self.index;
         if (index > 0) {
@@ -87,7 +91,7 @@ pub const Stack = struct {
     pub fn push(self: *Stack, isec: Intersection) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
-            self.index -= 1;
+            self.index += 1;
         }
     }
 

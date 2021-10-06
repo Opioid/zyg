@@ -126,7 +126,7 @@ pub const PathtracerDL = struct {
                 primary_ray = false;
             }
 
-            if (!sample_result.typef.equals(.Straight_transmission)) {
+            if (!sample_result.typef.equals(.StraightTransmission)) {
                 ray.depth += 1;
             }
 

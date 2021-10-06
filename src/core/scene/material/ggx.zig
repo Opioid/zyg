@@ -75,7 +75,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(.Glossy_reflection);
+        result.typef.clearWith(.GlossyReflection);
 
         return n_dot_wi;
     }
@@ -182,7 +182,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(.Glossy_reflection);
+        result.typef.clearWith(.GlossyReflection);
 
         // SOFT_ASSERT(testing::check(result, wo, layer));
 

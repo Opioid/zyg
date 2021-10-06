@@ -110,12 +110,22 @@ pub const Provider = struct {
 
         var mask = Texture{};
 
+        var attenuation_color = @splat(4, @as(f32, 1.0));
+
+        var attenuation_distance: f32 = 1.0;
+        var ior: f32 = 1.46;
         var thickness: f32 = 0.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
+            } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
+                attenuation_color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
+                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
+                ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
@@ -126,7 +136,8 @@ pub const Provider = struct {
         var material = mat.Glass.init(sampler_key);
 
         material.super.mask = mask;
-
+        material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), attenuation_distance, 0.0);
+        material.super.ior = ior;
         material.thickness = thickness;
 
         return Material{ .Glass = material };

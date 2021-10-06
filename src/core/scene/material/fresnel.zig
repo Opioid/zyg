@@ -19,6 +19,20 @@ pub const Schlick = struct {
     }
 };
 
+pub fn dielectric(cos_theta_i: f32, cos_theta_t: f32, eta_i: f32, eta_t: f32) f32 {
+    const t0 = eta_t * cos_theta_i;
+    const t1 = eta_i * cos_theta_t;
+
+    const r_p = (t0 - t1) / (t0 + t1);
+
+    const t2 = eta_i * cos_theta_i;
+    const t3 = eta_t * cos_theta_t;
+
+    const r_o = (t2 - t3) / (t2 + t3);
+
+    return 0.5 * (r_p * r_p + r_o * r_o);
+}
+
 pub fn conductor(eta: Vec4f, k: Vec4f, wo_dot_h: f32) Vec4f {
     const tmp_f = eta * eta + k * k;
 

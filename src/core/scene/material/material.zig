@@ -4,6 +4,8 @@ pub const Light = @import("light/material.zig").Material;
 pub const Substitute = @import("substitute/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 const Base = @import("material_base.zig").Base;
+const ccoef = @import("collision_coefficients.zig");
+const CC = ccoef.CC;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
@@ -105,6 +107,18 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
+    pub fn collisionCoefficients(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) CC {
+        const sup = self.super();
+        const color_map = sup.color_map;
+        if (color_map.isValid()) {
+            const key = ts.resolveKey(sup.sampler_key, filter);
+            const color = ts.sample2D_3(key, color_map, uv, worker.scene.*);
+            return ccoef.scattering(sup.cc.a, color, sup.volumetric_anisotropy);
+        }
+
+        return sup.cc;
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         return switch (self) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
@@ -140,9 +154,9 @@ pub const Material = union(enum) {
     }
 
     pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
-        const key = ts.resolveKey(self.super().sampler_key, filter);
         const mask = self.super().mask;
         if (mask.isValid()) {
+            const key = ts.resolveKey(self.super().sampler_key, filter);
             return ts.sample2D_1(key, mask, uv, worker.scene.*);
         }
 

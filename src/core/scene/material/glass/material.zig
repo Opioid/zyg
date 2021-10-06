@@ -21,8 +21,7 @@ pub const Material = struct {
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate) Sample {
-        _ = self;
-        var result = Sample.init(rs, wo);
+        var result = Sample.init(rs, wo, self.super.ior, rs.ior());
         result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
