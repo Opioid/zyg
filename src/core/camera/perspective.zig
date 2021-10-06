@@ -6,6 +6,7 @@ const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
+const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 
 const base = @import("base");
 const json = base.json;
@@ -43,10 +44,17 @@ pub const Perspective = struct {
 
     focus: Focus = .{},
 
+    interface_stack: InterfaceStack,
+
     frame_step: u64 = Default_frame_time,
     frame_duration: u64 = Default_frame_time,
 
+    pub fn init(alloc: *Allocator) !Perspective {
+        return Perspective{ .interface_stack = try InterfaceStack.init(alloc) };
+    }
+
     pub fn deinit(self: *Perspective, alloc: *Allocator) void {
+        self.interface_stack.deinit(alloc);
         self.sensor.deinit(alloc);
     }
 
@@ -68,6 +76,8 @@ pub const Perspective = struct {
     }
 
     pub fn update(self: *Perspective, time: u64, worker: *Worker) void {
+        self.interface_stack.clear();
+
         const fr = math.vec2iTo2f(self.resolution);
         const ratio = fr[1] / fr[0];
 

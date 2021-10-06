@@ -1,5 +1,6 @@
-const Sampler_factory = @import("../sampler/sampler.zig").Factory;
-const Surface_factory = @import("../rendering/integrator/surface/integrator.zig").Factory;
+const SamplerFactory = @import("../sampler/sampler.zig").Factory;
+const SurfaceFactory = @import("../rendering/integrator/surface/integrator.zig").Factory;
+const VolumeFactory = @import("../rendering/integrator/volume/integrator.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Pipeline = @import("../rendering/postprocessor/pipeline.zig").Pipeline;
 
@@ -7,9 +8,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const View = struct {
-    samplers: Sampler_factory = undefined,
+    samplers: SamplerFactory = undefined,
 
-    surfaces: ?Surface_factory = null,
+    surfaces: ?SurfaceFactory = null,
+    volumes: ?VolumeFactory = null,
 
     camera: cam.Perspective,
 
@@ -32,10 +34,13 @@ pub const Take = struct {
 
     view: View,
 
-    pub fn init() Take {
-        return .{
+    pub fn init(alloc: *Allocator) !Take {
+        return Take{
             .scene_filename = &.{},
-            .view = .{ .camera = cam.Perspective{}, .pipeline = .{} },
+            .view = .{
+                .camera = try cam.Perspective.init(alloc),
+                .pipeline = .{},
+            },
         };
     }
 

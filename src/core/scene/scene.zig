@@ -98,7 +98,12 @@ pub const Scene = struct {
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
+
+        for (self.animations.items) |*a| {
+            a.deinit(alloc);
+        }
         self.animations.deinit(alloc);
+
         self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);

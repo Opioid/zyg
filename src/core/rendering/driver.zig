@@ -14,6 +14,7 @@ const Allocator = @import("std").mem.Allocator;
 
 const Error = error{
     InvalidSurfaceIntegrator,
+    InvalidVolumeIntegrator,
 };
 
 pub const Driver = struct {
@@ -33,10 +34,9 @@ pub const Driver = struct {
     progressor: progress.StdOut = undefined,
 
     pub fn init(alloc: *Allocator, threads: *Threads) !Driver {
-        var workers = try alloc.alloc(Worker, threads.numThreads());
-
+        const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
-            w.* = .{};
+            w.* = try Worker.init(alloc);
         }
 
         return Driver{
@@ -57,6 +57,7 @@ pub const Driver = struct {
 
     pub fn configure(self: *Driver, alloc: *Allocator, view: *View, scene: *Scene) !void {
         const surfaces = view.surfaces orelse return Error.InvalidSurfaceIntegrator;
+        const volumes = view.volumes orelse return Error.InvalidVolumeIntegrator;
 
         self.view = view;
         self.scene = scene;
@@ -68,7 +69,7 @@ pub const Driver = struct {
         try camera.sensor.resize(alloc, dim);
 
         for (self.workers) |*w| {
-            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.samplers, surfaces);
+            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.samplers, surfaces, volumes);
         }
 
         self.tiles.configure(camera.crop, 32, 0);

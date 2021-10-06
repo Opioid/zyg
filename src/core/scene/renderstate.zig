@@ -25,4 +25,8 @@ pub const Renderstate = struct {
             0.0,
         };
     }
+
+    pub fn ior(self: Renderstate) f32 {
+        return self.p[3];
+    }
 };

@@ -101,6 +101,10 @@ pub const Material = union(enum) {
         return self.super().properties.is(.EmissionMap);
     }
 
+    pub fn ior(self: Material) f32 {
+        return self.super().ior;
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         return switch (self) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },

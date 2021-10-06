@@ -2,11 +2,14 @@ const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
+const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
-const Scene_worker = @import("../scene/worker.zig").Worker;
+const SceneWorker = @import("../scene/worker.zig").Worker;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
+const vol = @import("integrator/volume/integrator.zig");
+const VolumeResult = @import("integrator/volume/result.zig").Result;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -16,15 +19,22 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Worker = struct {
-    super: Scene_worker = undefined,
+    super: SceneWorker = undefined,
 
     sampler: Sampler = undefined,
 
     surface_integrator: surface.Integrator = undefined,
+    volume_integrator: vol.Integrator = undefined,
+
+    pub fn init(alloc: *Allocator) !Worker {
+        return Worker{ .super = try SceneWorker.init(alloc) };
+    }
 
     pub fn deinit(self: *Worker, alloc: *Allocator) void {
+        self.volume_integrator.deinit(alloc);
         self.surface_integrator.deinit(alloc);
         self.sampler.deinit(alloc);
+        self.super.deinit(alloc);
     }
 
     pub fn configure(
@@ -35,12 +45,14 @@ pub const Worker = struct {
         num_samples_per_pixel: u32,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
+        volumes: vol.Factory,
     ) !void {
         self.super.configure(camera, scene);
 
         self.sampler = try samplers.create(alloc, 1, 2, num_samples_per_pixel);
 
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
+        self.volume_integrator = try volumes.create(alloc, num_samples_per_pixel);
     }
 
     pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32) void {
@@ -89,7 +101,7 @@ pub const Worker = struct {
                     const sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray);
+                        const color = self.li(ray, camera.interface_stack);
                         sensor.addSample(sample, color, offset, isolated_bounds, crop);
                     } else {
                         sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, isolated_bounds, crop);
@@ -97,6 +109,15 @@ pub const Worker = struct {
                 }
             }
         }
+    }
+
+    fn li(self: *Worker, ray: *Ray, interface_stack: InterfaceStack) Vec4f {
+        var isec = Intersection{};
+        if (self.super.intersectAndResolveMask(ray, null, &isec)) {
+            return self.surface_integrator.li(ray, &isec, self, interface_stack);
+        }
+
+        return @splat(4, @as(f32, 0.0));
     }
 
     pub fn transmitted(
@@ -112,12 +133,7 @@ pub const Worker = struct {
         return self.super.visibility(ray.*, filter);
     }
 
-    fn li(self: *Worker, ray: *Ray) Vec4f {
-        var isec = Intersection{};
-        if (self.super.intersectAndResolveMask(ray, null, &isec)) {
-            return self.surface_integrator.li(ray, &isec, self);
-        }
-
-        return @splat(4, @as(f32, 0.0));
+    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter) VolumeResult {
+        return self.volume_integrator.integrate(ray, isec, filter, self);
     }
 };

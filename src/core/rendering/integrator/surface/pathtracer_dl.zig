@@ -1,6 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const mat = @import("../../../scene/material/material.zig");
 const scn = @import("../../../scene/constants.zig");
@@ -58,13 +59,21 @@ pub const PathtracerDL = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    pub fn li(
+        self: *Self,
+        ray: *Ray,
+        isec: *Intersection,
+        worker: *Worker,
+        initial_stack: InterfaceStack,
+    ) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result = @splat(4, @as(f32, 0.0));
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
+            worker.super.resetInterfaceStack(initial_stack);
+
             var split_ray = ray.*;
             var split_isec = isec.*;
 
@@ -132,7 +141,32 @@ pub const PathtracerDL = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            if (sample_result.typef.is(.Transmission)) {
+                worker.super.interfaceChange(sample_result.wi, isec.*);
+            }
+
+            if (!worker.super.interface_stack.empty()) {
+                const vr = worker.volume(ray, isec, filter);
+
+                if (.Absorb == vr.event) {
+                    if (0 == ray.depth) {
+                        // This is the direct eye-light connection for the volume case.
+                        result += vr.li;
+                    } else {
+                        result += throughput * vr.li;
+                    }
+
+                    break;
+                }
+
+                // This is only needed for Tracking_single at the moment...
+                result += throughput * vr.li;
+                throughput *= vr.tr;
+
+                if (.Abort == vr.event) {
+                    break;
+                }
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
         }

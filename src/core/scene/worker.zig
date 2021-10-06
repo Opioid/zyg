@@ -3,15 +3,18 @@ const Scene = @import("scene.zig").Scene;
 const scn = @import("constants.zig");
 const ro = @import("ray_offset.zig");
 const Ray = @import("ray.zig").Ray;
+const InterfaceStack = @import("prop/interface.zig").Stack;
 const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Filter = @import("../image/texture/sampler.zig").Filter;
-
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
 const Distribution1D = math.Distribution1D;
 const RNG = base.rnd.Generator;
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
     pub const Lights = [4]Distribution1D.Discrete;
@@ -19,11 +22,26 @@ pub const Worker = struct {
     camera: *cam.Perspective = undefined,
     scene: *Scene = undefined,
 
-    rng: RNG,
+    rng: RNG = undefined,
 
-    node_stack: NodeStack = .{},
+    interface_stack: InterfaceStack,
+    interface_stack_temp: InterfaceStack,
 
-    lights: Lights,
+    node_stack: NodeStack = undefined,
+
+    lights: Lights = undefined,
+
+    pub fn init(alloc: *Allocator) !Worker {
+        return Worker{
+            .interface_stack = try InterfaceStack.init(alloc),
+            .interface_stack_temp = try InterfaceStack.init(alloc),
+        };
+    }
+
+    pub fn deinit(self: *Worker, alloc: *Allocator) void {
+        self.interface_stack_temp.deinit(alloc);
+        self.interface_stack.deinit(alloc);
+    }
 
     pub fn configure(self: *Worker, camera: *cam.Perspective, scene: *Scene) void {
         self.camera = camera;
@@ -71,5 +89,26 @@ pub const Worker = struct {
 
         ray.ray.setMinT(start_min_t);
         return true;
+    }
+
+    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
+        stack.copy(&self.interface_stack);
+    }
+
+    pub fn iorOutside(self: Worker, wo: Vec4f, isec: Intersection) f32 {
+        if (isec.sameHemisphere(wo)) {
+            return self.interface_stack.topIor(self);
+        }
+
+        return self.interface_stack.peekIor(isec, self);
+    }
+
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
+        const leave = isec.sameHemisphere(dir);
+        if (leave) {
+            _ = self.interface_stack.remove(isec);
+        } else if (self.interface_stack.straight(self.*) or isec.material(self.*).ior() > 1.0) {
+            self.interface_stack.push(isec);
+        }
     }
 };

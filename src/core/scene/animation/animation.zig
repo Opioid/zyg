@@ -13,9 +13,10 @@ pub const Keyframe = struct {
 pub const Animation = struct {
     entity: u32,
     last_frame: u32,
+    num_frames: u32,
 
-    times: []u64,
-    frames: []Transformation,
+    times: [*]u64,
+    frames: [*]Transformation,
 
     pub fn init(
         alloc: *Allocator,
@@ -26,14 +27,15 @@ pub const Animation = struct {
         return Animation{
             .entity = entity,
             .last_frame = 0,
-            .times = try alloc.alloc(u64, num_frames),
-            .frames = try alloc.alloc(Transformation, num_frames + num_interpolated_frames),
+            .num_frames = num_frames,
+            .times = (try alloc.alloc(u64, num_frames)).ptr,
+            .frames = (try alloc.alloc(Transformation, num_frames + num_interpolated_frames)).ptr,
         };
     }
 
     pub fn deinit(self: *Animation, alloc: *Allocator) void {
-        alloc.free(self.frames);
-        alloc.free(self.times);
+        alloc.free(self.frames[0..self.num_frames]);
+        alloc.free(self.times[0..self.num_frames]);
     }
 
     pub fn set(self: *Animation, index: usize, keyframe: Keyframe) void {
@@ -42,9 +44,9 @@ pub const Animation = struct {
     }
 
     pub fn resample(self: *Animation, start: u64, end: u64, frame_length: u64) void {
-        const keyframes_back = @intCast(u32, self.times.len - 1);
+        const keyframes_back = self.num_frames - 1;
 
-        const interpolated_frames = self.frames.ptr + self.times.len;
+        const interpolated_frames = self.frames + self.num_frames;
 
         var last_frame = if (self.last_frame > 2) self.last_frame - 2 else 0;
 
@@ -84,7 +86,7 @@ pub const Animation = struct {
     }
 
     pub fn update(self: Animation, scene: *Scene) void {
-        const interpolated = self.frames.ptr + self.times.len;
+        const interpolated = self.frames + self.num_frames;
         scene.propSetFrames(self.entity, interpolated);
     }
 };

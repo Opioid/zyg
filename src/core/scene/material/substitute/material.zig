@@ -15,7 +15,7 @@ const Vec4f = math.Vec4f;
 //const std = @import("std");
 
 pub const Material = struct {
-    super: Base = undefined,
+    super: Base,
 
     normal_map: Texture = undefined,
     surface_map: Texture = undefined,
@@ -101,7 +101,7 @@ pub const Material = struct {
             color,
             radiance,
             alpha,
-            fresnel.Schlick.F0(self.super.ior, 1.0),
+            fresnel.Schlick.F0(self.super.ior, rs.ior()),
             metallic,
         );
 

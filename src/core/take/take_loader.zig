@@ -6,6 +6,7 @@ const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
+const volume = @import("../rendering/integrator/volume/integrator.zig");
 const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
@@ -39,7 +40,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     var document = try parser.parse(buffer);
     defer document.deinit();
 
-    var take = Take.init();
+    var take = try Take.init(alloc);
 
     const root = document.root;
 
@@ -76,6 +77,10 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         take.view.surfaces = surface.Factory{ .AO = .{
             .settings = .{ .num_samples = 1, .radius = 1.0 },
         } };
+    }
+
+    if (null == take.view.volumes) {
+        take.view.volumes = volume.Factory{ .Multi = .{} };
     }
 
     if (sampler_value_ptr) |sampler_value| {

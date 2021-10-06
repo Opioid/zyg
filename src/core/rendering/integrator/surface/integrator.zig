@@ -13,6 +13,7 @@ pub const PathtracerDLFactory = ptdl.Factory;
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -41,11 +42,17 @@ pub const Integrator = union(enum) {
         }
     }
 
-    pub fn li(self: *Integrator, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    pub fn li(
+        self: *Integrator,
+        ray: *Ray,
+        isec: *Intersection,
+        worker: *Worker,
+        initial_stack: InterfaceStack,
+    ) Vec4f {
         return switch (self.*) {
             .AO => |*ao| ao.li(ray, isec, worker),
-            .PT => |*pt| pt.li(ray, isec, worker),
-            .PTDL => |*pt| pt.li(ray, isec, worker),
+            .PT => |*pt| pt.li(ray, isec, worker, initial_stack),
+            .PTDL => |*pt| pt.li(ray, isec, worker, initial_stack),
         };
     }
 };

@@ -79,11 +79,7 @@ pub const Provider = struct {
     }
 
     pub fn createFallbackMaterial() Material {
-        return Material{ .Debug = .{ .super = .{
-            .properties = .{},
-            .sampler_key = .{},
-            .mask = .{},
-        } } };
+        return Material{ .Debug = mat.Debug.init() };
     }
 
     fn loadMaterial(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
@@ -96,7 +92,7 @@ pub const Provider = struct {
         var iter = rendering_node.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
-                return Material{ .Debug = .{} };
+                return Material{ .Debug = mat.Debug.init() };
             } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
                 return try self.loadGlass(alloc, entry.value_ptr.*, resources);
             } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
@@ -170,6 +166,7 @@ pub const Provider = struct {
         material.emittance.setRadiance(emission.value);
 
         material.emission_factor = emission_factor;
+        material.super.ior = 1.5;
 
         return Material{ .Light = material };
     }
