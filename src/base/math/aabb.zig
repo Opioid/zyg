@@ -32,15 +32,15 @@ pub const AABB = struct {
         // the order we use for those min/max is vital to filter out
         // NaNs that happens when an inv_dir is +/- inf and
         // (box_min - pos) is 0. inf * 0 = NaN
-        const filtered_l1a = math.min(l1, math.Infinity);
-        const filtered_l2a = math.min(l2, math.Infinity);
+        const filtered_l1a = @minimum(l1, math.Infinity);
+        const filtered_l2a = @minimum(l2, math.Infinity);
 
-        const filtered_l1b = math.max(l1, math.Neg_infinity);
-        const filtered_l2b = math.max(l2, math.Neg_infinity);
+        const filtered_l1b = @maximum(l1, math.Neg_infinity);
+        const filtered_l2b = @maximum(l2, math.Neg_infinity);
 
         // now that we're back on our feet, test those slabs.
-        const max_t3 = math.max(filtered_l1a, filtered_l2a);
-        const min_t3 = math.min(filtered_l1b, filtered_l2b);
+        const max_t3 = @maximum(filtered_l1a, filtered_l2a);
+        const min_t3 = @minimum(filtered_l1b, filtered_l2b);
 
         // unfold back. try to hide the latency of the shufps & co.
         var max_t = std.math.min(max_t3[0], max_t3[1]);
@@ -52,7 +52,8 @@ pub const AABB = struct {
         const ray_min_t = ray.minT();
         const ray_max_t = ray.maxT();
 
-        return max_t >= ray_min_t and ray_max_t >= min_t and max_t >= min_t;
+        // return max_t >= ray_min_t and ray_max_t >= min_t and max_t >= min_t;
+        return 0 != (@boolToInt(max_t >= ray_min_t) & @boolToInt(ray_max_t >= min_t) & @boolToInt(max_t >= min_t));
     }
 
     pub fn transform(self: AABB, m: Mat4x4) AABB {
@@ -71,22 +72,22 @@ pub const AABB = struct {
         const mw = m.r[3];
 
         return init(
-            math.min(xa, xb) + math.min(ya, yb) + math.min(za, zb) + mw,
-            math.max(xa, xb) + math.max(ya, yb) + math.max(za, zb) + mw,
+            @minimum(xa, xb) + @minimum(ya, yb) + @minimum(za, zb) + mw,
+            @maximum(xa, xb) + @maximum(ya, yb) + @maximum(za, zb) + mw,
         );
     }
 
     pub fn mergeAssign(self: *AABB, other: AABB) void {
-        self.bounds[0] = math.min(self.bounds[0], other.bounds[0]);
-        self.bounds[1] = math.max(self.bounds[1], other.bounds[1]);
+        self.bounds[0] = @minimum(self.bounds[0], other.bounds[0]);
+        self.bounds[1] = @maximum(self.bounds[1], other.bounds[1]);
     }
 
     pub fn clipMin(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[0][axis] = std.math.max(d, self.bounds[0][axis]);
+        self.bounds[0][axis] = @maximum(d, self.bounds[0][axis]);
     }
 
     pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[1][axis] = std.math.min(d, self.bounds[1][axis]);
+        self.bounds[1][axis] = @minimum(d, self.bounds[1][axis]);
     }
 
     pub fn covers(self: AABB, other: AABB) bool {

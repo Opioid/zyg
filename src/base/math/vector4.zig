@@ -189,15 +189,6 @@ pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
     return @splat(4, 2.0 * dot3(v, n)) * n - v;
 }
 
-pub fn sqrt(v: Vec4f) Vec4f {
-    return .{
-        @sqrt(v[0]),
-        @sqrt(v[1]),
-        @sqrt(v[2]),
-        @sqrt(v[3]),
-    };
-}
-
 pub fn log(v: Vec4f) Vec4f {
     return .{
         std.math.ln(v[0]),
@@ -238,44 +229,12 @@ pub fn tangent3(n: Vec4f) Vec4f {
     return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
 }
 
-pub fn min(a: Vec4f, b: Vec4f) Vec4f {
-    return .{
-        std.math.min(a[0], b[0]),
-        std.math.min(a[1], b[1]),
-        std.math.min(a[2], b[2]),
-        std.math.min(a[3], b[3]),
-    };
-}
-
-pub fn max(a: Vec4f, b: Vec4f) Vec4f {
-    return .{
-        std.math.max(a[0], b[0]),
-        std.math.max(a[1], b[1]),
-        std.math.max(a[2], b[2]),
-        std.math.max(a[3], b[3]),
-    };
-}
-
-pub fn abs(v: Vec4f) Vec4f {
-    return .{
-        std.math.fabs(v[0]),
-        std.math.fabs(v[1]),
-        std.math.fabs(v[2]),
-        std.math.fabs(v[3]),
-    };
-}
-
 pub fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return .{
-        std.math.clamp(v[0], mi, ma),
-        std.math.clamp(v[1], mi, ma),
-        std.math.clamp(v[2], mi, ma),
-        std.math.clamp(v[3], mi, ma),
-    };
+    return @minimum(@maximum(v, @splat(4, mi)), @splat(4, ma));
 }
 
 pub fn maxComponent3(v: Vec4f) f32 {
-    return std.math.max(v[0], std.math.max(v[1], v[2]));
+    return @maximum(v[0], @maximum(v[1], v[2]));
 }
 
 pub fn indexMaxComponent3(v: Vec4f) u32 {

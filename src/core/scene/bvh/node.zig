@@ -88,15 +88,15 @@ pub const Node = struct {
         // the order we use for those min/max is vital to filter out
         // NaNs that happens when an inv_dir is +/- inf and
         // (box_min - pos) is 0. inf * 0 = NaN
-        const filtered_l1a = math.min(l1, math.Infinity);
-        const filtered_l2a = math.min(l2, math.Infinity);
+        const filtered_l1a = @minimum(l1, math.Infinity);
+        const filtered_l2a = @minimum(l2, math.Infinity);
 
-        const filtered_l1b = math.max(l1, math.Neg_infinity);
-        const filtered_l2b = math.max(l2, math.Neg_infinity);
+        const filtered_l1b = @maximum(l1, math.Neg_infinity);
+        const filtered_l2b = @maximum(l2, math.Neg_infinity);
 
         // now that we're back on our feet, test those slabs.
-        const max_t3 = math.max(filtered_l1a, filtered_l2a);
-        const min_t3 = math.min(filtered_l1b, filtered_l2b);
+        const max_t3 = @maximum(filtered_l1a, filtered_l2a);
+        const min_t3 = @minimum(filtered_l1b, filtered_l2b);
 
         // unfold back. try to hide the latency of the shufps & co.
         var max_t = std.math.min(max_t3[0], max_t3[1]);
@@ -108,6 +108,7 @@ pub const Node = struct {
         const ray_min_t = ray.minT();
         const ray_max_t = ray.maxT();
 
-        return max_t >= ray_min_t and ray_max_t >= min_t and max_t >= min_t;
+        // return max_t >= ray_min_t and ray_max_t >= min_t and max_t >= min_t;
+        return 0 != (@boolToInt(max_t >= ray_min_t) & @boolToInt(ray_max_t >= min_t) & @boolToInt(max_t >= min_t));
     }
 };

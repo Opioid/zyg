@@ -137,7 +137,6 @@ pub const Tree = struct {
         };
 
         var nodes = worker.node_stack;
-
         nodes.push(0xFFFFFFFF);
         var n: u32 = 0;
 
