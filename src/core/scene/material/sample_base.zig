@@ -69,7 +69,7 @@ pub const SampleBase = struct {
         None = 0,
         Pure_emissive = 1 << 0,
         Translucent = 1 << 1,
-        Can_evaluate = 1 << 2,
+        CanEvaluate = 1 << 2,
         Avoid_caustics = 1 << 3,
     };
 
@@ -101,7 +101,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .radiance = radiance,
             .alpha = alpha,
-            .properties = Flags(Property).init1(.Can_evaluate),
+            .properties = Flags(Property).init1(.CanEvaluate),
         };
     }
 

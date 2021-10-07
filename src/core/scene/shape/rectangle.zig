@@ -117,7 +117,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
+            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, worker);
         }
 
         return @splat(4, @as(f32, 1.0));

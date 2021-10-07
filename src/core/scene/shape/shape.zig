@@ -42,6 +42,7 @@ pub const Shape = union(enum) {
 
     pub fn numParts(self: Shape) u32 {
         return switch (self) {
+            .Null => 0,
             .Triangle_mesh => |m| m.numParts(),
             else => 1,
         };
@@ -49,6 +50,7 @@ pub const Shape = union(enum) {
 
     pub fn numMaterials(self: Shape) u32 {
         return switch (self) {
+            .Null => 0,
             .Triangle_mesh => |m| m.numMaterials(),
             else => 1,
         };

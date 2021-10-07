@@ -46,7 +46,7 @@ pub const Sample = union(enum) {
     }
 
     pub fn canEvaluate(self: Sample) bool {
-        return self.super().properties.is(.Can_evaluate);
+        return self.super().properties.is(.CanEvaluate);
     }
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {

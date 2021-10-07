@@ -141,6 +141,8 @@ pub const Tree = struct {
         nodes.push(0xFFFFFFFF);
         var n: u32 = 0;
 
+        const ray_dir = ray.direction;
+
         var vis = @splat(4, @as(f32, 1.0));
 
         const max_t = ray.maxT();
@@ -168,11 +170,12 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
+                        const normal = self.data.normal(i);
                         const uv = self.data.interpolateUv(hit.u, hit.v, i);
 
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
-                        const tv = material.visibility(uv, filter, worker.*) orelse return null;
+                        const tv = material.visibility(ray_dir, normal, uv, filter, worker.*) orelse return null;
 
                         vis *= tv;
 

@@ -62,7 +62,7 @@ pub const Plane = struct {
             const k = p - trafo.position;
             const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };
 
-            return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
+            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
         }
 
         return @splat(4, @as(f32, 1.0));

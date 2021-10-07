@@ -108,7 +108,7 @@ pub const Disk = struct {
                     (math.dot3(b, sk) + 1.0) * uv_scale,
                 };
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
+                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, worker);
             }
         }
 

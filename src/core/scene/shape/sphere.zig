@@ -122,7 +122,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
+                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
             }
 
             const t1 = b + dist;
@@ -134,7 +134,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(uv, filter, worker);
+                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
             }
         }
 

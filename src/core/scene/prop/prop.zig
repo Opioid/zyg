@@ -85,7 +85,7 @@ pub const Prop = struct {
         for (materials) |mid| {
             const m = scene.material(mid);
 
-            if (m.isMasked()) {
+            if (m.isMasked() or m.hasTintedShadow()) {
                 self.properties.set(.TintedShadow, true);
             }
         }

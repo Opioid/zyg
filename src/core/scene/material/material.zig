@@ -72,17 +72,24 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn isMasked(self: Material) bool {
+        return self.super().mask.isValid();
+    }
+
     pub fn isTwoSided(self: Material) bool {
         return switch (self) {
             .Debug => true,
-            .Glass => |m| m.super.properties.is(.TwoSided),
+            .Glass => |m| m.thickness > 0.0,
             .Substitute => |m| m.super.properties.is(.TwoSided),
             else => false,
         };
     }
 
-    pub fn isMasked(self: Material) bool {
-        return self.super().mask.isValid();
+    pub fn hasTintedShadow(self: Material) bool {
+        return switch (self) {
+            .Glass => |m| m.thickness > 0.0,
+            else => false,
+        };
     }
 
     pub fn isEmissive(self: Material) bool {
@@ -177,22 +184,23 @@ pub const Material = union(enum) {
     }
 
     pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
-        const mask = self.super().mask;
-        if (mask.isValid()) {
-            const key = ts.resolveKey(self.super().sampler_key, filter);
-            return ts.sample2D_1(key, mask, uv, worker.scene.*);
-        }
-
-        return 1.0;
+        return self.super().opacity(uv, filter, worker);
     }
 
-    pub fn visibility(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
-        const o = self.opacity(uv, filter, worker);
+    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
+        return switch (self) {
+            .Glass => |m| {
+                return m.visibility(wi, n, uv, filter, worker);
+            },
+            else => {
+                const o = self.opacity(uv, filter, worker);
 
-        if (o < 1.0) {
-            return @splat(4, 1.0 - o);
-        }
+                if (o < 1.0) {
+                    return @splat(4, 1.0 - o);
+                }
 
-        return null;
+                return null;
+            },
+        };
     }
 };

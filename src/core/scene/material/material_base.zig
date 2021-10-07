@@ -1,4 +1,5 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
+const Worker = @import("../worker.zig").Worker;
 const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
@@ -67,5 +68,15 @@ pub const Base = struct {
         self.cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, anisotropy);
         self.attenuation_distance = distance;
         self.volumetric_anisotropy = aniso;
+    }
+
+    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
+        const mask = self.mask;
+        if (mask.isValid()) {
+            const key = ts.resolveKey(self.sampler_key, filter);
+            return ts.sample2D_1(key, mask, uv, worker.scene.*);
+        }
+
+        return 1.0;
     }
 };
