@@ -38,10 +38,11 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Tree, ray: *Ray, nodes: *NodeStack) ?Intersection {
-        const ray_signs = [3]u32{
-            if (ray.inv_direction[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction[2] >= 0.0) 0 else 1,
+        const ray_signs = [4]u32{
+            @boolToInt(ray.inv_direction[0] < 0.0),
+            @boolToInt(ray.inv_direction[1] < 0.0),
+            @boolToInt(ray.inv_direction[2] < 0.0),
+            @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
         nodes.push(0xFFFFFFFF);
@@ -86,10 +87,11 @@ pub const Tree = struct {
     }
 
     pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
-        const ray_signs = [3]u32{
-            if (ray.inv_direction[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction[2] >= 0.0) 0 else 1,
+        const ray_signs = [4]u32{
+            @boolToInt(ray.inv_direction[0] < 0.0),
+            @boolToInt(ray.inv_direction[1] < 0.0),
+            @boolToInt(ray.inv_direction[2] < 0.0),
+            @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
         nodes.push(0xFFFFFFFF);
@@ -130,10 +132,11 @@ pub const Tree = struct {
     }
 
     pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
-        const ray_signs = [3]u32{
-            if (ray.inv_direction[0] >= 0.0) 0 else 1,
-            if (ray.inv_direction[1] >= 0.0) 0 else 1,
-            if (ray.inv_direction[2] >= 0.0) 0 else 1,
+        const ray_signs = [4]u32{
+            @boolToInt(ray.inv_direction[0] < 0.0),
+            @boolToInt(ray.inv_direction[1] < 0.0),
+            @boolToInt(ray.inv_direction[2] < 0.0),
+            @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
         var nodes = worker.node_stack;
