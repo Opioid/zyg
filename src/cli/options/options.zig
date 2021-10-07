@@ -12,6 +12,7 @@ pub const Options = struct {
     num_frames: u32 = 1,
 
     no_tex: bool = false,
+    debug_material: bool = false,
 
     pub fn deinit(self: *Options, alloc: *Allocator) void {
         for (self.mounts.items) |mount| {
@@ -100,6 +101,8 @@ pub const Options = struct {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "no-tex", command)) {
             self.no_tex = true;
+        } else if (std.mem.eql(u8, "debug-mat", command)) {
+            self.debug_material = true;
         }
     }
 
@@ -142,7 +145,7 @@ pub const Options = struct {
             \\                                 logical CPUs minus x.
             \\                                 The default value is 0.
             \\      --no-tex                   Disables loading of all textures.
-            \\
+            \\      --debug-mat                Force all materials to debug material type.
         ;
 
         stdout.print(text, .{}) catch return;

@@ -27,7 +27,6 @@ pub const Sample = struct {
         const wi = math.normalize3(self.super.layer.tangentToWorld(is));
 
         const n_dot_wi = self.super.layer.clampNdot(wi);
-
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;

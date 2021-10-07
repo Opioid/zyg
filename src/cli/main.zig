@@ -21,16 +21,16 @@ pub fn main() !void {
 
     stdout.print("Welcome to zyg!\n", .{}) catch unreachable;
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        const leaked = gpa.deinit();
-        if (leaked) {
-            std.debug.print("Memory leak {} \n", .{leaked});
-        }
-    }
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer {
+    //     const leaked = gpa.deinit();
+    //     if (leaked) {
+    //         std.debug.print("Memory leak {} \n", .{leaked});
+    //     }
+    // }
 
-    const alloc = &gpa.allocator;
-    //  const alloc = std.heap.c_allocator;
+    // const alloc = &gpa.allocator;
+    const alloc = std.heap.c_allocator;
 
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
@@ -51,7 +51,7 @@ pub fn main() !void {
     var resources = resource.Manager.init(&threads);
     defer resources.deinit(alloc);
 
-    resources.materials.provider.setSettings(options.no_tex);
+    resources.materials.provider.setSettings(options.no_tex, options.debug_material);
 
     var fs = &resources.fs;
 

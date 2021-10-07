@@ -27,15 +27,19 @@ pub const Provider = struct {
 
     tex: Tex = .All,
 
+    force_debug_material: bool = false,
+
     pub fn deinit(self: *Provider, alloc: *Allocator) void {
         _ = self;
         _ = alloc;
     }
 
-    pub fn setSettings(self: *Provider, no_tex: bool) void {
+    pub fn setSettings(self: *Provider, no_tex: bool, force_debug_material: bool) void {
         if (no_tex) {
             self.tex = .No;
         }
+
+        self.force_debug_material = force_debug_material;
     }
 
     pub fn loadFile(
@@ -83,22 +87,28 @@ pub const Provider = struct {
     }
 
     fn loadMaterial(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
-        _ = self;
-
         const rendering_node = value.Object.get("rendering") orelse {
             return Error.NoRenderNode;
         };
 
         var iter = rendering_node.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
-                return Material{ .Debug = mat.Debug.init() };
-            } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
-                return try self.loadGlass(alloc, entry.value_ptr.*, resources);
-            } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
-                return try self.loadLight(alloc, entry.value_ptr.*, resources);
-            } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
-                return try self.loadSubstitute(alloc, entry.value_ptr.*, resources);
+            if (self.force_debug_material) {
+                if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
+                    return try self.loadLight(alloc, entry.value_ptr.*, resources);
+                } else {
+                    return createFallbackMaterial();
+                }
+            } else {
+                if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
+                    return Material{ .Debug = mat.Debug.init() };
+                } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
+                    return try self.loadGlass(alloc, entry.value_ptr.*, resources);
+                } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
+                    return try self.loadLight(alloc, entry.value_ptr.*, resources);
+                } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
+                    return try self.loadSubstitute(alloc, entry.value_ptr.*, resources);
+                }
             }
         }
 

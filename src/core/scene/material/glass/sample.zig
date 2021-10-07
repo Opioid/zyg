@@ -28,7 +28,7 @@ pub const Sample = struct {
         ior_outside: f32,
         thickness: f32,
     ) Sample {
-        var sup = Base.init(
+        var super = Base.init(
             rs,
             wo,
             @splat(4, @as(f32, 1.0)),
@@ -36,11 +36,11 @@ pub const Sample = struct {
             @splat(2, @as(f32, 1.0)),
         );
 
-        sup.properties.unset(.CanEvaluate);
-        sup.properties.set(.Translucent, thickness > 0.0);
+        super.properties.unset(.CanEvaluate);
+        super.properties.set(.Translucent, thickness > 0.0);
 
         return .{
-            .super = sup,
+            .super = super,
             .absorption_coef = absorption_coef,
             .ior = ior,
             .ior_outside = ior_outside,

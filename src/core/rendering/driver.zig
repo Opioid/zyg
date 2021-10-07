@@ -82,6 +82,10 @@ pub const Driver = struct {
             return;
         }
 
+        std.debug.print("Frame {}\n", .{frame});
+
+        const render_start = std.time.milliTimestamp();
+
         var camera = &self.view.camera;
 
         const camera_pos = self.scene.propWorldPosition(camera.entity);
@@ -92,9 +96,11 @@ pub const Driver = struct {
 
         camera.update(start, &self.workers[0].super);
 
+        std.debug.print("Preparation time {d:.3} s\n", .{chrono.secondsSince(render_start)});
+
         std.debug.print("Tracing camera rays...\n", .{});
 
-        const render_start = std.time.milliTimestamp();
+        const camera_start = std.time.milliTimestamp();
 
         camera.sensor.clear(0.0);
 
@@ -105,15 +111,15 @@ pub const Driver = struct {
 
         self.threads.runParallel(self, renderTiles, 0);
 
-        std.debug.print("Camera ray time {d:.2} s\n", .{chrono.secondsSince(render_start)});
+        std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(camera_start)});
 
-        std.debug.print("Render time {d:.2} s\n", .{chrono.secondsSince(render_start)});
+        std.debug.print("Render time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
         const pp_start = std.time.milliTimestamp();
 
         self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
 
-        std.debug.print("Post-process time {d:.2} s\n", .{chrono.secondsSince(pp_start)});
+        std.debug.print("Post-process time {d:.3} s\n", .{chrono.secondsSince(pp_start)});
     }
 
     pub fn exportFrame(self: *Driver) void {
