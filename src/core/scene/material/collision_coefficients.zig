@@ -13,7 +13,7 @@ pub fn attenuation(ac: Vec4f, ssc: Vec4f, distance: f32, g: f32) CC {
 
 pub fn attenutionCoefficient(color: Vec4f, distance: f32) Vec4f {
     const ca = math.clamp(color, 0.01, 0.991102);
-    const a = math.log(ca);
+    const a = @log(ca);
 
     return -a / @splat(4, distance);
 }

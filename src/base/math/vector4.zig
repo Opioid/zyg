@@ -189,24 +189,6 @@ pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
     return @splat(4, 2.0 * dot3(v, n)) * n - v;
 }
 
-pub fn log(v: Vec4f) Vec4f {
-    return .{
-        std.math.ln(v[0]),
-        std.math.ln(v[1]),
-        std.math.ln(v[2]),
-        std.math.ln(v[3]),
-    };
-}
-
-pub fn exp(v: Vec4f) Vec4f {
-    return .{
-        std.math.exp(v[0]),
-        std.math.exp(v[1]),
-        std.math.exp(v[2]),
-        std.math.exp(v[3]),
-    };
-}
-
 pub fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
     // Building an Orthonormal Basis, Revisited
     // http://jcgt.org/published/0006/01/01/
