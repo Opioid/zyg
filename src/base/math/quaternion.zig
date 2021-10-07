@@ -139,6 +139,41 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
 
+pub fn initNormal(q: Quaternion) Vec4f {
+    //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
+    // {
+    //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
+    //   float tx = 2*x,  ty = 2*y,  tz = 2*z;
+    //   float xy = ty*x, xz = tz*x, yz = ty*z;
+    //   float wx = tx*w, wy = ty*w, wz = tz*w;
+
+    //   // diagonal terms
+    //   float t0 = (w+y)*(w-y), t1 = (x+z)*(x-z);
+    //   float t2 = (w+x)*(w-x), t3 = (y+z)*(y-z);
+    //   m->m00 = t0+t1;
+    //   m->m11 = t2+t3;
+    //   m->m22 = t2-t3;
+
+    //   m->m10 = xy+wz; m->m01 = xy-wz;
+    //   m->m20 = xz-wy; m->m02 = xz+wy;
+    //   m->m21 = yz+wx; m->m12 = yz-wx;
+    // }
+
+    const tq = q + q;
+
+    const xz = tq[2] * q[0];
+    const yz = tq[1] * q[2];
+
+    const w = tq * @splat(4, q[3]);
+
+    // diagonal terms
+    const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
+    const b = @shuffle(f32, q, q, [4]i32{ 1, 2, 0, 2 });
+    const t = (a + b) * (a - b);
+
+    return .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 };
+}
+
 pub fn mul(a: Quaternion, b: Quaternion) Quaternion {
     return .{
         (a[3] * b[0] + a[0] * b[3]) + (a[1] * b[2] - a[2] * b[1]),

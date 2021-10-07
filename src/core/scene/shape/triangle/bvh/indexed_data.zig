@@ -158,6 +158,16 @@ pub const Indexed_data = struct {
         // uv.* = Vec2f.init2(tu[3], nv[3]);
     }
 
+    pub fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
+        const tri = self.triangles[index];
+
+        const a = quaternion.initNormal(self.frames[tri.a]);
+        const b = quaternion.initNormal(self.frames[tri.b]);
+        const c = quaternion.initNormal(self.frames[tri.c]);
+
+        return math.normalize3(triangle.interpolate3(a, b, c, u, v));
+    }
+
     pub fn interpolateUv(self: Self, u: f32, v: f32, index: u32) Vec2f {
         const tri = self.triangles[index];
 

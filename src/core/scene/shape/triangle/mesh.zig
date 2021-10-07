@@ -105,6 +105,10 @@ pub const Mesh = struct {
             } else if (.NoTangentSpace == ipo) {
                 const uv = self.tree.data.interpolateUv(hit.u, hit.v, hit.index);
                 isec.uv = uv;
+            } else {
+                const n = self.tree.data.interpolateShadingNormal(hit.u, hit.v, hit.index);
+                const n_w = trafo.rotation.transformVector(n);
+                isec.n = n_w;
             }
 
             return true;
