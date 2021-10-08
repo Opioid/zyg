@@ -17,7 +17,17 @@ pub const Provider = struct {
 
     png_reader: PngReader = .{},
 
+    previous_name: []u8,
+
+    pub fn init(alloc: *Allocator) !Provider {
+        var buffer = try alloc.alloc(u8, 256);
+        std.mem.set(u8, buffer, 0);
+
+        return Provider{ .previous_name = buffer };
+    }
+
     pub fn deinit(self: *Provider, alloc: *Allocator) void {
+        alloc.free(self.previous_name);
         self.png_reader.deinit(alloc);
     }
 
@@ -28,14 +38,29 @@ pub const Provider = struct {
         options: Variants,
         resources: *Resources,
     ) !Image {
-        var stream = try resources.fs.readStream(name);
+        var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
+
+        const resolved_name = resources.fs.lastResolvedName();
+
+        const same_file = std.mem.startsWith(u8, self.previous_name, resolved_name);
+
+        if (self.previous_name.len < resolved_name.len) {
+            self.previous_name = try alloc.realloc(self.previous_name, resolved_name.len);
+        }
+
+        std.mem.copy(u8, self.previous_name, resolved_name);
 
         const file_type = file.queryType(&stream);
 
         if (file.Type.PNG == file_type) {
             const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
             const invert = options.queryOrDef("invert", false);
+
+            if (same_file) {
+                return try self.png_reader.createFromBuffer(alloc, swizzle, invert);
+            }
+
             return try self.png_reader.read(alloc, &stream, swizzle, invert);
         }
 

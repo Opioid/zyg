@@ -72,7 +72,7 @@ pub const Loader = struct {
 
         const fs = &self.resources.fs;
 
-        var stream = try fs.readStream(filename);
+        var stream = try fs.readStream(alloc, filename);
         defer stream.deinit();
 
         const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));

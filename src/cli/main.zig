@@ -48,7 +48,7 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager.init(&threads);
+    var resources = try resource.Manager.init(alloc, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.debug_material);
@@ -75,7 +75,7 @@ pub fn main() !void {
     );
     defer scene.deinit(alloc);
 
-    var stream = try resources.fs.readStream(options.take.?);
+    var stream = try resources.fs.readStream(alloc, options.take.?);
 
     stdout.print("Loading...\n", .{}) catch unreachable;
 

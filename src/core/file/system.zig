@@ -6,11 +6,20 @@ const Allocator = std.mem.Allocator;
 pub const System = struct {
     mounts: std.ArrayListUnmanaged([]u8) = .{},
 
-    name_buffer: [256]u8 = undefined,
+    name_buffer: []u8,
 
-    resolved_name_len: u32 = undefined,
+    resolved_name_len: u32 = 0,
+
+    pub fn init(alloc: *Allocator) !System {
+        var buffer = try alloc.alloc(u8, 256);
+        std.mem.set(u8, buffer, 0);
+
+        return System{ .name_buffer = buffer };
+    }
 
     pub fn deinit(self: *System, alloc: *Allocator) void {
+        alloc.free(self.name_buffer);
+
         for (self.mounts.items) |mount| {
             alloc.free(mount);
         }
@@ -37,13 +46,19 @@ pub const System = struct {
         alloc.free(mount);
     }
 
-    pub fn readStream(self: *System, name: []const u8) !ReadStream {
+    pub fn readStream(self: *System, alloc: *Allocator, name: []const u8) !ReadStream {
         for (self.mounts.items) |m| {
+            const resolved_name_len = @intCast(u32, m.len + name.len);
+
+            if (self.name_buffer.len < resolved_name_len) {
+                self.name_buffer = try alloc.realloc(self.name_buffer, resolved_name_len);
+            }
+
             std.mem.copy(u8, self.name_buffer[0..], m);
             std.mem.copy(u8, self.name_buffer[m.len..], name);
-            self.resolved_name_len = @intCast(u32, m.len + name.len);
+            self.resolved_name_len = resolved_name_len;
 
-            const resolved_name = self.name_buffer[0 .. m.len + name.len];
+            const resolved_name = self.name_buffer[0..resolved_name_len];
 
             const file = std.fs.cwd().openFile(resolved_name, .{}) catch {
                 continue;

@@ -74,7 +74,7 @@ pub const Provider = struct {
         defer handler.deinit(alloc);
 
         {
-            var stream = try resources.fs.readStream(name);
+            var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
             if (file.Type.SUB == file.queryType(&stream)) {

@@ -52,7 +52,7 @@ pub const Provider = struct {
     ) !Material {
         _ = options;
 
-        var stream = try resources.fs.readStream(name);
+        var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
 
         const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));

@@ -27,16 +27,17 @@ const Error = error{
 pub const Manager = struct {
     threads: *Threads,
 
-    fs: Filesystem = .{},
+    fs: Filesystem,
 
     images: Images,
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(threads: *Threads) Manager {
-        return .{
+    pub fn init(alloc: *Allocator, threads: *Threads) !Manager {
+        return Manager{
             .threads = threads,
-            .images = Images.init(ImageProvider{}),
+            .fs = try Filesystem.init(alloc),
+            .images = Images.init(try ImageProvider.init(alloc)),
             .materials = Materials.init(MaterialProvider{}),
             .shapes = Shapes.init(TriangleMeshProvider{}),
         };

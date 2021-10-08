@@ -142,6 +142,10 @@ pub const Reader = struct {
         return try createImage(alloc, self.info, swizzle, invert);
     }
 
+    pub fn createFromBuffer(self: Reader, alloc: *Allocator, swizzle: Swizzle, invert: bool) !Image {
+        return try createImage(alloc, self.info, swizzle, invert);
+    }
+
     fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         var swap_xy = false;
