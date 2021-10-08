@@ -51,6 +51,7 @@ pub const Sample = union(enum) {
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
         return switch (self) {
+            .Debug => |s| s.evaluate(wi),
             .Substitute => |s| s.evaluate(wi),
             else => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0),
         };
@@ -58,8 +59,8 @@ pub const Sample = union(enum) {
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         return switch (self) {
-            .Debug => |d| d.sample(sampler, rng),
-            .Glass => |g| g.sample(sampler, rng),
+            .Debug => |s| s.sample(sampler, rng),
+            .Glass => |s| s.sample(sampler, rng),
             .Light => Light.sample(),
             .Substitute => |s| s.sample(sampler, rng),
         };

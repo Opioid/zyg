@@ -20,6 +20,16 @@ pub const Sample = struct {
         ) };
     }
 
+    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+        const n_dot_wi = self.super.layer.clampNdot(wi);
+
+        const pdf = n_dot_wi * math.pi_inv;
+
+        const reflection = @splat(4, pdf) * self.super.albedo;
+
+        return bxdf.Result.init(reflection, pdf);
+    }
+
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const s2d = sampler.sample2D(rng, 0);
 
