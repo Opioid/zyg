@@ -19,12 +19,12 @@ pub const Layer = struct {
         //     0.0,
         // };
 
-        var result = @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.t;
-        var temp = @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.b;
         result = result + temp;
-        temp = @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.n;
         return result + temp;
     }

@@ -210,6 +210,8 @@ pub const Provider = struct {
         var ior: f32 = 1.46;
         var anisotropy: f32 = 0.0;
         var emission_factor: f32 = 1.0;
+        var thickness: f32 = 0.0;
+        var attenuation_distance: f32 = 0.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
@@ -241,6 +243,10 @@ pub const Provider = struct {
                 two_sided = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
                 emission_factor = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
+                thickness = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
+                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             }
@@ -262,6 +268,7 @@ pub const Provider = struct {
         material.rotation = rotation.value;
         material.super.ior = ior;
         material.metallic = metallic;
+        material.setTranslucency(thickness, attenuation_distance);
 
         return Material{ .Substitute = material };
     }

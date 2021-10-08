@@ -43,7 +43,7 @@ pub const Provider = struct {
 
         const resolved_name = resources.fs.lastResolvedName();
 
-        const same_file = std.mem.startsWith(u8, self.previous_name, resolved_name);
+        //  const same_file = std.mem.startsWith(u8, self.previous_name, resolved_name);
 
         if (self.previous_name.len < resolved_name.len) {
             self.previous_name = try alloc.realloc(self.previous_name, resolved_name.len);

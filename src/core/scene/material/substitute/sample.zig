@@ -2,6 +2,7 @@ const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const ccoef = @import("../collision_coefficients.zig");
 const disney = @import("../disney.zig");
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../sample_helper.zig");
@@ -19,8 +20,11 @@ pub const Sample = struct {
 
     albedo: Vec4f,
     f0: Vec4f,
+    attenuation: Vec4f = undefined,
 
     metallic: f32,
+    thickness: f32,
+    transparency: f32 = undefined,
 
     pub fn init(
         rs: Renderstate,
@@ -36,7 +40,22 @@ pub const Sample = struct {
             .albedo = @splat(4, 1.0 - metallic) * albedo,
             .f0 = math.lerp3(@splat(4, f0), albedo, metallic),
             .metallic = metallic,
+            .thickness = 0.0,
         };
+    }
+
+    pub fn setTranslucency(
+        self: *Sample,
+        color: Vec4f,
+        thickness: f32,
+        attenuation_distance: f32,
+        transparency: f32,
+    ) void {
+        //self.super.properties.set(.Translucent, true);
+        // self.albedo = @splat(4, 1.0 - transparency) * color;
+        self.attenuation = ccoef.attenutionCoefficient(color, attenuation_distance);
+        self.thickness = thickness;
+        self.transparency = transparency;
     }
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {

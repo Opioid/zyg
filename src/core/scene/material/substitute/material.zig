@@ -29,6 +29,9 @@ pub const Material = struct {
     rotation: f32 = undefined,
     metallic: f32 = undefined,
     emission_factor: f32 = undefined,
+    thickness: f32 = undefined,
+    attenuation_distance: f32 = undefined,
+    transparency: f32 = undefined,
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
         return .{ .super = Base.init(sampler_key, two_sided) };
@@ -57,6 +60,14 @@ pub const Material = struct {
         }
 
         self.anisotropy = anisotropy;
+    }
+
+    pub fn setTranslucency(self: *Material, thickness: f32, attenuation_distance: f32) void {
+        const transparent = thickness > 0.0;
+        self.super.properties.set(.TwoSided, transparent);
+        self.thickness = thickness;
+        self.attenuation_distance = attenuation_distance;
+        self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
@@ -116,6 +127,11 @@ pub const Material = struct {
 
         if (self.rotation > 0.0) {
             result.super.layer.rotateTangenFrame(self.rotation);
+        }
+
+        const thickness = self.thickness;
+        if (thickness > 0.0) {
+            result.setTranslucency(color, thickness, self.attenuation_distance, self.transparency);
         }
 
         return result;
