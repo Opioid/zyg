@@ -52,7 +52,9 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
             const id = @intCast(u32, self.resources.items.len - 1);
 
-            try self.entries.put(alloc, name, id);
+            //  std.debug.print("{s}\n", .{name});
+
+            //   try self.entries.put(alloc, name, id);
 
             return id;
         }

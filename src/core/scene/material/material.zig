@@ -194,12 +194,7 @@ pub const Material = union(enum) {
             },
             else => {
                 const o = self.opacity(uv, filter, worker);
-
-                if (o < 1.0) {
-                    return @splat(4, 1.0 - o);
-                }
-
-                return null;
+                return if (o < 1.0) @splat(4, 1.0 - o) else null;
             },
         };
     }

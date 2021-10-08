@@ -129,7 +129,7 @@ pub const Reader = struct {
         self.chunk.deinit(alloc);
     }
 
-    pub fn read(self: *Reader, alloc: *Allocator, stream: *ReadStream, swizzle: Swizzle) !Image {
+    pub fn read(self: *Reader, alloc: *Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool) !Image {
         var signature: [Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -139,10 +139,10 @@ pub const Reader = struct {
 
         while (handleChunk(alloc, stream, &self.chunk, &self.info)) {}
 
-        return try createImage(alloc, self.info, swizzle);
+        return try createImage(alloc, self.info, swizzle, invert);
     }
 
-    fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle) !Image {
+    fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         var swap_xy = false;
         switch (swizzle) {
@@ -153,9 +153,6 @@ pub const Reader = struct {
                 num_channels = 2;
             },
             .XYZ => {
-                num_channels = 3;
-            },
-            .Undefined => {
                 num_channels = 3;
             },
         }
@@ -187,7 +184,10 @@ pub const Reader = struct {
             while (i < len) : (i += 1) {
                 const o = i * info.num_channels;
 
-                const color = info.buffer[o + c];
+                var color = info.buffer[o + c];
+                if (invert) {
+                    color = 255 - color;
+                }
 
                 image.pixels[i] = color;
             }

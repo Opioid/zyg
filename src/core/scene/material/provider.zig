@@ -2,6 +2,7 @@ const mat = @import("material.zig");
 const Material = mat.Material;
 const metal = @import("metal_presets.zig");
 const fresnel = @import("fresnel.zig");
+const img = @import("../../image/image.zig");
 const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
@@ -269,6 +270,9 @@ pub const Provider = struct {
 const TextureDescription = struct {
     filename: ?[]u8 = null,
 
+    swizzle: ?img.Swizzle = null,
+    invert: bool = false,
+
     pub fn init(alloc: *Allocator, value: std.json.Value) !TextureDescription {
         var desc = TextureDescription{};
 
@@ -276,10 +280,19 @@ const TextureDescription = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                 const string = entry.value_ptr.String;
-                desc.filename = try alloc.alloc(u8, string.len);
-                if (desc.filename) |filename| {
-                    std.mem.copy(u8, filename, string);
+                const filename = try alloc.alloc(u8, string.len);
+                std.mem.copy(u8, filename, string);
+                desc.filename = filename;
+            } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
+                const swizzle = entry.value_ptr.String;
+
+                if (std.mem.eql(u8, "X", swizzle)) {
+                    desc.swizzle = .X;
+                } else if (std.mem.eql(u8, "W", swizzle)) {
+                    desc.swizzle = .W;
                 }
+            } else if (std.mem.eql(u8, "invert", entry.key_ptr.*)) {
+                desc.invert = json.readBool(entry.value_ptr.*);
             }
         }
 
@@ -425,6 +438,15 @@ fn createTexture(
         var options: Variants = .{};
         defer options.deinit(alloc);
         options.set(alloc, "usage", usage) catch {};
+
+        if (desc.invert) {
+            options.set(alloc, "invert", true) catch {};
+        }
+
+        if (desc.swizzle) |swizzle| {
+            options.set(alloc, "swizzle", swizzle) catch {};
+        }
+
         return tx.Provider.loadFile(alloc, filename, options, resources) catch .{};
     }
 

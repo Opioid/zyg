@@ -20,18 +20,23 @@ pub const Provider = struct {
         options: Variants,
         resources: *Resources,
     ) !Texture {
-        const usage = options.query("usage", Usage.Color);
+        const usage = options.queryOrDef("usage", Usage.Color);
 
-        const swizzle: img.Swizzle = switch (usage) {
-            .Color => .XYZ,
-            .Normal, .Surface => .XY,
-            .Roughness => .X,
-            .Mask => .W,
-        };
+        var swizzle = options.query(img.Swizzle, "swizzle");
 
-        var image_options = Variants{};
+        if (null == swizzle) {
+            swizzle = switch (usage) {
+                .Color => .XYZ,
+                .Normal, .Surface => .XY,
+                .Roughness => .X,
+                .Mask => .W,
+            };
+        }
+
+        var image_options = try options.cloneExcept(alloc, "usage");
         defer image_options.deinit(alloc);
-        try image_options.set(alloc, "swizzle", swizzle);
+
+        try image_options.set(alloc, "swizzle", swizzle.?);
 
         const image_id = try resources.loadFile(Image, alloc, name, image_options);
 
