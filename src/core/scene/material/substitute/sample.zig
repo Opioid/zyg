@@ -42,9 +42,9 @@ pub const Sample = struct {
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const wo = self.super.wo;
 
-        // if (!self.super.sameHemisphere(wo)) {
-        //     return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
-        // }
+        if (!self.super.sameHemisphere(wo)) {
+            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+        }
 
         const h = math.normalize3(wo + wi);
 
@@ -59,6 +59,10 @@ pub const Sample = struct {
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         var result = bxdf.Sample{};
+
+        if (!self.super.sameHemisphere(self.super.wo)) {
+            return result;
+        }
 
         if (1.0 == self.metallic) {
             self.pureGlossSample(sampler, rng, &result);
@@ -130,14 +134,15 @@ pub const Sample = struct {
     }
 
     fn diffuseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        const wo = self.super.wo;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
         const xi = sampler.sample2D(rng, 0);
 
         const n_dot_wi = disney.Iso.reflect(
-            self.super.wo,
+            wo,
             n_dot_wo,
             self.super.layer,
             alpha[0],
@@ -150,7 +155,7 @@ pub const Sample = struct {
 
         var gg = ggx.Aniso.reflection(
             result.wi,
-            self.super.wo,
+            wo,
             result.h,
             n_dot_wi,
             n_dot_wo,
@@ -167,29 +172,32 @@ pub const Sample = struct {
     }
 
     fn glossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
-        const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+        const wo = self.super.wo;
+        const alpha = self.super.alpha;
+
+        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
         const xi = sampler.sample2D(rng, 0);
 
         const n_dot_wi = ggx.Aniso.reflect(
-            self.super.wo,
+            wo,
             n_dot_wo,
-            self.super.alpha,
+            alpha,
             xi,
             schlick,
             self.super.layer,
             result,
         );
 
-        result.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
+        result.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
 
         const d = disney.Iso.reflection(
             result.h_dot_wi,
             n_dot_wi,
             n_dot_wo,
-            self.super.alpha[0],
+            alpha[0],
             self.super.albedo,
         );
 
@@ -198,16 +206,19 @@ pub const Sample = struct {
     }
 
     fn pureGlossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
-        const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+        const wo = self.super.wo;
+        const alpha = self.super.alpha;
+
+        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
         const xi = sampler.sample2D(rng, 0);
 
         const n_dot_wi = ggx.Aniso.reflect(
-            self.super.wo,
+            wo,
             n_dot_wo,
-            self.super.alpha,
+            alpha,
             xi,
             schlick,
             self.super.layer,
@@ -215,6 +226,6 @@ pub const Sample = struct {
         );
 
         result.reflection *= @splat(4, n_dot_wi) *
-            ggx.ilmEpConductor(self.f0, n_dot_wo, self.super.alpha[0], self.metallic);
+            ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
     }
 };
