@@ -17,6 +17,10 @@ pub const Result = struct {
     pub fn setPdf(self: *Result, p: f32) void {
         self.reflection[3] = p;
     }
+
+    pub fn mulAssignPdf(self: *Result, p: f32) void {
+        self.reflection[3] *= p;
+    }
 };
 
 const Reflection = 1 << 0;

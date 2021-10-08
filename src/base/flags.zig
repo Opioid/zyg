@@ -36,6 +36,12 @@ pub fn Flags(comptime T: type) type {
             }
         }
 
+        pub fn orSet(self: *Self, flag: T, value: bool) void {
+            if (self.no(flag) and value) {
+                self.values |= @enumToInt(flag);
+            }
+        }
+
         pub fn unset(self: *Self, flag: T) void {
             self.values &= ~@enumToInt(flag);
         }

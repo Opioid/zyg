@@ -2,6 +2,10 @@ const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
 
+pub fn schlick1(wo_dot_h: f32, f0: f32) f32 {
+    return f0 + math.pow5(1.0 - wo_dot_h) * (1.0 - f0);
+}
+
 pub const Schlick = struct {
     f0: Vec4f,
 

@@ -64,7 +64,7 @@ pub const Material = struct {
 
     pub fn setTranslucency(self: *Material, thickness: f32, attenuation_distance: f32) void {
         const transparent = thickness > 0.0;
-        self.super.properties.set(.TwoSided, transparent);
+        self.super.properties.orSet(.TwoSided, transparent);
         self.thickness = thickness;
         self.attenuation_distance = attenuation_distance;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
