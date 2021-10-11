@@ -1,49 +1,80 @@
+const FileStream = @import("file_read_stream.zig").FileReadStream;
+const GzipStream = @import("gzip_read_stream.zig").GzipReadStream;
+
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
-pub const ReadStream = struct {
-    const Reader = std.io.BufferedReader(4096, std.fs.File.Reader);
-    const Seeker = std.fs.File.SeekableStream;
+pub const ReadStream = union(enum) {
+    const Error = error{
+        NotImplemented,
+    };
 
-    const ReadError = Reader.Error;
-    const SeekError = Seeker.SeekError;
-
-    file: std.fs.File,
-    reader: Reader,
-    seeker: Seeker,
-    //   cur: u64,
+    File: *FileStream,
+    Gzip: *GzipStream,
 
     const Self = @This();
 
-    pub fn init(file: std.fs.File) ReadStream {
-        return .{
-            .file = file,
-            .reader = Reader{ .unbuffered_reader = file.reader() },
-            .seeker = file.seekableStream(),
-            //       .cur = 0,
-        };
+    pub fn initFile(stream: *FileStream) Self {
+        return .{ .File = stream };
+    }
+
+    pub fn initGzip(stream: *GzipStream) Self {
+        return .{ .Gzip = stream };
     }
 
     pub fn deinit(self: *Self) void {
-        self.file.close();
+        switch (self.*) {
+            .File => |s| s.close(),
+            .Gzip => |s| s.close(),
+        }
     }
 
-    pub fn read(self: *Self, dest: []u8) ReadError!usize {
-        return try self.reader.read(dest);
+    pub fn read(self: *Self, dest: []u8) !usize {
+        return switch (self.*) {
+            .File => |s| try s.reader.reader().readAll(dest),
+            .Gzip => |s| try s.read(dest),
+        };
+    }
+
+    pub fn readAll(self: *Self, alloc: *Allocator) ![]u8 {
+        return switch (self.*) {
+            .File => |s| try s.reader.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
+            .Gzip => |s| try s.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
+        };
     }
 
     pub fn readUntilDelimiter(self: *Self, buf: []u8, delimiter: u8) ![]u8 {
-        return try self.reader.reader().readUntilDelimiter(buf, delimiter);
+        return switch (self.*) {
+            .File => |s| try s.reader.reader().readUntilDelimiter(buf, delimiter),
+            .Gzip => |s| try s.reader().readUntilDelimiter(buf, delimiter),
+        };
     }
 
-    pub fn seekTo(self: *Self, pos: u64) SeekError!void {
-        self.reader.fifo.head = 0;
-        self.reader.fifo.count = 0;
-        //    self.cur = pos;
-        return try self.seeker.seekTo(pos);
+    pub fn skipUntilDelimiter(self: *Self, delimiter: u8) !void {
+        return switch (self.*) {
+            .File => |s| try s.reader.reader().skipUntilDelimiterOrEof(delimiter),
+            .Gzip => Error.NotImplemented,
+        };
+    }
+
+    pub fn getPos(self: Self) !u64 {
+        return switch (self) {
+            .File => |s| try s.seeker.getPos(),
+            .Gzip => Error.NotImplemented,
+        };
+    }
+
+    pub fn seekTo(self: *Self, pos: u64) !void {
+        return switch (self.*) {
+            .File => |s| try s.seekTo(pos),
+            .Gzip => |s| try s.seekTo(pos),
+        };
     }
 
     pub fn seekBy(self: *Self, count: u64) !void {
-        const pos = (try self.seeker.getPos()) - self.reader.fifo.count;
-        return try self.seekTo(pos + count);
+        return switch (self.*) {
+            .File => |s| try s.seekBy(count),
+            .Gzip => |s| try s.seekBy(count),
+        };
     }
 };

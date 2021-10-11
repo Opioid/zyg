@@ -53,10 +53,11 @@ pub const Provider = struct {
         _ = options;
 
         var stream = try resources.fs.readStream(alloc, name);
-        defer stream.deinit();
 
-        const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
+        const buffer = try stream.readAll(alloc);
         defer alloc.free(buffer);
+
+        stream.deinit();
 
         var parser = std.json.Parser.init(alloc, false);
         defer parser.deinit();

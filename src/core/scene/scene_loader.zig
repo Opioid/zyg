@@ -73,9 +73,11 @@ pub const Loader = struct {
         const fs = &self.resources.fs;
 
         var stream = try fs.readStream(alloc, filename);
-        defer stream.deinit();
 
-        const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
+        const buffer = try stream.readAll(alloc);
+
+        stream.deinit();
+
         defer alloc.free(buffer);
 
         var parser = std.json.Parser.init(alloc, false);
@@ -292,12 +294,7 @@ pub const Loader = struct {
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            const id = self.resources.loadFile(Shape, alloc, file, .{}) catch |e| {
-                std.debug.print("Could not load file \"{s}\": {}\n", .{ file, e });
-                return resource.Null;
-            };
-
-            return id;
+            return self.resources.loadFile(Shape, alloc, file, .{}) catch resource.Null;
         }
 
         return resource.Null;

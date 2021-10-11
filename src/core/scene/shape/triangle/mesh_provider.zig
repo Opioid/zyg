@@ -84,7 +84,7 @@ pub const Provider = struct {
                 };
             }
 
-            const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
+            const buffer = try stream.readAll(alloc);
             defer alloc.free(buffer);
 
             var parser = std.json.Parser.init(alloc, false);

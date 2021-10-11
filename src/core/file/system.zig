@@ -1,4 +1,7 @@
 const ReadStream = @import("read_stream.zig").ReadStream;
+const FileReadStream = @import("file_read_stream.zig").FileReadStream;
+const GzipReadStream = @import("gzip_read_stream.zig").GzipReadStream;
+const fl = @import("file.zig");
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -9,6 +12,9 @@ pub const System = struct {
     name_buffer: []u8,
 
     resolved_name_len: u32 = 0,
+
+    stream: FileReadStream = .{},
+    gzip_stream: GzipReadStream = .{},
 
     pub fn init(alloc: *Allocator) !System {
         var buffer = try alloc.alloc(u8, 256);
@@ -47,6 +53,19 @@ pub const System = struct {
     }
 
     pub fn readStream(self: *System, alloc: *Allocator, name: []const u8) !ReadStream {
+        var stream = try self.openReadStream(alloc, name);
+
+        const file_type = fl.queryType(&stream);
+
+        if (.GZIP == file_type) {
+            try self.gzip_stream.setStream(stream);
+            return ReadStream.initGzip(&self.gzip_stream);
+        }
+
+        return stream;
+    }
+
+    fn openReadStream(self: *System, alloc: *Allocator, name: []const u8) !ReadStream {
         for (self.mounts.items) |m| {
             const resolved_name_len = @intCast(u32, m.len + name.len);
 
@@ -64,13 +83,15 @@ pub const System = struct {
                 continue;
             };
 
-            return ReadStream.init(file);
+            self.stream.setFile(file);
+            return ReadStream.initFile(&self.stream);
         }
 
         std.mem.copy(u8, self.name_buffer[0..], name);
         self.resolved_name_len = @intCast(u32, name.len);
 
-        return ReadStream.init(try std.fs.cwd().openFile(name, .{}));
+        self.stream.setFile(try std.fs.cwd().openFile(name, .{}));
+        return ReadStream.initFile(&self.stream);
     }
 
     pub fn lastResolvedName(self: System) []const u8 {

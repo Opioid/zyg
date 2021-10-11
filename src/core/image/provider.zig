@@ -53,7 +53,7 @@ pub const Provider = struct {
 
         const file_type = file.queryType(&stream);
 
-        if (file.Type.PNG == file_type) {
+        if (.PNG == file_type) {
             const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
             const invert = options.queryOrDef("invert", false);
 
@@ -64,7 +64,7 @@ pub const Provider = struct {
             return try self.png_reader.read(alloc, &stream, swizzle, invert);
         }
 
-        if (file.Type.RGBE == file_type) {
+        if (.RGBE == file_type) {
             return RgbeReader.read(alloc, &stream);
         }
 
