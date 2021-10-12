@@ -1,4 +1,5 @@
 const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
+const Clamp = @import("clamp.zig").Clamp;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
@@ -13,12 +14,14 @@ pub fn Base(comptime T: type) type {
 
         sensor: T = .{},
 
+        clamp: Clamp,
+
         filter: Func,
 
         const Self = @This();
 
-        pub fn init(radius: f32, f: anytype) Self {
-            var result = Self{ .filter = Func.init(0.0, radius, f) };
+        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
+            var result = Self{ .clamp = clamp, .filter = Func.init(0.0, radius, f) };
 
             result.filter.scale(1.0 / result.integral(64, radius));
 
@@ -76,8 +79,8 @@ pub fn Filtered_1p0(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(radius, f) };
+        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
+            return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, isolated: Vec4i, bounds: Vec4i) void {
@@ -95,7 +98,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             const wy1 = self.base.eval(oy);
             const wy2 = self.base.eval(oy - 1.0);
 
-            const clamped = color;
+            const clamped = self.base.clamp.clamp(color);
 
             // 1. row
             self.base.addWeighted(.{ x - 1, y - 1 }, wx0 * wy0, clamped, isolated, bounds);
@@ -121,8 +124,8 @@ pub fn Filtered_2p0(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(radius, f) };
+        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
+            return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, isolated: Vec4i, bounds: Vec4i) void {
@@ -144,7 +147,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             const wy3 = self.base.eval(oy - 1.0);
             const wy4 = self.base.eval(oy - 2.0);
 
-            const clamped = color;
+            const clamped = self.base.clamp.clamp(color);
 
             // 1. row
             self.base.addWeighted(.{ x - 2, y - 2 }, wx0 * wy0, clamped, isolated, bounds);

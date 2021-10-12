@@ -179,6 +179,8 @@ const Blackman = struct {
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
 
+    var clamp = snsr.Clamp{ .Identity = .{} };
+
     var filter_value_ptr: ?*std.json.Value = null;
 
     {
@@ -186,6 +188,11 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
                 alpha_transparency = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
+                switch (entry.value_ptr.*) {
+                    .Array => clamp = snsr.Clamp{ .Max = .{ .max = json.readVec4f3(entry.value_ptr.*) } },
+                    else => clamp = snsr.Clamp{ .Luminance = .{ .max = json.readFloat(f32, entry.value_ptr.*) } },
+                }
             } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
                 filter_value_ptr = entry.value_ptr;
             }
@@ -205,6 +212,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                     if (radius <= 1.0) {
                         return snsr.Sensor{
                             .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(
+                                clamp,
                                 radius,
                                 Blackman{ .r = radius },
                             ),
@@ -212,6 +220,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                     } else if (radius <= 2.0) {
                         return snsr.Sensor{
                             .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
+                                clamp,
                                 radius,
                                 Blackman{ .r = radius },
                             ),
@@ -223,10 +232,10 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     }
 
     if (alpha_transparency) {
-        return snsr.Sensor{ .Unfiltered_transparent = .{} };
+        return snsr.Sensor{ .Unfiltered_transparent = .{ .clamp = clamp } };
     }
 
-    return snsr.Sensor{ .Unfiltered_opaque = .{} };
+    return snsr.Sensor{ .Unfiltered_opaque = .{ .clamp = clamp } };
 }
 
 fn loadIntegrators(value: std.json.Value, view: *View) void {
