@@ -34,7 +34,8 @@ pub const GzipReadStream = struct {
         AccessDenied,
         Unexpected,
         SystemResources,
-    };
+        ResetMZStreamFailed,
+    } || Error;
 
     const Buffer_size = 8192;
 
@@ -44,7 +45,6 @@ pub const GzipReadStream = struct {
     z_stream: mz.mz_stream = undefined,
 
     data_start: u64 = undefined,
-    cur: u64 = undefined,
 
     buffer_head: u32 = undefined,
     buffer_count: u32 = undefined,
@@ -102,7 +102,6 @@ pub const GzipReadStream = struct {
         }
 
         self.data_start = try self.stream.getPos();
-        self.cur = 0;
         self.buffer_head = 0;
         self.buffer_count = 0;
 
@@ -110,14 +109,10 @@ pub const GzipReadStream = struct {
     }
 
     pub fn read(self: *Self, dest: []u8) Error!usize {
-        //    std.debug.print("read()\n", .{});
-
         var dest_cur: u64 = 0;
 
         while (dest_cur < dest.len) {
             if (0 == self.buffer_count) {
-                //        std.debug.print("underflow()\n", .{});
-
                 if (!try self.underflow()) {
                     break;
                 }
@@ -136,41 +131,49 @@ pub const GzipReadStream = struct {
             self.buffer_count -= copy_len;
         }
 
-        self.cur += dest_cur;
-
-        //    std.debug.print("{s}\n", .{dest[0..dest_cur]});
-        //    std.debug.print("end-read\n", .{});
-
         return dest_cur;
     }
 
     pub fn seekTo(self: *Self, pos: u64) SeekError!void {
-        //  std.debug.print("gzip seekTo()\n", .{});
-
-        //  std.debug.print("{} {}\n", .{self.cur - self.buffer_head});
-
-        const buffer_start = self.cur - self.buffer_head;
+        const buffer_len = self.buffer_head + self.buffer_count;
+        const buffer_start = self.z_stream.total_out - buffer_len;
         const buffer_offset: i64 = @intCast(i64, pos) - @intCast(i64, buffer_start);
 
-        //    std.debug.print("{}\n", .{buffer_offset});
-
-        if (buffer_offset >= 0) {
+        if (buffer_offset >= 0 and buffer_offset < buffer_len) {
             const bo = @intCast(u32, buffer_offset);
             const d = self.buffer_head - bo;
             self.buffer_head = bo;
             self.buffer_count += d;
-            self.cur = pos;
+        } else {
+            if (buffer_offset < 0) {
+                try self.stream.seekTo(self.data_start);
 
-            //    std.debug.print("{} {} {}\n", .{ self.buffer_head, self.buffer_count, self.cur });
+                if (mz.MZ_OK != mz.mz_inflateReset(&self.z_stream)) {
+                    return SeekError.ResetMZStreamFailed;
+                }
+
+                self.z_stream.avail_in = 0;
+                self.z_stream.avail_out = 0;
+            }
+
+            while (self.z_stream.total_out < pos) {
+                if (!(try self.underflow())) {
+                    return SeekError.Unexpected;
+                }
+            }
+
+            const bs = self.z_stream.total_out - (self.buffer_head + self.buffer_count);
+            const bo = @intCast(u32, pos - bs);
+            const d = self.buffer_head - bo;
+            self.buffer_head = bo;
+            self.buffer_count += d;
         }
-
-        //   return try self.stream.seekTo(pos);
     }
 
     pub fn seekBy(self: *Self, count: u64) SeekError!void {
-        std.debug.print("gzip seekBy()\n", .{});
+        const cur = self.z_stream.total_out - self.buffer_count;
 
-        return try self.stream.seekBy(count);
+        return try self.stream.seekBy(cur + count);
     }
 
     fn initZstream(self: *Self) !void {
