@@ -102,8 +102,8 @@ pub const Stack = struct {
     }
 
     pub fn remove(self: *Stack, isec: Intersection) bool {
-        const back = self.index - 1;
-        var i = @intCast(i32, back);
+        const back = @intCast(i32, self.index) - 1;
+        var i = back;
         while (i >= 0) : (i -= 1) {
             const ui = @intCast(u32, i);
             if (self.stack[ui].matches(isec)) {

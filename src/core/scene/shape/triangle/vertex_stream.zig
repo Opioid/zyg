@@ -56,7 +56,7 @@ pub const VertexStream = union(enum) {
 
     pub fn uv(self: VertexStream, i: usize) Vec2f {
         return switch (self) {
-            .Json => |v| v.uvs[i],
+            .Json => |v| v.uv(i),
             .Separate => |v| v.uvs[i],
             .Compact => @splat(2, @as(f32, 0.0)),
         };
@@ -89,8 +89,12 @@ const Json = struct {
         return quaternion.initFromTN(t, n);
     }
 
+    pub fn uv(self: Self, i: usize) Vec2f {
+        return if (self.uvs.len > 0) self.uvs[i] else .{ 0.0, 0.0 };
+    }
+
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return self.bts[i] > 0;
+        return if (self.bts.len > 0) self.bts[i] > 0 else false;
     }
 };
 
