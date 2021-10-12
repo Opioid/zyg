@@ -241,6 +241,7 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
 fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
     const Default_min_bounces = 4;
     const Default_max_bounces = 8;
+    const Default_caustics = true;
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
@@ -256,36 +257,42 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
             view.surfaces = surface.Factory{ .PT = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .avoid_caustics = !enable_caustics,
                 },
             } };
         } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
             view.surfaces = surface.Factory{ .PTDL = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .avoid_caustics = !enable_caustics,
                 },
             } };
         } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
             view.surfaces = surface.Factory{ .PTMIS = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .avoid_caustics = !enable_caustics,
                 },
             } };
         }

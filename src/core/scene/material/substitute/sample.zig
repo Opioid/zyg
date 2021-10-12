@@ -165,6 +165,10 @@ pub const Sample = struct {
 
         const d = disney.Iso.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.super.albedo);
 
+        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+            return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
+        }
+
         const schlick = fresnel.Schlick.init(self.f0);
 
         var gg = ggx.Aniso.reflection(
@@ -188,6 +192,10 @@ pub const Sample = struct {
 
     fn pureGlossEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const alpha = self.super.alpha;
+
+        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+        }
 
         const n_dot_wi = self.super.layer.clampNdot(wi);
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
@@ -228,6 +236,11 @@ pub const Sample = struct {
             xi,
             result,
         );
+
+        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+            result.reflection *= @splat(4, n_dot_wi);
+            return;
+        }
 
         const schlick = fresnel.Schlick.init(self.f0);
 

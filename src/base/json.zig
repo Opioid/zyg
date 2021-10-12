@@ -16,6 +16,12 @@ pub fn readBool(value: Value) bool {
     };
 }
 
+pub fn readBoolMember(value: Value, name: []const u8, default: bool) bool {
+    const member = value.Object.get(name) orelse return default;
+
+    return readBool(member);
+}
+
 pub fn readFloat(comptime T: type, value: Value) T {
     return switch (value) {
         .Integer => |int| @intToFloat(T, int),

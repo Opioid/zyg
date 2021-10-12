@@ -20,6 +20,7 @@ pub const PathtracerDL = struct {
         num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
+        avoid_caustics: bool,
     };
 
     settings: Settings,
@@ -95,8 +96,9 @@ pub const PathtracerDL = struct {
             const wo = -ray.ray.direction;
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
-            const mat_sample = isec.sample(wo, ray.*, filter, &worker.super);
+            const mat_sample = isec.sample(wo, ray.*, filter, avoid_caustics, &worker.super);
 
             if (mat_sample.super().sameHemisphere(wo)) {
                 if (treat_as_singular) {
@@ -131,6 +133,10 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.typef.is(.Straight)) {
+                if (avoid_caustics) {
+                    break;
+                }
+
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -251,7 +257,7 @@ pub const PathtracerDL = struct {
 };
 
 pub const Factory = struct {
-    settings: PathtracerDL.Settings = .{ .num_samples = 1, .radius = 1.0 },
+    settings: PathtracerDL.Settings,
 
     pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !PathtracerDL {
         return try PathtracerDL.init(alloc, self.settings, max_samples_per_pixel);

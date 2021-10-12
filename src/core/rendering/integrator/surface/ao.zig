@@ -44,7 +44,7 @@ pub const AO = struct {
 
         const wo = -ray.ray.direction;
 
-        const mat_sample = isec.sample(wo, ray.*, null, &worker.super);
+        const mat_sample = isec.sample(wo, ray.*, null, false, &worker.super);
 
         var occlusion_ray: Ray = undefined;
 

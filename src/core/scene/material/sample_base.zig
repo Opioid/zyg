@@ -70,7 +70,7 @@ pub const SampleBase = struct {
         Pure_emissive = 1 << 0,
         Translucent = 1 << 1,
         CanEvaluate = 1 << 2,
-        Avoid_caustics = 1 << 3,
+        AvoidCaustics = 1 << 3,
     };
 
     layer: Layer = undefined,
@@ -101,7 +101,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .radiance = radiance,
             .alpha = alpha,
-            .properties = Flags(Property).init1(.CanEvaluate),
+            .properties = Flags(Property).init2(.CanEvaluate, .AvoidCaustics, rs.avoid_caustics),
         };
     }
 
@@ -123,5 +123,9 @@ pub const SampleBase = struct {
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {
         return math.dot3(self.geo_n, v) > 0.0;
+    }
+
+    pub fn avoidCaustics(self: Self) bool {
+        return self.properties.is(.AvoidCaustics);
     }
 };

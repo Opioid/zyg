@@ -17,6 +17,8 @@ pub const Renderstate = struct {
 
     filter: ?Filter = undefined,
 
+    avoid_caustics: bool = undefined,
+
     pub fn tangentToWorld3(self: Renderstate, v: Vec4f) Vec4f {
         return .{
             v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],

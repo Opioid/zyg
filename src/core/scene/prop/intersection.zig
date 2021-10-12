@@ -36,7 +36,14 @@ pub const Intersection = struct {
         return self.material(worker).opacity(self.geo.uv, filter, worker);
     }
 
-    pub fn sample(self: Self, wo: Vec4f, ray: Ray, filter: ?Filter, worker: *Worker) mat.Sample {
+    pub fn sample(
+        self: Self,
+        wo: Vec4f,
+        ray: Ray,
+        filter: ?Filter,
+        avoid_caustics: bool,
+        worker: *Worker,
+    ) mat.Sample {
         _ = ray;
 
         const m = self.material(worker.*);
@@ -60,6 +67,7 @@ pub const Intersection = struct {
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
         rs.filter = filter;
+        rs.avoid_caustics = avoid_caustics;
 
         return m.sample(wo, rs, worker);
     }

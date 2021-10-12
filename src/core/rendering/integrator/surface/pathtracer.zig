@@ -19,6 +19,7 @@ pub const Pathtracer = struct {
         num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
+        avoid_caustics: bool,
     };
 
     settings: Settings,
@@ -78,7 +79,7 @@ pub const Pathtracer = struct {
     }
 
     fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
-        var primary_ray: bool = true;
+        var primary_ray = true;
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -88,8 +89,9 @@ pub const Pathtracer = struct {
             const wo = -ray.ray.direction;
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
-            const mat_sample = isec.sample(wo, ray.*, filter, &worker.super);
+            const mat_sample = isec.sample(wo, ray.*, filter, avoid_caustics, &worker.super);
 
             if (mat_sample.super().sameHemisphere(wo)) {
                 result += throughput * mat_sample.super().radiance;
@@ -108,7 +110,11 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no(.Straight)) {
+            if (sample_result.typef.is(.Specular)) {
+                if (avoid_caustics) {
+                    break;
+                }
+            } else if (sample_result.typef.no(.Straight)) {
                 primary_ray = false;
             }
 
@@ -160,7 +166,11 @@ pub const Pathtracer = struct {
 pub const Factory = struct {
     settings: Pathtracer.Settings,
 
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !Pathtracer {
+    pub fn create(
+        self: Factory,
+        alloc: *Allocator,
+        max_samples_per_pixel: u32,
+    ) !Pathtracer {
         return try Pathtracer.init(alloc, self.settings, max_samples_per_pixel);
     }
 };

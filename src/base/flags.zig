@@ -10,6 +10,10 @@ pub fn Flags(comptime T: type) type {
             return .{ .values = @enumToInt(a) };
         }
 
+        pub fn init2(a: T, b: T, b_value: bool) Self {
+            return .{ .values = @enumToInt(a) | (if (b_value) @enumToInt(b) else 0xFFFFFFFF) };
+        }
+
         pub fn is(self: Self, flag: T) bool {
             return 0 != (self.values & @enumToInt(flag));
         }

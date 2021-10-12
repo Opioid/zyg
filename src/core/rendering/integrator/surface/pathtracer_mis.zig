@@ -25,6 +25,7 @@ pub const PathtracerMIS = struct {
         num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
+        avoid_caustics: bool,
     };
 
     pub const State = enum(u32) {
@@ -117,9 +118,12 @@ pub const PathtracerMIS = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1 or state.is(.PrimaryRay)) null else .Nearest;
+            const pr = state.is(.PrimaryRay);
 
-            const mat_sample = isec.sample(wo, ray.*, filter, &worker.super);
+            const filter: ?Filter = if (ray.depth <= 1 or pr) null else .Nearest;
+            const avoid_caustics = self.settings.avoid_caustics and !pr;
+
+            const mat_sample = isec.sample(wo, ray.*, filter, avoid_caustics, &worker.super);
 
             // Only check direct eye-light connections for the very first hit.
             // Subsequent hits are handled by MIS.
@@ -142,6 +146,10 @@ pub const PathtracerMIS = struct {
             }
 
             if (sample_result.typef.is(.Specular)) {
+                if (avoid_caustics) {
+                    break;
+                }
+
                 state.set(.TreatAsSingular, true);
             } else if (sample_result.typef.no(.Straight)) {
                 state.unset(.TreatAsSingular);
