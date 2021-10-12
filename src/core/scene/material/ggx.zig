@@ -14,10 +14,23 @@ const std = @import("std");
 pub const Min_roughness: f32 = 0.01314;
 pub const Min_alpha: f32 = Min_roughness * Min_roughness;
 
-const E_tex = math.InterpolatedFunction_2D_N(integral.E_size, integral.E_size).fromArray(&integral.E);
+const E_tex = math.InterpolatedFunction2D_N(
+    integral.E_size,
+    integral.E_size,
+).fromArray(&integral.E);
+
+const E_s_tex = math.InterpolatedFunction3D_N(
+    integral.E_s_size,
+    integral.E_s_size,
+    integral.E_s_size,
+).fromArray(&integral.E_s);
 
 pub fn ilmEpConductor(f0: Vec4f, n_dot_wo: f32, alpha: f32, metallic: f32) Vec4f {
     return @splat(4, @as(f32, 1.0)) + @splat(4, metallic / E_tex.eval(n_dot_wo, alpha) - 1.0) * f0;
+}
+
+pub fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, ior: f32) f32 {
+    return 1.0 / E_s_tex.eval(n_dot_wo, alpha, ior - 1.0);
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
@@ -152,8 +165,8 @@ pub const Iso = struct {
 
         //      std.debug.print("{}\n", .{result.reflection});
 
-        if (std.math.isInf(result.pdf)) {
-            std.debug.print("{} {} {} {}\n", .{ ior.eta_i, ior.eta_t, wo_dot_h, wi_dot_h });
+        if (std.math.isNan(result.pdf)) {
+            std.debug.print("{} {} {} {}\n", .{ n_dot_wo, abs_wo_dot_h, d, alpha2 });
         }
 
         return n_dot_wi;

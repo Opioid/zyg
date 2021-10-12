@@ -10,7 +10,7 @@ const std = @import("std");
 
 pub fn Base(comptime T: type) type {
     return struct {
-        const Func = math.InterpolatedFunction_1D_N(30);
+        const Func = math.InterpolatedFunction1D_N(30);
 
         sensor: T = .{},
 

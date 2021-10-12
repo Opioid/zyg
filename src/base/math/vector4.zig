@@ -262,6 +262,15 @@ pub fn vec4fTo4i(v: Vec4f) Vec4(i32) {
     );
 }
 
+pub fn vec4iTo4f(v: Vec4(i32)) Vec4f {
+    return .{
+        @intToFloat(f32, v.v[0]),
+        @intToFloat(f32, v.v[1]),
+        @intToFloat(f32, v.v[2]),
+        @intToFloat(f32, v.v[3]),
+    };
+}
+
 pub fn vec4fTo3f(v: Vec4f) Vec3f {
     return Vec3f.init3(v[0], v[1], v[2]);
 }

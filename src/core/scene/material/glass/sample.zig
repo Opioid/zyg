@@ -159,6 +159,8 @@ pub const Sample = struct {
             };
         }
 
+        const alpha = self.super.alpha;
+
         const same_side = self.super.sameHemisphere(wo);
 
         const layer = self.super.layer.swapped(same_side);
@@ -167,7 +169,7 @@ pub const Sample = struct {
         const xi = sampler.sample2D(rng, 0);
 
         var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, self.super.alpha, xi, layer, &n_dot_h);
+        const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
 
         const n_dot_wo = layer.clampAbsNdot(wo);
         const wo_dot_h = hlp.clampDot(wo, h);
@@ -197,7 +199,7 @@ pub const Sample = struct {
                 n_dot_h,
                 wi_dot_h,
                 wo_dot_h,
-                self.super.alpha[0],
+                alpha[0],
                 layer,
                 &result,
             );
@@ -213,7 +215,7 @@ pub const Sample = struct {
                 n_dot_h,
                 -wi_dot_h,
                 r_wo_dot_h,
-                self.super.alpha[0],
+                alpha[0],
                 ior,
                 layer,
                 &result,
@@ -224,6 +226,8 @@ pub const Sample = struct {
             result.reflection *= @splat(4, omf * n_dot_wi) * self.super.albedo;
             result.pdf *= omf;
         }
+
+        result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], ior_t));
 
         return result;
     }
