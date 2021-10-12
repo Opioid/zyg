@@ -11,6 +11,14 @@ pub const Layer = struct {
     b: Vec4f,
     n: Vec4f,
 
+    pub fn swapped(self: Layer, same_side: bool) Layer {
+        if (same_side) {
+            return self;
+        }
+
+        return .{ .t = self.t, .b = self.b, .n = -self.n };
+    }
+
     pub fn tangentToWorld(self: Layer, v: Vec4f) Vec4f {
         // return .{
         //     v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
@@ -127,5 +135,18 @@ pub const SampleBase = struct {
 
     pub fn avoidCaustics(self: Self) bool {
         return self.properties.is(.AvoidCaustics);
+    }
+};
+
+pub const IoR = struct {
+    eta_t: f32,
+    eta_i: f32,
+
+    pub fn swapped(self: IoR, same_side: bool) IoR {
+        if (same_side) {
+            return self;
+        }
+
+        return .{ .eta_t = self.eta_i, .eta_i = self.eta_t };
     }
 };

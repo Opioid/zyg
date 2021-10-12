@@ -9,10 +9,14 @@ pub fn clamp(x: f32) f32 {
     return std.math.clamp(x, Dot_min, 1.0);
 }
 
+pub fn clampAbs(x: f32) f32 {
+    return std.math.clamp(@fabs(x), Dot_min, 1.0);
+}
+
 pub fn clampDot(a: Vec4f, b: Vec4f) f32 {
     return std.math.clamp(math.dot3(a, b), Dot_min, 1.0);
 }
 
 pub fn clampAbsDot(a: Vec4f, b: Vec4f) f32 {
-    return std.math.clamp(std.math.fabs(math.dot3(a, b)), Dot_min, 1.0);
+    return std.math.clamp(@fabs(math.dot3(a, b)), Dot_min, 1.0);
 }

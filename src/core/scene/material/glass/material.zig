@@ -3,8 +3,11 @@ const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const ts = @import("../../../image/texture/sampler.zig");
+const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
-const hlp = @import("../sample_helper.zig");
+const hlp = @import("../material_helper.zig");
+const smplhlp = @import("../sample_helper.zig");
+const ggx = @import("../ggx.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -15,7 +18,11 @@ const std = @import("std");
 pub const Material = struct {
     super: Base,
 
+    normal_map: Texture = undefined,
+    roughness_map: Texture = undefined,
+
     thickness: f32 = undefined,
+    alpha: f32 = undefined,
 
     pub fn init(sampler_key: ts.Key) Material {
         return .{ .super = Base.init(sampler_key, false) };
@@ -25,9 +32,34 @@ pub const Material = struct {
         self.super.properties.set(.TwoSided, if (self.thickness > 0.0) true else false);
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate) Sample {
-        var result = Sample.init(rs, wo, self.super.cc.a, self.super.ior, rs.ior(), self.thickness);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+    pub fn setRoughness(self: *Material, roughness: f32) void {
+        self.alpha = roughness * roughness;
+    }
+
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+        const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+
+        var alpha: f32 = undefined;
+
+        if (self.roughness_map.isValid()) {
+            const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, worker.scene.*);
+            const r = ggx.mapRoughness(roughness);
+            alpha = r * r;
+        } else {
+            alpha = self.alpha;
+        }
+
+        var result = Sample.init(rs, wo, self.super.cc.a, self.super.ior, rs.ior(), alpha, self.thickness);
+
+        if (self.normal_map.isValid()) {
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
+            const tb = math.orthonormalBasis3(n);
+
+            result.super.layer.setTangentFrame(tb[0], tb[1], n);
+        } else {
+            result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        }
+
         return result;
     }
 
@@ -53,7 +85,7 @@ pub const Material = struct {
             const n_dot_t = @sqrt(1.0 - sint2);
             const f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
 
-            const n_dot_wi = hlp.clamp(n_dot_wo);
+            const n_dot_wi = smplhlp.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.super.cc.a, approx_dist);

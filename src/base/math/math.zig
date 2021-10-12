@@ -43,6 +43,10 @@ pub fn frac(x: f32) f32 {
     return x - std.math.floor(x);
 }
 
+pub fn pow2(x: f32) f32 {
+    return x * x;
+}
+
 pub fn pow5(x: f32) f32 {
     const x2 = x * x;
     const x4 = x2 * x2;

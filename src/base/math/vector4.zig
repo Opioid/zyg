@@ -236,6 +236,23 @@ pub fn anyGreaterZero(v: Vec4f) bool {
     return false;
 }
 
+pub fn anyNaN3(v: Vec4f) bool {
+    if (std.math.isNan(v[0])) return true;
+    if (std.math.isNan(v[1])) return true;
+    if (std.math.isNan(v[2])) return true;
+
+    return false;
+}
+
+pub fn anyNaN4(v: Vec4f) bool {
+    if (std.math.isNan(v[0])) return true;
+    if (std.math.isNan(v[1])) return true;
+    if (std.math.isNan(v[2])) return true;
+    if (std.math.isNan(v[3])) return true;
+
+    return false;
+}
+
 pub fn vec4fTo4i(v: Vec4f) Vec4(i32) {
     return Vec4(i32).init4(
         @floatToInt(i32, v[0]),

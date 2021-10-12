@@ -120,7 +120,10 @@ pub const Provider = struct {
     fn loadGlass(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
         var sampler_key = ts.Key{};
 
+        var roughness = MappedValue(f32).init(0.0);
+
         var mask = Texture{};
+        var normal_map = Texture{};
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
 
@@ -132,10 +135,14 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
+            } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
+                normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
+                roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
@@ -148,8 +155,12 @@ pub const Provider = struct {
         var material = mat.Glass.init(sampler_key);
 
         material.super.mask = mask;
+        material.normal_map = normal_map;
+        material.roughness_map = roughness.texture;
+
         material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), attenuation_distance, 0.0);
         material.super.ior = ior;
+        material.setRoughness(roughness.value);
         material.thickness = thickness;
 
         return Material{ .Glass = material };

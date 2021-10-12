@@ -1,5 +1,7 @@
 const bxdf = @import("bxdf.zig");
-const Layer = @import("sample_base.zig").Layer;
+const smplbase = @import("sample_base.zig");
+const Layer = smplbase.Layer;
+const IoR = smplbase.IoR;
 const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 const base = @import("base");
@@ -80,15 +82,89 @@ pub const Iso = struct {
         return n_dot_wi;
     }
 
+    pub fn reflectNoFresnel(
+        wo: Vec4f,
+        h: Vec4f,
+        n_dot_wo: f32,
+        n_dot_h: f32,
+        wi_dot_h: f32,
+        wo_dot_h: f32,
+        alpha: f32,
+        layer: Layer,
+        result: *bxdf.Sample,
+    ) f32 {
+        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+
+        const n_dot_wi = layer.clampNdot(wi);
+        const alpha2 = alpha * alpha;
+
+        const d = distribution(n_dot_h, alpha2);
+        const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
+
+        result.reflection = @splat(4, d * g[0]);
+        result.wi = wi;
+        result.h = h;
+        result.pdf = pdfVisible(d, g[1]);
+        result.h_dot_wi = wi_dot_h;
+        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
+
+        return n_dot_wi;
+    }
+
+    pub fn refractNoFresnel(
+        wo: Vec4f,
+        h: Vec4f,
+        n_dot_wo: f32,
+        n_dot_h: f32,
+        wi_dot_h: f32,
+        wo_dot_h: f32,
+        alpha: f32,
+        ior: IoR,
+        layer: Layer,
+        result: *bxdf.Sample,
+    ) f32 {
+        const eta = ior.eta_i / ior.eta_t;
+
+        const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
+        const abs_wo_dot_h = hlp.clampAbs(wo_dot_h);
+
+        const wi = math.normalize3(@splat(4, eta * abs_wo_dot_h - abs_wi_dot_h) * h - @splat(4, eta) * wo);
+
+        const n_dot_wi = layer.clampAbsNdot(wi);
+
+        const alpha2 = alpha * alpha;
+
+        const d = distribution(n_dot_h, alpha2);
+        const g = gSmithCorrelated(n_dot_wi, n_dot_wo, alpha2);
+
+        const refraction = d * g;
+        const factor = (abs_wi_dot_h * abs_wo_dot_h) / (n_dot_wi * n_dot_wo);
+        const denom = math.pow2(ior.eta_i * wo_dot_h + ior.eta_t * wi_dot_h);
+        const sqr_eta_t = ior.eta_t * ior.eta_t;
+        const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
+
+        result.reflection = @splat(4, (factor * sqr_eta_t / denom) * refraction);
+        result.wi = wi;
+        result.h = h;
+        result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
+        result.h_dot_wi = wi_dot_h;
+        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularTransmission else .GlossyTransmission);
+
+        //      std.debug.print("{}\n", .{result.reflection});
+
+        if (std.math.isInf(result.pdf)) {
+            std.debug.print("{} {} {} {}\n", .{ ior.eta_i, ior.eta_t, wo_dot_h, wi_dot_h });
+        }
+
+        return n_dot_wi;
+    }
+
     fn distribution(n_dot_h: f32, a2: f32) f32 {
         const d = (n_dot_h * n_dot_h) * (a2 - 1.0) + 1.0;
         return a2 / (std.math.pi * d * d);
     }
 
     fn visibilityAndG1Wo(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) Vec2f {
-        //    float const t_wi = std::sqrt(alpha2 + (1.f - alpha2) * (n_dot_wi * n_dot_wi));
-        //    float const t_wo = std::sqrt(alpha2 + (1.f - alpha2) * (n_dot_wo * n_dot_wo));
-
         const n_dot = Vec4f{ n_dot_wi, n_dot_wo, n_dot_wi, n_dot_wo };
         const a2 = @splat(4, alpha2);
 
@@ -98,6 +174,13 @@ pub const Iso = struct {
         const t_wo = t[1];
 
         return .{ 0.5 / (n_dot_wi * t_wo + n_dot_wo * t_wi), t_wo + n_dot_wo };
+    }
+
+    fn gSmithCorrelated(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) f32 {
+        const a = n_dot_wo * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wi * n_dot_wi));
+        const b = n_dot_wi * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wo * n_dot_wo));
+
+        return (2.0 * n_dot_wi * n_dot_wo) / (a + b);
     }
 };
 
@@ -253,4 +336,14 @@ pub const Aniso = struct {
 
 fn pdfVisible(d: f32, g1_wo: f32) f32 {
     return (0.5 * d) / g1_wo;
+}
+
+fn pdfVisibleRefract(n_dot_wo: f32, wo_dot_h: f32, d: f32, alpha2: f32) f32 {
+    const g1 = G_ggx(n_dot_wo, alpha2);
+
+    return (g1 * wo_dot_h * d / n_dot_wo);
+}
+
+fn G_ggx(n_dot_v: f32, alpha2: f32) f32 {
+    return (2.0 * n_dot_v) / (n_dot_v + @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_v * n_dot_v)));
 }
