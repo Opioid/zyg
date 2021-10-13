@@ -49,7 +49,7 @@ pub const Intersection = struct {
         const m = self.material(worker.*);
         const p = self.geo.p;
 
-        var rs = Renderstate{};
+        var rs: Renderstate = undefined;
         rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
         rs.t = self.geo.t;
         rs.b = self.geo.b;

@@ -112,7 +112,6 @@ pub const Sample = struct {
             const tr = self.transparency;
 
             const p = sampler.sample1D(rng, 0);
-
             if (p < tr) {
                 const n_dot_wi = lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
                 const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
@@ -145,7 +144,6 @@ pub const Sample = struct {
                 self.pureGlossSample(sampler, rng, &result);
             } else {
                 const p = sampler.sample1D(rng, 0);
-
                 if (p < 0.5) {
                     self.diffuseSample(sampler, rng, &result);
                 } else {

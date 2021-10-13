@@ -110,10 +110,6 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
-                break;
-            }
-
             result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, worker);
 
             const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
@@ -173,6 +169,10 @@ pub const PathtracerDL = struct {
                     break;
                 }
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+                break;
+            }
+
+            if (ray.depth >= self.settings.max_bounces) {
                 break;
             }
         }

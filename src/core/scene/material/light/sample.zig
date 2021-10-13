@@ -18,13 +18,6 @@ pub const Sample = struct {
     }
 
     pub fn sample() bxdf.Sample {
-        return .{
-            .reflection = undefined,
-            .wi = undefined,
-            .h = undefined,
-            .pdf = 0.0,
-            .h_dot_wi = undefined,
-            .typef = undefined,
-        };
+        return .{};
     }
 };

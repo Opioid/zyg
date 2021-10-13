@@ -53,8 +53,8 @@ pub const Sample = union(enum) {
         return switch (self) {
             .Debug => |s| s.evaluate(wi),
             .Glass => |s| s.evaluate(wi),
+            .Light => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0),
             .Substitute => |s| s.evaluate(wi),
-            else => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0),
         };
     }
 
