@@ -3,6 +3,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const hlp = @import("../helper.zig");
 const mat = @import("../../../scene/material/material.zig");
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -175,6 +176,12 @@ pub const PathtracerDL = struct {
             if (ray.depth >= self.settings.max_bounces) {
                 break;
             }
+
+            if (ray.depth >= self.settings.min_bounces) {
+                if (hlp.russianRoulette(&throughput, self.defaultSampler().sample1D(&worker.super.rng, 0))) {
+                    break;
+                }
+            }
         }
 
         return result;
@@ -252,6 +259,10 @@ pub const PathtracerDL = struct {
             return &self.samplers[2 * bounce + 1];
         }
 
+        return &self.samplers[2 * Num_dedicated_samplers];
+    }
+
+    fn defaultSampler(self: *Self) *smp.Sampler {
         return &self.samplers[2 * Num_dedicated_samplers];
     }
 };

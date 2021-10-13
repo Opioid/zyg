@@ -16,3 +16,15 @@ pub fn powerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
 pub fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
     return f_pdf / (f_pdf * f_pdf + g_pdf * g_pdf);
 }
+
+pub fn russianRoulette(throughput: *Vec4f, r: f32) bool {
+    const continuation_probability = math.maxComponent3(throughput.*);
+
+    if (r > continuation_probability) {
+        return true;
+    }
+
+    throughput.* /= @splat(4, continuation_probability);
+
+    return false;
+}
