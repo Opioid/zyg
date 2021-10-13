@@ -20,11 +20,11 @@ pub fn cachedUnormToFloat(byte: u8) f32 {
 }
 
 pub fn cachedUnormToFloat2(byte: Vec2b) Vec2f {
-    return .{ UNORM_FLOAT[byte.v[0]], UNORM_FLOAT[byte.v[1]] };
+    return .{ UNORM_FLOAT[byte[0]], UNORM_FLOAT[byte[1]] };
 }
 
 pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
-    return .{ SNORM_FLOAT[byte.v[0]], SNORM_FLOAT[byte.v[1]] };
+    return .{ SNORM_FLOAT[byte[0]], SNORM_FLOAT[byte[1]] };
 }
 
 const Num_samples: u32 = 256;

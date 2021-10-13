@@ -56,7 +56,7 @@ pub const TileQueue = struct {
         start *= @splat(2, tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
 
-        var end = math.min2(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
+        var end = @minimum(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
 
         if (crop[1] == start[1]) {
             start[1] -= filter_radius;

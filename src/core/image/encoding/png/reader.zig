@@ -210,7 +210,7 @@ pub const Reader = struct {
                 while (i < len) : (i += 1) {
                     const o = i * info.num_channels;
 
-                    image.pixels[i] = Vec2b.init2(info.buffer[o + 0], info.buffer[o + 1]);
+                    image.pixels[i] = Vec2b{ info.buffer[o + 0], info.buffer[o + 1] };
                 }
             }
 
