@@ -56,6 +56,78 @@ pub const Sample = struct {
         };
     }
 
+    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+        const alpha = self.super.alpha[0];
+        const rough = alpha > 0.0;
+
+        if (self.ior == self.ior_outside or !rough or
+            (self.super.avoidCaustics() and alpha <= ggx.Min_alpha))
+        {
+            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+        }
+
+        const wo = self.super.wo;
+        if (!self.super.sameHemisphere(wo)) {
+            const quo_ior = IoR{ .eta_i = self.ior_outside, .eta_t = self.ior };
+            const ior = quo_ior.swapped(false);
+
+            const h = -math.normalize3(@splat(4, ior.eta_t) * wi + @splat(4, ior.eta_i) * wo);
+
+            const wi_dot_h = math.dot3(wi, h);
+            if (wi_dot_h <= 0.0) {
+                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            }
+
+            const wo_dot_h = math.dot3(wo, h);
+            const eta = ior.eta_i / ior.eta_t;
+            const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
+
+            if (sint2 >= 1.0) {
+                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            }
+
+            const n_dot_wi = self.super.layer.clampNdot(wi);
+            const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+            const n_dot_h = math.saturate(self.super.layer.nDot(h));
+
+            const schlick = fresnel.Schlick1.init(self.f0);
+
+            const gg = ggx.Iso.refraction(
+                n_dot_wi,
+                n_dot_wo,
+                wi_dot_h,
+                wo_dot_h,
+                n_dot_h,
+                alpha,
+                ior,
+                schlick,
+            );
+
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+
+            return bxdf.Result.init(
+                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
+                gg.pdf(),
+            );
+        } else {
+            const n_dot_wi = self.super.layer.clampNdot(wi);
+            const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+
+            const h = math.normalize3(wo + wi);
+
+            const wo_dot_h = hlp.clampDot(wo, h);
+            const n_dot_h = math.saturate(self.super.layer.nDot(h));
+
+            const schlick = fresnel.Schlick1.init(self.f0);
+
+            var fr: Vec4f = undefined;
+            const gg = ggx.Iso.reflectionF(n_dot_wi, n_dot_wo, wo_dot_h, n_dot_h, alpha, schlick, &fr);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+
+            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());
+        }
+    }
+
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const ior = self.ior;
 

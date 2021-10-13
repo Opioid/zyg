@@ -52,6 +52,7 @@ pub const Sample = union(enum) {
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
         return switch (self) {
             .Debug => |s| s.evaluate(wi),
+            .Glass => |s| s.evaluate(wi),
             .Substitute => |s| s.evaluate(wi),
             else => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0),
         };

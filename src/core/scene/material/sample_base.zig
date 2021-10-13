@@ -46,6 +46,10 @@ pub const Layer = struct {
         };
     }
 
+    pub fn nDot(self: Layer, v: Vec4f) f32 {
+        return math.dot3(self.n, v);
+    }
+
     pub fn clampNdot(self: Layer, v: Vec4f) f32 {
         return hlp.clampDot(self.n, v);
     }

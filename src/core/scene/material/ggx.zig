@@ -50,11 +50,26 @@ pub const Iso = struct {
         alpha: f32,
         fresnel: anytype,
     ) bxdf.Result {
+        var fresnel_result: Vec4f = undefined;
+        return reflectionF(n_dot_wi, n_dot_wo, wo_dot_h, n_dot_h, alpha, fresnel, &fresnel_result);
+    }
+
+    pub fn reflectionF(
+        n_dot_wi: f32,
+        n_dot_wo: f32,
+        wo_dot_h: f32,
+        n_dot_h: f32,
+        alpha: f32,
+        fresnel: anytype,
+        fresnel_result: *Vec4f,
+    ) bxdf.Result {
         const alpha2 = alpha * alpha;
 
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
+
+        fresnel_result.* = f;
 
         const refl = @splat(4, d * g[0]) * f;
         const pdf = pdfVisible(d, g[1]);
@@ -93,6 +108,40 @@ pub const Iso = struct {
         result.typef.clearWith(.GlossyReflection);
 
         return n_dot_wi;
+    }
+
+    pub fn refraction(
+        n_dot_wi: f32,
+        n_dot_wo: f32,
+        wi_dot_h: f32,
+        wo_dot_h: f32,
+        n_dot_h: f32,
+        alpha: f32,
+        ior: IoR,
+        fresnel: anytype,
+    ) bxdf.Result {
+        const alpha2 = alpha * alpha;
+
+        const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
+        const abs_wo_dot_h = hlp.clampAbs(wo_dot_h);
+
+        const d = distribution(n_dot_h, alpha2);
+        const g = gSmithCorrelated(n_dot_wi, n_dot_wo, alpha2);
+
+        const cos_x = if (ior.eta_i > ior.eta_t) abs_wi_dot_h else abs_wo_dot_h;
+        const f = 1.0 - fresnel.f(cos_x)[0];
+
+        const sqr_eta_t = ior.eta_t * ior.eta_t;
+
+        const factor = (abs_wi_dot_h * abs_wo_dot_h) / (n_dot_wi * n_dot_wo);
+        const denom = math.pow2(ior.eta_i * wo_dot_h + ior.eta_t * wi_dot_h);
+
+        const refr = d * g * f;
+        const refl = (factor * sqr_eta_t / denom) * refr;
+
+        const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
+
+        return bxdf.Result.init(@splat(4, refl), pdf * f * (abs_wi_dot_h * sqr_eta_t / denom));
     }
 
     pub fn reflectNoFresnel(
@@ -150,13 +199,13 @@ pub const Iso = struct {
         const d = distribution(n_dot_h, alpha2);
         const g = gSmithCorrelated(n_dot_wi, n_dot_wo, alpha2);
 
-        const refraction = d * g;
+        const refr = d * g;
         const factor = (abs_wi_dot_h * abs_wo_dot_h) / (n_dot_wi * n_dot_wo);
         const denom = math.pow2(ior.eta_i * wo_dot_h + ior.eta_t * wi_dot_h);
         const sqr_eta_t = ior.eta_t * ior.eta_t;
         const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
 
-        result.reflection = @splat(4, (factor * sqr_eta_t / denom) * refraction);
+        result.reflection = @splat(4, (factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.h = h;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
