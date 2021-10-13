@@ -272,21 +272,6 @@ pub const Provider = struct {
                 }
             }
         }
-
-        // If no tangents were loaded, compute some tangent space manually
-        if (0 == handler.bitangent_signs.items.len and 0 == handler.tangents.items.len) {
-            const num_tangents = handler.normals.items.len;
-
-            handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangents);
-            try handler.tangents.resize(alloc, num_tangents);
-
-            for (handler.normals.items) |n3, i| {
-                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-                const t = math.tangent3(n);
-
-                handler.tangents.items[i] = Vec3f.init3(t[0], t[1], t[2]);
-            }
-        }
     }
 
     fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {

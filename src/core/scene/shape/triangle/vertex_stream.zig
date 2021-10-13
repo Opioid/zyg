@@ -83,8 +83,15 @@ const Json = struct {
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
         const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-        const t3 = self.tangents[i];
-        const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
+
+        var t: Vec4f = undefined;
+
+        if (self.tangents.len > 0) {
+            const t3 = self.tangents[i];
+            t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
+        } else {
+            t = math.tangent3(n);
+        }
 
         return quaternion.initFromTN(t, n);
     }
