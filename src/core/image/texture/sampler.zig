@@ -133,12 +133,12 @@ const Linear2D = struct {
 
         return .{
             .w = .{ u - fu, v - fv },
-            .xy_xy1 = Vec4i.init4(
+            .xy_xy1 = Vec4i{
                 adr.u.lowerBound(x, b[0]),
                 adr.v.lowerBound(y, b[1]),
                 adr.u.increment(x, b[0]),
                 adr.v.increment(y, b[1]),
-            ),
+            },
         };
     }
 

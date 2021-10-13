@@ -29,11 +29,11 @@ pub fn Base(comptime T: type) type {
         }
 
         pub fn addWeighted(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, isolated: Vec4i, bounds: Vec4i) void {
-            if (@bitCast(u32, pixel[0] - bounds.v[0]) <= @bitCast(u32, bounds.v[2]) and
-                @bitCast(u32, pixel[1] - bounds.v[1]) <= @bitCast(u32, bounds.v[3]))
+            if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
+                @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                if (@bitCast(u32, pixel[0] - isolated.v[0]) <= @bitCast(u32, isolated.v[2]) and
-                    @bitCast(u32, pixel[1] - isolated.v[1]) <= @bitCast(u32, isolated.v[3]))
+                if (@bitCast(u32, pixel[0] - isolated[0]) <= @bitCast(u32, isolated[2]) and
+                    @bitCast(u32, pixel[1] - isolated[1]) <= @bitCast(u32, isolated[3]))
                 {
                     self.addPixel(pixel, color, weight);
                 } else {

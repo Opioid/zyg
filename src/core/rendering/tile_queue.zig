@@ -17,8 +17,8 @@ pub const TileQueue = struct {
         self.tile_dimensions = tile_dimensions;
         self.filter_radius = filter_radius;
 
-        const xy = Vec2i{ crop.v[0], crop.v[1] };
-        const zw = Vec2i{ crop.v[2], crop.v[3] };
+        const xy = Vec2i{ crop[0], crop[1] };
+        const zw = Vec2i{ crop[2], crop[3] };
         const dim = math.vec2iTo2f(zw - xy);
         const tdf = @intToFloat(f32, tile_dimensions);
 
@@ -54,27 +54,27 @@ pub const TileQueue = struct {
         start[0] = current - start[1] * self.tiles_per_row;
 
         start *= @splat(2, tile_dimensions);
-        start += Vec2i{ crop.v[0], crop.v[1] };
+        start += Vec2i{ crop[0], crop[1] };
 
-        var end = math.min2(start + @splat(2, tile_dimensions), Vec2i{ crop.v[2], crop.v[3] });
+        var end = math.min2(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
 
-        if (crop.v[1] == start[1]) {
+        if (crop[1] == start[1]) {
             start[1] -= filter_radius;
         }
 
-        if (crop.v[3] == end[1]) {
+        if (crop[3] == end[1]) {
             end[1] += filter_radius;
         }
 
-        if (crop.v[0] == start[0]) {
+        if (crop[0] == start[0]) {
             start[0] -= filter_radius;
         }
 
-        if (crop.v[2] == end[0]) {
+        if (crop[2] == end[0]) {
             end[0] += filter_radius;
         }
 
         const back = end - @splat(2, @as(i32, 1));
-        return Vec4i.init4(start[0], start[1], back[0], back[1]);
+        return Vec4i{ start[0], start[1], back[0], back[1] };
     }
 };

@@ -63,18 +63,18 @@ pub const Worker = struct {
         const offset = @splat(2, @as(i32, 0));
 
         var crop = camera.crop;
-        crop.v[2] -= crop.v[0] + 1;
-        crop.v[3] -= crop.v[1] + 1;
-        crop.v[0] += offset[0];
-        crop.v[1] += offset[1];
+        crop[2] -= crop[0] + 1;
+        crop[3] -= crop[1] + 1;
+        crop[0] += offset[0];
+        crop[1] += offset[1];
 
-        const xy = offset + Vec2i{ tile.v[0], tile.v[1] };
-        const zw = offset + Vec2i{ tile.v[2], tile.v[3] };
-        const view_tile = Vec4i.init4(xy[0], xy[1], zw[0], zw[1]);
+        const xy = offset + Vec2i{ tile[0], tile[1] };
+        const zw = offset + Vec2i{ tile[2], tile[3] };
+        const view_tile = Vec4i{ xy[0], xy[1], zw[0], zw[1] };
 
         var isolated_bounds = sensor.isolatedTile(view_tile);
-        isolated_bounds.v[2] -= isolated_bounds.v[0];
-        isolated_bounds.v[3] -= isolated_bounds.v[1];
+        isolated_bounds[2] -= isolated_bounds[0];
+        isolated_bounds[3] -= isolated_bounds[1];
 
         const fr = sensor.filterRadiusInt();
 
@@ -82,12 +82,12 @@ pub const Worker = struct {
 
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
-        const y_back = tile.v[3];
-        var y: i32 = tile.v[1];
+        const y_back = tile[3];
+        var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
             const o1 = @intCast(u64, (y + fr) * r[0]) + o0;
-            const x_back = tile.v[2];
-            var x: i32 = tile.v[0];
+            const x_back = tile[2];
+            var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
                 self.super.rng.start(0, o1 + @intCast(u64, x + fr));
 

@@ -33,6 +33,14 @@ pub const Opaque = struct {
         }
     }
 
+    pub fn fixZeroWeights(self: *Opaque) void {
+        for (self.pixels) |*p| {
+            if (p.v[3] <= 0.0) {
+                p.v[3] = 1.0;
+            }
+        }
+    }
+
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 

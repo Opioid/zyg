@@ -53,6 +53,15 @@ pub const Sensor = union(enum) {
         }
     }
 
+    pub fn fixZeroWeights(self: *Sensor) void {
+        switch (self.*) {
+            .Unfiltered_opaque => |*s| s.sensor.fixZeroWeights(),
+            .Unfiltered_transparent => |*s| s.sensor.fixZeroWeights(),
+            .Filtered_1p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
+            .Filtered_2p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
+        }
+    }
+
     pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, isolated: Vec4i, bounds: Vec4i) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
@@ -92,6 +101,6 @@ pub const Sensor = union(enum) {
     pub fn isolatedTile(self: Sensor, tile: Vec4i) Vec4i {
         const r = self.filterRadiusInt();
 
-        return tile.add4(Vec4i.init4(r, r, -r, -r));
+        return tile + Vec4i{ r, r, -r, -r };
     }
 };

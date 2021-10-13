@@ -9,6 +9,9 @@ const chrono = base.chrono;
 const Threads = base.thread.Pool;
 const ThreadContext = base.thread.Pool.Context;
 
+const math = @import("base").math;
+const Vec4i = math.Vec4i;
+
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
@@ -116,6 +119,12 @@ pub const Driver = struct {
         std.debug.print("Render time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
         const pp_start = std.time.milliTimestamp();
+
+        const resolution = camera.resolution;
+        const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
+        if (@reduce(.Or, total_crop != camera.crop)) {
+            camera.sensor.fixZeroWeights();
+        }
 
         self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
 

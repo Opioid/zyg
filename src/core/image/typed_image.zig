@@ -64,20 +64,20 @@ pub fn Typed_image(comptime T: type) type {
 
         pub fn gather2D(self: Self, xy_xy1: Vec4i) [4]T {
             const width = self.description.dimensions.v[0];
-            const y0 = width * xy_xy1.v[1];
-            const y1 = width * xy_xy1.v[3];
+            const y0 = width * xy_xy1[1];
+            const y1 = width * xy_xy1[3];
 
             return .{
-                self.pixels[@intCast(usize, y0 + xy_xy1.v[0])],
-                self.pixels[@intCast(usize, y0 + xy_xy1.v[2])],
-                self.pixels[@intCast(usize, y1 + xy_xy1.v[0])],
-                self.pixels[@intCast(usize, y1 + xy_xy1.v[2])],
+                self.pixels[@intCast(usize, y0 + xy_xy1[0])],
+                self.pixels[@intCast(usize, y0 + xy_xy1[2])],
+                self.pixels[@intCast(usize, y1 + xy_xy1[0])],
+                self.pixels[@intCast(usize, y1 + xy_xy1[2])],
             };
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
             const d = self.description.dimensions.xy();
-            const i = (@intCast(u64, z) * @intCast(u64, d.v[1]) + @intCast(u64, y)) * @intCast(u64, d.v[0]) + @intCast(u64, x);
+            const i = (@intCast(u64, z) * @intCast(u64, d[1]) + @intCast(u64, y)) * @intCast(u64, d[0]) + @intCast(u64, x);
 
             return self.pixels[@intCast(usize, i)];
         }

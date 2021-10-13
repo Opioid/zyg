@@ -40,6 +40,14 @@ pub const Transparent = struct {
         }
     }
 
+    pub fn fixZeroWeights(self: *Transparent) void {
+        for (self.pixel_weights) |*w| {
+            if (w.* <= 0.0) {
+                w.* = 1.0;
+            }
+        }
+    }
+
     pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);

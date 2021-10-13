@@ -64,12 +64,12 @@ pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
 pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
     const member = value.Object.get(name) orelse return default;
 
-    return Vec4i.init4(
+    return .{
         @intCast(i32, member.Array.items[0].Integer),
         @intCast(i32, member.Array.items[1].Integer),
         @intCast(i32, member.Array.items[2].Integer),
         @intCast(i32, member.Array.items[3].Integer),
-    );
+    };
 }
 
 pub fn readVec4f3(value: Value) Vec4f {

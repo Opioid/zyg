@@ -30,7 +30,7 @@ pub const Perspective = struct {
     entity: u32 = prp.Null,
 
     resolution: Vec2i = Vec2i{ 0, 0 },
-    crop: Vec4i = Vec4i.init1(0),
+    crop: Vec4i = @splat(4, @as(i32, 0)),
 
     sensor: Sensor = undefined,
 
@@ -65,10 +65,10 @@ pub const Perspective = struct {
     pub fn setResolution(self: *Perspective, resolution: Vec2i, crop: Vec4i) void {
         self.resolution = resolution;
 
-        self.crop.v[0] = std.math.max(0, crop.v[0]);
-        self.crop.v[1] = std.math.max(0, crop.v[1]);
-        self.crop.v[2] = std.math.min(resolution[0], crop.v[2]);
-        self.crop.v[3] = std.math.min(resolution[1], crop.v[3]);
+        self.crop[0] = std.math.max(0, crop[0]);
+        self.crop[1] = std.math.max(0, crop[1]);
+        self.crop[2] = std.math.min(resolution[0], crop[2]);
+        self.crop[3] = std.math.min(resolution[1], crop[3]);
     }
 
     pub fn setSensor(self: *Perspective, sensor: Sensor) void {

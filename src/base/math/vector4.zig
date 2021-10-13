@@ -137,7 +137,7 @@ pub fn Vec4(comptime T: type) type {
     };
 }
 
-pub const Vec4i = Vec4(i32);
+pub const Vec4i = std.meta.Vector(4, i32);
 pub const Pack4f = Vec4(f32);
 pub const Vec4f = std.meta.Vector(4, f32);
 
