@@ -47,7 +47,7 @@ pub const Sample = struct {
             .h = undefined,
             .pdf = pdf,
             .h_dot_wi = undefined,
-            .typef = undefined,
+            .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
         };
     }
 };
