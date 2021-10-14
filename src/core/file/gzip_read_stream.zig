@@ -62,6 +62,8 @@ pub const GzipReadStream = struct {
 
     pub fn close(self: *Self) void {
         _ = mz.mz_inflateEnd(&self.z_stream);
+
+        self.stream.deinit();
     }
 
     pub fn setStream(self: *Self, stream: ReadStream) !void {
