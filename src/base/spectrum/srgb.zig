@@ -16,11 +16,21 @@ pub fn linearToGamma_sRGB(c: f32) f32 {
 }
 
 pub fn linearToGamma_sRGB3(c: Vec4f) Vec4f {
-    return Vec4f.init3(linearToGamma_sRGB(c.v[0]), linearToGamma_sRGB(c.v[1]), linearToGamma_sRGB(c.v[2]));
+    return .{
+        linearToGamma_sRGB(c[0]),
+        linearToGamma_sRGB(c[1]),
+        linearToGamma_sRGB(c[2]),
+        0.0,
+    };
 }
 
 pub fn linearToGamma_sRGB4(c: Vec4f) Vec4f {
-    return Vec4f.init4(linearToGamma_sRGB(c.v[0]), linearToGamma_sRGB(c.v[1]), linearToGamma_sRGB(c.v[2]), c.v[3]);
+    return Vec4f.init4(
+        linearToGamma_sRGB(c.v[0]),
+        linearToGamma_sRGB(c.v[1]),
+        linearToGamma_sRGB(c.v[2]),
+        c.v[3],
+    );
 }
 
 // convert sRGB gamma value to sRGB linear value

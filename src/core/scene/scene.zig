@@ -391,13 +391,15 @@ pub const Scene = struct {
         time: u64,
         threads: *Threads,
     ) void {
-        const shape_inst = self.propShape(entity);
+        var shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
         self.light_ids.items[p] = @intCast(u32, light_id);
 
         const m = self.material_ids.items[p];
+
+        shape_inst.prepareSampling(part);
 
         const trafo = self.propTransformationAt(entity, time);
         const scale = trafo.scale();

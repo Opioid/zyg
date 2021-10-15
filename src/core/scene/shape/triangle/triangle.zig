@@ -86,3 +86,7 @@ pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
     return a * @splat(4, w) + b * @splat(4, u) + c * @splat(4, v);
 }
+
+pub fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {
+    return 0.5 * math.length3(math.cross3(b - a, c - a));
+}

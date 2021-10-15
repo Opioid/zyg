@@ -18,6 +18,23 @@ const Allocator = std.mem.Allocator;
 const Part = struct {
     material: u32,
     area: f32,
+
+    pub fn init(self: *Part, part: u32, tree: bvh.Tree) void {
+        var total_area: f32 = 0.0;
+
+        var t: u32 = 0;
+        //    var mt: u32 = 0;
+        const len = tree.numTriangles();
+        while (t < len) : (t += 1) {
+            if (tree.data.part(t) == part) {
+                const area = tree.data.area(t);
+
+                total_area += area;
+            }
+        }
+
+        self.area = total_area;
+    }
 };
 
 pub const Mesh = struct {
@@ -144,5 +161,9 @@ pub const Mesh = struct {
         );
 
         return self.tree.visibility(&tray, entity, filter, worker);
+    }
+
+    pub fn prepareSampling(self: *Mesh, part: u32) void {
+        self.parts[part].init(part, self.tree);
     }
 };

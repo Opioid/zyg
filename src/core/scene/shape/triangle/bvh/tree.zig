@@ -33,6 +33,10 @@ pub const Tree = struct {
         alloc.free(self.nodes);
     }
 
+    pub fn numTriangles(self: Tree) u32 {
+        return @intCast(u32, self.data.triangles.len);
+    }
+
     pub fn aabb(self: Tree) AABB {
         return self.nodes[0].aabb();
     }

@@ -198,4 +198,14 @@ pub const Indexed_data = struct {
     pub fn bitangentSign(self: Self, index: u32) f32 {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
+
+    pub fn area(self: Self, index: u32) f32 {
+        const tri = self.triangles[index];
+
+        const a = self.positions[tri.a];
+        const b = self.positions[tri.b];
+        const c = self.positions[tri.c];
+
+        return triangle.area(a, b, c);
+    }
 };

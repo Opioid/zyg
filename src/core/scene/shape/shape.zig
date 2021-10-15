@@ -244,4 +244,11 @@ pub const Shape = union(enum) {
             else => 1.0,
         };
     }
+
+    pub fn prepareSampling(self: *Shape, part: u32) void {
+        return switch (self.*) {
+            .Triangle_mesh => |*m| m.prepareSampling(part),
+            else => {},
+        };
+    }
 };
