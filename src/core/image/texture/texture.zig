@@ -22,6 +22,10 @@ pub const Texture = struct {
     image: u32 = Null,
     scale: Vec2f = undefined,
 
+    pub fn equal(self: Texture, other: Texture) bool {
+        return self.type == other.type and self.image == other.image and self.image == other.image;
+    }
+
     pub fn isValid(self: Texture) bool {
         return self.image != Null;
     }

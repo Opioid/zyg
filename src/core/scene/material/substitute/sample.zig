@@ -1,4 +1,5 @@
 const Base = @import("../sample_base.zig").SampleBase;
+const Coating = @import("coating.zig").Coating;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -19,6 +20,8 @@ const std = @import("std");
 
 pub const Sample = struct {
     super: Base,
+
+    coating: Coating = undefined,
 
     f0: Vec4f,
     translucent_color: Vec4f = undefined,
@@ -90,17 +93,22 @@ pub const Sample = struct {
 
         const wo_dot_h = hlp.clampDot(wo, h);
 
-        if (1.0 == self.metallic) {
-            return self.pureGlossEvaluate(wi, wo, h, wo_dot_h);
-        }
-
-        var result = self.baseEvaluate(wi, wo, h, wo_dot_h);
+        var base_result = if (1.0 == self.metallic)
+            self.pureGlossEvaluate(wi, wo, h, wo_dot_h)
+        else
+            self.baseEvaluate(wi, wo, h, wo_dot_h);
 
         if (translucent) {
-            result.mulAssignPdf(1.0 - tr);
+            base_result.mulAssignPdf(1.0 - tr);
         }
 
-        return result;
+        if (self.coating.thickness > 0.0) {
+            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
+            const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_result.pdf();
+            return bxdf.Result.init(coating.reflection + coating.attenuation * base_result.reflection, pdf);
+        }
+
+        return base_result;
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
@@ -140,15 +148,10 @@ pub const Sample = struct {
                 return result;
             }
 
-            if (1.0 == self.metallic) {
-                self.pureGlossSample(sampler, rng, &result);
+            if (self.coating.thickness > 0.0) {
+                self.coatingSample(sampler, rng, &result);
             } else {
-                const p = sampler.sample1D(rng, 0);
-                if (p < 0.5) {
-                    self.diffuseSample(sampler, rng, &result);
-                } else {
-                    self.glossSample(sampler, rng, &result);
-                }
+                self.baseSample(sampler, rng, &result);
             }
         }
 
@@ -215,6 +218,40 @@ pub const Sample = struct {
         gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
 
         return bxdf.Result.init(@splat(4, n_dot_wi) * gg.reflection, gg.pdf());
+    }
+
+    fn baseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        if (1.0 == self.metallic) {
+            self.pureGlossSample(sampler, rng, result);
+        } else {
+            const p = sampler.sample1D(rng, 0);
+            if (p < 0.5) {
+                self.diffuseSample(sampler, rng, result);
+            } else {
+                self.glossSample(sampler, rng, result);
+            }
+        }
+    }
+
+    fn coatingSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        var n_dot_h: f32 = undefined;
+        const f = self.coating.sample(self.super.wo, sampler, rng, &n_dot_h, result);
+
+        const p = sampler.sample1D(rng, 0);
+        if (p <= f) {
+            self.coatingReflect(f, n_dot_h, result);
+        } else {
+            if (1.0 == self.metallic) {
+                self.coatingBaseSample(pureGlossSample, sampler, rng, f, result);
+            } else {
+                const p1 = (p - f) / (1.0 - f);
+                if (p1 < 0.5) {
+                    self.coatingBaseSample(diffuseSample, sampler, rng, f, result);
+                } else {
+                    self.coatingBaseSample(glossSample, sampler, rng, f, result);
+                }
+            }
+        }
     }
 
     fn diffuseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
@@ -316,6 +353,55 @@ pub const Sample = struct {
 
         result.reflection *= @splat(4, n_dot_wi) *
             ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+    }
+
+    fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
+        const wo = self.super.wo;
+        const n_dot_wo = self.coating.layer.clampAbsNdot(self.super.wo);
+
+        var coating_attenuation: Vec4f = undefined;
+        self.coating.reflect(
+            wo,
+            result.h,
+            n_dot_wo,
+            n_dot_h,
+            result.h_dot_wi,
+            result.h_dot_wi,
+            &coating_attenuation,
+            result,
+        );
+
+        const base_result = if (1.0 == self.metallic)
+            self.pureGlossEvaluate(result.wi, wo, result.h, result.h_dot_wi)
+        else
+            self.baseEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+
+        result.reflection = result.reflection + coating_attenuation * base_result.reflection;
+        result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
+    }
+
+    const SampleFunc = fn (self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void;
+
+    fn coatingBaseSample(
+        self: Sample,
+        sampleFunc: SampleFunc,
+        sampler: *Sampler,
+        rng: *RNG,
+        f: f32,
+        result: *bxdf.Sample,
+    ) void {
+        sampleFunc(self, sampler, rng, result);
+
+        const coating = self.coating.evaluate(
+            result.wi,
+            self.super.wo,
+            result.h,
+            result.h_dot_wi,
+            self.super.avoidCaustics(),
+        );
+
+        result.reflection = coating.attenuation * result.reflection + coating.reflection;
+        result.pdf = (1.0 - f) * result.pdf + f * coating.pdf;
     }
 
     fn diffuseFresnelHack(n_dot_wi: f32, n_dot_wo: f32, f0: f32) f32 {

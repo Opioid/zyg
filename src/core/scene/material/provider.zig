@@ -226,6 +226,8 @@ pub const Provider = struct {
         var thickness: f32 = 0.0;
         var attenuation_distance: f32 = 0.0;
 
+        var coating: CoatingDescription = .{};
+
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -262,6 +264,8 @@ pub const Provider = struct {
                 attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "coating", entry.key_ptr.*)) {
+                coating.read(alloc, entry.value_ptr.*, self.tex, resources);
             }
         }
 
@@ -282,6 +286,15 @@ pub const Provider = struct {
         material.super.ior = ior;
         material.metallic = metallic;
         material.setTranslucency(thickness, attenuation_distance);
+
+        if (coating.thickness.texture.isValid() or coating.thickness.value > 0.0) {
+            material.coating.normal_map = coating.normal_map;
+            material.coating.thickness_map = coating.thickness.texture;
+            material.coating.setAttenuation(coating.color, coating.attenuation_distance);
+            material.coating.thickness = coating.thickness.value;
+            material.coating.ior = coating.ior;
+            material.coating.setRoughness(coating.roughness);
+        }
 
         return Material{ .Substitute = material };
     }
@@ -481,32 +494,41 @@ fn MappedValue(comptime Value: type) type {
     };
 }
 
-fn createTexture(
-    alloc: *Allocator,
-    desc: TextureDescription,
-    usage: TexUsage,
-    tex: Provider.Tex,
-    resources: *Resources,
-) Texture {
-    if (tex == .No) {
-        return .{};
-    }
+const CoatingDescription = struct {
+    thickness: MappedValue(f32) = MappedValue(f32).init(0.0),
 
-    if (desc.filename) |filename| {
-        var options: Variants = .{};
-        defer options.deinit(alloc);
-        options.set(alloc, "usage", usage) catch {};
+    normal_map: Texture = .{},
 
-        if (desc.invert) {
-            options.set(alloc, "invert", true) catch {};
+    color: Vec4f = @splat(4, @as(f32, 1.0)),
+
+    attenuation_distance: f32 = 0.1,
+    ior: f32 = 1.5,
+    roughness: f32 = 0.2,
+
+    const Self = @This();
+
+    pub fn read(
+        self: *Self,
+        alloc: *Allocator,
+        value: std.json.Value,
+        tex: Provider.Tex,
+        resources: *Resources,
+    ) void {
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
+                self.color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
+                self.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
+                self.ior = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
+                self.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, tex, resources);
+            } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
+                self.roughness = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
+                self.thickness.read(alloc, entry.value_ptr.*, .Roughness, tex, resources);
+            }
         }
-
-        if (desc.swizzle) |swizzle| {
-            options.set(alloc, "swizzle", swizzle) catch {};
-        }
-
-        return tx.Provider.loadFile(alloc, filename, options, resources) catch .{};
     }
-
-    return .{};
-}
+};

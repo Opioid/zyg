@@ -1,4 +1,5 @@
 const Base = @import("../material_base.zig").Base;
+const SampleCoating = @import("coating.zig").Coating;
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const fresnel = @import("../fresnel.zig");
@@ -8,11 +9,30 @@ const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const ccoef = @import("../collision_coefficients.zig");
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-//const std = @import("std");
+const Coating = struct {
+    normal_map: Texture = undefined,
+    thickness_map: Texture = .{},
+
+    absorption_coef: Vec4f = undefined,
+
+    thickness: f32 = 0.0,
+    ior: f32 = undefined,
+    alpha: f32 = undefined,
+
+    pub fn setAttenuation(self: *Coating, color: Vec4f, distance: f32) void {
+        self.absorption_coef = ccoef.attenutionCoefficient(color, distance);
+    }
+
+    pub fn setRoughness(self: *Coating, roughness: f32) void {
+        const r = ggx.clampRoughness(roughness);
+        self.alpha = r * r;
+    }
+};
 
 pub const Material = struct {
     super: Base,
@@ -32,6 +52,8 @@ pub const Material = struct {
     thickness: f32 = undefined,
     attenuation_distance: f32 = undefined,
     transparency: f32 = undefined,
+
+    coating: Coating = .{},
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
         return .{ .super = Base.init(sampler_key, two_sided) };
@@ -106,21 +128,35 @@ pub const Material = struct {
             metallic = self.metallic;
         }
 
+        var coating_thickness: f32 = undefined;
+        var coating_weight: f32 = undefined;
+        var coating_ior: f32 = undefined;
+        if (self.coating.thickness_map.isValid()) {
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, worker.scene.*);
+            coating_thickness = self.coating.thickness * relative_thickness;
+            coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
+            coating_ior = math.lerp(rs.ior(), self.coating.ior, coating_weight);
+        } else {
+            coating_thickness = self.coating.thickness;
+            coating_weight = 1.0;
+            coating_ior = self.coating.ior;
+        }
+
+        const ior_outside = if (coating_thickness > 0.0) coating_ior else rs.ior();
+
         var result = Sample.init(
             rs,
             wo,
             color,
             radiance,
             alpha,
-            fresnel.Schlick.F0(self.super.ior, rs.ior()),
+            fresnel.Schlick.F0(self.super.ior, ior_outside),
             metallic,
         );
 
         if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
-            const tb = math.orthonormalBasis3(n);
-
-            result.super.layer.setTangentFrame(tb[0], tb[1], n);
+            result.super.layer.setNormal(n);
         } else {
             result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
         }
@@ -134,17 +170,66 @@ pub const Material = struct {
             result.setTranslucency(color, thickness, self.attenuation_distance, self.transparency);
         }
 
+        if (coating_thickness > 0.0) {
+            if (self.normal_map.equal(self.coating.normal_map)) {
+                result.coating.layer = result.super.layer;
+            } else if (self.coating.normal_map.isValid()) {
+                const n = hlp.sampleNormal(wo, rs, self.coating.normal_map, key, worker.scene.*);
+                result.coating.layer.setNormal(n);
+            } else {
+                result.coating.layer.setTangentFrame(rs.t, rs.b, rs.n);
+            }
+
+            result.coating.absorption_coef = self.coating.absorption_coef;
+            result.coating.thickness = coating_thickness;
+            result.coating.ior = coating_ior;
+            result.coating.f0 = fresnel.Schlick.F0(coating_ior, rs.ior());
+            result.coating.alpha = self.coating.alpha;
+            result.coating.weight = coating_weight;
+
+            const n_dot_wo = result.coating.layer.clampAbsNdot(wo);
+            result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
+        }
+
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(
+        self: Material,
+        wi: Vec4f,
+        n: Vec4f,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        worker: Worker,
+    ) Vec4f {
+        const key = ts.resolveKey(self.super.sampler_key, filter);
+        const uv = Vec2f{ uvw[0], uvw[1] };
+
         const ef = @splat(4, self.emission_factor);
-        if (self.emission_map.isValid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ef * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+        const radiance = if (self.emission_map.isValid())
+            ef * ts.sample2D_3(key, self.emission_map, uv, worker.scene.*)
+        else
+            ef * self.super.emission;
+
+        var coating_thickness: f32 = undefined;
+        if (self.coating.thickness_map.isValid()) {
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, worker.scene.*);
+            coating_thickness = self.coating.thickness * relative_thickness;
+        } else {
+            coating_thickness = self.coating.thickness;
         }
 
-        return ef * self.super.emission;
+        if (coating_thickness > 0.0) {
+            const att = SampleCoating.singleAttenuationStatic(
+                self.coating.absorption_coef,
+                self.coating.thickness,
+                hlp.clampAbsDot(wi, n),
+            );
+
+            return att * radiance;
+        }
+
+        return radiance;
     }
 
     fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {

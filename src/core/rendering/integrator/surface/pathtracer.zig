@@ -35,9 +35,9 @@ pub const Pathtracer = struct {
         return Self{
             .settings = settings,
             .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
+                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
+                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
+                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
                 .{ .Random = .{} },
             },
         };

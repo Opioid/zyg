@@ -160,11 +160,9 @@ pub const Material = union(enum) {
         filter: ?ts.Filter,
         worker: Worker,
     ) Vec4f {
-        _ = wi;
-        _ = n;
         return switch (self) {
             .Light => |m| m.evaluateRadiance(uvw, extent, filter, worker),
-            .Substitute => |m| m.evaluateRadiance(uvw, filter, worker),
+            .Substitute => |m| m.evaluateRadiance(wi, n, uvw, filter, worker),
             else => @splat(4, @as(f32, 0.0)),
         };
     }

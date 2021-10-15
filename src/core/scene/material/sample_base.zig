@@ -64,6 +64,13 @@ pub const Layer = struct {
         self.n = n;
     }
 
+    pub fn setNormal(self: *Layer, n: Vec4f) void {
+        const tb = math.orthonormalBasis3(n);
+        self.t = tb[0];
+        self.b = tb[1];
+        self.n = n;
+    }
+
     pub fn rotateTangenFrame(self: *Layer, a: f32) void {
         const t = self.t;
         const b = self.b;
