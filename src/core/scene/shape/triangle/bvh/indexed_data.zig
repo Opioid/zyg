@@ -24,27 +24,33 @@ pub const Indexed_data = struct {
         part: u31,
     };
 
-    triangles: []Triangle = &.{},
-    positions: []Vec4f = &.{},
-    frames: []Vec4f = &.{},
-    uvs: []Vec2f = &.{},
+    num_triangles: u32 = 0,
+    num_vertices: u32 = 0,
+
+    triangles: [*]Triangle = undefined,
+    positions: [*]Vec4f = undefined,
+    frames: [*]Vec4f = undefined,
+    uvs: [*]Vec2f = undefined,
 
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: *Allocator) void {
-        alloc.free(self.uvs);
-        alloc.free(self.frames);
-        alloc.free(self.positions);
-        alloc.free(self.triangles);
+        alloc.free(self.uvs[0..self.num_vertices]);
+        alloc.free(self.frames[0..self.num_vertices]);
+        alloc.free(self.positions[0..self.num_vertices]);
+        alloc.free(self.triangles[0..self.num_triangles]);
     }
 
     pub fn allocateTriangles(self: *Self, alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !void {
         const num_vertices = vertices.numVertices();
 
-        self.triangles = try alloc.alloc(Triangle, num_triangles);
-        self.positions = try alloc.alloc(Vec4f, num_vertices);
-        self.frames = try alloc.alloc(Vec4f, num_vertices);
-        self.uvs = try alloc.alloc(Vec2f, num_vertices);
+        self.num_triangles = num_triangles;
+        self.num_vertices = num_vertices;
+
+        self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
+        self.positions = (try alloc.alloc(Vec4f, num_vertices)).ptr;
+        self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
+        self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
         var i: u32 = 0;
         while (i < num_vertices) : (i += 1) {

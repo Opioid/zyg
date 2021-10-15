@@ -34,7 +34,7 @@ pub const Tree = struct {
     }
 
     pub fn numTriangles(self: Tree) u32 {
-        return @intCast(u32, self.data.triangles.len);
+        return self.data.num_triangles;
     }
 
     pub fn aabb(self: Tree) AABB {
