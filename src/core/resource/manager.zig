@@ -103,17 +103,17 @@ pub const Manager = struct {
         return null;
     }
 
-    pub fn getByName(self: Manager, comptime T: type, name: []const u8) ?u32 {
+    pub fn getByName(self: Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
-            return self.images.getByName(name);
+            return self.images.getByName(name, options);
         }
 
         if (Material == T) {
-            return self.materials.getByName(name);
+            return self.materials.getByName(name, options);
         }
 
         if (Shape == T) {
-            return self.shapes.getByName(name);
+            return self.shapes.getByName(name, options);
         }
 
         return null;

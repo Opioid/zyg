@@ -7,20 +7,98 @@ const Allocator = std.mem.Allocator;
 pub const Null = 0xFFFFFFFF;
 
 pub fn Cache(comptime T: type, comptime P: type) type {
+    const Key = struct {
+        name: []const u8,
+        options: Variants,
+
+        const Self = @This();
+
+        pub fn clone(self: Self, alloc: *Allocator) !Self {
+            var tmp_name = try alloc.alloc(u8, self.name.len);
+            std.mem.copy(u8, tmp_name, self.name);
+            return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
+        }
+
+        pub fn deinit(self: *Self, alloc: *Allocator) void {
+            self.options.deinit(alloc);
+            alloc.free(self.name);
+        }
+    };
+
+    const KeyContext = struct {
+        const Self = @This();
+
+        pub fn hash(self: Self, k: Key) u64 {
+            _ = self;
+            var hasher = std.hash.Wyhash.init(0);
+
+            hasher.update(k.name);
+
+            var iter = k.options.map.iterator();
+            while (iter.next()) |entry| {
+                hasher.update(entry.key_ptr.*);
+                hasher.update(std.mem.asBytes(entry.value_ptr));
+            }
+
+            const h = hasher.final();
+
+            return h;
+        }
+
+        pub fn eql(self: Self, a: Key, b: Key) bool {
+            _ = self;
+
+            if (!std.mem.eql(u8, a.name, b.name)) {
+                return false;
+            }
+
+            if (a.options.map.count() != b.options.map.count()) {
+                return false;
+            }
+
+            var a_iter = a.options.map.iterator();
+            var b_iter = b.options.map.iterator();
+            while (a_iter.next()) |a_entry| {
+                if (b_iter.next()) |b_entry| {
+                    if (!std.mem.eql(u8, a_entry.key_ptr.*, b_entry.key_ptr.*)) {
+                        return false;
+                    }
+
+                    if (!std.mem.eql(
+                        u8,
+                        std.mem.asBytes(a_entry.value_ptr),
+                        std.mem.asBytes(b_entry.value_ptr),
+                    )) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    };
+
+    const HashMap = std.HashMapUnmanaged(Key, u32, KeyContext, 80);
+
     return struct {
         provider: P,
         resources: std.ArrayListUnmanaged(T) = .{},
-        entries: std.StringHashMapUnmanaged(u32) = .{},
+        entries: HashMap = .{},
 
         const Self = @This();
 
         pub fn init(provider: P) Self {
-            return .{
-                .provider = provider,
-            };
+            return .{ .provider = provider };
         }
 
         pub fn deinit(self: *Self, alloc: *Allocator) void {
+            var iter = self.entries.iterator();
+            while (iter.next()) |entry| {
+                entry.key_ptr.deinit(alloc);
+            }
+
             self.entries.deinit(alloc);
 
             for (self.resources.items) |*r| {
@@ -39,7 +117,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             options: Variants,
             resources: *Resources,
         ) !u32 {
-            if (self.entries.get(name)) |entry| {
+            const key = Key{ .name = name, .options = options };
+            if (self.entries.get(key)) |entry| {
                 return entry;
             }
 
@@ -52,9 +131,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
             const id = @intCast(u32, self.resources.items.len - 1);
 
-            //  std.debug.print("{s}\n", .{name});
-
-            //   try self.entries.put(alloc, name, id);
+            try self.entries.put(alloc, try key.clone(alloc), id);
 
             return id;
         }
@@ -70,7 +147,9 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             const item = try self.provider.loadData(alloc, data, options, resources);
 
             var id: u32 = Null;
-            if (self.entries.get(name)) |entry| {
+
+            const key = Key{ .name = name, .options = options };
+            if (self.entries.get(key)) |entry| {
                 id = entry;
             }
 
@@ -83,7 +162,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             if (0 != name.len) {
-                try self.entries.put(alloc, name, id);
+                try self.entries.put(alloc, try key.clone(alloc), id);
             }
 
             return id;
@@ -97,8 +176,9 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn getByName(self: Self, name: []const u8) ?u32 {
-            if (self.entries.get(name)) |entry| {
+        pub fn getByName(self: Self, name: []const u8, options: Variants) ?u32 {
+            const key = Key{ .name = name, .options = options };
+            if (self.entries.get(key)) |entry| {
                 return entry;
             }
 

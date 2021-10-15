@@ -15,6 +15,18 @@ pub const VariantMap = struct {
         self.map.deinit(alloc);
     }
 
+    pub fn clone(self: Self, alloc: *Allocator) !Self {
+        var result = VariantMap{};
+
+        var iter = self.map.iterator();
+        while (iter.next()) |entry| {
+            const k = entry.key_ptr.*;
+            try result.map.put(alloc, k, entry.value_ptr.*);
+        }
+
+        return result;
+    }
+
     pub fn cloneExcept(self: Self, alloc: *Allocator, key: []const u8) !Self {
         var result = VariantMap{};
 

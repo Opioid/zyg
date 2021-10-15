@@ -244,13 +244,19 @@ pub const Scene = struct {
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
-        const parts_start = @intCast(u32, self.material_ids.items.len);
-        self.prop_parts.items[p] = parts_start;
+        // This calls a very simple test to check whether the prop added just before this one
+        // has the same shape, same materials, and is not a light.
+        if (self.propIsInstance(shape_id, materials, num_parts)) {
+            self.prop_parts.items[p] = self.prop_parts.items[self.props.items.len - 2];
+        } else {
+            const parts_start = @intCast(u32, self.material_ids.items.len);
+            self.prop_parts.items[p] = parts_start;
 
-        var i: u32 = 0;
-        while (i < num_parts) : (i += 1) {
-            try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
-            try self.light_ids.append(alloc, prp.Null);
+            var i: u32 = 0;
+            while (i < num_parts) : (i += 1) {
+                try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
+                try self.light_ids.append(alloc, prp.Null);
+            }
         }
 
         return p;
@@ -520,6 +526,31 @@ pub const Scene = struct {
         try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
 
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
+    }
+
+    fn propIsInstance(self: Scene, shape_id: u32, materials: []const u32, num_parts: u32) bool {
+        const num_props = self.props.items.len;
+        if (num_props < 2 or self.props.items[num_props - 2].shape != shape_id) {
+            return false;
+        }
+
+        const shape_inst = self.shape(shape_id);
+
+        const p = self.prop_parts.items[num_props - 2];
+        var i: u32 = 0;
+        while (i < num_parts) : (i += 1) {
+            const m = materials[shape_inst.partIdToMaterialId(i)];
+
+            if (m != self.material_ids.items[p + i]) {
+                return false;
+            }
+
+            if (self.materials.items[m].isEmissive()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     pub fn createAnimation(self: *Scene, alloc: *Allocator, entity: u32, count: u32) !u32 {

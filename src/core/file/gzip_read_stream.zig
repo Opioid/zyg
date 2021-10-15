@@ -142,10 +142,9 @@ pub const GzipReadStream = struct {
         const buffer_offset = @intCast(i64, pos) - @intCast(i64, buffer_start);
 
         if (buffer_offset >= 0 and buffer_offset < buffer_len) {
-            const bo = @intCast(u32, buffer_offset);
-            const d = self.buffer_head - bo;
-            self.buffer_head = bo;
-            self.buffer_count += d;
+            const d = @as(i64, self.buffer_head) - buffer_offset;
+            self.buffer_head = @intCast(u32, buffer_offset);
+            self.buffer_count = @intCast(u32, @as(i64, self.buffer_count) + d);
         } else {
             if (buffer_offset < 0) {
                 try self.stream.seekTo(self.data_start);

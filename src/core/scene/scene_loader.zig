@@ -346,7 +346,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
     ) u32 {
         // First, check if we maybe already have cached the material.
-        if (self.resources.getByName(Material, name)) |material| {
+        if (self.resources.getByName(Material, name, .{})) |material| {
             return material;
         }
 
