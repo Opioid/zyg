@@ -1,5 +1,6 @@
 const math = @import("math/math.zig");
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
@@ -50,6 +51,13 @@ pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
     const member = value.Object.get(name) orelse return default;
 
     return @intCast(u64, member.Integer);
+}
+
+pub fn readVec2f(value: Value) Vec2f {
+    return .{
+        readFloat(f32, value.Array.items[0]),
+        readFloat(f32, value.Array.items[1]),
+    };
 }
 
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {

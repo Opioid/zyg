@@ -59,19 +59,19 @@ pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec4f {
 const Nearest2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         return texture.get2D_1(xy[0], xy[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         return texture.get2D_2(xy[0], xy[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         return texture.get2D_3(xy[0], xy[1], scene);
     }
 
@@ -98,21 +98,21 @@ const Linear2D = struct {
 
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
         return math.bilinear1(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
         return bilinear2(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, uv, adr);
+        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
         return bilinear3(c, m.w[0], m.w[1]);
     }

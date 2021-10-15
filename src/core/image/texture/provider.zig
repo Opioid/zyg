@@ -3,6 +3,8 @@ const img = @import("../image.zig");
 const Image = img.Image;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Variants = @import("base").memory.VariantMap;
+const math = @import("base").math;
+const Vec2f = math.Vec2f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -18,6 +20,7 @@ pub const Provider = struct {
         alloc: *Allocator,
         name: []const u8,
         options: Variants,
+        scale: Vec2f,
         resources: *Resources,
     ) !Texture {
         const usage = options.queryOrDef("usage", Usage.Color);
@@ -43,10 +46,14 @@ pub const Provider = struct {
         const image = resources.get(Image, image_id) orelse unreachable;
 
         return switch (image.*) {
-            .Byte1 => Texture{ .type = .Byte1_unorm, .image = image_id },
-            .Byte2 => Texture{ .type = if (.Normal == usage) .Byte2_snorm else .Byte2_unorm, .image = image_id },
-            .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id },
-            .Half3 => Texture{ .type = .Half3, .image = image_id },
+            .Byte1 => Texture{ .type = .Byte1_unorm, .image = image_id, .scale = scale },
+            .Byte2 => Texture{
+                .type = if (.Normal == usage) .Byte2_snorm else .Byte2_unorm,
+                .image = image_id,
+                .scale = scale,
+            },
+            .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id, .scale = scale },
+            .Half3 => Texture{ .type = .Half3, .image = image_id, .scale = scale },
             else => Error.UnsupportedImageType,
         };
     }

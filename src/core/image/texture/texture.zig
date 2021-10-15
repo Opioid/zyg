@@ -20,6 +20,7 @@ pub const Texture = struct {
 
     type: Type = undefined,
     image: u32 = Null,
+    scale: Vec2f = undefined,
 
     pub fn isValid(self: Texture) bool {
         return self.image != Null;

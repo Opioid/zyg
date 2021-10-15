@@ -11,6 +11,7 @@ const Resources = @import("../../resource/manager.zig").Manager;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
+const Vec2f = math.Vec2f;
 const json = base.json;
 const spectrum = base.spectrum;
 const Variants = base.memory.VariantMap;
@@ -290,6 +291,9 @@ const TextureDescription = struct {
     filename: ?[]u8 = null,
 
     swizzle: ?img.Swizzle = null,
+
+    scale: Vec2f = Vec2f{ 1.0, 1.0 },
+
     invert: bool = false,
 
     pub fn init(alloc: *Allocator, value: std.json.Value) !TextureDescription {
@@ -310,6 +314,11 @@ const TextureDescription = struct {
                 } else if (std.mem.eql(u8, "W", swizzle)) {
                     desc.swizzle = .W;
                 }
+            } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
+                desc.scale = switch (entry.value_ptr.*) {
+                    .Array => json.readVec2f(entry.value_ptr.*),
+                    else => @splat(2, json.readFloat(f32, entry.value_ptr.*)),
+                };
             } else if (std.mem.eql(u8, "invert", entry.key_ptr.*)) {
                 desc.invert = json.readBool(entry.value_ptr.*);
             }
@@ -389,6 +398,36 @@ fn readTexture(
     defer desc.deinit(alloc);
 
     return createTexture(alloc, desc, usage, tex, resources);
+}
+
+fn createTexture(
+    alloc: *Allocator,
+    desc: TextureDescription,
+    usage: TexUsage,
+    tex: Provider.Tex,
+    resources: *Resources,
+) Texture {
+    if (tex == .No) {
+        return .{};
+    }
+
+    if (desc.filename) |filename| {
+        var options: Variants = .{};
+        defer options.deinit(alloc);
+        options.set(alloc, "usage", usage) catch {};
+
+        if (desc.invert) {
+            options.set(alloc, "invert", true) catch {};
+        }
+
+        if (desc.swizzle) |swizzle| {
+            options.set(alloc, "swizzle", swizzle) catch {};
+        }
+
+        return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch .{};
+    }
+
+    return .{};
 }
 
 fn MappedValue(comptime Value: type) type {
