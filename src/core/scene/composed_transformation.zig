@@ -69,12 +69,21 @@ pub const ComposedTransformation = struct {
         const b = self.rotation.r[1] * @splat(4, s[1]);
         const c = self.rotation.r[2] * @splat(4, s[2]);
 
-        return Vec4f{
-            v[0] * a[0] + v[1] * b[0] + v[2] * c[0],
-            v[0] * a[1] + v[1] * b[1] + v[2] * c[1],
-            v[0] * a[2] + v[1] * b[2] + v[2] * c[2],
-            0.0,
-        };
+        // return Vec4f{
+        //     v[0] * a[0] + v[1] * b[0] + v[2] * c[0],
+        //     v[0] * a[1] + v[1] * b[1] + v[2] * c[1],
+        //     v[0] * a[2] + v[1] * b[2] + v[2] * c[2],
+        //     0.0,
+        // };
+
+        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        result = result * a;
+        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        temp = temp * b;
+        result = result + temp;
+        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = temp * c;
+        return result + temp;
     }
 
     pub fn objectToWorldPoint(self: Self, v: Vec4f) Vec4f {
