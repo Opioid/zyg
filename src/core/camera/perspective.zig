@@ -1,5 +1,5 @@
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
-const prp = @import("../scene/prop/prop.zig");
+const Prop = @import("../scene/prop/prop.zig").Prop;
 const Sample = @import("../sampler/camera_sample.zig").CameraSample;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("../scene/worker.zig").Worker;
@@ -27,7 +27,7 @@ pub const Perspective = struct {
 
     const Default_frame_time = scn.Units_per_second / 60;
 
-    entity: u32 = prp.Null,
+    entity: u32 = Prop.Null,
 
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(4, @as(i32, 0)),

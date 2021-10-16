@@ -8,9 +8,9 @@ const base = @import("base");
 const Vec4f = base.math.Vec4f;
 const Flags = base.flags.Flags;
 
-pub const Null = 0xFFFFFFFF;
-
 pub const Prop = struct {
+    pub const Null: u32 = 0xFFFFFFFF;
+
     pub const Topology = struct {
         next: u32 = Null,
         child: u32 = Null,
@@ -69,7 +69,7 @@ pub const Prop = struct {
         self.properties.set(.VisibleInShadow, in_shadow);
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []u32, scene: Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: Scene) void {
         self.shape = shape;
 
         self.properties.clear();

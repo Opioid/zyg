@@ -2,7 +2,7 @@ const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../worker.zig").Worker;
 const Ray = @import("../ray.zig").Ray;
-const prp = @import("../prop/prop.zig");
+const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
@@ -33,7 +33,7 @@ pub const Light = packed struct {
     extent: f32 = undefined,
 
     pub fn isLight(id: u32) bool {
-        return prp.Null != id;
+        return Prop.Null != id;
     }
 
     pub fn prepareSampling(

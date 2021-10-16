@@ -53,7 +53,7 @@ pub const BuilderSAH = struct {
         try self.super.split(alloc, references, bounds, threads);
 
         try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.kernel.reference_ids.items.len), vertices);
-        self.super.nodes = try tree.allocateNodes(alloc, @intCast(u32, self.super.kernel.build_nodes.items.len));
+        self.super.nodes = (try tree.allocateNodes(alloc, @intCast(u32, self.super.kernel.build_nodes.items.len))).ptr;
 
         var current_triangle: u32 = 0;
         self.super.newNode();
@@ -72,12 +72,10 @@ pub const BuilderSAH = struct {
         const node = &self.super.kernel.build_nodes.items[source_node];
 
         var n = &self.super.nodes[dest_node];
-
         n.setAABB(node.aabb());
 
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
-
             n.setSplitNode(child0, node.axis());
 
             self.super.newNode();
@@ -90,7 +88,6 @@ pub const BuilderSAH = struct {
         } else {
             var i = current_triangle.*;
             const num = node.numIndices();
-
             n.setLeafNode(i, num);
 
             const ro = node.children();

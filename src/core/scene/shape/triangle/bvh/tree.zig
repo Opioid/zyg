@@ -41,7 +41,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: *Ray, nodes: *NodeStack) ?Intersection {
+    pub fn intersect(self: Tree, ray: *Ray, stack: *NodeStack) ?Intersection {
         const ray_signs = [4]u32{
             @boolToInt(ray.inv_direction[0] < 0.0),
             @boolToInt(ray.inv_direction[1] < 0.0),
@@ -49,7 +49,7 @@ pub const Tree = struct {
             @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
-        nodes.push(0xFFFFFFFF);
+        stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
         var isec: Intersection = .{};
@@ -63,10 +63,10 @@ pub const Tree = struct {
                     const b = a + 1;
 
                     if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
+                        stack.push(b);
                         n = a;
                     } else {
-                        nodes.push(a);
+                        stack.push(a);
                         n = b;
                     }
 
@@ -84,7 +84,7 @@ pub const Tree = struct {
                 }
             }
 
-            n = nodes.pop();
+            n = stack.pop();
         }
 
         return if (0xFFFFFFFF != isec.index) isec else null;

@@ -1,5 +1,5 @@
 pub const Scene = @import("scene.zig").Scene;
-pub const prp = @import("prop/prop.zig");
+pub const Prop = @import("prop/prop.zig").Prop;
 const resource = @import("../resource/manager.zig");
 const Resources = resource.Manager;
 const anim = @import("animation/loader.zig");
@@ -97,7 +97,7 @@ pub const Loader = struct {
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
-        const parent_id: u32 = prp.Null;
+        const parent_id: u32 = Prop.Null;
 
         const parent_trafo = Transformation{
             .position = @splat(4, @as(f32, 0.0)),
@@ -145,12 +145,12 @@ pub const Loader = struct {
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;
 
-            var entity_id: u32 = prp.Null;
+            var entity_id: u32 = Prop.Null;
 
             if (std.mem.eql(u8, "Light", type_name)) {
                 const prop_id = try self.loadProp(alloc, entity, local_materials, scene);
 
-                if (prp.Null != prop_id and scene.prop(prop_id).visibleInReflection()) {
+                if (Prop.Null != prop_id and scene.prop(prop_id).visibleInReflection()) {
                     try scene.createLight(alloc, prop_id);
                 }
 
@@ -161,7 +161,7 @@ pub const Loader = struct {
                 entity_id = try scene.createEntity(alloc);
             }
 
-            if (prp.Null == entity_id) {
+            if (Prop.Null == entity_id) {
                 continue;
             }
 
@@ -190,7 +190,7 @@ pub const Loader = struct {
             else
                 false;
 
-            if (prp.Null != parent_id) {
+            if (Prop.Null != parent_id) {
                 try scene.propSerializeChild(alloc, parent_id, entity_id);
             }
 
@@ -198,7 +198,7 @@ pub const Loader = struct {
                 if (scene.propHasAnimatedFrames(entity_id)) {
                     scene.propSetTransformation(entity_id, trafo);
                 } else {
-                    if (prp.Null != parent_id) {
+                    if (Prop.Null != parent_id) {
                         trafo = parent_trafo.transform(trafo);
                     }
                     scene.propSetWorldTransformation(entity_id, trafo);
@@ -242,7 +242,7 @@ pub const Loader = struct {
         }
 
         if (resource.Null == shape) {
-            return prp.Null;
+            return Prop.Null;
         }
 
         const num_materials = scene.shape(shape).numMaterials();

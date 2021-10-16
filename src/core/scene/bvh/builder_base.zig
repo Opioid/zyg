@@ -262,7 +262,7 @@ pub const Base = struct {
     current_node: u32 = undefined,
     current_task: u32 = undefined,
 
-    nodes: []Node = undefined,
+    nodes: [*]Node = undefined,
 
     alloc: *Allocator = undefined,
     threads: *Threads = undefined,

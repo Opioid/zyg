@@ -1,6 +1,7 @@
 const cnst = @import("constants.zig");
-const prp = @import("prop/prop.zig");
-const Prop = prp.Prop;
+const Prop = @import("prop/prop.zig").Prop;
+const PropBvh = @import("prop/tree.zig").Tree;
+const PropBvhBuilder = @import("prop/builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
@@ -46,6 +47,10 @@ pub const Scene = struct {
 
     current_time_start: u64 = undefined,
 
+    bvh_builder: PropBvhBuilder = undefined,
+
+    prop_tree: PropBvh = .{},
+
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
     prop_world_positions: ALU(Vec4f),
@@ -66,6 +71,9 @@ pub const Scene = struct {
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
 
+    finite_props: ALU(u32),
+    infinite_props: ALU(u32),
+
     has_tinted_shadow: bool = undefined,
 
     pub fn init(
@@ -76,6 +84,7 @@ pub const Scene = struct {
         null_shape: u32,
     ) !Scene {
         return Scene{
+            .bvh_builder = try PropBvhBuilder.init(alloc),
             .images = images,
             .materials = materials,
             .shapes = shapes,
@@ -93,10 +102,18 @@ pub const Scene = struct {
             .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
             .animations = try ALU(Animation).initCapacity(alloc, Num_reserved_props),
+            .finite_props = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .infinite_props = try ALU(u32).initCapacity(alloc, 3),
         };
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
+        self.prop_tree.deinit(alloc);
+        self.bvh_builder.deinit(alloc);
+
+        self.infinite_props.deinit(alloc);
+        self.finite_props.deinit(alloc);
+
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
 
@@ -104,7 +121,6 @@ pub const Scene = struct {
             a.deinit(alloc);
         }
         self.animations.deinit(alloc);
-
         self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
@@ -120,9 +136,7 @@ pub const Scene = struct {
     }
 
     pub fn aabb(self: Scene) AABB {
-        _ = self;
-
-        return AABB.init(.{ 0.0, 0.0, 0.0, 0.0 }, .{ 1.0, 1.0, 1.0, 1.0 });
+        return self.prop_tree.aabb();
     }
 
     pub fn simulate(
@@ -162,6 +176,10 @@ pub const Scene = struct {
             self.has_tinted_shadow = self.has_tinted_shadow or p.hasTintedShadow();
         }
 
+        // rebuild prop BVH_builder
+        try self.bvh_builder.build(alloc, &self.prop_tree, self.finite_props.items, self.prop_aabbs.items, threads);
+        self.prop_tree.setProps(self.infinite_props.items, self.props.items);
+
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
@@ -174,50 +192,19 @@ pub const Scene = struct {
     }
 
     pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
-        worker.node_stack.clear();
-
-        var hit = false;
-        var prop_id: usize = prp.Null;
-
-        for (self.props.items) |p, i| {
-            if (p.intersect(i, ray, worker, ipo, &isec.geo)) {
-                hit = true;
-                prop_id = i;
-            }
-        }
-
-        isec.prop = @intCast(u32, prop_id);
-        return hit;
+        return self.prop_tree.intersect(ray, worker, ipo, isec);
     }
 
     pub fn intersectP(self: Scene, ray: Ray, worker: *Worker) bool {
-        worker.node_stack.clear();
-
-        for (self.props.items) |p, i| {
-            if (p.intersectP(i, ray, worker)) {
-                return true;
-            }
-        }
-
-        return false;
+        return self.prop_tree.intersectP(ray, worker);
     }
 
     pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.has_tinted_shadow) {
-            worker.node_stack.clear();
-
-            var vis = @splat(4, @as(f32, 1.0));
-
-            for (self.props.items) |p, i| {
-                const tv = p.visibility(i, ray, filter, worker) orelse return null;
-
-                vis *= tv;
-            }
-
-            return vis;
+            return self.prop_tree.visibility(ray, filter, worker);
         }
 
-        if (self.intersectP(ray, worker)) {
+        if (self.prop_tree.intersectP(ray, worker)) {
             return null;
         }
 
@@ -236,8 +223,8 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createProp(self: *Scene, alloc: *Allocator, shape_id: u32, materials: []u32) !u32 {
-        const p = self.allocateProp(alloc) catch return prp.Null;
+    pub fn createProp(self: *Scene, alloc: *Allocator, shape_id: u32, materials: []const u32) !u32 {
+        const p = self.allocateProp(alloc) catch return Prop.Null;
 
         self.props.items[p].configure(shape_id, materials, self.*);
 
@@ -255,8 +242,14 @@ pub const Scene = struct {
             var i: u32 = 0;
             while (i < num_parts) : (i += 1) {
                 try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
-                try self.light_ids.append(alloc, prp.Null);
+                try self.light_ids.append(alloc, Prop.Null);
             }
+        }
+
+        if (shape_inst.isFinite()) {
+            try self.finite_props.append(alloc, p);
+        } else {
+            try self.infinite_props.append(alloc, p);
         }
 
         return p;
@@ -305,7 +298,7 @@ pub const Scene = struct {
     pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
         const f = self.prop_frames.items[entity];
 
-        if (prp.Null == f) {
+        if (Prop.Null == f) {
             return self.prop_world_transformations.items[entity];
         }
 
@@ -339,7 +332,7 @@ pub const Scene = struct {
         }
 
         const pt = &self.prop_topology.items[parent_id];
-        if (prp.Null == pt.child) {
+        if (Prop.Null == pt.child) {
             pt.child = child_id;
         } else {
             self.prop_topology.items[self.prop_topology.items.len - 2].next = child_id;
@@ -362,7 +355,7 @@ pub const Scene = struct {
     }
 
     pub fn propHasAnimatedFrames(self: Scene, entity: u32) bool {
-        return prp.Null != self.prop_frames.items[entity];
+        return Prop.Null != self.prop_frames.items[entity];
     }
 
     pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]math.Transformation) void {
@@ -492,7 +485,7 @@ pub const Scene = struct {
         const p = self.prop_parts.items[entity] + part;
         const light_id = self.light_ids.items[p];
 
-        if (prp.Null == light_id) {
+        if (Prop.Null == light_id) {
             return 1.0;
         }
 
@@ -510,7 +503,7 @@ pub const Scene = struct {
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
         try self.prop_parts.append(alloc, 0);
-        try self.prop_frames.append(alloc, prp.Null);
+        try self.prop_frames.append(alloc, Prop.Null);
         try self.prop_topology.append(alloc, .{});
         try self.prop_aabbs.append(alloc, .{});
 
@@ -571,7 +564,7 @@ pub const Scene = struct {
         if (self.props.items[entity].hasNoParent()) {
             const f = self.prop_frames.items[entity];
 
-            if (prp.Null != f) {
+            if (Prop.Null != f) {
                 const frames = self.keyframes.items.ptr + f;
 
                 var i: u32 = 0;
@@ -590,7 +583,7 @@ pub const Scene = struct {
 
         const shape_aabb = self.propShape(entity).aabb();
 
-        if (prp.Null == f) {
+        if (Prop.Null == f) {
             var trafo = &self.prop_world_transformations.items[entity];
 
             trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
@@ -598,7 +591,7 @@ pub const Scene = struct {
             self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
 
             var child = self.propTopology(entity).child;
-            while (prp.Null != child) {
+            while (Prop.Null != child) {
                 self.propInheritTransformation(child, trafo.*, camera_pos);
 
                 child = self.propTopology(child).next;
@@ -627,7 +620,7 @@ pub const Scene = struct {
             self.prop_aabbs.items[entity] = bounds;
 
             var child = self.propTopology(entity).child;
-            while (prp.Null != child) {
+            while (Prop.Null != child) {
                 self.propInheritTransformations(child, frames, camera_pos);
 
                 child = self.propTopology(child).next;
@@ -643,7 +636,7 @@ pub const Scene = struct {
     ) void {
         const f = self.prop_frames.items[entity];
 
-        if (prp.Null != f) {
+        if (Prop.Null != f) {
             const frames = self.keyframes.items.ptr + f;
 
             const local_animation = self.prop(entity).hasLocalAnimation();
