@@ -6,6 +6,7 @@ const Reference = @import("../../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../../bvh/builder_base.zig").Base;
 const base = @import("base");
 const math = base.math;
+const AABB = math.AABB;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -32,33 +33,61 @@ pub const BuilderSAH = struct {
     ) !void {
         try self.super.reserve(alloc, @intCast(u32, triangles.len));
 
-        var references = try alloc.alloc(Reference, triangles.len);
+        var context = ReferencesContext{
+            .references = try alloc.alloc(Reference, triangles.len),
+            .aabbs = try alloc.alloc(AABB, threads.numThreads()),
+            .triangles = triangles.ptr,
+            .vertices = &vertices,
+        };
+
+        threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len));
 
         var bounds = math.aabb.empty;
-
-        for (triangles) |t, i| {
-            const a = vertices.position(t.i[0]);
-            const b = vertices.position(t.i[1]);
-            const c = vertices.position(t.i[2]);
-
-            const min = tri.min(a, b, c);
-            const max = tri.max(a, b, c);
-
-            references[i].set(min, max, @intCast(u32, i));
-
-            bounds.bounds[0] = @minimum(bounds.bounds[0], min);
-            bounds.bounds[1] = @maximum(bounds.bounds[1], max);
+        for (context.aabbs) |b| {
+            bounds.mergeAssign(b);
         }
 
-        try self.super.split(alloc, references, bounds, threads);
+        alloc.free(context.aabbs);
 
-        try tree.data.allocateTriangles(alloc, @intCast(u32, self.super.kernel.reference_ids.items.len), vertices);
-        self.super.nodes = (try tree.allocateNodes(alloc, @intCast(u32, self.super.kernel.build_nodes.items.len))).ptr;
+        try self.super.split(alloc, context.references, bounds, threads);
+
+        try tree.data.allocateTriangles(alloc, self.super.numReferenceIds(), vertices);
+        try tree.allocateNodes(alloc, self.super.numBuildNodes());
 
         var current_triangle: u32 = 0;
         self.super.newNode();
         self.serialize(0, 0, tree, triangles, vertices, &current_triangle);
     }
+
+    const ReferencesContext = struct {
+        references: []Reference,
+        aabbs: []AABB,
+        triangles: [*]const IndexTriangle,
+        vertices: *const VertexStream,
+
+        pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            const self = @intToPtr(*ReferencesContext, context);
+
+            var bounds = math.aabb.empty;
+
+            for (self.triangles[begin..end]) |t, i| {
+                const a = self.vertices.position(t.i[0]);
+                const b = self.vertices.position(t.i[1]);
+                const c = self.vertices.position(t.i[2]);
+
+                const min = tri.min(a, b, c);
+                const max = tri.max(a, b, c);
+
+                const r = i + begin;
+                self.references[r].set(min, max, @intCast(u32, r));
+
+                bounds.bounds[0] = @minimum(bounds.bounds[0], min);
+                bounds.bounds[1] = @maximum(bounds.bounds[1], max);
+            }
+
+            self.aabbs[id] = bounds;
+        }
+    };
 
     fn serialize(
         self: *BuilderSAH,
@@ -71,7 +100,7 @@ pub const BuilderSAH = struct {
     ) void {
         const node = &self.super.kernel.build_nodes.items[source_node];
 
-        var n = &self.super.nodes[dest_node];
+        var n = &tree.nodes[dest_node];
         n.setAABB(node.aabb());
 
         if (0 == node.numIndices()) {

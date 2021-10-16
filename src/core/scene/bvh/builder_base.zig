@@ -262,8 +262,6 @@ pub const Base = struct {
     current_node: u32 = undefined,
     current_task: u32 = undefined,
 
-    nodes: [*]Node = undefined,
-
     alloc: *Allocator = undefined,
     threads: *Threads = undefined,
     tasks: *Tasks = undefined,
@@ -286,6 +284,14 @@ pub const Base = struct {
 
     pub fn deinit(self: *Base, alloc: *Allocator) void {
         self.kernel.deinit(alloc);
+    }
+
+    pub fn numReferenceIds(self: Base) u32 {
+        return @intCast(u32, self.kernel.reference_ids.items.len);
+    }
+
+    pub fn numBuildNodes(self: Base) u32 {
+        return @intCast(u32, self.kernel.build_nodes.items.len);
     }
 
     pub fn split(

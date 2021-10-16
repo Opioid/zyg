@@ -27,13 +27,11 @@ pub const Tree = struct {
         alloc.free(self.nodes[0..self.num_nodes]);
     }
 
-    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) ![*]Node {
+    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) !void {
         if (num_nodes != self.num_nodes) {
             self.nodes = (try alloc.realloc(self.nodes[0..self.num_nodes], num_nodes)).ptr;
             self.num_nodes = num_nodes;
         }
-
-        return self.nodes;
     }
 
     pub fn allocateIndices(self: *Tree, alloc: *Allocator, num_indices: u32) !void {

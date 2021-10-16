@@ -53,8 +53,8 @@ pub const Builder = struct {
 
         try self.super.split(alloc, references, bounds, threads);
 
-        try tree.allocateIndices(alloc, @intCast(u32, self.super.kernel.reference_ids.items.len));
-        self.super.nodes = try tree.allocateNodes(alloc, @intCast(u32, self.super.kernel.build_nodes.items.len));
+        try tree.allocateIndices(alloc, self.super.numReferenceIds());
+        try tree.allocateNodes(alloc, self.super.numBuildNodes());
 
         var current_prop: u32 = 0;
         self.super.newNode();
@@ -70,7 +70,7 @@ pub const Builder = struct {
     ) void {
         const node = &self.super.kernel.build_nodes.items[source_node];
 
-        var n = &self.super.nodes[dest_node];
+        var n = &tree.nodes[dest_node];
         n.setAABB(node.aabb());
 
         if (0 == node.numIndices()) {
