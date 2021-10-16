@@ -24,9 +24,9 @@ pub const ComposedTransformation = struct {
     pub fn prepare(self: *Self, t: Transformation) void {
         self.rotation = quaternion.toMat3x3(t.rotation);
 
-        self.rotation.setElem(0, 3, t.scale[0]);
-        self.rotation.setElem(1, 3, t.scale[1]);
-        self.rotation.setElem(2, 3, t.scale[2]);
+        self.rotation.r[0][3] = t.scale[0];
+        self.rotation.r[1][3] = t.scale[1];
+        self.rotation.r[2][3] = t.scale[2];
 
         self.position = t.position;
     }
@@ -38,19 +38,19 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn scaleX(self: Self) f32 {
-        return self.rotation.m(0, 3);
+        return self.rotation.r[0][3];
     }
 
     pub fn scaleY(self: Self) f32 {
-        return self.rotation.m(1, 3);
+        return self.rotation.r[1][3];
     }
 
     pub fn scaleZ(self: Self) f32 {
-        return self.rotation.m(2, 3);
+        return self.rotation.r[2][3];
     }
 
     pub fn scale(self: Self) Vec4f {
-        return .{ self.rotation.m(0, 3), self.rotation.m(1, 3), self.rotation.m(2, 3), 0.0 };
+        return .{ self.rotation.r[0][3], self.rotation.r[1][3], self.rotation.r[2][3], 0.0 };
     }
 
     pub fn objectToWorld(self: Self) Mat4x4 {
@@ -59,9 +59,9 @@ pub const ComposedTransformation = struct {
 
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
         const s = Vec4f{
-            self.rotation.m(0, 3),
-            self.rotation.m(1, 3),
-            self.rotation.m(2, 3),
+            self.rotation.r[0][3],
+            self.rotation.r[1][3],
+            self.rotation.r[2][3],
             0.0,
         };
 

@@ -46,25 +46,17 @@ pub const Mat3x3 = struct {
         return init9(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
     }
 
-    pub fn m(self: Mat3x3, y: u32, x: u32) f32 {
-        return self.r[y][x];
-    }
-
-    pub fn setElem(self: *Mat3x3, y: u32, x: u32, s: f32) void {
-        self.r[y][x] = s;
-    }
-
     pub fn mul(a: Mat3x3, b: Mat3x3) Mat3x3 {
         return init9(
-            a.m(0, 0) * b.m(0, 0) + a.m(0, 1) * b.m(1, 0) + a.m(0, 2) * b.m(2, 0),
-            a.m(0, 0) * b.m(0, 1) + a.m(0, 1) * b.m(1, 1) + a.m(0, 2) * b.m(2, 1),
-            a.m(0, 0) * b.m(0, 2) + a.m(0, 1) * b.m(1, 2) + a.m(0, 2) * b.m(2, 2),
-            a.m(1, 0) * b.m(0, 0) + a.m(1, 1) * b.m(1, 0) + a.m(1, 2) * b.m(2, 0),
-            a.m(1, 0) * b.m(0, 1) + a.m(1, 1) * b.m(1, 1) + a.m(1, 2) * b.m(2, 1),
-            a.m(1, 0) * b.m(0, 2) + a.m(1, 1) * b.m(1, 2) + a.m(1, 2) * b.m(2, 2),
-            a.m(2, 0) * b.m(0, 0) + a.m(2, 1) * b.m(1, 0) + a.m(2, 2) * b.m(2, 0),
-            a.m(2, 0) * b.m(0, 1) + a.m(2, 1) * b.m(1, 1) + a.m(2, 2) * b.m(2, 1),
-            a.m(2, 0) * b.m(0, 2) + a.m(2, 1) * b.m(1, 2) + a.m(2, 2) * b.m(2, 2),
+            a.r[0][0] * b.r[0][0] + a.r[0][1] * b.r[1][0] + a.r[0][2] * b.r[2][0],
+            a.r[0][0] * b.r[0][1] + a.r[0][1] * b.r[1][1] + a.r[0][2] * b.r[2][1],
+            a.r[0][0] * b.r[0][2] + a.r[0][1] * b.r[1][2] + a.r[0][2] * b.r[2][2],
+            a.r[1][0] * b.r[0][0] + a.r[1][1] * b.r[1][0] + a.r[1][2] * b.r[2][0],
+            a.r[1][0] * b.r[0][1] + a.r[1][1] * b.r[1][1] + a.r[1][2] * b.r[2][1],
+            a.r[1][0] * b.r[0][2] + a.r[1][1] * b.r[1][2] + a.r[1][2] * b.r[2][2],
+            a.r[2][0] * b.r[0][0] + a.r[2][1] * b.r[1][0] + a.r[2][2] * b.r[2][0],
+            a.r[2][0] * b.r[0][1] + a.r[2][1] * b.r[1][1] + a.r[2][2] * b.r[2][1],
+            a.r[2][0] * b.r[0][2] + a.r[2][1] * b.r[1][2] + a.r[2][2] * b.r[2][2],
         );
     }
 
@@ -87,10 +79,14 @@ pub const Mat3x3 = struct {
     }
 
     pub fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
+        const x = v * self.r[0];
+        const y = v * self.r[1];
+        const z = v * self.r[2];
+
         return .{
-            v[0] * self.m(0, 0) + v[1] * self.m(0, 1) + v[2] * self.m(0, 2),
-            v[0] * self.m(1, 0) + v[1] * self.m(1, 1) + v[2] * self.m(1, 2),
-            v[0] * self.m(2, 0) + v[1] * self.m(2, 1) + v[2] * self.m(2, 2),
+            x[0] + x[1] + x[2],
+            y[0] + y[1] + y[2],
+            z[0] + z[1] + z[2],
             0.0,
         };
     }

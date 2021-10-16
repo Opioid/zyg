@@ -38,10 +38,14 @@ pub const Layer = struct {
     }
 
     pub fn worldToTangent(self: Layer, v: Vec4f) Vec4f {
+        const t = v * self.t;
+        const b = v * self.b;
+        const n = v * self.n;
+
         return .{
-            v[0] * self.t[0] + v[1] * self.t[1] + v[2] * self.t[2],
-            v[0] * self.b[0] + v[1] * self.b[1] + v[2] * self.b[2],
-            v[0] * self.n[0] + v[1] * self.n[1] + v[2] * self.n[2],
+            t[0] + t[1] + t[2],
+            b[0] + b[1] + b[2],
+            n[0] + n[1] + n[2],
             0.0,
         };
     }
