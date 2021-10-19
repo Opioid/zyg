@@ -32,7 +32,7 @@ pub const Srgb = struct {
     pub fn toSrgb(self: *Srgb, image: *const Float4, threads: *Threads) void {
         self.image = image;
 
-        threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.numPixels()));
+        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.numPixels()));
     }
 
     fn toSrgbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {

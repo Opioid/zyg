@@ -77,8 +77,8 @@ pub const Pool = struct {
         self.runParallelInt(@ptrToInt(context), program, num_tasks_hint);
     }
 
-    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
-        self.runRangeInt(@ptrToInt(context), program, begin, end);
+    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) usize {
+        return self.runRangeInt(@ptrToInt(context), program, begin, end);
     }
 
     fn runParallelInt(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
@@ -90,13 +90,15 @@ pub const Pool = struct {
         self.waitAll(num);
     }
 
-    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) void {
+    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) usize {
         self.context = context;
         self.program = .{ .Range = program };
 
         const num = self.wakeAllRange(begin, end);
 
         self.waitAll(num);
+
+        return num;
     }
 
     fn wakeAll(self: *Pool, num_tasks_hint: u32) usize {

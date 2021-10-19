@@ -6,7 +6,6 @@ const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
-const smplhlp = @import("../sample_helper.zig");
 const ggx = @import("../ggx.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 const math = @import("base").math;
@@ -85,7 +84,7 @@ pub const Material = struct {
             const n_dot_t = @sqrt(1.0 - sint2);
             const f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
 
-            const n_dot_wi = smplhlp.clamp(n_dot_wo);
+            const n_dot_wi = hlp.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.super.cc.a, approx_dist);

@@ -193,7 +193,7 @@ const Kernel = struct {
             self.aabb_surface_area = aabb_surface_area;
             self.references = references;
 
-            threads.runRange(self, evaluateRange, 0, @intCast(u32, self.split_candidates.items.len));
+            _ = threads.runRange(self, evaluateRange, 0, @intCast(u32, self.split_candidates.items.len));
         }
 
         var sc: usize = 0;

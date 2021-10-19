@@ -40,10 +40,10 @@ pub const BuilderSAH = struct {
             .vertices = &vertices,
         };
 
-        threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len));
+        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len));
 
         var bounds = math.aabb.empty;
-        for (context.aabbs) |b| {
+        for (context.aabbs[0..num]) |b| {
             bounds.mergeAssign(b);
         }
 
