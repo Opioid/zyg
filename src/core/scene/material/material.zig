@@ -154,7 +154,7 @@ pub const Material = union(enum) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |g| .{ .Glass = g.sample(wo, rs, worker) },
             .Light => |l| .{ .Light = l.sample(wo, rs, worker) },
-            .Substitute => |s| .{ .Substitute = s.sample(wo, rs, worker) },
+            .Substitute => |s| s.sample(wo, rs, worker),
             .Volumetric => |v| v.sample(wo, rs),
         };
     }

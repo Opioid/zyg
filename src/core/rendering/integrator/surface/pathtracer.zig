@@ -85,6 +85,7 @@ pub const Pathtracer = struct {
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
+        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -93,7 +94,18 @@ pub const Pathtracer = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
-            const mat_sample = isec.sample(wo, ray.*, filter, avoid_caustics, &worker.super);
+            const mat_sample = worker.super.sampleMaterial(
+                ray.*,
+                wo,
+                wo1,
+                isec.*,
+                filter,
+                0.0,
+                avoid_caustics,
+                from_subsurface,
+            );
+
+            wo1 = wo;
 
             if (mat_sample.super().sameHemisphere(wo)) {
                 result += throughput * mat_sample.super().radiance;

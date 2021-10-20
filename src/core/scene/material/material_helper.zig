@@ -42,3 +42,14 @@ pub fn sampleNormalUV(
 
     return n;
 }
+
+pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+    // Veach's compensation for "Non-symmetry due to shading normals".
+    // See e.g. CorrectShadingNormal() at:
+    // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
+
+    const numer = @fabs(math.dot3(wo, geo_n) * math.dot3(wi, n));
+    const denom = std.math.max(@fabs(math.dot3(wo, n) * math.dot3(wi, geo_n)), hlp.Dot_min);
+
+    return std.math.min(numer / denom, 8.0);
+}

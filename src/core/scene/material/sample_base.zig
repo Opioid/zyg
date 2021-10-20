@@ -128,6 +128,18 @@ pub const SampleBase = struct {
         };
     }
 
+    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, alpha: f32) SampleBase {
+        return .{
+            .geo_n = geo_n,
+            .n = n,
+            .wo = wo,
+            .albedo = @splat(4, @as(f32, 0.0)),
+            .radiance = @splat(4, @as(f32, 0.0)),
+            .alpha = @splat(2, alpha),
+            .properties = .{},
+        };
+    }
+
     pub fn geometricNormal(self: Self) Vec4f {
         return self.geo_n;
     }

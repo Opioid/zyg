@@ -236,7 +236,8 @@ pub const Provider = struct {
         var mask = Texture{};
         var normal_map = Texture{};
 
-        var two_sided = false;
+        var attenuation_color = @splat(4, @as(f32, 0.0));
+        var subsurface_color = @splat(4, @as(f32, 0.0));
 
         var metallic: f32 = 0.0;
         var ior: f32 = 1.46;
@@ -244,8 +245,11 @@ pub const Provider = struct {
         var emission_factor: f32 = 1.0;
         var thickness: f32 = 0.0;
         var attenuation_distance: f32 = 0.0;
+        var volumetric_anisotropy: f32 = 0.0;
 
         var coating: CoatingDescription = .{};
+
+        var two_sided = false;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
@@ -265,6 +269,10 @@ pub const Provider = struct {
                 const eta_k = metal.iorAndAbsorption(entry.value_ptr.String);
                 color.value = fresnel.conductor(eta_k[0], eta_k[1], 1.0);
                 metallic = 1.0;
+            } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
+                attenuation_color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
+                subsurface_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
                 rotation.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
@@ -281,6 +289,8 @@ pub const Provider = struct {
                 thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "volumetric_anisotropy", entry.key_ptr.*)) {
+                volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "coating", entry.key_ptr.*)) {
@@ -305,6 +315,13 @@ pub const Provider = struct {
         material.super.ior = ior;
         material.metallic = metallic;
         material.setTranslucency(thickness, attenuation_distance);
+
+        material.super.setVolumetric(
+            attenuation_color,
+            subsurface_color,
+            attenuation_distance,
+            volumetric_anisotropy,
+        );
 
         if (coating.thickness.texture.isValid() or coating.thickness.value > 0.0) {
             material.coating.normal_map = coating.normal_map;

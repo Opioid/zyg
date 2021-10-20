@@ -3,7 +3,9 @@ const SampleCoating = @import("coating.zig").Coating;
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const fresnel = @import("../fresnel.zig");
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("../sample.zig").Sample;
+const Surface = @import("sample.zig").Sample;
+const Volumetric = @import("../volumetric/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
@@ -93,6 +95,11 @@ pub const Material = struct {
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+        if (rs.subsurface) {
+            const g = self.super.volumetric_anisotropy;
+            return .{ .Volumetric = Volumetric.init(wo, rs, g) };
+        }
+
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
         const color = if (self.super.color_map.isValid()) ts.sample2D_3(
@@ -142,16 +149,21 @@ pub const Material = struct {
             coating_ior = self.coating.ior;
         }
 
+        const ior = self.super.ior;
+
         const ior_outside = if (coating_thickness > 0.0) coating_ior else rs.ior();
 
-        var result = Sample.init(
+        var result = Surface.init(
             rs,
             wo,
             color,
             radiance,
             alpha,
-            fresnel.Schlick.F0(self.super.ior, ior_outside),
+            fresnel.Schlick.F0(ior, ior_outside),
             metallic,
+            ior,
+            ior_outside,
+            self.attenuation_distance > 0.0,
         );
 
         if (self.normal_map.isValid()) {
@@ -191,7 +203,7 @@ pub const Material = struct {
             result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
         }
 
-        return result;
+        return Sample{ .Substitute = result };
     }
 
     pub fn evaluateRadiance(

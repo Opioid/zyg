@@ -3,6 +3,7 @@ const Worker = @import("../worker.zig").Worker;
 const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
+const fresnel = @import("fresnel.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -66,9 +67,12 @@ pub const Base = struct {
         anisotropy: f32,
     ) void {
         const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
-        self.cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, anisotropy);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, anisotropy);
+
+        self.cc = cc;
         self.attenuation_distance = distance;
         self.volumetric_anisotropy = aniso;
+        self.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.cc.s));
     }
 
     pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
@@ -79,6 +83,12 @@ pub const Base = struct {
         }
 
         return 1.0;
+    }
+
+    pub fn border(self: Base, wi: Vec4f, n: Vec4f) f32 {
+        const f0 = fresnel.Schlick.F0(self.ior, 1.0);
+        const n_dot_wi = std.math.max(math.dot3(n, wi), 0.0);
+        return 1.0 - fresnel.schlick1(n_dot_wi, f0);
     }
 
     pub fn vanDeHulstAnisotropy(self: Base, depth: u32) f32 {

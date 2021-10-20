@@ -60,3 +60,30 @@ pub const Iso = struct {
         return @splat(4, a * b * energy_factor * math.pi_inv) * color;
     }
 };
+
+pub const IsoNoLambert = struct {
+    pub fn reflection(
+        h_dot_wi: f32,
+        n_dot_wi: f32,
+        n_dot_wo: f32,
+        alpha: f32,
+        color: Vec4f,
+    ) bxdf.Result {
+        const refl = evaluate(h_dot_wi, n_dot_wi, n_dot_wo, alpha, color);
+
+        const pdf = n_dot_wi * math.pi_inv;
+
+        return bxdf.Result.init(refl, pdf);
+    }
+
+    fn evaluate(h_dot_wi: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, color: Vec4f) Vec4f {
+        const energy_factor = math.lerp(1.0, 1.0 / 1.53, alpha);
+
+        const fl = math.pow5(1.0 - n_dot_wi);
+        const fv = math.pow5(1.0 - n_dot_wo);
+        const rr = energy_factor * (2.0 * alpha) * (h_dot_wi * h_dot_wi);
+
+        // only the retro-reflection
+        return @splat(4, rr * ((fl + fv) + (fl * fv) * (rr - 1.0)) * math.pi_inv) * color;
+    }
+};

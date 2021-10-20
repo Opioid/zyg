@@ -26,7 +26,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s));
+        _ = self;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate) Sample {
