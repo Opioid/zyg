@@ -49,7 +49,8 @@ pub const Scene = struct {
 
     bvh_builder: PropBvhBuilder = undefined,
 
-    prop_tree: PropBvh = .{},
+    prop_bvh: PropBvh = .{},
+    volume_bvh: PropBvh = .{},
 
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
@@ -74,7 +75,10 @@ pub const Scene = struct {
     finite_props: ALU(u32),
     infinite_props: ALU(u32),
 
+    volumes: ALU(u32),
+
     has_tinted_shadow: bool = undefined,
+    has_volumes: bool = undefined,
 
     pub fn init(
         alloc: *Allocator,
@@ -104,13 +108,16 @@ pub const Scene = struct {
             .animations = try ALU(Animation).initCapacity(alloc, Num_reserved_props),
             .finite_props = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try ALU(u32).initCapacity(alloc, 3),
+            .volumes = try ALU(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
-        self.prop_tree.deinit(alloc);
+        self.prop_bvh.deinit(alloc);
+        self.volume_bvh.deinit(alloc);
         self.bvh_builder.deinit(alloc);
 
+        self.volumes.deinit(alloc);
         self.infinite_props.deinit(alloc);
         self.finite_props.deinit(alloc);
 
@@ -136,7 +143,7 @@ pub const Scene = struct {
     }
 
     pub fn aabb(self: Scene) AABB {
-        return self.prop_tree.aabb();
+        return self.prop_bvh.aabb();
     }
 
     pub fn simulate(
@@ -176,9 +183,17 @@ pub const Scene = struct {
             self.has_tinted_shadow = self.has_tinted_shadow or p.hasTintedShadow();
         }
 
+        for (self.volumes.items) |v| {
+            self.props.items[v].setVisibleInShadow(false);
+        }
+
         // rebuild prop BVH_builder
-        try self.bvh_builder.build(alloc, &self.prop_tree, self.finite_props.items, self.prop_aabbs.items, threads);
-        self.prop_tree.setProps(self.infinite_props.items, self.props.items);
+        try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
+        self.prop_bvh.setProps(self.infinite_props.items, self.props.items);
+
+        // rebuild volume BVH
+        try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
+        self.volume_bvh.setProps(&.{}, self.props.items);
 
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
@@ -189,22 +204,28 @@ pub const Scene = struct {
         }
 
         try self.light_distribution.configure(alloc, self.light_temp_powers, 0);
+
+        self.has_volumes = self.volumes.items.len > 0;
     }
 
     pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
-        return self.prop_tree.intersect(ray, worker, ipo, isec);
+        return self.prop_bvh.intersect(ray, worker, ipo, isec);
+    }
+
+    pub fn intersectVolume(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+        return self.volume_bvh.intersect(ray, worker, .NoTangentSpace, isec);
     }
 
     pub fn intersectP(self: Scene, ray: Ray, worker: *Worker) bool {
-        return self.prop_tree.intersectP(ray, worker);
+        return self.prop_bvh.intersectP(ray, worker);
     }
 
     pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.has_tinted_shadow) {
-            return self.prop_tree.visibility(ray, filter, worker);
+            return self.prop_bvh.visibility(ray, filter, worker);
         }
 
-        if (self.prop_tree.intersectP(ray, worker)) {
+        if (self.prop_bvh.intersectP(ray, worker)) {
             return null;
         }
 
@@ -250,6 +271,13 @@ pub const Scene = struct {
             try self.finite_props.append(alloc, p);
         } else {
             try self.infinite_props.append(alloc, p);
+        }
+
+        // Shape has no surface
+        if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
+            if (shape_inst.isFinite()) {
+                try self.volumes.append(alloc, p);
+            }
         }
 
         return p;

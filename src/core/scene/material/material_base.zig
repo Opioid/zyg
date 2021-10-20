@@ -33,13 +33,14 @@ pub const Base = struct {
         TwoSided = 1 << 0,
         EmissionMap = 1 << 1,
         ScatteringVolume = 1 << 2,
+        HeterogeneousVolume = 1 << 3,
     };
 
     properties: Flags(Property),
 
     sampler_key: ts.Key,
 
-    mask: Texture = undefined,
+    mask: Texture = .{},
     color_map: Texture = .{},
 
     cc: CC = undefined,
@@ -78,5 +79,10 @@ pub const Base = struct {
         }
 
         return 1.0;
+    }
+
+    pub fn vanDeHulstAnisotropy(self: Base, depth: u32) f32 {
+        _ = depth;
+        return self.volumetric_anisotropy;
     }
 };

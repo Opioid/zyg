@@ -1,10 +1,14 @@
 const Result = @import("result.zig").Result;
+const tracking = @import("tracking.zig");
 const Ray = @import("../../../scene/ray.zig").Ray;
-const Worker = @import("../../worker.zig").Worker;
+const Worker = @import("../../../scene/worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const scn = @import("../../../scene/constants.zig");
+const math = @import("base").math;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -16,7 +20,7 @@ pub const Multi = struct {
         filter: ?Filter,
         worker: *Worker,
     ) Result {
-        if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+        if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
@@ -24,7 +28,7 @@ pub const Multi = struct {
             };
         }
 
-        const interface = worker.super.interface_stack.top();
+        const interface = worker.interface_stack.top();
 
         const d = ray.ray.maxT();
 
@@ -37,7 +41,7 @@ pub const Multi = struct {
         } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {}
 
         if (missed) {
-            worker.super.interface_stack.pop();
+            worker.interface_stack.pop();
 
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
@@ -46,11 +50,11 @@ pub const Multi = struct {
             };
         }
 
-        const material = interface.material(worker.super);
+        const material = interface.material(worker.*);
 
         if (!material.isScatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(interface.uv, filter, worker.super).a;
+            const mu_a = material.collisionCoefficients(interface.uv, filter, worker.*).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -58,11 +62,30 @@ pub const Multi = struct {
             };
         }
 
-        return .{
-            .li = @splat(4, @as(f32, 0.0)),
-            .tr = @splat(4, @as(f32, 1.0)),
-            .event = .Abort,
-        };
+        if (material.isHeterogeneousVolume()) {
+            return .{
+                .li = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
+                .event = .Abort,
+            };
+        }
+
+        const mu = material.super().cc;
+
+        var result = tracking.tracking(ray.ray, mu, &worker.rng);
+        if (.Scatter == result.event) {
+            setScattering(isec, interface, ray.ray.point(result.t));
+        }
+
+        return result;
+    }
+
+    fn setScattering(isec: *Intersection, interface: Interface, p: Vec4f) void {
+        isec.prop = interface.prop;
+        isec.geo.p = p;
+        isec.geo.uv = interface.uv;
+        isec.geo.part = interface.part;
+        isec.subsurface = true;
     }
 };
 

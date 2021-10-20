@@ -115,7 +115,7 @@ pub const Tree = struct {
         }
 
         isec.prop = prop;
-
+        isec.subsurface = false;
         return hit;
     }
 

@@ -63,6 +63,13 @@ pub fn sphereUniform(uv: Vec2f) Vec4f {
     return .{ cos_phi * r, sin_phi * r, z, 0.0 };
 }
 
+pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+    const sin_phi = @sin(phi);
+    const cos_phi = @cos(phi);
+
+    return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
+}
+
 pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const cos_theta = (1.0 - uv[0]) + (uv[0] * cos_theta_max);
     const sin_theta = @sqrt(1.0 - cos_theta * cos_theta);

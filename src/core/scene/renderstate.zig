@@ -14,9 +14,11 @@ pub const Renderstate = struct {
     prop: u32 = undefined,
     part: u32 = undefined,
     primitive: u32 = undefined,
+    depth: u32 = undefined,
 
     filter: ?Filter = undefined,
 
+    subsurface: bool = undefined,
     avoid_caustics: bool = undefined,
 
     pub fn tangentToWorld3(self: Renderstate, v: Vec4f) Vec4f {

@@ -81,6 +81,7 @@ pub const Pathtracer = struct {
 
     fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         var primary_ray = true;
+        var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -134,6 +135,8 @@ pub const Pathtracer = struct {
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi);
+
+                from_subsurface = false;
             }
 
             ray.ray.setMaxT(scn.Ray_max_t);
@@ -143,6 +146,8 @@ pub const Pathtracer = struct {
             if (sample_result.typef.is(.Transmission)) {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
+
+            from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
                 const vr = worker.volume(ray, isec, filter);

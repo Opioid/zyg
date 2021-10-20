@@ -3,6 +3,7 @@ const Scene = @import("../scene/scene.zig").Scene;
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const ro = @import("../scene/ray_offset.zig");
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const SceneWorker = @import("../scene/worker.zig").Worker;
@@ -127,13 +128,84 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        _ = wo;
-        _ = isec;
+        if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
+            if (self.transmittance(ray.*, filter)) |b| {
+                return a * b;
+            }
+        }
 
-        return self.super.visibility(ray.*, filter);
+        return null;
     }
 
     pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter) VolumeResult {
         return self.volume_integrator.integrate(ray, isec, filter, self);
+    }
+
+    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
+        if (!self.super.scene.has_volumes) {
+            return @splat(4, @as(f32, 1.0));
+        }
+
+        self.super.interface_stack.copy(&self.super.interface_stack_temp);
+
+        // This is the typical SSS case:
+        // A medium is on the stack but we already considered it during shadow calculation,
+        // ignoring the IoR. Therefore remove the medium from the stack.
+        if (!self.super.interface_stack.straight(self.super)) {
+            self.super.interface_stack.pop();
+        }
+
+        const ray_max_t = ray.ray.maxT();
+        var tray = ray;
+
+        var isec: Intersection = undefined;
+
+        var w = @splat(4, @as(f32, 1.0));
+
+        while (true) {
+            const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
+
+            if (!self.super.interface_stack.empty()) {
+                if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
+                    w *= tr;
+                } else {
+                    return null;
+                }
+            }
+
+            if (!hit) {
+                break;
+            }
+
+            if (isec.sameHemisphere(tray.ray.direction)) {
+                _ = self.super.interface_stack.remove(isec);
+            } else {
+                self.super.interface_stack.push(isec);
+            }
+
+            tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
+            tray.ray.setMaxT(ray_max_t);
+
+            if (tray.ray.minT() > tray.ray.maxT()) {
+                break;
+            }
+        }
+
+        self.super.interface_stack.swap(&self.super.interface_stack_temp);
+
+        return w;
+    }
+
+    fn subsurfaceVisibility(
+        self: *Worker,
+        ray: *Ray,
+        wo: Vec4f,
+        isec: Intersection,
+        filter: ?Filter,
+    ) ?Vec4f {
+        _ = wo;
+        _ = isec;
+
+        return self.super.visibility(ray.*, filter);
     }
 };

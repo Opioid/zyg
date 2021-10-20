@@ -63,6 +63,10 @@ pub const Prop = struct {
         return self.properties.is(.TintedShadow);
     }
 
+    pub fn setVisibleInShadow(self: *Prop, value: bool) void {
+        self.properties.set(.VisibleInShadow, value);
+    }
+
     pub fn setVisibility(self: *Prop, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
         self.properties.set(.VisibleInCamera, in_camera);
         self.properties.set(.VisibleInReflection, in_reflection);

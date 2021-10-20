@@ -2,6 +2,7 @@ pub const Debug = @import("debug/material.zig").Material;
 pub const Glass = @import("glass/material.zig").Material;
 pub const Light = @import("light/material.zig").Material;
 pub const Substitute = @import("substitute/material.zig").Material;
+pub const Volumetric = @import("volumetric/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 const Base = @import("material_base.zig").Base;
 const ccoef = @import("collision_coefficients.zig");
@@ -26,6 +27,7 @@ pub const Material = union(enum) {
     Glass: Glass,
     Light: Light,
     Substitute: Substitute,
+    Volumetric: Volumetric,
 
     pub fn deinit(self: *Material, alloc: *Allocator) void {
         switch (self.*) {
@@ -40,6 +42,7 @@ pub const Material = union(enum) {
             .Glass => |m| m.super,
             .Light => |m| m.super,
             .Substitute => |m| m.super,
+            .Volumetric => |m| m.super,
         };
     }
 
@@ -47,6 +50,7 @@ pub const Material = union(enum) {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
+            .Volumetric => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
             else => {},
         }
@@ -119,11 +123,14 @@ pub const Material = union(enum) {
 
     pub fn isScatteringVolume(self: Material) bool {
         return switch (self) {
-            .Substitute => |m| {
-                return m.super.properties.is(.ScatteringVolume);
-            },
+            .Substitute => |m| m.super.properties.is(.ScatteringVolume),
+            .Volumetric => |m| m.super.properties.is(.ScatteringVolume),
             else => false,
         };
+    }
+
+    pub fn isHeterogeneousVolume(self: Material) bool {
+        return self.super().properties.is(.HeterogeneousVolume);
     }
 
     pub fn ior(self: Material) f32 {
@@ -148,6 +155,7 @@ pub const Material = union(enum) {
             .Glass => |g| .{ .Glass = g.sample(wo, rs, worker) },
             .Light => |l| .{ .Light = l.sample(wo, rs, worker) },
             .Substitute => |s| .{ .Substitute = s.sample(wo, rs, worker) },
+            .Volumetric => |v| v.sample(wo, rs),
         };
     }
 

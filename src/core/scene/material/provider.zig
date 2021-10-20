@@ -111,6 +111,8 @@ pub const Provider = struct {
                     return try self.loadLight(alloc, entry.value_ptr.*, resources);
                 } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
                     return try self.loadSubstitute(alloc, entry.value_ptr.*, resources);
+                } else if (std.mem.eql(u8, "Volumetric", entry.key_ptr.*)) {
+                    return try self.loadVolumetric(alloc, entry.value_ptr.*, resources);
                 }
             }
         }
@@ -314,6 +316,58 @@ pub const Provider = struct {
         }
 
         return Material{ .Substitute = material };
+    }
+
+    fn loadVolumetric(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+        _ = self;
+        _ = alloc;
+        _ = resources;
+
+        var sampler_key = ts.Key{};
+
+        var color = @splat(4, @as(f32, 5.0));
+
+        var attenuation_color = @splat(4, @as(f32, 1.0));
+        var subsurface_color = @splat(4, @as(f32, 0.0));
+
+        var use_attenuation_color = false;
+        var use_subsurface_color = false;
+
+        var attenuation_distance: f32 = 1.0;
+        var anisotropy: f32 = 0.0;
+
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+                sampler_key = readSamplerKey(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
+                color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
+                attenuation_color = readColor(entry.value_ptr.*);
+                use_attenuation_color = true;
+            } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
+                subsurface_color = readColor(entry.value_ptr.*);
+                use_subsurface_color = true;
+            } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
+                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
+                anisotropy = json.readFloat(f32, entry.value_ptr.*);
+            }
+        }
+
+        if (!use_attenuation_color) {
+            attenuation_color = color;
+        }
+
+        if (!use_subsurface_color) {
+            subsurface_color = color;
+        }
+
+        var material = mat.Volumetric.init(sampler_key);
+
+        material.super.setVolumetric(attenuation_color, subsurface_color, attenuation_distance, anisotropy);
+
+        return Material{ .Volumetric = material };
     }
 };
 

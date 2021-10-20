@@ -1,7 +1,9 @@
 const Debug = @import("debug/sample.zig").Sample;
 const Glass = @import("glass/sample.zig").Sample;
 const Light = @import("light/sample.zig").Sample;
+const Null = @import("null/sample.zig").Sample;
 const Substitute = @import("substitute/sample.zig").Sample;
+const Volumetric = @import("volumetric/sample.zig").Sample;
 const Base = @import("sample_base.zig").SampleBase;
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -18,7 +20,9 @@ pub const Sample = union(enum) {
     Debug: Debug,
     Glass: Glass,
     Light: Light,
+    Null: Null,
     Substitute: Substitute,
+    Volumetric: Volumetric,
 
     pub fn deinit(self: *Sample, alloc: *Allocator) void {
         _ = self;
@@ -30,7 +34,9 @@ pub const Sample = union(enum) {
             .Debug => |d| d.super,
             .Glass => |g| g.super,
             .Light => |l| l.super,
+            .Null => |n| n.super,
             .Substitute => |s| s.super,
+            .Volumetric => |v| v.super,
         };
     }
 
@@ -53,17 +59,20 @@ pub const Sample = union(enum) {
         return switch (self) {
             .Debug => |s| s.evaluate(wi),
             .Glass => |s| s.evaluate(wi),
-            .Light => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 1.0),
+            .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),
             .Substitute => |s| s.evaluate(wi),
+            .Volumetric => |v| v.evaluate(wi),
         };
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         return switch (self) {
-            .Debug => |s| s.sample(sampler, rng),
-            .Glass => |s| s.sample(sampler, rng),
+            .Debug => |m| m.sample(sampler, rng),
+            .Glass => |m| m.sample(sampler, rng),
             .Light => Light.sample(),
-            .Substitute => |s| s.sample(sampler, rng),
+            .Null => |m| m.sample(),
+            .Substitute => |m| m.sample(sampler, rng),
+            .Volumetric => |m| m.sample(sampler, rng),
         };
     }
 };

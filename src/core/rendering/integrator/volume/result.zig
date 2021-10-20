@@ -6,5 +6,6 @@ pub const Event = enum { Absorb, Scatter, Pass, Abort };
 pub const Result = struct {
     li: Vec4f,
     tr: Vec4f,
+    t: f32 = undefined,
     event: Event,
 };

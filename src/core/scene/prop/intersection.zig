@@ -11,8 +11,8 @@ const Vec4f = math.Vec4f;
 
 pub const Intersection = struct {
     geo: shp.Intersection = undefined,
-
     prop: u32 = undefined,
+    subsurface: bool = undefined,
 
     const Self = @This();
 
@@ -44,8 +44,6 @@ pub const Intersection = struct {
         avoid_caustics: bool,
         worker: *Worker,
     ) mat.Sample {
-        _ = ray;
-
         const m = self.material(worker.*);
         const p = self.geo.p;
 
@@ -66,7 +64,9 @@ pub const Intersection = struct {
         rs.prop = self.prop;
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
+        rs.depth = ray.depth;
         rs.filter = filter;
+        rs.subsurface = self.subsurface;
         rs.avoid_caustics = avoid_caustics;
 
         return m.sample(wo, rs, worker);

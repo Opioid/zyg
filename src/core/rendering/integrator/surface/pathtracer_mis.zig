@@ -183,6 +183,8 @@ pub const PathtracerMIS = struct {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
+            state.orSet(.FromSubsurface, isec.subsurface);
+
             if (sample_result.typef.is(.Straight) and state.no(.TreatAsSingular)) {
                 sample_result.pdf = effective_bxdf_pdf;
             } else {

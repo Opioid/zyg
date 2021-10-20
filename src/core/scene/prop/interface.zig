@@ -44,6 +44,14 @@ pub const Stack = struct {
         std.mem.copy(Interface, other.stack[0..index], self.stack[0..index]);
     }
 
+    pub fn swap(self: *Stack, other: *Stack) void {
+        const temp = self.stack;
+        self.stack = other.stack;
+        self.index = other.index;
+
+        other.stack = temp;
+    }
+
     pub fn empty(self: Stack) bool {
         return 0 == self.index;
     }

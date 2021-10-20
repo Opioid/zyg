@@ -227,6 +227,18 @@ pub fn indexMaxComponent3(v: Vec4f) u32 {
     return if (v[1] > v[2]) 1 else 2;
 }
 
+pub fn average3(v: Vec4f) f32 {
+    return (v[0] + v[1] + v[2]) / 3.0;
+}
+
+pub fn anyGreaterZero3(v: Vec4f) bool {
+    if (v[0] > 0.0) return true;
+    if (v[1] > 0.0) return true;
+    if (v[2] > 0.0) return true;
+
+    return false;
+}
+
 pub fn anyGreaterZero(v: Vec4f) bool {
     if (v[0] > 0.0) return true;
     if (v[1] > 0.0) return true;
