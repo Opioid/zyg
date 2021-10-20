@@ -131,6 +131,29 @@ pub const Prop = struct {
         return scene.propShape(entity).intersect(ray, trafo, worker, ipo, isec);
     }
 
+    pub fn intersectShadow(
+        self: Prop,
+        entity: usize,
+        ray: *Ray,
+        worker: *Worker,
+        isec: *shp.Intersection,
+    ) bool {
+        if (!self.visibleInShadow()) {
+            return false;
+        }
+
+        const scene = worker.scene;
+
+        if (self.properties.is(.TestAABB) and !scene.propAabbIntersectP(entity, ray.*)) {
+            return false;
+        }
+
+        const static = self.properties.is(.Static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+
+        return scene.propShape(entity).intersect(ray, trafo, worker, .Normal, isec);
+    }
+
     pub fn intersectP(
         self: Prop,
         entity: usize,

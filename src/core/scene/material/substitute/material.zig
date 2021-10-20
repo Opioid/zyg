@@ -16,6 +16,8 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+
 const Coating = struct {
     normal_map: Texture = undefined,
     thickness_map: Texture = .{},
@@ -150,7 +152,6 @@ pub const Material = struct {
         }
 
         const ior = self.super.ior;
-
         const ior_outside = if (coating_thickness > 0.0) coating_ior else rs.ior();
 
         var result = Surface.init(
@@ -159,10 +160,9 @@ pub const Material = struct {
             color,
             radiance,
             alpha,
-            fresnel.Schlick.F0(ior, ior_outside),
-            metallic,
             ior,
             ior_outside,
+            metallic,
             self.attenuation_distance > 0.0,
         );
 

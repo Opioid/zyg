@@ -212,6 +212,10 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(ray, worker, ipo, isec);
     }
 
+    pub fn intersectShadow(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+        return self.prop_bvh.intersectShadow(ray, worker, isec);
+    }
+
     pub fn intersectVolume(self: Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
         return self.volume_bvh.intersect(ray, worker, .NoTangentSpace, isec);
     }

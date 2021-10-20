@@ -119,6 +119,70 @@ pub const Tree = struct {
         return hit;
     }
 
+    pub fn intersectShadow(self: Tree, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+        var stack = &worker.node_stack;
+        stack.clear();
+        if (0 != self.num_nodes) {
+            stack.push(0);
+        }
+
+        var hit = false;
+        var prop = Prop.Null;
+        var n: u32 = 0;
+
+        const ray_signs = [4]u32{
+            @boolToInt(ray.ray.inv_direction[0] < 0.0),
+            @boolToInt(ray.ray.inv_direction[1] < 0.0),
+            @boolToInt(ray.ray.inv_direction[2] < 0.0),
+            @boolToInt(ray.ray.inv_direction[3] < 0.0),
+        };
+
+        const nodes = self.nodes;
+        const props = self.props;
+        const finite_props = self.indices;
+
+        while (!stack.empty()) {
+            const node = &nodes[n];
+
+            if (node.intersectP(ray.ray)) {
+                if (0 == node.numIndices()) {
+                    const a = node.children();
+                    const b = a + 1;
+
+                    if (0 == ray_signs[node.axis()]) {
+                        stack.push(b);
+                        n = a;
+                    } else {
+                        stack.push(a);
+                        n = b;
+                    }
+
+                    continue;
+                }
+
+                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
+                    if (props[p].intersectShadow(p, ray, worker, &isec.geo)) {
+                        prop = p;
+                        hit = true;
+                    }
+                }
+            }
+
+            n = stack.pop();
+        }
+
+        for (self.infinite_props[0..self.num_infinite_props]) |p| {
+            if (props[p].intersectShadow(p, ray, worker, &isec.geo)) {
+                prop = p;
+                hit = true;
+            }
+        }
+
+        isec.prop = prop;
+        isec.subsurface = false;
+        return hit;
+    }
+
     pub fn intersectP(self: Tree, ray: Ray, worker: *Worker) bool {
         var stack = &worker.node_stack;
         stack.clear();

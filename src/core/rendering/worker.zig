@@ -3,6 +3,7 @@ const Scene = @import("../scene/scene.zig").Scene;
 const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const mat = @import("../scene/material/material_helper.zig");
 const ro = @import("../scene/ray_offset.zig");
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
@@ -203,8 +204,29 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        _ = wo;
-        _ = isec;
+        const material = isec.material(self.super);
+
+        if (isec.subsurface and material.ior() > 1.0) {
+            const ray_max_t = ray.ray.maxT();
+
+            var nisec: Intersection = .{};
+            if (self.super.intersectShadow(ray, &nisec)) {
+                if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
+                    ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                    ray.ray.setMaxT(ray_max_t);
+
+                    if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
+                        const wi = ray.ray.direction;
+                        const vbh = material.super().border(wi, nisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wi, wo, nisec.geo.geo_n, nisec.geo.n);
+
+                        return @splat(4, vbh * nsc) * tv * tr;
+                    }
+                }
+
+                return null;
+            }
+        }
 
         return self.super.visibility(ray.*, filter);
     }

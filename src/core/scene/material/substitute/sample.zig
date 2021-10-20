@@ -43,16 +43,17 @@ pub const Sample = struct {
         albedo: Vec4f,
         radiance: Vec4f,
         alpha: Vec2f,
-        f0: f32,
-        metallic: f32,
         ior: f32,
         ior_outside: f32,
+        metallic: f32,
         volumetric: bool,
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
         var super = Base.init(rs, wo, color, radiance, alpha);
         super.properties.set(.CanEvaluate, ior != ior_outside);
+
+        const f0 = fresnel.Schlick.F0(ior, ior_outside);
 
         return .{
             .super = super,
@@ -80,6 +81,10 @@ pub const Sample = struct {
     }
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+        if (self.volumetric) {
+            return self.volumetricEvaluate(wi);
+        }
+
         const wo = self.super.wo;
 
         const tr = self.transparency;
@@ -427,15 +432,100 @@ pub const Sample = struct {
         return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
     }
 
-    fn volumetricSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
-        _ = self;
-        _ = sampler;
-        _ = rng;
-
+    pub fn volumetricEvaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const quo_ior = self.ior;
+        if (quo_ior.eta_i == quo_ior.eta_t) {
+            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+        }
 
         const wo = self.super.wo;
+        const alpha = self.super.alpha[0];
+        const layer = self.super.layer;
 
+        if (!self.super.sameHemisphere(wo)) {
+            const ior = quo_ior.swapped(false);
+
+            const h = -math.normalize3(@splat(4, ior.eta_t) * wi + @splat(4, ior.eta_i) * wo);
+
+            const wi_dot_h = math.dot3(wi, h);
+            if (wi_dot_h <= 0.0) {
+                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            }
+
+            const wo_dot_h = math.dot3(wo, h);
+
+            const eta = ior.eta_i / ior.eta_t;
+            const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
+
+            if (sint2 >= 1.0) {
+                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            }
+
+            const n_dot_wi = layer.clampNdot(wi);
+            const n_dot_wo = layer.clampAbsNdot(wo);
+            const n_dot_h = math.saturate(layer.nDot(h));
+
+            const schlick = fresnel.Schlick1.init(self.f0[0]);
+
+            const gg = ggx.Iso.refraction(
+                n_dot_wi,
+                n_dot_wo,
+                wi_dot_h,
+                wo_dot_h,
+                n_dot_h,
+                alpha,
+                ior,
+                schlick,
+            );
+
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, quo_ior.eta_t);
+
+            return bxdf.Result.init(
+                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
+                gg.pdf(),
+            );
+        }
+
+        const h = math.normalize3(wo + wi);
+        const wo_dot_h = hlp.clampDot(wo, h);
+
+        if (1.0 == self.metallic) {
+            return self.pureGlossEvaluate(wi, wo, h, wo_dot_h);
+        }
+
+        const n_dot_wi = layer.clampNdot(wi);
+        const n_dot_wo = layer.clampAbsNdot(wo);
+
+        const d = disney.IsoNoLambert.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha, self.super.albedo);
+
+        if (self.super.avoidCaustics() and alpha <= ggx.Min_alpha) {
+            return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
+        }
+
+        const n_dot_h = math.saturate(layer.nDot(h));
+        const schlick = fresnel.Schlick.init(self.f0);
+
+        var fresnel_result: Vec4f = undefined;
+        var gg = ggx.Iso.reflectionF(
+            n_dot_wi,
+            n_dot_wo,
+            wo_dot_h,
+            n_dot_h,
+            alpha,
+            schlick,
+            &fresnel_result,
+        );
+
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha, self.metallic);
+
+        const pdf = fresnel_result[0] * gg.pdf();
+
+        return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection), pdf);
+    }
+
+    fn volumetricSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+        const wo = self.super.wo;
+        const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
