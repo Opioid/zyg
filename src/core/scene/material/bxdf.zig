@@ -10,6 +10,10 @@ pub const Result = struct {
         return .{ .reflection = .{ reflection[0], reflection[1], reflection[2], p } };
     }
 
+    pub fn empty() Result {
+        return .{ .reflection = @splat(4, @as(f32, 0.0)) };
+    }
+
     pub fn pdf(self: Result) f32 {
         return self.reflection[3];
     }

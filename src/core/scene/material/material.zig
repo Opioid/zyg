@@ -84,6 +84,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Debug => true,
             .Glass => |m| m.thickness > 0.0,
+            .Light => |m| m.super.properties.is(.TwoSided),
             .Substitute => |m| m.super.properties.is(.TwoSided),
             else => false,
         };

@@ -106,7 +106,7 @@ pub const Sample = struct {
                 return bxdf.Result.init(@splat(4, pdf * (1.0 - f)) * (attenuation * self.translucent_color), pdf);
             }
         } else if (!self.super.sameHemisphere(wo)) {
-            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            return bxdf.Result.empty();
         }
 
         const h = math.normalize3(wo + wi);
@@ -219,7 +219,7 @@ pub const Sample = struct {
         const alpha = self.super.alpha;
 
         if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
-            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            return bxdf.Result.empty();
         }
 
         const n_dot_wi = self.super.layer.clampNdot(wi);
@@ -435,7 +435,7 @@ pub const Sample = struct {
     pub fn volumetricEvaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
-            return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+            return bxdf.Result.empty();
         }
 
         const wo = self.super.wo;
@@ -449,7 +449,7 @@ pub const Sample = struct {
 
             const wi_dot_h = math.dot3(wi, h);
             if (wi_dot_h <= 0.0) {
-                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+                return bxdf.Result.empty();
             }
 
             const wo_dot_h = math.dot3(wo, h);
@@ -458,7 +458,7 @@ pub const Sample = struct {
             const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 
             if (sint2 >= 1.0) {
-                return bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0);
+                return bxdf.Result.empty();
             }
 
             const n_dot_wi = layer.clampNdot(wi);

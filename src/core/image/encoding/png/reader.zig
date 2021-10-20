@@ -209,7 +209,6 @@ pub const Reader = struct {
                 const len = @intCast(u32, info.width * info.height);
                 while (i < len) : (i += 1) {
                     const o = i * info.num_channels;
-
                     image.pixels[i] = Vec2b{ info.buffer[o + 0], info.buffer[o + 1] };
                 }
             }
@@ -220,7 +219,28 @@ pub const Reader = struct {
         if (3 == num_channels) {
             var image = try img.Byte3.init(alloc, img.Description.init2D(dimensions));
 
-            std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
+            if (byte_compatible) {
+                std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
+            } else {
+                var color = Vec3b.init1(0);
+
+                var i: u32 = 0;
+                const len = @intCast(u32, info.width * info.height);
+                while (i < len) : (i += 1) {
+                    const o = i * info.num_channels;
+
+                    var c: u32 = 0;
+                    while (c < num_channels) : (c += 1) {
+                        color.v[c] = info.buffer[o + c];
+                    }
+
+                    if (swap_xy) {
+                        std.mem.swap(u8, &color.v[0], &color.v[1]);
+                    }
+
+                    image.pixels[i] = color;
+                }
+            }
 
             return Image{ .Byte3 = image };
         }

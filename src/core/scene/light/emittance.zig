@@ -24,6 +24,14 @@ pub const Emittance = struct {
         self.quantity = .Intensity;
     }
 
+    // unit: lumen per unit solid angle per unit projected area (lm / sr / m^2 == cd / m^2)
+    pub fn setLuminance(self: *Emittance, color: Vec4f, value: f32) void {
+        const luminance = spectrum.luminance(color);
+
+        self.value = @splat(4, value / luminance) * color;
+        self.quantity = .Radiance;
+    }
+
     // unit: watt per unit solid angle per unit projected area (W / sr / m^2)
     pub fn setRadiance(self: *Emittance, rad: Vec4f) void {
         self.value = rad;
