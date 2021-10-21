@@ -6,7 +6,7 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const Node = struct {
+pub const Node = packed struct {
     const Min = packed struct {
         v: [3]f32,
         children_or_data: u32,

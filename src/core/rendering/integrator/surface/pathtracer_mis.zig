@@ -264,7 +264,7 @@ pub const PathtracerMIS = struct {
             }
         }
 
-        return result;
+        return hlp.composeAlpha(result, throughput, state.is(.Direct));
     }
 
     fn sampleLights(

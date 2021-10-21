@@ -88,6 +88,7 @@ pub const PathtracerDL = struct {
     fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         var primary_ray = true;
         var treat_as_singular = true;
+        var transparent = true;
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
@@ -121,6 +122,7 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
+                transparent = transparent and !isec.visibleInCamera(worker.super) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
@@ -152,6 +154,7 @@ pub const PathtracerDL = struct {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi);
 
+                transparent = false;
                 from_subsurface = false;
             }
 
@@ -201,7 +204,7 @@ pub const PathtracerDL = struct {
             }
         }
 
-        return result;
+        return hlp.composeAlpha(result, throughput, transparent);
     }
 
     fn directLight(

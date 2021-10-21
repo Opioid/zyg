@@ -69,11 +69,11 @@ pub const AABB = struct {
     }
 
     pub fn clipMin(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[0][axis] = @maximum(d, self.bounds[0][axis]);
+        self.bounds[0][axis] = std.math.max(d, self.bounds[0][axis]);
     }
 
     pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[1][axis] = @minimum(d, self.bounds[1][axis]);
+        self.bounds[1][axis] = std.math.min(d, self.bounds[1][axis]);
     }
 
     pub fn covers(self: AABB, other: AABB) bool {

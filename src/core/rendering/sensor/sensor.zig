@@ -7,6 +7,8 @@ pub const Transparent = @import("transparent.zig").Transparent;
 
 pub const Filtered_1p0_opaque = filtered.Filtered_1p0(Opaque);
 pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
+pub const Filtered_1p0_transparent = filtered.Filtered_1p0(Transparent);
+pub const Filtered_2p0_transparent = filtered.Filtered_2p0(Transparent);
 
 const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
 const Float4 = @import("../../image/image.zig").Float4;
@@ -25,6 +27,8 @@ pub const Sensor = union(enum) {
     Unfiltered_transparent: Unfiltered(Transparent),
     Filtered_1p0_opaque: Filtered_1p0_opaque,
     Filtered_2p0_opaque: Filtered_2p0_opaque,
+    Filtered_1p0_transparent: Filtered_1p0_transparent,
+    Filtered_2p0_transparent: Filtered_2p0_transparent,
 
     pub fn deinit(self: *Sensor, alloc: *Allocator) void {
         switch (self.*) {
@@ -32,6 +36,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |*s| s.sensor.deinit(alloc),
             .Filtered_1p0_opaque => |*s| s.base.sensor.deinit(alloc),
             .Filtered_2p0_opaque => |*s| s.base.sensor.deinit(alloc),
+            .Filtered_1p0_transparent => |*s| s.base.sensor.deinit(alloc),
+            .Filtered_2p0_transparent => |*s| s.base.sensor.deinit(alloc),
         }
     }
 
@@ -41,6 +47,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions),
             .Filtered_1p0_opaque => |*s| s.base.sensor.resize(alloc, dimensions),
             .Filtered_2p0_opaque => |*s| s.base.sensor.resize(alloc, dimensions),
+            .Filtered_1p0_transparent => |*s| s.base.sensor.resize(alloc, dimensions),
+            .Filtered_2p0_transparent => |*s| s.base.sensor.resize(alloc, dimensions),
         };
     }
 
@@ -50,6 +58,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |*s| s.sensor.clear(weight),
             .Filtered_1p0_opaque => |*s| s.base.sensor.clear(weight),
             .Filtered_2p0_opaque => |*s| s.base.sensor.clear(weight),
+            .Filtered_1p0_transparent => |*s| s.base.sensor.clear(weight),
+            .Filtered_2p0_transparent => |*s| s.base.sensor.clear(weight),
         }
     }
 
@@ -59,6 +69,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |*s| s.sensor.fixZeroWeights(),
             .Filtered_1p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
             .Filtered_2p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
+            .Filtered_1p0_transparent => |*s| s.base.sensor.fixZeroWeights(),
+            .Filtered_2p0_transparent => |*s| s.base.sensor.fixZeroWeights(),
         }
     }
 
@@ -68,6 +80,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
             .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, isolated, bounds),
             .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, isolated, bounds),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, isolated, bounds),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, isolated, bounds),
         }
     }
 
@@ -77,6 +91,8 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => |s| s.sensor.resolve(target),
             .Filtered_1p0_opaque => |s| s.base.sensor.resolve(target),
             .Filtered_2p0_opaque => |s| s.base.sensor.resolve(target),
+            .Filtered_1p0_transparent => |s| s.base.sensor.resolve(target),
+            .Filtered_2p0_transparent => |s| s.base.sensor.resolve(target),
         }
     }
 
@@ -84,17 +100,15 @@ pub const Sensor = union(enum) {
         return switch (self) {
             .Unfiltered_opaque => 0,
             .Unfiltered_transparent => 0,
-            .Filtered_1p0_opaque => 1,
-            .Filtered_2p0_opaque => 2,
+            .Filtered_1p0_opaque, .Filtered_1p0_transparent => 1,
+            .Filtered_2p0_opaque, .Filtered_2p0_transparent => 2,
         };
     }
 
     pub fn alphaTransparency(self: Sensor) bool {
         return switch (self) {
-            .Unfiltered_opaque => false,
-            .Unfiltered_transparent => true,
-            .Filtered_1p0_opaque => false,
-            .Filtered_2p0_opaque => false,
+            .Unfiltered_transparent, .Filtered_1p0_transparent, .Filtered_2p0_transparent => true,
+            else => false,
         };
     }
 

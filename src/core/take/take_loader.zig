@@ -190,7 +190,10 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                 alpha_transparency = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
                 switch (entry.value_ptr.*) {
-                    .Array => clamp = snsr.Clamp{ .Max = .{ .max = json.readVec4f3(entry.value_ptr.*) } },
+                    .Array => {
+                        const max = json.readVec4f3(entry.value_ptr.*);
+                        clamp = snsr.Clamp{ .Max = .{ .max = Vec4f{ max[0], max[1], max[2], 1.0 } } };
+                    },
                     else => clamp = snsr.Clamp{ .Luminance = .{ .max = json.readFloat(f32, entry.value_ptr.*) } },
                 }
             } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
@@ -208,7 +211,25 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
             {
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
 
-                if (alpha_transparency) {} else {
+                if (alpha_transparency) {
+                    if (radius <= 1.0) {
+                        return snsr.Sensor{
+                            .Filtered_1p0_transparent = snsr.Filtered_1p0_transparent.init(
+                                clamp,
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    } else if (radius <= 2.0) {
+                        return snsr.Sensor{
+                            .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
+                                clamp,
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    }
+                } else {
                     if (radius <= 1.0) {
                         return snsr.Sensor{
                             .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(
