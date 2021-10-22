@@ -213,7 +213,9 @@ pub const Provider = struct {
         material.super.mask = mask;
         material.emission_map = emission.texture;
 
-        if (std.mem.eql(u8, "Intensity", quantity)) {
+        if (std.mem.eql(u8, "Flux", quantity)) {
+            material.emittance.setLuminousFlux(color, value);
+        } else if (std.mem.eql(u8, "Intensity", quantity)) {
             material.emittance.setLuminousIntensity(color, value);
         } else if (std.mem.eql(u8, "Luminance", quantity)) {
             material.emittance.setLuminance(color, value);

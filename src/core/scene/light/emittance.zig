@@ -16,6 +16,14 @@ pub const Emittance = struct {
     value: Vec4f,
     quantity: Quantity,
 
+    // unit: lumen
+    pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32) void {
+        const luminance = spectrum.luminance(color);
+
+        self.value = @splat(4, value / (std.math.pi * luminance)) * color;
+        self.quantity = .Intensity;
+    }
+
     // unit: lumen per unit solid angle (lm / sr == candela (cd))
     pub fn setLuminousIntensity(self: *Emittance, color: Vec4f, value: f32) void {
         const luminance = spectrum.luminance(color);
