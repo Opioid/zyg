@@ -12,6 +12,7 @@ const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
+const image = @import("../../image/image.zig");
 const ts = @import("../../image/texture/sampler.zig");
 const base = @import("base");
 const math = base.math;
@@ -195,7 +196,7 @@ pub const Material = union(enum) {
     }
 
     pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
-        return switch (self) {
+        switch (self) {
             .Glass => |m| {
                 return m.visibility(wi, n, uv, filter, worker);
             },
@@ -203,6 +204,25 @@ pub const Material = union(enum) {
                 const o = self.opacity(uv, filter, worker);
                 return if (o < 1.0) @splat(4, 1.0 - o) else null;
             },
-        };
+        }
+    }
+
+    pub fn usefulTextureDescription(self: Material, scene: Scene) image.Description {
+        switch (self) {
+            .Light => |m| {
+                if (m.emission_map.isValid()) {
+                    return m.emission_map.description(scene);
+                }
+            },
+            .Substitute => |m| {
+                if (m.emission_map.isValid()) {
+                    return m.emission_map.description(scene);
+                }
+            },
+            else => {},
+        }
+
+        const color_map = &self.super().color_map;
+        return if (color_map.isValid()) color_map.description(scene) else .{};
     }
 };

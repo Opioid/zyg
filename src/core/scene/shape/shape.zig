@@ -252,9 +252,9 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn prepareSampling(self: *Shape, alloc: *Allocator, part: u32, threads: *Threads) !u32 {
+    pub fn prepareSampling(self: *Shape, alloc: *Allocator, part: u32, material: u32, worker: Worker, threads: *Threads) !u32 {
         return switch (self.*) {
-            .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, threads),
+            .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, material, worker, threads),
             else => 0,
         };
     }

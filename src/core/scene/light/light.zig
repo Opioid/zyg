@@ -42,9 +42,10 @@ pub const Light = packed struct {
         light_id: usize,
         time: u64,
         scene: *Scene,
+        worker: Worker,
         threads: *Threads,
     ) void {
-        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, threads);
+        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, worker, threads);
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {

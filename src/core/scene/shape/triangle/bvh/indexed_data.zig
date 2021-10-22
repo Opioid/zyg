@@ -221,6 +221,20 @@ pub const Indexed_data = struct {
         return .{ self.positions[tri.a], self.positions[tri.b], self.positions[tri.c] };
     }
 
+    const Puv = struct {
+        p: [3]Vec4f,
+        uv: [3]Vec2f,
+    };
+
+    pub fn trianglePuv(self: Self, index: u32) Puv {
+        const tri = self.triangles[index];
+
+        return .{
+            .p = .{ self.positions[tri.a], self.positions[tri.b], self.positions[tri.c] },
+            .uv = .{ self.uvs[tri.a], self.uvs[tri.b], self.uvs[tri.c] },
+        };
+    }
+
     pub fn sample(self: Self, index: u32, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
         const uv = math.smpl.triangleUniform(r2);
 

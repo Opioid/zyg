@@ -95,7 +95,14 @@ pub const Driver = struct {
 
         const start = @as(u64, frame) * camera.frame_step;
 
-        try self.scene.simulate(alloc, camera_pos, start, start + camera.frame_duration, self.threads);
+        try self.scene.simulate(
+            alloc,
+            camera_pos,
+            start,
+            start + camera.frame_duration,
+            self.workers[0].super,
+            self.threads,
+        );
 
         camera.update(start, &self.workers[0].super);
 

@@ -151,6 +151,7 @@ pub const Scene = struct {
         camera_pos: Vec4f,
         start: u64,
         end: u64,
+        worker: Worker,
         threads: *Threads,
     ) !void {
         const frames_start = start - (start % Tick_duration);
@@ -164,7 +165,7 @@ pub const Scene = struct {
             a.update(self);
         }
 
-        try self.compile(alloc, camera_pos, start, threads);
+        try self.compile(alloc, camera_pos, start, worker, threads);
     }
 
     fn compile(
@@ -172,6 +173,7 @@ pub const Scene = struct {
         alloc: *Allocator,
         camera_pos: Vec4f,
         time: u64,
+        worker: Worker,
         threads: *Threads,
     ) !void {
         self.has_tinted_shadow = false;
@@ -197,7 +199,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(alloc, i, time, self, threads);
+            l.prepareSampling(alloc, i, time, self, worker, threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -413,6 +415,7 @@ pub const Scene = struct {
         part: u32,
         light_id: usize,
         time: u64,
+        worker: Worker,
         threads: *Threads,
     ) void {
         var shape_inst = self.propShapeRef(entity);
@@ -423,7 +426,7 @@ pub const Scene = struct {
 
         const m = self.material_ids.items[p];
 
-        const variant = shape_inst.prepareSampling(alloc, part, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, part, m, worker, threads) catch 0;
         self.lights.items[light_id].variant = @intCast(u16, variant);
 
         const trafo = self.propTransformationAt(entity, time);
@@ -473,6 +476,10 @@ pub const Scene = struct {
 
     pub fn material(self: Scene, material_id: u32) Material {
         return self.materials.items[material_id];
+    }
+
+    pub fn materialRef(self: Scene, material_id: u32) *Material {
+        return &self.materials.items[material_id];
     }
 
     pub fn shape(self: Scene, shape_id: u32) Shape {

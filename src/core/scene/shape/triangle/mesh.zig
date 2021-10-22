@@ -1,5 +1,6 @@
 const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../worker.zig").Worker;
+const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../node_stack.zig").NodeStack;
@@ -9,6 +10,7 @@ const Interpolation = int.Interpolation;
 const SampleTo = @import("../sample.zig").To;
 pub const bvh = @import("bvh/tree.zig");
 const ro = @import("../../ray_offset.zig");
+const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
 const base = @import("base");
 const RNG = base.rnd.Generator;
@@ -27,8 +29,24 @@ const Part = struct {
     const Variant = struct {
         distribution: Distribution1D = .{},
 
+        material: u32,
+        two_sided: bool,
+
         pub fn deinit(self: *Variant, alloc: *Allocator) void {
             self.distribution.deinit(alloc);
+        }
+
+        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: Scene) bool {
+            if (self.material == m) {
+                return true;
+            }
+
+            const lm = scene.material(self.material);
+            if (!lm.hasEmissionMap() and !emission_map) {
+                return self.two_sided == two_sided;
+            }
+
+            return false;
         }
     };
 
@@ -54,7 +72,15 @@ const Part = struct {
         alloc.free(self.triangle_mapping);
     }
 
-    pub fn configure(self: *Part, alloc: *Allocator, part: u32, tree: bvh.Tree, threads: *Threads) !u32 {
+    pub fn configure(
+        self: *Part,
+        alloc: *Allocator,
+        part: u32,
+        material: u32,
+        tree: bvh.Tree,
+        worker: Worker,
+        threads: *Threads,
+    ) !u32 {
         const num = self.num_triangles;
 
         if (0 == self.triangle_mapping.len) {
@@ -102,12 +128,26 @@ const Part = struct {
             self.cones = cones;
         }
 
-        const v = @intCast(u32, self.variants.items.len);
+        const m = worker.scene.materialRef(material);
+
+        const emission_map = m.hasEmissionMap();
+        const two_sided = m.isTwoSided();
+
+        for (self.variants.items) |v, i| {
+            if (v.matches(material, emission_map, two_sided, worker.scene.*)) {
+                return @intCast(u32, i);
+            }
+        }
+
+        const dimensions = m.usefulTextureDescription(worker.scene.*).dimensions;
 
         const context = Context{
             .powers = try alloc.alloc(f32, num),
             .triangle_mapping = self.triangle_mapping,
+            .m = m,
             .tree = &tree,
+            .worker = &worker,
+            .estimate_area = @intToFloat(f32, dimensions.v[0] * dimensions.v[1]) / 4.0,
         };
         defer {
             alloc.free(context.powers);
@@ -115,9 +155,11 @@ const Part = struct {
 
         _ = threads.runRange(&context, Context.run, 0, num);
 
-        var variant = Variant{};
+        var variant = Variant{ .material = material, .two_sided = two_sided };
 
         try variant.distribution.configure(alloc, context.powers, 0);
+
+        const v = @intCast(u32, self.variants.items.len);
 
         try self.variants.append(alloc, variant);
 
@@ -131,20 +173,63 @@ const Part = struct {
     const Context = struct {
         powers: []f32,
         triangle_mapping: []u32,
+        m: *const Material,
         tree: *const bvh.Tree,
+        worker: *const Worker,
+        estimate_area: f32,
+
+        const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
             const self = @intToPtr(*Context, context);
 
+            const emission_map = self.m.hasEmissionMap();
+
             var i = begin;
             while (i < end) : (i += 1) {
                 const t = self.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
-                self.powers[i] = area;
+                var power: f32 = undefined;
+                if (emission_map) {
+                    const puv = self.tree.data.trianglePuv(t);
+                    const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
+                    const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+
+                    var radiance = @splat(4, @as(f32, 0.0));
+
+                    var j: u32 = 0;
+                    while (j < num_samples) : (j += 1) {
+                        const xi = math.hammersley(i, num_samples, 0);
+                        const s2 = math.smpl.triangleUniform(xi);
+                        const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
+                        radiance += self.m.evaluateRadiance(
+                            Up,
+                            Up,
+                            .{ uv[0], uv[1], 0.0, 0.0 },
+                            1.0,
+                            null,
+                            self.worker.*,
+                        );
+                    }
+
+                    const weight = math.maxComponent3(radiance) / @intToFloat(f32, num_samples);
+                    power = weight * area;
+                } else {
+                    power = area;
+                }
+
+                self.powers[i] = power;
             }
+        }
+
+        fn triangleArea(a: Vec2f, b: Vec2f, c: Vec2f) f32 {
+            const x = b - a;
+            const y = c - a;
+
+            return 0.5 * @fabs(x[0] * y[1] - x[1] * y[0]);
         }
     };
 
@@ -412,7 +497,14 @@ pub const Mesh = struct {
         return angle_pdf * tri_pdf;
     }
 
-    pub fn prepareSampling(self: *Mesh, alloc: *Allocator, part: u32, threads: *Threads) !u32 {
+    pub fn prepareSampling(
+        self: *Mesh,
+        alloc: *Allocator,
+        part: u32,
+        material: u32,
+        worker: Worker,
+        threads: *Threads,
+    ) !u32 {
         // This counts the triangles for _every_ part as an optimization
         if (0 == self.primitive_mapping.len) {
             const num_triangles = self.tree.numTriangles();
@@ -428,6 +520,6 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, self.tree, threads);
+        return try self.parts[part].configure(alloc, part, material, self.tree, worker, threads);
     }
 };
