@@ -16,7 +16,6 @@ const Ray = @import("ray.zig").Ray;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 const Transformation = @import("composed_transformation.zig").ComposedTransformation;
-
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -416,7 +415,7 @@ pub const Scene = struct {
         time: u64,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShape(entity);
+        var shape_inst = self.propShapeRef(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -424,7 +423,8 @@ pub const Scene = struct {
 
         const m = self.material_ids.items[p];
 
-        shape_inst.prepareSampling(part);
+        const variant = shape_inst.prepareSampling(alloc, part, threads) catch 0;
+        self.lights.items[light_id].variant = @intCast(u16, variant);
 
         const trafo = self.propTransformationAt(entity, time);
         const scale = trafo.scale();
@@ -434,7 +434,7 @@ pub const Scene = struct {
         self.lights.items[light_id].extent = extent;
 
         const mat = &self.materials.items[m];
-        const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self.*, threads);
+        const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self.*, threads);
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
             self.lights.items[light_id].power(average_radiance, self.aabb(), self.*),
@@ -447,6 +447,10 @@ pub const Scene = struct {
 
     pub fn propShape(self: Scene, entity: usize) Shape {
         return self.shapes.items[self.props.items[entity].shape];
+    }
+
+    pub fn propShapeRef(self: Scene, entity: usize) *Shape {
+        return &self.shapes.items[self.props.items[entity].shape];
     }
 
     pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {

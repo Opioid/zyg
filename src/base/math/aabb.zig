@@ -42,6 +42,15 @@ pub const AABB = struct {
         return tboxmin <= tboxmax;
     }
 
+    pub fn insert(self: *AABB, p: Vec4f) void {
+        self.bounds[0] = @minimum(p, self.bounds[0]);
+        self.bounds[1] = @maximum(p, self.bounds[1]);
+    }
+
+    pub fn cacheRadius(self: *AABB) void {
+        self.bounds[0][3] = 0.5 * math.length3(self.extent());
+    }
+
     pub fn transform(self: AABB, m: Mat4x4) AABB {
         const mx = m.r[0];
         const xa = mx * @splat(4, self.bounds[0][0]);

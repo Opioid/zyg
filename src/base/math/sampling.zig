@@ -27,6 +27,11 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     return .{ cos_theta * r, sin_theta * r };
 }
 
+pub fn triangleUniform(uv: Vec2f) Vec2f {
+    const su = @sqrt(uv[0]);
+    return .{ 1.0 - su, uv[1] * su };
+}
+
 pub fn hemisphereCosine(uv: Vec2f) Vec4f {
     const xy = diskConcentric(uv);
     const z = @sqrt(std.math.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));

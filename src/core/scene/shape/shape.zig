@@ -13,13 +13,13 @@ const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
 const SampleTo = @import("sample.zig").To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
-
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -168,15 +168,25 @@ pub const Shape = union(enum) {
         rng: *RNG,
         sampler_d: usize,
     ) ?SampleTo {
-        _ = part;
-        _ = variant;
-
         return switch (self) {
+            .Null, .Plane => null,
             .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
-            else => null,
+            .Triangle_mesh => |m| m.sampleTo(
+                part,
+                variant,
+                p,
+                n,
+                trafo,
+                extent,
+                two_sided,
+                total_sphere,
+                sampler,
+                rng,
+                sampler_d,
+            ),
         };
     }
 
@@ -202,23 +212,20 @@ pub const Shape = union(enum) {
         self: Shape,
         variant: u32,
         ray: Ray,
-        p: Vec4f,
+        n: Vec4f,
         isec: Intersection,
         trafo: Transformation,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
-        _ = variant;
-        _ = p;
-        _ = isec;
-
         return switch (self) {
+            .Null, .Plane => 0.0,
             .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .Sphere => Sphere.pdf(ray.ray, trafo),
-            else => 0.0,
+            .Triangle_mesh => |m| m.pdf(variant, ray.ray, n, isec, trafo, extent, two_sided, total_sphere),
         };
     }
 
@@ -245,10 +252,10 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn prepareSampling(self: *Shape, part: u32) void {
+    pub fn prepareSampling(self: *Shape, alloc: *Allocator, part: u32, threads: *Threads) !u32 {
         return switch (self.*) {
-            .Triangle_mesh => |*m| m.prepareSampling(part),
-            else => {},
+            .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, threads),
+            else => 0,
         };
     }
 };

@@ -86,8 +86,16 @@ pub const ComposedTransformation = struct {
         return result + temp;
     }
 
-    pub fn objectToWorldPoint(self: Self, v: Vec4f) Vec4f {
-        return self.objectToWorldVector(v) + self.position;
+    pub fn objectToWorldPoint(self: Self, p: Vec4f) Vec4f {
+        return self.objectToWorldVector(p) + self.position;
+    }
+
+    pub fn worldToObjectPoint(self: Self, p: Vec4f) Vec4f {
+        return self.world_to_object.transformPoint(p);
+    }
+
+    pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {
+        return self.rotation.transformVectorTransposed(n);
     }
 
     pub fn transform(self: Self, other: Transformation) Transformation {

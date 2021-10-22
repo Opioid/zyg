@@ -214,4 +214,28 @@ pub const Indexed_data = struct {
 
         return triangle.area(a, b, c);
     }
+
+    pub fn triangleP(self: Self, index: u32) [3]Vec4f {
+        const tri = self.triangles[index];
+
+        return .{ self.positions[tri.a], self.positions[tri.b], self.positions[tri.c] };
+    }
+
+    pub fn sample(self: Self, index: u32, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
+        const uv = math.smpl.triangleUniform(r2);
+
+        const tri = self.triangles[index];
+
+        const pa = self.positions[tri.a];
+        const pb = self.positions[tri.b];
+        const pc = self.positions[tri.c];
+
+        p.* = triangle.interpolate3(pa, pb, pc, uv[0], uv[1]);
+
+        const uva = self.uvs[tri.a];
+        const uvb = self.uvs[tri.b];
+        const uvc = self.uvs[tri.c];
+
+        tc.* = triangle.interpolate2(uva, uvb, uvc, uv[0], uv[1]);
+    }
 };
