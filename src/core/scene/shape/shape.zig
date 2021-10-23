@@ -1,4 +1,5 @@
 pub const Disk = @import("disk.zig").Disk;
+pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
 pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
@@ -27,6 +28,7 @@ const Allocator = std.mem.Allocator;
 pub const Shape = union(enum) {
     Null,
     Disk: Disk,
+    DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
     Plane: Plane,
     Rectangle: Rectangle,
@@ -65,7 +67,7 @@ pub const Shape = union(enum) {
 
     pub fn isFinite(self: Shape) bool {
         return switch (self) {
-            .InfiniteSphere, .Plane => false,
+            .DistantSphere, .InfiniteSphere, .Plane => false,
             else => true,
         };
     }
@@ -86,7 +88,7 @@ pub const Shape = union(enum) {
 
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
-            .Null, .InfiniteSphere, .Plane => math.aabb.empty,
+            .Null, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
@@ -97,6 +99,11 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .Plane => 0.0,
             .Disk => std.math.pi * (scale[0] * scale[0]),
+
+            // This calculates the solid angle, not the area!
+            // I think it is what we actually need for the PDF, but results are extremely close
+            .DistantSphere => (2.0 * std.math.pi) * (1.0 - (1.0 / @sqrt(scale[0] * scale[0] + 1.0))),
+
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
@@ -115,6 +122,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null => false,
             .Disk => Disk.intersect(&ray.ray, trafo, isec),
+            .DistantSphere => DistantSphere.intersect(&ray.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
@@ -127,6 +135,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .InfiniteSphere => false,
             .Disk => Disk.intersectP(ray.ray, trafo),
+            .DistantSphere => DistantSphere.intersectP(ray.ray, trafo),
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
@@ -143,7 +152,7 @@ pub const Shape = union(enum) {
         worker: *Worker,
     ) ?Vec4f {
         return switch (self) {
-            .Null, .InfiniteSphere => {
+            .Null, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
             .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
@@ -171,6 +180,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .Plane => null,
             .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
+            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng, sampler_d),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
@@ -222,6 +232,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .Plane => 0.0,
             .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .DistantSphere => 1.0 / extent,
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .Sphere => Sphere.pdf(ray.ray, trafo),

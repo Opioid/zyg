@@ -13,7 +13,7 @@ const Error = error{
     UnsupportedImageType,
 };
 
-pub const Usage = enum { Color, Normal, Roughness, Surface, Mask };
+pub const Usage = enum { Color, Emission, Normal, Roughness, Surface, Mask };
 
 pub const Provider = struct {
     pub fn loadFile(
@@ -29,7 +29,7 @@ pub const Provider = struct {
 
         if (null == swizzle) {
             swizzle = switch (usage) {
-                .Color => .XYZ,
+                .Color, .Emission => .XYZ,
                 .Normal, .Surface => .XY,
                 .Roughness => .X,
                 .Mask => .W,

@@ -36,9 +36,13 @@ pub const Provider = struct {
         _ = alloc;
     }
 
-    pub fn setSettings(self: *Provider, no_tex: bool, force_debug_material: bool) void {
+    pub fn setSettings(self: *Provider, no_tex: bool, no_tex_dwim: bool, force_debug_material: bool) void {
         if (no_tex) {
             self.tex = .No;
+        }
+
+        if (no_tex_dwim) {
+            self.tex = .DWIM;
         }
 
         self.force_debug_material = force_debug_material;
@@ -137,7 +141,7 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, .Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
@@ -188,9 +192,9 @@ pub const Provider = struct {
         var iter = light_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, TexUsage.Mask, self.tex, resources);
+                mask = readTexture(alloc, entry.value_ptr.*, .Mask, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission.read(alloc, entry.value_ptr.*, TexUsage.Color, self.tex, resources);
+                emission.read(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 quantity = json.readStringMember(entry.value_ptr.*, "quantity", "");
 
@@ -264,7 +268,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission.read(alloc, entry.value_ptr.*, .Color, self.tex, resources);
+                emission.read(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
@@ -487,6 +491,7 @@ fn mapColor(color: Vec4f) Vec4f {
 fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
         .Array => mapColor(json.readVec4f3(value)),
+        .Integer => |i| mapColor(@splat(4, @intToFloat(f32, i))),
         .Float => |f| mapColor(@splat(4, @floatCast(f32, f))),
         .Object => |o| {
             var rgb = @splat(4, @as(f32, 0.0));
@@ -534,7 +539,7 @@ fn createTexture(
     tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
-    if (tex == .No) {
+    if (tex == .No or (tex == .DWIM and usage != .Emission)) {
         return .{};
     }
 

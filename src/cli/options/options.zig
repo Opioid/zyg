@@ -12,6 +12,7 @@ pub const Options = struct {
     num_frames: u32 = 1,
 
     no_tex: bool = false,
+    no_tex_dwim: bool = false,
     debug_material: bool = false,
 
     pub fn deinit(self: *Options, alloc: *Allocator) void {
@@ -101,6 +102,8 @@ pub const Options = struct {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "no-tex", command)) {
             self.no_tex = true;
+        } else if (std.mem.eql(u8, "no-tex-dwim", command)) {
+            self.no_tex_dwim = true;
         } else if (std.mem.eql(u8, "debug-mat", command)) {
             self.debug_material = true;
         }

@@ -51,7 +51,7 @@ pub fn main() !void {
     var resources = try resource.Manager.init(alloc, &threads);
     defer resources.deinit(alloc);
 
-    resources.materials.provider.setSettings(options.no_tex, options.debug_material);
+    resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
 
     var fs = &resources.fs;
 

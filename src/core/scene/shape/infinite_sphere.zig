@@ -3,7 +3,6 @@ const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const SampleTo = @import("sample.zig").To;
 const scn = @import("../constants.zig");
-
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
