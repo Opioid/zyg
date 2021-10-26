@@ -3,6 +3,8 @@ const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/tree.zig").Tree;
 const PropBvhBuilder = @import("prop/builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
+const LightTree = @import("light/tree.zig").Tree;
+const LightTreeBuilder = @import("light/tree_builder.zig").Builder;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
@@ -46,7 +48,8 @@ pub const Scene = struct {
 
     current_time_start: u64 = undefined,
 
-    bvh_builder: PropBvhBuilder = undefined,
+    bvh_builder: PropBvhBuilder,
+    light_tree_builder: LightTreeBuilder,
 
     prop_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
@@ -61,6 +64,7 @@ pub const Scene = struct {
 
     lights: ALU(Light),
     light_aabbs: ALU(AABB),
+    light_cones: ALU(Vec4f),
 
     material_ids: ALU(u32),
     light_ids: ALU(u32),
@@ -70,6 +74,7 @@ pub const Scene = struct {
 
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
+    light_tree: LightTree = .{},
 
     finite_props: ALU(u32),
     infinite_props: ALU(u32),
@@ -88,6 +93,7 @@ pub const Scene = struct {
     ) !Scene {
         return Scene{
             .bvh_builder = try PropBvhBuilder.init(alloc),
+            .light_tree_builder = .{},
             .images = images,
             .materials = materials,
             .shapes = shapes,
@@ -101,6 +107,7 @@ pub const Scene = struct {
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
             .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
+            .light_cones = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
             .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
@@ -112,6 +119,7 @@ pub const Scene = struct {
     }
 
     pub fn deinit(self: *Scene, alloc: *Allocator) void {
+        self.light_tree_builder.deinit(alloc);
         self.prop_bvh.deinit(alloc);
         self.volume_bvh.deinit(alloc);
         self.bvh_builder.deinit(alloc);
@@ -120,6 +128,7 @@ pub const Scene = struct {
         self.infinite_props.deinit(alloc);
         self.finite_props.deinit(alloc);
 
+        self.light_tree.deinit(alloc);
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
 
@@ -130,6 +139,7 @@ pub const Scene = struct {
         self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
+        self.light_cones.deinit(alloc);
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
@@ -205,6 +215,8 @@ pub const Scene = struct {
         }
 
         try self.light_distribution.configure(alloc, self.light_temp_powers, 0);
+
+        try self.light_tree_builder.build(alloc, &self.light_tree, self.*, threads);
 
         self.has_volumes = self.volumes.items.len > 0;
     }
@@ -439,6 +451,22 @@ pub const Scene = struct {
         const mat = &self.materials.items[m];
         const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self.*, threads);
 
+        const f = self.prop_frames.items[entity];
+        const part_aabb = shape_inst.partAabb(part, variant);
+
+        if (Prop.Null == f) {
+            var bb = part_aabb.transform(trafo.objectToWorld());
+            bb.cacheRadius();
+
+            self.light_aabbs.items[light_id] = bb;
+
+            const cone = shape_inst.cone(part);
+            const tc = trafo.objectToWorldNormal(cone);
+            self.light_cones.items[light_id] = Vec4f{ tc[0], tc[1], tc[2], cone[3] };
+
+            //   std.debug.print("{}\n", .{self.light_cones.items[light_id]});
+        } else {}
+
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
             self.lights.items[light_id].power(average_radiance, self.aabb(), self.*),
         );
@@ -490,6 +518,10 @@ pub const Scene = struct {
         return self.props.items[index];
     }
 
+    pub fn numLights(self: Scene) u32 {
+        return @intCast(u32, self.lights.items.len);
+    }
+
     pub fn light(self: Scene, id: u32) Light {
         return self.lights.items[id];
     }
@@ -503,14 +535,16 @@ pub const Scene = struct {
         split: bool,
         buffer: *Worker.Lights,
     ) []LightPick {
-        _ = p;
-        _ = n;
-        _ = total_sphere;
-        _ = split;
+        // _ = p;
+        // _ = n;
+        // _ = total_sphere;
+        // _ = split;
 
-        buffer[0] = self.light_distribution.sampleDiscrete(random);
+        // buffer[0] = self.light_distribution.sampleDiscrete(random);
 
-        return buffer[0..1];
+        // return buffer[0..1];
+
+        return self.light_tree.randomLight(p, n, total_sphere, random, split, self, buffer);
     }
 
     pub fn lightPdf(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
@@ -535,10 +569,22 @@ pub const Scene = struct {
         return self.lights.items[light_id].extent;
     }
 
+    pub fn lightTwoSided(self: Scene, variant: u32, light_id: usize) bool {
+        _ = variant;
+        return self.lights.items[light_id].two_sided;
+    }
+
     pub fn lightPower(self: Scene, variant: u32, light_id: usize) f32 {
         _ = variant;
-
         return self.light_aabbs.items[light_id].bounds[1][3];
+    }
+
+    pub fn lightAabb(self: Scene, light_id: usize) AABB {
+        return self.light_aabbs.items[light_id];
+    }
+
+    pub fn lightCone(self: Scene, light_id: usize) Vec4f {
+        return self.light_cones.items[light_id];
     }
 
     fn allocateProp(self: *Scene, alloc: *Allocator) !u32 {
@@ -564,6 +610,7 @@ pub const Scene = struct {
         try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
 
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
+        try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }
 
     fn propIsInstance(self: Scene, shape_id: u32, materials: []const u32, num_parts: u32) bool {

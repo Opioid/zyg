@@ -35,17 +35,6 @@ pub const Distribution1D = struct {
         alloc.free(self.cdf);
     }
 
-    pub fn search(buffer: [*]f32, begin: u32, end: u32, key: f32) u32 {
-        var i = begin;
-        while (i < end) : (i += 1) {
-            if (buffer[i] >= key) {
-                return i;
-            }
-        }
-
-        return end;
-    }
-
     pub fn sample(self: Self, r: f32) u32 {
         const bucket = self.map(r);
         const begin = self.lut[bucket];
@@ -155,5 +144,39 @@ pub const Distribution1D = struct {
 
     fn map(self: Self, s: f32) u32 {
         return @floatToInt(u32, s * self.lut_range);
+    }
+
+    fn search(buffer: [*]f32, begin: u32, end: u32, key: f32) u32 {
+        var i = begin;
+        while (i < end) : (i += 1) {
+            if (buffer[i] >= key) {
+                return i;
+            }
+        }
+
+        return end;
+    }
+
+    pub fn staticSampleDiscrete(comptime N: u32, data: [N]f32, n: u32, r: f32) Distribution1D.Discrete {
+        var integral: f32 = 0.0;
+        for (data[0..N]) |d| {
+            integral += d;
+        }
+
+        const ii = 1.0 / integral;
+
+        var cdf: [N + 1]f32 = undefined;
+
+        cdf[0] = 0.0;
+        var i: u32 = 1;
+        while (i < N) : (i += 1) {
+            cdf[i] = std.math.fma(f32, data[i - 1], ii, cdf[i - 1]);
+        }
+        cdf[N] = 1.0;
+
+        const it = search(&cdf, 0, n, r);
+        const offset = if (0 != it) it - 1 else 0;
+
+        return .{ .offset = offset, .pdf = cdf[offset + 1] - cdf[offset] };
     }
 };

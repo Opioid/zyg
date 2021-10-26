@@ -29,6 +29,9 @@ const Part = struct {
     const Variant = struct {
         distribution: Distribution1D = .{},
 
+        aabb: AABB,
+        cone: Vec4f,
+
         material: u32,
         two_sided: bool,
 
@@ -142,8 +145,9 @@ const Part = struct {
         const dimensions = m.usefulTextureDescription(worker.scene.*).dimensions;
 
         const context = Context{
+            .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
-            .triangle_mapping = self.triangle_mapping,
+            .part = self,
             .m = m,
             .tree = &tree,
             .worker = &worker,
@@ -151,11 +155,32 @@ const Part = struct {
         };
         defer {
             alloc.free(context.powers);
+            alloc.free(context.temps);
         }
 
-        _ = threads.runRange(&context, Context.run, 0, num);
+        const num_tasks = threads.runRange(&context, Context.run, 0, num);
 
-        var variant = Variant{ .material = material, .two_sided = two_sided };
+        var temp: Temp = .{};
+        for (context.temps[0..num_tasks]) |t| {
+            temp.bb.mergeAssign(t.bb);
+            temp.dominant_axis += t.dominant_axis;
+            temp.total_power += t.total_power;
+        }
+
+        const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
+
+        var angle: f32 = 0.0;
+        for (self.cones) |n| {
+            const c = math.dot3(da, n);
+            angle = std.math.max(angle, std.math.acos(c));
+        }
+
+        var variant = Variant{
+            .aabb = temp.bb,
+            .cone = .{ da[0], da[1], da[2], @cos(angle) },
+            .material = material,
+            .two_sided = two_sided,
+        };
 
         try variant.distribution.configure(alloc, context.powers, 0);
 
@@ -166,13 +191,24 @@ const Part = struct {
         return v;
     }
 
+    pub fn aabb(self: Part, variant: u32) AABB {
+        return self.variants.items[variant].aabb;
+    }
+
     pub fn lightCone(self: Part, light: u32) Vec4f {
         return self.cones[light];
     }
 
+    const Temp = struct {
+        bb: AABB = math.aabb.empty,
+        dominant_axis: Vec4f = @splat(4, @as(f32, 0.0)),
+        total_power: f32 = 0.0,
+    };
+
     const Context = struct {
+        temps: []Temp,
         powers: []f32,
-        triangle_mapping: []u32,
+        part: *const Part,
         m: *const Material,
         tree: *const bvh.Tree,
         worker: *const Worker,
@@ -181,15 +217,15 @@ const Part = struct {
         const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            _ = id;
-
             const self = @intToPtr(*Context, context);
 
             const emission_map = self.m.hasEmissionMap();
 
+            var temp: Temp = .{};
+
             var i = begin;
             while (i < end) : (i += 1) {
-                const t = self.triangle_mapping[i];
+                const t = self.part.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
                 var power: f32 = undefined;
@@ -222,7 +258,16 @@ const Part = struct {
                 }
 
                 self.powers[i] = power;
+
+                if (power > 0.0) {
+                    const n = self.part.cones[i];
+                    temp.dominant_axis += @splat(4, power) * n;
+                    temp.bb.mergeAssign(self.part.aabbs[i]);
+                    temp.total_power += power;
+                }
             }
+
+            self.temps[id] = temp;
         }
 
         fn triangleArea(a: Vec2f, b: Vec2f, c: Vec2f) f32 {
@@ -324,6 +369,14 @@ pub const Mesh = struct {
     pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
         // HACK: This only really works for uniform scales!
         return self.parts[part].area * (scale[0] * scale[1]);
+    }
+
+    pub fn partAabb(self: Mesh, part: u32, variant: u32) AABB {
+        return self.parts[part].aabb(variant);
+    }
+
+    pub fn cone(self: Mesh, part: u32) Vec4f {
+        return self.parts[part].variants.items[0].cone;
     }
 
     pub fn intersect(

@@ -4,6 +4,7 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const Light = @import("../../../scene/light/light.zig").Light;
+const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const mat = @import("../../../scene/material/material.zig");
@@ -47,8 +48,6 @@ pub const PathtracerMIS = struct {
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        const Max_lights = 4;
 
         return Self{
             .settings = settings,

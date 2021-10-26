@@ -47,6 +47,10 @@ pub const AABB = struct {
         self.bounds[1] = @maximum(p, self.bounds[1]);
     }
 
+    pub fn cachedRadius(self: AABB) f32 {
+        return self.bounds[0][3];
+    }
+
     pub fn cacheRadius(self: *AABB) void {
         self.bounds[0][3] = 0.5 * math.length3(self.extent());
     }

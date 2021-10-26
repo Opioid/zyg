@@ -5,6 +5,11 @@ const std = @import("std");
 
 pub const Dot_min: f32 = 0.00001;
 
+pub fn absDotC(a: Vec4f, b: Vec4f, c: bool) f32 {
+    const d = math.dot3(a, b);
+    return if (c) @fabs(d) else d;
+}
+
 pub fn clamp(x: f32) f32 {
     return std.math.clamp(x, Dot_min, 1.0);
 }

@@ -4,7 +4,8 @@ const Vec3f = @import("vector3.zig").Vec3f;
 const std = @import("std");
 
 pub const Infinity = @splat(4, @bitCast(f32, @as(u32, 0x7F800000)));
-pub const Neg_infinity = @splat(4, @bitCast(f32, ~@as(u32, 0x7F800000)));
+pub const Neg_infinity = @splat(4, @bitCast(f32, @as(u32, 0xFF800000)));
+pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
 
 pub fn Vec4(comptime T: type) type {
     return struct {
@@ -155,6 +156,10 @@ pub fn length3(v: Vec4f) f32 {
 
 pub fn rlength3(v: Vec4f) f32 {
     return 1.0 / length3(v);
+}
+
+pub fn distance3(a: Vec4f, b: Vec4f) f32 {
+    return length3(a - b);
 }
 
 pub fn normalize3(v: Vec4f) Vec4f {

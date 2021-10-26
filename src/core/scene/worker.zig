@@ -10,6 +10,7 @@ const InterfaceStack = @import("prop/interface.zig").Stack;
 const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
+const LightTree = @import("light/tree.zig").Tree;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const base = @import("base");
@@ -22,7 +23,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    pub const Lights = [4]Distribution1D.Discrete;
+    pub const Lights = LightTree.Lights;
 
     camera: *cam.Perspective = undefined,
     scene: *Scene = undefined,

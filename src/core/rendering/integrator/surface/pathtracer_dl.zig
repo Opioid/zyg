@@ -3,6 +3,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const mat = @import("../../../scene/material/material.zig");
 const scn = @import("../../../scene/constants.zig");
@@ -32,8 +33,6 @@ pub const PathtracerDL = struct {
 
     pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        const Max_lights = 4;
 
         return Self{
             .settings = settings,
@@ -233,7 +232,7 @@ pub const PathtracerDL = struct {
 
         var sampler = self.lightSampler(ray.depth);
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
-        const split: bool = false;
+        const split = true;
 
         const lights = worker.super.scene.randomLight(p, n, translucent, select, split, &worker.super.lights);
 
