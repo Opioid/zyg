@@ -17,7 +17,7 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Light = packed struct {
+pub const Light = struct {
     pub const Type = enum(u8) {
         Prop,
         PropImage,
@@ -34,6 +34,10 @@ pub const Light = packed struct {
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;
+    }
+
+    pub fn isFinite(self: Light, scene: Scene) bool {
+        return scene.propShape(self.prop).isFinite();
     }
 
     pub fn prepareSampling(

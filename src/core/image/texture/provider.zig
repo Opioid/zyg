@@ -26,7 +26,6 @@ pub const Provider = struct {
         const usage = options.queryOrDef("usage", Usage.Color);
 
         var swizzle = options.query(img.Swizzle, "swizzle");
-
         if (null == swizzle) {
             swizzle = switch (usage) {
                 .Color, .Emission => .XYZ,
@@ -42,7 +41,6 @@ pub const Provider = struct {
         try image_options.set(alloc, "swizzle", swizzle.?);
 
         const image_id = try resources.loadFile(Image, alloc, name, image_options);
-
         const image = resources.get(Image, image_id) orelse unreachable;
 
         return switch (image.*) {

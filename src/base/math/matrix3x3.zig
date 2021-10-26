@@ -46,6 +46,35 @@ pub const Mat3x3 = struct {
         return init9(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
     }
 
+    pub fn initRotation(v: Vec4f, a: f32) Mat3x3 {
+        const c = @cos(a);
+        const s = @sin(a);
+        const t = 1.0 - c;
+
+        const at0 = v[0] * v[1] * t;
+        const at1 = v[2] * s;
+
+        const bt0 = v[0] * v[2] * t;
+        const bt1 = v[1] * s;
+
+        const ct0 = v[1] * v[2] * t;
+        const ct1 = v[0] * s;
+
+        return init9(
+            c + v[0] * v[1] * t,
+            at0 - at1,
+            bt0 + bt1,
+
+            at0 + at1,
+            c + v[1] * v[1] * t,
+            ct0 - ct1,
+
+            bt0 - bt1,
+            ct0 + ct1,
+            c + v[2] * v[2] * t,
+        );
+    }
+
     pub fn mul(a: Mat3x3, b: Mat3x3) Mat3x3 {
         return init9(
             a.r[0][0] * b.r[0][0] + a.r[0][1] * b.r[1][0] + a.r[0][2] * b.r[2][0],

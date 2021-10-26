@@ -95,6 +95,21 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn partAabb(self: Shape, part: u32, variant: u32) AABB {
+        return switch (self) {
+            .Triangle_mesh => |m| m.partAabb(part, variant),
+            else => self.aabb(),
+        };
+    }
+
+    pub fn cone(self: Shape, part: u32) Vec4f {
+        return switch (self) {
+            .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
+            .Triangle_mesh => |m| m.cone(part),
+            else => .{ 0.0, 0.0, 1.0, 0.0 },
+        };
+    }
+
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,

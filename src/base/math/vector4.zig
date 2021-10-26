@@ -231,6 +231,10 @@ pub fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
+pub fn equal(a: Vec4f, b: Vec4f) bool {
+    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
+}
+
 pub fn anyGreaterZero3(v: Vec4f) bool {
     if (v[0] > 0.0) return true;
     if (v[1] > 0.0) return true;
