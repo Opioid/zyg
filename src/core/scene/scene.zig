@@ -548,12 +548,16 @@ pub const Scene = struct {
     }
 
     pub fn lightPdf(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
-        _ = p;
-        _ = n;
-        _ = total_sphere;
-        _ = split;
+        // _ = p;
+        // _ = n;
+        // _ = total_sphere;
+        // _ = split;
 
-        const pdf = self.light_distribution.pdfI(id);
+        // const pdf = self.light_distribution.pdfI(id);
+
+        // return .{ .offset = id, .pdf = pdf };
+
+        const pdf = self.light_tree.pdf(p, n, total_sphere, split, id, self);
 
         return .{ .offset = id, .pdf = pdf };
     }

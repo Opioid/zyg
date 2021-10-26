@@ -72,13 +72,36 @@ pub const Node = packed struct {
         }
 
         var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
-
         for (weights[0..self.num_lights]) |*w, i| {
             w.* = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
         }
 
         const l = Distribution1D.staticSampleDiscrete(4, weights, num_lights, random);
         return .{ .offset = light_mapping[light + l.offset], .pdf = l.pdf };
+    }
+
+    pub fn pdf(
+        self: Node,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        id: u32,
+        light_mapping: [*]const u32,
+        set: Scene,
+        variant: u32,
+    ) f32 {
+        if (1 == self.num_lights) {
+            return 1.0;
+        }
+
+        const light = self.children_or_light;
+
+        var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+        for (weights[0..self.num_lights]) |*w, i| {
+            w.* = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+        }
+
+        return Distribution1D.staticPdf(4, weights, id - light);
     }
 };
 
@@ -255,13 +278,13 @@ pub const Tree = struct {
             return buffer[0..current_light];
         }
 
-        const pdf = 1.0 - ip;
+        const pd = 1.0 - ip;
 
         var stack: TraversalStack = .{};
 
         var t: TraversalStack.Value = .{
-            .pdf = pdf,
-            .random = (random - ip) / pdf,
+            .pdf = pd,
+            .random = (random - ip) / pd,
             .node = 0,
             .depth = if (split) depth_bias else Max_split_depth,
         };
@@ -320,6 +343,72 @@ pub const Tree = struct {
         }
 
         return buffer[0..current_light];
+    }
+
+    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: Scene) f32 {
+        const lo = self.light_orders[id];
+        const num_infinite_lights = self.num_infinite_lights;
+
+        const split_infinite = split and num_infinite_lights < Max_lights - 1;
+
+        if (lo < self.infinite_end) {
+            if (split_infinite) {
+                return 1.0;
+            } else {
+                return self.infinite_weight * self.infinite_light_distribution.pdfI(lo);
+            }
+        }
+
+        if (0 == self.num_nodes) {
+            return 0.0;
+        }
+
+        const ip = if (split_infinite) 0.0 else self.infinite_weight;
+
+        var pd = 1.0 - ip;
+
+        var nid: u32 = 0;
+        var depth: u32 = if (split) self.infinite_depth_bias else Max_split_depth;
+        while (true) : (depth += 1) {
+            const node = self.nodes[nid];
+
+            const do_split = depth < Max_split_depth and node.split(p);
+
+            if (node.has_children) {
+                const c0 = node.children_or_light;
+                const c1 = c0 + 1;
+
+                const middle = self.node_middles[nid];
+
+                if (do_split) {
+                    if (lo < middle) {
+                        nid = c0;
+                    } else {
+                        nid = c1;
+                    }
+                } else {
+                    const p0 = self.nodes[c0].weight(p, n, total_sphere);
+                    const p1 = self.nodes[c1].weight(p, n, total_sphere);
+                    const pt = p0 + p1;
+
+                    if (lo < middle) {
+                        nid = c0;
+                        pd *= p0 / pt;
+                    } else {
+                        nid = c1;
+                        pd *= p1 / pt;
+                    }
+
+                    depth = Max_split_depth;
+                }
+            } else {
+                if (do_split) {
+                    return pd;
+                } else {
+                    return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, scene, 0);
+                }
+            }
+        }
     }
 };
 

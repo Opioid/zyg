@@ -179,4 +179,24 @@ pub const Distribution1D = struct {
 
         return .{ .offset = offset, .pdf = cdf[offset + 1] - cdf[offset] };
     }
+
+    pub fn staticPdf(comptime N: u32, data: [N]f32, index: u32) f32 {
+        var integral: f32 = 0.0;
+        for (data[0..N]) |d| {
+            integral += d;
+        }
+
+        const ii = 1.0 / integral;
+
+        var cdf: [N + 1]f32 = undefined;
+
+        cdf[0] = 0.0;
+        var i: u32 = 1;
+        while (i < N) : (i += 1) {
+            cdf[i] = std.math.fma(f32, data[i - 1], ii, cdf[i - 1]);
+        }
+        cdf[N] = 1.0;
+
+        return cdf[index + 1] - cdf[index];
+    }
 };

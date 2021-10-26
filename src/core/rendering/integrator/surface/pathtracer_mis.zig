@@ -287,7 +287,7 @@ pub const PathtracerMIS = struct {
 
         var sampler = self.lightSampler(ray.depth);
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
-        const split: bool = false;
+        const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLight(p, n, translucent, select, split, &worker.super.lights);
 
@@ -378,7 +378,7 @@ pub const PathtracerMIS = struct {
         }
 
         const translucent = state.is(.IsTranslucent);
-        const split = false;
+        const split = self.splitting(ray.depth);
 
         const light_pick = scene_worker.scene.lightPdf(light_id, ray.ray.origin, geo_n, translucent, split);
         const light = scene_worker.scene.light(light_pick.offset);
@@ -407,6 +407,11 @@ pub const PathtracerMIS = struct {
 
     fn defaultSampler(self: *Self) *smp.Sampler {
         return &self.samplers[2 * Num_dedicated_samplers];
+    }
+
+    fn splitting(self: Self, bounce: u32) bool {
+        _ = self;
+        return bounce < Num_dedicated_samplers;
     }
 };
 
