@@ -26,6 +26,9 @@ pub const PathtracerMIS = struct {
         num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
+
+        light_sampling: hlp.LightSampling,
+
         avoid_caustics: bool,
     };
 
@@ -410,8 +413,8 @@ pub const PathtracerMIS = struct {
     }
 
     fn splitting(self: Self, bounce: u32) bool {
-        _ = self;
-        return bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and
+            bounce < Num_dedicated_samplers;
     }
 };
 

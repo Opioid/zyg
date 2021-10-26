@@ -7,6 +7,7 @@ const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
+const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
 const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
@@ -101,7 +102,6 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
 
     {
         var iter = value.Object.iterator();
-
         while (iter.next()) |entry| {
             type_value_ptr = entry.value_ptr;
         }
@@ -140,7 +140,6 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         const crop = json.readVec4iMember(sensor_value.*, "crop", Vec4i{ 0, 0, resolution[0], resolution[1] });
 
         camera.setResolution(resolution, crop);
-
         camera.setSensor(loadSensor(sensor_value.*));
     } else {
         return;
@@ -178,7 +177,6 @@ const Blackman = struct {
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
-
     var clamp = snsr.Clamp{ .Identity = .{} };
 
     var filter_value_ptr: ?*std.json.Value = null;
@@ -271,6 +269,9 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
 fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
     const Default_min_bounces = 4;
     const Default_max_bounces = 8;
+
+    var light_sampling = LightSampling.Adaptive;
+
     const Default_caustics = true;
 
     var iter = value.Object.iterator();
@@ -303,11 +304,14 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
             const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
+            loadLightSampling(entry.value_ptr.*, &light_sampling);
+
             view.surfaces = surface.Factory{ .PTDL = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .light_sampling = light_sampling,
                     .avoid_caustics = !enable_caustics,
                 },
             } };
@@ -317,11 +321,14 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
             const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
+            loadLightSampling(entry.value_ptr.*, &light_sampling);
+
             view.surfaces = surface.Factory{ .PTMIS = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .light_sampling = light_sampling,
                     .avoid_caustics = !enable_caustics,
                 },
             } };
@@ -371,4 +378,21 @@ fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
     }
 
     return .{ .Linear = tm.Linear.init(0.0) };
+}
+
+fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
+    const light_sampling_node = value.Object.get("light_sampling") orelse return;
+
+    var iter = light_sampling_node.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "strategy", entry.key_ptr.*)) {
+            const strategy = entry.value_ptr.String;
+
+            if (std.mem.eql(u8, "Single", strategy)) {
+                sampling.* = .Single;
+            } else if (std.mem.eql(u8, "Single", strategy)) {
+                sampling.* = .Adaptive;
+            }
+        } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {}
+    }
 }

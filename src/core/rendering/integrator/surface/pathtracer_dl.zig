@@ -22,6 +22,9 @@ pub const PathtracerDL = struct {
         num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
+
+        light_sampling: hlp.LightSampling,
+
         avoid_caustics: bool,
     };
 
@@ -232,7 +235,7 @@ pub const PathtracerDL = struct {
 
         var sampler = self.lightSampler(ray.depth);
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
-        const split = true;
+        const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLight(p, n, translucent, select, split, &worker.super.lights);
 
@@ -283,6 +286,11 @@ pub const PathtracerDL = struct {
 
     fn defaultSampler(self: *Self) *smp.Sampler {
         return &self.samplers[2 * Num_dedicated_samplers];
+    }
+
+    fn splitting(self: Self, bounce: u32) bool {
+        return .Adaptive == self.settings.light_sampling and
+            bounce < Num_dedicated_samplers;
     }
 };
 

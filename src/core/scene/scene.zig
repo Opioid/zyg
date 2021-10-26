@@ -541,7 +541,6 @@ pub const Scene = struct {
         // _ = split;
 
         // buffer[0] = self.light_distribution.sampleDiscrete(random);
-
         // return buffer[0..1];
 
         return self.light_tree.randomLight(p, n, total_sphere, random, split, self, buffer);
@@ -554,11 +553,9 @@ pub const Scene = struct {
         // _ = split;
 
         // const pdf = self.light_distribution.pdfI(id);
-
         // return .{ .offset = id, .pdf = pdf };
 
         const pdf = self.light_tree.pdf(p, n, total_sphere, split, id, self);
-
         return .{ .offset = id, .pdf = pdf };
     }
 

@@ -125,8 +125,6 @@ pub const Loader = struct {
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
-        _ = local_materials;
-
         for (value.Array.items) |*m| {
             const name_node = m.Object.get("name") orelse continue;
 

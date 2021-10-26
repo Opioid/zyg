@@ -3,6 +3,11 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
+pub const LightSampling = enum(u8) {
+    Single,
+    Adaptive,
+};
+
 pub fn attenuation3(c: Vec4f, distance: f32) Vec4f {
     return @exp(@splat(4, -distance) * c);
 }
