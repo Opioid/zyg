@@ -439,14 +439,24 @@ pub const Builder = struct {
             }
         }
 
-        _ = threads;
+        if (lights.len * num_candidates > 1024) {
+            const context = EvaluateContext{
+                .lights = lights,
+                .bounds = bounds,
+                .cone_weight = cone_weight,
+                .candidates = candidates,
+                .set = &set,
+                .variant = variant,
+            };
 
-        for (candidates[0..num_candidates]) |*c| {
-            c.evaluate(lights, bounds, cone_weight, set, variant);
+            _ = threads.runRange(&context, EvaluateContext.run, 0, num_candidates);
+        } else {
+            for (candidates[0..num_candidates]) |*c| {
+                c.evaluate(lights, bounds, cone_weight, set, variant);
+            }
         }
 
         var min_cost = candidates[0].cost;
-
         var sc: usize = 0;
         for (candidates[1..num_candidates]) |c, i| {
             const cost = c.cost;
@@ -458,6 +468,25 @@ pub const Builder = struct {
 
         return candidates[sc];
     }
+
+    const EvaluateContext = struct {
+        lights: []u32,
+        bounds: AABB,
+        cone_weight: f32,
+        candidates: []SplitCandidate,
+        set: *const Scene,
+        variant: u32,
+
+        pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            _ = id;
+
+            const self = @intToPtr(*EvaluateContext, context);
+
+            for (self.candidates[begin..end]) |*c| {
+                c.evaluate(self.lights, self.bounds, self.cone_weight, self.set, self.variant);
+            }
+        }
+    };
 };
 
 fn coneCost(cos: f32) f32 {
