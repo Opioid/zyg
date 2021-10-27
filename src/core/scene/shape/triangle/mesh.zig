@@ -340,16 +340,16 @@ pub const Part = struct {
     }
 
     pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
-        _ = p;
-        _ = n;
-        _ = total_sphere;
+        // _ = p;
+        // _ = n;
+        // _ = total_sphere;
 
-        return self.pdfRandom(variant, id);
+        // return self.pdfRandom(variant, id);
 
-        // const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
-        // const relative_area = self.aabbs[id].bounds[1][3];
+        const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
+        const relative_area = self.aabbs[id].bounds[1][3];
 
-        // return pdf * relative_area;
+        return pdf * relative_area;
     }
 
     pub fn pdfRandom(self: Part, variant: u32, id: u32) f32 {
