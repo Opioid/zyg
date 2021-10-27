@@ -47,7 +47,7 @@ pub fn build(b: *std.build.Builder) void {
     zyg.linkLibC();
 
     // zyg.sanitize_thread = true;
-    zyg.strip = true;
+    // zyg.strip = true;
 
     zyg.install();
 
@@ -59,15 +59,18 @@ pub fn build(b: *std.build.Builder) void {
     } else {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
-            "takes/bistro_day.take",
+            //"takes/bistro_day.take",
+            "takes/bistro_night.take",
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
+            //"takes/candle.take",
             "-t",
             "-4",
-            "--no-tex",
+            //"--no-tex",
+            "--no-tex-dwim",
             //"--debug-mat",
             // "-f",
             // "69",

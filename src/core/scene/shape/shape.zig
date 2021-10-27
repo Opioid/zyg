@@ -14,6 +14,7 @@ const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
 const SampleTo = @import("sample.zig").To;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
@@ -278,9 +279,17 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn prepareSampling(self: *Shape, alloc: *Allocator, part: u32, material: u32, worker: Worker, threads: *Threads) !u32 {
+    pub fn prepareSampling(
+        self: *Shape,
+        alloc: *Allocator,
+        part: u32,
+        material: u32,
+        builder: *LightTreeBuilder,
+        worker: Worker,
+        threads: *Threads,
+    ) !u32 {
         return switch (self.*) {
-            .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, material, worker, threads),
+            .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, material, builder, worker, threads),
             else => 0,
         };
     }

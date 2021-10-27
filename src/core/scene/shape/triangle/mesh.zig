@@ -9,6 +9,8 @@ const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
 const SampleTo = @import("../sample.zig").To;
 pub const bvh = @import("bvh/tree.zig");
+const LightTree = @import("../../light/tree.zig").PrimitiveTree;
+const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -25,9 +27,11 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Part = struct {
+pub const Part = struct {
     const Variant = struct {
         distribution: Distribution1D = .{},
+
+        light_tree: LightTree = .{},
 
         aabb: AABB,
         cone: Vec4f,
@@ -36,6 +40,7 @@ const Part = struct {
         two_sided: bool,
 
         pub fn deinit(self: *Variant, alloc: *Allocator) void {
+            self.light_tree.deinit(alloc);
             self.distribution.deinit(alloc);
         }
 
@@ -81,6 +86,7 @@ const Part = struct {
         part: u32,
         material: u32,
         tree: bvh.Tree,
+        builder: *LightTreeBuilder,
         worker: Worker,
         threads: *Threads,
     ) !u32 {
@@ -186,6 +192,8 @@ const Part = struct {
 
         const v = @intCast(u32, self.variants.items.len);
 
+        try builder.buildPrimitive(alloc, &variant.light_tree, self.*, v, threads);
+
         try self.variants.append(alloc, variant);
 
         return v;
@@ -193,6 +201,18 @@ const Part = struct {
 
     pub fn aabb(self: Part, variant: u32) AABB {
         return self.variants.items[variant].aabb;
+    }
+
+    pub fn power(self: Part, variant: u32) f32 {
+        return self.variant.items[variant].distributions.integral();
+    }
+
+    pub fn cone(self: Part, variant: u32) Vec4f {
+        return self.variant.items[variant].cone;
+    }
+
+    pub fn lightAabb(self: Part, light: u32) AABB {
+        return self.aabbs[light];
     }
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
@@ -228,7 +248,7 @@ const Part = struct {
                 const t = self.part.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
-                var power: f32 = undefined;
+                var pow: f32 = undefined;
                 if (emission_map) {
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
@@ -252,18 +272,18 @@ const Part = struct {
                     }
 
                     const weight = math.maxComponent3(radiance) / @intToFloat(f32, num_samples);
-                    power = weight * area;
+                    pow = weight * area;
                 } else {
-                    power = area;
+                    pow = area;
                 }
 
-                self.powers[i] = power;
+                self.powers[i] = pow;
 
-                if (power > 0.0) {
+                if (pow > 0.0) {
                     const n = self.part.cones[i];
-                    temp.dominant_axis += @splat(4, power) * n;
+                    temp.dominant_axis += @splat(4, pow) * n;
                     temp.bb.mergeAssign(self.part.aabbs[i]);
-                    temp.total_power += power;
+                    temp.total_power += pow;
                 }
             }
 
@@ -555,6 +575,7 @@ pub const Mesh = struct {
         alloc: *Allocator,
         part: u32,
         material: u32,
+        builder: *LightTreeBuilder,
         worker: Worker,
         threads: *Threads,
     ) !u32 {
@@ -573,6 +594,6 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, worker, threads);
+        return try self.parts[part].configure(alloc, part, material, self.tree, builder, worker, threads);
     }
 };

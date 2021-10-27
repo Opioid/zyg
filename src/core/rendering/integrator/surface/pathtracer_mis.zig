@@ -413,8 +413,12 @@ pub const PathtracerMIS = struct {
     }
 
     fn splitting(self: Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and
-            bounce < Num_dedicated_samplers;
+        // return .Adaptive == self.settings.light_sampling and
+        //     bounce < Num_dedicated_samplers;
+
+        _ = self;
+        _ = bounce;
+        return true;
     }
 };
 

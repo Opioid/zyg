@@ -412,6 +412,55 @@ pub const Tree = struct {
     }
 };
 
+pub const PrimitiveTree = struct {
+    num_lights: u32 = 0,
+    num_nodes: u32 = 0,
+
+    nodes: [*]Node = undefined,
+    node_middles: [*]u32 = undefined,
+    distributions: [*]Distribution1D = undefined,
+
+    light_orders: [*]u32 = undefined,
+    light_mapping: [*]u32 = undefined,
+
+    const Self = @This();
+
+    pub fn deinit(self: *Self, alloc: *Allocator) void {
+        const num_lights = self.num_lights;
+        alloc.free(self.light_orders[0..num_lights]);
+        alloc.free(self.light_mapping[0..num_lights]);
+
+        const num_nodes = self.num_nodes;
+        alloc.free(self.distributions[0..num_nodes]);
+        alloc.free(self.node_middles[0..num_nodes]);
+        alloc.free(self.nodes[0..num_nodes]);
+    }
+
+    pub fn allocateLightMapping(self: *Self, alloc: *Allocator, num_lights: u32) !void {
+        if (self.num_lights != num_lights) {
+            const nl = self.num_lights;
+            self.light_mapping = (try alloc.realloc(self.light_mapping[0..nl], num_lights)).ptr;
+            self.light_orders = (try alloc.realloc(self.light_orders[0..nl], num_lights)).ptr;
+
+            self.num_lights = num_lights;
+        }
+    }
+
+    pub fn allocateNodes(self: *Self, alloc: *Allocator, num_nodes: u32) !void {
+        if (self.num_nodes != num_nodes) {
+            const nn = self.num_nodes;
+            self.nodes = (try alloc.realloc(self.nodes[0..nn], num_nodes)).ptr;
+            self.node_middles = (try alloc.realloc(self.node_middles[0..nn], num_nodes)).ptr;
+
+            var distributions = try alloc.realloc(self.distributions[0..nn], num_nodes);
+            std.mem.set(Distribution1D, distributions, .{});
+            self.distributions = distributions.ptr;
+
+            self.num_nodes = num_nodes;
+        }
+    }
+};
+
 const TraversalStack = struct {
     pub const Value = struct {
         pdf: f32,

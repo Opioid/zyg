@@ -438,7 +438,7 @@ pub const Scene = struct {
 
         const m = self.material_ids.items[p];
 
-        const variant = shape_inst.prepareSampling(alloc, part, m, worker, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, worker, threads) catch 0;
         self.lights.items[light_id].variant = @intCast(u16, variant);
 
         const trafo = self.propTransformationAt(entity, time);

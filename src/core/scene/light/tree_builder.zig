@@ -1,7 +1,9 @@
 const tr = @import("tree.zig");
 const Tree = tr.Tree;
+const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
+const Part = @import("../shape/triangle/mesh.zig").Part;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -12,6 +14,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const Scene_sweep_threshold = 128;
+const Part_sweep_threshold = 32;
 const Num_slices = 16;
 
 const BuildNode = struct {
@@ -255,6 +258,54 @@ pub const Builder = struct {
             infinite_weight;
 
         _ = threads;
+    }
+
+    pub fn buildPrimitive(
+        self: *Builder,
+        alloc: *Allocator,
+        tree: *PrimitiveTree,
+        part: Part,
+        variant: u32,
+        threads: *Threads,
+    ) !void {
+        const num_finite_lights = part.num_triangles;
+        try tree.allocateLightMapping(alloc, num_finite_lights);
+
+        self.light_order = 0;
+
+        var lm: u32 = 0;
+        var l: u32 = 0;
+        while (l < num_finite_lights) : (l += 1) {
+            tree.light_mapping[lm] = l;
+            lm += 1;
+        }
+
+        try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);
+
+        self.current_node = 1;
+
+        // const total_power = part.power(variant);
+
+        // self.splitPrimitive(
+        //     tree,
+        //     0,
+        //     0,
+        //     num_finite_lights,
+        //     std.math.max(num_finite_lights / 64, 4),
+        //     part.aabb(variant),
+        //     part.cone(variant),
+        //     total_power,
+        //     part,
+        //     variant,
+        //     threads,
+        // );
+
+        try tree.allocateNodes(alloc, self.current_node);
+
+        // self.serializePrimitive(tree, part, variant);
+
+        _ = threads;
+        _ = variant;
     }
 
     fn allocate(self: *Builder, alloc: *Allocator, num_lights: u32, sweep_threshold: u32) !void {

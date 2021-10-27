@@ -27,7 +27,7 @@ pub const Distribution2D = struct {
     }
 
     pub fn allocate(self: *Self, alloc: *Allocator, num: u32) ![]Distribution1D {
-        if (self.conditional.len != @intCast(usize, num)) {
+        if (self.conditional.len != num) {
             self.conditional = try alloc.realloc(self.conditional, num);
             std.mem.set(Distribution1D, self.conditional, .{});
         }
