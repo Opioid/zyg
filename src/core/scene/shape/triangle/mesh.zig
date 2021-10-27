@@ -181,21 +181,18 @@ pub const Part = struct {
             angle = std.math.max(angle, std.math.acos(c));
         }
 
-        var variant = Variant{
+        const v = @intCast(u32, self.variants.items.len);
+
+        try self.variants.append(alloc, .{
             .aabb = temp.bb,
             .cone = .{ da[0], da[1], da[2], @cos(angle) },
             .material = material,
             .two_sided = two_sided,
-        };
+        });
 
+        var variant = &self.variants.items[v];
         try variant.distribution.configure(alloc, context.powers, 0);
-
-        const v = @intCast(u32, self.variants.items.len);
-
         try builder.buildPrimitive(alloc, &variant.light_tree, self.*, v, threads);
-
-        try self.variants.append(alloc, variant);
-
         return v;
     }
 
@@ -204,11 +201,11 @@ pub const Part = struct {
     }
 
     pub fn power(self: Part, variant: u32) f32 {
-        return self.variant.items[variant].distributions.integral();
+        return self.variants.items[variant].distribution.integral;
     }
 
     pub fn cone(self: Part, variant: u32) Vec4f {
-        return self.variant.items[variant].cone;
+        return self.variants.items[variant].cone;
     }
 
     pub fn lightAabb(self: Part, light: u32) AABB {
@@ -217,6 +214,16 @@ pub const Part = struct {
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
         return self.cones[light];
+    }
+
+    pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
+        _ = light;
+        return self.variants.items[variant].two_sided;
+    }
+
+    pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+        const dist = self.variants.items[variant].distribution;
+        return dist.pdfI(light) * dist.integral;
     }
 
     const Temp = struct {
@@ -258,7 +265,7 @@ pub const Part = struct {
 
                     var j: u32 = 0;
                     while (j < num_samples) : (j += 1) {
-                        const xi = math.hammersley(i, num_samples, 0);
+                        const xi = math.hammersley(j, num_samples, 0);
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
                         radiance += self.m.evaluateRadiance(
@@ -305,21 +312,30 @@ pub const Part = struct {
     };
 
     pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
-        _ = p;
-        _ = n;
-        _ = total_sphere;
+        // _ = p;
+        // _ = n;
+        // _ = total_sphere;
 
-        return self.sampleRandom(variant, r);
+        // return self.sampleRandom(variant, r);
+
+        const pick = self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant);
+        const relative_area = self.aabbs[pick.offset].bounds[1][3];
+
+        return .{
+            .global = self.triangle_mapping[pick.offset],
+            .local = pick.offset,
+            .pdf = pick.pdf * relative_area,
+        };
     }
 
     pub fn sampleRandom(self: Part, variant: u32, r: f32) Discrete {
-        const result = self.variants.items[variant].distribution.sampleDiscrete(r);
-        const relative_area = self.aabbs[result.offset].bounds[1][3];
+        const pick = self.variants.items[variant].distribution.sampleDiscrete(r);
+        const relative_area = self.aabbs[pick.offset].bounds[1][3];
 
         return .{
-            .global = self.triangle_mapping[result.offset],
-            .local = result.offset,
-            .pdf = result.pdf * relative_area,
+            .global = self.triangle_mapping[pick.offset],
+            .local = pick.offset,
+            .pdf = pick.pdf * relative_area,
         };
     }
 
@@ -329,6 +345,11 @@ pub const Part = struct {
         _ = total_sphere;
 
         return self.pdfRandom(variant, id);
+
+        // const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
+        // const relative_area = self.aabbs[id].bounds[1][3];
+
+        // return pdf * relative_area;
     }
 
     pub fn pdfRandom(self: Part, variant: u32, id: u32) f32 {

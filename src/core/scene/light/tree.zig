@@ -1,4 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
+const Part = @import("../shape/triangle/mesh.zig").Part;
 const mat = @import("../material/sample_helper.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -61,7 +62,7 @@ pub const Node = packed struct {
         total_sphere: bool,
         random: f32,
         light_mapping: [*]const u32,
-        set: Scene,
+        set: anytype,
         variant: u32,
     ) Pick {
         const num_lights = self.num_lights;
@@ -87,7 +88,7 @@ pub const Node = packed struct {
         total_sphere: bool,
         id: u32,
         light_mapping: [*]const u32,
-        set: Scene,
+        set: anytype,
         variant: u32,
     ) f32 {
         if (1 == self.num_lights) {
@@ -159,7 +160,7 @@ fn clampedSinSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
     return if (cos_a > cos_b) 0.0 else angle;
 }
 
-fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: Scene, variant: u32) f32 {
+fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype, variant: u32) f32 {
     const two_sided = set.lightTwoSided(variant, light);
     const aabb = set.lightAabb(light);
     const center = aabb.position();
@@ -457,6 +458,90 @@ pub const PrimitiveTree = struct {
             self.distributions = distributions.ptr;
 
             self.num_nodes = num_nodes;
+        }
+    }
+
+    pub fn randomLight(
+        self: Self,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        randomp: f32,
+        part: Part,
+        variant: u32,
+    ) Pick {
+        var random = randomp;
+        var pd: f32 = 1.0;
+
+        var nid: u32 = 0;
+        while (true) {
+            const node = self.nodes[nid];
+
+            if (node.has_children) {
+                const c0 = node.children_or_light;
+                const c1 = c0 + 1;
+
+                var p0 = self.nodes[c0].weight(p, n, total_sphere);
+                var p1 = self.nodes[c1].weight(p, n, total_sphere);
+
+                const pt = p0 + p1;
+
+                p0 /= pt;
+                p1 /= pt;
+
+                if (random < p0) {
+                    nid = c0;
+                    pd *= p0;
+                    random /= p0;
+                } else {
+                    nid = c1;
+                    pd *= p1;
+                    random = (random - p0) / p1;
+                }
+            } else {
+                if (node.num_lights <= 4) {
+                    const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
+                    return .{ .offset = pick.offset, .pdf = pick.pdf * pd };
+                }
+
+                const pick = self.distributions[nid].sampleDiscrete(random);
+                return .{ .offset = self.light_mapping[node.children_or_light + pick.offset], .pdf = pick.pdf * pd };
+            }
+        }
+    }
+
+    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: Part, variant: u32) f32 {
+        const lo = self.light_orders[id];
+
+        var pd: f32 = 1.0;
+
+        var nid: u32 = 0;
+        while (true) {
+            const node = self.nodes[nid];
+            const middle = self.node_middles[nid];
+
+            if (middle > 0) {
+                const c0 = node.children_or_light;
+                const c1 = c0 + 1;
+
+                const p0 = self.nodes[c0].weight(p, n, total_sphere);
+                const p1 = self.nodes[c1].weight(p, n, total_sphere);
+                const pt = p0 + p1;
+
+                if (lo < middle) {
+                    nid = c0;
+                    pd *= p0 / pt;
+                } else {
+                    nid = c1;
+                    pd *= p1 / pt;
+                }
+            } else {
+                if (node.num_lights <= 4) {
+                    return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
+                }
+
+                return pd * self.distributions[nid].pdfI(lo - node.children_or_light);
+            }
         }
     }
 };

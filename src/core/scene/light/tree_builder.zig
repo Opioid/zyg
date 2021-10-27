@@ -73,12 +73,12 @@ const SplitCandidate = struct {
         return point[self.axis] < self.d;
     }
 
-    pub fn evaluate(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, set: anytype, variant: u32) void {
-        if (Scene == @TypeOf(set)) {
+    pub fn evaluate(self: *Self, comptime T: type, lights: []u32, bounds: AABB, cone_weight: f32, set: T, variant: u32) void {
+        if (Scene == T) {
             self.evaluateScene(lights, bounds, cone_weight, set);
+        } else if (Part == T) {
+            self.evaluatePart(lights, bounds, cone_weight, set, variant);
         }
-
-        _ = variant;
     }
 
     fn evaluateScene(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, scene: Scene) void {
@@ -133,10 +133,85 @@ const SplitCandidate = struct {
 
             self.exhausted = false;
         }
+    }
 
-        // std.debug.print("{} \n", .{
-        //     self.aabbs[0],
-        // });
+    fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: Part, variant: u32) void {
+        var num_sides: [2]u32 = .{ 0, 0 };
+        var boxs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
+        var dominant_axis: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
+        var powers: [2]f32 = .{ 0.0, 0.0 };
+
+        for (lights) |l| {
+            const box = part.lightAabb(l);
+            const n = part.lightCone(l);
+            const power = part.lightPower(variant, l);
+
+            if (0.0 == power) {
+                continue;
+            }
+
+            const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
+
+            num_sides[side] += 1;
+            boxs[side].mergeAssign(box);
+            dominant_axis[side] += @splat(4, power) * n;
+            powers[side] += power;
+        }
+
+        dominant_axis[0] = math.normalize3(dominant_axis[0] / @splat(4, powers[0]));
+        dominant_axis[1] = math.normalize3(dominant_axis[1] / @splat(4, powers[1]));
+
+        var angles: [2]f32 = .{ 0.0, 0.0 };
+
+        for (lights) |l| {
+            const power = part.lightPower(variant, l);
+            if (0.0 == power) {
+                continue;
+            }
+
+            const box = part.lightAabb(l);
+            const n = part.lightCone(l);
+
+            const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
+            const c = math.dot3(dominant_axis[side], n);
+            angles[side] = std.math.max(angles[side], std.math.acos(c));
+        }
+
+        const da0 = dominant_axis[0];
+        const da1 = dominant_axis[1];
+        const cones: [2]Vec4f = .{
+            .{ da0[0], da0[1], da0[2], @cos(angles[0]) },
+            .{ da1[0], da1[1], da1[2], @cos(angles[1]) },
+        };
+
+        const extent = bounds.extent();
+        const reg = math.maxComponent3(extent) / extent[self.axis];
+        const surface_area = bounds.surfaceArea();
+
+        const two_sided = part.lightTwoSided(variant, 0);
+
+        self.aabbs = boxs;
+        self.cones = cones;
+        self.powers = powers;
+        self.two_sideds = .{ two_sided, two_sided };
+
+        const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
+        if (empty_side) {
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.exhausted = true;
+        } else {
+            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
+            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
+
+            const surface_area_a = boxs[0].surfaceArea();
+            const surface_area_b = boxs[1].surfaceArea();
+
+            self.cost = reg * (((powers[0] * cone_weight_a * surface_area_a) +
+                (powers[1] * cone_weight_b * surface_area_b)) /
+                (surface_area * cone_weight));
+
+            self.exhausted = false;
+        }
     }
 };
 
@@ -284,28 +359,25 @@ pub const Builder = struct {
 
         self.current_node = 1;
 
-        // const total_power = part.power(variant);
+        const total_power = part.power(variant);
 
-        // self.splitPrimitive(
-        //     tree,
-        //     0,
-        //     0,
-        //     num_finite_lights,
-        //     std.math.max(num_finite_lights / 64, 4),
-        //     part.aabb(variant),
-        //     part.cone(variant),
-        //     total_power,
-        //     part,
-        //     variant,
-        //     threads,
-        // );
+        _ = self.splitPrimitive(
+            tree,
+            0,
+            0,
+            num_finite_lights,
+            std.math.max(num_finite_lights / 64, 4),
+            part.aabb(variant),
+            part.cone(variant),
+            total_power,
+            part,
+            variant,
+            threads,
+        );
 
         try tree.allocateNodes(alloc, self.current_node);
 
-        // self.serializePrimitive(tree, part, variant);
-
-        _ = threads;
-        _ = variant;
+        try self.serializePrimitive(alloc, tree, part, variant);
     }
 
     fn allocate(self: *Builder, alloc: *Allocator, num_lights: u32, sweep_threshold: u32) !void {
@@ -337,10 +409,9 @@ pub const Builder = struct {
         threads: *Threads,
     ) u32 {
         const lights = tree.light_mapping[begin..end];
+        const len = end - begin;
 
         var node = &self.build_nodes[node_id];
-
-        const len = end - begin;
 
         if (len <= 4) {
             var node_two_sided = false;
@@ -365,15 +436,14 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        self.current_node += 2;
-
         const cone_weight = coneCost(cone[3]);
 
         const sc = evaluateSplits(lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
-        const predicate = Predicate{ .sc = &sc, .scene = &scene };
+        const predicate = Predicate(Scene){ .sc = &sc, .set = &scene };
         const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate));
 
+        self.current_node += 2;
         const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sideds[0], sc.powers[0], scene, threads);
         const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sideds[1], sc.powers[1], scene, threads);
 
@@ -389,14 +459,102 @@ pub const Builder = struct {
         return c1_end;
     }
 
-    const Predicate = struct {
-        sc: *const SplitCandidate,
-        scene: *const Scene,
+    fn splitPrimitive(
+        self: *Builder,
+        tree: *PrimitiveTree,
+        node_id: u32,
+        begin: u32,
+        end: u32,
+        max_primitives: u32,
+        bounds: AABB,
+        cone: Vec4f,
+        total_power: f32,
+        part: Part,
+        variant: u32,
+        threads: *Threads,
+    ) u32 {
+        const lights = tree.light_mapping[begin..end];
+        const len = end - begin;
 
-        pub fn f(self: Predicate, l: u32) bool {
-            return self.sc.behind(self.scene.lightAabb(l).bounds[1]);
+        var node = &self.build_nodes[node_id];
+
+        if (len <= max_primitives) {
+            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, part, variant);
         }
-    };
+
+        const child0 = self.current_node;
+
+        const cone_weight = coneCost(cone[3]);
+
+        const sc = evaluateSplits(lights, bounds, cone_weight, Part_sweep_threshold, self.candidates, part, variant, threads);
+
+        if (sc.exhausted) {
+            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, part, variant);
+        }
+
+        const predicate = Predicate(Part){ .sc = &sc, .set = &part };
+        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate));
+
+        self.current_node += 2;
+        const c0_end = self.splitPrimitive(tree, child0, begin, split_node, max_primitives, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
+        const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, max_primitives, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
+
+        node.bounds = bounds;
+        node.cone = cone;
+        node.power = total_power;
+        node.variance = variance(lights, part, variant);
+        node.middle = c0_end;
+        node.children_or_light = child0;
+        node.num_lights = len;
+        node.two_sided = part.lightTwoSided(variant, 0);
+
+        return c1_end;
+    }
+
+    pub fn Predicate(comptime T: type) type {
+        return struct {
+            sc: *const SplitCandidate,
+            set: *const T,
+
+            const Self = @This();
+
+            pub fn f(self: Self, l: u32) bool {
+                return self.sc.behind(self.set.lightAabb(l).bounds[1]);
+            }
+        };
+    }
+
+    fn assignPrimitive(
+        self: *Builder,
+        node: *BuildNode,
+        tree: *PrimitiveTree,
+        begin: u32,
+        end: u32,
+        bounds: AABB,
+        cone: Vec4f,
+        total_power: f32,
+        part: Part,
+        variant: u32,
+    ) u32 {
+        const lights = tree.light_mapping[begin..end];
+        const len = end - begin;
+
+        for (lights) |l| {
+            tree.light_orders[l] = self.light_order;
+            self.light_order += 1;
+        }
+
+        node.bounds = bounds;
+        node.cone = cone;
+        node.power = total_power;
+        node.variance = variance(lights, part, variant);
+        node.middle = 0;
+        node.children_or_light = begin;
+        node.num_lights = len;
+        node.two_sided = part.lightTwoSided(variant, 0);
+
+        return begin + len;
+    }
 
     fn serialize(self: Builder, nodes: [*]Node, node_middles: [*]u32) void {
         for (self.build_nodes[0..self.current_node]) |source, i| {
@@ -414,6 +572,44 @@ pub const Builder = struct {
             dest.two_sided = source.two_sided;
 
             node_middles[i] = source.middle;
+        }
+    }
+
+    fn serializePrimitive(self: Builder, alloc: *Allocator, tree: *PrimitiveTree, part: Part, variant: u32) !void {
+        var powers: std.ArrayListUnmanaged(f32) = .{};
+        defer powers.deinit(alloc);
+
+        for (self.build_nodes[0..self.current_node]) |source, i| {
+            var dest = &tree.nodes[i];
+            const bounds = source.bounds;
+            const p = bounds.position();
+
+            dest.center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
+            dest.cone = source.cone;
+            dest.power = source.power;
+            dest.variance = source.variance;
+            dest.has_children = source.hasChildren();
+
+            dest.children_or_light = @intCast(u30, source.children_or_light);
+            dest.num_lights = source.num_lights;
+            dest.two_sided = source.two_sided;
+
+            tree.node_middles[i] = source.middle;
+
+            if (!source.hasChildren()) {
+                const first = source.children_or_light;
+                const num = source.num_lights;
+
+                if (num > 4) {
+                    try powers.resize(alloc, num);
+
+                    for (powers.items) |*pow, t| {
+                        pow.* = part.lightPower(variant, tree.light_mapping[t + first]);
+                    }
+
+                    try tree.distributions[i].configure(alloc, powers.items, 0);
+                }
+            }
         }
     }
 
@@ -490,8 +686,10 @@ pub const Builder = struct {
             }
         }
 
+        const Eval = EvaluateContext(@TypeOf(set));
+
         if (lights.len * num_candidates > 1024) {
-            const context = EvaluateContext{
+            const context = Eval{
                 .lights = lights,
                 .bounds = bounds,
                 .cone_weight = cone_weight,
@@ -500,10 +698,10 @@ pub const Builder = struct {
                 .variant = variant,
             };
 
-            _ = threads.runRange(&context, EvaluateContext.run, 0, num_candidates);
+            _ = threads.runRange(&context, Eval.run, 0, num_candidates);
         } else {
             for (candidates[0..num_candidates]) |*c| {
-                c.evaluate(lights, bounds, cone_weight, set, variant);
+                c.evaluate(@TypeOf(set), lights, bounds, cone_weight, set, variant);
             }
         }
 
@@ -520,24 +718,28 @@ pub const Builder = struct {
         return candidates[sc];
     }
 
-    const EvaluateContext = struct {
-        lights: []u32,
-        bounds: AABB,
-        cone_weight: f32,
-        candidates: []SplitCandidate,
-        set: *const Scene,
-        variant: u32,
+    fn EvaluateContext(comptime T: type) type {
+        return struct {
+            lights: []u32,
+            bounds: AABB,
+            cone_weight: f32,
+            candidates: []SplitCandidate,
+            set: *const T,
+            variant: u32,
 
-        pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            _ = id;
+            const Self = @This();
 
-            const self = @intToPtr(*EvaluateContext, context);
+            pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+                _ = id;
 
-            for (self.candidates[begin..end]) |*c| {
-                c.evaluate(self.lights, self.bounds, self.cone_weight, self.set, self.variant);
+                const self = @intToPtr(*Self, context);
+
+                for (self.candidates[begin..end]) |*c| {
+                    c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set.*, self.variant);
+                }
             }
-        }
-    };
+        };
+    }
 };
 
 fn coneCost(cos: f32) f32 {
