@@ -390,6 +390,18 @@ pub const Provider = struct {
 
         const binary_start = json_size + 4 + @sizeOf(u64);
 
+        if (0 == num_vertices) {
+            // Handle legacy files, that curiously worked because of Gzip_stream bug!
+            // (seekg() was not implemented properly)
+            const Sizeof_vertex = 48;
+            num_vertices = @intCast(u32, vertices_size / Sizeof_vertex);
+
+            if (!interleaved_vertex_stream) {
+                const Vertex_unpadded_size = 3 * 4 + 3 * 4 + 3 * 4 + 2 * 4 + 1;
+                indices_offset = num_vertices * Vertex_unpadded_size;
+            }
+        }
+
         try stream.seekTo(binary_start + vertices_offset);
 
         var vertices: vs.VertexStream = undefined;
@@ -426,6 +438,10 @@ pub const Provider = struct {
                     vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
                 }
             }
+        }
+
+        if (0 == num_indices) {
+            num_indices = @intCast(u32, indices_size / index_bytes);
         }
 
         try stream.seekTo(binary_start + indices_offset);

@@ -25,6 +25,13 @@ pub fn iorAndAbsorption(name: []const u8) [2]Vec4f {
         };
     }
 
+    if (std.mem.eql(u8, "Iron", name)) {
+        return .{
+            .{ 2.9038, 2.8857, 2.6420, 0.0 },
+            .{ 3.0798, 2.9157, 2.8025, 0.0 },
+        };
+    }
+
     return .{
         .{ 1.5, 1.5, 1.5, 0.0 },
         .{ 1.0, 1.0, 1.0, 0.0 },
