@@ -11,12 +11,34 @@ I began working on this project, because I had heard many good things about zig 
 
 Overall the experience has been very pleasant, and I would say I translated roughly 75% of the parts, that I potentially want to keep, if I decide to continue from this "branch" of the renderer.
 
-For the moment I will use this space to collect some random thoughts I had during this process.
+For the moment I will use this space to collect some random thoughts I had about zig during this process.
 
 ** Thoughts
 
 *** Inheritance
 
+Coming from a C++ background, the omission of inheritance in zig is one of the more visible differences. In sprout I don't go overboard with inheritance hierarchies, but it is certainly used for polymorphism in many places. 
+
+In cases, where I used to have more of an interface type before, without data, I'm quite happy to use union(enum) now.
+
+In other places I reduced polymorphism by replacing it with a simple if/else, and I feel mostly good about it.
+
+There are some cases, though, where I want to define a "base class" with data that is useful in several places. It is easy enough to achieve the same goal with composition, but I find writing self.super.thing instead of self.thing a bit annoying. Also, I can't decide if I rather want to wrap every function of the base class in the union(enum), or if I should just access it as foo.super().doThing() from the outside.
+
+I haven't really felt the need to use @fieldParentPtr() for interfaces yet, and I think I won't need them here.
+
+Overall, union(enum) works really well for me, but I'm not fully happy yet with the situations where I want common data fields.
+
+*** Allocator
+
+Another very visible difference to C++ and other languages I know, is the way allocators are made explicit in zig. I simply accepted to pass an allocator parameter everywhere I need one, just like the explicit self/this parameter. At the moment I only ever use the same allocator, so it feels somewhat redundant, but it stopped bothering me very soon.
+
+I can't say it made substantial differences to the way I allocate memory, but I like how it makes allocations more visible from the outside, if used like this. I also feel less reluctant to use custom allocators, but again, it's nothing I'm actually doing.
+
+*** Constructor/Destructor
+
+
+ 
 *** Overloading
 
 zig does not support function or operator overloading, and as as I understand it, probably never will. I generally like function overloading and use it regularly in C++ code. At first I was only annoyed that I have to come up with a new name for a function, but I have to admit that this has actually been an improvement in some cases. On the one hand I have to think about function naming a bit more, with an opportunity to make things clearer, on the other hand different names will not always help in my opinion. Overall, I hardly miss it, and I can see some clear advantages for me.
@@ -37,13 +59,11 @@ As I said, I really enjoy std.meta.Vector and I don't miss writing SSE intrinsic
 
 I'm not particularly good with them and generally happy to let std.meta.Vector take care of it. I thought that I would miss certain intrinsics like e.g. rsqrt(), but performance wise it doesn't seem to make such a big impact for this project, as I thought.
 
-I have not verified at all, but I'm somewhat hopeful that the code is more portable between architectures now, at a comparable level of efficiency!
+On the contrary, I'm somewhat hopeful that the code is more portable between architectures now, at a comparable level of efficiency. But I have not researched or verified this at all! 
 
 *** Lambdas
 
 *** File I/O
-
-
 
 *** Performance
 
