@@ -13,3 +13,44 @@ Overall the experience has been very pleasant, and I would say I translated roug
 
 For the moment I will use this space to collect some random thoughts I had during this process.
 
+** Thoughts
+
+*** Inheritance
+
+*** Overloading
+
+zig does not support function or operator overloading, and as as I understand it, probably never will. I generally like function overloading and use it regularly in C++ code. At first I was only annoyed that I have to come up with a new name for a function, but I have to admit that this has actually been an improvement in some cases. On the one hand I have to think about function naming a bit more, with an opportunity to make things clearer, on the other hand different names will not always help in my opinion. Overall, I hardly miss it, and I can see some clear advantages for me.
+
+There is one place where I believe that operator overloading really improves readability, and that is mathematical equations with custom types, like vectors. Coincidentally, zig addresses this with std.meta.Vector, so in practice lack of operator overloading was not really noticeable for me. 
+
+*** Vectors
+
+std.meta.Vector allows you to declare vector-types with a fixed amount of elements. Operators like +,-,*,/ and some other built-in functions will than operate on all elements in parallel, like SIMD. Generally, I really like it! From what I can see, the generated instructions mostly map well to SSE and it feels like a good starting point to write your own vector math (things like dot- and cross-product still have to be written manually).
+
+Unfortunately, I don't feel 100% secure with the generated instructions. [[https://zigforum.org/t/std-math-min-vs-minimum-for-std-meta-vector/821/5][Here]], I wrote about my observations of writing max(vec, vec) in three different ways. All functions generate different instructions and have different performance behavior that I cannot explain.
+
+Due to lack of operator overloading it is not possible to write scalar * vector. However, I actually don't really mind writing @splat(4, scalar) * vector. I'm less fond of the way, ad-hoc constants are handled: @splat(4, @as(f32, 2.0)) * vector.
+
+As I said, I really enjoy std.meta.Vector and I don't miss writing SSE intrinsics. But there remains a lingering feeling, that it sometimes will be necessary to massage the code in certain ways to emit the instructions you want.
+
+*** Intrinsics
+
+I'm not particularly good with them and generally happy to let std.meta.Vector take care of it. I thought that I would miss certain intrinsics like e.g. rsqrt(), but performance wise it doesn't seem to make such a big impact for this project, as I thought.
+
+I have not verified at all, but I'm somewhat hopeful that the code is more portable between architectures now, at a comparable level of efficiency!
+
+*** Lambdas
+
+*** File I/O
+
+
+
+*** Performance
+
+*** Debugging
+
+I more or less sidestepped this, by having a functioning clone in C++. I know that the algorithms work (hopefully...), and when I encountered significant differences in the output, printf() debugging was enough to isolate the problematic part quickly enough. I haven't given this much thought yet.
+
+*** Interoperability
+
+I intentionally avoided dependencies on other APIs as much as I could, for this hobby project. Using the header-only c-lib [[https://github.com/richgel999/miniz][miniz]] worked well. I haven't investigated how much effort it would be to use more complex API like Vulkan, should I ever feel the desire to make use of the GPU. I'm cautiously optimistic due the good c-interoperability, though.
