@@ -36,8 +36,6 @@ Another very visible difference to C++ and other languages I know, is the way al
 I can't say it made substantial differences to the way I allocate memory, but I like how it makes allocations more visible from the outside, if used like this. I also feel less reluctant to use custom allocators, but again, it's nothing I'm actually doing.
 
 *** Constructor/Destructor
-
-
  
 *** Overloading
 
