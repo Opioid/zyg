@@ -1,0 +1,15 @@
+* zyg
+
+[[https://opioid.github.io/zyg/images/bistro_night_720.jpg]]
+[[https://developer.nvidia.com/orca/amazon-lumberyard-bistro][Lumberyard Bistro]]
+
+** Brief
+
+zyg is raytracing renderer written in [[https://ziglang.org/][zig]]. At the moment it is simply a subset of my other project, called [[https://github.com/Opioid/sprout][sprout]], manually translated from C++ to zig. 
+
+I began working on this project, because I had heard many good things about zig and was curious to try it out for myself. Due to a lack of imagination I could not come up with a better idea than redoing my hobby renderer in a different language. 
+
+Overall the experience has been very pleasant, and I would say I translated roughly 75% of the parts, that I potentially want to keep, if I decide to continue from this "branch" of the renderer.
+
+For the moment I will use this space to collect some random thoughts I had during this process.
+
