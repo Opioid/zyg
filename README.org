@@ -37,6 +37,8 @@ I can't say it made substantial differences to the way I allocate memory, but I 
 
 *** Constructor/Destructor
  
+Of course there are no constructors/desctructors in zig, but I quickly got used to using normal functions for this instead. On the other hand you can assign default values to the member variables of a struct. This is nice, but apparently it doesn't work for arrays of objects that you allocate on the heap, which caused some confusion for me.
+
 *** Overloading
 
 zig does not support function or operator overloading, and as as I understand it, probably never will. I generally like function overloading and use it regularly in C++ code. At first I was only annoyed that I have to come up with a new name for a function, but I have to admit that this has actually been an improvement in some cases. On the one hand I have to think about function naming a bit more, with an opportunity to make things clearer, on the other hand different names will not always help in my opinion. Overall, I hardly miss it, and I can see some clear advantages for me.
@@ -61,9 +63,17 @@ On the contrary, I'm somewhat hopeful that the code is more portable between arc
 
 *** Lambdas
 
+Lambdas in C++ are convenient in my oppinion, but I don't really miss them. Overall I think I prefer using a function pointer and context because it makes it explicit where the "captured" data is stored. 
+
 *** File I/O
 
+It confuses me, how much [[https://zigforum.org/t/seekable-buffered-reader-revisited/835][effort]] seems to be neccessary to have both buffered reads and seeking at the same time. Is this normal?
+
 *** Performance
+
+Overall I'm very pleased with how the zig version of the renderer compares to the C++ version. Often the timings are extremly close, which makes sense I suppose, because they are using the same algorithms. 
+
+Parsing the scene and building the acceleration structure is measureably slower with the zig version, though. I haven't isolated the exact reason yet, but I think it might be related to my use of std.meta.Vector, that doesn't generate to so good instructions here.
 
 *** Debugging
 
