@@ -110,9 +110,9 @@ pub const Pool = struct {
         );
 
         for (self.uniques[0..num_tasks]) |*u| {
-            const lock = u.mutex.acquire();
+            u.mutex.lock();
             u.wake = true;
-            lock.release();
+            u.mutex.unlock();
             u.wake_signal.signal();
         }
 
@@ -137,11 +137,11 @@ pub const Pool = struct {
                 return i;
             }
 
-            const lock = u.mutex.acquire();
+            u.mutex.lock();
             u.begin = b;
             u.end = std.math.min(e, end);
             u.wake = true;
-            lock.release();
+            u.mutex.unlock();
             u.wake_signal.signal();
         }
 
@@ -150,8 +150,8 @@ pub const Pool = struct {
 
     fn waitAll(self: *Pool, num: usize) void {
         for (self.uniques[0..num]) |*u| {
-            const lock = u.mutex.acquire();
-            defer lock.release();
+            u.mutex.lock();
+            defer u.mutex.unlock();
 
             while (u.wake) {
                 u.done_signal.wait(&u.mutex);
@@ -165,8 +165,8 @@ pub const Pool = struct {
         var u = &self.uniques[id];
 
         while (true) {
-            const lock = u.mutex.acquire();
-            defer lock.release();
+            u.mutex.lock();
+            defer u.mutex.unlock();
 
             while (!u.wake) {
                 u.wake_signal.wait(&u.mutex);
