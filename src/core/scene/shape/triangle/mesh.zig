@@ -7,7 +7,9 @@ const NodeStack = @import("../node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
-const SampleTo = @import("../sample.zig").To;
+const smpl = @import("../sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 pub const bvh = @import("bvh/tree.zig");
 const LightTree = @import("../../light/tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
@@ -560,6 +562,35 @@ pub const Mesh = struct {
             angle_pdf * s.pdf,
             d,
         );
+    }
+
+    pub fn sampleFrom(
+        self: Mesh,
+        part: u32,
+        variant: u32,
+        trafo: Transformation,
+        extent: f32,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+        importance_uv: Vec2f,
+    ) ?SampleFrom {
+        const r = sampler.sample1D(rng, sampler_d);
+        const s = self.parts[part].sampleRandom(variant, r);
+
+        const r0 = sampler.sample2D(rng, sampler_d);
+
+        var sv: Vec4f = undefined;
+        var tc: Vec2f = undefined;
+        self.tree.data.sample(s.global, r0, &sv, &tc);
+        const ws = trafo.objectToWorldPoint(sv);
+        const sn = self.parts[part].lightCone(s.local);
+        const wn = trafo.rotation.transformVector(sn);
+
+        const xy = math.orthonormalBasis3(wn);
+        const dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
+
+        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, tc, importance_uv, s.pdf / (std.math.pi * extent));
     }
 
     pub fn pdf(

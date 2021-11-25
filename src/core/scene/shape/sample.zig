@@ -1,4 +1,5 @@
 const math = @import("base").math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const To = struct {
@@ -24,5 +25,31 @@ pub const To = struct {
 
     pub fn t(self: To) f32 {
         return self.n[3];
+    }
+};
+
+pub const From = struct {
+    p: Vec4f,
+    n: Vec4f,
+    dir: Vec4f,
+    uv: Vec2f,
+    xy: Vec2f,
+
+    pub fn init(p: Vec4f, n: Vec4f, dir: Vec4f, uv: Vec2f, xy: Vec2f, pdf_: f32) From {
+        return .{
+            .p = .{ p[0], p[1], p[2], pdf_ },
+            .n = n,
+            .dir = dir,
+            .uv = uv,
+            .xy = xy,
+        };
+    }
+
+    pub fn pdf(self: From) f32 {
+        return self.p[3];
+    }
+
+    pub fn mulAssignPdf(self: *From, s: f32) void {
+        self.p[3] *= s;
     }
 };

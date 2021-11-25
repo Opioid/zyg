@@ -12,9 +12,11 @@ const Filter = @import("../image/texture/sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 const vol = @import("integrator/volume/integrator.zig");
 const VolumeResult = @import("integrator/volume/result.zig").Result;
+const lt = @import("integrator/particle/lighttracer.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
+const Vec2ul = math.Vec2ul;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -27,12 +29,14 @@ pub const Worker = struct {
 
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
+    lighttracer: lt.Lighttracer = undefined,
 
     pub fn init(alloc: *Allocator) !Worker {
         return Worker{ .super = try SceneWorker.init(alloc) };
     }
 
     pub fn deinit(self: *Worker, alloc: *Allocator) void {
+        self.lighttracer.deinit(alloc);
         self.volume_integrator.deinit(alloc);
         self.surface_integrator.deinit(alloc);
         self.sampler.deinit(alloc);
@@ -48,6 +52,7 @@ pub const Worker = struct {
         samplers: smpl.Factory,
         surfaces: surface.Factory,
         volumes: vol.Factory,
+        lighttracers: lt.Factory,
     ) !void {
         self.super.configure(camera, scene);
 
@@ -55,6 +60,7 @@ pub const Worker = struct {
 
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
         self.volume_integrator = try volumes.create(alloc, num_samples_per_pixel);
+        self.lighttracer = try lighttracers.create(alloc);
     }
 
     pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32) void {
@@ -110,6 +116,18 @@ pub const Worker = struct {
                     }
                 }
             }
+        }
+    }
+
+    pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
+        var camera = self.super.camera;
+
+        self.super.rng.start(0, offset + range[0]);
+        self.lighttracer.startPixel();
+
+        var i = range[0];
+        while (i < range[1]) : (i += 1) {
+            self.lighttracer.li(frame, self, camera.interface_stack);
         }
     }
 

@@ -292,7 +292,7 @@ pub const PathtracerMIS = struct {
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
         const split = self.splitting(ray.depth);
 
-        const lights = worker.super.scene.randomLight(p, n, translucent, select, split, &worker.super.lights);
+        const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
 
         for (lights) |l, i| {
             const light = worker.super.scene.light(l.offset);
@@ -383,7 +383,7 @@ pub const PathtracerMIS = struct {
         const translucent = state.is(.IsTranslucent);
         const split = self.splitting(ray.depth);
 
-        const light_pick = scene_worker.scene.lightPdf(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light_pick = scene_worker.scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
         const light = scene_worker.scene.light(light_pick.offset);
 
         const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene_worker);

@@ -12,7 +12,9 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
 const base = @import("base");
@@ -216,6 +218,29 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn sampleFrom(
+        self: Shape,
+        part: u32,
+        variant: u32,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+        importance_uv: Vec2f,
+        bounds: AABB,
+    ) ?SampleFrom {
+        _ = two_sided;
+        _ = bounds;
+
+        return switch (self) {
+            .Null, .Plane => null,
+            .Triangle_mesh => |m| m.sampleFrom(part, variant, trafo, extent, sampler, rng, sampler_d, importance_uv),
+            else => null,
+        };
+    }
+
     pub fn sampleToUv(
         self: Shape,
         part: u32,
@@ -232,6 +257,28 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
             else => null,
         };
+    }
+
+    pub fn sampleFromUv(
+        self: Shape,
+        part: u32,
+        uv: Vec2f,
+        trafo: Transformation,
+        extent: f32,
+        two_sided: bool,
+        importance_uv: Vec2f,
+        bounds: AABB,
+    ) ?SampleFrom {
+        _ = self;
+        _ = part;
+        _ = uv;
+        _ = trafo;
+        _ = extent;
+        _ = two_sided;
+        _ = importance_uv;
+        _ = bounds;
+
+        return null;
     }
 
     pub fn pdf(

@@ -7,6 +7,7 @@ const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
+const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
 const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
@@ -74,16 +75,6 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         loadIntegrators(integrator_value.*, &take.view);
     }
 
-    if (null == take.view.surfaces) {
-        take.view.surfaces = surface.Factory{ .AO = .{
-            .settings = .{ .num_samples = 1, .radius = 1.0 },
-        } };
-    }
-
-    if (null == take.view.volumes) {
-        take.view.volumes = volume.Factory{ .Multi = .{} };
-    }
-
     if (sampler_value_ptr) |sampler_value| {
         take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
@@ -91,6 +82,8 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     if (post_value_ptr) |post_value| {
         loadPostProcessors(post_value.*, &take.view);
     }
+
+    setDefaultIntegrators(&take.view);
 
     try take.view.configure(alloc);
 
@@ -257,16 +250,38 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     return snsr.Sensor{ .Unfiltered_opaque = .{ .clamp = clamp } };
 }
 
+fn peekSurfaceIntegrator(value: std.json.Value) bool {
+    var niter = value.Object.iterator();
+    while (niter.next()) |n| {
+        if (std.mem.eql(u8, "surface", n.key_ptr.*)) {
+            var siter = n.value_ptr.Object.iterator();
+            while (siter.next()) |s| {
+                if (std.mem.eql(u8, "AO", s.key_ptr.*)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 fn loadIntegrators(value: std.json.Value, view: *View) void {
+    if (value.Object.get("particle")) |particle_node| {
+        const surface_integrator = peekSurfaceIntegrator(value);
+
+        loadParticleIntegrator(particle_node, view, surface_integrator);
+    }
+
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-            loadSurfaceIntegrator(entry.value_ptr.*, view);
+            loadSurfaceIntegrator(entry.value_ptr.*, view, null != view.lighttracers);
         }
     }
 }
 
-fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
+fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) void {
     const Default_min_bounces = 4;
     const Default_max_bounces = 8;
 
@@ -319,7 +334,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
-            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics) and !lighttracer;
 
             loadLightSampling(entry.value_ptr.*, &light_sampling);
 
@@ -333,6 +348,45 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
                 },
             } };
         }
+    }
+}
+
+fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator: bool) void {
+    const num_samples = json.readUIntMember(value, "num_samples", 1);
+    const max_bounces = json.readUIntMember(value, "max_bounces", 8);
+    const full_light_path = json.readBoolMember(value, "full_light_path", !surface_integrator);
+    view.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
+
+    view.lighttracers = lt.Factory{ .settings = .{
+        .num_samples = num_samples,
+        .min_bounces = 1,
+        .max_bounces = max_bounces,
+        .full_light_path = full_light_path,
+    } };
+}
+
+fn setDefaultIntegrators(view: *View) void {
+    if (null == view.surfaces and null != view.lighttracers) {
+        view.num_samples_per_pixel = 0;
+    }
+
+    if (null == view.surfaces) {
+        view.surfaces = surface.Factory{ .AO = .{
+            .settings = .{ .num_samples = 1, .radius = 1.0 },
+        } };
+    }
+
+    if (null == view.volumes) {
+        view.volumes = volume.Factory{ .Multi = .{} };
+    }
+
+    if (null == view.lighttracers) {
+        view.lighttracers = lt.Factory{ .settings = .{
+            .num_samples = 0,
+            .min_bounces = 0,
+            .max_bounces = 0,
+            .full_light_path = false,
+        } };
     }
 }
 

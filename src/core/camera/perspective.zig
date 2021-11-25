@@ -122,7 +122,7 @@ pub const Perspective = struct {
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, time);
     }
 
-    fn absoluteTime(self: Perspective, frame: u32, frame_delta: f32) u64 {
+    pub fn absoluteTime(self: Perspective, frame: u32, frame_delta: f32) u64 {
         const delta = @floatCast(f64, frame_delta);
         const duration = @intToFloat(f64, self.frame_duration);
 

@@ -1,7 +1,9 @@
 const View = @import("../take/take.zig").View;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("worker.zig").Worker;
-const TileQueue = @import("tile_queue.zig").TileQueue;
+const tq = @import("tile_queue.zig");
+const TileQueue = tq.TileQueue;
+const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const progress = @import("../progress/std_out.zig");
 const base = @import("base");
@@ -18,7 +20,10 @@ const Allocator = @import("std").mem.Allocator;
 const Error = error{
     InvalidSurfaceIntegrator,
     InvalidVolumeIntegrator,
+    InvalidLighttracer,
 };
+
+const Num_particles_per_chunk = 1024;
 
 pub const Driver = struct {
     threads: *Threads,
@@ -29,6 +34,7 @@ pub const Driver = struct {
     workers: []Worker = &.{},
 
     tiles: TileQueue = undefined,
+    ranges: RangeQueue = undefined,
 
     target: img.Float4 = .{},
 
@@ -61,6 +67,7 @@ pub const Driver = struct {
     pub fn configure(self: *Driver, alloc: *Allocator, view: *View, scene: *Scene) !void {
         const surfaces = view.surfaces orelse return Error.InvalidSurfaceIntegrator;
         const volumes = view.volumes orelse return Error.InvalidVolumeIntegrator;
+        const lighttracers = view.lighttracers orelse return Error.InvalidLighttracer;
 
         self.view = view;
         self.scene = scene;
@@ -72,29 +79,36 @@ pub const Driver = struct {
         try camera.sensor.resize(alloc, dim);
 
         for (self.workers) |*w| {
-            try w.configure(alloc, camera, scene, view.num_samples_per_pixel, view.samplers, surfaces, volumes);
+            try w.configure(
+                alloc,
+                camera,
+                scene,
+                view.num_samples_per_pixel,
+                view.samplers,
+                surfaces,
+                volumes,
+                lighttracers,
+            );
         }
 
         self.tiles.configure(camera.crop, 32, 0);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
+
+        const r = camera.resolution;
+        const num_particles = @intCast(u64, r[0] * r[1]) * @as(u64, view.num_particles_per_pixel);
+        self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
     pub fn render(self: *Driver, alloc: *Allocator, frame: u32) !void {
-        if (0 == self.view.num_samples_per_pixel) {
-            return;
-        }
-
         std.debug.print("Frame {}\n", .{frame});
 
         const render_start = std.time.milliTimestamp();
 
         var camera = &self.view.camera;
-
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-
         try self.scene.simulate(
             alloc,
             camera_pos,
@@ -108,20 +122,8 @@ pub const Driver = struct {
 
         std.debug.print("Preparation time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
-        std.debug.print("Tracing camera rays...\n", .{});
-
-        const camera_start = std.time.milliTimestamp();
-
-        camera.sensor.clear(0.0);
-
-        self.progressor.start(self.tiles.size());
-
-        self.tiles.restart();
-        self.frame = frame;
-
-        self.threads.runParallel(self, renderTiles, 0);
-
-        std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(camera_start)});
+        self.renderFrameBackward(frame);
+        self.renderFrameForward(frame);
 
         std.debug.print("Render time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
@@ -143,6 +145,52 @@ pub const Driver = struct {
         //self.view.camera.sensor.resolve(&self.target);
     }
 
+    fn renderFrameBackward(self: *Driver, frame: u32) void {
+        if (0 == self.ranges.size()) {
+            return;
+        }
+
+        std.debug.print("Tracing light rays...\n", .{});
+
+        const start = std.time.milliTimestamp();
+
+        var camera = &self.view.camera;
+
+        camera.sensor.clear(@intToFloat(f32, self.view.numParticleSamplesPerPixel()));
+
+        self.progressor.start(self.ranges.size());
+
+        self.ranges.restart(0);
+        self.frame = frame;
+
+        self.threads.runParallel(self, renderRanges, 0);
+
+        std.debug.print("Light ray time {d:.3} s\n", .{chrono.secondsSince(start)});
+    }
+
+    fn renderFrameForward(self: *Driver, frame: u32) void {
+        if (0 == self.view.num_samples_per_pixel) {
+            return;
+        }
+
+        std.debug.print("Tracing camera rays...\n", .{});
+
+        const start = std.time.milliTimestamp();
+
+        var camera = &self.view.camera;
+
+        camera.sensor.clear(0.0);
+
+        self.progressor.start(self.tiles.size());
+
+        self.tiles.restart();
+        self.frame = frame;
+
+        self.threads.runParallel(self, renderTiles, 0);
+
+        std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(start)});
+    }
+
     fn renderTiles(context: ThreadContext, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
@@ -150,6 +198,16 @@ pub const Driver = struct {
 
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, num_samples);
+
+            self.progressor.tick();
+        }
+    }
+
+    fn renderRanges(context: ThreadContext, id: u32) void {
+        const self = @intToPtr(*Driver, context);
+
+        while (self.ranges.pop()) |range| {
+            self.workers[id].particles(self.frame, 0, range);
 
             self.progressor.tick();
         }

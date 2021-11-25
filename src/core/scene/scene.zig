@@ -526,7 +526,11 @@ pub const Scene = struct {
         return self.lights.items[id];
     }
 
-    pub fn randomLight(
+    pub fn randomLight(self: Scene, random: f32) LightPick {
+        return self.light_distribution.sampleDiscrete(random);
+    }
+
+    pub fn randomLightSpatial(
         self: Scene,
         p: Vec4f,
         n: Vec4f,
@@ -546,7 +550,7 @@ pub const Scene = struct {
         return self.light_tree.randomLight(p, n, total_sphere, random, split, self, buffer);
     }
 
-    pub fn lightPdf(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+    pub fn lightPdfSpatial(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
         // _ = p;
         // _ = n;
         // _ = total_sphere;

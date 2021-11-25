@@ -237,11 +237,10 @@ pub const PathtracerDL = struct {
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
         const split = self.splitting(ray.depth);
 
-        const lights = worker.super.scene.randomLight(p, n, translucent, select, split, &worker.super.lights);
+        const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
 
         for (lights) |l, i| {
             const light = worker.super.scene.light(l.offset);
-
             const light_sample = light.sampleTo(
                 p,
                 n,

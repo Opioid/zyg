@@ -4,6 +4,7 @@ const scn = @import("constants.zig");
 const ro = @import("ray_offset.zig");
 const Ray = @import("ray.zig").Ray;
 const MaterialSample = @import("material/sample.zig").Sample;
+const IoR = @import("material/sample_base.zig").IoR;
 const NullSample = @import("material/null/sample.zig").Sample;
 const mat = @import("material/material_helper.zig");
 const InterfaceStack = @import("prop/interface.zig").Stack;
@@ -122,6 +123,25 @@ pub const Worker = struct {
         }
     }
 
+    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
+        const inter_ior = isec.material(self.*).ior();
+
+        const leave = isec.sameHemisphere(dir);
+        if (leave) {
+            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.*), .eta_i = inter_ior };
+            _ = self.interface_stack.remove(isec);
+            return ior;
+        }
+
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.*) };
+
+        if (self.interface_stack.straight(self.*) or inter_ior > 1.0) {
+            self.interface_stack.push(isec);
+        }
+
+        return ior;
+    }
+
     pub fn sampleMaterial(
         self: *Worker,
         ray: Ray,
@@ -150,5 +170,9 @@ pub const Worker = struct {
 
         _ = alpha;
         return isec.sample(wo, ray, filter, avoid_caustics, self);
+    }
+
+    pub fn absoluteTime(self: Worker, frame: u32, frame_delta: f32) u64 {
+        return self.camera.absoluteTime(frame, frame_delta);
     }
 };
