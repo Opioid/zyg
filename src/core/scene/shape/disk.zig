@@ -1,7 +1,9 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
@@ -145,5 +147,31 @@ pub const Disk = struct {
         }
 
         return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), sl / (c * area), t);
+    }
+
+    pub fn sampleFrom(
+        trafo: Transformation,
+        area: f32,
+        two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+        importance_uv: Vec2f,
+    ) ?SampleFrom {
+        const r0 = sampler.sample2D(rng, sampler_d);
+        const xy = math.smpl.diskConcentric(r0);
+
+        const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
+        var wn = trafo.rotation.r[2];
+
+        var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+
+        if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
+            wn = -wn;
+            dir = -dir;
+        }
+
+        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
     }
 };

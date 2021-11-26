@@ -195,12 +195,14 @@ pub const Light = struct {
     ) ?SampleFrom {
         const importance_uv = sampler.sample2D(&worker.rng, 0);
 
+        const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
+
         const shape = worker.scene.propShape(self.prop);
         return shape.sampleFrom(
             self.part,
             self.variant,
             trafo,
-            self.extent,
+            extent,
             self.two_sided,
             sampler,
             &worker.rng,
@@ -274,6 +276,9 @@ pub const Light = struct {
             trafo,
             self.extent,
             self.two_sided,
+            sampler,
+            &worker.rng,
+            sampler_d,
             importance_uv,
             bounds,
         ) orelse return null;

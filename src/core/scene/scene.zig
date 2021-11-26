@@ -54,6 +54,8 @@ pub const Scene = struct {
     prop_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
 
+    caustic_aabb: AABB = undefined,
+
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
     prop_world_positions: ALU(Vec4f),
@@ -155,6 +157,10 @@ pub const Scene = struct {
         return self.prop_bvh.aabb();
     }
 
+    pub fn causticAabb(self: Scene) AABB {
+        return self.caustic_aabb;
+    }
+
     pub fn simulate(
         self: *Scene,
         alloc: *Allocator,
@@ -219,6 +225,16 @@ pub const Scene = struct {
         try self.light_tree_builder.build(alloc, &self.light_tree, self.*, threads);
 
         self.has_volumes = self.volumes.items.len > 0;
+
+        var caustic_aabb = math.aabb.empty;
+
+        for (self.finite_props.items) |i| {
+            if (self.propHasCausticMaterial(i)) {
+                caustic_aabb.mergeAssign(self.prop_aabbs.items[i]);
+            }
+        }
+
+        self.caustic_aabb = caustic_aabb;
     }
 
     pub fn intersect(self: Scene, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
@@ -641,6 +657,20 @@ pub const Scene = struct {
         }
 
         return true;
+    }
+
+    fn propHasCausticMaterial(self: Scene, entity: usize) bool {
+        const shape_inst = self.propShape(entity);
+
+        var i: u32 = 0;
+        const len = shape_inst.numParts();
+        while (i < len) : (i += 1) {
+            if (!self.propMaterial(entity, i).isCaustic()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     pub fn createAnimation(self: *Scene, alloc: *Allocator, entity: u32, count: u32) !u32 {

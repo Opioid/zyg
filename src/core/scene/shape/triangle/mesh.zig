@@ -570,6 +570,7 @@ pub const Mesh = struct {
         variant: u32,
         trafo: Transformation,
         extent: f32,
+        two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
         sampler_d: usize,
@@ -585,10 +586,16 @@ pub const Mesh = struct {
         self.tree.data.sample(s.global, r0, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
-        const wn = trafo.rotation.transformVector(sn);
+        var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
-        const dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
+        var dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
+
+        //  if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
+        if (two_sided and rng.randomFloat() > 0.5) {
+            wn = -wn;
+            dir = -dir;
+        }
 
         return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, tc, importance_uv, s.pdf / (std.math.pi * extent));
     }

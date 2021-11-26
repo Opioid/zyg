@@ -91,6 +91,10 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn isCaustic(self: Material) bool {
+        return self.super().properties.is(.Caustic);
+    }
+
     pub fn hasTintedShadow(self: Material) bool {
         return switch (self) {
             .Glass => |m| m.thickness > 0.0,

@@ -28,7 +28,8 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.TwoSided, if (self.thickness > 0.0) true else false);
+        self.super.properties.set(.TwoSided, self.thickness > 0.0);
+        self.super.properties.set(.Caustic, self.alpha <= ggx.Min_alpha);
     }
 
     pub fn setRoughness(self: *Material, roughness: f32) void {

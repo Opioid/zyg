@@ -231,12 +231,23 @@ pub const Shape = union(enum) {
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
-        _ = two_sided;
         _ = bounds;
 
         return switch (self) {
             .Null, .Plane => null,
-            .Triangle_mesh => |m| m.sampleFrom(part, variant, trafo, extent, sampler, rng, sampler_d, importance_uv),
+            .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .Triangle_mesh => |m| m.sampleFrom(
+                part,
+                variant,
+                trafo,
+                extent,
+                two_sided,
+                sampler,
+                rng,
+                sampler_d,
+                importance_uv,
+            ),
             else => null,
         };
     }
@@ -266,19 +277,19 @@ pub const Shape = union(enum) {
         trafo: Transformation,
         extent: f32,
         two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
-        _ = self;
         _ = part;
-        _ = uv;
-        _ = trafo;
-        _ = extent;
-        _ = two_sided;
-        _ = importance_uv;
         _ = bounds;
 
-        return null;
+        return switch (self) {
+            .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            else => null,
+        };
     }
 
     pub fn pdf(

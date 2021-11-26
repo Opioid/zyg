@@ -65,6 +65,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.EmissionMap, self.emission_map.isValid());
+        self.super.properties.set(.Caustic, self.alpha[0] <= ggx.Min_alpha);
     }
 
     pub fn prepareSampling(self: Material, scene: Scene) Vec4f {

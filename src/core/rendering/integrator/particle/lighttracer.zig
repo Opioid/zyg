@@ -95,7 +95,7 @@ pub const Lighttracer = struct {
             s.startPixel();
         }
 
-        const world_bounds = worker.super.scene.aabb();
+        const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
         const frustum_bounds = world_bounds;
 
         var light_id: u32 = undefined;
@@ -246,7 +246,7 @@ pub const Lighttracer = struct {
         }
 
         var rng = &worker.super.rng;
-        const select = self.light_sampler.sample1D(rng, 1);
+        const select = self.light_sampler.sample1D(rng, 0);
         const l = worker.super.scene.randomLight(select);
 
         const time = worker.super.absoluteTime(frame, self.light_sampler.sample1D(rng, 2));

@@ -32,9 +32,10 @@ pub const Base = struct {
     pub const Property = enum(u32) {
         None = 0,
         TwoSided = 1 << 0,
-        EmissionMap = 1 << 1,
-        ScatteringVolume = 1 << 2,
-        HeterogeneousVolume = 1 << 3,
+        Caustic = 1 << 1,
+        EmissionMap = 1 << 2,
+        ScatteringVolume = 1 << 3,
+        HeterogeneousVolume = 1 << 4,
     };
 
     properties: Flags(Property),
