@@ -1,7 +1,9 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
@@ -181,6 +183,25 @@ pub const Sphere = struct {
         }
 
         return null;
+    }
+
+    pub fn sampleFrom(
+        trafo: Transformation,
+        area: f32,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+        importance_uv: Vec2f,
+    ) ?SampleFrom {
+        const r0 = sampler.sample2D(rng, sampler_d);
+        const ls = math.smpl.sphereUniform(r0);
+        const ws = trafo.objectToWorldPoint(ls);
+
+        const wn = math.normalize3(ws - trafo.position);
+        const xy = math.orthonormalBasis3(ls);
+        const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], ls);
+
+        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
     }
 
     pub fn pdf(ray: Ray, trafo: Transformation) f32 {

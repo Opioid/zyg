@@ -237,6 +237,7 @@ pub const Shape = union(enum) {
             .Null, .Plane => null,
             .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv),
             .Triangle_mesh => |m| m.sampleFrom(
                 part,
                 variant,
