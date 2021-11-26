@@ -21,8 +21,21 @@ pub const Pipeline = struct {
         try self.scratch.resize(alloc, img.Description.init2D(camera.sensorDimensions()));
     }
 
+    pub fn seed(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
+        sensor.resolve(&self.scratch);
+
+        _ = destination;
+        _ = threads;
+    }
+
     pub fn apply(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
         sensor.resolve(&self.scratch);
+
+        self.tonemapper.apply(&self.scratch, destination, threads);
+    }
+
+    pub fn applyAccumulate(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
+        sensor.resolveAccumlate(&self.scratch);
 
         self.tonemapper.apply(&self.scratch, destination, threads);
     }

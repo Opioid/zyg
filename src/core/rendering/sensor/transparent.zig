@@ -60,10 +60,21 @@ pub const Transparent = struct {
 
     pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
-
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
         _ = @atomicRmw(f32, &self.pixel_weights[i], .Add, weight, .Monotonic);
+
+        var value = &self.pixels[i];
+
+        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[3], .Add, weight * color[3], .Monotonic);
+    }
+
+    pub fn splatPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
+        const d = self.base.dimensions;
+        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
         var value = &self.pixels[i];
 
@@ -79,6 +90,24 @@ pub const Transparent = struct {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
             target.set1D(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], color[3]));
+        }
+    }
+
+    pub fn resolveAccumlate(self: Transparent, target: *Float4) void {
+        for (self.pixels) |p, i| {
+            const weight = self.pixel_weights[i];
+            const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
+
+            const ui = @intCast(i32, i);
+
+            const old = target.get1D(ui);
+
+            target.set1D(ui, Pack4f.init4(
+                old.v[0] + color[0],
+                old.v[1] + color[1],
+                old.v[2] + color[2],
+                old.v[3] + color[3],
+            ));
         }
     }
 };

@@ -144,6 +144,10 @@ pub const SampleBase = struct {
         return self.geo_n;
     }
 
+    pub fn interpolatedNormal(self: Self) Vec4f {
+        return self.n;
+    }
+
     pub fn shadingNormal(self: Self) Vec4f {
         return self.layer.n;
     }

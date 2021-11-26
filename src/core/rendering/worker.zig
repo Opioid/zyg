@@ -110,9 +110,9 @@ pub const Worker = struct {
 
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, camera.interface_stack);
-                        sensor.addSample(sample, color, offset, isolated_bounds, crop);
+                        sensor.addSample(sample, color, offset, crop, isolated_bounds);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, isolated_bounds, crop);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop, isolated_bounds);
                     }
                 }
             }

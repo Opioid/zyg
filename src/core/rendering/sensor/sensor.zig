@@ -10,7 +10,9 @@ pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
 pub const Filtered_1p0_transparent = filtered.Filtered_1p0(Transparent);
 pub const Filtered_2p0_transparent = filtered.Filtered_2p0(Transparent);
 
-const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
+const cs = @import("../../sampler/camera_sample.zig");
+const Sample = cs.CameraSample;
+const SampleTo = cs.CameraSampleTo;
 const Float4 = @import("../../image/image.zig").Float4;
 
 const base = @import("base");
@@ -74,14 +76,25 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, isolated: Vec4i, bounds: Vec4i) void {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, isolated, bounds),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, isolated, bounds),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, isolated, bounds),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, isolated, bounds),
+            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
+            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
+        }
+    }
+
+    pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+        switch (self.*) {
+            .Unfiltered_opaque => |*s| s.splatSample(sample, color, offset),
+            .Unfiltered_transparent => |*s| s.splatSample(sample, color, offset),
+            .Filtered_1p0_opaque => |*s| s.splatSample(sample, color, offset, bounds),
+            .Filtered_2p0_opaque => |*s| s.splatSample(sample, color, offset, bounds),
+            .Filtered_1p0_transparent => |*s| s.splatSample(sample, color, offset, bounds),
+            .Filtered_2p0_transparent => |*s| s.splatSample(sample, color, offset, bounds),
         }
     }
 
@@ -93,6 +106,17 @@ pub const Sensor = union(enum) {
             .Filtered_2p0_opaque => |s| s.base.sensor.resolve(target),
             .Filtered_1p0_transparent => |s| s.base.sensor.resolve(target),
             .Filtered_2p0_transparent => |s| s.base.sensor.resolve(target),
+        }
+    }
+
+    pub fn resolveAccumlate(self: Sensor, target: *Float4) void {
+        switch (self) {
+            .Unfiltered_opaque => |s| s.sensor.resolveAccumlate(target),
+            .Unfiltered_transparent => |s| s.sensor.resolveAccumlate(target),
+            .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumlate(target),
+            .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumlate(target),
+            .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumlate(target),
+            .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumlate(target),
         }
     }
 

@@ -1,6 +1,9 @@
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const Prop = @import("../scene/prop/prop.zig").Prop;
-const Sample = @import("../sampler/camera_sample.zig").CameraSample;
+const cs = @import("../sampler/camera_sample.zig");
+const Sampler = @import("../sampler/sampler.zig").Sampler;
+const Sample = cs.CameraSample;
+const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
@@ -12,8 +15,10 @@ const base = @import("base");
 const json = base.json;
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -41,6 +46,7 @@ pub const Perspective = struct {
     fov: f32 = 0.0,
     lens_radius: f32 = 0.0,
     focus_distance: f32 = 0.0,
+    a: f32 = undefined,
 
     focus: Focus = .{},
 
@@ -49,20 +55,22 @@ pub const Perspective = struct {
     frame_step: u64 = Default_frame_time,
     frame_duration: u64 = Default_frame_time,
 
-    pub fn init(alloc: *Allocator) !Perspective {
+    const Self = @This();
+
+    pub fn init(alloc: *Allocator) !Self {
         return Perspective{ .interface_stack = try InterfaceStack.init(alloc) };
     }
 
-    pub fn deinit(self: *Perspective, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: *Allocator) void {
         self.interface_stack.deinit(alloc);
         self.sensor.deinit(alloc);
     }
 
-    pub fn sensorDimensions(self: Perspective) Vec2i {
+    pub fn sensorDimensions(self: Self) Vec2i {
         return self.resolution;
     }
 
-    pub fn setResolution(self: *Perspective, resolution: Vec2i, crop: Vec4i) void {
+    pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
         self.resolution = resolution;
 
         self.crop[0] = std.math.max(0, crop[0]);
@@ -71,11 +79,11 @@ pub const Perspective = struct {
         self.crop[3] = std.math.min(resolution[1], crop[3]);
     }
 
-    pub fn setSensor(self: *Perspective, sensor: Sensor) void {
+    pub fn setSensor(self: *Self, sensor: Sensor) void {
         self.sensor = sensor;
     }
 
-    pub fn update(self: *Perspective, time: u64, worker: *Worker) void {
+    pub fn update(self: *Self, time: u64, worker: *Worker) void {
         self.interface_stack.clear();
 
         const fr = math.vec2iTo2f(self.resolution);
@@ -91,10 +99,15 @@ pub const Perspective = struct {
         self.d_x = (right_top - left_top) / @splat(4, fr[0]);
         self.d_y = (left_bottom - left_top) / @splat(4, fr[1]);
 
+        const nlb = left_bottom / @splat(4, z);
+        const nrt = right_top / @splat(4, z);
+
+        self.a = @fabs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
+
         self.updateFocus(time, worker);
     }
 
-    pub fn generateRay(self: Perspective, sample: Sample, frame: u32, scene: Scene) ?Ray {
+    pub fn generateRay(self: Self, sample: Sample, frame: u32, scene: Scene) ?Ray {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -122,7 +135,68 @@ pub const Perspective = struct {
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, time);
     }
 
-    pub fn absoluteTime(self: Perspective, frame: u32, frame_delta: f32) u64 {
+    pub fn sampleTo(self: Self, bounds: Vec4i, time: u64, p: Vec4f, sampler: *Sampler, rng: *RNG, sampler_d: u32, scene: Scene) ?SampleTo {
+        const trafo = scene.propTransformationAt(self.entity, time);
+
+        const po = trafo.worldToObjectPoint(p);
+
+        var t: f32 = undefined;
+        var dir: Vec4f = undefined;
+        var out_dir: Vec4f = undefined;
+
+        if (self.lens_radius > 0.0) {
+            const uv = sampler.sample2D(rng, sampler_d);
+            const lens = math.smpl.diskConcentric(uv) * @splat(2, self.lens_radius);
+            const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
+            const axis = po - origin;
+            const d = self.focus_distance / axis[2];
+
+            dir = origin + @splat(4, d) * axis;
+            t = math.length3(axis);
+            out_dir = axis / @splat(4, t);
+        } else {
+            t = math.length3(po);
+            dir = po / @splat(4, t);
+            out_dir = dir;
+        }
+
+        const cos_theta = out_dir[2];
+        if (cos_theta < 0.0) {
+            return null;
+        }
+
+        const pd = @splat(4, self.left_top[2]) * (dir / @splat(4, dir[2]));
+
+        const offset = pd - self.left_top;
+
+        const x = offset[0] / self.d_x[0];
+        const y = offset[1] / self.d_y[1];
+
+        const fx = std.math.floor(x);
+        const fy = std.math.floor(y);
+
+        const pixel = Vec2i{ @floatToInt(i32, fx), @floatToInt(i32, fy) };
+
+        if (@intCast(u32, pixel[0] - bounds[0]) > @intCast(u32, bounds[2]) or
+            @intCast(u32, pixel[1] - bounds[1]) > @intCast(u32, bounds[3]))
+        {
+            return null;
+        }
+
+        const cos_theta_2 = cos_theta * cos_theta;
+        const wa = 1.0 / ((t * t) / cos_theta);
+        const wb = 1.0 / (self.a * (cos_theta_2 * cos_theta_2));
+
+        return SampleTo{
+            .pixel = pixel,
+            .pixel_uv = Vec2f{ x - fx, y - fy },
+            .dir = trafo.objectToWorldVector(out_dir),
+            .t = t,
+            .pdf = wa * wb,
+        };
+    }
+
+    pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
         const delta = @floatCast(f64, frame_delta);
         const duration = @intToFloat(f64, self.frame_duration);
 
@@ -131,7 +205,7 @@ pub const Perspective = struct {
         return @as(u64, frame) * self.frame_step + fdi;
     }
 
-    pub fn setParameters(self: *Perspective, value: std.json.Value) void {
+    pub fn setParameters(self: *Self, value: std.json.Value) void {
         var motion_blur = true;
 
         var iter = value.Object.iterator();
@@ -160,14 +234,14 @@ pub const Perspective = struct {
         self.frame_duration = if (motion_blur) self.frame_step else 0;
     }
 
-    fn setFocus(self: *Perspective, focus: Focus) void {
+    fn setFocus(self: *Self, focus: Focus) void {
         self.focus = focus;
         self.focus.point[0] *= @intToFloat(f32, self.resolution[0]);
         self.focus.point[1] *= @intToFloat(f32, self.resolution[1]);
         self.focus_distance = focus.distance;
     }
 
-    fn updateFocus(self: *Perspective, time: u64, worker: *Worker) void {
+    fn updateFocus(self: *Self, time: u64, worker: *Worker) void {
         if (self.focus.use_point and self.lens_radius > 0.0) {
             const direction = math.normalize3(
                 self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),

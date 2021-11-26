@@ -135,7 +135,7 @@ pub const Driver = struct {
             camera.sensor.fixZeroWeights();
         }
 
-        self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
+        self.postprocess();
 
         std.debug.print("Post-process time {d:.3} s\n", .{chrono.secondsSince(pp_start)});
     }
@@ -165,7 +165,24 @@ pub const Driver = struct {
 
         self.threads.runParallel(self, renderRanges, 0);
 
+        // If there will be a forward pass later...
+        if (self.view.num_samples_per_pixel > 0) {
+            self.view.pipeline.seed(camera.sensor, &self.target, self.threads);
+        }
+
         std.debug.print("Light ray time {d:.3} s\n", .{chrono.secondsSince(start)});
+    }
+
+    fn renderTiles(context: ThreadContext, id: u32) void {
+        const self = @intToPtr(*Driver, context);
+
+        const num_samples = self.view.num_samples_per_pixel;
+
+        while (self.tiles.pop()) |tile| {
+            self.workers[id].render(self.frame, tile, num_samples);
+
+            self.progressor.tick();
+        }
     }
 
     fn renderFrameForward(self: *Driver, frame: u32) void {
@@ -191,18 +208,6 @@ pub const Driver = struct {
         std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(start)});
     }
 
-    fn renderTiles(context: ThreadContext, id: u32) void {
-        const self = @intToPtr(*Driver, context);
-
-        const num_samples = self.view.num_samples_per_pixel;
-
-        while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, num_samples);
-
-            self.progressor.tick();
-        }
-    }
-
     fn renderRanges(context: ThreadContext, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
@@ -210,6 +215,16 @@ pub const Driver = struct {
             self.workers[id].particles(self.frame, 0, range);
 
             self.progressor.tick();
+        }
+    }
+
+    fn postprocess(self: *Driver) void {
+        var camera = &self.view.camera;
+
+        if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
+            self.view.pipeline.applyAccumulate(camera.sensor, &self.target, self.threads);
+        } else {
+            self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
         }
     }
 };

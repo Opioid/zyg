@@ -1,4 +1,6 @@
-const Sample = @import("../../sampler/camera_sample.zig").CameraSample;
+const cs = @import("../../sampler/camera_sample.zig");
+const Sample = cs.CameraSample;
+const SampleTo = cs.CameraSampleTo;
 const Clamp = @import("clamp.zig").Clamp;
 
 const math = @import("base").math;
@@ -17,6 +19,10 @@ pub fn Unfiltered(comptime T: type) type {
             const pixel = sample.pixel + offset;
 
             self.sensor.addPixel(pixel, self.clamp.clamp(color), 1.0);
+        }
+
+        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i) void {
+            self.sensor.splatPixelAtomic(sample.pixel + offset, self.clamp.clamp(color), 1.0);
         }
     };
 }

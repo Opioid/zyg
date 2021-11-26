@@ -1,15 +1,21 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
+const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../worker.zig").Worker;
+const Camera = @import("../../../camera/perspective.zig").Perspective;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
+const mat = @import("../../../scene/material/material_helper.zig");
 const smp = @import("../../../sampler/sampler.zig");
-const math = @import("base").math;
+
+const base = @import("base");
+const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -131,6 +137,8 @@ pub const Lighttracer = struct {
         light_id: u32,
         light_sample_xy: Vec2f,
     ) void {
+        const camera = worker.super.camera;
+
         var radiance = radiance_;
 
         const avoid_caustics = false;
@@ -180,7 +188,9 @@ pub const Lighttracer = struct {
                 if (sample_result.typef.no(.Specular) and
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
-                {}
+                {
+                    _ = self.directCamera(camera, radiance, ray.*, isec.*, mat_sample, filter, worker);
+                }
 
                 if (sample_result.typef.is(.Specular)) {
                     caustic_path = true;
@@ -248,6 +258,68 @@ pub const Lighttracer = struct {
         light_id.* = l.offset;
 
         return Ray.init(light_sample.p, light_sample.dir, 0.0, scn.Ray_max_t, 0, time);
+    }
+
+    fn directCamera(
+        self: *Self,
+        camera: *Camera,
+        radiance: Vec4f,
+        history: Ray,
+        isec: Intersection,
+        mat_sample: MaterialSample,
+        filter: ?Filter,
+        worker: *Worker,
+    ) bool {
+        if (!isec.visibleInCamera(worker.super)) {
+            return false;
+        }
+
+        var sensor = &camera.sensor;
+        const fr = sensor.filterRadiusInt();
+
+        var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
+        filter_crop[2] -= filter_crop[0] + 1;
+        filter_crop[3] -= filter_crop[1] + 1;
+
+        const p = isec.offsetPN(mat_sample.super().geometricNormal(), mat_sample.isTranslucent());
+
+        const camera_sample = camera.sampleTo(
+            filter_crop,
+            history.time,
+            p,
+            &self.sampler,
+            &worker.super.rng,
+            0,
+            worker.super.scene.*,
+        ) orelse return false;
+
+        const wi = -camera_sample.dir;
+        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.time);
+
+        const wo = mat_sample.super().wo;
+        const tr = worker.transmitted(&ray, wo, isec, filter) orelse return false;
+
+        const bxdf = mat_sample.evaluate(wi);
+
+        const n = mat_sample.super().interpolatedNormal();
+        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
+
+        const material = isec.material(worker.super);
+        if (isec.subsurface and material.ior() > 1.0) {
+            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
+            const eta = material.ior() / ior_t;
+            nsc *= eta * eta;
+        }
+
+        const result = @splat(4, camera_sample.pdf * nsc) * (tr * radiance * bxdf.reflection);
+
+        var crop = camera.crop;
+        crop[2] -= crop[0] + 1;
+        crop[3] -= crop[1] + 1;
+
+        sensor.splatSample(camera_sample, result, .{ 0, 0 }, crop);
+
+        return true;
     }
 
     fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {

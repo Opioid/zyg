@@ -73,6 +73,15 @@ pub const Stack = struct {
         return 1.0;
     }
 
+    pub fn nextToBottomIor(self: Stack, worker: Worker) f32 {
+        const index = self.index;
+        if (index > 1) {
+            return self.stack[1].material(worker).ior();
+        }
+
+        return 1.0;
+    }
+
     pub fn peekIor(self: Stack, isec: Intersection, worker: Worker) f32 {
         const index = self.index;
         if (index <= 1) {
