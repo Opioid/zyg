@@ -1,6 +1,7 @@
 const sample = @import("../sample_base.zig");
 const Base = sample.SampleBase;
 const IoR = sample.IoR;
+const Material = @import("../material_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const fresnel = @import("../fresnel.zig");
@@ -23,6 +24,8 @@ pub const Sample = struct {
     ior_outside: f32,
     f0: f32,
     thickness: f32,
+    abbe: f32,
+    wavelength: f32,
 
     pub fn init(
         rs: Renderstate,
@@ -32,6 +35,8 @@ pub const Sample = struct {
         ior_outside: f32,
         alpha: f32,
         thickness: f32,
+        abbe: f32,
+        wavelength: f32,
     ) Sample {
         var super = Base.init(
             rs,
@@ -53,6 +58,8 @@ pub const Sample = struct {
             .ior_outside = ior_outside,
             .f0 = if (rough) fresnel.Schlick.F0(ior, ior_outside) else 0.0,
             .thickness = thickness,
+            .abbe = abbe,
+            .wavelength = wavelength,
         };
     }
 
@@ -129,18 +136,53 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const ior = self.ior;
+        var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
-            return self.roughSample(ior, sampler, rng);
+            var result = self.roughSample(ior, sampler, rng);
+            result.wavelength = 0.0;
+            return result;
         } else if (self.thickness > 0.0) {
-            return self.thinSample(ior, sampler, rng);
+            var result = self.thinSample(ior, sampler, rng);
+            result.wavelength = 0.0;
+            return result;
         } else {
-            return self.thickSample(ior, sampler, rng);
+            if (0.0 == self.abbe) {
+                const p = sampler.sample1D(rng, 0);
+
+                var result = self.thickSample(ior, p);
+                result.wavelength = 0.0;
+                return result;
+            } else {
+                var weight: Vec4f = undefined;
+                var wavelength = self.wavelength;
+
+                const r = sampler.sample2D(rng, 0);
+
+                if (0.0 == wavelength) {
+                    const start = Material.Start_wavelength;
+                    const end = Material.End_wavelength;
+
+                    wavelength = start + (end - start) * r[1];
+
+                    weight = Material.spectrumAtWavelength(wavelength, 1.0);
+                    weight *= @splat(4, @as(f32, 3.0));
+                } else {
+                    weight = @splat(4, @as(f32, 1.0));
+                }
+
+                const sqr_wl = wavelength * wavelength;
+                ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
+
+                var result = self.thickSample(ior, r[0]);
+                result.reflection *= weight;
+                result.wavelength = wavelength;
+                return result;
+            }
         }
     }
 
-    fn thickSample(self: Sample, ior: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    fn thickSample(self: Sample, ior: f32, p: f32) bxdf.Sample {
         var eta_i = self.ior_outside;
         var eta_t = ior;
 
@@ -176,7 +218,6 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        const p = sampler.sample1D(rng, 0);
         if (p <= f) {
             return reflect(wo, n, n_dot_wo);
         } else {

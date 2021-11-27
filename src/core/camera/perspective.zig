@@ -132,7 +132,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, time);
+        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, 0.0, time);
     }
 
     pub fn sampleTo(self: Self, bounds: Vec4i, time: u64, p: Vec4f, sampler: *Sampler, rng: *RNG, sampler_d: u32, scene: Scene) ?SampleTo {
@@ -255,6 +255,7 @@ pub const Perspective = struct {
                 0.0,
                 scn.Ray_max_t,
                 0,
+                0.0,
                 time,
             );
 

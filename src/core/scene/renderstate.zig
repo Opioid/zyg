@@ -33,4 +33,8 @@ pub const Renderstate = struct {
     pub fn ior(self: Renderstate) f32 {
         return self.p[3];
     }
+
+    pub fn wavelength(self: Renderstate) f32 {
+        return self.b[3];
+    }
 };

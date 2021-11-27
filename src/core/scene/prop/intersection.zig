@@ -46,11 +46,12 @@ pub const Intersection = struct {
     ) mat.Sample {
         const m = self.material(worker.*);
         const p = self.geo.p;
+        const b = self.geo.b;
 
         var rs: Renderstate = undefined;
         rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
         rs.t = self.geo.t;
-        rs.b = self.geo.b;
+        rs.b = .{ b[0], b[1], b[2], ray.wavelength };
 
         if (m.isTwoSided() and !self.sameHemisphere(wo)) {
             rs.geo_n = -self.geo.geo_n;

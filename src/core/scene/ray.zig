@@ -5,7 +5,7 @@ pub const Ray = struct {
     ray: math.Ray,
 
     depth: u32,
-
+    wavelength: f32,
     time: u64,
 
     pub fn init(
@@ -14,11 +14,13 @@ pub const Ray = struct {
         min_t: f32,
         max_t: f32,
         depth: u32,
+        wavelength: f32,
         time: u64,
     ) Ray {
         return Ray{
             .ray = math.Ray.init(origin, direction, min_t, max_t),
             .depth = depth,
+            .wavelength = wavelength,
             .time = time,
         };
     }

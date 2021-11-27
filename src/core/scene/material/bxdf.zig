@@ -58,6 +58,7 @@ pub const Sample = struct {
     wi: Vec4f = undefined,
     h: Vec4f = undefined, // intermediate result, convenient to store here
     pdf: f32 = 0.0,
+    wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     typef: TypeFlag = undefined,
 };

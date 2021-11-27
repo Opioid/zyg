@@ -22,6 +22,7 @@ pub const Material = struct {
 
     thickness: f32 = undefined,
     alpha: f32 = undefined,
+    abbe: f32 = undefined,
 
     pub fn init(sampler_key: ts.Key) Material {
         return .{ .super = Base.init(sampler_key, false) };
@@ -49,7 +50,17 @@ pub const Material = struct {
             alpha = self.alpha;
         }
 
-        var result = Sample.init(rs, wo, self.super.cc.a, self.super.ior, rs.ior(), alpha, self.thickness);
+        var result = Sample.init(
+            rs,
+            wo,
+            self.super.cc.a,
+            self.super.ior,
+            rs.ior(),
+            alpha,
+            self.thickness,
+            self.abbe,
+            rs.wavelength(),
+        );
 
         if (self.normal_map.isValid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);

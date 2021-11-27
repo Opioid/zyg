@@ -192,6 +192,10 @@ pub const PathtracerMIS = struct {
 
             ray.ray.setMaxT(scn.Ray_max_t);
 
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.typef.is(.Transmission)) {
@@ -326,7 +330,15 @@ pub const PathtracerMIS = struct {
             &worker.super,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        var shadow_ray = Ray.init(p, light_sample.wi, p[3], light_sample.t(), history.depth, history.time);
+        var shadow_ray = Ray.init(
+            p,
+            light_sample.wi,
+            p[3],
+            light_sample.t(),
+            history.depth,
+            history.wavelength,
+            history.time,
+        );
 
         const tr = worker.transmitted(
             &shadow_ray,

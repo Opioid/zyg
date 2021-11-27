@@ -162,6 +162,10 @@ pub const PathtracerDL = struct {
 
             ray.ray.setMaxT(scn.Ray_max_t);
 
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.typef.is(.Transmission)) {
@@ -232,6 +236,7 @@ pub const PathtracerDL = struct {
         shadow_ray.ray.origin = p;
         shadow_ray.depth = ray.depth;
         shadow_ray.time = ray.time;
+        shadow_ray.wavelength = ray.wavelength;
 
         var sampler = self.lightSampler(ray.depth);
         const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);

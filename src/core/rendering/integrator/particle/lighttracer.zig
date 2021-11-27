@@ -205,6 +205,10 @@ pub const Lighttracer = struct {
 
             ray.ray.setMaxT(scn.Ray_max_t);
 
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.typef.is(.Transmission)) {
@@ -257,7 +261,7 @@ pub const Lighttracer = struct {
 
         light_id.* = l.offset;
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, scn.Ray_max_t, 0, time);
+        return Ray.init(light_sample.p, light_sample.dir, 0.0, scn.Ray_max_t, 0, 0.0, time);
     }
 
     fn directCamera(
@@ -294,7 +298,7 @@ pub const Lighttracer = struct {
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.time);
+        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
 
         const wo = mat_sample.super().wo;
         const tr = worker.transmitted(&ray, wo, isec, filter) orelse return false;

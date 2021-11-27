@@ -46,6 +46,7 @@ pub const Sample = struct {
             .wi = wi,
             .h = undefined,
             .pdf = pdf,
+            .wavelength = 0.0,
             .h_dot_wi = undefined,
             .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
         };

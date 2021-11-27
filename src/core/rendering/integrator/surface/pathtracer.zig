@@ -156,6 +156,10 @@ pub const Pathtracer = struct {
 
             ray.ray.setMaxT(scn.Ray_max_t);
 
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.typef.is(.Transmission)) {

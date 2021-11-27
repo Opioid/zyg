@@ -132,7 +132,7 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        var result = bxdf.Sample{};
+        var result = bxdf.Sample{ .wavelength = 0.0 };
 
         const th = self.thickness;
         if (th > 0.0) {

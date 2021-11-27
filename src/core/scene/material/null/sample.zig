@@ -34,6 +34,7 @@ pub const Sample = struct {
             .wi = -self.super.wo,
             .h = undefined,
             .pdf = 1.0,
+            .wavelength = 0.0,
             .h_dot_wi = undefined,
             .typef = bxdf.TypeFlag.init1(.StraightTransmission),
         };

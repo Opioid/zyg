@@ -136,6 +136,7 @@ pub const Provider = struct {
 
         var attenuation_distance: f32 = 1.0;
         var ior: f32 = 1.46;
+        var abbe: f32 = 0.0;
         var thickness: f32 = 0.0;
 
         var iter = value.Object.iterator();
@@ -152,6 +153,8 @@ pub const Provider = struct {
                 roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 ior = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
+                abbe = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
@@ -169,6 +172,7 @@ pub const Provider = struct {
         material.super.ior = ior;
         material.setRoughness(roughness.value);
         material.thickness = thickness;
+        material.abbe = abbe;
 
         return Material{ .Glass = material };
     }
