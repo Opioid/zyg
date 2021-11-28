@@ -1,3 +1,4 @@
+pub const Canopy = @import("canopy.zig").Canopy;
 pub const Disk = @import("disk.zig").Disk;
 pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
@@ -30,6 +31,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
     Null,
+    Canopy: Canopy,
     Disk: Disk,
     DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
@@ -70,7 +72,7 @@ pub const Shape = union(enum) {
 
     pub fn isFinite(self: Shape) bool {
         return switch (self) {
-            .DistantSphere, .InfiniteSphere, .Plane => false,
+            .Canopy, .DistantSphere, .InfiniteSphere, .Plane => false,
             else => true,
         };
     }
@@ -91,7 +93,7 @@ pub const Shape = union(enum) {
 
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
-            .Null, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.empty,
+            .Null, .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
@@ -116,6 +118,7 @@ pub const Shape = union(enum) {
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,
+            .Canopy => 2.0 * std.math.pi,
             .Disk => std.math.pi * (scale[0] * scale[0]),
 
             // This calculates the solid angle, not the area!
@@ -139,6 +142,7 @@ pub const Shape = union(enum) {
     ) bool {
         return switch (self) {
             .Null => false,
+            .Canopy => Canopy.intersect(&ray.ray, trafo, isec),
             .Disk => Disk.intersect(&ray.ray, trafo, isec),
             .DistantSphere => DistantSphere.intersect(&ray.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
@@ -151,7 +155,7 @@ pub const Shape = union(enum) {
 
     pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
         return switch (self) {
-            .Null, .InfiniteSphere => false,
+            .Null, .Canopy, .InfiniteSphere => false,
             .Disk => Disk.intersectP(ray.ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray.ray, trafo),
             .Plane => Plane.intersectP(ray.ray, trafo),
@@ -170,7 +174,7 @@ pub const Shape = union(enum) {
         worker: *Worker,
     ) ?Vec4f {
         return switch (self) {
-            .Null, .DistantSphere, .InfiniteSphere => {
+            .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
             .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
@@ -197,6 +201,7 @@ pub const Shape = union(enum) {
     ) ?SampleTo {
         return switch (self) {
             .Null, .Plane => null,
+            .Canopy => Canopy.sampleTo(trafo, sampler, rng, sampler_d),
             .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng, sampler_d),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
@@ -265,6 +270,7 @@ pub const Shape = union(enum) {
         _ = part;
 
         return switch (self) {
+            .Canopy => Canopy.sampleToUv(uv, trafo),
             .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
             .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
             else => null,
@@ -306,6 +312,7 @@ pub const Shape = union(enum) {
     ) f32 {
         return switch (self) {
             .Null, .Plane => 0.0,
+            .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .DistantSphere => 1.0 / extent,
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
@@ -324,6 +331,7 @@ pub const Shape = union(enum) {
         two_sided: bool,
     ) f32 {
         return switch (self) {
+            .Canopy => 1.0 / (2.0 * std.math.pi),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
             .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
@@ -333,6 +341,7 @@ pub const Shape = union(enum) {
 
     pub fn uvWeight(self: Shape, uv: Vec2f) f32 {
         return switch (self) {
+            .Canopy => Canopy.uvWeight(uv),
             .InfiniteSphere => @sin(uv[1] * std.math.pi),
             else => 1.0,
         };

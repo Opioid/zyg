@@ -118,8 +118,6 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
                 param_value_ptr = entry.value_ptr;
-                // const fov = entry.value_ptr.Object.get("fov") orelse continue;
-                // camera.fov = math.degreesToRadians(json.readFloat(fov));
             } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                 json.readTransformation(entry.value_ptr.*, &trafo);
             } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {

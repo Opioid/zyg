@@ -26,6 +26,7 @@ pub const Loader = struct {
     resources: *Resources,
 
     null_shape: u32,
+    canopy: u32,
     disk: u32,
     distant_sphere: u32,
     infinite_sphere: u32,
@@ -53,6 +54,7 @@ pub const Loader = struct {
         return Loader{
             .resources = resources,
             .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }),
+            .canopy = resources.shapes.store(alloc, Shape{ .Canopy = .{} }),
             .disk = resources.shapes.store(alloc, Shape{ .Disk = .{} }),
             .distant_sphere = resources.shapes.store(alloc, Shape{ .DistantSphere = .{} }),
             .infinite_sphere = resources.shapes.store(alloc, Shape{ .InfiniteSphere = .{} }),
@@ -301,6 +303,10 @@ pub const Loader = struct {
     }
 
     fn getShape(self: Loader, type_name: []const u8) u32 {
+        if (std.mem.eql(u8, "Canopy", type_name)) {
+            return self.canopy;
+        }
+
         if (std.mem.eql(u8, "Disk", type_name)) {
             return self.disk;
         }
