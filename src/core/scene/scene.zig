@@ -18,6 +18,8 @@ const Ray = @import("ray.zig").Ray;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 const Transformation = @import("composed_transformation.zig").ComposedTransformation;
+const Sky = @import("../sky/sky.zig").Sky;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -82,6 +84,8 @@ pub const Scene = struct {
     infinite_props: ALU(u32),
 
     volumes: ALU(u32),
+
+    sky: ?Sky = null,
 
     has_tinted_shadow: bool = undefined,
     has_volumes: bool = undefined,
@@ -518,6 +522,10 @@ pub const Scene = struct {
         return self.images.items[image_id];
     }
 
+    pub fn imageRef(self: Scene, image_id: u32) *Image {
+        return &self.images.items[image_id];
+    }
+
     pub fn material(self: Scene, material_id: u32) Material {
         return self.materials.items[material_id];
     }
@@ -683,6 +691,16 @@ pub const Scene = struct {
 
     pub fn animationSetFrame(self: *Scene, animation: u32, index: usize, keyframe: Keyframe) void {
         self.animations.items[animation].set(index, keyframe);
+    }
+
+    pub fn createSky(self: *Scene, alloc: *Allocator) !*Sky {
+        if (null == self.sky) {
+            const dummy = try self.createEntity(alloc);
+
+            self.sky = Sky{ .prop = dummy };
+        }
+
+        return &self.sky.?;
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {

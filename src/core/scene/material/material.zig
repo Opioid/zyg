@@ -3,6 +3,7 @@ pub const Glass = @import("glass/material.zig").Material;
 pub const Light = @import("light/material.zig").Material;
 pub const Substitute = @import("substitute/material.zig").Material;
 pub const Volumetric = @import("volumetric/material.zig").Material;
+const Sky = @import("../../sky/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 const Base = @import("material_base.zig").Base;
 const ccoef = @import("collision_coefficients.zig");
@@ -27,12 +28,14 @@ pub const Material = union(enum) {
     Debug: Debug,
     Glass: Glass,
     Light: Light,
+    Sky: Sky,
     Substitute: Substitute,
     Volumetric: Volumetric,
 
     pub fn deinit(self: *Material, alloc: *Allocator) void {
         switch (self.*) {
             .Light => |*m| m.deinit(alloc),
+            .Sky => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -42,6 +45,7 @@ pub const Material = union(enum) {
             .Debug => |m| m.super,
             .Glass => |m| m.super,
             .Light => |m| m.super,
+            .Sky => |m| m.super,
             .Substitute => |m| m.super,
             .Volumetric => |m| m.super,
         };
@@ -51,8 +55,9 @@ pub const Material = union(enum) {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
-            .Volumetric => |*m| m.commit(),
+            .Sky => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
+            .Volumetric => |*m| m.commit(),
             else => {},
         }
     }
@@ -72,6 +77,7 @@ pub const Material = union(enum) {
 
         return switch (self.*) {
             .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
+            .Sky => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
             .Substitute => |m| m.prepareSampling(scene),
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -104,7 +110,7 @@ pub const Material = union(enum) {
 
     pub fn isEmissive(self: Material) bool {
         return switch (self) {
-            .Light => true,
+            .Light, .Sky => true,
             .Substitute => |m| {
                 if (m.super.properties.is(.EmissionMap)) {
                     return true;
@@ -122,7 +128,7 @@ pub const Material = union(enum) {
 
     pub fn isPureEmissive(self: Material) bool {
         return switch (self) {
-            .Light => true,
+            .Light, .Sky => true,
             else => false,
         };
     }
@@ -160,6 +166,7 @@ pub const Material = union(enum) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |g| .{ .Glass = g.sample(wo, rs, worker) },
             .Light => |l| .{ .Light = l.sample(wo, rs, worker) },
+            .Sky => |s| .{ .Light = s.sample(wo, rs, worker) },
             .Substitute => |s| s.sample(wo, rs, worker),
             .Volumetric => |v| v.sample(wo, rs),
         };
@@ -176,6 +183,7 @@ pub const Material = union(enum) {
     ) Vec4f {
         return switch (self) {
             .Light => |m| m.evaluateRadiance(uvw, extent, filter, worker),
+            .Sky => |m| m.evaluateRadiance(uvw, extent, filter, worker),
             .Substitute => |m| m.evaluateRadiance(wi, n, uvw, filter, worker),
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -184,6 +192,7 @@ pub const Material = union(enum) {
     pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
         return switch (self) {
             .Light => |m| m.radianceSample(r3),
+            .Sky => |m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
         };
     }
@@ -191,6 +200,7 @@ pub const Material = union(enum) {
     pub fn emissionPdf(self: Material, uvw: Vec4f) f32 {
         return switch (self) {
             .Light => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
+            .Sky => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
             else => 1.0,
         };
     }
@@ -214,6 +224,11 @@ pub const Material = union(enum) {
     pub fn usefulTextureDescription(self: Material, scene: Scene) image.Description {
         switch (self) {
             .Light => |m| {
+                if (m.emission_map.isValid()) {
+                    return m.emission_map.description(scene);
+                }
+            },
+            .Sky => |m| {
                 if (m.emission_map.isValid()) {
                     return m.emission_map.description(scene);
                 }

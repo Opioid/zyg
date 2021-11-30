@@ -6,6 +6,8 @@ const anim = @import("animation/loader.zig");
 const Take = @import("../take/take.zig").Take;
 const Shape = @import("shape/shape.zig").Shape;
 const Material = @import("material/material.zig").Material;
+const SkyMaterial = @import("../sky/material.zig").Material;
+const ts = @import("../image/texture/sampler.zig");
 pub const mat = @import("material/provider.zig");
 
 const base = @import("base");
@@ -161,6 +163,8 @@ pub const Loader = struct {
                 entity_id = try self.loadProp(alloc, entity, local_materials, scene);
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
                 entity_id = try scene.createEntity(alloc);
+            } else if (std.mem.eql(u8, "Sky", type_name)) {
+                entity_id = try self.loadSky(alloc, entity, scene);
             }
 
             if (Prop.Null == entity_id) {
@@ -381,5 +385,42 @@ pub const Loader = struct {
 
         if (self.resources.get(Material, material)) |mp| mp.commit();
         return material;
+    }
+
+    fn loadSky(self: Loader, alloc: *Allocator, value: std.json.Value, scene: *Scene) !u32 {
+        if (scene.sky) |sky| {
+            return sky.prop;
+        }
+
+        var sky = try scene.createSky(alloc);
+
+        const sampler_key = ts.Key{};
+
+        var sky_prop: u32 = undefined;
+
+        {
+            const material = try SkyMaterial.init(alloc, sampler_key, .Sky, self.resources);
+            const sky_mat = self.resources.materials.store(alloc, .{ .Sky = material });
+            sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat});
+        }
+
+        var sun_prop: u32 = undefined;
+
+        {
+            const material = try SkyMaterial.init(alloc, sampler_key, .Sun, self.resources);
+            const sky_mat = self.resources.materials.store(alloc, .{ .Sky = material });
+            sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sky_mat});
+        }
+
+        sky.configure(sky_prop, sun_prop, scene);
+
+        if (value.Object.get("parameters")) |parameters| {
+            sky.setParameters(parameters, scene);
+        }
+
+        try scene.createLight(alloc, sky_prop);
+        try scene.createLight(alloc, sun_prop);
+
+        return sky.prop;
     }
 };

@@ -62,6 +62,12 @@ pub fn Typed_image(comptime T: type) type {
             return self.pixels[@intCast(usize, i)];
         }
 
+        pub fn set2D(self: *Self, x: i32, y: i32, v: T) void {
+            const i = y * self.description.dimensions.v[0] + x;
+
+            self.pixels[@intCast(usize, i)] = v;
+        }
+
         pub fn gather2D(self: Self, xy_xy1: Vec4i) [4]T {
             const width = self.description.dimensions.v[0];
             const y0 = width * xy_xy1[1];

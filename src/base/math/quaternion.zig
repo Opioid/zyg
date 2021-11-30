@@ -57,6 +57,10 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     return q;
 }
 
+pub fn initRotationX(a: f32) Quaternion {
+    return .{ @sin(a * 0.5), 0.0, 0.0, @cos(a * 0.5) };
+}
+
 pub fn toMat3x3(q: Quaternion) Mat3x3 {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
