@@ -29,6 +29,9 @@ pub const View = struct {
 
     pub fn configure(self: *View, alloc: *Allocator) !void {
         try self.pipeline.configure(alloc, self.camera);
+
+        const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
+        self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
     }
 
     pub fn numParticleSamplesPerPixel(self: View) u32 {

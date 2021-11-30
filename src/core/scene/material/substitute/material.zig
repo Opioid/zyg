@@ -46,6 +46,7 @@ pub const Material = struct {
     emission_map: Texture = undefined,
 
     color: Vec4f = undefined,
+    checkers: Vec4f = @splat(4, @as(f32, 0.0)),
 
     alpha: Vec2f = undefined,
 
@@ -97,6 +98,11 @@ pub const Material = struct {
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
+    pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
+        self.color = color_a;
+        self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         if (rs.subsurface) {
             const g = self.super.volumetric_anisotropy;
@@ -105,7 +111,11 @@ pub const Material = struct {
 
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
-        const color = if (self.super.color_map.isValid()) ts.sample2D_3(
+        const color = if (self.checkers[3] > 0.0) self.analyticCheckers(
+            rs,
+            key,
+            worker.*,
+        ) else if (self.super.color_map.isValid()) ts.sample2D_3(
             key,
             self.super.color_map,
             rs.uv,
@@ -252,5 +262,39 @@ pub const Material = struct {
         }
 
         return @splat(2, r * r);
+    }
+
+    // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
+
+    fn analyticCheckers(self: Material, rs: Renderstate, sampler_key: ts.Key, worker: Worker) Vec4f {
+        const checkers_scale = self.checkers[3];
+
+        const dd = @splat(4, checkers_scale) * worker.screenspaceDifferential(rs);
+
+        const t = checkersGrad(
+            @splat(2, checkers_scale) * sampler_key.address.address(rs.uv),
+            .{ dd[0], dd[1] },
+            .{ dd[2], dd[3] },
+        );
+
+        return math.lerp3(self.color, self.checkers, t);
+    }
+
+    fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
+        // filter kernel
+        const w = @maximum(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
+
+        // analytical integral (box filter)
+        const i = (tri(uv + @splat(2, @as(f32, 0.5)) * w) - tri(uv - @splat(2, @as(f32, 0.5)) * w)) / w;
+
+        // xor pattern
+        return 0.5 - 0.5 * i[0] * i[1];
+    }
+
+    // triangular signal
+    fn tri(x: Vec2f) Vec2f {
+        const hx = math.frac(x[0] * 0.5) - 0.5;
+        const hy = math.frac(x[1] * 0.5) - 0.5;
+        return .{ 1.0 - 2.0 * @fabs(hx), 1.0 - 2.0 * @fabs(hy) };
     }
 };

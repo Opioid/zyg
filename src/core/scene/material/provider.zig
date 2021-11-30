@@ -251,6 +251,9 @@ pub const Provider = struct {
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
+        var checkers: [2]Vec4f = undefined;
+        var checkers_scale: f32 = 0.0;
+
         var metallic: f32 = 0.0;
         var ior: f32 = 1.46;
         var anisotropy: f32 = 0.0;
@@ -277,6 +280,16 @@ pub const Provider = struct {
                 roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
+            } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
+                var citer = entry.value_ptr.Object.iterator();
+                while (citer.next()) |cn| {
+                    if (std.mem.eql(u8, "scale", cn.key_ptr.*)) {
+                        checkers_scale = json.readFloat(f32, cn.value_ptr.*);
+                    } else if (std.mem.eql(u8, "colors", cn.key_ptr.*)) {
+                        checkers[0] = readColor(cn.value_ptr.Array.items[0]);
+                        checkers[1] = readColor(cn.value_ptr.Array.items[1]);
+                    }
+                }
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
                 const eta_k = metal.iorAndAbsorption(entry.value_ptr.String);
                 color.value = fresnel.conductor(eta_k[0], eta_k[1], 1.0);
@@ -334,6 +347,10 @@ pub const Provider = struct {
             attenuation_distance,
             volumetric_anisotropy,
         );
+
+        if (checkers_scale > 0.0) {
+            material.setCheckers(checkers[0], checkers[1], checkers_scale);
+        }
 
         if (coating.thickness.texture.isValid() or coating.thickness.value > 0.0) {
             material.coating.normal_map = coating.normal_map;

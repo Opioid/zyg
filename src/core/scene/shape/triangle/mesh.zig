@@ -10,6 +10,7 @@ const Interpolation = int.Interpolation;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const DifferentialSurface = smpl.DifferentialSurface;
 pub const bvh = @import("bvh/tree.zig");
 const LightTree = @import("../../light/tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
@@ -654,5 +655,38 @@ pub const Mesh = struct {
         }
 
         return try self.parts[part].configure(alloc, part, material, self.tree, builder, worker, threads);
+    }
+
+    pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {
+        const puv = self.tree.data.trianglePuv(primitive);
+
+        const duv02 = puv.uv[0] - puv.uv[2];
+        const duv12 = puv.uv[1] - puv.uv[2];
+        const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+
+        var dpdu: Vec4f = undefined;
+        var dpdv: Vec4f = undefined;
+
+        const dp02 = puv.p[0] - puv.p[2];
+        const dp12 = puv.p[1] - puv.p[2];
+
+        if (0.0 == @fabs(determinant)) {
+            const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
+
+            if (@fabs(ng[0]) > @fabs(ng[1])) {
+                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @splat(4, @sqrt(ng[0] * ng[0] + ng[2] * ng[2]));
+            } else {
+                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @splat(4, @sqrt(ng[1] * ng[1] + ng[2] * ng[2]));
+            }
+
+            dpdv = math.cross3(ng, dpdu);
+        } else {
+            const invdet = 1.0 / determinant;
+
+            dpdu = @splat(4, invdet) * (@splat(4, duv12[1]) * dp02 - @splat(4, duv02[1]) * dp12);
+            dpdv = @splat(4, invdet) * (@splat(4, -duv12[0]) * dp02 + @splat(4, duv02[0]) * dp12);
+        }
+
+        return .{ .dpdu = dpdu, .dpdv = dpdv };
     }
 };

@@ -16,6 +16,8 @@ pub const Renderstate = struct {
     primitive: u32 = undefined,
     depth: u32 = undefined,
 
+    time: u64 = undefined,
+
     filter: ?Filter = undefined,
 
     subsurface: bool = undefined,

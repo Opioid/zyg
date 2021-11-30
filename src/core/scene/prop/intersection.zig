@@ -66,6 +66,7 @@ pub const Intersection = struct {
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
         rs.depth = ray.depth;
+        rs.time = ray.time;
         rs.filter = filter;
         rs.subsurface = self.subsurface;
         rs.avoid_caustics = avoid_caustics;

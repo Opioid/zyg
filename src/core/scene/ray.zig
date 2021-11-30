@@ -25,3 +25,10 @@ pub const Ray = struct {
         };
     }
 };
+
+pub const RayDif = struct {
+    x_origin: Vec4f,
+    x_direction: Vec4f,
+    y_origin: Vec4f,
+    y_direction: Vec4f,
+};

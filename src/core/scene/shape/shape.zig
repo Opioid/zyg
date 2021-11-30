@@ -16,6 +16,7 @@ const Interpolation = int.Interpolation;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const DifferentialSurface = smpl.DifferentialSurface;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
 const base = @import("base");
@@ -359,6 +360,13 @@ pub const Shape = union(enum) {
         return switch (self.*) {
             .Triangle_mesh => |*m| try m.prepareSampling(alloc, part, material, builder, worker, threads),
             else => 0,
+        };
+    }
+
+    pub fn differentialSurface(self: Shape, primitive: u32) DifferentialSurface {
+        return switch (self) {
+            .Triangle_mesh => |m| m.differentialSurface(primitive),
+            else => .{ .dpdu = .{ 1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } },
         };
     }
 };

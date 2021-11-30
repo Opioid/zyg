@@ -131,7 +131,7 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         const crop = json.readVec4iMember(sensor_value.*, "crop", Vec4i{ 0, 0, resolution[0], resolution[1] });
 
         camera.setResolution(resolution, crop);
-        camera.setSensor(loadSensor(sensor_value.*));
+        camera.sensor = loadSensor(sensor_value.*);
     } else {
         return;
     }

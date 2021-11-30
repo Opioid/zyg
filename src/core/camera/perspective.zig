@@ -7,7 +7,9 @@ const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
-const Ray = @import("../scene/ray.zig").Ray;
+const sr = @import("../scene/ray.zig");
+const Ray = sr.Ray;
+const RayDif = sr.RayDif;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 
@@ -33,6 +35,8 @@ pub const Perspective = struct {
     const Default_frame_time = scn.Units_per_second / 60;
 
     entity: u32 = Prop.Null,
+
+    sample_spacing: f32 = undefined,
 
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(4, @as(i32, 0)),
@@ -77,10 +81,6 @@ pub const Perspective = struct {
         self.crop[1] = std.math.max(0, crop[1]);
         self.crop[2] = std.math.min(resolution[0], crop[2]);
         self.crop[3] = std.math.min(resolution[1], crop[3]);
-    }
-
-    pub fn setSensor(self: *Self, sensor: Sensor) void {
-        self.sensor = sensor;
     }
 
     pub fn update(self: *Self, time: u64, worker: *Worker) void {
@@ -135,7 +135,16 @@ pub const Perspective = struct {
         return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, 0.0, time);
     }
 
-    pub fn sampleTo(self: Self, bounds: Vec4i, time: u64, p: Vec4f, sampler: *Sampler, rng: *RNG, sampler_d: u32, scene: Scene) ?SampleTo {
+    pub fn sampleTo(
+        self: Self,
+        bounds: Vec4i,
+        time: u64,
+        p: Vec4f,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: u32,
+        scene: Scene,
+    ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
 
         const po = trafo.worldToObjectPoint(p);
@@ -193,6 +202,29 @@ pub const Perspective = struct {
             .dir = trafo.objectToWorldVector(out_dir),
             .t = t,
             .pdf = wa * wb,
+        };
+    }
+
+    pub fn calculateRayDifferential(self: Self, p: Vec4f, time: u64, scene: Scene) RayDif {
+        const trafo = scene.propTransformationAt(self.entity, time);
+
+        const p_w = trafo.position;
+
+        const dir_w = math.normalize3(p - p_w);
+
+        const d_x_w = trafo.objectToWorldVector(self.d_x);
+        const d_y_w = trafo.objectToWorldVector(self.d_y);
+
+        const ss = self.sample_spacing;
+
+        const x_dir_w = math.normalize3(dir_w + @splat(4, ss) * d_x_w);
+        const y_dir_w = math.normalize3(dir_w + @splat(4, ss) * d_y_w);
+
+        return .{
+            .x_origin = p_w,
+            .x_direction = x_dir_w,
+            .y_origin = p_w,
+            .y_direction = y_dir_w,
         };
     }
 
