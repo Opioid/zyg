@@ -105,7 +105,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(.GlossyReflection);
+        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }
