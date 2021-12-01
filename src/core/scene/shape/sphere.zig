@@ -7,6 +7,7 @@ const SampleFrom = smpl.From;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;

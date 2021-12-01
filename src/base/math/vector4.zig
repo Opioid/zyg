@@ -224,6 +224,14 @@ pub fn maxComponent3(v: Vec4f) f32 {
     return @maximum(v[0], @maximum(v[1], v[2]));
 }
 
+pub fn indexMinComponent3(v: Vec4f) u32 {
+    if (v[0] < v[1]) {
+        return if (v[0] < v[2]) 0 else 2;
+    }
+
+    return if (v[1] < v[2]) 1 else 2;
+}
+
 pub fn indexMaxComponent3(v: Vec4f) u32 {
     if (v[0] > v[1]) {
         return if (v[0] > v[2]) 0 else 2;

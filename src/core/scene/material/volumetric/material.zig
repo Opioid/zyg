@@ -9,6 +9,7 @@ const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;

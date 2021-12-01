@@ -492,8 +492,8 @@ pub const Scene = struct {
         );
     }
 
-    pub fn propAabbIntersectP(self: Scene, entity: usize, ray: Ray) bool {
-        return self.prop_aabbs.items[entity].intersectP(ray.ray);
+    pub fn propAabbIntersect(self: Scene, entity: usize, ray: Ray) bool {
+        return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
     pub fn propShape(self: Scene, entity: usize) Shape {

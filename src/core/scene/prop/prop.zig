@@ -121,7 +121,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersectP(entity, ray.*)) {
+        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
@@ -144,7 +144,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersectP(entity, ray.*)) {
+        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
@@ -166,7 +166,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersectP(entity, ray)) {
+        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
@@ -191,7 +191,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersectP(entity, ray)) {
+        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray)) {
             return @splat(4, @as(f32, 1.0));
         }
 

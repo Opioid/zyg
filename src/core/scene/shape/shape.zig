@@ -1,4 +1,5 @@
 pub const Canopy = @import("canopy.zig").Canopy;
+pub const Cube = @import("cube.zig").Cube;
 pub const Disk = @import("disk.zig").Disk;
 pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
@@ -33,6 +34,7 @@ const Allocator = std.mem.Allocator;
 pub const Shape = union(enum) {
     Null,
     Canopy: Canopy,
+    Cube: Cube,
     Disk: Disk,
     DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
@@ -96,7 +98,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
-            .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
+            .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .Triangle_mesh => |m| m.tree.aabb(),
         };
     }
@@ -120,6 +122,10 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null, .Plane => 0.0,
             .Canopy => 2.0 * std.math.pi,
+            .Cube => {
+                const d = @splat(4, @as(f32, 2.0)) * scale;
+                return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
+            },
             .Disk => std.math.pi * (scale[0] * scale[0]),
 
             // This calculates the solid angle, not the area!
@@ -144,6 +150,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Null => false,
             .Canopy => Canopy.intersect(&ray.ray, trafo, isec),
+            .Cube => Cube.intersect(&ray.ray, trafo, ipo, isec),
             .Disk => Disk.intersect(&ray.ray, trafo, isec),
             .DistantSphere => DistantSphere.intersect(&ray.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
@@ -157,6 +164,7 @@ pub const Shape = union(enum) {
     pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
         return switch (self) {
             .Null, .Canopy, .InfiniteSphere => false,
+            .Cube => Cube.intersectP(ray.ray, trafo),
             .Disk => Disk.intersectP(ray.ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray.ray, trafo),
             .Plane => Plane.intersectP(ray.ray, trafo),
@@ -178,6 +186,7 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
+            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*),
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
@@ -201,7 +210,6 @@ pub const Shape = union(enum) {
         sampler_d: usize,
     ) ?SampleTo {
         return switch (self) {
-            .Null, .Plane => null,
             .Canopy => Canopy.sampleTo(trafo, sampler, rng, sampler_d),
             .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
             .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng, sampler_d),
@@ -221,6 +229,7 @@ pub const Shape = union(enum) {
                 rng,
                 sampler_d,
             ),
+            else => null,
         };
     }
 
@@ -240,7 +249,6 @@ pub const Shape = union(enum) {
         _ = bounds;
 
         return switch (self) {
-            .Null, .Plane => null,
             .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv),
@@ -312,7 +320,7 @@ pub const Shape = union(enum) {
         total_sphere: bool,
     ) f32 {
         return switch (self) {
-            .Null, .Plane => 0.0,
+            .Cube, .Null, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .DistantSphere => 1.0 / extent,

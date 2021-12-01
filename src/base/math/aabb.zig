@@ -26,7 +26,7 @@ pub const AABB = struct {
     }
 
     // Raytracing Gems 2 - chapter 2
-    pub fn intersectP(self: AABB, ray: Ray) bool {
+    pub fn intersect(self: AABB, ray: Ray) bool {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
@@ -40,6 +40,29 @@ pub const AABB = struct {
         const tboxmax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], std.math.min(tmaxs[2], tmaxs[3])));
 
         return tboxmin <= tboxmax;
+    }
+
+    pub fn intersectP(self: AABB, ray: Ray) ?f32 {
+        const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
+        const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
+
+        const t0 = @minimum(lower, upper);
+        const t1 = @maximum(lower, upper);
+
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+
+        const imin = std.math.max(tmins[0], std.math.max(tmins[1], tmins[2]));
+        const imax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], tmaxs[2]));
+
+        const tboxmin = std.math.max(imin, tmins[3]);
+        const tboxmax = std.math.min(imax, tmaxs[3]);
+
+        if (tboxmin <= tboxmax) {
+            return if (imin < ray.minT()) imax else imin;
+        }
+
+        return null;
     }
 
     pub fn insert(self: *AABB, p: Vec4f) void {
