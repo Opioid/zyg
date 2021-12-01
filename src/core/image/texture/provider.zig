@@ -52,6 +52,8 @@ pub const Provider = struct {
             },
             .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id, .scale = scale },
             .Half3 => Texture{ .type = .Half3, .image = image_id, .scale = scale },
+            .Float1 => Texture{ .type = .Float1, .image = image_id, .scale = scale },
+            .Float2 => Texture{ .type = .Float2, .image = image_id, .scale = scale },
             else => Error.UnsupportedImageType,
         };
     }

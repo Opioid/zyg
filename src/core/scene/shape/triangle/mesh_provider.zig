@@ -311,9 +311,7 @@ pub const Provider = struct {
             var document = try parser.parse(json_string);
             defer document.deinit();
 
-            const geometry_node = document.root.Object.get("geometry") orelse {
-                return Error.NoGeometryNode;
-            };
+            const geometry_node = document.root.Object.get("geometry") orelse return Error.NoGeometryNode;
 
             var iter = geometry_node.Object.iterator();
             while (iter.next()) |entry| {

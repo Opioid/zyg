@@ -4,6 +4,7 @@ const Swizzle = img.Swizzle;
 const Image = img.Image;
 const PngReader = @import("encoding/png/reader.zig").Reader;
 const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
+const SubReader = @import("encoding/sub/reader.zig").Reader;
 const Resources = @import("../resource/manager.zig").Manager;
 const Variants = @import("base").memory.VariantMap;
 
@@ -66,6 +67,10 @@ pub const Provider = struct {
 
         if (.RGBE == file_type) {
             return RgbeReader.read(alloc, &stream);
+        }
+
+        if (.SUB == file_type) {
+            return SubReader.read(alloc, &stream);
         }
 
         return Error.UnknownImageType;

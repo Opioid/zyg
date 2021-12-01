@@ -12,6 +12,10 @@ pub const Description = struct {
         return .{ .dimensions = Vec3i.init3(dim[0], dim[1], 1) };
     }
 
+    pub fn init3D(dim: Vec3i) Description {
+        return .{ .dimensions = dim };
+    }
+
     pub fn numPixels(self: Description) u64 {
         return @intCast(u64, self.dimensions.v[0]) *
             @intCast(u64, self.dimensions.v[1]) *
@@ -19,7 +23,7 @@ pub const Description = struct {
     }
 };
 
-pub fn Typed_image(comptime T: type) type {
+pub fn TypedImage(comptime T: type) type {
     return struct {
         description: Description = .{},
 
@@ -27,8 +31,8 @@ pub fn Typed_image(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(alloc: *Allocator, description: Description) !Typed_image(T) {
-            return Typed_image(T){
+        pub fn init(alloc: *Allocator, description: Description) !TypedImage(T) {
+            return TypedImage(T){
                 .description = description,
                 .pixels = try alloc.alloc(T, description.numPixels()),
             };
@@ -42,7 +46,6 @@ pub fn Typed_image(comptime T: type) type {
             self.description = description;
 
             const len = description.numPixels();
-
             if (self.pixels.len < len) {
                 self.pixels = try alloc.realloc(self.pixels, len);
             }

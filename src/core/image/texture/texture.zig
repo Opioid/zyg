@@ -16,6 +16,8 @@ pub const Texture = struct {
         Byte2_snorm,
         Byte3_sRGB,
         Half3,
+        Float1,
+        Float2,
         Float3,
     };
 
@@ -33,8 +35,8 @@ pub const Texture = struct {
 
     pub fn numChannels(self: Texture) u32 {
         const nc: u32 = switch (self.type) {
-            .Byte1_unorm => 1,
-            .Byte2_unorm, .Byte2_snorm => 2,
+            .Byte1_unorm, .Float1 => 1,
+            .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
         };
 
@@ -49,6 +51,7 @@ pub const Texture = struct {
                 const value = image.Byte1.get2D(x, y);
                 return enc.cachedUnormToFloat(value);
             },
+            .Float1 => image.Float1.get2D(x, y),
             else => 0.0,
         };
     }
@@ -66,6 +69,7 @@ pub const Texture = struct {
                     enc.cachedUnormToFloat(values[3]),
                 };
             },
+            .Float1 => image.Float1.gather2D(xy_xy1),
             else => .{ 0.0, 0.0, 0.0, 0.0 },
         };
     }
@@ -82,6 +86,7 @@ pub const Texture = struct {
                 const value = image.Byte2.get2D(x, y);
                 return enc.cachedSnormToFloat2(value);
             },
+            .Float2 => image.Float2.get2D(x, y),
             else => @splat(2, @as(f32, 0.0)),
         };
     }
@@ -108,6 +113,7 @@ pub const Texture = struct {
                     enc.cachedSnormToFloat2(values[3]),
                 };
             },
+            .Float2 => image.Float2.gather2D(xy_xy1),
             else => .{
                 @splat(2, @as(f32, 0.0)),
                 @splat(2, @as(f32, 0.0)),

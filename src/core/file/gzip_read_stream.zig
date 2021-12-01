@@ -165,9 +165,10 @@ pub const GzipReadStream = struct {
 
             const bs = self.z_stream.total_out - (self.buffer_head + self.buffer_count);
             const bo = @intCast(u32, pos - bs);
-            const d = self.buffer_head - bo;
+            const d = bo - self.buffer_head;
+
             self.buffer_head = bo;
-            self.buffer_count += d;
+            self.buffer_count -= d;
         }
     }
 

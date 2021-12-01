@@ -1,12 +1,14 @@
 const math = @import("math/math.zig");
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
+const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
 const Transformation = math.Transformation;
 const Quaternion = math.Quaternion;
 const quaternion = math.quaternion;
+
 const std = @import("std");
 const Value = std.json.Value;
 
@@ -67,6 +69,16 @@ pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
         @intCast(i32, member.Array.items[0].Integer),
         @intCast(i32, member.Array.items[1].Integer),
     };
+}
+
+pub fn readVec3iMember(value: Value, name: []const u8, default: Vec3i) Vec3i {
+    const member = value.Object.get(name) orelse return default;
+
+    return Vec3i.init3(
+        @intCast(i32, member.Array.items[0].Integer),
+        @intCast(i32, member.Array.items[1].Integer),
+        @intCast(i32, member.Array.items[2].Integer),
+    );
 }
 
 pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
