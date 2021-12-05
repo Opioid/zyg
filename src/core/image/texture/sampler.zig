@@ -4,6 +4,7 @@ pub const AddressMode = @import("address_mode.zig").Mode;
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
+const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -53,6 +54,13 @@ pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec4f {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
         .Linear => Linear2D.sample_3(texture, uv, key.address, scene),
+    };
+}
+
+pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) f32 {
+    return switch (key.filter) {
+        .Nearest => Nearest3D.sample_1(texture, uvw, key.address, scene),
+        .Linear => Nearest3D.sample_1(texture, uvw, key.address, scene),
     };
 }
 
@@ -160,5 +168,29 @@ const Linear2D = struct {
         const _t = @splat(4, @as(f32, 1.0)) - vt;
 
         return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
+    }
+};
+
+const Nearest3D = struct {
+    pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) f32 {
+        const d = texture.description(scene).dimensions;
+        const xyz = map(d, uvw, adr);
+        return texture.get3D_1(xyz.v[0], xyz.v[1], xyz.v[2], scene);
+    }
+
+    fn map(d: Vec3i, uvw: Vec4f, adr: Address) Vec3i {
+        const df = math.vec3iTo4f(d);
+
+        const u = adr.u.f(uvw[0]);
+        const v = adr.v.f(uvw[1]);
+        const w = adr.v.f(uvw[2]);
+
+        const b = d.subScalar(1);
+
+        return Vec3i.init3(
+            std.math.min(@floatToInt(i32, u * df[0]), b.v[0]),
+            std.math.min(@floatToInt(i32, v * df[1]), b.v[1]),
+            std.math.min(@floatToInt(i32, w * df[2]), b.v[2]),
+        );
     }
 };

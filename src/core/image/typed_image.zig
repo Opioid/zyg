@@ -85,10 +85,11 @@ pub fn TypedImage(comptime T: type) type {
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
-            const d = self.description.dimensions.xy();
-            const i = (@intCast(u64, z) * @intCast(u64, d[1]) + @intCast(u64, y)) * @intCast(u64, d[0]) + @intCast(u64, x);
+            const d = self.description.dimensions;
+            const i = (@intCast(u64, z) * @intCast(u64, d.v[1]) + @intCast(u64, y)) *
+                @intCast(u64, d.v[0]) + @intCast(u64, x);
 
-            return self.pixels[@intCast(usize, i)];
+            return self.pixels[i];
         }
     };
 }

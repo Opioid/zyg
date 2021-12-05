@@ -65,6 +65,73 @@ pub const AABB = struct {
         return null;
     }
 
+    pub fn intersectInsideP(self: AABB, ray: Ray) ?f32 {
+        const l1 = (self.bounds[0] - ray.origin) * ray.inv_direction;
+        const l2 = (self.bounds[1] - ray.origin) * ray.inv_direction;
+
+        // the order we use for those min/max is vital to filter out
+        // NaNs that happens when an inv_dir is +/- inf and
+        // (box_min - pos) is 0. inf * 0 = NaN
+        const filtered_l1a = @minimum(l1, math.Infinity);
+        const filtered_l2a = @minimum(l2, math.Infinity);
+
+        const filtered_l1b = @maximum(l1, math.Neg_infinity);
+        const filtered_l2b = @maximum(l2, math.Neg_infinity);
+
+        // now that we're back on our feet, test those slabs.
+        const max_t3 = @maximum(filtered_l1a, filtered_l2a);
+        const min_t3 = @minimum(filtered_l1b, filtered_l2b);
+
+        // unfold back. try to hide the latency of the shufps & co.
+        var max_t = std.math.min(max_t3[0], max_t3[1]);
+        var min_t = std.math.max(min_t3[0], min_t3[1]);
+
+        max_t = std.math.min(max_t, max_t3[2]);
+        min_t = std.math.max(min_t, min_t3[2]);
+
+        const ray_min_t = ray.minT();
+        const ray_max_t = ray.maxT();
+
+        const min_out = min_t;
+        const max_out = max_t;
+
+        var hit_t: f32 = undefined;
+        if (min_out < ray_min_t) {
+            hit_t = max_out;
+        } else {
+            hit_t = min_out;
+        }
+
+        // return max_t >= ray_min_t and ray_max_t >= min_t and max_t >= min_t;
+        if (0 != (@boolToInt(max_t >= ray_min_t) & @boolToInt(ray_min_t >= min_t) & @boolToInt(ray_max_t >= min_t) & @boolToInt(max_t >= min_t))) {
+            return hit_t;
+        }
+
+        return null;
+
+        // const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
+        // const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
+
+        // const t0 = @minimum(lower, upper);
+        // const t1 = @maximum(lower, upper);
+
+        // const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
+        // const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+
+        // const imin = std.math.max(tmins[0], std.math.max(tmins[1], tmins[2]));
+        // const imax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], tmaxs[2]));
+
+        // const tboxmin = std.math.max(imin, tmins[3]);
+        // const tboxmax = std.math.min(imax, tmaxs[3]);
+
+        // if (tboxmin <= tboxmax and ray.minT() >= tboxmin) {
+        //     return if (imin < ray.minT()) imax else imin;
+        // }
+
+        // return null;
+
+    }
+
     pub fn insert(self: *AABB, p: Vec4f) void {
         self.bounds[0] = @minimum(p, self.bounds[0]);
         self.bounds[1] = @maximum(p, self.bounds[1]);

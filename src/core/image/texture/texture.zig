@@ -233,6 +233,19 @@ pub const Texture = struct {
         };
     }
 
+    pub fn get3D_1(self: Texture, x: i32, y: i32, z: i32, scene: Scene) f32 {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.get3D(x, y, z);
+                return enc.cachedUnormToFloat(value);
+            },
+            .Float1 => image.Float1.get3D(x, y, z),
+            else => 0.0,
+        };
+    }
+
     pub fn description(self: Texture, scene: Scene) Description {
         return scene.image(self.image).description();
     }

@@ -6,6 +6,7 @@ pub const Volumetric = @import("volumetric/material.zig").Material;
 const Sky = @import("../../sky/material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 const Base = @import("material_base.zig").Base;
+const Gridtree = @import("volumetric/gridtree.zig").Gridtree;
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const Renderstate = @import("../renderstate.zig").Renderstate;
@@ -36,6 +37,7 @@ pub const Material = union(enum) {
         switch (self.*) {
             .Light => |*m| m.deinit(alloc),
             .Sky => |*m| m.deinit(alloc),
+            .Volumetric => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -51,13 +53,13 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material) void {
+    pub fn commit(self: *Material, alloc: *Allocator, scene: Scene, threads: *Threads) void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
             .Sky => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
-            .Volumetric => |*m| m.commit(),
+            .Volumetric => |*m| m.commit(alloc, scene, threads),
             else => {},
         }
     }
@@ -142,23 +144,43 @@ pub const Material = union(enum) {
     }
 
     pub fn isHeterogeneousVolume(self: Material) bool {
-        return self.super().properties.is(.HeterogeneousVolume);
+        return switch (self) {
+            .Volumetric => |m| m.density.isValid(),
+            else => false,
+        };
+    }
+
+    pub fn volumetricTree(self: Material) ?Gridtree {
+        return switch (self) {
+            .Volumetric => |m| if (m.density_map.isValid()) m.tree else null,
+            else => null,
+        };
     }
 
     pub fn ior(self: Material) f32 {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients(self: Material, uv: Vec2f, filter: ?ts.Filter, worker: Worker) CC {
+    pub fn collisionCoefficients(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) CC {
         const sup = self.super();
-        const color_map = sup.color_map;
-        if (color_map.isValid()) {
-            const key = ts.resolveKey(sup.sampler_key, filter);
-            const color = ts.sample2D_3(key, color_map, uv, worker.scene.*);
-            return ccoef.scattering(sup.cc.a, color, sup.volumetric_anisotropy);
-        }
+        const cc = sup.cc;
 
-        return sup.cc;
+        switch (self) {
+            .Volumetric => |m| {
+                const d = @splat(4, m.density(uvw, filter, worker));
+                return .{ .a = d * cc.a, .s = d * cc.s };
+            },
+            else => {
+                const color_map = sup.color_map;
+                if (color_map.isValid()) {
+                    const key = ts.resolveKey(sup.sampler_key, filter);
+                    const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
+                }
+
+                return cc;
+            },
+        }
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {

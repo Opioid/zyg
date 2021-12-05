@@ -7,7 +7,6 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Threads = base.thread.Pool;
-const ThreadContext = base.thread.Pool.Context;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -218,7 +217,7 @@ const Kernel = struct {
         return sp;
     }
 
-    fn evaluateRange(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+    fn evaluateRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
         const self = @intToPtr(*Kernel, context);
@@ -363,7 +362,7 @@ pub const Base = struct {
         }
     }
 
-    fn workOnTasksParallel(context: ThreadContext, id: u32) void {
+    fn workOnTasksParallel(context: Threads.Context, id: u32) void {
         _ = id;
 
         const self = @intToPtr(*Base, context);

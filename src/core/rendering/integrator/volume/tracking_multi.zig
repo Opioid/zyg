@@ -6,6 +6,7 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
+const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -54,7 +55,7 @@ pub const Multi = struct {
 
         if (!material.isScatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(interface.uv, filter, worker.*).a;
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.*).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -62,17 +63,40 @@ pub const Multi = struct {
             };
         }
 
-        if (material.isHeterogeneousVolume()) {
-            return .{
-                .li = @splat(4, @as(f32, 0.0)),
-                .tr = @splat(4, @as(f32, 1.0)),
-                .event = .Abort,
-            };
+        if (material.volumetricTree()) |tree| {
+            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker.*);
+
+            const srs = material.super().similarityRelationScale(ray.depth);
+
+            var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+
+            while (local_ray.minT() < d) {
+                if (tree.intersect(&local_ray)) |tcm| {
+                    var cm = tcm;
+                    cm.minorant_mu_s *= srs;
+                    cm.majorant_mu_s *= srs;
+
+                    result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, worker);
+                    if (.Scatter == result.event) {
+                        setScattering(isec, interface, ray.ray.point(result.t));
+                        break;
+                    }
+                }
+
+                local_ray.setMinT(ro.offsetF(local_ray.maxT()));
+                local_ray.setMaxT(d);
+            }
+
+            if (!math.anyGreaterEqual3(result.tr, tracking.Abort_epsilon)) {
+                result.event = .Abort;
+            }
+
+            return result;
         }
 
         const mu = material.super().cc;
 
-        var result = tracking.tracking(ray.ray, mu, &worker.rng);
+        const result = tracking.tracking(ray.ray, mu, &worker.rng);
         if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
         }

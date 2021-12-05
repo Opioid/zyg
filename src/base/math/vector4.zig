@@ -1,5 +1,8 @@
-const Vec2 = @import("vector2.zig").Vec2;
-const Vec3f = @import("vector3.zig").Vec3f;
+const v2 = @import("vector2.zig");
+const Vec2f = v2.Vec2f;
+const v3 = @import("vector3.zig");
+const Vec3i = v3.Vec3i;
+const Vec3f = v3.Vec3f;
 
 const std = @import("std");
 
@@ -15,10 +18,6 @@ pub fn Vec4(comptime T: type) type {
             return .{ .v = [4]T{ s, s, s, s } };
         }
 
-        pub fn init2(x: T, y: T) Vec4(T) {
-            return .{ .v = [4]T{ x, y, 0.0, 0.0 } };
-        }
-
         pub fn init3(x: T, y: T, z: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, 0.0 } };
         }
@@ -29,18 +28,6 @@ pub fn Vec4(comptime T: type) type {
 
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
-        }
-
-        pub fn init2_2(a: Vec2(T), b: Vec2(T)) Vec4(T) {
-            return .{ .v = [4]T{ a.v[0], a.v[1], b.v[0], b.v[1] } };
-        }
-
-        pub fn xy(v: Vec4(T)) Vec2(T) {
-            return Vec2(T).init2(v.v[0], v.v[1]);
-        }
-
-        pub fn zw(v: Vec4(T)) Vec2(T) {
-            return Vec2(T).init2(v.v[2], v.v[3]);
         }
 
         pub fn add3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
@@ -220,6 +207,10 @@ pub fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
     return @minimum(@maximum(v, @splat(4, mi)), @splat(4, ma));
 }
 
+pub fn minComponent3(v: Vec4f) f32 {
+    return @minimum(v[0], @minimum(v[1], v[2]));
+}
+
 pub fn maxComponent3(v: Vec4f) f32 {
     return @maximum(v[0], @maximum(v[1], v[2]));
 }
@@ -248,6 +239,14 @@ pub fn equal(a: Vec4f, b: Vec4f) bool {
     return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
 }
 
+pub fn allLess3(v: Vec4f, s: f32) bool {
+    if (v[0] >= s) return false;
+    if (v[1] >= s) return false;
+    if (v[2] >= s) return false;
+
+    return true;
+}
+
 pub fn anyGreaterZero3(v: Vec4f) bool {
     if (v[0] > 0.0) return true;
     if (v[1] > 0.0) return true;
@@ -261,6 +260,14 @@ pub fn anyGreaterZero(v: Vec4f) bool {
     if (v[1] > 0.0) return true;
     if (v[2] > 0.0) return true;
     if (v[3] > 0.0) return true;
+
+    return false;
+}
+
+pub fn anyGreaterEqual3(v: Vec4f, s: f32) bool {
+    if (v[0] >= s) return true;
+    if (v[1] >= s) return true;
+    if (v[2] >= s) return true;
 
     return false;
 }
@@ -280,6 +287,14 @@ pub fn anyNaN4(v: Vec4f) bool {
     if (std.math.isNan(v[3])) return true;
 
     return false;
+}
+
+pub fn allFinite3(v: Vec4f) bool {
+    if (!std.math.isFinite(v[0])) return false;
+    if (!std.math.isFinite(v[1])) return false;
+    if (!std.math.isFinite(v[2])) return false;
+
+    return true;
 }
 
 pub fn vec4fTo4i(v: Vec4f) Vec4(i32) {
@@ -302,4 +317,25 @@ pub fn vec4iTo4f(v: Vec4(i32)) Vec4f {
 
 pub fn vec4fTo3f(v: Vec4f) Vec3f {
     return Vec3f.init3(v[0], v[1], v[2]);
+}
+
+pub fn vec3iTo4f(v: Vec3i) Vec4f {
+    return .{
+        @intToFloat(f32, v.v[0]),
+        @intToFloat(f32, v.v[1]),
+        @intToFloat(f32, v.v[2]),
+        0.0,
+    };
+}
+
+pub fn vec4fTo3i(v: Vec4f) Vec3i {
+    return Vec3i.init3(
+        @floatToInt(i32, v[0]),
+        @floatToInt(i32, v[1]),
+        @floatToInt(i32, v[2]),
+    );
+}
+
+pub fn vec2fTo4f(v: Vec2f) Vec4f {
+    return .{ v[0], v[1], 0.0, 0.0 };
 }

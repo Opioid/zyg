@@ -92,9 +92,18 @@ pub const Base = struct {
         return 1.0 - fresnel.schlick1(n_dot_wi, f0);
     }
 
+    pub fn similarityRelationScale(self: Base, depth: u32) f32 {
+        const gs = self.vanDeHulstAnisotropy(depth);
+        return vanDeHulst(self.volumetric_anisotropy, gs);
+    }
+
     pub fn vanDeHulstAnisotropy(self: Base, depth: u32) f32 {
         _ = depth;
         return self.volumetric_anisotropy;
+    }
+
+    fn vanDeHulst(g: f32, gs: f32) f32 {
+        return (1.0 - g) / (1.0 - gs);
     }
 
     const Num_bands = 36;

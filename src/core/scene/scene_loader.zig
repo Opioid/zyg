@@ -259,7 +259,7 @@ pub const Loader = struct {
         self.materials.clearRetainingCapacity();
 
         if (materials_value_ptr) |materials_value| {
-            try self.loadMaterials(alloc, materials_value.*, local_materials);
+            try self.loadMaterials(alloc, materials_value.*, local_materials, scene.*);
         }
 
         while (self.materials.items.len < num_materials) {
@@ -349,9 +349,10 @@ pub const Loader = struct {
         alloc: *Allocator,
         value: std.json.Value,
         local_materials: LocalMaterials,
+        scene: Scene,
     ) !void {
         for (value.Array.items) |m| {
-            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials));
+            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials, scene));
 
             if (self.materials.capacity == self.materials.items.len) {
                 return;
@@ -364,6 +365,7 @@ pub const Loader = struct {
         alloc: *Allocator,
         name: []const u8,
         local_materials: LocalMaterials,
+        scene: Scene,
     ) u32 {
         // First, check if we maybe already have cached the material.
         if (self.resources.getByName(Material, name, .{})) |material| {
@@ -377,7 +379,7 @@ pub const Loader = struct {
             const material = self.resources.loadData(Material, alloc, name, data, .{}) catch resource.Null;
             if (resource.Null != material) {
                 if (self.resources.get(Material, material)) |mp| {
-                    mp.commit();
+                    mp.commit(alloc, scene, self.resources.threads);
                 }
                 return material;
             }
@@ -389,7 +391,7 @@ pub const Loader = struct {
             return self.fallback_material;
         };
 
-        if (self.resources.get(Material, material)) |mp| mp.commit();
+        if (self.resources.get(Material, material)) |mp| mp.commit(alloc, scene, self.resources.threads);
         return material;
     }
 

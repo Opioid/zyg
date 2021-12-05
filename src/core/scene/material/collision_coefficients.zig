@@ -6,6 +6,30 @@ pub const CC = struct {
     s: Vec4f,
 };
 
+pub const CM = struct {
+    minorant_mu_a: f32,
+    minorant_mu_s: f32,
+    majorant_mu_a: f32,
+    majorant_mu_s: f32,
+
+    pub fn initCC(cc: CC) CM {
+        return .{
+            .minorant_mu_a = math.minComponent3(cc.a),
+            .minorant_mu_s = math.minComponent3(cc.s),
+            .majorant_mu_a = math.maxComponent3(cc.a),
+            .majorant_mu_s = math.maxComponent3(cc.s),
+        };
+    }
+
+    pub fn majorant_mu_t(self: CM) f32 {
+        return self.majorant_mu_a + self.majorant_mu_s;
+    }
+
+    pub fn isEmpty(self: CM) bool {
+        return 0.0 == self.majorant_mu_a and 0.0 == self.majorant_mu_s;
+    }
+};
+
 pub fn attenuation(ac: Vec4f, ssc: Vec4f, distance: f32, g: f32) CC {
     const mu_t = attenutionCoefficient(ac, distance);
     return scattering(mu_t, ssc, g);
