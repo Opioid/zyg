@@ -78,6 +78,6 @@ pub const Sample = struct {
     fn phaseHg(cos_theta: f32, g: f32) f32 {
         const gg = g * g;
         const denom = 1.0 + gg + 2.0 * g * cos_theta;
-        return (1.0 / (4.0 * std.math.pi)) * (1.0 - gg) / (denom / @sqrt(denom));
+        return (1.0 / (4.0 * std.math.pi)) * (1.0 - gg) / (denom * @sqrt(denom));
     }
 };
