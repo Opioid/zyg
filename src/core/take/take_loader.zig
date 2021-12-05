@@ -11,6 +11,7 @@ const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
 const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
+const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
 
@@ -275,6 +276,8 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
             loadSurfaceIntegrator(entry.value_ptr.*, view, null != view.lighttracers);
+        } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
+            loadVolumeIntegrator(entry.value_ptr.*);
         }
     }
 }
@@ -349,6 +352,16 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
     }
 }
 
+fn loadVolumeIntegrator(value: std.json.Value) void {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
+            const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
+            MaterialBase.setSimilarityRelationRange(@intCast(u32, sr_range[0]), @intCast(u32, sr_range[1]));
+        }
+    }
+}
+
 fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator: bool) void {
     const num_samples = json.readUIntMember(value, "num_samples", 1);
     const max_bounces = json.readUIntMember(value, "max_bounces", 8);
@@ -369,17 +382,17 @@ fn setDefaultIntegrators(view: *View) void {
     }
 
     if (null == view.surfaces) {
-        view.surfaces = surface.Factory{ .AO = .{
+        view.surfaces = .{ .AO = .{
             .settings = .{ .num_samples = 1, .radius = 1.0 },
         } };
     }
 
     if (null == view.volumes) {
-        view.volumes = volume.Factory{ .Multi = .{} };
+        view.volumes = .{ .Multi = .{} };
     }
 
     if (null == view.lighttracers) {
-        view.lighttracers = lt.Factory{ .settings = .{
+        view.lighttracers = .{ .settings = .{
             .num_samples = 0,
             .min_bounces = 0,
             .max_bounces = 0,

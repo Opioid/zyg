@@ -60,7 +60,7 @@ pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec4f {
 pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_1(texture, uvw, key.address, scene),
-        .Linear => Nearest3D.sample_1(texture, uvw, key.address, scene),
+        .Linear => Linear3D.sample_1(texture, uvw, key.address, scene),
     };
 }
 
@@ -182,8 +182,8 @@ const Nearest3D = struct {
         const df = math.vec3iTo4f(d);
 
         const u = adr.u.f(uvw[0]);
-        const v = adr.v.f(uvw[1]);
-        const w = adr.v.f(uvw[2]);
+        const v = adr.u.f(uvw[1]);
+        const w = adr.u.f(uvw[2]);
 
         const b = d.subScalar(1);
 
@@ -192,5 +192,56 @@ const Nearest3D = struct {
             std.math.min(@floatToInt(i32, v * df[1]), b.v[1]),
             std.math.min(@floatToInt(i32, w * df[2]), b.v[2]),
         );
+    }
+};
+
+const Linear3D = struct {
+    pub const Map = struct {
+        w: Vec4f,
+        xyz: Vec3i,
+        xyz1: Vec3i,
+    };
+
+    pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) f32 {
+        const d = texture.description(scene).dimensions;
+        const m = map(d, uvw, adr);
+        const c = texture.gather3D_1(m.xyz, m.xyz1, scene);
+
+        const c0 = math.bilinear1(.{ c[0], c[1], c[2], c[3] }, m.w[0], m.w[1]);
+        const c1 = math.bilinear1(.{ c[4], c[5], c[6], c[7] }, m.w[0], m.w[1]);
+
+        return math.lerp(c0, c1, m.w[2]);
+    }
+
+    fn map(d: Vec3i, uvw: Vec4f, adr: Address) Map {
+        const df = math.vec3iTo4f(d);
+
+        const u = adr.u.f(uvw[0]) * df[0] - 0.5;
+        const v = adr.v.f(uvw[1]) * df[1] - 0.5;
+        const w = adr.v.f(uvw[2]) * df[2] - 0.5;
+
+        const fu = std.math.floor(u);
+        const fv = std.math.floor(v);
+        const fw = std.math.floor(w);
+
+        const x = @floatToInt(i32, fu);
+        const y = @floatToInt(i32, fv);
+        const z = @floatToInt(i32, fw);
+
+        const b = d.subScalar(1);
+
+        return .{
+            .w = .{ u - fu, v - fv, w - fw, 0.0 },
+            .xyz = Vec3i.init3(
+                adr.u.lowerBound(x, b.v[0]),
+                adr.u.lowerBound(y, b.v[1]),
+                adr.u.lowerBound(z, b.v[2]),
+            ),
+            .xyz1 = Vec3i.init3(
+                adr.u.increment(x, b.v[0]),
+                adr.u.increment(y, b.v[1]),
+                adr.u.increment(z, b.v[2]),
+            ),
+        };
     }
 };

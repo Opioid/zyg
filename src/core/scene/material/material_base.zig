@@ -98,8 +98,16 @@ pub const Base = struct {
     }
 
     pub fn vanDeHulstAnisotropy(self: Base, depth: u32) f32 {
-        _ = depth;
-        return self.volumetric_anisotropy;
+        if (depth < SR_low) {
+            return self.volumetric_anisotropy;
+        }
+
+        if (depth < SR_high) {
+            const towards_zero = SR_inv_range * @intToFloat(f32, depth - SR_low);
+            return math.lerp(self.volumetric_anisotropy, 0.0, towards_zero);
+        }
+
+        return 0.0;
     }
 
     fn vanDeHulst(g: f32, gs: f32) f32 {
@@ -166,5 +174,15 @@ pub const Base = struct {
         }
 
         return @splat(4, value) * math.lerp3(Rainbow[id], Rainbow[id + 1], frac);
+    }
+
+    var SR_low: u32 = 16;
+    var SR_high: u32 = 64;
+    var SR_inv_range: f32 = 1.0 / @intToFloat(f32, 64 - 16);
+
+    pub fn setSimilarityRelationRange(low: u32, high: u32) void {
+        SR_low = low;
+        SR_high = high;
+        SR_inv_range = 1.0 / @intToFloat(f32, high - low);
     }
 };

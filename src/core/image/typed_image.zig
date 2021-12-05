@@ -91,5 +91,33 @@ pub fn TypedImage(comptime T: type) type {
 
             return self.pixels[i];
         }
+
+        pub fn gather3D(self: Self, xyz: Vec3i, xyz1: Vec3i) [8]T {
+            const dim = self.description.dimensions;
+            const w = @as(i64, dim.v[0]);
+            const h = @as(i64, dim.v[1]);
+
+            const x = @as(i64, xyz.v[0]);
+            const y = @as(i64, xyz.v[1]);
+            const z = @as(i64, xyz.v[2]);
+
+            const x1 = @as(i64, xyz1.v[0]);
+            const y1 = @as(i64, xyz1.v[1]);
+            const z1 = @as(i64, xyz1.v[2]);
+
+            const d = z * h;
+            const d1 = z1 * h;
+
+            return .{
+                self.pixels[@intCast(usize, (d + y) * w + x)],
+                self.pixels[@intCast(usize, (d + y) * w + x1)],
+                self.pixels[@intCast(usize, (d + y1) * w + x)],
+                self.pixels[@intCast(usize, (d + y1) * w + x1)],
+                self.pixels[@intCast(usize, (d1 + y) * w + x)],
+                self.pixels[@intCast(usize, (d1 + y) * w + x1)],
+                self.pixels[@intCast(usize, (d1 + y1) * w + x)],
+                self.pixels[@intCast(usize, (d1 + y1) * w + x1)],
+            };
+        }
     };
 }
