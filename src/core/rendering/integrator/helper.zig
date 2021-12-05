@@ -8,6 +8,10 @@ pub const LightSampling = enum(u8) {
     Adaptive,
 };
 
+pub fn attenuation1(c: f32, distance: f32) f32 {
+    return @exp(-distance * c);
+}
+
 pub fn attenuation3(c: Vec4f, distance: f32) Vec4f {
     return @exp(@splat(4, -distance) * c);
 }

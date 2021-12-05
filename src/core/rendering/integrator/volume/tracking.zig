@@ -75,6 +75,20 @@ fn trackingTransmitted(
         return true;
     }
 
+    const minorant_mu_t = cm.minorant_mu_t();
+    if (minorant_mu_t > 0.0) {
+        return residualRatioTrackingTransmitted(
+            transmitted,
+            ray,
+            minorant_mu_t,
+            mt,
+            material,
+            srs,
+            filter,
+            worker,
+        );
+    }
+
     var rng = &worker.rng;
 
     const imt = 1.0 / mt;
@@ -94,6 +108,62 @@ fn trackingTransmitted(
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
+        const mu_n = @splat(4, mt) - mu_t;
+
+        transmitted.* *= @splat(4, imt) * mu_n;
+
+        if (math.allLess3(transmitted.*, Abort_epsilon)) {
+            return false;
+        }
+    }
+}
+
+// Code for hetereogeneous transmittance inspired by:
+// https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
+
+fn residualRatioTrackingTransmitted(
+    transmitted: *Vec4f,
+    ray: Ray,
+    minorant_mu_t: f32,
+    majorant_mu_t: f32,
+    material: Material,
+    srs: f32,
+    filter: ?Filter,
+    worker: *Worker,
+) bool {
+    // Transmittance of the control medium
+    transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
+
+    if (math.allLess3(transmitted.*, Abort_epsilon)) {
+        return false;
+    }
+
+    const mt = majorant_mu_t - minorant_mu_t;
+
+    if (mt < Min_mt) {
+        return true;
+    }
+
+    var rng = &worker.rng;
+
+    // Transmittance of the residual medium
+    const imt = 1.0 / mt;
+
+    const d = ray.maxT();
+    var t = ray.minT();
+    while (true) {
+        const r0 = rng.randomFloat();
+        t -= @log(1.0 - r0) * imt;
+        if (t > d) {
+            return true;
+        }
+
+        const uvw = ray.point(t);
+
+        var mu = material.collisionCoefficients(uvw, filter, worker.*);
+        mu.s *= @splat(4, srs);
+
+        const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
         const mu_n = @splat(4, mt) - mu_t;
 
         transmitted.* *= @splat(4, imt) * mu_n;
