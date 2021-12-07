@@ -13,6 +13,7 @@ pub const Byte2 = ti.TypedImage(Vec2b);
 pub const Byte3 = ti.TypedImage(Vec3b);
 pub const Half3 = ti.TypedImage(Vec3h);
 pub const Float1 = ti.TypedImage(f32);
+pub const Float1Sparse = ti.TypedSparseImage(f32);
 pub const Float2 = ti.TypedImage(Vec2f);
 pub const Float3 = ti.TypedImage(Pack3f);
 pub const Float4 = ti.TypedImage(Pack4f);
@@ -39,6 +40,7 @@ pub const Image = union(enum) {
     Byte3: Byte3,
     Half3: Half3,
     Float1: Float1,
+    Float1Sparse: Float1Sparse,
     Float2: Float2,
     Float3: Float3,
     Float4: Float4,
@@ -50,6 +52,7 @@ pub const Image = union(enum) {
             .Byte3 => |*i| i.deinit(alloc),
             .Half3 => |*i| i.deinit(alloc),
             .Float1 => |*i| i.deinit(alloc),
+            .Float1Sparse => |*i| i.deinit(alloc),
             .Float2 => |*i| i.deinit(alloc),
             .Float3 => |*i| i.deinit(alloc),
             .Float4 => |*i| i.deinit(alloc),
@@ -63,6 +66,7 @@ pub const Image = union(enum) {
             .Byte3 => |i| i.description,
             .Half3 => |i| i.description,
             .Float1 => |i| i.description,
+            .Float1Sparse => |i| i.description,
             .Float2 => |i| i.description,
             .Float3 => |i| i.description,
             .Float4 => |i| i.description,

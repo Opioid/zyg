@@ -582,7 +582,10 @@ fn createTexture(
             options.set(alloc, "swizzle", swizzle) catch {};
         }
 
-        return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch .{};
+        return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch |e| {
+            std.debug.print("Could not load texture \"{s}\": {}\n", .{ filename, e });
+            return .{};
+        };
     }
 
     return .{};

@@ -18,6 +18,7 @@ pub const Texture = struct {
         Byte3_sRGB,
         Half3,
         Float1,
+        Float1Sparse,
         Float2,
         Float3,
     };
@@ -36,7 +37,7 @@ pub const Texture = struct {
 
     pub fn numChannels(self: Texture) u32 {
         const nc: u32 = switch (self.type) {
-            .Byte1_unorm, .Float1 => 1,
+            .Byte1_unorm, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
         };
@@ -243,6 +244,7 @@ pub const Texture = struct {
                 return enc.cachedUnormToFloat(value);
             },
             .Float1 => image.Float1.get3D(x, y, z),
+            .Float1Sparse => image.Float1Sparse.get3D(x, y, z),
             else => 0.0,
         };
     }
@@ -265,6 +267,7 @@ pub const Texture = struct {
                 };
             },
             .Float1 => image.Float1.gather3D(xyz, xyz1),
+            .Float1Sparse => image.Float1Sparse.gather3D(xyz, xyz1),
             else => [_]f32{0.0} ** 8,
         };
     }

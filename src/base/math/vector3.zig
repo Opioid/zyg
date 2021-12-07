@@ -24,6 +24,12 @@ pub fn Vec3(comptime T: type) type {
             return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
         }
 
+        pub fn addAssign(self: *Vec3(T), other: Vec3(T)) void {
+            self.v[0] += other.v[0];
+            self.v[1] += other.v[1];
+            self.v[2] += other.v[2];
+        }
+
         pub fn sub(a: Vec3(T), b: Vec3(T)) Vec3(T) {
             return init3(a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2]);
         }
@@ -79,6 +85,10 @@ pub fn Vec3(comptime T: type) type {
 
         pub fn anyLess1(v: Vec3(T), s: T) bool {
             return v.v[0] < s or v.v[1] < s or v.v[2] < s;
+        }
+
+        pub fn equal(a: Vec3(T), b: Vec3(T)) bool {
+            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2];
         }
 
         pub fn anyGreaterEqual3(a: Vec3(T), b: Vec3(T)) bool {

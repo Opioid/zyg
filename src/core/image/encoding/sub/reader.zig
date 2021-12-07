@@ -108,7 +108,7 @@ pub const Reader = struct {
             }
 
             if (.Float1 == image_type) {
-                var image = try img.Float1.init(alloc, description);
+                var image = try img.Float1Sparse.init(alloc, description);
 
                 var i: u64 = 0;
                 const len = description.numPixels();
@@ -116,13 +116,27 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: f32 = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        image.pixels[i] = val;
-                    } else {
-                        image.pixels[i] = 0.0;
+                        try image.storeSequentially(alloc, @intCast(i64, i), val);
                     }
                 }
 
-                return Image{ .Float1 = image };
+                return Image{ .Float1Sparse = image };
+
+                // var image = try img.Float1.init(alloc, description);
+
+                // var i: u64 = 0;
+                // const len = description.numPixels();
+                // while (i < len) : (i += 1) {
+                //     if (field.get(i)) {
+                //         var val: f32 = undefined;
+                //         _ = try stream.read(std.mem.asBytes(&val));
+                //         image.pixels[i] = val;
+                //     } else {
+                //         image.pixels[i] = 0.0;
+                //     }
+                // }
+
+                // return Image{ .Float1 = image };
             }
 
             if (.Float2 == image_type) {
