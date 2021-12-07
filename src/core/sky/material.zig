@@ -9,8 +9,7 @@ const Shape = @import("../scene/shape/shape.zig").Shape;
 const Transformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const ts = @import("../image/texture/sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
-const img = @import("../image/image.zig");
-const Image = img.Image;
+const Image = @import("../image/image.zig").Image;
 
 const base = @import("base");
 const math = base.math;
@@ -25,8 +24,6 @@ const spectrum = base.spectrum;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Bake_dimensions = Vec2i{ 256, 256 };
-
 pub const Material = struct {
     pub const Mode = enum { Sky, Sun };
 
@@ -40,20 +37,15 @@ pub const Material = struct {
 
     mode: Mode = undefined,
 
-    pub fn init(alloc: *Allocator, sampler_key: ts.Key, mode: Mode, resources: *Resources) !Material {
-        if (.Sky == mode) {
-            const image = try img.Float3.init(alloc, img.Description.init2D(Bake_dimensions));
-            const image_id = resources.images.store(alloc, .{ .Float3 = image });
+    pub fn initSky(sampler_key: ts.Key, emission_map: Texture) Material {
+        return Material{
+            .super = Base.init(sampler_key, false),
+            .emission_map = emission_map,
+            .mode = .Sky,
+        };
+    }
 
-            const emission_map = Texture{ .type = .Float3, .image = image_id, .scale = .{ 1.0, 1.0 } };
-
-            return Material{
-                .super = Base.init(sampler_key, false),
-                .emission_map = emission_map,
-                .mode = mode,
-            };
-        }
-
+    pub fn initSun(sampler_key: ts.Key) Material {
         var emittance: Emittance = undefined;
         emittance.setRadiance(@splat(4, @as(f32, 40000.0)));
 
@@ -61,7 +53,7 @@ pub const Material = struct {
             .super = Base.init(sampler_key, false),
             .emission_map = .{},
             .emittance = emittance,
-            .mode = mode,
+            .mode = .Sun,
         };
     }
 
@@ -95,10 +87,14 @@ pub const Material = struct {
         var avg = @splat(4, @as(f32, 0.0));
 
         {
+            const d = self.emission_map.description(scene).dimensions;
+            const height = @intCast(u32, d.v[1]);
+
             var context = Context{
                 .shape = &shape,
                 .image = scene.imageRef(self.emission_map.image),
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, Bake_dimensions[1])) catch
+                .dimensions = .{ d.v[0], d.v[1] },
+                .conditional = self.distribution.allocate(alloc, height) catch
                     return @splat(4, @as(f32, 0.0)),
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
                     return @splat(4, @as(f32, 0.0)),
@@ -107,7 +103,7 @@ pub const Material = struct {
 
             defer alloc.free(context.averages);
 
-            _ = threads.runRange(&context, Context.calculate, 0, @intCast(u32, Bake_dimensions[1]));
+            _ = threads.runRange(&context, Context.calculate, 0, height);
 
             for (context.averages) |a| {
                 avg += a;
@@ -168,7 +164,8 @@ pub const Material = struct {
 
 const Context = struct {
     shape: *const Shape,
-    image: *Image,
+    image: *const Image,
+    dimensions: Vec2i,
     conditional: []Distribution1D,
     averages: []Vec4f,
     alloc: *Allocator,
@@ -176,10 +173,12 @@ const Context = struct {
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self = @intToPtr(*Context, context);
 
-        var luminance = self.alloc.alloc(f32, @intCast(usize, Bake_dimensions[0])) catch return;
+        const d = self.dimensions;
+
+        var luminance = self.alloc.alloc(f32, @intCast(usize, d[0])) catch return;
         defer self.alloc.free(luminance);
 
-        const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(Bake_dimensions);
+        const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(d);
 
         var avg = @splat(4, @as(f32, 0.0));
 
@@ -188,14 +187,15 @@ const Context = struct {
             const v = idf[1] * (@intToFloat(f32, y) + 0.5);
 
             var x: u32 = 0;
-            while (x < Bake_dimensions[0]) : (x += 1) {
+            while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const li = Vec4f{ 0.0, 0.0, 2.0, 0.0 }; //self.texture.get2D_3(@intCast(i32, x), @intCast(i32, y), self.scene.*);
+                //       const li = Vec4f{ 0.0, 0.0, 2.0, 0.0 }; //self.texture.get2D_3(@intCast(i32, x), @intCast(i32, y), self.scene.*);
 
-                self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
+                //      self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
+                const li = math.vec3fTo4f(self.image.Float3.get2D(@intCast(i32, x), @intCast(i32, y)));
 
                 const wli = @splat(4, uv_weight) * li;
 

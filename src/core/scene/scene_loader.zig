@@ -6,9 +6,12 @@ const anim = @import("animation/loader.zig");
 const Take = @import("../take/take.zig").Take;
 const Shape = @import("shape/shape.zig").Shape;
 const Material = @import("material/material.zig").Material;
+const Sky = @import("../sky/sky.zig").Sky;
 const SkyMaterial = @import("../sky/material.zig").Material;
+const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/sampler.zig");
 pub const mat = @import("material/provider.zig");
+const img = @import("../image/image.zig");
 
 const base = @import("base");
 const json = base.json;
@@ -404,23 +407,20 @@ pub const Loader = struct {
 
         const sampler_key = ts.Key{};
 
-        var sky_prop: u32 = undefined;
+        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
+        const sky_image = self.resources.images.store(alloc, .{ .Float3 = image });
 
-        {
-            const material = try SkyMaterial.init(alloc, sampler_key, .Sky, self.resources);
-            const sky_mat = self.resources.materials.store(alloc, .{ .Sky = material });
-            sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat});
-        }
+        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
-        var sun_prop: u32 = undefined;
+        const sky_mat = SkyMaterial.initSky(sampler_key, emission_map);
+        const sky_mat_id = self.resources.materials.store(alloc, .{ .Sky = sky_mat });
+        const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
 
-        {
-            const material = try SkyMaterial.init(alloc, sampler_key, .Sun, self.resources);
-            const sky_mat = self.resources.materials.store(alloc, .{ .Sky = material });
-            sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sky_mat});
-        }
+        const sun_mat = SkyMaterial.initSun(sampler_key);
+        const sun_mat_id = self.resources.materials.store(alloc, .{ .Sky = sun_mat });
+        const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
 
-        sky.configure(sky_prop, sun_prop, scene);
+        sky.configure(sky_prop, sun_prop, sky_image, scene);
 
         if (value.Object.get("parameters")) |parameters| {
             sky.setParameters(parameters, scene);

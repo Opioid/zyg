@@ -4,7 +4,7 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub fn InterpolatedFunction1D_N(comptime N: u32) type {
+pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
     return struct {
         range_end: f32,
         inverse_interval: f32,
@@ -48,7 +48,7 @@ pub fn InterpolatedFunction1D_N(comptime N: u32) type {
     };
 }
 
-pub fn InterpolatedFunction2D_N(comptime X: u32, comptime Y: u32) type {
+pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_int) type {
     return struct {
         samples: [X * Y]f32 = undefined,
 
@@ -90,7 +90,7 @@ pub fn InterpolatedFunction2D_N(comptime X: u32, comptime Y: u32) type {
     };
 }
 
-pub fn InterpolatedFunction3D_N(comptime X: u32, comptime Y: u32, comptime Z: u32) type {
+pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_int, comptime Z: comptime_int) type {
     return struct {
         samples: [X * Y * Z]f32 = undefined,
 

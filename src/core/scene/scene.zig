@@ -196,6 +196,10 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) !void {
+        if (self.sky) |*sky| {
+            sky.compile(self.*, threads);
+        }
+
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {

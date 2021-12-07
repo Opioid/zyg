@@ -315,6 +315,10 @@ pub fn vec4iTo4f(v: Vec4(i32)) Vec4f {
     };
 }
 
+pub fn vec3fTo4f(v: Pack3f) Vec4f {
+    return .{ v.v[0], v.v[1], v.v[2], 0.0 };
+}
+
 pub fn vec4fTo3f(v: Vec4f) Pack3f {
     return Pack3f.init3(v[0], v[1], v[2]);
 }
