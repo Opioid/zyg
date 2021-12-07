@@ -5,7 +5,7 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;
-const Vec3b = math.Vec3b;
+const Pack3b = math.Pack3b;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -222,7 +222,7 @@ pub const Reader = struct {
             if (byte_compatible) {
                 std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
             } else {
-                var color = Vec3b.init1(0);
+                var color = Pack3b.init1(0);
 
                 var i: u32 = 0;
                 const len = @intCast(u32, info.width * info.height);

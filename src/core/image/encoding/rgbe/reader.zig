@@ -4,8 +4,8 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
-const Vec3h = math.Vec3h;
-const Vec3f = math.Vec3f;
+const Pack3h = math.Pack3h;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 
@@ -172,7 +172,7 @@ pub const Reader = struct {
                 rgbe[3] = scanline_buffer[i + 3 * scanline_width];
 
                 const color = rgbeTofloat3(rgbe);
-                image.set1D(offset, Vec3h.init3(
+                image.set1D(offset, Pack3h.init3(
                     @floatCast(f16, color.v[0]),
                     @floatCast(f16, color.v[1]),
                     @floatCast(f16, color.v[2]),
@@ -191,7 +191,7 @@ pub const Reader = struct {
             _ = try stream.read(&rgbe);
 
             const color = rgbeTofloat3(rgbe);
-            image.set1D(o, Vec3h.init3(
+            image.set1D(o, Pack3h.init3(
                 @floatCast(f16, color.v[0]),
                 @floatCast(f16, color.v[1]),
                 @floatCast(f16, color.v[2]),
@@ -202,7 +202,7 @@ pub const Reader = struct {
     }
 
     // https://cbloomrants.blogspot.com/2020/06/widespread-error-in-radiance-hdr-rgbe.html
-    fn rgbeTofloat3(rgbe: [4]u8) Vec3f {
+    fn rgbeTofloat3(rgbe: [4]u8) Pack3f {
         if (rgbe[3] > 0) {
             // nonzero pixel
             const f = std.math.scalbn(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
@@ -217,6 +217,6 @@ pub const Reader = struct {
             return math.vec4fTo3f(spectrum.sRGBtoAP1(srgb));
         }
 
-        return Vec3f.init1(0.0);
+        return Pack3f.init1(0.0);
     }
 };

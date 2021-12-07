@@ -101,11 +101,11 @@ pub fn Vec3(comptime T: type) type {
     };
 }
 
-pub const Vec3b = Vec3(u8);
+pub const Pack3b = Vec3(u8);
 pub const Vec3i = Vec3(i32);
 pub const Vec3u = Vec3(u32);
-pub const Vec3h = Vec3(f16);
-pub const Vec3f = Vec3(f32);
+pub const Pack3h = Vec3(f16);
+pub const Pack3f = Vec3(f32);
 
 pub fn vec3iTo3u(v: Vec3i) Vec3u {
     return Vec3u.init3(

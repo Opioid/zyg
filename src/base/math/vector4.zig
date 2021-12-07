@@ -2,7 +2,7 @@ const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
 const Vec3i = v3.Vec3i;
-const Vec3f = v3.Vec3f;
+const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
@@ -315,8 +315,8 @@ pub fn vec4iTo4f(v: Vec4(i32)) Vec4f {
     };
 }
 
-pub fn vec4fTo3f(v: Vec4f) Vec3f {
-    return Vec3f.init3(v[0], v[1], v[2]);
+pub fn vec4fTo3f(v: Vec4f) Pack3f {
+    return Pack3f.init3(v[0], v[1], v[2]);
 }
 
 pub fn vec3iTo4f(v: Vec3i) Vec4f {

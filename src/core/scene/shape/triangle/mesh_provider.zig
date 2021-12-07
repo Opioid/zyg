@@ -7,11 +7,12 @@ const bvh = @import("bvh/tree.zig");
 const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+
 const base = @import("base");
 const json = base.json;
 const math = base.math;
 const Vec2f = math.Vec2f;
-const Vec3f = math.Vec3f;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
@@ -30,7 +31,7 @@ const Part = struct {
 const Handler = struct {
     pub const Parts = std.ArrayListUnmanaged(Part);
     pub const Triangles = std.ArrayListUnmanaged(IndexTriangle);
-    pub const Vec3fs = std.ArrayListUnmanaged(Vec3f);
+    pub const Vec3fs = std.ArrayListUnmanaged(Pack3f);
     pub const Vec2fs = std.ArrayListUnmanaged(Vec2f);
     pub const u8s = std.ArrayListUnmanaged(u8);
 
@@ -167,7 +168,7 @@ pub const Provider = struct {
                         try handler.positions.resize(alloc, num_positions);
 
                         for (handler.positions.items) |*p, i| {
-                            p.* = Vec3f.init3(
+                            p.* = Pack3f.init3(
                                 json.readFloat(f32, positions[i * 3 + 0]),
                                 json.readFloat(f32, positions[i * 3 + 1]),
                                 json.readFloat(f32, positions[i * 3 + 2]),
@@ -181,7 +182,7 @@ pub const Provider = struct {
                         try handler.normals.resize(alloc, num_normals);
 
                         for (handler.normals.items) |*n, i| {
-                            n.* = Vec3f.init3(
+                            n.* = Pack3f.init3(
                                 json.readFloat(f32, normals[i * 3 + 0]),
                                 json.readFloat(f32, normals[i * 3 + 1]),
                                 json.readFloat(f32, normals[i * 3 + 2]),
@@ -198,7 +199,7 @@ pub const Provider = struct {
                         try handler.bitangent_signs.resize(alloc, num_tangents);
 
                         for (handler.tangents.items) |*t, i| {
-                            t.* = Vec3f.init3(
+                            t.* = Pack3f.init3(
                                 json.readFloat(f32, tangents[i * 4 + 0]),
                                 json.readFloat(f32, tangents[i * 4 + 1]),
                                 json.readFloat(f32, tangents[i * 4 + 2]),
@@ -236,10 +237,10 @@ pub const Provider = struct {
 
                             const tbn = quaternion.toMat3x3(ts);
 
-                            n.* = Vec3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
+                            n.* = Pack3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
 
                             var t = &handler.tangents.items[i];
-                            t.* = Vec3f.init3(tbn.r[0][0], tbn.r[0][1], tbn.r[0][1]);
+                            t.* = Pack3f.init3(tbn.r[0][0], tbn.r[0][1], tbn.r[0][1]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
@@ -408,15 +409,15 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             std.debug.print("interleaved\n", .{});
         } else {
-            var positions = try alloc.alloc(Vec3f, num_vertices);
+            var positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
             if (tangent_space_as_quaternion) {} else {
-                var normals = try alloc.alloc(Vec3f, num_vertices);
+                var normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
                 if (has_uvs_and_tangents) {
-                    var tangents = try alloc.alloc(Vec3f, num_vertices);
+                    var tangents = try alloc.alloc(Pack3f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(tangents));
 
                     var uvs = try alloc.alloc(Vec2f, num_vertices);

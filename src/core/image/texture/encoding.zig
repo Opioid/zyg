@@ -4,14 +4,14 @@ const spectrum = base.spectrum;
 const math = base.math;
 const Vec2b = math.Vec2b;
 const Vec2f = math.Vec2f;
-const Vec3b = math.Vec3b;
+const Pack3b = math.Pack3b;
 const Vec4f = math.Vec4f;
 
 const SRGB_FLOAT = calculateSrgbToFloat();
 const UNORM_FLOAT = calculateUnormToFloat();
 const SNORM_FLOAT = calculateSnormToFloat();
 
-pub fn cachedSrgbToFloat3(byte: Vec3b) Vec4f {
+pub fn cachedSrgbToFloat3(byte: Pack3b) Vec4f {
     return .{ SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]], 0.0 };
 }
 

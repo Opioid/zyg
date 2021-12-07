@@ -1,6 +1,6 @@
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
-const Vec3f = math.Vec3f;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
@@ -72,9 +72,9 @@ pub const VertexStream = union(enum) {
 };
 
 const Json = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
-    tangents: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
+    tangents: []Pack3f,
     uvs: []Vec2f,
     bts: []u8,
 
@@ -106,15 +106,15 @@ const Json = struct {
 };
 
 pub const Separate = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
-    tangents: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
+    tangents: []Pack3f,
     uvs: []Vec2f,
     bts: []u8,
 
     const Self = @This();
 
-    pub fn init(positions: []Vec3f, normals: []Vec3f, tangents: []Vec3f, uvs: []Vec2f, bts: []u8) !Self {
+    pub fn init(positions: []Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) !Self {
         return Self{
             .positions = positions,
             .normals = normals,
@@ -147,12 +147,12 @@ pub const Separate = struct {
 };
 
 pub const Compact = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
 
     const Self = @This();
 
-    pub fn init(positions: []Vec3f, normals: []Vec3f) !Self {
+    pub fn init(positions: []Pack3f, normals: []Pack3f) !Self {
         return Self{
             .positions = positions,
             .normals = normals,
