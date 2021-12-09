@@ -1,3 +1,5 @@
+const Model = @import("model.zig").Model;
+const SkyThing = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
@@ -29,35 +31,37 @@ pub const Material = struct {
 
     super: Base,
 
-    emission_map: Texture = undefined,
+    emission_map: Texture,
     distribution: Distribution2D = .{},
-    emittance: Emittance = undefined,
+    sun_radiance: math.InterpolatedFunction1D(Vec4f) = .{},
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
     total_weight: f32 = undefined,
 
     mode: Mode = undefined,
 
-    pub fn initSky(sampler_key: ts.Key, emission_map: Texture) Material {
+    sky: *const SkyThing,
+
+    pub fn initSky(sampler_key: ts.Key, emission_map: Texture, sky: *const SkyThing) Material {
         return Material{
             .super = Base.init(sampler_key, false),
             .emission_map = emission_map,
             .mode = .Sky,
+            .sky = sky,
         };
     }
 
-    pub fn initSun(sampler_key: ts.Key) Material {
-        var emittance: Emittance = undefined;
-        emittance.setRadiance(@splat(4, @as(f32, 40000.0)));
-
+    pub fn initSun(alloc: *Allocator, sampler_key: ts.Key, sky: *const SkyThing) !Material {
         return Material{
             .super = Base.init(sampler_key, false),
             .emission_map = .{},
-            .emittance = emittance,
+            .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
             .mode = .Sun,
+            .sky = sky,
         };
     }
 
     pub fn deinit(self: *Material, alloc: *Allocator) void {
+        self.sun_radiance.deinit(alloc);
         self.distribution.deinit(alloc);
     }
 
@@ -65,22 +69,30 @@ pub const Material = struct {
         self.super.properties.set(.EmissionMap, self.emission_map.isValid());
     }
 
+    pub fn setSunRadiance(self: *Material, model: Model) void {
+        const n = @intToFloat(f32, self.sun_radiance.samples.len - 1);
+
+        for (self.sun_radiance.samples) |*s, i| {
+            const v = @intToFloat(f32, i) / n;
+
+            const radiance = model.evaluateSkyAndSun(self.sky.sunWi(v));
+
+            s.* = radiance;
+        }
+
+        self.average_emission = model.evaluateSkyAndSun(self.sky.sunDirection());
+    }
+
     pub fn prepareSampling(
         self: *Material,
         alloc: *Allocator,
         shape: Shape,
-        area: f32,
         scene: Scene,
         threads: *Threads,
     ) Vec4f {
         if (self.average_emission[0] >= 0.0) {
             // Hacky way to check whether prepare_sampling has been called before
             // average_emission_ is initialized with negative values...
-            return self.average_emission;
-        }
-
-        if (!self.emission_map.isValid()) {
-            self.average_emission = self.emittance.radiance(area);
             return self.average_emission;
         }
 
@@ -130,7 +142,7 @@ pub const Material = struct {
 
             radiance = ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         } else {
-            radiance = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
+            radiance = self.sun_radiance.eval(self.sky.sunV(-wo));
         }
 
         var result = Sample.init(rs, wo, radiance);
@@ -138,13 +150,13 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
         if (self.emission_map.isValid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
         }
 
-        return self.emittance.radiance(extent);
+        return self.sun_radiance.eval(self.sky.sunV(wi));
     }
 
     pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {

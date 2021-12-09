@@ -79,7 +79,7 @@ pub const Material = union(enum) {
 
         return switch (self.*) {
             .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
-            .Sky => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
+            .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
             .Substitute => |m| m.prepareSampling(scene),
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -205,7 +205,7 @@ pub const Material = union(enum) {
     ) Vec4f {
         return switch (self) {
             .Light => |m| m.evaluateRadiance(uvw, extent, filter, worker),
-            .Sky => |m| m.evaluateRadiance(uvw, extent, filter, worker),
+            .Sky => |m| m.evaluateRadiance(wi, uvw, filter, worker),
             .Substitute => |m| m.evaluateRadiance(wi, n, uvw, filter, worker),
             else => @splat(4, @as(f32, 0.0)),
         };

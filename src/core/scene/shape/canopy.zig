@@ -109,7 +109,7 @@ pub const Canopy = struct {
         return .{ r * cos_lon, r * sin_lon };
     }
 
-    fn diskToHemisphereEquidistant(uv: Vec2f) Vec4f {
+    pub fn diskToHemisphereEquidistant(uv: Vec2f) Vec4f {
         const longitude = std.math.atan2(f32, -uv[1], uv[0]);
 
         const r = @sqrt(uv[0] * uv[0] + uv[1] * uv[1]);

@@ -405,18 +405,18 @@ pub const Loader = struct {
 
         var sky = try scene.createSky(alloc);
 
-        const sampler_key = ts.Key{};
+        const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
 
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
         const sky_image = self.resources.images.store(alloc, .{ .Float3 = image });
 
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
-        const sky_mat = SkyMaterial.initSky(sampler_key, emission_map);
+        const sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
         const sky_mat_id = self.resources.materials.store(alloc, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
 
-        const sun_mat = SkyMaterial.initSun(sampler_key);
+        const sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
         const sun_mat_id = self.resources.materials.store(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
 

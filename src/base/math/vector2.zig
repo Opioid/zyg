@@ -9,6 +9,10 @@ pub fn dot2(a: Vec2f, b: Vec2f) f32 {
     return a[0] * b[0] + a[1] * b[1];
 }
 
+pub fn length2(v: Vec2f) f32 {
+    return @sqrt(dot2(v, v));
+}
+
 pub fn vec2fTo2i(v: Vec2f) Vec2i {
     return .{ @floatToInt(i32, v[0]), @floatToInt(i32, v[1]) };
 }

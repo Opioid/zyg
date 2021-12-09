@@ -3,6 +3,46 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+
+pub fn InterpolatedFunction1D(comptime T: type) type {
+    return struct {
+        range_end: f32 = undefined,
+        inverse_interval: f32 = undefined,
+
+        samples: []T = &.{},
+
+        const Self = @This();
+
+        pub fn init(alloc: *Allocator, range_begin: f32, range_end: f32, num_samples: u32) !Self {
+            const range = range_end - range_begin;
+            const interval = range / @intToFloat(f32, num_samples - 1);
+
+            return Self{
+                .range_end = range_end,
+                .inverse_interval = 1.0 / interval,
+                .samples = try alloc.alloc(T, num_samples),
+            };
+        }
+
+        pub fn deinit(self: *Self, alloc: *Allocator) void {
+            alloc.free(self.samples);
+        }
+
+        pub fn eval(self: Self, x: f32) T {
+            const cx = std.math.min(x, self.range_end);
+            const o = cx * self.inverse_interval;
+            const offset = @floatToInt(u32, o);
+            const t = o - @intToFloat(f32, offset);
+
+            return math.lerp3(
+                self.samples[offset],
+                self.samples[std.math.min(offset + 1, @intCast(u32, self.samples.len - 1))],
+                t,
+            );
+        }
+    };
+}
 
 pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
     return struct {
@@ -17,7 +57,10 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
             const range = range_end - range_begin;
             const interval = range / @intToFloat(f32, N - 1);
 
-            var result = Self{ .range_end = range_end, .inverse_interval = 1.0 / interval };
+            var result = Self{
+                .range_end = range_end,
+                .inverse_interval = 1.0 / interval,
+            };
 
             var i: u32 = 0;
             var s = range_begin;
@@ -43,7 +86,11 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
             const offset = @floatToInt(u32, o);
             const t = o - @intToFloat(f32, offset);
 
-            return math.lerp(self.samples[offset], self.samples[std.math.min(offset + 1, N - 1)], t);
+            return math.lerp(
+                self.samples[offset],
+                self.samples[std.math.min(offset + 1, N - 1)],
+                t,
+            );
         }
     };
 }

@@ -25,6 +25,7 @@ pub fn build(b: *std.build.Builder) void {
         "-fno-sanitize=undefined",
     };
     zyg.addCSourceFile("thirdparty/include/miniz/miniz.c", &cflags);
+    zyg.addCSourceFile("thirdparty/include/arpraguesky/ArPragueSkyModelGround.c", &cflags);
 
     const base = std.build.Pkg{
         .name = "base",
@@ -63,12 +64,12 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
             //"takes/cornell.take",
-            //"takes/imrod.take",
+            "takes/imrod.take",
             //"takes/model_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
             //"takes/candle.take",
-            "takes/disney_cloud.take",
+            //"takes/disney_cloud.take",
             "-t",
             "-4",
             //"--no-tex",

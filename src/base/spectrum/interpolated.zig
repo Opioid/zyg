@@ -1,3 +1,6 @@
+const math = @import("../math/math.zig");
+const memory = @import("../memory/bound.zig");
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -9,7 +12,93 @@ pub const Interpolated = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, len: u32, wavelengths: []f32, intensities: []f32) !Self {}
+    pub fn init(alloc: *Allocator, wavelengths: []const f32, intensities: []const f32) !Self {
+        const wls = try alloc.alloc(f32, wavelengths.len);
+        const ints = try alloc.alloc(f32, intensities.len);
+
+        std.mem.copy(f32, wls, wavelengths);
+        std.mem.copy(f32, ints, intensities);
+
+        return Self{
+            .num_elements = @intCast(u32, wavelengths.len),
+            .wavelengths = wls.ptr,
+            .intensities = ints.ptr,
+        };
+    }
+
+    pub fn deinit(self: *Self, alloc: *Allocator) void {
+        alloc.free(self.intensities[0..self.num_elements]);
+        alloc.free(self.wavelengths[0..self.num_elements]);
+    }
+
+    pub fn startWavelength(self: Self) f32 {
+        return self.wavelengths[0];
+    }
+
+    pub fn endWavelength(self: Self) f32 {
+        return self.wavelengths[self.num_elements - 1];
+    }
+
+    pub fn evaluate(self: Self, wl: f32) f32 {
+        const range = memory.equalRange(f32, self.wavelengths[0..self.num_elements], wl);
+        const index = range[0];
+
+        if (range[0] == range[1]) {
+            const wl0 = self.wavelengths[index - 1];
+            const wl1 = self.wavelengths[index];
+
+            const int0 = self.intensities[index - 1];
+            const int1 = self.intensities[index];
+
+            return math.lerp(int0, int1, (wl - wl0) / (wl1 - wl0));
+        }
+
+        return self.intensities[index];
+    }
+
+    pub fn integrate(self: Self, a: f32, b: f32) f32 {
+        const len = self.num_elements;
+        if (len < 2) {
+            return 0.0;
+        }
+
+        const start = std.math.max(a, self.startWavelength());
+        const end = std.math.min(b, self.endWavelength());
+        if (end <= start) {
+            return 0.0;
+        }
+
+        // This integration is only correct for a linearly interpolated function
+        // and clamps to zero outside the given range.
+
+        const it = memory.lowerBound(f32, self.wavelengths[0..len], start);
+
+        var index = std.math.max(it, 1) - 1;
+
+        var integral: f32 = 0.0;
+        while (index + 1 < len and end >= self.wavelengths[index]) : (index += 1) {
+            const wl0 = self.wavelengths[index];
+            const wl1 = self.wavelengths[index + 1];
+
+            const c0 = std.math.max(wl0, start);
+            const c1 = std.math.min(wl1, end);
+
+            if (c1 <= c0) {
+                continue;
+            }
+
+            const int0 = self.intensities[index];
+            const int1 = self.intensities[index + 1];
+            const inv = 1.0 / (wl1 - wl0);
+
+            const interp0 = math.lerp(int0, int1, (c0 - wl0) * inv);
+            const interp1 = math.lerp(int0, int1, (c1 - wl0) * inv);
+
+            integral += 0.5 * (interp0 + interp1) * (c1 - c0);
+        }
+
+        return integral;
+    }
 };
 
 pub const Num_wavelenghts = 64;

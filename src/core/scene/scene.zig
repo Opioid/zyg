@@ -197,7 +197,7 @@ pub const Scene = struct {
         threads: *Threads,
     ) !void {
         if (self.sky) |*sky| {
-            sky.compile(self.*, threads);
+            sky.compile(alloc, self.*, threads);
         }
 
         self.has_tinted_shadow = false;
@@ -511,6 +511,11 @@ pub const Scene = struct {
     pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
         const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];
+    }
+
+    pub fn propMaterialRef(self: Scene, entity: usize, part: u32) *Material {
+        const p = self.prop_parts.items[entity] + part;
+        return &self.materials.items[self.material_ids.items[p]];
     }
 
     pub fn propTopology(self: Scene, entity: usize) Prop.Topology {
