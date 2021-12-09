@@ -2,6 +2,7 @@ const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
 const Vec3i = v3.Vec3i;
+const Pack3b = v3.Pack3b;
 const Pack3f = v3.Pack3f;
 
 const std = @import("std");
@@ -319,8 +320,25 @@ pub fn vec3fTo4f(v: Pack3f) Vec4f {
     return .{ v.v[0], v.v[1], v.v[2], 0.0 };
 }
 
+pub fn vec3bTo4f(v: Pack3b) Vec4f {
+    return .{
+        @intToFloat(f32, v.v[0]),
+        @intToFloat(f32, v.v[1]),
+        @intToFloat(f32, v.v[2]),
+        0.0,
+    };
+}
+
 pub fn vec4fTo3f(v: Vec4f) Pack3f {
     return Pack3f.init3(v[0], v[1], v[2]);
+}
+
+pub fn vec4fTo3b(v: Vec4f) Pack3b {
+    return Pack3b.init3(
+        @floatToInt(u8, v[0]),
+        @floatToInt(u8, v[1]),
+        @floatToInt(u8, v[2]),
+    );
 }
 
 pub fn vec3iTo4f(v: Vec3i) Vec4f {

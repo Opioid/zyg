@@ -17,10 +17,10 @@ const c = @cImport({
 });
 
 pub const Writer = struct {
-    srgb: Srgb = undefined,
+    srgb: Srgb,
 
-    pub fn init(alpha: bool) Writer {
-        return .{ .srgb = .{ .alpha = alpha } };
+    pub fn init(error_diffusion: bool, alpha: bool) Writer {
+        return .{ .srgb = .{ .error_diffusion = error_diffusion, .alpha = alpha } };
     }
 
     pub fn deinit(self: *Writer, alloc: *Allocator) void {

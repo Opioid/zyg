@@ -109,7 +109,7 @@ pub fn main() !void {
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
     const export_start = std.time.milliTimestamp();
 
-    var png_writer = PngWriter.init(take.view.camera.sensor.alphaTransparency());
+    var png_writer = PngWriter.init(false, take.view.camera.sensor.alphaTransparency());
     defer png_writer.deinit(alloc);
     try png_writer.write(alloc, driver.target, &threads);
 

@@ -80,10 +80,10 @@ pub fn DiscreteSpectralPowerDistribution(
         pub fn XYZ(self: Self) Vec4f {
             var tri = @splat(4, @as(f32, 0.0));
             for (self.values) |v, i| {
-                tri += @splat(4, v) * Cie[i];
+                tri += @splat(4, Step * v) * Cie[i];
             }
 
-            return @splat(4, Step) * tri;
+            return tri;
         }
 
         pub fn normalizedXYZ(self: Self) Vec4f {
