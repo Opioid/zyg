@@ -85,5 +85,10 @@ pub fn DiscreteSpectralPowerDistribution(
 
             return @splat(4, Step) * tri;
         }
+
+        pub fn normalizedXYZ(self: Self) Vec4f {
+            const Normalization: f32 = 1.0 / 106.856895;
+            return @splat(4, Normalization) * self.XYZ();
+        }
     };
 }

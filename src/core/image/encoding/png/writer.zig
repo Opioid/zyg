@@ -64,7 +64,7 @@ pub const Writer = struct {
         defer alloc.free(buffer);
 
         for (image.pixels) |p, i| {
-            const srgb = @splat(4, factor) * math.vec3fTo4f(p);
+            const srgb = @splat(4, factor) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
 
             buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
             buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[1]));
