@@ -256,6 +256,14 @@ pub fn allLess3(v: Vec4f, s: f32) bool {
     return true;
 }
 
+pub fn anyLessZero3(v: Vec4f) bool {
+    if (v[0] < 0.0) return true;
+    if (v[1] < 0.0) return true;
+    if (v[2] < 0.0) return true;
+
+    return false;
+}
+
 pub fn anyGreaterZero3(v: Vec4f) bool {
     if (v[0] > 0.0) return true;
     if (v[1] > 0.0) return true;

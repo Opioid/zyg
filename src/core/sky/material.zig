@@ -74,13 +74,13 @@ pub const Material = struct {
 
         for (self.sun_radiance.samples) |*s, i| {
             const v = @intToFloat(f32, i) / n;
+            var wi = self.sky.sunWi(v);
+            wi[1] = std.math.max(wi[1], 0.0);
 
-            const radiance = model.evaluateSkyAndSun(self.sky.sunWi(v));
-
-            s.* = radiance;
+            s.* = model.evaluateSkyAndSun(wi);
         }
 
-        self.average_emission = model.evaluateSkyAndSun(self.sky.sunDirection());
+        self.average_emission = model.evaluateSkyAndSun(-self.sky.sunDirection());
     }
 
     pub fn prepareSampling(

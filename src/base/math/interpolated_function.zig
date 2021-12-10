@@ -1,4 +1,6 @@
 const math = @import("math.zig");
+const Vec2i = math.Vec2i;
+const Vec2u = math.Vec2u;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -40,6 +42,61 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
                 self.samples[std.math.min(offset + 1, @intCast(u32, self.samples.len - 1))],
                 t,
             );
+        }
+    };
+}
+
+pub fn InterpolatedFunction2D(comptime T: type) type {
+    return struct {
+        num_samples: Vec2u = undefined,
+        range_end: Vec2f = undefined,
+        inverse_interval: Vec2f = undefined,
+
+        samples: []T = &.{},
+
+        const Self = @This();
+
+        pub fn init(alloc: *Allocator, range_begin: Vec2f, range_end: Vec2f, num_samples: Vec2u) !Self {
+            const range = range_end - range_begin;
+            const interval = range / math.vec2uTo2f(num_samples - Vec2u{ 1, 1 });
+
+            return Self{
+                .num_samples = num_samples,
+                .range_end = range_end,
+                .inverse_interval = @splat(2, @as(f32, 1.0)) / interval,
+                .samples = try alloc.alloc(T, num_samples[0] * num_samples[1]),
+            };
+        }
+
+        pub fn deinit(self: *Self, alloc: *Allocator) void {
+            alloc.free(self.samples);
+        }
+
+        pub fn set(self: *Self, x: u32, y: u32, v: T) void {
+            self.samples[y * self.num_samples[0] + x] = v;
+        }
+
+        pub fn eval(self: Self, x: f32, y: f32) T {
+            const cx = std.math.min(x, self.range_end[0]);
+            const cy = std.math.min(y, self.range_end[1]);
+
+            const o = Vec2f{ cx, cy } * self.inverse_interval;
+            const offset = math.vec2fTo2u(o);
+            const t = o - math.vec2uTo2f(offset);
+
+            const col1 = std.math.min(offset[0] + 1, self.num_samples[0] - 1);
+
+            const row0 = offset[1] * self.num_samples[0];
+            const row1 = std.math.min(offset[1] + 1, self.num_samples[1] - 1) * self.num_samples[0];
+
+            const c = [4]Vec4f{
+                self.samples[offset[0] + row0],
+                self.samples[col1 + row0],
+                self.samples[offset[0] + row1],
+                self.samples[col1 + row1],
+            };
+
+            return math.bilinear3(c, t[0], t[1]);
         }
     };
 }

@@ -122,7 +122,7 @@ const Linear2D = struct {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
-        return bilinear3(c, m.w[0], m.w[1]);
+        return math.bilinear3(c, m.w[0], m.w[1]);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
@@ -156,16 +156,6 @@ const Linear2D = struct {
 
         const _s = @splat(2, @as(f32, 1.0)) - vs;
         const _t = @splat(2, @as(f32, 1.0)) - vt;
-
-        return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
-    }
-
-    fn bilinear3(c: [4]Vec4f, s: f32, t: f32) Vec4f {
-        const vs = @splat(4, s);
-        const vt = @splat(4, t);
-
-        const _s = @splat(4, @as(f32, 1.0)) - vs;
-        const _t = @splat(4, @as(f32, 1.0)) - vt;
 
         return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
     }
