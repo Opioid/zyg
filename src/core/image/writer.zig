@@ -20,9 +20,21 @@ pub const Writer = union(enum) {
         }
     }
 
-    pub fn write(self: *Self, alloc: *Allocator, writer: std.fs.File.Writer, image: Float4, threads: *Threads) !void {
+    pub fn write(
+        self: *Self,
+        alloc: *Allocator,
+        writer: std.fs.File.Writer,
+        image: Float4,
+        threads: *Threads,
+    ) !void {
         switch (self.*) {
             .PNG => |*w| try w.write(alloc, writer, image, threads),
         }
+    }
+
+    pub fn fileExtension(self: Self) []const u8 {
+        return switch (self) {
+            .PNG => "png",
+        };
     }
 };
