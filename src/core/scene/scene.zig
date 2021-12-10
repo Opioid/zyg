@@ -196,10 +196,6 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) !void {
-        if (self.sky) |*sky| {
-            sky.compile(alloc, self.*, threads);
-        }
-
         self.has_tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -210,6 +206,10 @@ pub const Scene = struct {
 
         for (self.volumes.items) |v| {
             self.props.items[v].setVisibleInShadow(false);
+        }
+
+        if (self.sky) |*sky| {
+            sky.compile(alloc, time, self, threads);
         }
 
         // rebuild prop BVH_builder

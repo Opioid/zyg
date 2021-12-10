@@ -34,6 +34,8 @@ pub const Sky = struct {
 
     visibility: f32 = 100.0,
 
+    implicit_rotation: bool = true,
+
     const Radius = std.math.tan(@as(f32, Model.Angular_radius));
 
     pub const Bake_dimensions = Vec2i{ 256, 256 };
@@ -59,11 +61,14 @@ pub const Sky = struct {
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value, scene: *Scene) void {
+        self.implicit_rotation = true;
+
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "sun", entry.key_ptr.*)) {
                 const angles = json.readVec4f3Member(entry.value_ptr.*, "rotation", @splat(4, @as(f32, 0.0)));
                 self.sun_rotation = json.createRotationMatrix(angles);
+                self.implicit_rotation = false;
             } else if (std.mem.eql(u8, "turbidity", entry.key_ptr.*)) {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
@@ -79,11 +84,22 @@ pub const Sky = struct {
     }
 
     pub fn compile(
-        self: Self,
+        self: *Self,
         alloc: *Allocator,
-        scene: Scene,
+        time: u64,
+        scene: *Scene,
         threads: *Threads,
     ) void {
+        const e = scene.prop(self.prop);
+
+        scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
+        scene.propSetVisibility(self.sun, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
+
+        if (self.implicit_rotation) {
+            self.sun_rotation = scene.propTransformationAt(self.prop, time).rotation;
+            self.privateUpadate(scene);
+        }
+
         var model = Model.init(alloc, self.sunDirection(), self.visibility) catch {
             std.debug.print("Could not initialize sky model\n", .{});
             return;

@@ -55,7 +55,7 @@ pub const Prop = struct {
         return self.properties.is(.VisibleInReflection);
     }
 
-    fn visibleInShadow(self: Prop) bool {
+    pub fn visibleInShadow(self: Prop) bool {
         return self.properties.is(.VisibleInShadow);
     }
 

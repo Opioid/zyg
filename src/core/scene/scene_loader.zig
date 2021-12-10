@@ -184,6 +184,7 @@ pub const Loader = struct {
 
             var animation_ptr: ?*std.json.Value = null;
             var children_ptr: ?*std.json.Value = null;
+            var visibility_ptr: ?*std.json.Value = null;
 
             var iter = entity.Object.iterator();
             while (iter.next()) |entry| {
@@ -193,6 +194,8 @@ pub const Loader = struct {
                     animation_ptr = entry.value_ptr;
                 } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                     children_ptr = entry.value_ptr;
+                } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
+                    visibility_ptr = entry.value_ptr;
                 }
             }
 
@@ -212,8 +215,13 @@ pub const Loader = struct {
                     if (Prop.Null != parent_id) {
                         trafo = parent_trafo.transform(trafo);
                     }
+
                     scene.propSetWorldTransformation(entity_id, trafo);
                 }
+            }
+
+            if (visibility_ptr) |visibility| {
+                setVisibility(entity_id, visibility.*, scene);
             }
 
             if (children_ptr) |children| {
