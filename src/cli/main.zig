@@ -6,7 +6,6 @@ const resource = core.resource;
 const scn = core.scn;
 const thread = base.thread;
 const tk = core.tk;
-const PngWriter = core.image.encoding.png.Writer;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -104,14 +103,7 @@ pub fn main() !void {
     try driver.configure(alloc, &take.view, &scene);
 
     try driver.render(alloc, options.start_frame);
-    driver.exportFrame();
+    try driver.exportFrame(alloc, options.start_frame, take.exporters.items);
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
-    const export_start = std.time.milliTimestamp();
-
-    var png_writer = PngWriter.init(false, take.view.camera.sensor.alphaTransparency());
-    defer png_writer.deinit(alloc);
-    try png_writer.write(alloc, driver.target, &threads);
-
-    stdout.print("Export time {d:.2} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
 }

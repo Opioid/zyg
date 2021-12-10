@@ -27,7 +27,7 @@ pub const Writer = struct {
         self.srgb.deinit(alloc);
     }
 
-    pub fn write(self: *Writer, alloc: *Allocator, image: Float4, threads: *Threads) !void {
+    pub fn write(self: *Writer, alloc: *Allocator, writer: std.fs.File.Writer, image: Float4, threads: *Threads) !void {
         const d = image.description.dimensions;
 
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
@@ -45,10 +45,10 @@ pub const Writer = struct {
             &buffer_len,
         );
 
-        var file = try std.fs.cwd().createFile("image.png", .{});
-        defer file.close();
+        // var file = try std.fs.cwd().createFile("image.png", .{});
+        // defer file.close();
 
-        const writer = file.writer();
+        // const writer = file.writer();
 
         try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
 

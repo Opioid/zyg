@@ -36,7 +36,7 @@ pub const Sky = struct {
 
     const Radius = std.math.tan(@as(f32, Model.Angular_radius));
 
-    pub const Bake_dimensions = Vec2i{ 512, 512 };
+    pub const Bake_dimensions = Vec2i{ 256, 256 };
 
     const Self = @This();
 
@@ -66,6 +66,8 @@ pub const Sky = struct {
                 self.sun_rotation = json.createRotationMatrix(angles);
             } else if (std.mem.eql(u8, "turbidity", entry.key_ptr.*)) {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
+                self.visibility = json.readFloat(f32, entry.value_ptr.*);
             }
         }
 
@@ -99,7 +101,7 @@ pub const Sky = struct {
 
         _ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]));
 
-        PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.1) catch {};
+        PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
 
     pub fn sunWi(self: Self, v: f32) Vec4f {
@@ -153,11 +155,7 @@ const SkyContext = struct {
                 const uv = Vec2f{ u, v };
                 const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
 
-                if (0 == y and 64 == x) {
-                    std.debug.print("{}\n", .{wi});
-                }
-
-                const li = self.model.evaluateSky(wi);
+                const li = self.model.evaluateSky(math.normalize3(wi));
 
                 self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
             }

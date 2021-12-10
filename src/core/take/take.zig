@@ -4,9 +4,12 @@ const VolumeFactory = @import("../rendering/integrator/volume/integrator.zig").F
 const LighttracerFactory = @import("../rendering/integrator/particle/lighttracer.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Pipeline = @import("../rendering/postprocessor/pipeline.zig").Pipeline;
+const Sink = @import("../exporting/sink.zig").Sink;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
+pub const Exporters = std.ArrayListUnmanaged(Sink);
 
 pub const View = struct {
     samplers: SamplerFactory = undefined,
@@ -46,6 +49,8 @@ pub const Take = struct {
 
     view: View,
 
+    exporters: Exporters = .{},
+
     pub fn init(alloc: *Allocator) !Take {
         return Take{
             .scene_filename = &.{},
@@ -57,8 +62,12 @@ pub const Take = struct {
     }
 
     pub fn deinit(self: *Take, alloc: *Allocator) void {
-        self.view.deinit(alloc);
+        for (self.exporters.items) |*e| {
+            e.deinit(alloc);
+        }
 
+        self.exporters.deinit(alloc);
+        self.view.deinit(alloc);
         alloc.free(self.scene_filename);
     }
 };

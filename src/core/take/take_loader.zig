@@ -14,6 +14,7 @@ const Scene = @import("../scene/scene.zig").Scene;
 const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
+const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 
 const base = @import("base");
 const json = base.json;
@@ -47,6 +48,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
 
     const root = document.root;
 
+    var exporter_value_ptr: ?*std.json.Value = null;
     var integrator_value_ptr: ?*std.json.Value = null;
     var post_value_ptr: ?*std.json.Value = null;
     var sampler_value_ptr: ?*std.json.Value = null;
@@ -55,6 +57,8 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
             try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
+        } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
+            exporter_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
             integrator_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "post", entry.key_ptr.*)) {
@@ -82,6 +86,10 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
 
     if (post_value_ptr) |post_value| {
         loadPostProcessors(post_value.*, &take.view);
+    }
+
+    if (exporter_value_ptr) |exporter_value| {
+        take.exporters = try loadExporters(alloc, exporter_value.*, take.view);
     }
 
     setDefaultIntegrators(&take.view);
@@ -460,4 +468,23 @@ fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
             }
         } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {}
     }
+}
+
+fn loadExporters(alloc: *Allocator, value: std.json.Value, view: View) !tk.Exporters {
+    var exporters = tk.Exporters{};
+
+    const alpha = view.camera.sensor.alphaTransparency();
+
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
+            const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+            try exporters.append(alloc, .{ .ImageSequence = .{
+                .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
+            } });
+        }
+    }
+
+    return exporters;
 }

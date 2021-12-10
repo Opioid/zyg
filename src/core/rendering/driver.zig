@@ -1,4 +1,5 @@
 const View = @import("../take/take.zig").View;
+const Sink = @import("../exporting/sink.zig").Sink;
 const Scene = @import("../scene/scene.zig").Scene;
 const Worker = @import("worker.zig").Worker;
 const tq = @import("tile_queue.zig");
@@ -140,9 +141,17 @@ pub const Driver = struct {
         std.debug.print("Post-process time {d:.3} s\n", .{chrono.secondsSince(pp_start)});
     }
 
-    pub fn exportFrame(self: *Driver) void {
+    pub fn exportFrame(self: Driver, alloc: *Allocator, frame: u32, exporters: []Sink) !void {
+        const start = std.time.milliTimestamp();
+
         _ = self;
         //self.view.camera.sensor.resolve(&self.target);
+
+        for (exporters) |*e| {
+            try e.write(alloc, self.target, frame, self.threads);
+        }
+
+        std.debug.print("Export time {d:.3} s\n", .{chrono.secondsSince(start)});
     }
 
     fn renderFrameBackward(self: *Driver, frame: u32) void {
