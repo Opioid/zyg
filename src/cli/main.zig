@@ -102,8 +102,12 @@ pub fn main() !void {
 
     try driver.configure(alloc, &take.view, &scene);
 
-    try driver.render(alloc, options.start_frame);
-    try driver.exportFrame(alloc, options.start_frame, take.exporters.items);
+    var i = options.start_frame;
+    const end = i + options.num_frames;
+    while (i < end) : (i += 1) {
+        try driver.render(alloc, i);
+        try driver.exportFrame(alloc, i, take.exporters.items);
+    }
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
 }
