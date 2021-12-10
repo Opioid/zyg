@@ -18,12 +18,12 @@ pub const ImageSequence = struct {
     }
 
     pub fn write(self: *Self, alloc: *Allocator, image: Float4, frame: u32, threads: *Threads) !void {
-        const filename = try std.fmt.allocPrint(
-            alloc,
+        var buf: [32]u8 = undefined;
+        const filename = try std.fmt.bufPrint(
+            &buf,
             "image_{d:0>8}.{s}",
             .{ frame, self.writer.fileExtension() },
         );
-        defer alloc.free(filename);
 
         var file = try std.fs.cwd().createFile(filename, .{});
         defer file.close();

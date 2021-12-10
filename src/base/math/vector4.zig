@@ -123,6 +123,14 @@ pub fn Vec4(comptime T: type) type {
                 std.math.max(a.v[2], b.v[2]),
             );
         }
+
+        pub fn maxScalar(a: Vec4(T), s: T) Vec4(T) {
+            return init3(
+                std.math.max(a.v[0], s),
+                std.math.max(a.v[1], s),
+                std.math.max(a.v[2], s),
+            );
+        }
     };
 }
 

@@ -15,6 +15,7 @@ const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const RgbeWriter = @import("../image/encoding/rgbe/writer.zig").Writer;
 
 const base = @import("base");
 const json = base.json;
@@ -473,16 +474,24 @@ fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
 fn loadExporters(alloc: *Allocator, value: std.json.Value, view: View) !tk.Exporters {
     var exporters = tk.Exporters{};
 
-    const alpha = view.camera.sensor.alphaTransparency();
-
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
-            const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+            const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
 
-            try exporters.append(alloc, .{ .ImageSequence = .{
-                .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
-            } });
+            const alpha = view.camera.sensor.alphaTransparency();
+
+            if (std.mem.eql(u8, "RGBE", format)) {
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .RGBE = .{} },
+                } });
+            } else {
+                const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
+                } });
+            }
         }
     }
 

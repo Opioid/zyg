@@ -27,7 +27,13 @@ pub const Writer = struct {
         self.srgb.deinit(alloc);
     }
 
-    pub fn write(self: *Writer, alloc: *Allocator, writer: std.fs.File.Writer, image: Float4, threads: *Threads) !void {
+    pub fn write(
+        self: *Writer,
+        alloc: *Allocator,
+        writer: std.fs.File.Writer,
+        image: Float4,
+        threads: *Threads,
+    ) !void {
         const d = image.description.dimensions;
 
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
