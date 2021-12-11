@@ -149,7 +149,7 @@ pub const SplitCandidate = struct {
 
     pub fn distribute(
         self: Self,
-        alloc: *Allocator,
+        alloc: Allocator,
         references: []const Reference,
         references0: *References,
         references1: *References,

@@ -33,7 +33,7 @@ pub const Material = union(enum) {
     Substitute: Substitute,
     Volumetric: Volumetric,
 
-    pub fn deinit(self: *Material, alloc: *Allocator) void {
+    pub fn deinit(self: *Material, alloc: Allocator) void {
         switch (self.*) {
             .Light => |*m| m.deinit(alloc),
             .Sky => |*m| m.deinit(alloc),
@@ -53,7 +53,7 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material, alloc: *Allocator, scene: Scene, threads: *Threads) void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
@@ -66,7 +66,7 @@ pub const Material = union(enum) {
 
     pub fn prepareSampling(
         self: *Material,
-        alloc: *Allocator,
+        alloc: Allocator,
         shape: Shape,
         part: u32,
         trafo: Transformation,

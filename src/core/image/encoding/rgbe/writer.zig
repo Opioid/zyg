@@ -9,7 +9,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = struct {
-    pub fn write(alloc: *Allocator, writer: std.fs.File.Writer, image: Float4) !void {
+    pub fn write(alloc: Allocator, writer: std.fs.File.Writer, image: Float4) !void {
         try writeHeader(writer, image);
 
         try writePixelsRle(alloc, writer, image);
@@ -26,7 +26,7 @@ pub const Writer = struct {
         try writer.writeAll(printed);
     }
 
-    fn writePixelsRle(alloc: *Allocator, writer: std.fs.File.Writer, image: Float4) !void {
+    fn writePixelsRle(alloc: Allocator, writer: std.fs.File.Writer, image: Float4) !void {
         const d = image.description.dimensions;
 
         const scanline_width = @intCast(u32, d.v[0]);

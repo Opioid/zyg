@@ -25,12 +25,12 @@ pub const View = struct {
     num_samples_per_pixel: u32 = 1,
     num_particles_per_pixel: u32 = 0,
 
-    pub fn deinit(self: *View, alloc: *Allocator) void {
+    pub fn deinit(self: *View, alloc: Allocator) void {
         self.pipeline.deinit(alloc);
         self.camera.deinit(alloc);
     }
 
-    pub fn configure(self: *View, alloc: *Allocator) !void {
+    pub fn configure(self: *View, alloc: Allocator) !void {
         try self.pipeline.configure(alloc, self.camera);
 
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
@@ -51,7 +51,7 @@ pub const Take = struct {
 
     exporters: Exporters = .{},
 
-    pub fn init(alloc: *Allocator) !Take {
+    pub fn init(alloc: Allocator) !Take {
         return Take{
             .scene_filename = &.{},
             .view = .{
@@ -61,7 +61,7 @@ pub const Take = struct {
         };
     }
 
-    pub fn deinit(self: *Take, alloc: *Allocator) void {
+    pub fn deinit(self: *Take, alloc: Allocator) void {
         for (self.exporters.items) |*e| {
             e.deinit(alloc);
         }

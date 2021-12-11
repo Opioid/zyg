@@ -31,11 +31,11 @@ pub const Worker = struct {
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
 
-    pub fn init(alloc: *Allocator) !Worker {
+    pub fn init(alloc: Allocator) !Worker {
         return Worker{ .super = try SceneWorker.init(alloc) };
     }
 
-    pub fn deinit(self: *Worker, alloc: *Allocator) void {
+    pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.lighttracer.deinit(alloc);
         self.volume_integrator.deinit(alloc);
         self.surface_integrator.deinit(alloc);
@@ -45,7 +45,7 @@ pub const Worker = struct {
 
     pub fn configure(
         self: *Worker,
-        alloc: *Allocator,
+        alloc: Allocator,
         camera: *cam.Perspective,
         scene: *Scene,
         num_samples_per_pixel: u32,

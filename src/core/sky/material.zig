@@ -50,7 +50,7 @@ pub const Material = struct {
         };
     }
 
-    pub fn initSun(alloc: *Allocator, sampler_key: ts.Key, sky: *const SkyThing) !Material {
+    pub fn initSun(alloc: Allocator, sampler_key: ts.Key, sky: *const SkyThing) !Material {
         return Material{
             .super = Base.init(sampler_key, false),
             .emission_map = .{},
@@ -60,7 +60,7 @@ pub const Material = struct {
         };
     }
 
-    pub fn deinit(self: *Material, alloc: *Allocator) void {
+    pub fn deinit(self: *Material, alloc: Allocator) void {
         self.sun_radiance.deinit(alloc);
         self.distribution.deinit(alloc);
     }
@@ -103,7 +103,7 @@ pub const Material = struct {
 
     pub fn prepareSampling(
         self: *Material,
-        alloc: *Allocator,
+        alloc: Allocator,
         shape: Shape,
         scene: Scene,
         threads: *Threads,
@@ -198,7 +198,7 @@ const Context = struct {
     dimensions: Vec2i,
     conditional: []Distribution1D,
     averages: []Vec4f,
-    alloc: *Allocator,
+    alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self = @intToPtr(*Context, context);

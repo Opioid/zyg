@@ -42,7 +42,7 @@ pub const Pool = struct {
         return std.math.min(available, @intCast(u32, std.math.max(request, 1)));
     }
 
-    pub fn configure(self: *Pool, alloc: *Allocator, num_threads: u32) !void {
+    pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
         for (self.uniques) |*u| {
@@ -56,7 +56,7 @@ pub const Pool = struct {
         }
     }
 
-    pub fn deinit(self: *Pool, alloc: *Allocator) void {
+    pub fn deinit(self: *Pool, alloc: Allocator) void {
         self.quit = true;
 
         _ = self.wakeAll(0);

@@ -19,7 +19,7 @@ pub const GoldenRatio = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !GoldenRatio {
+    pub fn init(alloc: Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !GoldenRatio {
         return GoldenRatio{
             .num_dimensions_1D = num_dimensions_1D,
             .num_dimensions_2D = num_dimensions_2D,
@@ -30,7 +30,7 @@ pub const GoldenRatio = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.samples_2D);
         alloc.free(self.samples_1D);
         alloc.free(self.current_samples);

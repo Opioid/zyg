@@ -20,7 +20,7 @@ const Allocator = std.mem.Allocator;
 pub const Integrator = union(enum) {
     Multi: Multi,
 
-    pub fn deinit(self: *Integrator, alloc: *Allocator) void {
+    pub fn deinit(self: *Integrator, alloc: Allocator) void {
         _ = self;
         _ = alloc;
     }
@@ -46,7 +46,7 @@ pub const Integrator = union(enum) {
 pub const Factory = union(enum) {
     Multi: MultiFactory,
 
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !Integrator {
+    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !Integrator {
         return switch (self) {
             .Multi => |m| Integrator{ .Multi = try m.create(alloc, max_samples_per_pixel) },
         };

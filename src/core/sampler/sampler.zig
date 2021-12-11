@@ -13,7 +13,7 @@ pub const Sampler = union(enum) {
     Random,
     GoldenRatio: GoldenRatio,
 
-    pub fn deinit(self: *Sampler, alloc: *Allocator) void {
+    pub fn deinit(self: *Sampler, alloc: Allocator) void {
         switch (self.*) {
             .Random => {},
             .GoldenRatio => |*gr| gr.deinit(alloc),
@@ -57,7 +57,7 @@ pub const Factory = union(enum) {
 
     pub fn create(
         self: Factory,
-        alloc: *Allocator,
+        alloc: Allocator,
         num_dimensions_1D: u32,
         num_dimensions_2D: u32,
         max_samples: u32,

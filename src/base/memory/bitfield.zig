@@ -9,7 +9,7 @@ pub const Bitfield = struct {
     const Log2Bits: u32 = 5;
     const Bits: u32 = 1 << Log2Bits;
 
-    pub fn init(alloc: *Allocator, num_bits: u64) !Bitfield {
+    pub fn init(alloc: Allocator, num_bits: u64) !Bitfield {
         const num_bytes = countNumBytes(num_bits);
 
         return Bitfield{
@@ -18,7 +18,7 @@ pub const Bitfield = struct {
         };
     }
 
-    pub fn deinit(self: *Bitfield, alloc: *Allocator) void {
+    pub fn deinit(self: *Bitfield, alloc: Allocator) void {
         alloc.free(self.buffer[0 .. self.num_bytes / @sizeOf(u32)]);
     }
 

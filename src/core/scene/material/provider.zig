@@ -31,7 +31,7 @@ pub const Provider = struct {
 
     force_debug_material: bool = false,
 
-    pub fn deinit(self: *Provider, alloc: *Allocator) void {
+    pub fn deinit(self: *Provider, alloc: Allocator) void {
         _ = self;
         _ = alloc;
     }
@@ -50,7 +50,7 @@ pub const Provider = struct {
 
     pub fn loadFile(
         self: Provider,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
         resources: *Resources,
@@ -77,7 +77,7 @@ pub const Provider = struct {
 
     pub fn loadData(
         self: Provider,
-        alloc: *Allocator,
+        alloc: Allocator,
         data: usize,
         options: Variants,
         resources: *Resources,
@@ -93,7 +93,7 @@ pub const Provider = struct {
         return Material{ .Debug = mat.Debug.init() };
     }
 
-    fn loadMaterial(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadMaterial(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         const rendering_node = value.Object.get("rendering") orelse {
             return Error.NoRenderNode;
         };
@@ -124,7 +124,7 @@ pub const Provider = struct {
         return Error.UnknownMaterial;
     }
 
-    fn loadGlass(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadGlass(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         var sampler_key = ts.Key{};
 
         var roughness = MappedValue(f32).init(0.0);
@@ -177,7 +177,7 @@ pub const Provider = struct {
         return Material{ .Glass = material };
     }
 
-    fn loadLight(self: Provider, alloc: *Allocator, light_value: std.json.Value, resources: *Resources) !Material {
+    fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) !Material {
         var sampler_key = ts.Key{};
 
         var quantity: []const u8 = undefined;
@@ -237,7 +237,7 @@ pub const Provider = struct {
         return Material{ .Light = material };
     }
 
-    fn loadSubstitute(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         var sampler_key = ts.Key{};
 
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
@@ -364,7 +364,7 @@ pub const Provider = struct {
         return Material{ .Substitute = material };
     }
 
-    fn loadVolumetric(self: Provider, alloc: *Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         _ = self;
         _ = alloc;
         _ = resources;
@@ -431,7 +431,7 @@ const TextureDescription = struct {
 
     invert: bool = false,
 
-    pub fn init(alloc: *Allocator, value: std.json.Value) !TextureDescription {
+    pub fn init(alloc: Allocator, value: std.json.Value) !TextureDescription {
         var desc = TextureDescription{};
 
         var iter = value.Object.iterator();
@@ -462,7 +462,7 @@ const TextureDescription = struct {
         return desc;
     }
 
-    pub fn deinit(self: *TextureDescription, alloc: *Allocator) void {
+    pub fn deinit(self: *TextureDescription, alloc: Allocator) void {
         if (self.filename) |filename| {
             alloc.free(filename);
         }
@@ -546,7 +546,7 @@ fn readColor(value: std.json.Value) Vec4f {
 }
 
 fn readTexture(
-    alloc: *Allocator,
+    alloc: Allocator,
     value: std.json.Value,
     usage: TexUsage,
     tex: Provider.Tex,
@@ -559,7 +559,7 @@ fn readTexture(
 }
 
 fn createTexture(
-    alloc: *Allocator,
+    alloc: Allocator,
     desc: TextureDescription,
     usage: TexUsage,
     tex: Provider.Tex,
@@ -605,7 +605,7 @@ fn MappedValue(comptime Value: type) type {
 
         pub fn read(
             self: *Self,
-            alloc: *Allocator,
+            alloc: Allocator,
             value: std.json.Value,
             usage: TexUsage,
             tex: Provider.Tex,
@@ -657,7 +657,7 @@ const CoatingDescription = struct {
 
     pub fn read(
         self: *Self,
-        alloc: *Allocator,
+        alloc: Allocator,
         value: std.json.Value,
         tex: Provider.Tex,
         resources: *Resources,

@@ -45,14 +45,14 @@ pub const Worker = struct {
 
     lights: Lights = undefined,
 
-    pub fn init(alloc: *Allocator) !Worker {
+    pub fn init(alloc: Allocator) !Worker {
         return Worker{
             .interface_stack = try InterfaceStack.init(alloc),
             .interface_stack_temp = try InterfaceStack.init(alloc),
         };
     }
 
-    pub fn deinit(self: *Worker, alloc: *Allocator) void {
+    pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.interface_stack_temp.deinit(alloc);
         self.interface_stack.deinit(alloc);
     }

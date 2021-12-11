@@ -12,17 +12,17 @@ const Allocator = std.mem.Allocator;
 pub const Builder = struct {
     super: Base,
 
-    pub fn init(alloc: *Allocator) !Builder {
+    pub fn init(alloc: Allocator) !Builder {
         return Builder{ .super = try Base.init(alloc, 16, 64, 4) };
     }
 
-    pub fn deinit(self: *Builder, alloc: *Allocator) void {
+    pub fn deinit(self: *Builder, alloc: Allocator) void {
         self.super.deinit(alloc);
     }
 
     pub fn build(
         self: *Builder,
-        alloc: *Allocator,
+        alloc: Allocator,
         tree: *Tree,
         indices: []const u32,
         aabbs: []const AABB,

@@ -21,7 +21,7 @@ pub const Reader = struct {
         EmptyTopology,
     };
 
-    pub fn read(alloc: *Allocator, stream: *ReadStream) !Image {
+    pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
         try stream.seekTo(4);
 
         var json_size: u64 = 0;

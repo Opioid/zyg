@@ -61,11 +61,11 @@ pub const Perspective = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator) !Self {
+    pub fn init(alloc: Allocator) !Self {
         return Perspective{ .interface_stack = try InterfaceStack.init(alloc) };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         self.interface_stack.deinit(alloc);
         self.sensor.deinit(alloc);
     }

@@ -32,13 +32,13 @@ pub const Reader = struct {
 
         data: []u8 = &.{},
 
-        pub fn allocate(self: *Chunk, alloc: *Allocator) !void {
+        pub fn allocate(self: *Chunk, alloc: Allocator) !void {
             if (self.data.len < self.length) {
                 self.data = try alloc.realloc(self.data, self.length);
             }
         }
 
-        pub fn deinit(self: *Chunk, alloc: *Allocator) void {
+        pub fn deinit(self: *Chunk, alloc: Allocator) void {
             alloc.free(self.data);
         }
     };
@@ -83,7 +83,7 @@ pub const Reader = struct {
             return info;
         }
 
-        pub fn deinit(self: *Info, alloc: *Allocator) void {
+        pub fn deinit(self: *Info, alloc: Allocator) void {
             if (self.stream.zfree) |_| {
                 _ = mz.mz_inflateEnd(&self.stream);
             }
@@ -91,7 +91,7 @@ pub const Reader = struct {
             alloc.free(self.buffer);
         }
 
-        pub fn allocate(self: *Info, alloc: *Allocator) !void {
+        pub fn allocate(self: *Info, alloc: Allocator) !void {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             const buffer_size = row_size * @intCast(u32, self.height);
             const num_bytes = buffer_size + 2 * row_size;
@@ -124,12 +124,12 @@ pub const Reader = struct {
 
     info: Info = Info.init(),
 
-    pub fn deinit(self: *Reader, alloc: *Allocator) void {
+    pub fn deinit(self: *Reader, alloc: Allocator) void {
         self.info.deinit(alloc);
         self.chunk.deinit(alloc);
     }
 
-    pub fn read(self: *Reader, alloc: *Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool) !Image {
+    pub fn read(self: *Reader, alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool) !Image {
         var signature: [Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -142,11 +142,11 @@ pub const Reader = struct {
         return try createImage(alloc, self.info, swizzle, invert);
     }
 
-    pub fn createFromBuffer(self: Reader, alloc: *Allocator, swizzle: Swizzle, invert: bool) !Image {
+    pub fn createFromBuffer(self: Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
         return try createImage(alloc, self.info, swizzle, invert);
     }
 
-    fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
+    fn createImage(alloc: Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         var swap_xy = false;
         switch (swizzle) {
@@ -248,7 +248,7 @@ pub const Reader = struct {
         return Error.UnexpectedError;
     }
 
-    fn handleChunk(alloc: *Allocator, stream: *ReadStream, chunk: *Chunk, info: *Info) bool {
+    fn handleChunk(alloc: Allocator, stream: *ReadStream, chunk: *Chunk, info: *Info) bool {
         var length: u32 = 0;
         _ = stream.read(std.mem.asBytes(&length)) catch return false;
 
@@ -290,7 +290,7 @@ pub const Reader = struct {
         return true;
     }
 
-    fn readChunk(alloc: *Allocator, stream: *ReadStream, chunk: *Chunk) !void {
+    fn readChunk(alloc: Allocator, stream: *ReadStream, chunk: *Chunk) !void {
         try chunk.allocate(alloc);
 
         _ = try stream.read(chunk.data[0..chunk.length]);
@@ -299,7 +299,7 @@ pub const Reader = struct {
         try stream.seekBy(4);
     }
 
-    fn parseHeader(alloc: *Allocator, chunk: *const Chunk, info: *Info) !void {
+    fn parseHeader(alloc: Allocator, chunk: *const Chunk, info: *Info) !void {
         info.width = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[0..4]));
         info.height = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[4..8]));
 

@@ -16,7 +16,7 @@ pub const Distribution2D = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         for (self.conditional) |*c| {
             c.deinit(alloc);
         }
@@ -26,7 +26,7 @@ pub const Distribution2D = struct {
         self.marginal.deinit(alloc);
     }
 
-    pub fn allocate(self: *Self, alloc: *Allocator, num: u32) ![]Distribution1D {
+    pub fn allocate(self: *Self, alloc: Allocator, num: u32) ![]Distribution1D {
         if (self.conditional.len != num) {
             self.conditional = try alloc.realloc(self.conditional, num);
             std.mem.set(Distribution1D, self.conditional, .{});
@@ -35,7 +35,7 @@ pub const Distribution2D = struct {
         return self.conditional;
     }
 
-    pub fn configure(self: *Self, alloc: *Allocator) !void {
+    pub fn configure(self: *Self, alloc: Allocator) !void {
         var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 

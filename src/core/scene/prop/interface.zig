@@ -27,14 +27,14 @@ pub const Stack = struct {
     index: u32,
     stack: [*]Interface,
 
-    pub fn init(alloc: *Allocator) !Stack {
+    pub fn init(alloc: Allocator) !Stack {
         return Stack{
             .index = 0,
             .stack = (try alloc.alloc(Interface, Num_entries)).ptr,
         };
     }
 
-    pub fn deinit(self: *Stack, alloc: *Allocator) void {
+    pub fn deinit(self: *Stack, alloc: Allocator) void {
         alloc.free(self.stack[0..Num_entries]);
     }
 

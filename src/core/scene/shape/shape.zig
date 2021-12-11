@@ -43,7 +43,7 @@ pub const Shape = union(enum) {
     Sphere: Sphere,
     Triangle_mesh: Triangle_mesh,
 
-    pub fn deinit(self: *Shape, alloc: *Allocator) void {
+    pub fn deinit(self: *Shape, alloc: Allocator) void {
         switch (self.*) {
             .Triangle_mesh => |*m| m.deinit(alloc),
             else => {},
@@ -358,7 +358,7 @@ pub const Shape = union(enum) {
 
     pub fn prepareSampling(
         self: *Shape,
-        alloc: *Allocator,
+        alloc: Allocator,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,

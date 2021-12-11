@@ -47,7 +47,7 @@ pub const Loader = struct {
     const LocalMaterials = struct {
         materials: std.StringHashMap(*std.json.Value),
 
-        pub fn init(alloc: *Allocator) LocalMaterials {
+        pub fn init(alloc: Allocator) LocalMaterials {
             return .{ .materials = std.StringHashMap(*std.json.Value).init(alloc) };
         }
 
@@ -56,7 +56,7 @@ pub const Loader = struct {
         }
     };
 
-    pub fn init(alloc: *Allocator, resources: *Resources, fallback_material: Material) Loader {
+    pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return Loader{
             .resources = resources,
             .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }),
@@ -72,11 +72,11 @@ pub const Loader = struct {
         };
     }
 
-    pub fn deinit(self: *Loader, alloc: *Allocator) void {
+    pub fn deinit(self: *Loader, alloc: Allocator) void {
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: *Allocator, filename: []const u8, take: Take, scene: *Scene) !void {
+    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: Take, scene: *Scene) !void {
         const camera = take.view.camera;
 
         scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
@@ -143,7 +143,7 @@ pub const Loader = struct {
 
     fn loadEntities(
         self: *Loader,
-        alloc: *Allocator,
+        alloc: Allocator,
         value: std.json.Value,
         parent_id: u32,
         parent_trafo: Transformation,
@@ -239,7 +239,7 @@ pub const Loader = struct {
 
     fn loadProp(
         self: *Loader,
-        alloc: *Allocator,
+        alloc: Allocator,
         value: std.json.Value,
         local_materials: LocalMaterials,
         scene: *Scene,
@@ -305,7 +305,7 @@ pub const Loader = struct {
         scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
     }
 
-    fn loadShape(self: Loader, alloc: *Allocator, value: std.json.Value) u32 {
+    fn loadShape(self: Loader, alloc: Allocator, value: std.json.Value) u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
             return self.getShape(type_name);
@@ -357,7 +357,7 @@ pub const Loader = struct {
 
     fn loadMaterials(
         self: *Loader,
-        alloc: *Allocator,
+        alloc: Allocator,
         value: std.json.Value,
         local_materials: LocalMaterials,
         scene: Scene,
@@ -373,7 +373,7 @@ pub const Loader = struct {
 
     fn loadMaterial(
         self: Loader,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         local_materials: LocalMaterials,
         scene: Scene,
@@ -406,7 +406,7 @@ pub const Loader = struct {
         return material;
     }
 
-    fn loadSky(self: Loader, alloc: *Allocator, value: std.json.Value, scene: *Scene) !u32 {
+    fn loadSky(self: Loader, alloc: Allocator, value: std.json.Value, scene: *Scene) !u32 {
         if (scene.sky) |sky| {
             return sky.prop;
         }

@@ -36,11 +36,11 @@ pub const Material = struct {
         return .{ .super = super };
     }
 
-    pub fn deinit(self: *Material, alloc: *Allocator) void {
+    pub fn deinit(self: *Material, alloc: Allocator) void {
         self.tree.deinit(alloc);
     }
 
-    pub fn commit(self: *Material, alloc: *Allocator, scene: Scene, threads: *Threads) void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) void {
         if (self.density_map.isValid()) {
             Builder.build(alloc, &self.tree, self.density_map, self.super.cc, scene, threads) catch {};
         }

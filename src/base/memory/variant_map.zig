@@ -11,11 +11,11 @@ pub const VariantMap = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         self.map.deinit(alloc);
     }
 
-    pub fn clone(self: Self, alloc: *Allocator) !Self {
+    pub fn clone(self: Self, alloc: Allocator) !Self {
         var result = VariantMap{};
 
         var iter = self.map.iterator();
@@ -27,7 +27,7 @@ pub const VariantMap = struct {
         return result;
     }
 
-    pub fn cloneExcept(self: Self, alloc: *Allocator, key: []const u8) !Self {
+    pub fn cloneExcept(self: Self, alloc: Allocator, key: []const u8) !Self {
         var result = VariantMap{};
 
         var iter = self.map.iterator();
@@ -67,7 +67,7 @@ pub const VariantMap = struct {
         return self.query(@TypeOf(def), key) orelse def;
     }
 
-    pub fn set(self: *Self, alloc: *Allocator, key: []const u8, val: anytype) !void {
+    pub fn set(self: *Self, alloc: Allocator, key: []const u8, val: anytype) !void {
         switch (@typeInfo(@TypeOf(val))) {
             .Bool => {
                 try self.map.put(alloc, key, .{ .Bool = val });

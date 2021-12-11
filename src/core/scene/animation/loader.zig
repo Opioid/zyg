@@ -10,7 +10,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub fn load(
-    alloc: *Allocator,
+    alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
     entity: u32,
@@ -27,7 +27,7 @@ pub fn load(
 }
 
 pub fn loadKeyframes(
-    alloc: *Allocator,
+    alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
     entity: u32,

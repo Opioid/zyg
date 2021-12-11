@@ -15,7 +15,7 @@ pub const Options = struct {
     no_tex_dwim: bool = false,
     debug_material: bool = false,
 
-    pub fn deinit(self: *Options, alloc: *Allocator) void {
+    pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
             alloc.free(mount);
         }
@@ -27,7 +27,7 @@ pub const Options = struct {
         }
     }
 
-    pub fn parse(alloc: *Allocator, args: std.process.ArgIterator) !Options {
+    pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
         var options = Options{};
 
         var iter = args;
@@ -50,7 +50,7 @@ pub const Options = struct {
                 const argument_j = try arg_j;
 
                 if (isParameter(argument_j)) {
-                    try options.handleAll(command, argument_j, alloc);
+                    try options.handleAll(alloc, command, argument_j);
                     alloc.free(argument_j);
 
                     executed = true;
@@ -60,7 +60,7 @@ pub const Options = struct {
             }
 
             if (!executed) {
-                try options.handleAll(command, "", alloc);
+                try options.handleAll(alloc, command, "");
             }
 
             alloc.free(argument_i);
@@ -72,17 +72,17 @@ pub const Options = struct {
         return options;
     }
 
-    fn handleAll(self: *Options, command: []u8, parameter: []u8, alloc: *Allocator) !void {
+    fn handleAll(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
         if ('-' == command[0]) {
-            try self.handle(command[1..], parameter, alloc);
+            try self.handle(alloc, command[1..], parameter);
         } else {
             for (command) |_, i| {
-                try self.handle(command[i .. i + 1], parameter, alloc);
+                try self.handle(alloc, command[i .. i + 1], parameter);
             }
         }
     }
 
-    fn handle(self: *Options, command: []u8, parameter: []u8, alloc: *Allocator) !void {
+    fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "frame", command) or std.mem.eql(u8, "f", command)) {

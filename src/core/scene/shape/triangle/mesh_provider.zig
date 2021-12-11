@@ -43,7 +43,7 @@ const Handler = struct {
     uvs: Vec2fs = .{},
     bitangent_signs: u8s = .{},
 
-    pub fn deinit(self: *Handler, alloc: *Allocator) void {
+    pub fn deinit(self: *Handler, alloc: Allocator) void {
         self.bitangent_signs.deinit(alloc);
         self.uvs.deinit(alloc);
         self.tangents.deinit(alloc);
@@ -62,12 +62,12 @@ const Error = error{
 };
 
 pub const Provider = struct {
-    pub fn deinit(self: *Provider, alloc: *Allocator) void {
+    pub fn deinit(self: *Provider, alloc: Allocator) void {
         _ = self;
         _ = alloc;
     }
 
-    pub fn loadFile(self: Provider, alloc: *Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
+    pub fn loadFile(self: Provider, alloc: Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
         _ = self;
         _ = options;
 
@@ -139,7 +139,7 @@ pub const Provider = struct {
         return Shape{ .Triangle_mesh = mesh };
     }
 
-    fn loadGeometry(alloc: *Allocator, handler: *Handler, value: std.json.Value) !void {
+    fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
@@ -275,7 +275,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(alloc: *Allocator, stream: *ReadStream, threads: *Threads) !Shape {
+    fn loadBinary(alloc: Allocator, stream: *ReadStream, threads: *Threads) !Shape {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -483,7 +483,7 @@ pub const Provider = struct {
     }
 
     fn buildBVH(
-        alloc: *Allocator,
+        alloc: Allocator,
         mesh: *Mesh,
         triangles: []const IndexTriangle,
         vertices: vs.VertexStream,

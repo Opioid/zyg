@@ -14,12 +14,12 @@ pub const Transparent = struct {
 
     pixels: []Pack4f = &.{},
 
-    pub fn deinit(self: Transparent, alloc: *Allocator) void {
+    pub fn deinit(self: Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
         alloc.free(self.pixel_weights);
     }
 
-    pub fn resize(self: *Transparent, alloc: *Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i) !void {
         self.base.dimensions = dimensions;
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);

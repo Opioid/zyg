@@ -16,7 +16,7 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(alloc: *Allocator, range_begin: f32, range_end: f32, num_samples: u32) !Self {
+        pub fn init(alloc: Allocator, range_begin: f32, range_end: f32, num_samples: u32) !Self {
             const range = range_end - range_begin;
             const interval = range / @intToFloat(f32, num_samples - 1);
 
@@ -27,7 +27,7 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
             };
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             alloc.free(self.samples);
         }
 
@@ -56,7 +56,7 @@ pub fn InterpolatedFunction2D(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(alloc: *Allocator, range_begin: Vec2f, range_end: Vec2f, num_samples: Vec2u) !Self {
+        pub fn init(alloc: Allocator, range_begin: Vec2f, range_end: Vec2f, num_samples: Vec2u) !Self {
             const range = range_end - range_begin;
             const interval = range / math.vec2uTo2f(num_samples - Vec2u{ 1, 1 });
 
@@ -68,7 +68,7 @@ pub fn InterpolatedFunction2D(comptime T: type) type {
             };
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             alloc.free(self.samples);
         }
 

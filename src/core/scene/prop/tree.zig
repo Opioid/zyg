@@ -22,19 +22,19 @@ pub const Tree = struct {
     infinite_props: [*]const u32 = undefined,
     props: [*]const Prop = undefined,
 
-    pub fn deinit(self: *Tree, alloc: *Allocator) void {
+    pub fn deinit(self: *Tree, alloc: Allocator) void {
         alloc.free(self.indices[0..self.num_indices]);
         alloc.free(self.nodes[0..self.num_nodes]);
     }
 
-    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) !void {
+    pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         if (num_nodes != self.num_nodes) {
             self.nodes = (try alloc.realloc(self.nodes[0..self.num_nodes], num_nodes)).ptr;
             self.num_nodes = num_nodes;
         }
     }
 
-    pub fn allocateIndices(self: *Tree, alloc: *Allocator, num_indices: u32) !void {
+    pub fn allocateIndices(self: *Tree, alloc: Allocator, num_indices: u32) !void {
         if (num_indices != self.num_indices) {
             self.indices = (try alloc.realloc(self.indices[0..self.num_indices], num_indices)).ptr;
             self.num_indices = num_indices;

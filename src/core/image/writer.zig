@@ -16,7 +16,7 @@ pub const Writer = union(enum) {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         switch (self.*) {
             .PNG => |*w| w.deinit(alloc),
             else => {},
@@ -25,7 +25,7 @@ pub const Writer = union(enum) {
 
     pub fn write(
         self: *Self,
-        alloc: *Allocator,
+        alloc: Allocator,
         writer: std.fs.File.Writer,
         image: Float4,
         threads: *Threads,

@@ -42,7 +42,7 @@ pub const Part = struct {
         material: u32,
         two_sided: bool,
 
-        pub fn deinit(self: *Variant, alloc: *Allocator) void {
+        pub fn deinit(self: *Variant, alloc: Allocator) void {
             self.light_tree.deinit(alloc);
             self.distribution.deinit(alloc);
         }
@@ -71,7 +71,7 @@ pub const Part = struct {
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
-    pub fn deinit(self: *Part, alloc: *Allocator) void {
+    pub fn deinit(self: *Part, alloc: Allocator) void {
         for (self.variants.items) |*v| {
             v.deinit(alloc);
         }
@@ -85,7 +85,7 @@ pub const Part = struct {
 
     pub fn configure(
         self: *Part,
-        alloc: *Allocator,
+        alloc: Allocator,
         part: u32,
         material: u32,
         tree: bvh.Tree,
@@ -370,14 +370,14 @@ pub const Mesh = struct {
 
     primitive_mapping: []u32 = &.{},
 
-    pub fn init(alloc: *Allocator, num_parts: u32) !Mesh {
+    pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
         std.mem.set(Part, parts, .{});
 
         return Mesh{ .parts = parts };
     }
 
-    pub fn deinit(self: *Mesh, alloc: *Allocator) void {
+    pub fn deinit(self: *Mesh, alloc: Allocator) void {
         alloc.free(self.primitive_mapping);
 
         for (self.parts) |*p| {
@@ -632,7 +632,7 @@ pub const Mesh = struct {
 
     pub fn prepareSampling(
         self: *Mesh,
-        alloc: *Allocator,
+        alloc: Allocator,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,

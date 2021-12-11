@@ -222,14 +222,14 @@ pub const Builder = struct {
     build_nodes: []BuildNode = &.{},
     candidates: []SplitCandidate = &.{},
 
-    pub fn deinit(self: *Builder, alloc: *Allocator) void {
+    pub fn deinit(self: *Builder, alloc: Allocator) void {
         alloc.free(self.candidates);
         alloc.free(self.build_nodes);
     }
 
     pub fn build(
         self: *Builder,
-        alloc: *Allocator,
+        alloc: Allocator,
         tree: *Tree,
         scene: Scene,
         threads: *Threads,
@@ -337,7 +337,7 @@ pub const Builder = struct {
 
     pub fn buildPrimitive(
         self: *Builder,
-        alloc: *Allocator,
+        alloc: Allocator,
         tree: *PrimitiveTree,
         part: Part,
         variant: u32,
@@ -380,7 +380,7 @@ pub const Builder = struct {
         try self.serializePrimitive(alloc, tree, part, variant);
     }
 
-    fn allocate(self: *Builder, alloc: *Allocator, num_lights: u32, sweep_threshold: u32) !void {
+    fn allocate(self: *Builder, alloc: Allocator, num_lights: u32, sweep_threshold: u32) !void {
         const num_nodes = 2 * num_lights - 1;
 
         if (num_nodes > self.build_nodes.len) {
@@ -575,7 +575,7 @@ pub const Builder = struct {
         }
     }
 
-    fn serializePrimitive(self: Builder, alloc: *Allocator, tree: *PrimitiveTree, part: Part, variant: u32) !void {
+    fn serializePrimitive(self: Builder, alloc: Allocator, tree: *PrimitiveTree, part: Part, variant: u32) !void {
         var powers: std.ArrayListUnmanaged(f32) = .{};
         defer powers.deinit(alloc);
 

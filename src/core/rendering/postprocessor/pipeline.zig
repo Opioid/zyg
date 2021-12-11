@@ -13,11 +13,11 @@ pub const Pipeline = struct {
 
     scratch: img.Float4 = .{},
 
-    pub fn deinit(self: *Pipeline, alloc: *Allocator) void {
+    pub fn deinit(self: *Pipeline, alloc: Allocator) void {
         self.scratch.deinit(alloc);
     }
 
-    pub fn configure(self: *Pipeline, alloc: *Allocator, camera: cam.Perspective) !void {
+    pub fn configure(self: *Pipeline, alloc: Allocator, camera: cam.Perspective) !void {
         try self.scratch.resize(alloc, img.Description.init2D(camera.sensorDimensions()));
     }
 

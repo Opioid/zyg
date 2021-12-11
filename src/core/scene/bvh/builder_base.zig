@@ -42,7 +42,7 @@ const Kernel = struct {
     aabb_surface_area: f32 = undefined,
     references: []const Reference = undefined,
 
-    pub fn init(alloc: *Allocator, num_slices: u32, sweep_threshold: u32) !Kernel {
+    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32) !Kernel {
         return Kernel{
             .split_candidates = try std.ArrayListUnmanaged(SplitCandidate).initCapacity(
                 alloc,
@@ -51,7 +51,7 @@ const Kernel = struct {
         };
     }
 
-    pub fn deinit(self: *Kernel, alloc: *Allocator) void {
+    pub fn deinit(self: *Kernel, alloc: Allocator) void {
         self.split_candidates.deinit(alloc);
         self.reference_ids.deinit(alloc);
         self.build_nodes.deinit(alloc);
@@ -63,7 +63,7 @@ const Kernel = struct {
 
     fn split(
         self: *Kernel,
-        alloc: *Allocator,
+        alloc: Allocator,
         node_id: u32,
         references: []const Reference,
         aabb: AABB,
@@ -230,7 +230,7 @@ const Kernel = struct {
         }
     }
 
-    pub fn assign(self: *Kernel, alloc: *Allocator, node: *Node, references: []const Reference) !void {
+    pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
         const num_references = @intCast(u8, references.len);
 
         node.setLeafNode(@intCast(u32, self.reference_ids.items.len), num_references);
@@ -240,7 +240,7 @@ const Kernel = struct {
         }
     }
 
-    pub fn reserve(self: *Kernel, alloc: *Allocator, num_primitives: u32, settings: Settings) !void {
+    pub fn reserve(self: *Kernel, alloc: Allocator, num_primitives: u32, settings: Settings) !void {
         try self.build_nodes.ensureTotalCapacity(
             alloc,
             std.math.max((3 * num_primitives) / settings.max_primitives, 1),
@@ -261,12 +261,12 @@ pub const Base = struct {
     current_node: u32 = undefined,
     current_task: u32 = undefined,
 
-    alloc: *Allocator = undefined,
+    alloc: Allocator = undefined,
     threads: *Threads = undefined,
     tasks: *Tasks = undefined,
 
     pub fn init(
-        alloc: *Allocator,
+        alloc: Allocator,
         num_slices: u32,
         sweep_threshold: u32,
         max_primitives: u32,
@@ -281,7 +281,7 @@ pub const Base = struct {
         };
     }
 
-    pub fn deinit(self: *Base, alloc: *Allocator) void {
+    pub fn deinit(self: *Base, alloc: Allocator) void {
         self.kernel.deinit(alloc);
     }
 
@@ -295,7 +295,7 @@ pub const Base = struct {
 
     pub fn split(
         self: *Base,
-        alloc: *Allocator,
+        alloc: Allocator,
         references: []const Reference,
         aabb: AABB,
         threads: *Threads,
@@ -324,7 +324,7 @@ pub const Base = struct {
         try self.workOnTasks(alloc, threads, &tasks);
     }
 
-    pub fn workOnTasks(self: *Base, alloc: *Allocator, threads: *Threads, tasks: *Tasks) !void {
+    pub fn workOnTasks(self: *Base, alloc: Allocator, threads: *Threads, tasks: *Tasks) !void {
         if (0 == tasks.items.len) {
             return;
         }
@@ -382,7 +382,7 @@ pub const Base = struct {
         }
     }
 
-    pub fn reserve(self: *Base, alloc: *Allocator, num_primitives: u32) !void {
+    pub fn reserve(self: *Base, alloc: Allocator, num_primitives: u32) !void {
         try self.kernel.reserve(alloc, num_primitives, self.settings);
 
         self.current_node = 0;

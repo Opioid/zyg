@@ -20,7 +20,7 @@ const BuildNode = struct {
     children: []BuildNode, // = &.{},
     data: CM,
 
-    pub fn deinit(self: *BuildNode, alloc: *Allocator) void {
+    pub fn deinit(self: *BuildNode, alloc: Allocator) void {
         for (self.children) |*c| {
             c.deinit(alloc);
         }
@@ -31,7 +31,7 @@ const BuildNode = struct {
 
 pub const Builder = struct {
     pub fn build(
-        alloc: *Allocator,
+        alloc: Allocator,
         tree: *Gridtree,
         texture: Texture,
         cc: CC,
@@ -124,7 +124,7 @@ const Splitter = struct {
 
     fn split(
         self: *Splitter,
-        alloc: *Allocator,
+        alloc: Allocator,
         node: *BuildNode,
         box: Box,
         texture: Texture,
@@ -263,7 +263,7 @@ const Splitter = struct {
 };
 
 const Context = struct {
-    alloc: *Allocator,
+    alloc: Allocator,
 
     grid: []BuildNode,
     splitters: []Splitter,

@@ -26,7 +26,7 @@ pub const Reader = struct {
         height: u32,
     };
 
-    pub fn read(alloc: *Allocator, stream: *ReadStream) !Image {
+    pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
         _ = alloc;
         _ = stream;
 
@@ -92,7 +92,7 @@ pub const Reader = struct {
     }
 
     fn readPixelsRLE(
-        alloc: *Allocator,
+        alloc: Allocator,
         stream: *ReadStream,
         scanline_width: u32,
         num_scanlines: u32,

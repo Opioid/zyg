@@ -13,13 +13,13 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
         const Self = @This();
 
-        pub fn clone(self: Self, alloc: *Allocator) !Self {
+        pub fn clone(self: Self, alloc: Allocator) !Self {
             var tmp_name = try alloc.alloc(u8, self.name.len);
             std.mem.copy(u8, tmp_name, self.name);
             return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             self.options.deinit(alloc);
             alloc.free(self.name);
         }
@@ -93,7 +93,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return .{ .provider = provider };
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             var iter = self.entries.iterator();
             while (iter.next()) |entry| {
                 entry.key_ptr.deinit(alloc);
@@ -112,7 +112,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
         pub fn loadFile(
             self: *Self,
-            alloc: *Allocator,
+            alloc: Allocator,
             name: []const u8,
             options: Variants,
             resources: *Resources,
@@ -138,7 +138,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
         pub fn loadData(
             self: *Self,
-            alloc: *Allocator,
+            alloc: Allocator,
             name: []const u8,
             data: usize,
             options: Variants,
@@ -185,7 +185,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn store(self: *Self, alloc: *Allocator, item: T) u32 {
+        pub fn store(self: *Self, alloc: Allocator, item: T) u32 {
             self.resources.append(alloc, item) catch {
                 return Null;
             };

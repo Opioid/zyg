@@ -17,7 +17,7 @@ pub const Usage = enum { Color, Emission, Normal, Roughness, Surface, Mask };
 
 pub const Provider = struct {
     pub fn loadFile(
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
         scale: Vec2f,

@@ -13,13 +13,13 @@ pub const Sink = union(enum) {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         switch (self.*) {
             .ImageSequence => |*is| is.deinit(alloc),
         }
     }
 
-    pub fn write(self: *Self, alloc: *Allocator, image: Float4, frame: u32, threads: *Threads) !void {
+    pub fn write(self: *Self, alloc: Allocator, image: Float4, frame: u32, threads: *Threads) !void {
         switch (self.*) {
             .ImageSequence => |*is| try is.write(alloc, image, frame, threads),
         }

@@ -20,7 +20,7 @@ pub fn DiscreteSpectralPowerDistribution(
 
         const Self = @This();
 
-        pub fn staticInit(alloc: *Allocator) !void {
+        pub fn staticInit(alloc: Allocator) !void {
             if (Step > 0.0) {
                 return;
             }

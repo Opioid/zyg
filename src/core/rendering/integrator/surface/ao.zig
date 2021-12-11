@@ -18,7 +18,7 @@ pub const AO = struct {
 
     sampler: smp.Sampler,
 
-    pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !AO {
+    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !AO {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return AO{
@@ -29,7 +29,7 @@ pub const AO = struct {
         };
     }
 
-    pub fn deinit(self: *AO, alloc: *Allocator) void {
+    pub fn deinit(self: *AO, alloc: Allocator) void {
         self.sampler.deinit(alloc);
     }
 
@@ -76,7 +76,7 @@ pub const AO = struct {
 pub const Factory = struct {
     settings: AO.Settings,
 
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !AO {
+    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !AO {
         return try AO.init(alloc, self.settings, max_samples_per_pixel);
     }
 };

@@ -33,7 +33,7 @@ pub const Manager = struct {
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(alloc: *Allocator, threads: *Threads) !Manager {
+    pub fn init(alloc: Allocator, threads: *Threads) !Manager {
         return Manager{
             .threads = threads,
             .fs = try Filesystem.init(alloc),
@@ -43,7 +43,7 @@ pub const Manager = struct {
         };
     }
 
-    pub fn deinit(self: *Manager, alloc: *Allocator) void {
+    pub fn deinit(self: *Manager, alloc: Allocator) void {
         self.shapes.deinit(alloc);
         self.materials.deinit(alloc);
         self.images.deinit(alloc);
@@ -53,7 +53,7 @@ pub const Manager = struct {
     pub fn loadFile(
         self: *Manager,
         comptime T: type,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
     ) !u32 {
@@ -75,7 +75,7 @@ pub const Manager = struct {
     pub fn loadData(
         self: *Manager,
         comptime T: type,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         data: usize,
         options: Variants,

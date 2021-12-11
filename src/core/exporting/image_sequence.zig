@@ -13,11 +13,11 @@ pub const ImageSequence = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         self.writer.deinit(alloc);
     }
 
-    pub fn write(self: *Self, alloc: *Allocator, image: Float4, frame: u32, threads: *Threads) !void {
+    pub fn write(self: *Self, alloc: Allocator, image: Float4, frame: u32, threads: *Threads) !void {
         var buf: [32]u8 = undefined;
         const filename = try std.fmt.bufPrint(
             &buf,

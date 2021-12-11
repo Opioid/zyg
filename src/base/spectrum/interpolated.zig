@@ -12,7 +12,7 @@ pub const Interpolated = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, wavelengths: []const f32, intensities: []const f32) !Self {
+    pub fn init(alloc: Allocator, wavelengths: []const f32, intensities: []const f32) !Self {
         const wls = try alloc.alloc(f32, wavelengths.len);
         const ints = try alloc.alloc(f32, intensities.len);
 
@@ -26,7 +26,7 @@ pub const Interpolated = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.intensities[0..self.num_elements]);
         alloc.free(self.wavelengths[0..self.num_elements]);
     }

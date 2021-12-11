@@ -13,7 +13,7 @@ pub const VertexStream = union(enum) {
     Separate: Separate,
     Compact: Compact,
 
-    pub fn deinit(self: *VertexStream, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *VertexStream, alloc: Allocator) void {
         return switch (self.*) {
             .Json => {},
             .Separate => |*v| v.deinit(alloc),
@@ -124,7 +124,7 @@ pub const Separate = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.bts);
         alloc.free(self.uvs);
         alloc.free(self.tangents);
@@ -159,7 +159,7 @@ pub const Compact = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.normals);
         alloc.free(self.positions);
     }

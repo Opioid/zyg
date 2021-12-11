@@ -31,7 +31,7 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn deinit(self: *Integrator, alloc: *Allocator) void {
+    pub fn deinit(self: *Integrator, alloc: Allocator) void {
         switch (self.*) {
             .AO => |*ao| ao.deinit(alloc),
             .PT => |*pt| pt.deinit(alloc),
@@ -71,7 +71,7 @@ pub const Factory = union(enum) {
     PTDL: PathtracerDLFactory,
     PTMIS: PathtracerMISFactory,
 
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !Integrator {
+    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !Integrator {
         return switch (self) {
             .AO => |ao| Integrator{ .AO = try ao.create(alloc, max_samples_per_pixel) },
             .PT => |pt| Integrator{ .PT = try pt.create(alloc, max_samples_per_pixel) },

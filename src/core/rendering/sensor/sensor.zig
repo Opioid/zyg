@@ -32,7 +32,7 @@ pub const Sensor = union(enum) {
     Filtered_1p0_transparent: Filtered_1p0_transparent,
     Filtered_2p0_transparent: Filtered_2p0_transparent,
 
-    pub fn deinit(self: *Sensor, alloc: *Allocator) void {
+    pub fn deinit(self: *Sensor, alloc: Allocator) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.deinit(alloc),
             .Unfiltered_transparent => |*s| s.sensor.deinit(alloc),
@@ -43,7 +43,7 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn resize(self: *Sensor, alloc: *Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i) !void {
         try switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.resize(alloc, dimensions),
             .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions),

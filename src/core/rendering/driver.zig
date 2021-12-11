@@ -43,7 +43,7 @@ pub const Driver = struct {
 
     progressor: progress.StdOut = undefined,
 
-    pub fn init(alloc: *Allocator, threads: *Threads) !Driver {
+    pub fn init(alloc: Allocator, threads: *Threads) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
             w.* = try Worker.init(alloc);
@@ -55,7 +55,7 @@ pub const Driver = struct {
         };
     }
 
-    pub fn deinit(self: *Driver, alloc: *Allocator) void {
+    pub fn deinit(self: *Driver, alloc: Allocator) void {
         self.target.deinit(alloc);
 
         for (self.workers) |*w| {
@@ -65,7 +65,7 @@ pub const Driver = struct {
         alloc.free(self.workers);
     }
 
-    pub fn configure(self: *Driver, alloc: *Allocator, view: *View, scene: *Scene) !void {
+    pub fn configure(self: *Driver, alloc: Allocator, view: *View, scene: *Scene) !void {
         const surfaces = view.surfaces orelse return Error.InvalidSurfaceIntegrator;
         const volumes = view.volumes orelse return Error.InvalidVolumeIntegrator;
         const lighttracers = view.lighttracers orelse return Error.InvalidLighttracer;
@@ -101,7 +101,7 @@ pub const Driver = struct {
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
-    pub fn render(self: *Driver, alloc: *Allocator, frame: u32) !void {
+    pub fn render(self: *Driver, alloc: Allocator, frame: u32) !void {
         std.debug.print("Frame {}\n", .{frame});
 
         const render_start = std.time.milliTimestamp();
@@ -141,7 +141,7 @@ pub const Driver = struct {
         std.debug.print("Post-process time {d:.3} s\n", .{chrono.secondsSince(pp_start)});
     }
 
-    pub fn exportFrame(self: Driver, alloc: *Allocator, frame: u32, exporters: []Sink) !void {
+    pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
         _ = self;

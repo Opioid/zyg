@@ -19,7 +19,7 @@ pub const Animation = struct {
     frames: [*]Transformation,
 
     pub fn init(
-        alloc: *Allocator,
+        alloc: Allocator,
         entity: u32,
         num_frames: u32,
         num_interpolated_frames: u32,
@@ -33,7 +33,7 @@ pub const Animation = struct {
         };
     }
 
-    pub fn deinit(self: *Animation, alloc: *Allocator) void {
+    pub fn deinit(self: Animation, alloc: Allocator) void {
         alloc.free(self.frames[0..self.num_frames]);
         alloc.free(self.times[0..self.num_frames]);
     }

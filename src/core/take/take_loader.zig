@@ -33,7 +33,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *Resources) !Take {
+pub fn load(alloc: Allocator, stream: *ReadStream, scene: *Scene, resources: *Resources) !Take {
     _ = resources;
 
     const buffer = try stream.readAll(alloc);
@@ -100,7 +100,7 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     return take;
 }
 
-fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
+fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -471,7 +471,7 @@ fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
     }
 }
 
-fn loadExporters(alloc: *Allocator, value: std.json.Value, view: View) !tk.Exporters {
+fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Exporters {
     var exporters = tk.Exporters{};
 
     var iter = value.Object.iterator();

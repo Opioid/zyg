@@ -29,7 +29,7 @@ pub const Pathtracer = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
+    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return Self{
@@ -43,7 +43,7 @@ pub const Pathtracer = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         for (self.samplers) |*s| {
             s.deinit(alloc);
         }
@@ -203,7 +203,7 @@ pub const Factory = struct {
 
     pub fn create(
         self: Factory,
-        alloc: *Allocator,
+        alloc: Allocator,
         max_samples_per_pixel: u32,
     ) !Pathtracer {
         return try Pathtracer.init(alloc, self.settings, max_samples_per_pixel);

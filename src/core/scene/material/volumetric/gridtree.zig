@@ -62,7 +62,7 @@ pub const Gridtree = struct {
     pub const Log2_cell_dim = 5;
     pub const Cell_dim = 1 << Log2_cell_dim;
 
-    pub fn deinit(self: *Gridtree, alloc: *Allocator) void {
+    pub fn deinit(self: *Gridtree, alloc: Allocator) void {
         alloc.free(self.data[0..self.num_data]);
         alloc.free(self.nodes[0..self.num_nodes]);
     }
@@ -73,12 +73,12 @@ pub const Gridtree = struct {
         self.inv_dimensions = @splat(4, @as(f32, 1.0)) / math.vec3iTo4f(dimensions);
     }
 
-    pub fn allocateNodes(self: *Gridtree, alloc: *Allocator, num_nodes: u32) ![*]Node {
+    pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
         self.nodes = (try alloc.alloc(Node, num_nodes)).ptr;
         return self.nodes;
     }
 
-    pub fn allocateData(self: *Gridtree, alloc: *Allocator, num_data: u32) ![*]CM {
+    pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]CM {
         self.data = (try alloc.alloc(CM, num_data)).ptr;
         return self.data;
     }

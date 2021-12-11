@@ -20,7 +20,7 @@ pub const Distribution1D = struct {
 
     const Self = @This();
 
-    pub fn configure(self: *Self, alloc: *Allocator, data: []f32, lut_bucket_size: u32) !void {
+    pub fn configure(self: *Self, alloc: Allocator, data: []f32, lut_bucket_size: u32) !void {
         try self.precompute1DPdfCdf(alloc, data);
 
         var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
@@ -30,7 +30,7 @@ pub const Distribution1D = struct {
         try self.initLut(alloc, lut_size);
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.lut);
         alloc.free(self.cdf);
     }
@@ -74,7 +74,7 @@ pub const Distribution1D = struct {
         return self.cdf[offset + 1] - self.cdf[offset];
     }
 
-    fn precompute1DPdfCdf(self: *Self, alloc: *Allocator, data: []f32) !void {
+    fn precompute1DPdfCdf(self: *Self, alloc: Allocator, data: []f32) !void {
         var integral: f32 = 0.0;
         for (data) |d| {
             integral += d;
@@ -107,7 +107,7 @@ pub const Distribution1D = struct {
         self.integral = integral;
     }
 
-    fn initLut(self: *Self, alloc: *Allocator, lut_size: u32) !void {
+    fn initLut(self: *Self, alloc: Allocator, lut_size: u32) !void {
         const padded_lut_size = lut_size + 2;
 
         if (padded_lut_size != @intCast(u32, self.lut.len)) {

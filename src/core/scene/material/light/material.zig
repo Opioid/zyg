@@ -34,7 +34,7 @@ pub const Material = struct {
         return .{ .super = Base.init(sampler_key, two_sided) };
     }
 
-    pub fn deinit(self: *Material, alloc: *Allocator) void {
+    pub fn deinit(self: *Material, alloc: Allocator) void {
         self.distribution.deinit(alloc);
     }
 
@@ -44,7 +44,7 @@ pub const Material = struct {
 
     pub fn prepareSampling(
         self: *Material,
-        alloc: *Allocator,
+        alloc: Allocator,
         shape: Shape,
         area: f32,
         scene: Scene,
@@ -202,7 +202,7 @@ const DistributionContext = struct {
     width: u32,
     conditional: []Distribution1D,
     luminance: [*]f32,
-    alloc: *Allocator,
+    alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;

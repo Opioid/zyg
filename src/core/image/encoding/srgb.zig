@@ -18,11 +18,11 @@ pub const Srgb = struct {
 
     image: *const Float4 = undefined,
 
-    pub fn deinit(self: *Srgb, alloc: *Allocator) void {
+    pub fn deinit(self: *Srgb, alloc: Allocator) void {
         alloc.free(self.buffer);
     }
 
-    pub fn resize(self: *Srgb, alloc: *Allocator, num_pixels: u32) !void {
+    pub fn resize(self: *Srgb, alloc: Allocator, num_pixels: u32) !void {
         const num_channels: u32 = if (self.alpha) 4 else 3;
         const num_bytes = num_pixels * num_channels;
 

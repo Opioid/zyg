@@ -114,7 +114,7 @@ pub const Multi = struct {
 };
 
 pub const Factory = struct {
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !Multi {
+    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !Multi {
         _ = self;
         _ = alloc;
         _ = max_samples_per_pixel;

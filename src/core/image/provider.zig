@@ -20,21 +20,21 @@ pub const Provider = struct {
 
     previous_name: []u8,
 
-    pub fn init(alloc: *Allocator) !Provider {
+    pub fn init(alloc: Allocator) !Provider {
         var buffer = try alloc.alloc(u8, 256);
         std.mem.set(u8, buffer, 0);
 
         return Provider{ .previous_name = buffer };
     }
 
-    pub fn deinit(self: *Provider, alloc: *Allocator) void {
+    pub fn deinit(self: *Provider, alloc: Allocator) void {
         alloc.free(self.previous_name);
         self.png_reader.deinit(alloc);
     }
 
     pub fn loadFile(
         self: *Provider,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
         resources: *Resources,

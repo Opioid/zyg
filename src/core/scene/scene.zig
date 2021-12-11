@@ -91,7 +91,7 @@ pub const Scene = struct {
     has_volumes: bool = undefined,
 
     pub fn init(
-        alloc: *Allocator,
+        alloc: Allocator,
         images: *ALU(Image),
         materials: *ALU(Material),
         shapes: *ALU(Shape),
@@ -124,7 +124,7 @@ pub const Scene = struct {
         };
     }
 
-    pub fn deinit(self: *Scene, alloc: *Allocator) void {
+    pub fn deinit(self: *Scene, alloc: Allocator) void {
         self.light_tree_builder.deinit(alloc);
         self.prop_bvh.deinit(alloc);
         self.volume_bvh.deinit(alloc);
@@ -167,7 +167,7 @@ pub const Scene = struct {
 
     pub fn simulate(
         self: *Scene,
-        alloc: *Allocator,
+        alloc: Allocator,
         camera_pos: Vec4f,
         start: u64,
         end: u64,
@@ -190,7 +190,7 @@ pub const Scene = struct {
 
     fn compile(
         self: *Scene,
-        alloc: *Allocator,
+        alloc: Allocator,
         camera_pos: Vec4f,
         time: u64,
         worker: Worker,
@@ -277,7 +277,7 @@ pub const Scene = struct {
         self.num_interpolation_frames = countFrames(frame_step, frame_duration) + 1;
     }
 
-    pub fn createEntity(self: *Scene, alloc: *Allocator) !u32 {
+    pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
         self.props.items[p].configure(self.null_shape, &.{}, self.*);
@@ -285,7 +285,7 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createProp(self: *Scene, alloc: *Allocator, shape_id: u32, materials: []const u32) !u32 {
+    pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
         const p = self.allocateProp(alloc) catch return Prop.Null;
 
         self.props.items[p].configure(shape_id, materials, self.*);
@@ -324,7 +324,7 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createLight(self: *Scene, alloc: *Allocator, entity: u32) !void {
+    pub fn createLight(self: *Scene, alloc: Allocator, entity: u32) !void {
         const shape_inst = self.propShape(entity);
 
         var i: u32 = 0;
@@ -392,7 +392,7 @@ pub const Scene = struct {
         self.prop_world_positions.items[entity] = t.position;
     }
 
-    pub fn propSerializeChild(self: *Scene, alloc: *Allocator, parent_id: u32, child_id: u32) !void {
+    pub fn propSerializeChild(self: *Scene, alloc: Allocator, parent_id: u32, child_id: u32) !void {
         self.props.items[child_id].setHasParent();
 
         if (self.propHasAnimatedFrames(parent_id) and !self.propHasAnimatedFrames(child_id)) {
@@ -408,7 +408,7 @@ pub const Scene = struct {
         }
     }
 
-    pub fn propAllocateFrames(self: *Scene, alloc: *Allocator, entity: u32, local_animation: bool) !void {
+    pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32, local_animation: bool) !void {
         self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
 
         const num_world_frames = self.num_interpolation_frames;
@@ -446,7 +446,7 @@ pub const Scene = struct {
 
     pub fn propPrepareSampling(
         self: *Scene,
-        alloc: *Allocator,
+        alloc: Allocator,
         entity: u32,
         part: u32,
         light_id: usize,
@@ -625,7 +625,7 @@ pub const Scene = struct {
         return self.light_cones.items[light_id];
     }
 
-    fn allocateProp(self: *Scene, alloc: *Allocator) !u32 {
+    fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
         try self.props.append(alloc, .{});
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
@@ -639,7 +639,7 @@ pub const Scene = struct {
 
     fn allocateLight(
         self: *Scene,
-        alloc: *Allocator,
+        alloc: Allocator,
         typef: Light.Type,
         two_sided: bool,
         entity: u32,
@@ -690,7 +690,7 @@ pub const Scene = struct {
         return false;
     }
 
-    pub fn createAnimation(self: *Scene, alloc: *Allocator, entity: u32, count: u32) !u32 {
+    pub fn createAnimation(self: *Scene, alloc: Allocator, entity: u32, count: u32) !u32 {
         try self.animations.append(alloc, try Animation.init(alloc, entity, count, self.num_interpolation_frames));
 
         try self.propAllocateFrames(alloc, entity, true);
@@ -702,7 +702,7 @@ pub const Scene = struct {
         self.animations.items[animation].set(index, keyframe);
     }
 
-    pub fn createSky(self: *Scene, alloc: *Allocator) !*Sky {
+    pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {
         if (null == self.sky) {
             const dummy = try self.createEntity(alloc);
 

@@ -22,11 +22,11 @@ pub const Tree = struct {
     nodes: []Node = &.{},
     data: Indexed_data = .{},
 
-    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) !void {
+    pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         self.nodes = try alloc.alloc(Node, num_nodes);
     }
 
-    pub fn deinit(self: *Tree, alloc: *Allocator) void {
+    pub fn deinit(self: *Tree, alloc: Allocator) void {
         self.data.deinit(alloc);
         alloc.free(self.nodes);
     }

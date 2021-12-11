@@ -36,7 +36,7 @@ pub const ReadStream = union(enum) {
         };
     }
 
-    pub fn readAll(self: *Self, alloc: *Allocator) ![]u8 {
+    pub fn readAll(self: *Self, alloc: Allocator) ![]u8 {
         return switch (self.*) {
             .File => |s| try s.reader.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
             .Gzip => |s| try s.reader().readAllAlloc(alloc, std.math.maxInt(u64)),

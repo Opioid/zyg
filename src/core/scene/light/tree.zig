@@ -199,7 +199,7 @@ pub const Tree = struct {
     infinite_light_powers: [*]f32 = undefined,
     infinite_light_distribution: Distribution1D = .{},
 
-    pub fn deinit(self: *Tree, alloc: *Allocator) void {
+    pub fn deinit(self: *Tree, alloc: Allocator) void {
         self.infinite_light_distribution.deinit(alloc);
         alloc.free(self.infinite_light_powers[0..self.num_infinite_lights]);
 
@@ -212,7 +212,7 @@ pub const Tree = struct {
         alloc.free(self.nodes[0..num_nodes]);
     }
 
-    pub fn allocateLightMapping(self: *Tree, alloc: *Allocator, num_lights: u32) !void {
+    pub fn allocateLightMapping(self: *Tree, alloc: Allocator, num_lights: u32) !void {
         if (self.num_lights != num_lights) {
             const nl = self.num_lights;
             self.light_mapping = (try alloc.realloc(self.light_mapping[0..nl], num_lights)).ptr;
@@ -222,7 +222,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn allocateNodes(self: *Tree, alloc: *Allocator, num_nodes: u32) !void {
+    pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         if (self.num_nodes != num_nodes) {
             const nn = self.num_nodes;
             self.nodes = (try alloc.realloc(self.nodes[0..nn], num_nodes)).ptr;
@@ -232,7 +232,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn allocate(self: *Tree, alloc: *Allocator, num_infinite_lights: u32) !void {
+    pub fn allocate(self: *Tree, alloc: Allocator, num_infinite_lights: u32) !void {
         if (self.num_infinite_lights != num_infinite_lights) {
             self.infinite_light_powers = (try alloc.realloc(
                 self.infinite_light_powers[0..self.num_infinite_lights],
@@ -427,7 +427,7 @@ pub const PrimitiveTree = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         const num_lights = self.num_lights;
         alloc.free(self.light_orders[0..num_lights]);
         alloc.free(self.light_mapping[0..num_lights]);
@@ -438,7 +438,7 @@ pub const PrimitiveTree = struct {
         alloc.free(self.nodes[0..num_nodes]);
     }
 
-    pub fn allocateLightMapping(self: *Self, alloc: *Allocator, num_lights: u32) !void {
+    pub fn allocateLightMapping(self: *Self, alloc: Allocator, num_lights: u32) !void {
         if (self.num_lights != num_lights) {
             const nl = self.num_lights;
             self.light_mapping = (try alloc.realloc(self.light_mapping[0..nl], num_lights)).ptr;
@@ -448,7 +448,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn allocateNodes(self: *Self, alloc: *Allocator, num_nodes: u32) !void {
+    pub fn allocateNodes(self: *Self, alloc: Allocator, num_nodes: u32) !void {
         if (self.num_nodes != num_nodes) {
             const nn = self.num_nodes;
             self.nodes = (try alloc.realloc(self.nodes[0..nn], num_nodes)).ptr;

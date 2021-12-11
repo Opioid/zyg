@@ -85,7 +85,7 @@ pub const Sky = struct {
 
     pub fn compile(
         self: *Self,
-        alloc: *Allocator,
+        alloc: Allocator,
         time: u64,
         scene: *Scene,
         threads: *Threads,

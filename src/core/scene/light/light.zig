@@ -43,7 +43,7 @@ pub const Light = struct {
 
     pub fn prepareSampling(
         self: Light,
-        alloc: *Allocator,
+        alloc: Allocator,
         light_id: usize,
         time: u64,
         scene: *Scene,

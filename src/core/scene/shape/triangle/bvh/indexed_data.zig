@@ -34,14 +34,14 @@ pub const Indexed_data = struct {
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.uvs[0..self.num_vertices]);
         alloc.free(self.frames[0..self.num_vertices]);
         alloc.free(self.positions[0..self.num_vertices]);
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
-    pub fn allocateTriangles(self: *Self, alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !void {
+    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexStream) !void {
         const num_vertices = vertices.numVertices();
 
         self.num_triangles = num_triangles;

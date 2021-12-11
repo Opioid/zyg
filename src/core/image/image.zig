@@ -45,7 +45,7 @@ pub const Image = union(enum) {
     Float3: Float3,
     Float4: Float4,
 
-    pub fn deinit(self: *Image, alloc: *Allocator) void {
+    pub fn deinit(self: *Image, alloc: Allocator) void {
         switch (self.*) {
             .Byte1 => |*i| i.deinit(alloc),
             .Byte2 => |*i| i.deinit(alloc),

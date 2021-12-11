@@ -16,14 +16,14 @@ pub const System = struct {
     stream: FileReadStream = .{},
     gzip_stream: GzipReadStream = .{},
 
-    pub fn init(alloc: *Allocator) !System {
+    pub fn init(alloc: Allocator) !System {
         var buffer = try alloc.alloc(u8, 256);
         std.mem.set(u8, buffer, 0);
 
         return System{ .name_buffer = buffer };
     }
 
-    pub fn deinit(self: *System, alloc: *Allocator) void {
+    pub fn deinit(self: *System, alloc: Allocator) void {
         alloc.free(self.name_buffer);
 
         for (self.mounts.items) |mount| {
@@ -33,7 +33,7 @@ pub const System = struct {
         self.mounts.deinit(alloc);
     }
 
-    pub fn pushMount(self: *System, alloc: *Allocator, folder: []const u8) !void {
+    pub fn pushMount(self: *System, alloc: Allocator, folder: []const u8) !void {
         const append_slash = folder.len > 0 and folder[folder.len - 1] != '/';
         const buffer_len = if (append_slash) folder.len + 1 else folder.len;
 
@@ -47,12 +47,12 @@ pub const System = struct {
         try self.mounts.append(alloc, buffer);
     }
 
-    pub fn popMount(self: *System, alloc: *Allocator) void {
+    pub fn popMount(self: *System, alloc: Allocator) void {
         const mount = self.mounts.pop();
         alloc.free(mount);
     }
 
-    pub fn readStream(self: *System, alloc: *Allocator, name: []const u8) !ReadStream {
+    pub fn readStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
         var stream = try self.openReadStream(alloc, name);
 
         const file_type = fl.queryType(&stream);
@@ -65,7 +65,7 @@ pub const System = struct {
         return stream;
     }
 
-    fn openReadStream(self: *System, alloc: *Allocator, name: []const u8) !ReadStream {
+    fn openReadStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
         for (self.mounts.items) |m| {
             const resolved_name_len = @intCast(u32, m.len + name.len);
 

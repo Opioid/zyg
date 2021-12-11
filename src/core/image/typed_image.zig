@@ -32,18 +32,18 @@ pub fn TypedImage(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(alloc: *Allocator, description: Description) !TypedImage(T) {
+        pub fn init(alloc: Allocator, description: Description) !TypedImage(T) {
             return TypedImage(T){
                 .description = description,
                 .pixels = try alloc.alloc(T, description.numPixels()),
             };
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             alloc.free(self.pixels);
         }
 
-        pub fn resize(self: *Self, alloc: *Allocator, description: Description) !void {
+        pub fn resize(self: *Self, alloc: Allocator, description: Description) !void {
             self.description = description;
 
             const len = description.numPixels();
@@ -141,7 +141,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(alloc: *Allocator, description: Description) !Self {
+        pub fn init(alloc: Allocator, description: Description) !Self {
             const d = description.dimensions;
 
             var num_cells = d.shiftRight(Log2_cell_dim);
@@ -163,7 +163,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             return result;
         }
 
-        pub fn deinit(self: *Self, alloc: *Allocator) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
             const cell_len = comptime Cell_dim * Cell_dim * Cell_dim;
 
             for (self.cells) |c| {
@@ -175,7 +175,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             alloc.free(self.cells);
         }
 
-        pub fn storeSequentially(self: *Self, alloc: *Allocator, index: i64, v: T) !void {
+        pub fn storeSequentially(self: *Self, alloc: Allocator, index: i64, v: T) !void {
             const c = self.coordinates3(index);
             const cc = c.shiftRight(Log2_cell_dim);
 

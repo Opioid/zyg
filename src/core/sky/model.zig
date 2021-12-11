@@ -20,7 +20,7 @@ pub const Model = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, sun_direction: Vec4f, visibility: f32) !Model {
+    pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32) !Model {
         try Spectrum.staticInit(alloc);
 
         const elev = elevation(sun_direction);

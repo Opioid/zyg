@@ -39,7 +39,7 @@ pub const Lighttracer = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, settings: Settings) !Self {
+    pub fn init(alloc: Allocator, settings: Settings) !Self {
         const num_samples = settings.num_samples;
 
         if (num_samples <= 1) {
@@ -67,7 +67,7 @@ pub const Lighttracer = struct {
         }
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         for (self.samplers) |*s| {
             s.deinit(alloc);
         }
@@ -338,10 +338,7 @@ pub const Lighttracer = struct {
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(
-        self: Factory,
-        alloc: *Allocator,
-    ) !Lighttracer {
+    pub fn create(self: Factory, alloc: Allocator) !Lighttracer {
         return try Lighttracer.init(alloc, self.settings);
     }
 };

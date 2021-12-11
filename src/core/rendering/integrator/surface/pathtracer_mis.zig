@@ -49,7 +49,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
+    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
         const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
 
         return Self{
@@ -66,7 +66,7 @@ pub const PathtracerMIS = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         for (self.samplers) |*s| {
             s.deinit(alloc);
         }
@@ -433,7 +433,7 @@ pub const PathtracerMIS = struct {
 pub const Factory = struct {
     settings: PathtracerMIS.Settings = .{ .num_samples = 1, .radius = 1.0 },
 
-    pub fn create(self: Factory, alloc: *Allocator, max_samples_per_pixel: u32) !PathtracerMIS {
+    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !PathtracerMIS {
         return try PathtracerMIS.init(alloc, self.settings, max_samples_per_pixel);
     }
 };

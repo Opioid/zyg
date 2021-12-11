@@ -13,11 +13,11 @@ pub const Opaque = struct {
     // weight_sum is saved in pixel.w
     pixels: []Pack4f = &.{},
 
-    pub fn deinit(self: *Opaque, alloc: *Allocator) void {
+    pub fn deinit(self: *Opaque, alloc: Allocator) void {
         alloc.free(self.pixels);
     }
 
-    pub fn resize(self: *Opaque, alloc: *Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Opaque, alloc: Allocator, dimensions: Vec2i) !void {
         self.base.dimensions = dimensions;
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);

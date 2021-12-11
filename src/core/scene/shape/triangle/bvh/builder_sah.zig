@@ -15,17 +15,17 @@ const Allocator = std.mem.Allocator;
 pub const BuilderSAH = struct {
     super: Base,
 
-    pub fn init(alloc: *Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !BuilderSAH {
+    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !BuilderSAH {
         return BuilderSAH{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
     }
 
-    pub fn deinit(self: *BuilderSAH, alloc: *Allocator) void {
+    pub fn deinit(self: *BuilderSAH, alloc: Allocator) void {
         self.super.deinit(alloc);
     }
 
     pub fn build(
         self: *BuilderSAH,
-        alloc: *Allocator,
+        alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
         vertices: VertexStream,
