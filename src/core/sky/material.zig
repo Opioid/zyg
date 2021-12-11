@@ -80,7 +80,25 @@ pub const Material = struct {
             s.* = model.evaluateSkyAndSun(wi);
         }
 
-        self.average_emission = model.evaluateSkyAndSun(-self.sky.sunDirection());
+        var total = @splat(4, @as(f32, 0.0));
+        var tw: f32 = 0.0;
+        var i: u32 = 0;
+        while (i < self.sun_radiance.samples.len - 1) : (i += 1) {
+            const s0 = self.sun_radiance.samples[i];
+            const s1 = self.sun_radiance.samples[i + 1];
+
+            const v = (@intToFloat(f32, i) + 0.5) / @intToFloat(f32, self.sun_radiance.samples.len);
+            var wi = self.sky.sunWi(v);
+
+            const w = @sin(v);
+            tw += w;
+
+            if (wi[1] >= 0.0) {
+                total += (s0 + s1) * @splat(4, 0.5 * w);
+            }
+        }
+
+        self.average_emission = total / @splat(4, tw);
     }
 
     pub fn prepareSampling(
