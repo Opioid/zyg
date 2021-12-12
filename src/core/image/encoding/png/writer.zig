@@ -35,7 +35,6 @@ pub const Writer = struct {
         threads: *Threads,
     ) !void {
         const d = image.description.dimensions;
-
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
 
         try self.srgb.resize(alloc, num_pixels);
@@ -50,11 +49,6 @@ pub const Writer = struct {
             if (self.srgb.alpha) 4 else 3,
             &buffer_len,
         );
-
-        // var file = try std.fs.cwd().createFile("image.png", .{});
-        // defer file.close();
-
-        // const writer = file.writer();
 
         try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
 

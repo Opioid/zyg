@@ -16,6 +16,7 @@ const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 const RgbeWriter = @import("../image/encoding/rgbe/writer.zig").Writer;
+const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
 const base = @import("base");
 const json = base.json;
@@ -492,6 +493,20 @@ fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Export
                     .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
                 } });
             }
+        } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
+            var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
+            if (0 == framerate) {
+                framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, view.camera.frame_step)));
+            }
+
+            const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+            try exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
+                alloc,
+                view.camera.sensorDimensions(),
+                framerate,
+                error_diffusion,
+            ) });
         }
     }
 
