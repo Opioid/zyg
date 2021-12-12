@@ -38,7 +38,7 @@ pub const Sky = struct {
 
     const Radius = std.math.tan(@as(f32, Model.Angular_radius));
 
-    pub const Bake_dimensions = Vec2i{ 256, 256 };
+    pub const Bake_dimensions = Vec2i{ 512, 512 };
 
     const Self = @This();
 

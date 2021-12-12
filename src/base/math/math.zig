@@ -26,6 +26,10 @@ pub fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
     return degrees * (std.math.pi / 180.0);
 }
 
+pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
+    return radians * (180.0 / std.math.pi);
+}
+
 pub fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }

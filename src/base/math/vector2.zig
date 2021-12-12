@@ -14,6 +14,11 @@ pub fn length2(v: Vec2f) f32 {
     return @sqrt(dot2(v, v));
 }
 
+pub fn normalize2(v: Vec2f) Vec2f {
+    const i = 1.0 / length2(v);
+    return @splat(2, i) * v;
+}
+
 pub fn vec2fTo2i(v: Vec2f) Vec2i {
     return .{ @floatToInt(i32, v[0]), @floatToInt(i32, v[1]) };
 }
