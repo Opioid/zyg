@@ -117,7 +117,7 @@ pub const Sky = struct {
 
         _ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]));
 
-        PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
+        // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
 
     pub fn sunWi(self: Self, v: f32) Vec4f {

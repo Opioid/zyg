@@ -59,7 +59,7 @@ pub const FFMPEG = struct {
                 "20",
                 "-b:v",
                 "0",
-                "outpub.webm",
+                "output.webm",
             },
             alloc,
         );
