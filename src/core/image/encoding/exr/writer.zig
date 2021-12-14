@@ -282,7 +282,7 @@ pub const Writer = struct {
             const bpb = self.bytes_per_block;
             const offset = id * bpb;
 
-            var tmp_buffer = self.tmp_buffer.ptr + offset;
+            var tmp_buffer = self.tmp_buffer[offset .. offset + bpb];
             var block_buffer = self.block_buffer[offset .. offset + bpb];
 
             var y = begin;
@@ -298,12 +298,11 @@ pub const Writer = struct {
                 }
 
                 const bytes_here = num_rows_here * self.bytes_per_row;
+                reorder(tmp_buffer[0..bytes_here], block_buffer[0..bytes_here]);
 
-                reorder(tmp_buffer, block_buffer.ptr, bytes_here);
+                const image_buffer = self.image_buffer.ptr + y * bpb;
 
-                const image_buffer = self.image_buffer.ptr + y * self.bytes_per_block;
-
-                zip.next_in = tmp_buffer;
+                zip.next_in = tmp_buffer.ptr;
                 zip.avail_in = bytes_here;
 
                 zip.next_out = image_buffer;
@@ -388,13 +387,15 @@ pub const Writer = struct {
             }
         }
 
-        fn reorder(destination: [*]u8, source: [*]const u8, len: u32) void {
+        fn reorder(destination: []u8, source: []const u8) void {
+            const len = destination.len;
+
             // Reorder the pixel data.
             {
-                var t1: u32 = 0;
+                var t1: usize = 0;
                 var t2 = (len + 1) / 2;
 
-                var current: u32 = 0;
+                var current: usize = 0;
 
                 while (true) {
                     if (current < len) {
@@ -421,7 +422,7 @@ pub const Writer = struct {
             {
                 var p = @intCast(u32, destination[0]);
 
-                var t: u32 = 1;
+                var t: usize = 1;
                 while (t < len) : (t += 1) {
                     const b = destination[t];
                     const d = @intCast(u32, b) -% p +% (128 + 256);
