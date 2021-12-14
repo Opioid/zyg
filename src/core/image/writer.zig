@@ -1,3 +1,4 @@
+const EXR = @import("encoding/exr/writer.zig").Writer;
 const PNG = @import("encoding/png/writer.zig").Writer;
 const RGBE = @import("encoding/rgbe/writer.zig").Writer;
 
@@ -11,6 +12,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = union(enum) {
+    EXR: EXR,
     PNG: PNG,
     RGBE: RGBE,
 
@@ -26,11 +28,12 @@ pub const Writer = union(enum) {
     pub fn write(
         self: *Self,
         alloc: Allocator,
-        writer: std.fs.File.Writer,
+        writer: anytype,
         image: Float4,
         threads: *Threads,
     ) !void {
         switch (self.*) {
+            .EXR => |w| try w.write(alloc, writer, image, threads),
             .PNG => |*w| try w.write(alloc, writer, image, threads),
             .RGBE => try RGBE.write(alloc, writer, image),
         }
@@ -38,6 +41,7 @@ pub const Writer = union(enum) {
 
     pub fn fileExtension(self: Self) []const u8 {
         return switch (self) {
+            .EXR => "exr",
             .PNG => "png",
             .RGBE => "hdr",
         };

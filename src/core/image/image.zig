@@ -1,4 +1,3 @@
-pub const encoding = @import("encoding/encoding.zig");
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
 const Vec2f = math.Vec2f;

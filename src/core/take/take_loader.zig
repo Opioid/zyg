@@ -14,6 +14,7 @@ const Scene = @import("../scene/scene.zig").Scene;
 const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
+const ExrWriter = @import("../image/encoding/exr/writer.zig").Writer;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 const RgbeWriter = @import("../image/encoding/rgbe/writer.zig").Writer;
 const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
@@ -482,7 +483,11 @@ fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Export
 
             const alpha = view.camera.sensor.alphaTransparency();
 
-            if (std.mem.eql(u8, "RGBE", format)) {
+            if (std.mem.eql(u8, "EXR", format)) {
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .EXR = .{ .alpha = alpha } },
+                } });
+            } else if (std.mem.eql(u8, "RGBE", format)) {
                 try exporters.append(alloc, .{ .ImageSequence = .{
                     .writer = .{ .RGBE = .{} },
                 } });

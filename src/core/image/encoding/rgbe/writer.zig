@@ -9,13 +9,13 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = struct {
-    pub fn write(alloc: Allocator, writer: std.fs.File.Writer, image: Float4) !void {
+    pub fn write(alloc: Allocator, writer: anytype, image: Float4) !void {
         try writeHeader(writer, image);
 
         try writePixelsRle(alloc, writer, image);
     }
 
-    fn writeHeader(writer: std.fs.File.Writer, image: Float4) !void {
+    fn writeHeader(writer: anytype, image: Float4) !void {
         const d = image.description.dimensions;
 
         try writer.writeAll("#?RGBE\n");
@@ -26,7 +26,7 @@ pub const Writer = struct {
         try writer.writeAll(printed);
     }
 
-    fn writePixelsRle(alloc: Allocator, writer: std.fs.File.Writer, image: Float4) !void {
+    fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4) !void {
         const d = image.description.dimensions;
 
         const scanline_width = @intCast(u32, d.v[0]);
@@ -74,7 +74,7 @@ pub const Writer = struct {
         }
     }
 
-    fn writePixels(writer: std.fs.File.Writer, image: Float4) !void {
+    fn writePixels(writer: anytype, image: Float4) !void {
         for (image.pixels) |p| {
             const rgbe = floatToRgbe(p.maxScalar(0.0));
 
@@ -82,7 +82,7 @@ pub const Writer = struct {
         }
     }
 
-    fn writeBytesRle(writer: std.fs.File.Writer, data: []u8) !void {
+    fn writeBytesRle(writer: anytype, data: []u8) !void {
         const Min_run_length = comptime 4;
 
         var buffer: [2]u8 = undefined;

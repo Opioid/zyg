@@ -30,7 +30,7 @@ pub const Writer = struct {
     pub fn write(
         self: *Writer,
         alloc: Allocator,
-        writer: std.fs.File.Writer,
+        writer: anytype,
         image: Float4,
         threads: *Threads,
     ) !void {

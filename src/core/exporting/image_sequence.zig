@@ -28,6 +28,8 @@ pub const ImageSequence = struct {
         var file = try std.fs.cwd().createFile(filename, .{});
         defer file.close();
 
-        try self.writer.write(alloc, file.writer(), image, threads);
+        var writer = std.io.bufferedWriter(file.writer()).writer();
+
+        try self.writer.write(alloc, writer, image, threads);
     }
 };
