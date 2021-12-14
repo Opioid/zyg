@@ -3,7 +3,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
-const Spectrum = spectrum.DiscreteSpectralPowerDistribution(34, 380.0, 720.0);
+const Spectrum = spectrum.DiscreteSpectralPowerDistribution(17, 380.0, 720.0);
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

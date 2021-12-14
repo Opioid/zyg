@@ -335,12 +335,18 @@ pub const Scene = struct {
                 continue;
             }
 
-            const two_sided = mat.isTwoSided();
-
-            if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {
-                try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
+            if (mat.isScatteringVolume()) {
+                if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {} else {
+                    try self.allocateLight(alloc, .Volume, false, entity, i);
+                }
             } else {
-                try self.allocateLight(alloc, .Prop, two_sided, entity, i);
+                const two_sided = mat.isTwoSided();
+
+                if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {
+                    try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
+                } else {
+                    try self.allocateLight(alloc, .Prop, two_sided, entity, i);
+                }
             }
         }
     }
@@ -451,6 +457,7 @@ pub const Scene = struct {
         part: u32,
         light_id: usize,
         time: u64,
+        volume: bool,
         worker: Worker,
         threads: *Threads,
     ) void {
@@ -458,7 +465,7 @@ pub const Scene = struct {
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = @intCast(u32, light_id);
+        self.light_ids.items[p] = if (volume) Light.Volume_mask | @intCast(u32, light_id) else @intCast(u32, light_id);
 
         const m = self.material_ids.items[p];
 
@@ -468,7 +475,7 @@ pub const Scene = struct {
         const trafo = self.propTransformationAt(entity, time);
         const scale = trafo.scale();
 
-        const extent = shape_inst.area(part, scale);
+        const extent = if (volume) shape_inst.volume(part, scale) else shape_inst.area(part, scale);
 
         self.lights.items[light_id].extent = extent;
 
@@ -592,8 +599,10 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        const pdf = self.light_tree.pdf(p, n, total_sphere, split, id, self);
-        return .{ .offset = id, .pdf = pdf };
+        const light_id = Light.stripMask(id);
+
+        const pdf = self.light_tree.pdf(p, n, total_sphere, split, light_id, self);
+        return .{ .offset = light_id, .pdf = pdf };
     }
 
     pub fn lightArea(self: Scene, entity: u32, part: u32) f32 {

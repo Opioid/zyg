@@ -181,8 +181,6 @@ pub const PathtracerDL = struct {
                     if (0 == ray.depth) {
                         // This is the direct eye-light connection for the volume case.
                         result += vr.li;
-                    } else {
-                        result += throughput * vr.li;
                     }
 
                     break;

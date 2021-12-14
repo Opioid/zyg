@@ -28,8 +28,10 @@ pub const Cube = struct {
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-
         const hit_t = aabb.intersectP(local_ray) orelse return false;
+        if (hit_t > ray.maxT()) {
+            return false;
+        }
 
         ray.setMaxT(hit_t);
 
@@ -75,5 +77,32 @@ pub const Cube = struct {
         _ = worker;
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn sampleVolumeTo(
+        p: Vec4f,
+        trafo: Transformation,
+        volume: f32,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) SampleTo {
+        const r2 = sampler.sample2D(rng, sampler_d);
+        const r1 = sampler.sample1D(rng, sampler_d);
+
+        const r3 = Vec4f{ r2[0], r2[1], r1, 0.0 };
+        const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
+        const wp = trafo.objectToWorldPoint(xyz);
+        const axis = wp - p;
+
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+
+        return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), r3, sl / volume, t);
+    }
+
+    pub fn volumePdf(ray: Ray, volume: f32) f32 {
+        const t = ray.maxT();
+        return (t * t) / volume;
     }
 };

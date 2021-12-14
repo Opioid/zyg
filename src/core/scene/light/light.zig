@@ -19,6 +19,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Light = struct {
+    pub const Volume_mask: u32 = 0x10000000;
+
     pub const Type = enum(u8) {
         Prop,
         PropImage,
@@ -37,6 +39,14 @@ pub const Light = struct {
         return Prop.Null != id;
     }
 
+    pub fn isAreaLight(id: u32) bool {
+        return 0 == (id & Volume_mask);
+    }
+
+    pub fn stripMask(id: u32) u32 {
+        return ~Volume_mask & id;
+    }
+
     pub fn isFinite(self: Light, scene: Scene) bool {
         return scene.propShape(self.prop).isFinite();
     }
@@ -50,7 +60,12 @@ pub const Light = struct {
         worker: Worker,
         threads: *Threads,
     ) void {
-        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, worker, threads);
+        const volume = switch (self.typef) {
+            .Volume, .VolumeImage => true,
+            else => false,
+        };
+
+        scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, volume, worker, threads);
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
@@ -88,6 +103,15 @@ pub const Light = struct {
                 worker,
             ),
             .PropImage => self.propImageSampleTo(
+                p,
+                n,
+                trafo,
+                total_sphere,
+                sampler,
+                sampler_d,
+                worker,
+            ),
+            .Volume => self.volumeSampleTo(
                 p,
                 n,
                 trafo,
@@ -149,6 +173,7 @@ pub const Light = struct {
         return switch (self.typef) {
             .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, worker),
             .PropImage => self.propImagePdf(ray, isec, trafo, worker),
+            .Volume => self.volumePdf(ray, isec, trafo, worker),
             else => 0.0,
         };
     }
@@ -288,6 +313,34 @@ pub const Light = struct {
         return result;
     }
 
+    fn volumeSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Transformation,
+        total_sphere: bool,
+        sampler: *Sampler,
+        sampler_d: usize,
+        worker: *Worker,
+    ) ?SampleTo {
+        const shape = worker.scene.propShape(self.prop);
+        const result = shape.sampleVolumeTo(
+            self.part,
+            p,
+            trafo,
+            self.extent,
+            sampler,
+            &worker.rng,
+            sampler_d,
+        ) orelse return null;
+
+        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
+            return result;
+        }
+
+        return null;
+    }
+
     fn propPdf(
         self: Light,
         ray: Ray,
@@ -322,5 +375,20 @@ pub const Light = struct {
         const shape_pdf = isec.shape(worker).pdfUv(ray, isec.geo, trafo, self.extent, two_sided);
 
         return material_pdf * shape_pdf;
+    }
+
+    fn volumePdf(
+        self: Light,
+        ray: Ray,
+        isec: Intersection,
+        trafo: Transformation,
+        worker: Worker,
+    ) f32 {
+        return isec.shape(worker).volumePdf(
+            ray,
+            isec.geo,
+            trafo,
+            self.extent,
+        );
     }
 };

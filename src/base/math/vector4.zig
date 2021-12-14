@@ -281,6 +281,14 @@ pub fn anyGreaterZero(v: Vec4f) bool {
     return false;
 }
 
+pub fn anyGreater3(v: Vec4f, s: f32) bool {
+    if (v[0] > s) return true;
+    if (v[1] > s) return true;
+    if (v[2] > s) return true;
+
+    return false;
+}
+
 pub fn anyGreaterEqual3(v: Vec4f, s: f32) bool {
     if (v[0] >= s) return true;
     if (v[1] >= s) return true;

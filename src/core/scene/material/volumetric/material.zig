@@ -41,9 +41,32 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) void {
+        self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
+            math.anyGreaterZero3(self.super.emission));
+
         if (self.density_map.isValid()) {
-            Builder.build(alloc, &self.tree, self.density_map, self.super.cc, scene, threads) catch {};
+            Builder.build(
+                alloc,
+                &self.tree,
+                self.density_map,
+                self.super.cc,
+                scene,
+                threads,
+            ) catch {};
         }
+    }
+
+    pub fn prepareSampling(
+        self: *Material,
+        alloc: Allocator,
+        scene: Scene,
+        threads: *Threads,
+    ) Vec4f {
+        _ = alloc;
+        _ = scene;
+        _ = threads;
+
+        return self.super.cc.a * self.super.emission;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate) Sample {
@@ -53,6 +76,14 @@ pub const Material = struct {
         }
 
         return .{ .Null = Null.init(wo, rs) };
+    }
+
+    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
+        _ = uvw;
+        _ = filter;
+        _ = worker;
+
+        return self.super.cc.a * self.super.emission;
     }
 
     pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) f32 {

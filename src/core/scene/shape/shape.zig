@@ -139,6 +139,18 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn volume(self: Shape, part: u32, scale: Vec4f) f32 {
+        _ = part;
+
+        return switch (self) {
+            .Cube => {
+                const d = @splat(4, @as(f32, 2.0)) * scale;
+                return d[0] * d[1] * d[2];
+            },
+            else => 0.0,
+        };
+    }
+
     pub fn intersect(
         self: Shape,
         ray: *Ray,
@@ -229,6 +241,24 @@ pub const Shape = union(enum) {
                 rng,
                 sampler_d,
             ),
+            else => null,
+        };
+    }
+
+    pub fn sampleVolumeTo(
+        self: Shape,
+        part: u32,
+        p: Vec4f,
+        trafo: Transformation,
+        extent: f32,
+        sampler: *Sampler,
+        rng: *RNG,
+        sampler_d: usize,
+    ) ?SampleTo {
+        _ = part;
+
+        return switch (self) {
+            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng, sampler_d),
             else => null,
         };
     }
@@ -344,6 +374,22 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
             .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
+            else => 0.0,
+        };
+    }
+
+    pub fn volumePdf(
+        self: Shape,
+        ray: Ray,
+        isec: Intersection,
+        trafo: Transformation,
+        extent: f32,
+    ) f32 {
+        _ = isec;
+        _ = trafo;
+
+        return switch (self) {
+            .Cube => Cube.volumePdf(ray.ray, extent),
             else => 0.0,
         };
     }

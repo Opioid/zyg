@@ -6,6 +6,11 @@ pub const CC = struct {
     s: Vec4f,
 };
 
+pub const CCE = struct {
+    cc: CC,
+    e: Vec4f,
+};
+
 pub const CM = struct {
     minorant_mu_a: f32,
     minorant_mu_s: f32,

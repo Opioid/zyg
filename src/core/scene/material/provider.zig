@@ -373,7 +373,8 @@ pub const Provider = struct {
 
         var density = Texture{};
 
-        var color = @splat(4, @as(f32, 5.0));
+        var color = @splat(4, @as(f32, 0.5));
+        var emission = @splat(4, @as(f32, 0.0));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
@@ -392,6 +393,8 @@ pub const Provider = struct {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
+                emission = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
                 use_attenuation_color = true;
@@ -415,6 +418,7 @@ pub const Provider = struct {
 
         var material = mat.Volumetric.init(sampler_key);
 
+        material.super.emission = emission;
         material.super.setVolumetric(attenuation_color, subsurface_color, attenuation_distance, anisotropy);
         material.density_map = density;
 

@@ -9,6 +9,7 @@ const Base = @import("material_base.zig").Base;
 const Gridtree = @import("volumetric/gridtree.zig").Gridtree;
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
+const CCE = ccoef.CCE;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
@@ -81,6 +82,7 @@ pub const Material = union(enum) {
             .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
             .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
             .Substitute => |m| m.prepareSampling(scene),
+            .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
             else => @splat(4, @as(f32, 0.0)),
         };
     }
@@ -118,6 +120,9 @@ pub const Material = union(enum) {
                     return true;
                 }
 
+                return math.anyGreaterZero(m.super.emission);
+            },
+            .Volumetric => |m| {
                 return math.anyGreaterZero(m.super.emission);
             },
             else => false,
@@ -183,6 +188,36 @@ pub const Material = union(enum) {
         }
     }
 
+    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) CCE {
+        const sup = self.super();
+        const cc = sup.cc;
+
+        switch (self) {
+            .Volumetric => |m| {
+                const d = @splat(4, m.density(uvw, filter, worker));
+                return .{
+                    .cc = .{ .a = d * cc.a, .s = d * cc.s },
+                    .e = m.super.emission,
+                };
+            },
+            else => {
+                const e = self.super().emission;
+
+                const color_map = sup.color_map;
+                if (color_map.isValid()) {
+                    const key = ts.resolveKey(sup.sampler_key, filter);
+                    const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+                    return .{
+                        .cc = ccoef.scattering(cc.a, color, sup.volumetric_anisotropy),
+                        .e = e,
+                    };
+                }
+
+                return .{ .cc = cc, .e = e };
+            },
+        }
+    }
+
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         return switch (self) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
@@ -207,6 +242,7 @@ pub const Material = union(enum) {
             .Light => |m| m.evaluateRadiance(uvw, extent, filter, worker),
             .Sky => |m| m.evaluateRadiance(wi, uvw, filter, worker),
             .Substitute => |m| m.evaluateRadiance(wi, n, uvw, filter, worker),
+            .Volumetric => |m| m.evaluateRadiance(uvw, filter, worker),
             else => @splat(4, @as(f32, 0.0)),
         };
     }

@@ -80,8 +80,6 @@ pub const Builder = struct {
         const nodes = try tree.allocateNodes(alloc, num_nodes);
         const data = try tree.allocateData(alloc, num_data);
 
-        std.debug.print("{} {}\n", .{ num_nodes, num_data });
-
         var next = cell_len;
         var data_id: u32 = 0;
 

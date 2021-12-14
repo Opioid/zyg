@@ -219,7 +219,16 @@ pub const PathtracerMIS = struct {
                         // This is the direct eye-light connection for the volume case.
                         result += vr.li;
                     } else {
-                        result += throughput * vr.li;
+                        const w = self.connectVolumeLight(
+                            ray.*,
+                            geo_n,
+                            isec.*,
+                            effective_bxdf_pdf,
+                            state,
+                            worker.*,
+                        );
+
+                        result += @splat(4, w) * (throughput * vr.li);
                     }
 
                     break;
@@ -368,13 +377,10 @@ pub const PathtracerMIS = struct {
         worker: Worker,
         pure_emissive: *bool,
     ) Vec4f {
-        _ = self;
-
         const scene_worker = worker.super;
 
         const light_id = isec.lightId(scene_worker);
-
-        if (!Light.isLight(light_id)) {
+        if (!Light.isAreaLight(light_id)) {
             pure_emissive.* = false;
             return @splat(4, @as(f32, 0.0));
         }
@@ -402,6 +408,37 @@ pub const PathtracerMIS = struct {
         const weight = hlp.powerHeuristic(sample_result.pdf, ls_pdf * light_pick.pdf);
 
         return @splat(4, weight) * ls_energy;
+    }
+
+    fn connectVolumeLight(
+        self: Self,
+        ray: Ray,
+        geo_n: Vec4f,
+        isec: Intersection,
+        bxdf_pdf: f32,
+        state: PathState,
+        worker: Worker,
+    ) f32 {
+        const scene_worker = worker.super;
+
+        const light_id = isec.lightId(scene_worker);
+        if (!Light.isLight(light_id)) {
+            return 0.0;
+        }
+
+        if (state.is(.TreatAsSingular)) {
+            return 1.0;
+        }
+
+        const translucent = state.is(.IsTranslucent);
+        const split = self.splitting(ray.depth);
+
+        const light_pick = scene_worker.scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light = scene_worker.scene.light(light_pick.offset);
+
+        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene_worker);
+
+        return hlp.powerHeuristic(bxdf_pdf, ls_pdf * light_pick.pdf);
     }
 
     fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {

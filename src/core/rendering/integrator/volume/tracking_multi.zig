@@ -94,6 +94,19 @@ pub const Multi = struct {
             return result;
         }
 
+        if (material.isEmissive()) {
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.*);
+
+            const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
+            if (.Scatter == result.event) {
+                setScattering(isec, interface, ray.ray.point(result.t));
+            } else if (.Absorb == result.event) {
+                ray.ray.setMaxT(result.t);
+            }
+
+            return result;
+        }
+
         const mu = material.super().cc;
 
         const result = tracking.tracking(ray.ray, mu, &worker.rng);

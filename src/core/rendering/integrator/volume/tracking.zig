@@ -7,6 +7,7 @@ const ro = @import("../../../scene/ray_offset.zig");
 const Material = @import("../../../scene/material/material.zig").Material;
 const ccoef = @import("../../../scene/material/collision_coefficients.zig");
 const CC = ccoef.CC;
+const CCE = ccoef.CCE;
 const CM = ccoef.CM;
 
 const base = @import("base");
@@ -207,6 +208,69 @@ pub fn tracking(ray: Ray, mu: CC, rng: *RNG) Result {
         const pn = mn * c;
 
         const r1 = rng.randomFloat();
+        if (r1 <= 1.0 - pn and ps > 0.0) {
+            const ws = mu.s / @splat(4, mt * ps);
+            return Result{
+                .li = @splat(4, @as(f32, 0.0)),
+                .tr = w * ws,
+                .t = t,
+                .event = .Scatter,
+            };
+        }
+
+        const wn = mu_n / @splat(4, mt * pn);
+
+        w *= wn;
+    }
+}
+
+pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
+    const mu = cce.cc;
+
+    const mu_t = mu.a + mu.s;
+
+    const mt = math.maxComponent3(mu_t);
+    const imt = 1.0 / mt;
+
+    const mu_n = @splat(4, mt) - mu_t;
+
+    var w = @splat(4, @as(f32, 1.0));
+
+    const d = ray.maxT();
+    var t = ray.minT();
+    while (true) {
+        const r0 = rng.randomFloat();
+        t -= @log(1.0 - r0) * imt;
+        if (t > d) {
+            return Result.initPass(w);
+        }
+
+        const ma = math.average3(mu.a * w);
+        const ms = math.average3(mu.s * w);
+        const mn = math.average3(mu_n * w);
+
+        const mc = ma + ms + mn;
+        if (mc < 1.0e-10) {
+            return Result.initPass(w);
+        }
+
+        const c = 1.0 / mc;
+
+        const pa = ma * c;
+        const ps = ms * c;
+        const pn = mn * c;
+
+        const r1 = rng.randomFloat();
+        if (r1 < pa) {
+            const wa = mu.a / @splat(4, mt * pa);
+            return Result{
+                .li = w * wa * cce.e,
+                .tr = @splat(4, @as(f32, 0.0)),
+                .t = t,
+                .event = .Absorb,
+            };
+        }
+
         if (r1 <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
             return Result{

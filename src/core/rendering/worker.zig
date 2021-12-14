@@ -20,7 +20,8 @@ const Vec2ul = math.Vec2ul;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-const Allocator = @import("std").mem.Allocator;
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
     super: SceneWorker = undefined,
