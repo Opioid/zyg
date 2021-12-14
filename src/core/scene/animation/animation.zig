@@ -33,8 +33,8 @@ pub const Animation = struct {
         };
     }
 
-    pub fn deinit(self: Animation, alloc: Allocator) void {
-        alloc.free(self.frames[0..self.num_frames]);
+    pub fn deinit(self: Animation, alloc: Allocator, num_interpolated_frames: u32) void {
+        alloc.free(self.frames[0 .. self.num_frames + num_interpolated_frames]);
         alloc.free(self.times[0..self.num_frames]);
     }
 

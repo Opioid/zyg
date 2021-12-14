@@ -251,9 +251,7 @@ pub const Writer = struct {
     const Context = struct {
         rows_per_block: u32,
         row_blocks: u32,
-
         num_channels: u32,
-
         bytes_per_row: u32,
         bytes_per_block: u32,
 

@@ -139,7 +139,7 @@ pub const Scene = struct {
         alloc.free(self.light_temp_powers);
 
         for (self.animations.items) |*a| {
-            a.deinit(alloc);
+            a.deinit(alloc, self.num_interpolation_frames);
         }
         self.animations.deinit(alloc);
         self.keyframes.deinit(alloc);

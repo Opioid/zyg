@@ -28,7 +28,7 @@ pub fn main() !void {
     //     }
     // }
 
-    // const alloc = &gpa.allocator;
+    // const alloc = gpa.allocator();
     const alloc = std.heap.c_allocator;
 
     var options = try Options.parse(alloc, std.process.args());
