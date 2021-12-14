@@ -74,3 +74,7 @@ pub fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
 
     return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
 }
+
+pub fn roundUp(comptime T: type, x: T, m: T) T {
+    return ((x + m - 1) / m) * m;
+}

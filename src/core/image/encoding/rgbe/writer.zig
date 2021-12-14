@@ -128,7 +128,6 @@ pub const Writer = struct {
                 buffer[0] = @intCast(u8, nonrun_count);
 
                 try writer.writeByte(buffer[0]);
-
                 try writer.writeAll(data[current .. current + nonrun_count]);
 
                 current += nonrun_count;

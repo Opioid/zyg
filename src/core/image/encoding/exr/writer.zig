@@ -11,6 +11,10 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const mz = @cImport({
+    @cInclude("miniz/miniz.h");
+});
+
 pub const Writer = struct {
     half: bool = true,
     alpha: bool,
@@ -26,9 +30,6 @@ pub const Writer = struct {
         image: Float4,
         threads: *Threads,
     ) !void {
-        _ = alloc;
-        _ = threads;
-
         var stream = std.io.countingWriter(writer_);
         var writer = stream.writer();
 
@@ -57,7 +58,7 @@ pub const Writer = struct {
             try writer.writeByte(0x00);
         }
 
-        const compression = exr.Compression.No;
+        const compression = exr.Compression.ZIP;
 
         {
             try writeString(writer, "compression");
@@ -126,6 +127,8 @@ pub const Writer = struct {
 
         if (.No == compression) {
             try self.noCompression(writer, image);
+        } else if (.ZIP == compression) {
+            try self.zipCompression(alloc, writer, image, compression, threads);
         }
     }
 
@@ -177,6 +180,258 @@ pub const Writer = struct {
             }
         }
     }
+
+    fn zipCompression(
+        self: Writer,
+        alloc: Allocator,
+        writer: anytype,
+        image: Float4,
+        compression: exr.Compression,
+        threads: *Threads,
+    ) !void {
+        const d = image.description.dimensions;
+
+        const rows_per_block = compression.numScanlinesPerBlock();
+        const row_blocks = compression.numScanlineBlocks(@intCast(u32, d.v[1]));
+
+        const num_channels: u32 = if (self.alpha) 4 else 3;
+        const scalar_size: u32 = if (self.half) 2 else 4;
+
+        const bytes_per_row = @intCast(u32, d.v[0]) * num_channels * scalar_size;
+        const bytes_per_block = math.roundUp(u32, bytes_per_row * rows_per_block, 64);
+
+        var context = Context{
+            .rows_per_block = rows_per_block,
+            .row_blocks = row_blocks,
+            .num_channels = num_channels,
+            .bytes_per_row = bytes_per_row,
+            .bytes_per_block = bytes_per_block,
+            .half = self.half,
+            .image_buffer = try alloc.alloc(u8, @intCast(u32, d.v[1]) * bytes_per_row),
+            .tmp_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
+            .block_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
+            .cb = try alloc.alloc(CompressedBlock, row_blocks),
+            .image = &image,
+        };
+
+        defer {
+            alloc.free(context.cb);
+            alloc.free(context.block_buffer);
+            alloc.free(context.tmp_buffer);
+            alloc.free(context.image_buffer);
+        }
+
+        _ = threads.runRange(&context, Context.compress, 0, row_blocks);
+
+        var scanline_offset = writer.context.bytes_written + row_blocks * 8;
+
+        var y: u32 = 0;
+        while (y < row_blocks) : (y += 1) {
+            try writeScalar(u64, writer, scanline_offset);
+
+            scanline_offset += 4 + 4 + context.cb[y].size;
+        }
+
+        y = 0;
+        while (y < row_blocks) : (y += 1) {
+            const b = context.cb[y];
+
+            const row = y * rows_per_block;
+            try writeScalar(u32, writer, row);
+            try writeScalar(u32, writer, b.size);
+            try writer.writeAll(b.buffer[0..b.size]);
+        }
+    }
+
+    const CompressedBlock = struct {
+        size: u32,
+        buffer: [*]u8,
+    };
+
+    const Context = struct {
+        rows_per_block: u32,
+        row_blocks: u32,
+
+        num_channels: u32,
+
+        bytes_per_row: u32,
+        bytes_per_block: u32,
+
+        half: bool,
+
+        image_buffer: []u8,
+        tmp_buffer: []u8,
+        block_buffer: []u8,
+
+        cb: []CompressedBlock,
+
+        image: *const Float4,
+
+        fn compress(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            const self = @intToPtr(*Context, context);
+
+            var zip: mz.mz_stream = undefined;
+            zip.zalloc = null;
+            zip.zfree = null;
+
+            if (mz.MZ_OK != mz.mz_deflateInit(&zip, mz.MZ_DEFAULT_COMPRESSION)) {
+                return;
+            }
+
+            const width = @intCast(u32, self.image.description.dimensions.v[0]);
+            const bpb = self.bytes_per_block;
+            const offset = id * bpb;
+
+            var tmp_buffer = self.tmp_buffer.ptr + offset;
+            var block_buffer = self.block_buffer[offset .. offset + bpb];
+
+            var y = begin;
+            while (y < end) : (y += 1) {
+                const num_rows_here = std.math.min(width - (y * self.rows_per_block), self.rows_per_block);
+
+                const pixel = @intCast(i32, y * self.rows_per_block * width);
+
+                if (self.half) {
+                    blockHalf(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
+                } else {
+                    blockFloat(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
+                }
+
+                const bytes_here = num_rows_here * self.bytes_per_row;
+
+                reorder(tmp_buffer, block_buffer.ptr, bytes_here);
+
+                const image_buffer = self.image_buffer.ptr + y * self.bytes_per_block;
+
+                zip.next_in = tmp_buffer;
+                zip.avail_in = bytes_here;
+
+                zip.next_out = image_buffer;
+                zip.avail_out = bytes_here;
+
+                _ = mz.mz_deflate(&zip, mz.MZ_FINISH);
+                _ = mz.mz_deflateReset(&zip);
+
+                const compressed_size = bytes_here - zip.avail_out;
+
+                var cb = &self.cb[y];
+
+                if (compressed_size >= bytes_here) {
+                    cb.size = bytes_here;
+                    cb.buffer = image_buffer;
+
+                    std.mem.copy(u8, image_buffer[0..bytes_here], block_buffer[0..bytes_here]);
+                } else {
+                    cb.size = compressed_size;
+                    cb.buffer = image_buffer;
+                }
+            }
+
+            _ = mz.mz_deflateEnd(&zip);
+        }
+
+        fn blockHalf(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: i32) void {
+            const width = @intCast(u32, image.description.dimensions.v[0]);
+
+            var halfs = std.mem.bytesAsSlice(f16, destination);
+
+            var current = pixel;
+            var row: u32 = 0;
+            while (row < num_rows) : (row += 1) {
+                const o = row * width * num_channels;
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const c = image.get1D(current);
+
+                    if (4 == num_channels) {
+                        halfs[o + width * 0 + x] = @floatCast(f16, c.v[3]);
+                        halfs[o + width * 1 + x] = @floatCast(f16, c.v[2]);
+                        halfs[o + width * 2 + x] = @floatCast(f16, c.v[1]);
+                        halfs[o + width * 3 + x] = @floatCast(f16, c.v[0]);
+                    } else {
+                        halfs[o + width * 0 + x] = @floatCast(f16, c.v[2]);
+                        halfs[o + width * 1 + x] = @floatCast(f16, c.v[1]);
+                        halfs[o + width * 2 + x] = @floatCast(f16, c.v[0]);
+                    }
+
+                    current += 1;
+                }
+            }
+        }
+
+        fn blockFloat(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: i32) void {
+            const width = @intCast(u32, image.description.dimensions.v[0]);
+
+            var floats = std.mem.bytesAsSlice(f32, destination);
+
+            var current = pixel;
+            var row: u32 = 0;
+            while (row < num_rows) : (row += 1) {
+                const o = row * width * num_channels;
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const c = image.get1D(current);
+
+                    if (4 == num_channels) {
+                        floats[o + width * 0 + x] = c.v[3];
+                        floats[o + width * 1 + x] = c.v[2];
+                        floats[o + width * 2 + x] = c.v[1];
+                        floats[o + width * 3 + x] = c.v[0];
+                    } else {
+                        floats[o + width * 0 + x] = c.v[2];
+                        floats[o + width * 1 + x] = c.v[1];
+                        floats[o + width * 2 + x] = c.v[0];
+                    }
+
+                    current += 1;
+                }
+            }
+        }
+
+        fn reorder(destination: [*]u8, source: [*]const u8, len: u32) void {
+            // Reorder the pixel data.
+            {
+                var t1: u32 = 0;
+                var t2 = (len + 1) / 2;
+
+                var current: u32 = 0;
+
+                while (true) {
+                    if (current < len) {
+                        destination[t1] = source[current];
+
+                        t1 += 1;
+                        current += 1;
+                    } else {
+                        break;
+                    }
+
+                    if (current < len) {
+                        destination[t2] = source[current];
+
+                        t2 += 1;
+                        current += 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Predictor
+            {
+                var p = @intCast(u32, destination[0]);
+
+                var t: u32 = 1;
+                while (t < len) : (t += 1) {
+                    const b = destination[t];
+                    const d = @intCast(u32, b) -% p +% (128 + 256);
+
+                    p = b;
+                    destination[t] = @truncate(u8, d);
+                }
+            }
+        }
+    };
 
     fn writeScalar(comptime T: type, writer: anytype, i: T) !void {
         try writer.writeAll(std.mem.asBytes(&i));
