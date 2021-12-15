@@ -166,7 +166,7 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        self.super.interface_stack.copy(&self.super.interface_stack_temp);
+        self.super.interface_stack_temp.copy(self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,

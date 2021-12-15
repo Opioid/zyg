@@ -50,8 +50,6 @@ pub const FFMPEG = struct {
                 res_str,
                 "-i",
                 "-",
-                "-threads",
-                "0",
                 "-y",
                 "-c:v",
                 "libvpx-vp9",

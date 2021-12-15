@@ -38,17 +38,15 @@ pub const Stack = struct {
         alloc.free(self.stack[0..Num_entries]);
     }
 
-    pub fn copy(self: Stack, other: *Stack) void {
-        const index = self.index;
-        other.index = index;
-        std.mem.copy(Interface, other.stack[0..index], self.stack[0..index]);
+    pub fn copy(self: *Stack, other: Stack) void {
+        const index = other.index;
+        self.index = index;
+        std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
     }
 
     pub fn swap(self: *Stack, other: *Stack) void {
         const temp = self.stack;
-        self.stack = other.stack;
-        self.index = other.index;
-
+        self.* = other.*;
         other.stack = temp;
     }
 

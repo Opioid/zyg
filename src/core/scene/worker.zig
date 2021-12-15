@@ -110,7 +110,7 @@ pub const Worker = struct {
     }
 
     pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
-        stack.copy(&self.interface_stack);
+        self.interface_stack.copy(stack);
     }
 
     pub fn iorOutside(self: Worker, wo: Vec4f, isec: Intersection) f32 {
