@@ -180,7 +180,7 @@ pub const Provider = struct {
     fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) !Material {
         var sampler_key = ts.Key{};
 
-        var quantity: []const u8 = undefined;
+        var quantity: []const u8 = "";
 
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 10.0)));
 
@@ -366,8 +366,6 @@ pub const Provider = struct {
 
     fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         _ = self;
-        _ = alloc;
-        _ = resources;
 
         var sampler_key = ts.Key{};
 
@@ -452,6 +450,8 @@ const TextureDescription = struct {
                     desc.swizzle = .X;
                 } else if (std.mem.eql(u8, "W", swizzle)) {
                     desc.swizzle = .W;
+                } else if (std.mem.eql(u8, "YX", swizzle)) {
+                    desc.swizzle = .YX;
                 }
             } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
                 desc.scale = switch (entry.value_ptr.*) {

@@ -35,7 +35,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: Allocator, stream: *ReadStream, scene: *Scene, resources: *Resources) !Take {
+pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Resources) !Take {
     _ = resources;
 
     const buffer = try stream.readAll(alloc);

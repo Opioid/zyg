@@ -29,29 +29,29 @@ pub const ReadStream = union(enum) {
         }
     }
 
-    pub fn read(self: *Self, dest: []u8) !usize {
-        return switch (self.*) {
+    pub fn read(self: Self, dest: []u8) !usize {
+        return switch (self) {
             .File => |s| try s.reader.reader().readAll(dest),
             .Gzip => |s| try s.read(dest),
         };
     }
 
-    pub fn readAll(self: *Self, alloc: Allocator) ![]u8 {
-        return switch (self.*) {
+    pub fn readAll(self: Self, alloc: Allocator) ![]u8 {
+        return switch (self) {
             .File => |s| try s.reader.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
             .Gzip => |s| try s.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
         };
     }
 
-    pub fn readUntilDelimiter(self: *Self, buf: []u8, delimiter: u8) ![]u8 {
-        return switch (self.*) {
+    pub fn readUntilDelimiter(self: Self, buf: []u8, delimiter: u8) ![]u8 {
+        return switch (self) {
             .File => |s| try s.reader.reader().readUntilDelimiter(buf, delimiter),
             .Gzip => |s| try s.reader().readUntilDelimiter(buf, delimiter),
         };
     }
 
-    pub fn skipUntilDelimiter(self: *Self, delimiter: u8) !void {
-        return switch (self.*) {
+    pub fn skipUntilDelimiter(self: Self, delimiter: u8) !void {
+        return switch (self) {
             .File => |s| try s.reader.reader().skipUntilDelimiterOrEof(delimiter),
             .Gzip => Error.NotImplemented,
         };
@@ -64,15 +64,15 @@ pub const ReadStream = union(enum) {
         };
     }
 
-    pub fn seekTo(self: *Self, pos: u64) !void {
-        return switch (self.*) {
+    pub fn seekTo(self: Self, pos: u64) !void {
+        return switch (self) {
             .File => |s| try s.seekTo(pos),
             .Gzip => |s| try s.seekTo(pos),
         };
     }
 
-    pub fn seekBy(self: *Self, count: u64) !void {
-        return switch (self.*) {
+    pub fn seekBy(self: Self, count: u64) !void {
+        return switch (self) {
             .File => |s| try s.seekBy(count),
             .Gzip => |s| try s.seekBy(count),
         };

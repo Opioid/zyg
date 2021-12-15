@@ -47,9 +47,9 @@ pub const Base = struct {
 
     cc: CC = undefined,
 
-    emission: Vec4f = undefined,
+    emission: Vec4f = @splat(4, @as(f32, 0.0)),
 
-    ior: f32 = undefined,
+    ior: f32 = 1.5,
     attenuation_distance: f32 = undefined,
     volumetric_anisotropy: f32 = undefined,
 
@@ -73,7 +73,7 @@ pub const Base = struct {
         self.cc = cc;
         self.attenuation_distance = distance;
         self.volumetric_anisotropy = aniso;
-        self.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.cc.s));
+        self.properties.set(.ScatteringVolume, math.anyGreaterZero3(cc.s));
     }
 
     pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {

@@ -156,6 +156,10 @@ pub const Reader = struct {
             .XY => {
                 num_channels = 2;
             },
+            .YX => {
+                num_channels = 2;
+                swap_xy = true;
+            },
             .XYZ => {
                 num_channels = 3;
             },
@@ -207,9 +211,17 @@ pub const Reader = struct {
             } else {
                 var i: u32 = 0;
                 const len = @intCast(u32, info.width * info.height);
-                while (i < len) : (i += 1) {
-                    const o = i * info.num_channels;
-                    image.pixels[i] = Vec2b{ info.buffer[o + 0], info.buffer[o + 1] };
+
+                if (swap_xy) {
+                    while (i < len) : (i += 1) {
+                        const o = i * info.num_channels;
+                        image.pixels[i] = Vec2b{ info.buffer[o + 1], info.buffer[o + 0] };
+                    }
+                } else {
+                    while (i < len) : (i += 1) {
+                        const o = i * info.num_channels;
+                        image.pixels[i] = Vec2b{ info.buffer[o + 0], info.buffer[o + 1] };
+                    }
                 }
             }
 

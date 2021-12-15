@@ -190,7 +190,7 @@ pub const Sample = struct {
 
         if (eta_i == eta_t) {
             return .{
-                .reflection = self.super.albedo,
+                .reflection = @splat(4, @as(f32, 1.0)),
                 .wi = -wo,
                 .pdf = 1.0,
                 .typef = bxdf.TypeFlag.init1(.SpecularTransmission),
@@ -265,7 +265,7 @@ pub const Sample = struct {
 
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return .{
-                .reflection = self.super.albedo,
+                .reflection = @splat(4, @as(f32, 1.0)),
                 .wi = -wo,
                 .pdf = 1.0,
                 .typef = bxdf.TypeFlag.init1(.SpecularTransmission),

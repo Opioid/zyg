@@ -74,20 +74,25 @@ pub fn main() !void {
     );
     defer scene.deinit(alloc);
 
-    var stream = try resources.fs.readStream(alloc, options.take.?);
-
     stdout.print("Loading...\n", .{}) catch unreachable;
 
     const loading_start = std.time.milliTimestamp();
 
-    var take = tk.load(alloc, &stream, &scene, &resources) catch |err| {
-        std.debug.print("Loading take {} \n", .{err});
+    var stream = resources.fs.readStream(alloc, options.take.?) catch |err| {
+        std.debug.print("Open stream \"{s}\": {} \n", .{ options.take.?, err });
+        return;
+    };
+
+    var take = tk.load(alloc, stream, &scene, &resources) catch |err| {
+        std.debug.print("Loading take: {} \n", .{err});
         return;
     };
     defer take.deinit(alloc);
 
+    stream.deinit();
+
     scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
-        std.debug.print("Loading scene {} \n", .{err});
+        std.debug.print("Loading scene: {} \n", .{err});
         return;
     };
 
