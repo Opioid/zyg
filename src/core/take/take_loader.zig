@@ -303,13 +303,25 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "AO", entry.key_ptr.*)) {
-            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+        if (std.mem.eql(u8, "AOV", entry.key_ptr.*)) {
+            const value_name = json.readStringMember(entry.value_ptr.*, "value", "");
+            var value_type: surface.AOV.Value = .AO;
 
+            if (std.mem.eql(u8, "Tangent", value_name)) {
+                value_type = .Tangent;
+            } else if (std.mem.eql(u8, "Bitangent", value_name)) {
+                value_type = .Bitangent;
+            } else if (std.mem.eql(u8, "Geometric_normal", value_name)) {
+                value_type = .GeometricNormal;
+            } else if (std.mem.eql(u8, "Shading_normal", value_name)) {
+                value_type = .ShadingNormal;
+            }
+
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
-            view.surfaces = surface.Factory{ .AO = .{
-                .settings = .{ .num_samples = num_samples, .radius = radius },
+            view.surfaces = surface.Factory{ .AOV = .{
+                .settings = .{ .value = value_type, .num_samples = num_samples, .radius = radius },
             } };
         } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
