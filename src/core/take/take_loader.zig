@@ -1,6 +1,7 @@
 const tk = @import("take.zig");
 pub const Take = tk.Take;
 pub const View = tk.View;
+const PhotonSettings = tk.PhotonSettings;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
@@ -289,6 +290,8 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
             loadSurfaceIntegrator(entry.value_ptr.*, view, null != view.lighttracers);
         } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
             loadVolumeIntegrator(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
+            view.photon_settings = loadPhotonSettings(entry.value_ptr.*);
         }
     }
 }
@@ -399,14 +402,25 @@ fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator
     } };
 }
 
+fn loadPhotonSettings(value: std.json.Value) PhotonSettings {
+    return .{
+        .num_photons = json.readUIntMember(value, "num_photons", 0),
+        .max_bounces = json.readUIntMember(value, "max_bounces", 4),
+        .iteration_threshold = json.readFloatMember(value, "iteration_threshold", 1.0),
+        .search_radius = json.readFloatMember(value, "search_radius", 0.002),
+        .merge_radius = json.readFloatMember(value, "merge_radius", 0.001),
+        .full_light_path = json.readBoolMember(value, "full_light_path", false),
+    };
+}
+
 fn setDefaultIntegrators(view: *View) void {
     if (null == view.surfaces and null != view.lighttracers) {
         view.num_samples_per_pixel = 0;
     }
 
     if (null == view.surfaces) {
-        view.surfaces = .{ .AO = .{
-            .settings = .{ .num_samples = 1, .radius = 1.0 },
+        view.surfaces = .{ .AOV = .{
+            .settings = .{ .value = .AO, .num_samples = 1, .radius = 1.0 },
         } };
     }
 

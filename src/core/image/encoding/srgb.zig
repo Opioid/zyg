@@ -51,17 +51,47 @@ pub const Srgb = struct {
         var i = begin * width;
 
         if (self.alpha) {
-            while (y < end) : (y += 1) {
-                var x: u32 = 0;
-                while (x < width) : (x += 1) {
-                    const p = self.image.pixels[i];
+            if (self.error_diffusion) {
+                while (y < end) : (y += 1) {
+                    var err = @splat(4, goldenRatio(y) - 0.5);
 
-                    self.buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                    self.buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                    self.buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                    self.buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
+                    var x: u32 = 0;
+                    while (x < width) : (x += 1) {
+                        const p = self.image.pixels[i];
 
-                    i += 1;
+                        const color = Vec4f{
+                            spectrum.linearToGamma_sRGB(p.v[0]),
+                            spectrum.linearToGamma_sRGB(p.v[1]),
+                            spectrum.linearToGamma_sRGB(p.v[2]),
+                            std.math.min(p.v[3], 1.0),
+                        };
+
+                        const cf = @splat(4, @as(f32, 255.0)) * color;
+                        const ci = math.vec4fTo4b(cf + err + @splat(4, @as(f32, 0.5)));
+
+                        err += cf - math.vec4bTo4f(ci);
+
+                        self.buffer[i * 4 + 0] = ci[0];
+                        self.buffer[i * 4 + 1] = ci[1];
+                        self.buffer[i * 4 + 2] = ci[2];
+                        self.buffer[i * 4 + 3] = ci[3];
+
+                        i += 1;
+                    }
+                }
+            } else {
+                while (y < end) : (y += 1) {
+                    var x: u32 = 0;
+                    while (x < width) : (x += 1) {
+                        const p = self.image.pixels[i];
+
+                        self.buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                        self.buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                        self.buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                        self.buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
+
+                        i += 1;
+                    }
                 }
             }
         } else {

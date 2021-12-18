@@ -6,7 +6,9 @@ const tq = @import("tile_queue.zig");
 const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
+const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const progress = @import("../progress/std_out.zig");
+
 const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
@@ -27,19 +29,27 @@ const Error = error{
 const Num_particles_per_chunk = 1024;
 
 pub const Driver = struct {
+    const PhotonInfo = struct {
+        num_paths: u32,
+    };
+
     threads: *Threads,
 
     view: *View = undefined,
     scene: *Scene = undefined,
 
-    workers: []Worker = &.{},
+    workers: []Worker,
+    photon_infos: []PhotonInfo,
 
     tiles: TileQueue = undefined,
     ranges: RangeQueue = undefined,
 
     target: img.Float4 = .{},
 
+    photon_map: PhotonMap = .{},
+
     frame: u32 = undefined,
+    frame_iteration: u32 = undefined,
 
     progressor: progress.StdOut = undefined,
 
@@ -52,11 +62,14 @@ pub const Driver = struct {
         return Driver{
             .threads = threads,
             .workers = workers,
+            .photon_infos = try alloc.alloc(PhotonInfo, threads.numThreads()),
         };
     }
 
     pub fn deinit(self: *Driver, alloc: Allocator) void {
         self.target.deinit(alloc);
+
+        alloc.free(self.photon_infos);
 
         for (self.workers) |*w| {
             w.deinit(alloc);
@@ -89,6 +102,8 @@ pub const Driver = struct {
                 surfaces,
                 volumes,
                 lighttracers,
+                view.photon_settings,
+                &self.photon_map,
             );
         }
 
@@ -123,6 +138,7 @@ pub const Driver = struct {
 
         std.debug.print("Preparation time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
+        self.bakePhotons(frame);
         self.renderFrameBackward(frame);
         self.renderFrameForward(frame);
 
@@ -200,7 +216,6 @@ pub const Driver = struct {
         }
 
         std.debug.print("Tracing camera rays...\n", .{});
-
         const start = std.time.milliTimestamp();
 
         var camera = &self.view.camera;
@@ -225,6 +240,72 @@ pub const Driver = struct {
 
             self.progressor.tick();
         }
+    }
+
+    fn bakePhotons(self: *Driver, frame: u32) void {
+        const num_photons = self.view.photon_settings.num_photons;
+
+        if (0 == num_photons) {
+            return;
+        }
+
+        std.debug.print("Baking photons...\n", .{});
+        const start = std.time.milliTimestamp();
+
+        for (self.workers) |*w, i| {
+            w.super.rng.start(0, i);
+        }
+
+        var num_paths: u64 = 0;
+        var begin: u32 = 0;
+
+        const iteration_threshold = self.view.photon_settings.iteration_threshold;
+
+        self.photon_map.start();
+
+        self.frame = frame;
+
+        var iteration: u32 = 0;
+
+        while (true) : (iteration += 1) {
+            self.frame_iteration = iteration;
+
+            const num = self.threads.runRange(self, bakeRanges, begin, num_photons);
+
+            for (self.photon_infos[0..num]) |i| {
+                num_paths += i.num_paths;
+            }
+
+            if (0 == num_paths) {
+                std.debug.print("No photons\n", .{});
+                break;
+            }
+
+            const new_begin = self.photon_map.compileIteration(num_photons, num_paths, self.threads);
+
+            if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
+                @intToFloat(f32, begin) / @intToFloat(f32, new_begin) > (1.0 - iteration_threshold))
+            {
+                break;
+            }
+
+            begin = new_begin;
+        }
+
+        self.photon_map.compileFinalize();
+
+        std.debug.print("Photon time {d:.3} s\n", .{chrono.secondsSince(start)});
+    }
+
+    fn bakeRanges(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+        const self = @intToPtr(*Driver, context);
+
+        self.photon_infos[id].num_paths = self.workers[id].bakePhotons(
+            begin,
+            end,
+            self.frame,
+            self.frame_iteration,
+        );
     }
 
     fn postprocess(self: *Driver) void {

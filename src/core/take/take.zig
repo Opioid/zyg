@@ -11,6 +11,18 @@ const Allocator = std.mem.Allocator;
 
 pub const Exporters = std.ArrayListUnmanaged(Sink);
 
+pub const PhotonSettings = struct {
+    num_photons: u32 = 0,
+    max_bounces: u32 = 2,
+
+    iteration_threshold: f32 = 0.0,
+    search_radius: f32 = 0.01,
+    merge_radius: f32 = 0.0025,
+    coarse_search_radius: f32 = 0.1,
+
+    full_light_path: bool = false,
+};
+
 pub const View = struct {
     samplers: SamplerFactory = undefined,
 
@@ -24,6 +36,8 @@ pub const View = struct {
 
     num_samples_per_pixel: u32 = 1,
     num_particles_per_pixel: u32 = 0,
+
+    photon_settings: PhotonSettings = .{},
 
     pub fn deinit(self: *View, alloc: Allocator) void {
         self.pipeline.deinit(alloc);

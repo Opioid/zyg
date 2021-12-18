@@ -134,6 +134,7 @@ pub fn Vec4(comptime T: type) type {
     };
 }
 
+pub const Vec4b = std.meta.Vector(4, u8);
 pub const Vec4i = std.meta.Vector(4, i32);
 pub const Pack4f = Vec4(f32);
 pub const Vec4f = std.meta.Vector(4, f32);
@@ -353,6 +354,15 @@ pub fn vec3bTo4f(v: Pack3b) Vec4f {
     };
 }
 
+pub fn vec4bTo4f(v: Vec4b) Vec4f {
+    return .{
+        @intToFloat(f32, v[0]),
+        @intToFloat(f32, v[1]),
+        @intToFloat(f32, v[2]),
+        @intToFloat(f32, v[3]),
+    };
+}
+
 pub fn vec4fTo3f(v: Vec4f) Pack3f {
     return Pack3f.init3(v[0], v[1], v[2]);
 }
@@ -363,6 +373,15 @@ pub fn vec4fTo3b(v: Vec4f) Pack3b {
         @floatToInt(u8, v[1]),
         @floatToInt(u8, v[2]),
     );
+}
+
+pub fn vec4fTo4b(v: Vec4f) Vec4b {
+    return .{
+        @floatToInt(u8, v[0]),
+        @floatToInt(u8, v[1]),
+        @floatToInt(u8, v[2]),
+        @floatToInt(u8, v[3]),
+    };
 }
 
 pub fn vec3iTo4f(v: Vec3i) Vec4f {

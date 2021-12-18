@@ -13,6 +13,9 @@ const surface = @import("integrator/surface/integrator.zig");
 const vol = @import("integrator/volume/integrator.zig");
 const VolumeResult = @import("integrator/volume/result.zig").Result;
 const lt = @import("integrator/particle/lighttracer.zig");
+const PhotonSettings = @import("../take/take.zig").PhotonSettings;
+const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
+const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -31,12 +34,15 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
+    photon_mapper: PhotonMapper = undefined,
+    photon_map: *PhotonMap = undefined,
 
     pub fn init(alloc: Allocator) !Worker {
         return Worker{ .super = try SceneWorker.init(alloc) };
     }
 
     pub fn deinit(self: *Worker, alloc: Allocator) void {
+        self.photon_mapper.deinit(alloc);
         self.lighttracer.deinit(alloc);
         self.volume_integrator.deinit(alloc);
         self.surface_integrator.deinit(alloc);
@@ -54,6 +60,8 @@ pub const Worker = struct {
         surfaces: surface.Factory,
         volumes: vol.Factory,
         lighttracers: lt.Factory,
+        photon_settings: PhotonSettings,
+        photon_map: *PhotonMap,
     ) !void {
         self.super.configure(camera, scene);
 
@@ -62,6 +70,14 @@ pub const Worker = struct {
         self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
         self.volume_integrator = try volumes.create(alloc, num_samples_per_pixel);
         self.lighttracer = try lighttracers.create(alloc);
+
+        const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
+        self.photon_mapper = try PhotonMapper.init(alloc, .{
+            .max_bounces = max_bounces,
+            .full_light_path = photon_settings.full_light_path,
+        });
+
+        self.photon_map = photon_map;
     }
 
     pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32) void {
@@ -130,6 +146,10 @@ pub const Worker = struct {
         while (i < range[1]) : (i += 1) {
             self.lighttracer.li(frame, self, camera.interface_stack);
         }
+    }
+
+    pub fn bakePhotons(self: *Worker, begin: u32, end: u32, frame: u32, iteration: u32) u32 {
+        return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
     fn li(self: *Worker, ray: *Ray, interface_stack: InterfaceStack) Vec4f {
