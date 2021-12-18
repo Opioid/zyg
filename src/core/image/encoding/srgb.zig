@@ -16,7 +16,7 @@ pub const Srgb = struct {
     error_diffusion: bool,
     alpha: bool,
 
-    image: *const Float4 = undefined,
+    image: Float4 = undefined,
 
     pub fn deinit(self: *Srgb, alloc: Allocator) void {
         alloc.free(self.buffer);
@@ -33,7 +33,7 @@ pub const Srgb = struct {
         }
     }
 
-    pub fn toSrgb(self: *Srgb, image: *const Float4, threads: *Threads) void {
+    pub fn toSrgb(self: *Srgb, image: Float4, threads: *Threads) void {
         self.image = image;
 
         _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, image.description.dimensions.v[1]));
@@ -44,20 +44,24 @@ pub const Srgb = struct {
 
         const self = @intToPtr(*Srgb, context);
 
-        const d = self.image.description.dimensions;
+        toSrgbBuffer(self.image, self.buffer, self.error_diffusion, self.alpha, begin, end);
+    }
+
+    pub fn toSrgbBuffer(image: anytype, buffer: []u8, error_diffusion: bool, alpha: bool, begin: u32, end: u32) void {
+        const d = image.description.dimensions;
         const width = @intCast(u32, d.v[0]);
 
         var y = begin;
         var i = begin * width;
 
-        if (self.alpha) {
-            if (self.error_diffusion) {
+        if (alpha) {
+            if (error_diffusion) {
                 while (y < end) : (y += 1) {
                     var err = @splat(4, goldenRatio(y) - 0.5);
 
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = self.image.pixels[i];
+                        const p = image.pixels[i];
 
                         const color = Vec4f{
                             spectrum.linearToGamma_sRGB(p.v[0]),
@@ -71,10 +75,10 @@ pub const Srgb = struct {
 
                         err += cf - math.vec4bTo4f(ci);
 
-                        self.buffer[i * 4 + 0] = ci[0];
-                        self.buffer[i * 4 + 1] = ci[1];
-                        self.buffer[i * 4 + 2] = ci[2];
-                        self.buffer[i * 4 + 3] = ci[3];
+                        buffer[i * 4 + 0] = ci[0];
+                        buffer[i * 4 + 1] = ci[1];
+                        buffer[i * 4 + 2] = ci[2];
+                        buffer[i * 4 + 3] = ci[3];
 
                         i += 1;
                     }
@@ -83,25 +87,25 @@ pub const Srgb = struct {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = self.image.pixels[i];
+                        const p = image.pixels[i];
 
-                        self.buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                        self.buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                        self.buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                        self.buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
+                        buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                        buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                        buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                        buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
 
                         i += 1;
                     }
                 }
             }
         } else {
-            if (self.error_diffusion) {
+            if (error_diffusion) {
                 while (y < end) : (y += 1) {
                     var err = @splat(4, goldenRatio(y) - 0.5);
 
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = self.image.pixels[i];
+                        const p = image.pixels[i];
 
                         const color = Vec4f{
                             spectrum.linearToGamma_sRGB(p.v[0]),
@@ -115,9 +119,9 @@ pub const Srgb = struct {
 
                         err += cf - math.vec3bTo4f(ci);
 
-                        self.buffer[i * 3 + 0] = ci.v[0];
-                        self.buffer[i * 3 + 1] = ci.v[1];
-                        self.buffer[i * 3 + 2] = ci.v[2];
+                        buffer[i * 3 + 0] = ci.v[0];
+                        buffer[i * 3 + 1] = ci.v[1];
+                        buffer[i * 3 + 2] = ci.v[2];
 
                         i += 1;
                     }
@@ -126,11 +130,11 @@ pub const Srgb = struct {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = self.image.pixels[i];
+                        const p = image.pixels[i];
 
-                        self.buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                        self.buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                        self.buffer[i * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                        buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                        buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                        buffer[i * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
 
                         i += 1;
                     }

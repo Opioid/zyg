@@ -39,7 +39,7 @@ pub const Writer = struct {
 
         try self.srgb.resize(alloc, num_pixels);
 
-        self.srgb.toSrgb(&image, threads);
+        self.srgb.toSrgb(image, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(

@@ -84,7 +84,7 @@ pub const FFMPEG = struct {
 
         try self.srgb.resize(alloc, num_pixels);
 
-        self.srgb.toSrgb(&image, threads);
+        self.srgb.toSrgb(image, threads);
 
         try self.stream.stdin.?.writer().writeAll(self.srgb.buffer);
     }
