@@ -87,8 +87,6 @@ pub const Lighttracer = struct {
         worker: *Worker,
         initial_stack: InterfaceStack,
     ) void {
-        _ = frame;
-        _ = worker;
         _ = initial_stack;
 
         for (self.samplers) |*s| {
@@ -245,10 +243,6 @@ pub const Lighttracer = struct {
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Ray {
-        if (0 == worker.super.scene.numLights()) {
-            return null;
-        }
-
         var rng = &worker.super.rng;
         const select = self.light_sampler.sample1D(rng, 0);
         const l = worker.super.scene.randomLight(select);
@@ -308,10 +302,10 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
 
-        const material = isec.material(worker.super);
-        if (isec.subsurface and material.ior() > 1.0) {
+        const material_ior = isec.material(worker.super).ior();
+        if (isec.subsurface and material_ior > 1.0) {
             const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
-            const eta = material.ior() / ior_t;
+            const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }
 

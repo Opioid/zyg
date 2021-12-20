@@ -318,6 +318,8 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
                 value_type = .GeometricNormal;
             } else if (std.mem.eql(u8, "Shading_normal", value_name)) {
                 value_type = .ShadingNormal;
+            } else if (std.mem.eql(u8, "Photons", value_name)) {
+                value_type = .Photons;
             }
 
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);

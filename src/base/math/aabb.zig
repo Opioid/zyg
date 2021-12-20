@@ -16,6 +16,10 @@ pub const AABB = struct {
         return @splat(4, @as(f32, 0.5)) * (self.bounds[0] + self.bounds[1]);
     }
 
+    pub fn halfsize(self: AABB) Vec4f {
+        return @splat(4, @as(f32, 0.5)) * self.bounds[1] - self.bounds[0];
+    }
+
     pub fn extent(self: AABB) Vec4f {
         return self.bounds[1] - self.bounds[0];
     }
@@ -132,9 +136,25 @@ pub const AABB = struct {
 
     }
 
+    pub fn pointInside(self: AABB, p: Vec4f) bool {
+        if (p[0] >= self.bounds[0][0] and p[0] <= self.bounds[1][0] and p[1] >= self.bounds[0][1] and
+            p[1] <= self.bounds[1][1] and p[2] >= self.bounds[0][2] and p[2] <= self.bounds[1][2])
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     pub fn insert(self: *AABB, p: Vec4f) void {
         self.bounds[0] = @minimum(p, self.bounds[0]);
         self.bounds[1] = @maximum(p, self.bounds[1]);
+    }
+
+    pub fn scale(self: *AABB, s: f32) void {
+        const v = @splat(4, s) * self.halfsize();
+        self.bounds[0] -= v;
+        self.bounds[1] += v;
     }
 
     pub fn cachedRadius(self: AABB) f32 {

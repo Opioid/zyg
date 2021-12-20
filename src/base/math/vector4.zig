@@ -155,6 +155,10 @@ pub fn rlength3(v: Vec4f) f32 {
     return 1.0 / length3(v);
 }
 
+pub fn squaredDistance3(a: Vec4f, b: Vec4f) f32 {
+    return squaredLength3(a - b);
+}
+
 pub fn distance3(a: Vec4f, b: Vec4f) f32 {
     return length3(a - b);
 }

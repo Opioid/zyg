@@ -15,6 +15,7 @@ pub const AOV = struct {
         Bitangent,
         GeometricNormal,
         ShadingNormal,
+        Photons,
     };
 
     pub const Settings = struct {
@@ -50,18 +51,19 @@ pub const AOV = struct {
 
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         return switch (self.settings.value) {
-            .AO => self.ao(ray, isec, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray, isec, worker),
+            .AO => self.ao(ray.*, isec.*, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
+            .Photons => photons(ray.*, isec.*, worker),
         };
     }
 
-    fn ao(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray.*, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -89,9 +91,9 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray.*, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
         var vec: Vec4f = undefined;
 
@@ -112,6 +114,13 @@ pub const AOV = struct {
         vec = Vec4f{ vec[0], vec[1], vec[2], 1.0 };
 
         return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
+    }
+
+    fn photons(ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+        const wo = -ray.ray.direction;
+        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+
+        return worker.photonLi(isec, mat_sample);
     }
 };
 

@@ -76,6 +76,8 @@ pub const Driver = struct {
         }
 
         alloc.free(self.workers);
+
+        self.photon_map.deinit(alloc);
     }
 
     pub fn configure(self: *Driver, alloc: Allocator, view: *View, scene: *Scene) !void {
@@ -87,10 +89,13 @@ pub const Driver = struct {
         self.scene = scene;
 
         const camera = &self.view.camera;
-
         const dim = camera.sensorDimensions();
-
         try camera.sensor.resize(alloc, dim);
+
+        const num_photons = view.photon_settings.num_photons;
+        if (num_photons > 0) {
+            try self.photon_map.configure(alloc, num_photons, view.photon_settings.search_radius);
+        }
 
         for (self.workers) |*w| {
             try w.configure(

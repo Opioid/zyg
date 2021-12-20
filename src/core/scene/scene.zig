@@ -165,6 +165,10 @@ pub const Scene = struct {
         return self.caustic_aabb;
     }
 
+    pub fn isFinite(self: Scene) bool {
+        return 0 == self.infinite_props.items.len;
+    }
+
     pub fn simulate(
         self: *Scene,
         alloc: Allocator,

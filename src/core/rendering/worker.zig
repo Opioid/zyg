@@ -4,6 +4,7 @@ const Ray = @import("../scene/ray.zig").Ray;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/material_helper.zig");
+const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const ro = @import("../scene/ray_offset.zig");
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
@@ -150,6 +151,10 @@ pub const Worker = struct {
 
     pub fn bakePhotons(self: *Worker, begin: u32, end: u32, frame: u32, iteration: u32) u32 {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
+    }
+
+    pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample) Vec4f {
+        return self.photon_map.li(isec, sample, self);
     }
 
     fn li(self: *Worker, ray: *Ray, interface_stack: InterfaceStack) Vec4f {
