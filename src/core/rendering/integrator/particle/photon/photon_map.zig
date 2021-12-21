@@ -1,11 +1,12 @@
 const Photon = @import("photon.zig").Photon;
+const Grid = @import("photon_grid.zig").Grid;
 const Worker = @import("../../../worker.zig").Worker;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
-const mat = @import("../../../../scene/material/sample_helper.zig");
 
 const base = @import("base");
 const math = base.math;
+const AABB = math.AABB;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
@@ -15,92 +16,99 @@ const Allocator = std.mem.Allocator;
 pub const Map = struct {
     photons: []Photon = &.{},
 
+    grid: Grid = .{},
+
+    aabbs: []AABB = &.{},
+
     num_paths: u64 = 0,
 
-    search_radius: f32 = 0.01,
-    surface_normalization: f32 = undefined,
+    reduced_num: u32 = undefined,
 
     const Self = @This();
 
-    pub fn configure(self: *Self, alloc: Allocator, num_photons: u32, search_radius: f32) !void {
+    pub fn configure(self: *Self, alloc: Allocator, num_workers: u32, num_photons: u32, search_radius: f32) !void {
         self.photons = try alloc.realloc(self.photons, num_photons);
-        self.search_radius = search_radius;
+        self.aabbs = try alloc.realloc(self.aabbs, num_workers);
+        self.grid.configure(search_radius, 1.5);
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.grid.deinit(alloc);
+        alloc.free(self.aabbs);
         alloc.free(self.photons);
     }
 
     pub fn start(self: *Self) void {
-        _ = self;
+        self.reduced_num = 0;
     }
 
     pub fn insert(self: *Self, photon: Photon, index: usize) void {
         self.photons[index] = photon;
     }
 
-    pub fn compileIteration(self: *Self, num_photons: u32, num_paths: u64, threads: *Threads) u32 {
-        _ = num_photons;
-        self.num_paths = num_paths;
-        _ = threads;
+    pub fn compileIteration(self: *Self, alloc: Allocator, num_photons: u32, num_paths: u64, threads: *Threads) !u32 {
+        const aabb = self.calculateAabb(num_photons, threads);
 
-        return 0;
+        try self.grid.resize(alloc, aabb);
+
+        self.num_paths = num_paths;
+
+        self.grid.initCells(self.photons[0..num_photons]);
+
+        const total_num_photons = @intCast(u32, self.photons.len);
+
+        const reduced_num = if (num_photons == total_num_photons)
+            self.grid.reduceAndMove(self.photons, threads)
+        else
+            num_photons;
+
+        const percentage_left = @intToFloat(f32, reduced_num) / @intToFloat(f32, total_num_photons);
+
+        std.debug.print(
+            "{} left of {} ({}%)\n",
+            .{ reduced_num, total_num_photons, @floatToInt(u32, 100.0 * percentage_left) },
+        );
+
+        self.reduced_num = reduced_num;
+
+        return reduced_num;
     }
 
     pub fn compileFinalize(self: *Self) void {
-        _ = self;
-
-        self.setNumPaths(self.num_paths);
-    }
-
-    pub fn setNumPaths(self: *Self, num_paths: u64) void {
-        self.num_paths = num_paths;
-
-        const search_radius = self.search_radius;
-        const radius2 = search_radius * search_radius;
-
-        // conely
-        // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
-
-        // cone
-        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+        self.grid.initCells(self.photons[0..self.reduced_num]);
+        self.grid.setNumPaths(self.num_paths);
     }
 
     pub fn li(self: Self, isec: Intersection, sample: MaterialSample, worker: Worker) Vec4f {
-        _ = worker;
-
-        var result = @splat(4, @as(f32, 0.0));
-
-        const position = isec.geo.p;
-
-        const search_radius = self.search_radius;
-        const radius2 = search_radius * search_radius;
-        const inv_radius2 = 1.0 / radius2;
-
-        for (self.photons) |p| {
-            const distance2 = math.squaredDistance3(p.p, position);
-            if (distance2 < radius2) {
-                if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
-                    const k = coneFilter(distance2, inv_radius2);
-
-                    const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
-
-                    const bxdf = sample.evaluate(p.wi);
-
-                    result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
-                }
-            }
+        if (0 == self.num_paths) {
+            return @splat(4, @as(f32, 0.0));
         }
 
-        return result * @splat(4, self.surface_normalization);
+        return self.grid.li(isec, sample, worker);
     }
 
-    fn coneFilter(squared_distance: f32, inv_squared_radius: f32) f32 {
-        const s = 1.0 - squared_distance * inv_squared_radius;
-        return s * s;
+    fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {
+        const num = threads.runRange(self, calculateAabbRange, 0, num_photons);
+
+        var aabb = math.aabb.empty;
+        for (self.aabbs[0..num]) |b| {
+            aabb.mergeAssign(b);
+        }
+
+        return aabb;
     }
 
-    fn conelyFilter(squared_distance: f32, inv_squared_radius: f32) f32 {
-        return 1.0 - squared_distance * inv_squared_radius;
+    fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+        const self = @intToPtr(*Self, context);
+
+        var aabb = math.aabb.empty;
+
+        for (self.photons[begin..end]) |p| {
+            aabb.insert(p.p);
+        }
+
+        aabb.add(0.0001);
+
+        self.aabbs[id] = aabb;
     }
 };

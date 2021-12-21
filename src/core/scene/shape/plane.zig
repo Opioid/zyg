@@ -2,6 +2,7 @@ const Transformation = @import("../composed_transformation.zig").ComposedTransfo
 const Intersection = @import("intersection.zig").Intersection;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;

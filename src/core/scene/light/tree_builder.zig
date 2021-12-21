@@ -4,6 +4,7 @@ const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
 const Part = @import("../shape/triangle/mesh.zig").Part;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -441,7 +442,7 @@ pub const Builder = struct {
         const sc = evaluateSplits(lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
         const predicate = Predicate(Scene){ .sc = &sc, .set = &scene };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate));
+        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Scene).f));
 
         self.current_node += 2;
         const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sideds[0], sc.powers[0], scene, threads);
@@ -493,7 +494,7 @@ pub const Builder = struct {
         }
 
         const predicate = Predicate(Part){ .sc = &sc, .set = &part };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate));
+        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Part).f));
 
         self.current_node += 2;
         const c0_end = self.splitPrimitive(tree, child0, begin, split_node, max_primitives, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);

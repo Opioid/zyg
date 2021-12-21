@@ -15,8 +15,8 @@ pub usingnamespace @import("transformation.zig");
 pub usingnamespace @import("vector2.zig");
 pub usingnamespace @import("vector3.zig");
 const vec4 = @import("vector4.zig");
-//const Vec4f = vec4.Vec4f;
 pub usingnamespace vec4;
+pub const plane = @import("plane.zig");
 
 const std = @import("std");
 

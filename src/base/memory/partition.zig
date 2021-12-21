@@ -1,9 +1,14 @@
 const std = @import("std");
 
-pub fn partition(comptime T: type, data: []T, p: anytype) usize {
+pub fn partition(
+    comptime T: type,
+    data: []T,
+    context: anytype,
+    comptime lessThan: fn (context: @TypeOf(context), x: T) bool,
+) usize {
     var first: usize = data.len;
     for (data) |d, i| {
-        if (!p.f(d)) {
+        if (!lessThan(context, d)) {
             first = i;
             break;
         }
@@ -15,7 +20,7 @@ pub fn partition(comptime T: type, data: []T, p: anytype) usize {
 
     var i = first + 1;
     while (i < data.len) : (i += 1) {
-        if (p.f(data[i])) {
+        if (lessThan(context, data[i])) {
             std.mem.swap(T, &data[i], &data[first]);
             first += 1;
         }

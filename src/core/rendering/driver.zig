@@ -94,7 +94,12 @@ pub const Driver = struct {
 
         const num_photons = view.photon_settings.num_photons;
         if (num_photons > 0) {
-            try self.photon_map.configure(alloc, num_photons, view.photon_settings.search_radius);
+            try self.photon_map.configure(
+                alloc,
+                self.threads.numThreads(),
+                num_photons,
+                view.photon_settings.search_radius,
+            );
         }
 
         for (self.workers) |*w| {
@@ -143,7 +148,7 @@ pub const Driver = struct {
 
         std.debug.print("Preparation time {d:.3} s\n", .{chrono.secondsSince(render_start)});
 
-        self.bakePhotons(frame);
+        self.bakePhotons(alloc, frame);
         self.renderFrameBackward(frame);
         self.renderFrameForward(frame);
 
@@ -247,7 +252,7 @@ pub const Driver = struct {
         }
     }
 
-    fn bakePhotons(self: *Driver, frame: u32) void {
+    fn bakePhotons(self: *Driver, alloc: Allocator, frame: u32) void {
         const num_photons = self.view.photon_settings.num_photons;
 
         if (0 == num_photons) {
@@ -286,7 +291,12 @@ pub const Driver = struct {
                 break;
             }
 
-            const new_begin = self.photon_map.compileIteration(num_photons, num_paths, self.threads);
+            const new_begin = self.photon_map.compileIteration(
+                alloc,
+                num_photons,
+                num_paths,
+                self.threads,
+            ) catch break;
 
             if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
                 @intToFloat(f32, begin) / @intToFloat(f32, new_begin) > (1.0 - iteration_threshold))

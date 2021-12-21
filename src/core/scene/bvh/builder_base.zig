@@ -132,7 +132,14 @@ const Kernel = struct {
         }
     }
 
-    pub fn splittingPlane(self: *Kernel, references: []const Reference, aabb: AABB, depth: u32, settings: Settings, threads: *Threads) ?SplitCandidate {
+    pub fn splittingPlane(
+        self: *Kernel,
+        references: []const Reference,
+        aabb: AABB,
+        depth: u32,
+        settings: Settings,
+        threads: *Threads,
+    ) ?SplitCandidate {
         const X = 0;
         const Y = 1;
         const Z = 2;
