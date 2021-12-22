@@ -8,6 +8,7 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Vec2i = math.Vec2i;
+const Vec2u = math.Vec2u;
 const Vec2f = math.Vec2f;
 const Vec3i = math.Vec3i;
 const Vec4f = math.Vec4f;
@@ -17,9 +18,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Grid = struct {
-    const Adjacency = struct {
+    const InnerAdjacency = struct {
         num_cells: u32,
         cells: [4]Vec2i,
+    };
+
+    const Adjacency = struct {
+        num_cells: u32,
+        cells: [4]Vec2u,
     };
 
     photons: []Photon = &.{},
@@ -38,7 +44,7 @@ pub const Grid = struct {
 
     grid: []u32 = &.{},
 
-    adjacencies: [43]Adjacency = undefined,
+    adjacencies: [43]InnerAdjacency = undefined,
 
     const Self = @This();
 
@@ -452,11 +458,11 @@ pub const Grid = struct {
         return ida < idb;
     }
 
-    fn map1(self: Self, v: Vec4f) u32 {
+    fn map1(self: Self, v: Vec4f) u64 {
         const c = math.vec4fTo3i((v - self.aabb.bounds[0]) * self.local_to_texture).addScalar(1);
-        return (@intCast(u32, c.v[2]) * @intCast(u32, self.dimensions.v[1]) + @intCast(u32, c.v[1])) *
-            @intCast(u32, self.dimensions.v[0]) +
-            @intCast(u32, c.v[0]);
+        return @intCast(u64, (@as(i64, c.v[2]) * @as(i64, self.dimensions.v[1]) + @as(i64, c.v[1])) *
+            @as(i64, self.dimensions.v[0]) +
+            @as(i64, c.v[0]));
     }
 
     fn map3(self: Self, v: Vec4f, cell_bound: Vec2f, adjacents: *u8) Vec3i {
@@ -492,19 +498,21 @@ pub const Grid = struct {
     fn adjacentCells(self: Self, v: Vec4f, cell_bound: Vec2f) Adjacency {
         var adjacents: u8 = undefined;
         const c = self.map3(v, cell_bound, &adjacents);
-        const ic = (c.v[2] * self.dimensions.v[1] + c.v[1]) * self.dimensions.v[0] + c.v[0];
+        const ic = (@as(i64, c.v[2]) * @as(i64, self.dimensions.v[1]) + @as(i64, c.v[1])) *
+            @as(i64, self.dimensions.v[0]) +
+            @as(i64, c.v[0]);
 
-        var adjacency = self.adjacencies[adjacents];
+        const adjacency = self.adjacencies[adjacents];
 
-        var i: u32 = 0;
-        while (i < adjacency.num_cells) : (i += 1) {
-            const cells = adjacency.cells[i];
+        var result: Adjacency = undefined;
+        result.num_cells = adjacency.num_cells;
 
-            adjacency.cells[i][0] = @intCast(i32, self.grid[@intCast(usize, cells[0] + ic)]);
-            adjacency.cells[i][1] = @intCast(i32, self.grid[@intCast(usize, cells[1] + ic + 1)]);
+        for (adjacency.cells[0..adjacency.num_cells]) |cell, i| {
+            result.cells[i][0] = self.grid[@intCast(usize, @as(i64, cell[0]) + ic)];
+            result.cells[i][1] = self.grid[@intCast(usize, @as(i64, cell[1]) + ic + 1)];
         }
 
-        return adjacency;
+        return result;
     }
 
     pub fn setNumPaths(self: *Self, num_paths: u64) void {
