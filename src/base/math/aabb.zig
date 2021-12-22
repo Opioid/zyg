@@ -1,5 +1,6 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
+const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 const Mat4x4 = @import("matrix4x4.zig").Mat4x4;
 const Ray = @import("ray.zig").Ray;
 
@@ -17,7 +18,7 @@ pub const AABB = struct {
     }
 
     pub fn halfsize(self: AABB) Vec4f {
-        return @splat(4, @as(f32, 0.5)) * self.bounds[1] - self.bounds[0];
+        return @splat(4, @as(f32, 0.5)) * (self.bounds[1] - self.bounds[0]);
     }
 
     pub fn extent(self: AABB) Vec4f {
@@ -190,6 +191,29 @@ pub const AABB = struct {
             @minimum(xa, xb) + @minimum(ya, yb) + @minimum(za, zb) + mw,
             @maximum(xa, xb) + @maximum(ya, yb) + @maximum(za, zb) + mw,
         );
+    }
+
+    pub fn transformTransposed(self: AABB, m: Mat3x3) AABB {
+        const mx = Vec4f{ m.r[0][0], m.r[1][0], m.r[2][0], 0.0 };
+        const xa = @splat(4, self.bounds[0][0]) * mx;
+        const xb = @splat(4, self.bounds[1][0]) * mx;
+
+        const my = Vec4f{ m.r[0][1], m.r[1][1], m.r[2][1] };
+        const ya = @splat(4, self.bounds[0][1]) * my;
+        const yb = @splat(4, self.bounds[1][1]) * my;
+
+        const mz = Vec4f{ m.r[0][2], m.r[1][2], m.r[2][2] };
+        const za = @splat(4, self.bounds[0][2]) * mz;
+        const zb = @splat(4, self.bounds[1][2]) * mz;
+
+        const min = @minimum(xa, xb) + @minimum(ya, yb) + @minimum(za, zb);
+        const max = @maximum(xa, xb) + @maximum(ya, yb) + @maximum(za, zb);
+
+        const half = @splat(4, @as(f32, 0.5)) * (max - min);
+
+        const p = self.position();
+
+        return init(p - half, p + half);
     }
 
     pub fn mergeAssign(self: *AABB, other: AABB) void {

@@ -276,10 +276,9 @@ pub const Shape = union(enum) {
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
-        _ = bounds;
-
         return switch (self) {
             .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv, bounds),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv),
             .Triangle_mesh => |m| m.sampleFrom(

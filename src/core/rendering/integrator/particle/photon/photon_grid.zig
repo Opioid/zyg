@@ -508,8 +508,8 @@ pub const Grid = struct {
     }
 
     pub fn setNumPaths(self: *Self, num_paths: u64) void {
-        const search_radius = self.search_radius;
-        const radius2 = search_radius * search_radius;
+        const radius = self.search_radius;
+        const radius2 = radius * radius;
 
         // conely
         // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
@@ -524,6 +524,10 @@ pub const Grid = struct {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
+
+        if (!self.aabb.pointInside(position)) {
+            return result;
+        }
 
         const adjacency = self.adjacentCells(position, self.cell_bound);
 

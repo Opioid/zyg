@@ -36,13 +36,13 @@ pub const Texture = struct {
     }
 
     pub fn numChannels(self: Texture) u32 {
-        const nc: u32 = switch (self.type) {
+        if (Null == self.image) return 0;
+
+        return switch (self.type) {
             .Byte1_unorm, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
         };
-
-        return if (Null == self.image) 0 else nc;
     }
 
     pub fn get2D_1(self: Texture, x: i32, y: i32, scene: Scene) f32 {

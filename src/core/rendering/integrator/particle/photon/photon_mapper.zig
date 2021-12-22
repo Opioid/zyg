@@ -94,9 +94,6 @@ pub const Mapper = struct {
 
         const Avoid_caustics = false;
 
-        var unnatural_limit = bounds;
-        unnatural_limit.scale(8.0);
-
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
@@ -160,7 +157,7 @@ pub const Mapper = struct {
                         (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or unnatural_limit.pointInside(isec.geo.p)) {
+                        if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
                             const material_ior = isec.material(worker.super).ior();

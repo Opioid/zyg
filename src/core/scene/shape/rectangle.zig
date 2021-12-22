@@ -146,7 +146,7 @@ pub const Rectangle = struct {
         rng: *RNG,
         sampler_d: usize,
         importance_uv: Vec2f,
-    ) ?SampleFrom {
+    ) SampleFrom {
         const uv = sampler.sample2D(rng, sampler_d);
         return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, sampler_d, importance_uv);
     }
@@ -189,20 +189,32 @@ pub const Rectangle = struct {
         rng: *RNG,
         sampler_d: usize,
         importance_uv: Vec2f,
-    ) ?SampleFrom {
+    ) SampleFrom {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
         var wn = trafo.rotation.r[2];
 
-        var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+        var dir = math.smpl.orientedHemisphereCosine(
+            importance_uv,
+            trafo.rotation.r[0],
+            trafo.rotation.r[1],
+            wn,
+        );
 
         if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
             wn = -wn;
             dir = -dir;
         }
 
-        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uv, importance_uv, 1.0 / (std.math.pi * area));
+        return SampleFrom.init(
+            ro.offsetRay(ws, wn),
+            wn,
+            dir,
+            uv,
+            importance_uv,
+            1.0 / (std.math.pi * area),
+        );
     }
 
     pub fn pdf(ray: Ray, trafo: Transformation, area: f32, two_sided: bool) f32 {
