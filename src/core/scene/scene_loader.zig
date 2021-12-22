@@ -420,11 +420,13 @@ pub const Loader = struct {
 
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
-        const sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
+        var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
+        sky_mat.commit();
         const sky_mat_id = self.resources.materials.store(alloc, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
 
-        const sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
+        var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
+        sun_mat.commit();
         const sun_mat_id = self.resources.materials.store(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
 

@@ -329,9 +329,9 @@ pub const Shape = union(enum) {
         bounds: AABB,
     ) ?SampleFrom {
         _ = part;
-        _ = bounds;
 
         return switch (self) {
+            .Canopy => Canopy.sampleFromUv(uv, trafo, importance_uv, bounds),
             .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
             else => null,
         };

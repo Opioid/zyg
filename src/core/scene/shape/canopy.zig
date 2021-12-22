@@ -1,12 +1,15 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
 
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
+const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -93,6 +96,38 @@ pub const Canopy = struct {
         }
 
         return 1.0;
+    }
+
+    pub fn sampleFromUv(
+        uv: Vec2f,
+        trafo: Transformation,
+        importance_uv: Vec2f,
+        bounds: AABB,
+    ) ?SampleFrom {
+        const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
+        const z = math.dot2(disk, disk);
+        if (z > 1.0) {
+            return null;
+        }
+
+        const ls = diskToHemisphereEquidistant(disk);
+        const ws = -trafo.rotation.transformVector(ls);
+        const tb = math.orthonormalBasis3(ws);
+
+        const bounds_radius2 = math.squaredLength3(bounds.halfsize());
+        const bounds_radius = @sqrt(bounds_radius2);
+
+        const receiver_disk = math.smpl.orientedDiskConcentric(importance_uv, tb[0], tb[1]);
+        const p = bounds.position() + @splat(4, bounds_radius) * (receiver_disk - ws);
+
+        return SampleFrom.init(
+            p,
+            @splat(4, @as(f32, 0.0)),
+            ws,
+            uv,
+            importance_uv,
+            1.0 / ((2.0 * std.math.pi) * (1.0 * std.math.pi) * bounds_radius2),
+        );
     }
 
     fn hemisphereToDiskEquidistant(dir: Vec4f) Vec2f {

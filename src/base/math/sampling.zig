@@ -27,6 +27,11 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     return .{ cos_theta * r, sin_theta * r };
 }
 
+pub fn orientedDiskConcentric(uv: Vec2f, x: Vec4f, y: Vec4f) Vec4f {
+    const d = diskConcentric(uv);
+    return @splat(4, d[0]) * x + @splat(4, d[1]) * y;
+}
+
 pub fn triangleUniform(uv: Vec2f) Vec2f {
     const su = @sqrt(uv[0]);
     return .{ 1.0 - su, uv[1] * su };
