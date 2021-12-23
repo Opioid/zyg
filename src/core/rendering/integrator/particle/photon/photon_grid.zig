@@ -543,8 +543,7 @@ pub const Grid = struct {
         const radius2 = radius * radius;
         const inv_radius2 = 1.0 / radius2;
 
-        // const disk = math.plane.createNP(isec.geo.n, position);
-        // const disk_thickness = radius * 0.125;
+        const two_sided = isec.material(worker.super).isTwoSided();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
             var i = cell[0];
@@ -554,11 +553,15 @@ pub const Grid = struct {
 
                 const distance2 = math.squaredDistance3(p.p, position);
                 if (distance2 < radius2) {
-                    if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
-                        // if (@fabs(math.plane.dot(disk, p.p)) > disk_thickness) {
-                        //     continue;
-                        // }
+                    if (two_sided) {
+                        const k = coneFilter(distance2, inv_radius2);
 
+                        const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
+
+                        const bxdf = sample.evaluate(p.wi);
+
+                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                    } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                         const k = coneFilter(distance2, inv_radius2);
 
                         const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
@@ -570,25 +573,6 @@ pub const Grid = struct {
                 }
             }
         }
-
-        // for (self.photons) |p| {
-        //     const distance2 = math.squaredDistance3(p.p, position);
-        //     if (distance2 < radius2) {
-        //         if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
-        //             if (@fabs(math.plane.dot(disk, p.p)) > disk_thickness) {
-        //                 continue;
-        //             }
-
-        //             const k = coneFilter(distance2, inv_radius2);
-
-        //             const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
-
-        //             const bxdf = sample.evaluate(p.wi);
-
-        //             result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
-        //         }
-        //     }
-        // }
 
         return result * @splat(4, self.surface_normalization);
     }
