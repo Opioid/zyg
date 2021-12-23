@@ -39,19 +39,15 @@ pub const Options = struct {
 
         var executed = false;
 
-        var i_i = iter.next(alloc);
+        var i_i = try iter.next(alloc);
         while (i_i) |arg_i| {
-            const argument_i = try arg_i;
+            const command = arg_i[1..];
 
-            const command = argument_i[1..];
-
-            var i_j = iter.next(alloc);
+            var i_j = try iter.next(alloc);
             if (i_j) |arg_j| {
-                const argument_j = try arg_j;
-
-                if (isParameter(argument_j)) {
-                    try options.handleAll(alloc, command, argument_j);
-                    alloc.free(argument_j);
+                if (isParameter(arg_j)) {
+                    try options.handleAll(alloc, command, arg_j);
+                    alloc.free(arg_j);
 
                     executed = true;
 
@@ -63,7 +59,7 @@ pub const Options = struct {
                 try options.handleAll(alloc, command, "");
             }
 
-            alloc.free(argument_i);
+            alloc.free(arg_i);
             i_i = i_j;
 
             executed = false;

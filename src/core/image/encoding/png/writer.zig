@@ -43,7 +43,7 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const c_void, self.srgb.buffer.ptr),
+            @ptrCast(*const anyopaque, self.srgb.buffer.ptr),
             d.v[0],
             d.v[1],
             if (self.srgb.alpha) 4 else 3,
@@ -73,7 +73,7 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const c_void, buffer.ptr),
+            @ptrCast(*const anyopaque, buffer.ptr),
             d.v[0],
             d.v[1],
             3,
