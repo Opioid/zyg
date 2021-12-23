@@ -216,6 +216,13 @@ pub const AABB = struct {
         return init(p - half, p + half);
     }
 
+    pub fn intersection(self: AABB, other: AABB) AABB {
+        return init(
+            @maximum(self.bounds[0], other.bounds[0]),
+            @minimum(self.bounds[1], other.bounds[1]),
+        );
+    }
+
     pub fn mergeAssign(self: *AABB, other: AABB) void {
         self.bounds[0] = @minimum(self.bounds[0], other.bounds[0]);
         self.bounds[1] = @maximum(self.bounds[1], other.bounds[1]);

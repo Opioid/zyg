@@ -126,7 +126,6 @@ pub const Perspective = struct {
         }
 
         const time = self.absoluteTime(frame, sample.time);
-
         const trafo = scene.propTransformationAt(self.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
