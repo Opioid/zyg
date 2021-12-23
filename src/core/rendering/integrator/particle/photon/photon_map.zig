@@ -95,6 +95,8 @@ pub const Map = struct {
             aabb.mergeAssign(b);
         }
 
+        aabb.add(0.0001);
+
         return aabb;
     }
 
@@ -102,12 +104,9 @@ pub const Map = struct {
         const self = @intToPtr(*Self, context);
 
         var aabb = math.aabb.empty;
-
         for (self.photons[begin..end]) |p| {
             aabb.insert(p.p);
         }
-
-        aabb.add(0.0001);
 
         self.aabbs[id] = aabb;
     }

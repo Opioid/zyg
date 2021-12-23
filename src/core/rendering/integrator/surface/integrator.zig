@@ -57,7 +57,7 @@ pub const Integrator = union(enum) {
         initial_stack: InterfaceStack,
     ) Vec4f {
         return switch (self.*) {
-            .AOV => |*i| i.li(ray, isec, worker),
+            .AOV => |*i| i.li(ray, isec, worker, initial_stack),
             .PT => |*i| i.li(ray, isec, worker, initial_stack),
             .PTDL => |*i| i.li(ray, isec, worker, initial_stack),
             .PTMIS => |*i| i.li(ray, isec, worker, initial_stack),

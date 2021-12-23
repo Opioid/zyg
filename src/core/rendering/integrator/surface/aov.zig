@@ -1,6 +1,7 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const smp = @import("../../../sampler/sampler.zig");
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -49,7 +50,15 @@ pub const AOV = struct {
         self.sampler.startPixel();
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    pub fn li(
+        self: *Self,
+        ray: *Ray,
+        isec: *Intersection,
+        worker: *Worker,
+        initial_stack: InterfaceStack,
+    ) Vec4f {
+        worker.super.resetInterfaceStack(initial_stack);
+
         return switch (self.settings.value) {
             .AO => self.ao(ray.*, isec.*, worker),
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),

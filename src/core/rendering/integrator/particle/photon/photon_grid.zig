@@ -395,8 +395,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                var j = std.math.max(cell[0], i + 1);
                 const jlen = std.math.min(cell[1], end);
+                var j = std.math.max(cell[0], i + 1);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -422,7 +422,6 @@ pub const Grid = struct {
                     }
 
                     a_alpha += b_alpha;
-
                     b.alpha[0] = -1.0;
 
                     if (weight > total_weight) {
@@ -430,9 +429,7 @@ pub const Grid = struct {
                     }
 
                     total_weight += weight;
-
                     position += @splat(4, weight) * b.p;
-
                     local_reduced += 1;
                 }
             }
