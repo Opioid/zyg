@@ -66,7 +66,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.EmissionMap, self.emission_map.isValid());
+        self.super.properties.set(.EmissionMap, self.emission_map.valid());
     }
 
     pub fn setSunRadiance(self: *Material, model: Model) void {
@@ -155,7 +155,7 @@ pub const Material = struct {
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
         var radiance: Vec4f = undefined;
 
-        if (self.emission_map.isValid()) {
+        if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
             radiance = ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
@@ -169,7 +169,7 @@ pub const Material = struct {
     }
 
     pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
-        if (self.emission_map.isValid()) {
+        if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
         }
@@ -184,7 +184,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: Material, uv: Vec2f) f32 {
-        if (self.emission_map.isValid()) {
+        if (self.emission_map.valid()) {
             return self.distribution.pdf(self.super.sampler_key.address.address(uv)) * self.total_weight;
         }
 

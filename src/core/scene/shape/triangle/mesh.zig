@@ -53,7 +53,7 @@ pub const Part = struct {
             }
 
             const lm = scene.material(self.material);
-            if (!lm.hasEmissionMap() and !emission_map) {
+            if (!lm.emissionMapped() and !emission_map) {
                 return self.two_sided == two_sided;
             }
 
@@ -142,8 +142,8 @@ pub const Part = struct {
 
         const m = worker.scene.materialRef(material);
 
-        const emission_map = m.hasEmissionMap();
-        const two_sided = m.isTwoSided();
+        const emission_map = m.emissionMapped();
+        const two_sided = m.twoSided();
 
         for (self.variants.items) |v, i| {
             if (v.matches(material, emission_map, two_sided, worker.scene.*)) {
@@ -249,7 +249,7 @@ pub const Part = struct {
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @intToPtr(*Context, context);
 
-            const emission_map = self.m.hasEmissionMap();
+            const emission_map = self.m.emissionMapped();
 
             var temp: Temp = .{};
 

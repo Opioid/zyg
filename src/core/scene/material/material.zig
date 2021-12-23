@@ -87,11 +87,11 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn isMasked(self: Material) bool {
-        return self.super().mask.isValid();
+    pub fn masked(self: Material) bool {
+        return self.super().mask.valid();
     }
 
-    pub fn isTwoSided(self: Material) bool {
+    pub fn twoSided(self: Material) bool {
         return switch (self) {
             .Debug => true,
             .Glass => |m| m.thickness > 0.0,
@@ -101,18 +101,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn isCaustic(self: Material) bool {
+    pub fn caustic(self: Material) bool {
         return self.super().properties.is(.Caustic);
     }
 
-    pub fn hasTintedShadow(self: Material) bool {
+    pub fn tintedShadow(self: Material) bool {
         return switch (self) {
             .Glass => |m| m.thickness > 0.0,
             else => false,
         };
     }
 
-    pub fn isEmissive(self: Material) bool {
+    pub fn emissive(self: Material) bool {
         return switch (self) {
             .Light, .Sky => true,
             .Substitute => |m| {
@@ -129,18 +129,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn hasEmissionMap(self: Material) bool {
+    pub fn emissionMapped(self: Material) bool {
         return self.super().properties.is(.EmissionMap);
     }
 
-    pub fn isPureEmissive(self: Material) bool {
+    pub fn pureEmissive(self: Material) bool {
         return switch (self) {
             .Light, .Sky => true,
             else => false,
         };
     }
 
-    pub fn isScatteringVolume(self: Material) bool {
+    pub fn scatteringVolume(self: Material) bool {
         return switch (self) {
             .Substitute => |m| m.super.properties.is(.ScatteringVolume),
             .Volumetric => |m| m.super.properties.is(.ScatteringVolume),
@@ -148,16 +148,16 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn isHeterogeneousVolume(self: Material) bool {
+    pub fn heterogeneousVolume(self: Material) bool {
         return switch (self) {
-            .Volumetric => |m| m.density.isValid(),
+            .Volumetric => |m| m.density.valid(),
             else => false,
         };
     }
 
     pub fn volumetricTree(self: Material) ?Gridtree {
         return switch (self) {
-            .Volumetric => |m| if (m.density_map.isValid()) m.tree else null,
+            .Volumetric => |m| if (m.density_map.valid()) m.tree else null,
             else => null,
         };
     }
@@ -177,7 +177,7 @@ pub const Material = union(enum) {
             },
             else => {
                 const color_map = sup.color_map;
-                if (color_map.isValid()) {
+                if (color_map.valid()) {
                     const key = ts.resolveKey(sup.sampler_key, filter);
                     const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, worker.scene.*);
                     return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
@@ -204,7 +204,7 @@ pub const Material = union(enum) {
                 const e = self.super().emission;
 
                 const color_map = sup.color_map;
-                if (color_map.isValid()) {
+                if (color_map.valid()) {
                     const key = ts.resolveKey(sup.sampler_key, filter);
                     const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, worker.scene.*);
                     return .{
@@ -282,24 +282,24 @@ pub const Material = union(enum) {
     pub fn usefulTextureDescription(self: Material, scene: Scene) image.Description {
         switch (self) {
             .Light => |m| {
-                if (m.emission_map.isValid()) {
+                if (m.emission_map.valid()) {
                     return m.emission_map.description(scene);
                 }
             },
             .Sky => |m| {
-                if (m.emission_map.isValid()) {
+                if (m.emission_map.valid()) {
                     return m.emission_map.description(scene);
                 }
             },
             .Substitute => |m| {
-                if (m.emission_map.isValid()) {
+                if (m.emission_map.valid()) {
                     return m.emission_map.description(scene);
                 }
             },
             else => {},
         }
 
-        const color_map = &self.super().color_map;
-        return if (color_map.isValid()) color_map.description(scene) else .{};
+        const color_map = self.super().color_map;
+        return if (color_map.valid()) color_map.description(scene) else .{};
     }
 };

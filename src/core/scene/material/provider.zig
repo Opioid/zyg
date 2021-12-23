@@ -352,7 +352,7 @@ pub const Provider = struct {
             material.setCheckers(checkers[0], checkers[1], checkers_scale);
         }
 
-        if (coating.thickness.texture.isValid() or coating.thickness.value > 0.0) {
+        if (coating.thickness.texture.valid() or coating.thickness.value > 0.0) {
             material.coating.normal_map = coating.normal_map;
             material.coating.thickness_map = coating.thickness.texture;
             material.coating.setAttenuation(coating.color, coating.attenuation_distance);

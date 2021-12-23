@@ -43,7 +43,7 @@ pub const Prop = struct {
         return self.properties.is(.LocalAnimation);
     }
 
-    pub fn hasNoParent(self: Prop) bool {
+    pub fn noParent(self: Prop) bool {
         return self.properties.no(.HasParent);
     }
 
@@ -59,7 +59,7 @@ pub const Prop = struct {
         return self.properties.is(.VisibleInShadow);
     }
 
-    pub fn hasTintedShadow(self: Prop) bool {
+    pub fn tintedShadow(self: Prop) bool {
         return self.properties.is(.TintedShadow);
     }
 
@@ -89,7 +89,7 @@ pub const Prop = struct {
         for (materials) |mid| {
             const m = scene.material(mid);
 
-            if (m.isMasked() or m.hasTintedShadow()) {
+            if (m.masked() or m.tintedShadow()) {
                 self.properties.set(.TintedShadow, true);
             }
         }
@@ -177,7 +177,7 @@ pub const Prop = struct {
     }
 
     pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (!self.hasTintedShadow()) {
+        if (!self.tintedShadow()) {
             if (self.intersectP(entity, ray, worker)) {
                 return null;
             }

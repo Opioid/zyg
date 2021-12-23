@@ -78,7 +78,7 @@ pub const Base = struct {
 
     pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
         const mask = self.mask;
-        if (mask.isValid()) {
+        if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
             return ts.sample2D_1(key, mask, uv, worker.scene.*);
         }

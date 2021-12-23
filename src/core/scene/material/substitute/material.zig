@@ -65,12 +65,12 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.EmissionMap, self.emission_map.isValid());
+        self.super.properties.set(.EmissionMap, self.emission_map.valid());
         self.super.properties.set(.Caustic, self.alpha[0] <= ggx.Min_alpha);
     }
 
     pub fn prepareSampling(self: Material, scene: Scene) Vec4f {
-        if (self.emission_map.isValid()) {
+        if (self.emission_map.valid()) {
             return @splat(4, self.emission_factor) * self.emission_map.average_3(scene);
         }
 
@@ -115,7 +115,7 @@ pub const Material = struct {
             rs,
             key,
             worker.*,
-        ) else if (self.super.color_map.isValid()) ts.sample2D_3(
+        ) else if (self.super.color_map.valid()) ts.sample2D_3(
             key,
             self.super.color_map,
             rs.uv,
@@ -123,7 +123,7 @@ pub const Material = struct {
         ) else self.color;
 
         const ef = @splat(4, self.emission_factor);
-        const radiance = if (self.emission_map.isValid()) ef * ts.sample2D_3(
+        const radiance = if (self.emission_map.valid()) ef * ts.sample2D_3(
             key,
             self.emission_map,
             rs.uv,
@@ -151,7 +151,7 @@ pub const Material = struct {
         var coating_thickness: f32 = undefined;
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
-        if (self.coating.thickness_map.isValid()) {
+        if (self.coating.thickness_map.valid()) {
             const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, worker.scene.*);
             coating_thickness = self.coating.thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
@@ -177,7 +177,7 @@ pub const Material = struct {
             self.attenuation_distance > 0.0,
         );
 
-        if (self.normal_map.isValid()) {
+        if (self.normal_map.valid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
             result.super.layer.setNormal(n);
         } else {
@@ -196,7 +196,7 @@ pub const Material = struct {
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating.normal_map)) {
                 result.coating.layer = result.super.layer;
-            } else if (self.coating.normal_map.isValid()) {
+            } else if (self.coating.normal_map.valid()) {
                 const n = hlp.sampleNormal(wo, rs, self.coating.normal_map, key, worker.scene.*);
                 result.coating.layer.setNormal(n);
             } else {
@@ -229,13 +229,13 @@ pub const Material = struct {
         const uv = Vec2f{ uvw[0], uvw[1] };
 
         const ef = @splat(4, self.emission_factor);
-        const radiance = if (self.emission_map.isValid())
+        const radiance = if (self.emission_map.valid())
             ef * ts.sample2D_3(key, self.emission_map, uv, worker.scene.*)
         else
             ef * self.super.emission;
 
         var coating_thickness: f32 = undefined;
-        if (self.coating.thickness_map.isValid()) {
+        if (self.coating.thickness_map.valid()) {
             const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, worker.scene.*);
             coating_thickness = self.coating.thickness * relative_thickness;
         } else {

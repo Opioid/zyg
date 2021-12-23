@@ -31,7 +31,7 @@ pub const Texture = struct {
         return self.type == other.type and self.image == other.image and self.image == other.image;
     }
 
-    pub fn isValid(self: Texture) bool {
+    pub fn valid(self: Texture) bool {
         return self.image != Null;
     }
 

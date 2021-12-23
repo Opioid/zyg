@@ -53,7 +53,7 @@ pub const Multi = struct {
 
         const material = interface.material(worker.*);
 
-        if (!material.isScatteringVolume()) {
+        if (!material.scatteringVolume()) {
             // Basically the "glass" case
             const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.*).a;
             return .{
@@ -94,7 +94,7 @@ pub const Multi = struct {
             return result;
         }
 
-        if (material.isEmissive()) {
+        if (material.emissive()) {
             const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.*);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);

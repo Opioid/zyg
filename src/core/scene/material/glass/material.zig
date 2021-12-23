@@ -42,7 +42,7 @@ pub const Material = struct {
 
         var alpha: f32 = undefined;
 
-        if (self.roughness_map.isValid()) {
+        if (self.roughness_map.valid()) {
             const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, worker.scene.*);
             const r = ggx.mapRoughness(roughness);
             alpha = r * r;
@@ -62,7 +62,7 @@ pub const Material = struct {
             rs.wavelength(),
         );
 
-        if (self.normal_map.isValid()) {
+        if (self.normal_map.valid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
             const tb = math.orthonormalBasis3(n);
 

@@ -350,7 +350,7 @@ pub const Light = struct {
         total_sphere: bool,
         worker: Worker,
     ) f32 {
-        const two_sided = isec.material(worker).isTwoSided();
+        const two_sided = isec.material(worker).twoSided();
 
         return isec.shape(worker).pdf(
             self.variant,
@@ -366,7 +366,7 @@ pub const Light = struct {
 
     fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Transformation, worker: Worker) f32 {
         const material = isec.material(worker);
-        const two_sided = material.isTwoSided();
+        const two_sided = material.twoSided();
 
         const uv = isec.geo.uv;
         const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });

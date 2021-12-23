@@ -543,7 +543,7 @@ pub const Grid = struct {
         const radius2 = radius * radius;
         const inv_radius2 = 1.0 / radius2;
 
-        const two_sided = isec.material(worker.super).isTwoSided();
+        const two_sided = isec.material(worker.super).twoSided();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
             var i = cell[0];

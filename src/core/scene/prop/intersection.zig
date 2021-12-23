@@ -53,7 +53,7 @@ pub const Intersection = struct {
         rs.t = self.geo.t;
         rs.b = .{ b[0], b[1], b[2], ray.wavelength };
 
-        if (m.isTwoSided() and !self.sameHemisphere(wo)) {
+        if (m.twoSided() and !self.sameHemisphere(wo)) {
             rs.geo_n = -self.geo.geo_n;
             rs.n = -self.geo.n;
         } else {
@@ -83,9 +83,9 @@ pub const Intersection = struct {
     ) ?Vec4f {
         const m = self.material(worker);
 
-        pure_emissive.* = m.isPureEmissive();
+        pure_emissive.* = m.pureEmissive();
 
-        if (!m.isTwoSided() and !self.sameHemisphere(wo)) {
+        if (!m.twoSided() and !self.sameHemisphere(wo)) {
             return null;
         }
 

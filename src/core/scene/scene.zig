@@ -87,7 +87,7 @@ pub const Scene = struct {
 
     sky: ?Sky = null,
 
-    has_tinted_shadow: bool = undefined,
+    tinted_shadow: bool = undefined,
     has_volumes: bool = undefined,
 
     pub fn init(
@@ -200,12 +200,12 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) !void {
-        self.has_tinted_shadow = false;
+        self.tinted_shadow = false;
 
         for (self.props.items) |p, i| {
             self.propCalculateWorldTransformation(i, camera_pos);
 
-            self.has_tinted_shadow = self.has_tinted_shadow or p.hasTintedShadow();
+            self.tinted_shadow = self.tinted_shadow or p.tintedShadow();
         }
 
         for (self.volumes.items) |v| {
@@ -266,7 +266,7 @@ pub const Scene = struct {
     }
 
     pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (self.has_tinted_shadow) {
+        if (self.tinted_shadow) {
             return self.prop_bvh.visibility(ray, filter, worker);
         }
 
@@ -335,18 +335,18 @@ pub const Scene = struct {
         const len = shape_inst.numParts();
         while (i < len) : (i += 1) {
             const mat = self.propMaterial(entity, i);
-            if (!mat.isEmissive()) {
+            if (!mat.emissive()) {
                 continue;
             }
 
-            if (mat.isScatteringVolume()) {
-                if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {} else {
+            if (mat.scatteringVolume()) {
+                if (shape_inst.isAnalytical() and mat.emissionMapped()) {} else {
                     try self.allocateLight(alloc, .Volume, false, entity, i);
                 }
             } else {
-                const two_sided = mat.isTwoSided();
+                const two_sided = mat.twoSided();
 
-                if (shape_inst.isAnalytical() and mat.hasEmissionMap()) {
+                if (shape_inst.isAnalytical() and mat.emissionMapped()) {
                     try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Prop, two_sided, entity, i);
@@ -681,7 +681,7 @@ pub const Scene = struct {
                 return false;
             }
 
-            if (self.materials.items[m].isEmissive()) {
+            if (self.materials.items[m].emissive()) {
                 return false;
             }
         }
@@ -695,7 +695,7 @@ pub const Scene = struct {
         var i: u32 = 0;
         const len = shape_inst.numParts();
         while (i < len) : (i += 1) {
-            if (!self.propMaterial(entity, i).isCaustic()) {
+            if (!self.propMaterial(entity, i).caustic()) {
                 return true;
             }
         }
@@ -726,7 +726,7 @@ pub const Scene = struct {
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
-        if (self.props.items[entity].hasNoParent()) {
+        if (self.props.items[entity].noParent()) {
             const f = self.prop_frames.items[entity];
 
             if (Prop.Null != f) {

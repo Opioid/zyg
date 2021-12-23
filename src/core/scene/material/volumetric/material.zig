@@ -44,7 +44,7 @@ pub const Material = struct {
         self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
             math.anyGreaterZero3(self.super.emission));
 
-        if (self.density_map.isValid()) {
+        if (self.density_map.valid()) {
             Builder.build(
                 alloc,
                 &self.tree,
@@ -87,7 +87,7 @@ pub const Material = struct {
     }
 
     pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) f32 {
-        if (self.density_map.isValid()) {
+        if (self.density_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample3D_1(key, self.density_map, uvw, worker.scene.*);
         }
