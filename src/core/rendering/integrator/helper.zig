@@ -35,7 +35,7 @@ pub fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
 pub fn russianRoulette(throughput: *Vec4f, r: f32) bool {
     const continuation_probability = math.maxComponent3(throughput.*);
 
-    if (r > continuation_probability) {
+    if (r >= continuation_probability) {
         return true;
     }
 
