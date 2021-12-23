@@ -58,7 +58,7 @@ pub const Map = struct {
         const total_num_photons = @intCast(u32, self.photons.len);
 
         const reduced_num = if (num_photons == total_num_photons)
-            self.grid.reduceAndMove(self.photons, threads)
+            self.grid.reduce(self.photons, threads)
         else
             num_photons;
 

@@ -73,21 +73,21 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn isFinite(self: Shape) bool {
+    pub fn finite(self: Shape) bool {
         return switch (self) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => false,
             else => true,
         };
     }
 
-    pub fn isAnalytical(self: Shape) bool {
+    pub fn analytical(self: Shape) bool {
         return switch (self) {
             .Triangle_mesh => false,
             else => true,
         };
     }
 
-    pub fn isComplex(self: Shape) bool {
+    pub fn complex(self: Shape) bool {
         return switch (self) {
             .Triangle_mesh => true,
             else => false,

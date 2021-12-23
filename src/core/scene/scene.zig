@@ -165,7 +165,7 @@ pub const Scene = struct {
         return self.caustic_aabb;
     }
 
-    pub fn isFinite(self: Scene) bool {
+    pub fn finite(self: Scene) bool {
         return 0 == self.infinite_props.items.len;
     }
 
@@ -312,7 +312,7 @@ pub const Scene = struct {
             }
         }
 
-        if (shape_inst.isFinite()) {
+        if (shape_inst.finite()) {
             try self.finite_props.append(alloc, p);
         } else {
             try self.infinite_props.append(alloc, p);
@@ -320,7 +320,7 @@ pub const Scene = struct {
 
         // Shape has no surface
         if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
-            if (shape_inst.isFinite()) {
+            if (shape_inst.finite()) {
                 try self.volumes.append(alloc, p);
             }
         }
@@ -340,13 +340,13 @@ pub const Scene = struct {
             }
 
             if (mat.scatteringVolume()) {
-                if (shape_inst.isAnalytical() and mat.emissionMapped()) {} else {
+                if (shape_inst.analytical() and mat.emissionMapped()) {} else {
                     try self.allocateLight(alloc, .Volume, false, entity, i);
                 }
             } else {
                 const two_sided = mat.twoSided();
 
-                if (shape_inst.isAnalytical() and mat.emissionMapped()) {
+                if (shape_inst.analytical() and mat.emissionMapped()) {
                     try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Prop, two_sided, entity, i);

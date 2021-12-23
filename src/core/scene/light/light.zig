@@ -47,8 +47,8 @@ pub const Light = struct {
         return ~Volume_mask & id;
     }
 
-    pub fn isFinite(self: Light, scene: Scene) bool {
-        return scene.propShape(self.prop).isFinite();
+    pub fn finite(self: Light, scene: Scene) bool {
+        return scene.propShape(self.prop).finite();
     }
 
     pub fn prepareSampling(
@@ -73,7 +73,7 @@ pub const Light = struct {
 
         const radiance = @splat(4, extent) * average_radiance;
 
-        if (scene.propShape(self.prop).isFinite()) {
+        if (scene.propShape(self.prop).finite()) {
             return radiance;
         }
 

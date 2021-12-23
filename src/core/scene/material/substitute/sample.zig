@@ -12,6 +12,7 @@ const fresnel = @import("../fresnel.zig");
 const hlp = @import("../sample_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 const ggx = @import("../ggx.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -432,7 +433,7 @@ pub const Sample = struct {
         return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
     }
 
-    pub fn volumetricEvaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    fn volumetricEvaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return bxdf.Result.empty();

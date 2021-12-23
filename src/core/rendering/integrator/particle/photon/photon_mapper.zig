@@ -59,14 +59,14 @@ pub const Mapper = struct {
         const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
         const bounds = world_bounds;
 
-        const is_finite = worker.super.scene.isFinite();
+        const finite = worker.super.scene.finite();
 
         var num_paths: u32 = 0;
 
         var i = begin;
         while (i < end) {
             const max_photons = std.math.min(self.settings.max_bounces, end - i);
-            const result = self.tracePhoton(bounds, frame, max_photons, is_finite, worker);
+            const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
 
             if (result.num_iterations > 0) {
                 for (self.photons[0..result.num_photons]) |p, j| {

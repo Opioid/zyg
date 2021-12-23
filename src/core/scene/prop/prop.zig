@@ -82,7 +82,7 @@ pub const Prop = struct {
         self.properties.set(.VisibleInShadow, true);
 
         const shape_inst = scene.shape(shape);
-        self.properties.set(.TestAABB, shape_inst.isFinite() and shape_inst.isComplex());
+        self.properties.set(.TestAABB, shape_inst.finite() and shape_inst.complex());
 
         self.properties.set(.Static, true);
 
@@ -98,7 +98,7 @@ pub const Prop = struct {
     pub fn configureAnimated(self: *Prop, local_animation: bool, scene: Scene) void {
         const shape_inst = scene.shape(self.shape);
 
-        self.properties.set(.TestAABB, shape_inst.isFinite());
+        self.properties.set(.TestAABB, shape_inst.finite());
         self.properties.set(.Static, false);
         self.properties.set(.LocalAnimation, local_animation);
     }

@@ -355,7 +355,7 @@ pub const Grid = struct {
         }
     }
 
-    pub fn reduceAndMove(self: *Self, photons: []Photon, threads: *Threads) u32 {
+    pub fn reduce(self: *Self, photons: []Photon, threads: *Threads) u32 {
         self.photons = photons;
 
         _ = threads.runRange(self, reduceRange, 0, @intCast(u32, photons.len));
@@ -395,8 +395,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                var j = std.math.max(@intCast(u32, cell[0]), i + 1);
-                const jlen = std.math.min(@intCast(u32, cell[1]), end);
+                var j = std.math.max(cell[0], i + 1);
+                const jlen = std.math.min(cell[1], end);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -404,7 +404,7 @@ pub const Grid = struct {
 
                     var b = &self.photons[j];
 
-                    if (b.alpha[0] < 0.0) {
+                    if (a.volumetric != b.volumetric or b.alpha[0] < 0.0) {
                         continue;
                     }
 
@@ -541,34 +541,41 @@ pub const Grid = struct {
 
         const radius = self.search_radius;
         const radius2 = radius * radius;
-        const inv_radius2 = 1.0 / radius2;
 
-        const two_sided = isec.material(worker.super).twoSided();
+        if (isec.subsurface) {} else {
+            const inv_radius2 = 1.0 / radius2;
 
-        for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-            var i = cell[0];
-            const len = cell[1];
-            while (i < len) : (i += 1) {
-                const p = self.photons[@intCast(usize, i)];
+            const two_sided = isec.material(worker.super).twoSided();
 
-                const distance2 = math.squaredDistance3(p.p, position);
-                if (distance2 < radius2) {
-                    if (two_sided) {
-                        const k = coneFilter(distance2, inv_radius2);
+            for (adjacency.cells[0..adjacency.num_cells]) |cell| {
+                var i = cell[0];
+                const len = cell[1];
+                while (i < len) : (i += 1) {
+                    const p = self.photons[i];
 
-                        const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
+                    if (p.volumetric) {
+                        continue;
+                    }
 
-                        const bxdf = sample.evaluate(p.wi);
+                    const distance2 = math.squaredDistance3(p.p, position);
+                    if (distance2 < radius2) {
+                        if (two_sided) {
+                            const k = coneFilter(distance2, inv_radius2);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
-                    } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
-                        const k = coneFilter(distance2, inv_radius2);
+                            const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                        const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
+                            const bxdf = sample.evaluate(p.wi);
 
-                        const bxdf = sample.evaluate(p.wi);
+                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                        } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
+                            const k = coneFilter(distance2, inv_radius2);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
+
+                            const bxdf = sample.evaluate(p.wi);
+
+                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                        }
                     }
                 }
             }

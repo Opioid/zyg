@@ -245,7 +245,7 @@ pub const Builder = struct {
         {
             var l: u32 = 0;
             while (l < num_lights) : (l += 1) {
-                if (!scene.light(l).isFinite(scene)) {
+                if (!scene.light(l).finite(scene)) {
                     tree.light_mapping[lm] = l;
                     lm += 1;
                 }
@@ -257,7 +257,7 @@ pub const Builder = struct {
         {
             var l: u32 = 0;
             while (l < num_lights) : (l += 1) {
-                if (scene.light(l).isFinite(scene)) {
+                if (scene.light(l).finite(scene)) {
                     tree.light_mapping[lm] = l;
                     lm += 1;
                 }
