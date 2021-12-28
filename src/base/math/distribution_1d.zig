@@ -69,9 +69,10 @@ pub const Distribution1D = struct {
     }
 
     pub fn pdfF(self: Self, u: f32) f32 {
-        const offset = @floatToInt(u32, u * @intToFloat(f32, self.cdf.len - 1));
+        const len = self.cdf.len;
+        const o = std.math.min(@floatToInt(u32, u * @intToFloat(f32, len - 1)), len - 2);
 
-        return self.cdf[offset + 1] - self.cdf[offset];
+        return self.cdf[o + 1] - self.cdf[o];
     }
 
     fn precompute1DPdfCdf(self: *Self, alloc: Allocator, data: []f32) !void {
