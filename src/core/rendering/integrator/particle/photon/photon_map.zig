@@ -75,7 +75,7 @@ pub const Map = struct {
     }
 
     pub fn compileFinalize(self: *Self) void {
-        self.grid.initCells(self.photons[0..self.reduced_num]);
+        //   self.grid.initCells(self.photons[0..self.reduced_num]);
         self.grid.setNumPaths(self.num_paths);
     }
 
@@ -84,7 +84,7 @@ pub const Map = struct {
             return @splat(4, @as(f32, 0.0));
         }
 
-        return self.grid.li(isec, sample, worker);
+        return self.grid.li2(isec, sample, worker);
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {

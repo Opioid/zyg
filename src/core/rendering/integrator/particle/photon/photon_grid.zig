@@ -36,6 +36,8 @@ pub const Grid = struct {
     grid_cell_factor: f32 = undefined,
     surface_normalization: f32 = undefined,
 
+    num_paths: f64 = undefined,
+
     cell_bound: Vec2f = undefined,
 
     dimensions: Vec3i = undefined,
@@ -358,9 +360,12 @@ pub const Grid = struct {
     pub fn reduce(self: *Self, photons: []Photon, threads: *Threads) u32 {
         self.photons = photons;
 
-        _ = threads.runRange(self, reduceRange, 0, @intCast(u32, photons.len));
+        // _ = threads.runRange(self, reduceRange, 0, @intCast(u32, photons.len));
 
-        return @intCast(u32, base.memory.partition(Photon, photons, {}, alphaPositive));
+        // return @intCast(u32, base.memory.partition(Photon, photons, {}, alphaPositive));
+
+        _ = threads;
+        return @intCast(u32, photons.len);
     }
 
     fn alphaPositive(context: void, p: Photon) bool {
@@ -372,7 +377,7 @@ pub const Grid = struct {
         _ = id;
         const self = @intToPtr(*Self, context);
 
-        const merge_radius: f32 = self.search_radius / 10.0;
+        const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
         const cell_bound = Vec2f{ 0.5 / merge_grid_cell_factor, 1.0 - (0.5 / merge_grid_cell_factor) };
         const merge_radius2 = merge_radius * merge_radius;
@@ -521,6 +526,8 @@ pub const Grid = struct {
 
         // cone
         self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+
+        self.num_paths = @intToFloat(f64, num_paths);
     }
 
     pub fn li(self: Self, isec: Intersection, sample: MaterialSample, worker: Worker) Vec4f {
@@ -581,6 +588,90 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
+    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, worker: Worker) Vec4f {
+        _ = worker;
+
+        var result = @splat(4, @as(f32, 0.0));
+
+        const position = isec.geo.p;
+
+        if (!self.aabb.pointInside(position)) {
+            return result;
+        }
+
+        const adjacency = self.adjacentCells(position, self.cell_bound);
+
+        const radius = self.search_radius;
+        const radius2 = radius * radius;
+
+        var buffer = Buffer{};
+        buffer.clear();
+
+        if (isec.subsurface) {} else {
+            const two_sided = isec.material(worker.super).twoSided();
+
+            for (adjacency.cells[0..adjacency.num_cells]) |cell| {
+                var i = cell[0];
+                const len = cell[1];
+                while (i < len) : (i += 1) {
+                    const p = self.photons[i];
+
+                    if (p.volumetric) {
+                        continue;
+                    }
+
+                    const distance2 = math.squaredDistance3(p.p, position);
+                    if (distance2 < radius2) {
+                        buffer.consider(.{ .id = i, .d2 = distance2 });
+                    }
+                }
+            }
+
+            if (buffer.num_entries > 0) {
+                const total_radius2 = buffer.entries[buffer.num_entries - 1].d2;
+                //     const ppa = (@intToFloat(f32, buffer.num_entries) / (total_radius2 * std.math.pi)) * (radius2 * std.math.pi) / @intToFloat(f32, buffer.entries.len);
+
+                const ppa = (@intToFloat(f32, buffer.num_entries) / (total_radius2 * std.math.pi)) / (@intToFloat(f32, buffer.entries.len) / (radius2 * std.math.pi));
+
+                std.debug.print("{}\n", .{ppa});
+
+                //         const used_entries = std.math.min(@floatToInt(u32, (@intToFloat(f32, buffer.num_entries) * ppa)), buffer.num_entries);
+                const used_entries = buffer.num_entries; //std.math.min(@floatToInt(u32, (@intToFloat(f32, buffer.num_entries) / ppa)), buffer.num_entries);
+
+                const max_radius2 = buffer.entries[used_entries - 1].d2;
+                const inv_max_radius2 = 1.0 / max_radius2;
+
+                for (buffer.entries[0..used_entries]) |entry| {
+                    const p = self.photons[entry.id];
+
+                    if (two_sided) {
+                        const k = coneFilter(entry.d2, inv_max_radius2);
+
+                        const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
+
+                        const bxdf = sample.evaluate(p.wi);
+
+                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                    } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
+                        const k = coneFilter(entry.d2, inv_max_radius2);
+
+                        const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
+
+                        const bxdf = sample.evaluate(p.wi);
+
+                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                    }
+                }
+
+                const normalization = @floatCast(f32, (((1.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius2)));
+
+                result /= @splat(4, normalization);
+            }
+        }
+
+        return result;
+    }
+
     fn coneFilter(squared_distance: f32, inv_squared_radius: f32) f32 {
         const s = 1.0 - squared_distance * inv_squared_radius;
         return s * s;
@@ -588,5 +679,47 @@ pub const Grid = struct {
 
     fn conelyFilter(squared_distance: f32, inv_squared_radius: f32) f32 {
         return 1.0 - squared_distance * inv_squared_radius;
+    }
+};
+
+const Buffer = struct {
+    pub const Entry = struct {
+        id: u32,
+        d2: f32,
+    };
+
+    num_entries: u32 = undefined,
+    entries: [1024]Entry = undefined,
+
+    const Self = @This();
+
+    pub fn clear(self: *Self) void {
+        self.num_entries = 0;
+    }
+
+    pub fn consider(self: *Self, c: Entry) void {
+        const num = self.num_entries;
+
+        if (self.entries.len == num and c.d2 >= self.entries[self.entries.len - 1].d2) {
+            return;
+        }
+
+        const lb = base.memory.lowerBoundFn(Entry, self.entries[0..num], c, {}, lessThan);
+
+        if (lb < num) {
+            const end = std.math.min(num + 1, self.entries.len);
+            std.mem.copyBackwards(Entry, self.entries[lb + 1 .. end], self.entries[lb..num]);
+
+            self.entries[lb] = c;
+            self.num_entries = end;
+        } else if (num < self.entries.len) {
+            self.entries[num] = c;
+            self.num_entries += 1;
+        }
+    }
+
+    fn lessThan(context: void, a: Entry, b: Entry) bool {
+        _ = context;
+        return a.d2 < b.d2;
     }
 };
