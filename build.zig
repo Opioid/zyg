@@ -48,7 +48,7 @@ pub fn build(b: *std.build.Builder) void {
     zyg.linkLibC();
 
     // zyg.sanitize_thread = true;
-    // zyg.strip = true;
+    //zyg.strip = true;
 
     zyg.install();
 
@@ -70,15 +70,17 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
+            //"takes/sky.take",
+            //"takes/rene.take",
             "-t",
             "-4",
             //"--no-tex",
             //"--no-tex-dwim",
             //"--debug-mat",
-            // "-f",
-            // "0",
+            //"-f",
+            //"67",
             // "-n",
-            // "4",
+            // "1",
         });
     }
 

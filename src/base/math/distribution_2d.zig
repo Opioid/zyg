@@ -1,5 +1,7 @@
 const Vec2f = @import("vector2.zig").Vec2f;
-const Distribution1D = @import("distribution_1d.zig").Distribution1D;
+const dist1D = @import("distribution_1d.zig");
+const Distribution1D = dist1D.Distribution1D;
+const Distribution1DN = dist1D.Distribution1DN;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -68,3 +70,34 @@ pub const Distribution2D = struct {
         return u_pdf * v_pdf;
     }
 };
+
+pub fn Distribution2DN(comptime N: u32) type {
+    return struct {
+        marginal: Distribution1DN(N) = .{},
+
+        conditional: [N]Distribution1DN(N) = undefined,
+
+        const Self = @This();
+
+        pub fn configure(self: *Self) void {
+            var integrals: [N]f32 = undefined;
+
+            for (self.conditional) |c, i| {
+                integrals[i] = c.integral;
+            }
+
+            self.marginal.configure(integrals);
+        }
+
+        pub fn sampleContinous(self: Self, r2: Vec2f) Distribution2D.Continuous {
+            const v = self.marginal.sampleContinous(r2[1]);
+
+            const i = @floatToInt(u32, v.offset * @intToFloat(f32, N));
+            const c = std.math.min(i, @intCast(u32, N - 1));
+
+            const u = self.conditional[c].sampleContinous(r2[0]);
+
+            return .{ .uv = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
+        }
+    };
+}

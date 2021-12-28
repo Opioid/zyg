@@ -18,6 +18,7 @@ const Float4 = @import("../../image/image.zig").Float4;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -126,6 +127,16 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent => 0,
             .Filtered_1p0_opaque, .Filtered_1p0_transparent => 1,
             .Filtered_2p0_opaque, .Filtered_2p0_transparent => 2,
+        };
+    }
+
+    pub fn pixelToImageCoordinates(self: Sensor, sample: Sample) Vec2f {
+        return switch (self) {
+            .Filtered_1p0_opaque => |s| s.base.pixelToImageCoordinates(sample),
+            .Filtered_1p0_transparent => |s| s.base.pixelToImageCoordinates(sample),
+            .Filtered_2p0_opaque => |s| s.base.pixelToImageCoordinates(sample),
+            .Filtered_2p0_transparent => |s| s.base.pixelToImageCoordinates(sample),
+            else => math.vec2iTo2f(sample.pixel) + sample.pixel_uv,
         };
     }
 

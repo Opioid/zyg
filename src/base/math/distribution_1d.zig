@@ -146,17 +146,6 @@ pub const Distribution1D = struct {
         return @floatToInt(u32, s * self.lut_range);
     }
 
-    fn search(buffer: [*]f32, begin: u32, end: u32, key: f32) u32 {
-        var i = begin;
-        while (i < end) : (i += 1) {
-            if (buffer[i] >= key) {
-                return i;
-            }
-        }
-
-        return end;
-    }
-
     pub fn staticSampleDiscrete(comptime N: u32, data: [N]f32, n: u32, r: f32) Distribution1D.Discrete {
         var integral: f32 = 0.0;
         for (data[0..N]) |d| {
@@ -200,3 +189,63 @@ pub const Distribution1D = struct {
         return cdf[index + 1] - cdf[index];
     }
 };
+
+pub fn Distribution1DN(comptime N: u32) type {
+    return struct {
+        integral: f32 = -1.0,
+
+        cdf: [N + 1]f32 = undefined,
+
+        const Self = @This();
+
+        const Num_samples = N;
+
+        pub fn configure(self: *Self, data: [N]f32) void {
+            var integral: f32 = 0.0;
+            for (data) |d| {
+                integral += d;
+            }
+
+            const ii = 1.0 / integral;
+
+            self.cdf[0] = 0.0;
+            var i: usize = 1;
+            while (i < data.len) : (i += 1) {
+                self.cdf[i] = std.math.fma(f32, data[i - 1], ii, self.cdf[i - 1]);
+            }
+            self.cdf[data.len] = 1.0;
+            self.integral = integral;
+        }
+
+        pub fn sampleContinous(self: Self, r: f32) Distribution1D.Continuous {
+            const offset = self.sample(r);
+
+            const c = self.cdf[offset + 1];
+            const v = c - self.cdf[offset];
+
+            if (0.0 == v) {
+                return .{ .offset = 0.0, .pdf = 0.0 };
+            }
+
+            const t = (c - r) / v;
+            const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, N);
+            return .{ .offset = result, .pdf = v };
+        }
+
+        fn sample(self: Self, r: f32) u32 {
+            const it = search(&self.cdf, 0, N, r);
+            return if (0 == it) 0 else it - 1;
+        }
+    };
+}
+
+fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
+    var i = begin;
+    while (i < end) : (i += 1) {
+        if (buffer[i] >= key) {
+            return i;
+        }
+    }
+
+    return end;
+}

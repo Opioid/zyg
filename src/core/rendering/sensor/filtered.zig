@@ -2,9 +2,11 @@ const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Clamp = @import("clamp.zig").Clamp;
+
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -18,16 +20,51 @@ pub fn Base(comptime T: type) type {
 
         clamp: Clamp,
 
+        radius: f32,
+
         filter: Func,
+
+        distribution: math.Distribution2DN(31) = .{},
 
         const Self = @This();
 
         pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
-            var result = Self{ .clamp = clamp, .filter = Func.init(0.0, radius, f) };
+            var result = Self{ .clamp = clamp, .radius = radius, .filter = Func.init(0.0, radius, f) };
 
             result.filter.scale(1.0 / result.integral(64, radius));
 
+            const N: u32 = comptime result.distribution.conditional.len;
+
+            const interval = (2.0 * radius) / @intToFloat(f32, N - 1);
+
+            for (result.distribution.conditional) |*c, y| {
+                const sy = -radius + @intToFloat(f32, y) * interval;
+
+                var data: [N]f32 = undefined;
+
+                std.debug.print("row\n", .{});
+
+                for (data) |*d, x| {
+                    const sx = -radius + @intToFloat(f32, x) * interval;
+                    d.* = f.eval(sy) * f.eval(sx);
+
+                    std.debug.print("{}\n", .{d.*});
+                }
+
+                c.configure(data);
+
+                //   std.debug.print("{}\n", .{sy});
+            }
+
+            result.distribution.configure();
+
             return result;
+        }
+
+        pub fn pixelToImageCoordinates(self: Self, sample: Sample) Vec2f {
+            const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
+            const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
+            return center + @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
         }
 
         pub fn addWeighted(
