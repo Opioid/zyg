@@ -124,9 +124,9 @@ pub const Worker = struct {
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.cameraSample(&self.super.rng, pixel);
+                    var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
-                    if (camera.generateRay(sample, frame, scene.*)) |*ray| {
+                    if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, camera.interface_stack);
                         sensor.addSample(sample, color, offset, crop, isolated_bounds);
                     } else {

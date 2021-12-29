@@ -222,7 +222,8 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                                 Blackman{ .r = radius },
                             ),
                         };
-                    } else if (radius <= 2.0) {
+                    } else // if (radius <= 2.0)
+                    {
                         return snsr.Sensor{
                             .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
                                 clamp,
@@ -240,7 +241,8 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                                 Blackman{ .r = radius },
                             ),
                         };
-                    } else if (radius <= 2.0) {
+                    } else // if (radius <= 2.0)
+                    {
                         return snsr.Sensor{
                             .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
                                 clamp,

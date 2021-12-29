@@ -8,6 +8,7 @@ pub const CameraSample = struct {
     pixel_uv: Vec2f,
     lens_uv: Vec2f,
     time: f32,
+    weight: f32,
 };
 
 pub const CameraSampleTo = struct {

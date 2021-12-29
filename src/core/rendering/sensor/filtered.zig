@@ -26,6 +26,8 @@ pub fn Base(comptime T: type) type {
 
         distribution: math.Distribution2DN(31) = .{},
 
+        table: [31][31]f32 = undefined,
+
         const Self = @This();
 
         pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
@@ -40,32 +42,35 @@ pub fn Base(comptime T: type) type {
             for (result.distribution.conditional) |*c, y| {
                 const sy = -radius + @intToFloat(f32, y) * interval;
 
-                var data: [N]f32 = undefined;
-
-                std.debug.print("row\n", .{});
-
-                for (data) |*d, x| {
+                for (result.table[y]) |*d, x| {
                     const sx = -radius + @intToFloat(f32, x) * interval;
                     d.* = f.eval(sy) * f.eval(sx);
-
-                    std.debug.print("{}\n", .{d.*});
                 }
 
-                c.configure(data);
-
-                //   std.debug.print("{}\n", .{sy});
+                c.configure(result.table[y]);
             }
 
             result.distribution.configure();
 
+            // Normalize discrete filter values
+            const total = result.distribution.marginal.integral;
+            for (result.table) |*row| {
+                for (row) |*x| {
+                    x.* /= total;
+                }
+            }
+
             return result;
         }
 
-        pub fn pixelToImageCoordinates(self: Self, sample: Sample) Vec2f {
-            const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
-            const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
+        pub fn pixelToImageCoordinates(self: Self, sample: *Sample) Vec2f {
+            const d = self.distribution.sampleContinous(sample.pixel_uv);
+            const f = self.table[d.source[1]][d.source[0]];
 
-            return center + @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
+            sample.weight = f / d.pdf;
+
+            const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
+            return center + @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * d.uv - @splat(2, @as(f32, 1.0)));
         }
 
         pub fn addWeighted(
@@ -168,7 +173,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             // self.base.addWeightedIsolated(.{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
             // self.base.addWeightedIsolated(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
 
-            self.base.addWeightedIsolated(.{ x, y }, 1.0, clamped, bounds, isolated);
+            self.base.addWeightedIsolated(.{ x, y }, sample.weight, clamped, bounds, isolated);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -272,7 +277,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             // self.base.addWeightedIsolated(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
             // self.base.addWeightedIsolated(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
 
-            self.base.addWeightedIsolated(.{ x, y }, 1.0, clamped, bounds, isolated);
+            self.base.addWeightedIsolated(.{ x, y }, sample.weight, clamped, bounds, isolated);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {

@@ -130,7 +130,7 @@ pub const Sensor = union(enum) {
         };
     }
 
-    pub fn pixelToImageCoordinates(self: Sensor, sample: Sample) Vec2f {
+    pub fn pixelToImageCoordinates(self: Sensor, sample: *Sample) Vec2f {
         return switch (self) {
             .Filtered_1p0_opaque => |s| s.base.pixelToImageCoordinates(sample),
             .Filtered_1p0_transparent => |s| s.base.pixelToImageCoordinates(sample),
