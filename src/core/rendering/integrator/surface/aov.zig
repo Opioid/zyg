@@ -129,7 +129,9 @@ pub const AOV = struct {
         const wo = -ray.ray.direction;
         const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
-        return worker.photonLi(isec, mat_sample);
+        worker.addPhoton(worker.photonLi(isec, mat_sample));
+
+        return @splat(4, @as(f32, 0.0));
     }
 };
 

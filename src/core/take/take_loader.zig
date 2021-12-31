@@ -374,6 +374,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
                     .max_bounces = max_bounces,
                     .light_sampling = light_sampling,
                     .avoid_caustics = !enable_caustics,
+                    .photons_not_only_through_specular = !lighttracer,
                 },
             } };
         }

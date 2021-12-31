@@ -30,6 +30,7 @@ pub const PathtracerMIS = struct {
         light_sampling: hlp.LightSampling,
 
         avoid_caustics: bool,
+        photons_not_only_through_specular: bool,
     };
 
     pub const State = enum(u32) {
@@ -82,27 +83,38 @@ pub const PathtracerMIS = struct {
         self: *Self,
         ray: *Ray,
         isec: *Intersection,
+        gather_photons: bool,
         worker: *Worker,
         initial_stack: InterfaceStack,
     ) Vec4f {
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+        const num_samples = self.settings.num_samples;
+        const num_samples_reciprocal = 1.0 / @intToFloat(f32, num_samples);
+
+        const consider_photons = self.settings.photons_not_only_through_specular and gather_photons;
 
         var result = @splat(4, @as(f32, 0.0));
 
-        var i = self.settings.num_samples;
+        var i = num_samples;
         while (i > 0) : (i -= 1) {
             worker.super.resetInterfaceStack(initial_stack);
+
+            const gather_photons_here = num_samples == i and consider_photons;
 
             var split_ray = ray.*;
             var split_isec = isec.*;
 
-            result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
+            result += @splat(4, num_samples_reciprocal) * self.integrate(
+                &split_ray,
+                &split_isec,
+                gather_photons_here,
+                worker,
+            );
         }
 
         return result;
     }
 
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var sample_result = BxdfSample{};
@@ -173,6 +185,11 @@ pub const PathtracerMIS = struct {
 
                 if (state.is(.PrimaryRay)) {
                     state.unset(.PrimaryRay);
+
+                    const indirect = state.no(.Direct) and 0 != ray.depth;
+                    if (gather_photons or indirect) {
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                    }
                 }
             }
 
