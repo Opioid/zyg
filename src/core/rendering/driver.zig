@@ -117,7 +117,7 @@ pub const Driver = struct {
             );
         }
 
-        self.tiles.configure(camera.crop, 32, 0);
+        self.tiles.configure(camera.crop, 32, camera.sensor.filterRadiusInt());
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 

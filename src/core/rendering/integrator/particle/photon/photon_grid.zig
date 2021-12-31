@@ -628,16 +628,7 @@ pub const Grid = struct {
             }
 
             if (buffer.num_entries > 0) {
-                const total_radius2 = buffer.entries[buffer.num_entries - 1].d2;
-                //     const ppa = (@intToFloat(f32, buffer.num_entries) / (total_radius2 * std.math.pi)) * (radius2 * std.math.pi) / @intToFloat(f32, buffer.entries.len);
-
-                const ppa = (@intToFloat(f32, buffer.num_entries) / (total_radius2 * std.math.pi)) / (@intToFloat(f32, buffer.entries.len) / (radius2 * std.math.pi));
-
-                std.debug.print("{}\n", .{ppa});
-
-                //         const used_entries = std.math.min(@floatToInt(u32, (@intToFloat(f32, buffer.num_entries) * ppa)), buffer.num_entries);
-                const used_entries = buffer.num_entries; //std.math.min(@floatToInt(u32, (@intToFloat(f32, buffer.num_entries) / ppa)), buffer.num_entries);
-
+                const used_entries = buffer.num_entries;
                 const max_radius2 = buffer.entries[used_entries - 1].d2;
                 const inv_max_radius2 = 1.0 / max_radius2;
 
@@ -707,8 +698,10 @@ const Buffer = struct {
         const lb = base.memory.lowerBoundFn(Entry, self.entries[0..num], c, {}, lessThan);
 
         if (lb < num) {
+            const begin = lb + 1;
             const end = std.math.min(num + 1, self.entries.len);
-            std.mem.copyBackwards(Entry, self.entries[lb + 1 .. end], self.entries[lb..num]);
+            const range = end - begin;
+            std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
 
             self.entries[lb] = c;
             self.num_entries = end;
