@@ -39,21 +39,16 @@ pub fn Base(comptime T: type) type {
 
             for (result.distribution.conditional) |*c, y| {
                 const sy = -radius + @intToFloat(f32, y) * interval;
+                const fy = f.eval(sy);
 
                 var data: [N]f32 = undefined;
 
-                std.debug.print("row\n", .{});
-
                 for (data) |*d, x| {
                     const sx = -radius + @intToFloat(f32, x) * interval;
-                    d.* = f.eval(sy) * f.eval(sx);
-
-                    std.debug.print("{}\n", .{d.*});
+                    d.* = fy * f.eval(sx);
                 }
 
                 c.configure(data);
-
-                //   std.debug.print("{}\n", .{sy});
             }
 
             result.distribution.configure();
