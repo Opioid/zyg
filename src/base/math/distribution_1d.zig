@@ -193,12 +193,6 @@ pub const Distribution1D = struct {
 
 pub fn Distribution1DN(comptime N: u32) type {
     return struct {
-        pub const Continuous = struct {
-            offset: f32,
-            source: u32,
-            pdf: f32,
-        };
-
         integral: f32 = -1.0,
 
         cdf: [N + 1]f32 = undefined,
@@ -224,19 +218,19 @@ pub fn Distribution1DN(comptime N: u32) type {
             self.integral = integral;
         }
 
-        pub fn sampleContinous(self: Self, r: f32) Continuous {
+        pub fn sampleContinous(self: Self, r: f32) Distribution1D.Continuous {
             const offset = self.sample(r);
 
             const c = self.cdf[offset + 1];
             const v = c - self.cdf[offset];
 
             if (0.0 == v) {
-                return .{ .offset = 0.0, .source = 0, .pdf = 0.0 };
+                return .{ .offset = 0.0, .pdf = 0.0 };
             }
 
             const t = (c - r) / v;
             const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, N);
-            return .{ .offset = result, .source = offset, .pdf = v };
+            return .{ .offset = result, .pdf = v };
         }
 
         fn sample(self: Self, r: f32) u32 {

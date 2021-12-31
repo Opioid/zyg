@@ -47,7 +47,6 @@ pub const Sampler = union(enum) {
             .pixel_uv = self.sample2D(rng, 0),
             .lens_uv = self.sample2D(rng, 1),
             .time = self.sample1D(rng, 0),
-            .weight = 1.0,
         };
     }
 };

@@ -1,6 +1,4 @@
-const vec2 = @import("vector2.zig");
-const Vec2u = vec2.Vec2u;
-const Vec2f = vec2.Vec2f;
+const Vec2f = @import("vector2.zig").Vec2f;
 const dist1D = @import("distribution_1d.zig");
 const Distribution1D = dist1D.Distribution1D;
 const Distribution1DN = dist1D.Distribution1DN;
@@ -75,12 +73,6 @@ pub const Distribution2D = struct {
 
 pub fn Distribution2DN(comptime N: u32) type {
     return struct {
-        pub const Continuous = struct {
-            uv: Vec2f,
-            source: Vec2u,
-            pdf: f32,
-        };
-
         marginal: Distribution1DN(N) = .{},
 
         conditional: [N]Distribution1DN(N) = undefined,
@@ -97,7 +89,7 @@ pub fn Distribution2DN(comptime N: u32) type {
             self.marginal.configure(integrals);
         }
 
-        pub fn sampleContinous(self: Self, r2: Vec2f) Continuous {
+        pub fn sampleContinous(self: Self, r2: Vec2f) Distribution2D.Continuous {
             const v = self.marginal.sampleContinous(r2[1]);
 
             const i = @floatToInt(u32, v.offset * @intToFloat(f32, N));
@@ -105,7 +97,7 @@ pub fn Distribution2DN(comptime N: u32) type {
 
             const u = self.conditional[c].sampleContinous(r2[0]);
 
-            return .{ .uv = .{ u.offset, v.offset }, .source = .{ u.source, v.source }, .pdf = u.pdf * v.pdf };
+            return .{ .uv = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
         }
     };
 }
