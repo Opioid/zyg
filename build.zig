@@ -48,7 +48,7 @@ pub fn build(b: *std.build.Builder) void {
     zyg.linkLibC();
 
     // zyg.sanitize_thread = true;
-    //zyg.strip = true;
+    zyg.strip = true;
 
     zyg.install();
 
