@@ -38,6 +38,8 @@ pub const Worker = struct {
     photon_mapper: PhotonMapper = undefined,
     photon_map: *PhotonMap = undefined,
 
+    photon: Vec4f = undefined,
+
     pub fn init(alloc: Allocator) !Worker {
         return Worker{ .super = try SceneWorker.init(alloc) };
     }
@@ -81,7 +83,7 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
-    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32) void {
+    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32, num_photon_samples: u32) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
@@ -119,6 +121,7 @@ pub const Worker = struct {
 
                 self.sampler.startPixel();
                 self.surface_integrator.startPixel();
+                self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
 
@@ -127,8 +130,14 @@ pub const Worker = struct {
                     const sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, camera.interface_stack);
-                        sensor.addSample(sample, color, offset, crop, isolated_bounds);
+                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+
+                        var photon = self.photon;
+                        if (photon[3] > 0.0) {
+                            photon /= @splat(4, photon[3]);
+                        }
+
+                        sensor.addSample(sample, color + photon, offset, crop, isolated_bounds);
                     } else {
                         sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop, isolated_bounds);
                     }
@@ -157,10 +166,14 @@ pub const Worker = struct {
         return self.photon_map.li(isec, sample, self);
     }
 
-    fn li(self: *Worker, ray: *Ray, interface_stack: InterfaceStack) Vec4f {
+    pub fn addPhoton(self: *Worker, photon: Vec4f) void {
+        self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         var isec = Intersection{};
         if (self.super.intersectAndResolveMask(ray, null, &isec)) {
-            return self.surface_integrator.li(ray, &isec, self, interface_stack);
+            return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
         }
 
         return @splat(4, @as(f32, 0.0));

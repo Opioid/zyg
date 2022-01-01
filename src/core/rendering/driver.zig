@@ -117,7 +117,7 @@ pub const Driver = struct {
             );
         }
 
-        self.tiles.configure(camera.crop, 32, 0);
+        self.tiles.configure(camera.crop, 32, camera.sensor.filterRadiusInt());
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
@@ -212,9 +212,10 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         const num_samples = self.view.num_samples_per_pixel;
+        const num_photon_samples = @floatToInt(u32, @ceil(0.01 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, num_samples);
+            self.workers[id].render(self.frame, tile, num_samples, num_photon_samples);
 
             self.progressor.tick();
         }

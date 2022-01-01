@@ -374,6 +374,7 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
                     .max_bounces = max_bounces,
                     .light_sampling = light_sampling,
                     .avoid_caustics = !enable_caustics,
+                    .photons_not_only_through_specular = !lighttracer,
                 },
             } };
         }
@@ -393,14 +394,14 @@ fn loadVolumeIntegrator(value: std.json.Value) void {
 fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator: bool) void {
     const num_samples = json.readUIntMember(value, "num_samples", 1);
     const max_bounces = json.readUIntMember(value, "max_bounces", 8);
-    const full_light_path = json.readBoolMember(value, "full_light_path", !surface_integrator);
+    const full_light_path = json.readBoolMember(value, "full_light_path", true);
     view.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
     view.lighttracers = lt.Factory{ .settings = .{
         .num_samples = num_samples,
         .min_bounces = 1,
         .max_bounces = max_bounces,
-        .full_light_path = full_light_path,
+        .full_light_path = full_light_path and !surface_integrator,
     } };
 }
 

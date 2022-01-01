@@ -53,6 +53,7 @@ pub const Integrator = union(enum) {
         self: *Integrator,
         ray: *Ray,
         isec: *Intersection,
+        gather_photons: bool,
         worker: *Worker,
         initial_stack: InterfaceStack,
     ) Vec4f {
@@ -60,7 +61,7 @@ pub const Integrator = union(enum) {
             .AOV => |*i| i.li(ray, isec, worker, initial_stack),
             .PT => |*i| i.li(ray, isec, worker, initial_stack),
             .PTDL => |*i| i.li(ray, isec, worker, initial_stack),
-            .PTMIS => |*i| i.li(ray, isec, worker, initial_stack),
+            .PTMIS => |*i| i.li(ray, isec, gather_photons, worker, initial_stack),
         };
     }
 };
