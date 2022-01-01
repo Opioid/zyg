@@ -148,10 +148,9 @@ pub const Distribution1D = struct {
     }
 
     fn search(buffer: [*]f32, begin: u32, end: u32, key: f32) u32 {
-        var i = begin;
-        while (i < end) : (i += 1) {
-            if (buffer[i] >= key) {
-                return i;
+        for (buffer[begin..end]) |b, i| {
+            if (b >= key) {
+                return begin + @intCast(u32, i);
             }
         }
 
