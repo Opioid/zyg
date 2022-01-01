@@ -77,14 +77,14 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
+            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, bounds),
+            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, bounds),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, bounds),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, bounds),
         }
     }
 
@@ -145,11 +145,5 @@ pub const Sensor = union(enum) {
             .Unfiltered_transparent, .Filtered_1p0_transparent, .Filtered_2p0_transparent => true,
             else => false,
         };
-    }
-
-    pub fn isolatedTile(self: Sensor, tile: Vec4i) Vec4i {
-        const r = self.filterRadiusInt();
-
-        return tile + Vec4i{ r, r, -r, -r };
     }
 };

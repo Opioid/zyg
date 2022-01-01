@@ -63,7 +63,7 @@ pub fn Base(comptime T: type) type {
             return center + @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
         }
 
-        pub fn addWeighted(
+        pub fn splatWeighted(
             self: *Self,
             pixel: Vec2i,
             weight: f32,
@@ -77,24 +77,17 @@ pub fn Base(comptime T: type) type {
             }
         }
 
-        pub fn addWeightedIsolated(
+        pub fn addWeighted(
             self: *Self,
             pixel: Vec2i,
             weight: f32,
             color: Vec4f,
             bounds: Vec4i,
-            isolated: Vec4i,
         ) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                if (@bitCast(u32, pixel[0] - isolated[0]) <= @bitCast(u32, isolated[2]) and
-                    @bitCast(u32, pixel[1] - isolated[1]) <= @bitCast(u32, isolated[3]))
-                {
-                    self.sensor.addPixel(pixel, color, weight);
-                } else {
-                    self.sensor.addPixelAtomic(pixel, color, weight);
-                }
+                self.sensor.addPixel(pixel, color, weight);
             }
         }
 
@@ -131,39 +124,13 @@ pub fn Filtered_1p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
-            // const ox = sample.pixel_uv[0] - 0.5;
-            // const oy = sample.pixel_uv[1] - 0.5;
-
-            // const wx0 = self.base.eval(ox + 1.0);
-            // const wx1 = self.base.eval(ox);
-            // const wx2 = self.base.eval(ox - 1.0);
-
-            // const wy0 = self.base.eval(oy + 1.0);
-            // const wy1 = self.base.eval(oy);
-            // const wy2 = self.base.eval(oy - 1.0);
-
             const clamped = self.base.clamp.clamp(color);
 
-            // // 1. row
-            // self.base.addWeightedIsolated(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y - 1 }, wx1 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds, isolated);
-
-            // // 2. row
-            // self.base.addWeightedIsolated(.{ x - 1, y }, wx0 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y }, wx1 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y }, wx2 * wy1, clamped, bounds, isolated);
-
-            // // 3. row
-            // self.base.addWeightedIsolated(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
-
-            self.base.addWeightedIsolated(.{ x, y }, 1.0, clamped, bounds, isolated);
+            self.base.addWeighted(.{ x, y }, 1.0, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -184,19 +151,19 @@ pub fn Filtered_1p0(comptime T: type) type {
             const clamped = self.base.clamp.clamp(color);
 
             // 1. row
-            self.base.addWeighted(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x, y - 1 }, wx1 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x, y - 1 }, wx1 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
 
             // 2. row
-            self.base.addWeighted(.{ x - 1, y }, wx0 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x, y }, wx1 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y }, wx2 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y }, wx0 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x, y }, wx1 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y }, wx2 * wy1, clamped, bounds);
 
             // 3. row
-            self.base.addWeighted(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
         }
     };
 }
@@ -211,63 +178,13 @@ pub fn Filtered_2p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
-            // const ox = sample.pixel_uv[0] - 0.5;
-            // const oy = sample.pixel_uv[1] - 0.5;
-
-            // const wx0 = self.base.eval(ox + 2.0);
-            // const wx1 = self.base.eval(ox + 1.0);
-            // const wx2 = self.base.eval(ox);
-            // const wx3 = self.base.eval(ox - 1.0);
-            // const wx4 = self.base.eval(ox - 2.0);
-
-            // const wy0 = self.base.eval(oy + 2.0);
-            // const wy1 = self.base.eval(oy + 1.0);
-            // const wy2 = self.base.eval(oy);
-            // const wy3 = self.base.eval(oy - 1.0);
-            // const wy4 = self.base.eval(oy - 2.0);
-
             const clamped = self.base.clamp.clamp(color);
 
-            // // 1. row
-            // self.base.addWeightedIsolated(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y - 2 }, wx2 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds, isolated);
-
-            // // 2. row
-            // self.base.addWeightedIsolated(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y - 1 }, wx2 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds, isolated);
-
-            // // 3. row
-            // self.base.addWeightedIsolated(.{ x - 2, y }, wx0 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x - 1, y }, wx1 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y }, wx2 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y }, wx3 * wy2, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 2, y }, wx4 * wy2, clamped, bounds, isolated);
-
-            // // 4. row
-            // self.base.addWeightedIsolated(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y + 1 }, wx2 * wy3, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds, isolated);
-
-            // // 5. row
-            // self.base.addWeightedIsolated(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x, y + 2 }, wx2 * wy4, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
-            // self.base.addWeightedIsolated(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
-
-            self.base.addWeightedIsolated(.{ x, y }, 1.0, clamped, bounds, isolated);
+            self.base.addWeighted(.{ x, y }, 1.0, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -292,39 +209,39 @@ pub fn Filtered_2p0(comptime T: type) type {
             const clamped = self.base.clamp.clamp(color);
 
             // 1. row
-            self.base.addWeighted(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x, y - 2 }, wx2 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
-            self.base.addWeighted(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x, y - 2 }, wx2 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
+            self.base.splatWeighted(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
 
             // 2. row
-            self.base.addWeighted(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x, y - 1 }, wx2 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
-            self.base.addWeighted(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x, y - 1 }, wx2 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
+            self.base.splatWeighted(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
 
             // 3. row
-            self.base.addWeighted(.{ x - 2, y }, wx0 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x - 1, y }, wx1 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x, y }, wx2 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y }, wx3 * wy2, clamped, bounds);
-            self.base.addWeighted(.{ x + 2, y }, wx4 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x - 2, y }, wx0 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y }, wx1 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x, y }, wx2 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y }, wx3 * wy2, clamped, bounds);
+            self.base.splatWeighted(.{ x + 2, y }, wx4 * wy2, clamped, bounds);
 
             // 4. row
-            self.base.addWeighted(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
-            self.base.addWeighted(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
-            self.base.addWeighted(.{ x, y + 1 }, wx2 * wy3, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
-            self.base.addWeighted(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
+            self.base.splatWeighted(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
+            self.base.splatWeighted(.{ x, y + 1 }, wx2 * wy3, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
+            self.base.splatWeighted(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
 
             // 5. row
-            self.base.addWeighted(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
-            self.base.addWeighted(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
-            self.base.addWeighted(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
-            self.base.addWeighted(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
-            self.base.addWeighted(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
+            self.base.splatWeighted(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
+            self.base.splatWeighted(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
+            self.base.splatWeighted(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
+            self.base.splatWeighted(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
+            self.base.splatWeighted(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
         }
     };
 }

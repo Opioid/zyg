@@ -9,7 +9,6 @@ pub const TileQueue = struct {
     crop: Vec4i,
 
     tile_dimensions: i32,
-    filter_radius: i32,
     tiles_per_row: i32,
     num_tiles: i32,
 
@@ -17,10 +16,9 @@ pub const TileQueue = struct {
 
     const Self = @This();
 
-    pub fn configure(self: *Self, crop: Vec4i, tile_dimensions: i32, filter_radius: i32) void {
+    pub fn configure(self: *Self, crop: Vec4i, tile_dimensions: i32) void {
         self.crop = crop;
         self.tile_dimensions = tile_dimensions;
-        self.filter_radius = filter_radius;
 
         const xy = Vec2i{ crop[0], crop[1] };
         const zw = Vec2i{ crop[2], crop[3] };
@@ -52,7 +50,6 @@ pub const TileQueue = struct {
 
         const crop = self.crop;
         const tile_dimensions = self.tile_dimensions;
-        const filter_radius = self.filter_radius;
 
         var start: Vec2i = undefined;
         start[1] = @divTrunc(current, self.tiles_per_row);
@@ -61,24 +58,7 @@ pub const TileQueue = struct {
         start *= @splat(2, tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
 
-        var end = @minimum(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
-
-        if (crop[1] == start[1]) {
-            start[1] -= filter_radius;
-        }
-
-        if (crop[3] == end[1]) {
-            end[1] += filter_radius;
-        }
-
-        if (crop[0] == start[0]) {
-            start[0] -= filter_radius;
-        }
-
-        if (crop[2] == end[0]) {
-            end[0] += filter_radius;
-        }
-
+        const end = @minimum(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
         const back = end - @splat(2, @as(i32, 1));
         return Vec4i{ start[0], start[1], back[0], back[1] };
     }

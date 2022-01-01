@@ -96,28 +96,18 @@ pub const Worker = struct {
         crop[0] += offset[0];
         crop[1] += offset[1];
 
-        const xy = offset + Vec2i{ tile[0], tile[1] };
-        const zw = offset + Vec2i{ tile[2], tile[3] };
-        const view_tile = Vec4i{ xy[0], xy[1], zw[0], zw[1] };
-
-        var isolated_bounds = sensor.isolatedTile(view_tile);
-        isolated_bounds[2] -= isolated_bounds[0];
-        isolated_bounds[3] -= isolated_bounds[1];
-
-        const fr = sensor.filterRadiusInt();
-
-        const r = camera.resolution + @splat(2, 2 * fr);
+        const r = camera.resolution;
 
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, (y + fr) * r[0]) + o0;
+            const o1 = @intCast(u64, y * r[0]) + o0;
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                self.super.rng.start(0, o1 + @intCast(u64, x + fr));
+                self.super.rng.start(0, o1 + @intCast(u64, x));
 
                 self.sampler.startPixel();
                 self.surface_integrator.startPixel();
@@ -137,9 +127,9 @@ pub const Worker = struct {
                             photon /= @splat(4, photon[3]);
                         }
 
-                        sensor.addSample(sample, color + photon, offset, crop, isolated_bounds);
+                        sensor.addSample(sample, color + photon, offset, crop);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop, isolated_bounds);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
                     }
                 }
             }
