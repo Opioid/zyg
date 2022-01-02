@@ -66,6 +66,7 @@ pub const Provider = struct {
     num_indices: u32 = undefined,
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
+    handler: Handler = undefined,
     tree: bvh.Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
@@ -79,31 +80,29 @@ pub const Provider = struct {
     }
 
     pub fn commitAsync(self: *Provider, resources: *Resources) void {
+        if (0 == self.tree.nodes.len) {
+            return;
+        }
+
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
-                .TriangleMesh => |*m| m.tree = self.tree,
+                .TriangleMesh => |*m| std.mem.swap(bvh.Tree, &m.tree, &self.tree),
                 else => {},
             }
         }
     }
 
     pub fn loadFile(self: *Provider, alloc: Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
-        // resources.threads.waitAsync();
-
-        // self.commitAsync(resources);
-
-        _ = self;
         _ = options;
 
         var handler = Handler{};
-        defer handler.deinit(alloc);
 
         {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
             if (file.Type.SUB == file.queryType(&stream)) {
-                return self.loadBinary(alloc, &stream, resources.threads) catch |e| {
+                return self.loadBinary(alloc, &stream, resources) catch |e| {
                     std.debug.print("Loading mesh \"{s}\": {}\n", .{ name, e });
                     return e;
                 };
@@ -144,6 +143,28 @@ pub const Provider = struct {
             }
         }
 
+        var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
+
+        for (handler.parts.items) |p, i| {
+            mesh.setMaterialForPart(i, p.material_index);
+        }
+
+        resources.commitAsync();
+
+        self.handler = handler;
+        self.alloc = alloc;
+        self.threads = resources.threads;
+
+        resources.threads.runAsync(self, buildAsync);
+
+        return Shape{ .TriangleMesh = mesh };
+    }
+
+    fn buildAsync(context: ThreadContext) void {
+        const self = @intToPtr(*Provider, context);
+
+        const handler = self.handler;
+
         const vertices = vs.VertexStream{ .Json = .{
             .positions = handler.positions.items,
             .normals = handler.normals.items,
@@ -152,15 +173,9 @@ pub const Provider = struct {
             .bts = handler.bitangent_signs.items,
         } };
 
-        var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
+        buildBVH(self.alloc, &self.tree, self.handler.triangles.items, vertices, self.threads) catch {};
 
-        for (handler.parts.items) |p, i| {
-            mesh.setMaterialForPart(i, p.material_index);
-        }
-
-        try buildBVH(alloc, &mesh.tree, handler.triangles.items, vertices, resources.threads);
-
-        return Shape{ .TriangleMesh = mesh };
+        self.handler.deinit(self.alloc);
     }
 
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
@@ -299,11 +314,10 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, threads: *Threads) !Shape {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Shape {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
-        //     defer alloc.free(parts);
 
         var vertices_offset: u64 = 0;
         var vertices_size: u64 = 0;
@@ -428,7 +442,6 @@ pub const Provider = struct {
         try stream.seekTo(binary_start + vertices_offset);
 
         var vertices: vs.VertexStream = undefined;
-        //   defer vertices.deinit(alloc);
 
         if (interleaved_vertex_stream) {
             std.debug.print("interleaved\n", .{});
@@ -470,7 +483,7 @@ pub const Provider = struct {
         try stream.seekTo(binary_start + indices_offset);
 
         var indices = try alloc.alloc(u8, indices_size);
-        //     defer alloc.free(indices);
+
         _ = try stream.read(indices);
 
         var mesh = try Mesh.init(alloc, @intCast(u32, parts.len));
@@ -483,27 +496,7 @@ pub const Provider = struct {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
-        // const num_triangles = num_indices / 3;
-        // var triangles = try alloc.alloc(IndexTriangle, num_triangles);
-        // defer alloc.free(triangles);
-
-        // if (4 == index_bytes) {
-        //     if (delta_indices) {
-        //         fillTrianglesDelta(i32, parts, indices, triangles);
-        //     } else {
-        //         fillTriangles(u32, parts, indices, triangles);
-        //     }
-        // } else {
-        //     if (delta_indices) {
-        //         fillTrianglesDelta(i16, parts, indices, triangles);
-        //     } else {
-        //         fillTriangles(u16, parts, indices, triangles);
-        //     }
-        // }
-
-        // try buildBVH(alloc, &mesh, triangles, vertices, threads);
-
-        _ = self;
+        resources.commitAsync();
 
         self.num_indices = num_indices;
         self.index_bytes = index_bytes;
@@ -513,9 +506,9 @@ pub const Provider = struct {
         self.vertices = vertices;
         self.indices = indices;
         self.alloc = alloc;
-        self.threads = threads;
+        self.threads = resources.threads;
 
-        threads.runAsync(self, buildBinaryAsync);
+        resources.threads.runAsync(self, buildBinaryAsync);
 
         return Shape{ .TriangleMesh = mesh };
     }
@@ -545,6 +538,7 @@ pub const Provider = struct {
 
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
+        self.vertices.deinit(self.alloc);
     }
 
     fn buildBVH(
