@@ -212,7 +212,7 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         const num_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_samples))));
+        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, num_samples, num_photon_samples);
