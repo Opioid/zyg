@@ -1,0 +1,84 @@
+* zyg
+
+[[https://opioid.github.io/zyg/images/bistro_night_720.jpg]]
+[[https://developer.nvidia.com/orca/amazon-lumberyard-bistro][Lumberyard Bistro]]
+
+** Brief
+
+zyg is raytracing renderer written in [[https://ziglang.org/][zig]]. At the moment it is simply a subset of my other project, called [[https://github.com/Opioid/sprout][sprout]], manually translated from C++ to zig. 
+
+I began working on this project, because I had heard many good things about zig and was curious to try it out for myself. Due to a lack of imagination I could not come up with a better idea than redoing my hobby renderer in a different language. 
+
+Overall the experience has been very pleasant, and I would say I translated roughly 75% of the parts, that I potentially want to keep, if I decide to continue from this "branch" of the renderer.
+
+For the moment I will use this space to collect some random thoughts I had about zig during this process.
+
+** Thoughts
+
+*** Inheritance
+
+Coming from a C++ background, the omission of inheritance in zig is one of the more visible differences. In sprout I don't go overboard with inheritance hierarchies, but it is certainly used for polymorphism in many places. 
+
+In cases, where I used to have more of an interface type before, without data, I'm quite happy to use union(enum) now.
+
+In other places I reduced polymorphism by replacing it with a simple if/else, and I feel mostly good about it.
+
+There are some cases, though, where I want to define a "base class" with data that is useful in several places. It is easy enough to achieve the same goal with composition, but I find writing self.super.thing instead of self.thing a bit annoying. Also, I can't decide if I rather want to wrap every function of the base class in the union(enum), or if I should just access it as foo.super().doThing() from the outside.
+
+I haven't really felt the need to use @fieldParentPtr() for interfaces yet, and I think I won't need them here.
+
+Overall, union(enum) works really well for me, but I'm not fully happy yet with the situations where I want common data fields.
+
+*** Allocator
+
+Another very visible difference to C++ and other languages I know, is the way allocators are made explicit in zig. I simply accepted to pass an allocator parameter everywhere I need one, just like the explicit self/this parameter. At the moment I only ever use the same allocator, so it feels somewhat redundant, but it stopped bothering me very soon.
+
+I can't say it made substantial differences to the way I allocate memory, but I like how it makes allocations more visible from the outside, if used like this. I also feel less reluctant to use custom allocators, but again, it's nothing I'm actually doing.
+
+*** Constructor/Destructor
+ 
+Of course there are no constructors/desctructors in zig, but I quickly got used to using normal functions for this instead. On the other hand you can assign default values to the member variables of a struct. This is nice, but apparently it doesn't work for arrays of objects that you allocate on the heap, which caused some confusion for me.
+
+*** Overloading
+
+zig does not support function or operator overloading, and as as I understand it, probably never will. I generally like function overloading and use it regularly in C++ code. At first I was only annoyed that I have to come up with a new name for a function, but I have to admit that this has actually been an improvement in some cases. On the one hand I have to think about function naming a bit more, with an opportunity to make things clearer, on the other hand different names will not always help in my opinion. Overall, I hardly miss it, and I can see some clear advantages for me.
+
+There is one place where I believe that operator overloading really improves readability, and that is mathematical equations with custom types, like vectors. Coincidentally, zig addresses this with std.meta.Vector, so in practice lack of operator overloading was not really noticeable for me. 
+
+*** Vectors
+
+std.meta.Vector allows you to declare vector-types with a fixed amount of elements. Operators like +,-,*,/ and some other built-in functions will than operate on all elements in parallel, like SIMD. Generally, I really like it! From what I can see, the generated instructions mostly map well to SSE and it feels like a good starting point to write your own vector math (things like dot- and cross-product still have to be written manually).
+
+Unfortunately, I don't feel 100% secure with the generated instructions. [[https://zigforum.org/t/std-math-min-vs-minimum-for-std-meta-vector/821/5][Here]], I wrote about my observations of writing max(vec, vec) in three different ways. All functions generate different instructions and have different performance behavior that I cannot explain.
+
+Due to lack of operator overloading it is not possible to write scalar * vector. However, I actually don't really mind writing @splat(4, scalar) * vector. I'm less fond of the way, ad-hoc constants are handled: @splat(4, @as(f32, 2.0)) * vector.
+
+As I said, I really enjoy std.meta.Vector and I don't miss writing SSE intrinsics. But there remains a lingering feeling, that it sometimes will be necessary to massage the code in certain ways to emit the instructions you want.
+
+*** Intrinsics
+
+I'm not particularly good with them and generally happy to let std.meta.Vector take care of it. I thought that I would miss certain intrinsics like e.g. rsqrt(), but performance wise it doesn't seem to make such a big impact for this project, as I thought.
+
+On the contrary, I'm somewhat hopeful that the code is more portable between architectures now, at a comparable level of efficiency. But I have not researched or verified this at all! 
+
+*** Lambdas
+
+Lambdas in C++ are convenient in my oppinion, but I don't really miss them. Overall I think I prefer using a function pointer and context because it makes it explicit where the "captured" data is stored. 
+
+*** File I/O
+
+It confuses me, how much [[https://zigforum.org/t/seekable-buffered-reader-revisited/835][effort]] seems to be neccessary to have both buffered reads and seeking at the same time. Is this normal?
+
+*** Performance
+
+Overall I'm very pleased with how the zig version of the renderer compares to the C++ version. Often the timings are extremly close, which makes sense I suppose, because they are using the same algorithms. 
+
+Parsing the scene and building the acceleration structure is measureably slower with the zig version, though. I haven't isolated the exact reason yet, but I think it might be related to my use of std.meta.Vector, that doesn't generate to so good instructions here.
+
+*** Debugging
+
+I more or less sidestepped this, by having a functioning clone in C++. I know that the algorithms work (hopefully...), and when I encountered significant differences in the output, printf() debugging was enough to isolate the problematic part quickly enough. I haven't given this much thought yet.
+
+*** Interoperability
+
+I intentionally avoided dependencies on other APIs as much as I could, for this hobby project. Using the header-only c-lib [[https://github.com/richgel999/miniz][miniz]] worked well. I haven't investigated how much effort it would be to use more complex API like Vulkan, should I ever feel the desire to make use of the GPU. I'm cautiously optimistic due the good c-interoperability, though.

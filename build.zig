@@ -25,6 +25,7 @@ pub fn build(b: *std.build.Builder) void {
         "-fno-sanitize=undefined",
     };
     zyg.addCSourceFile("thirdparty/include/miniz/miniz.c", &cflags);
+    zyg.addCSourceFile("thirdparty/include/arpraguesky/ArPragueSkyModelGround.c", &cflags);
 
     const base = std.build.Pkg{
         .name = "base",
@@ -59,11 +60,25 @@ pub fn build(b: *std.build.Builder) void {
     } else {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
-            //"takes/cornell.take",
-            "takes/bistro_day.take",
+            //"takes/bistro_day.take",
+            //"takes/bistro_night.take",
+            //"takes/san_miguel.take",
+            "takes/cornell.take",
+            //"takes/imrod.take",
+            //"takes/model_test.take",
+            //"takes/material_test.take",
+            //"takes/whirligig.take",
+            //"takes/candle.take",
+            //"takes/disney_cloud.take",
             "-t",
-            "16",
-            "--no-tex",
+            "-4",
+            //"--no-tex",
+            //"--no-tex-dwim",
+            //"--debug-mat",
+            // "-f",
+            // "0",
+            // "-n",
+            // "4",
         });
     }
 

@@ -13,16 +13,29 @@ pub const Pipeline = struct {
 
     scratch: img.Float4 = .{},
 
-    pub fn deinit(self: *Pipeline, alloc: *Allocator) void {
+    pub fn deinit(self: *Pipeline, alloc: Allocator) void {
         self.scratch.deinit(alloc);
     }
 
-    pub fn configure(self: *Pipeline, alloc: *Allocator, camera: cam.Perspective) !void {
+    pub fn configure(self: *Pipeline, alloc: Allocator, camera: cam.Perspective) !void {
         try self.scratch.resize(alloc, img.Description.init2D(camera.sensorDimensions()));
+    }
+
+    pub fn seed(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
+        sensor.resolve(&self.scratch);
+
+        _ = destination;
+        _ = threads;
     }
 
     pub fn apply(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
         sensor.resolve(&self.scratch);
+
+        self.tonemapper.apply(&self.scratch, destination, threads);
+    }
+
+    pub fn applyAccumulate(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
+        sensor.resolveAccumlate(&self.scratch);
 
         self.tonemapper.apply(&self.scratch, destination, threads);
     }

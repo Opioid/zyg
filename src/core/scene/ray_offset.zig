@@ -11,7 +11,7 @@ const float_scale: f32 = 1.0 / 65536.0;
 const int_scale: f32 = 256.0;
 
 pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
-    const of_i = math.vec4f_to_i(@splat(4, int_scale) * n);
+    const of_i = math.vec4fTo4i(@splat(4, int_scale) * Vec4f{ n[0], n[1], n[2], 0.0 });
 
     const p_i0 = @bitCast(f32, @bitCast(i32, p[0]) + (if (p[0] < 0.0) -of_i.v[0] else of_i.v[0]));
     const p_i1 = @bitCast(f32, @bitCast(i32, p[1]) + (if (p[1] < 0.0) -of_i.v[1] else of_i.v[1]));
@@ -27,4 +27,8 @@ pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
 
 pub fn offsetF(t: f32) f32 {
     return if (t < origin) t + float_scale else @bitCast(f32, @bitCast(i32, t) + @floatToInt(i32, int_scale));
+}
+
+pub fn offsetB(t: f32) f32 {
+    return if (t < origin) t - float_scale else @bitCast(f32, @bitCast(i32, t) - @floatToInt(i32, int_scale));
 }

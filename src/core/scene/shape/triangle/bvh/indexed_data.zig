@@ -24,27 +24,33 @@ pub const Indexed_data = struct {
         part: u31,
     };
 
-    triangles: []Triangle = &.{},
-    positions: []Vec4f = &.{},
-    frames: []Vec4f = &.{},
-    uvs: []Vec2f = &.{},
+    num_triangles: u32 = 0,
+    num_vertices: u32 = 0,
+
+    triangles: [*]Triangle = undefined,
+    positions: [*]Vec4f = undefined,
+    frames: [*]Vec4f = undefined,
+    uvs: [*]Vec2f = undefined,
 
     const Self = @This();
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
-        alloc.free(self.uvs);
-        alloc.free(self.frames);
-        alloc.free(self.positions);
-        alloc.free(self.triangles);
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        alloc.free(self.uvs[0..self.num_vertices]);
+        alloc.free(self.frames[0..self.num_vertices]);
+        alloc.free(self.positions[0..self.num_vertices]);
+        alloc.free(self.triangles[0..self.num_triangles]);
     }
 
-    pub fn allocateTriangles(self: *Self, alloc: *Allocator, num_triangles: u32, vertices: VertexStream) !void {
+    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexStream) !void {
         const num_vertices = vertices.numVertices();
 
-        self.triangles = try alloc.alloc(Triangle, num_triangles);
-        self.positions = try alloc.alloc(Vec4f, num_vertices);
-        self.frames = try alloc.alloc(Vec4f, num_vertices);
-        self.uvs = try alloc.alloc(Vec2f, num_vertices);
+        self.num_triangles = num_triangles;
+        self.num_vertices = num_vertices;
+
+        self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
+        self.positions = (try alloc.alloc(Vec4f, num_vertices)).ptr;
+        self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
+        self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
         var i: u32 = 0;
         while (i < num_vertices) : (i += 1) {
@@ -158,7 +164,17 @@ pub const Indexed_data = struct {
         // uv.* = Vec2f.init2(tu[3], nv[3]);
     }
 
-    pub fn interpolateUV(self: Self, u: f32, v: f32, index: u32) Vec2f {
+    pub fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
+        const tri = self.triangles[index];
+
+        const a = quaternion.initNormal(self.frames[tri.a]);
+        const b = quaternion.initNormal(self.frames[tri.b]);
+        const c = quaternion.initNormal(self.frames[tri.c]);
+
+        return math.normalize3(triangle.interpolate3(a, b, c, u, v));
+    }
+
+    pub fn interpolateUv(self: Self, u: f32, v: f32, index: u32) Vec2f {
         const tri = self.triangles[index];
 
         const uva = self.uvs[tri.a];
@@ -187,5 +203,53 @@ pub const Indexed_data = struct {
 
     pub fn bitangentSign(self: Self, index: u32) f32 {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
+    }
+
+    pub fn area(self: Self, index: u32) f32 {
+        const tri = self.triangles[index];
+
+        const a = self.positions[tri.a];
+        const b = self.positions[tri.b];
+        const c = self.positions[tri.c];
+
+        return triangle.area(a, b, c);
+    }
+
+    pub fn triangleP(self: Self, index: u32) [3]Vec4f {
+        const tri = self.triangles[index];
+
+        return .{ self.positions[tri.a], self.positions[tri.b], self.positions[tri.c] };
+    }
+
+    const Puv = struct {
+        p: [3]Vec4f,
+        uv: [3]Vec2f,
+    };
+
+    pub fn trianglePuv(self: Self, index: u32) Puv {
+        const tri = self.triangles[index];
+
+        return .{
+            .p = .{ self.positions[tri.a], self.positions[tri.b], self.positions[tri.c] },
+            .uv = .{ self.uvs[tri.a], self.uvs[tri.b], self.uvs[tri.c] },
+        };
+    }
+
+    pub fn sample(self: Self, index: u32, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
+        const uv = math.smpl.triangleUniform(r2);
+
+        const tri = self.triangles[index];
+
+        const pa = self.positions[tri.a];
+        const pb = self.positions[tri.b];
+        const pc = self.positions[tri.c];
+
+        p.* = triangle.interpolate3(pa, pb, pc, uv[0], uv[1]);
+
+        const uva = self.uvs[tri.a];
+        const uvb = self.uvs[tri.b];
+        const uvc = self.uvs[tri.c];
+
+        tc.* = triangle.interpolate2(uva, uvb, uvc, uv[0], uv[1]);
     }
 };

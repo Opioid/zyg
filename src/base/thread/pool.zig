@@ -59,7 +59,7 @@ pub const Pool = struct {
         return std.math.min(available, @intCast(u32, std.math.max(request, 1)));
     }
 
-    pub fn configure(self: *Pool, alloc: *Allocator, num_threads: u32) !void {
+    pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
         for (self.uniques) |*u| {
@@ -75,7 +75,7 @@ pub const Pool = struct {
         self.async_thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
     }
 
-    pub fn deinit(self: *Pool, alloc: *Allocator) void {
+    pub fn deinit(self: *Pool, alloc: Allocator) void {
         self.quit = true;
 
         _ = self.wakeAll(0);
@@ -100,8 +100,8 @@ pub const Pool = struct {
         self.runParallelInt(@ptrToInt(context), program, num_tasks_hint);
     }
 
-    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) void {
-        self.runRangeInt(@ptrToInt(context), program, begin, end);
+    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) usize {
+        return self.runRangeInt(@ptrToInt(context), program, begin, end);
     }
 
     pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
@@ -117,13 +117,15 @@ pub const Pool = struct {
         self.waitAll(num);
     }
 
-    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) void {
+    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) usize {
         self.context = context;
         self.program = .{ .Range = program };
 
         const num = self.wakeAllRange(begin, end);
 
         self.waitAll(num);
+
+        return num;
     }
 
     fn runAsyncInt(self: *Pool, context: Context, program: AsyncProgram) void {
@@ -144,9 +146,9 @@ pub const Pool = struct {
         );
 
         for (self.uniques[0..num_tasks]) |*u| {
-            const lock = u.mutex.acquire();
+            u.mutex.lock();
             u.wake = true;
-            lock.release();
+            u.mutex.unlock();
             u.wake_signal.signal();
         }
 
@@ -171,11 +173,11 @@ pub const Pool = struct {
                 return i;
             }
 
-            const lock = u.mutex.acquire();
+            u.mutex.lock();
             u.begin = b;
             u.end = std.math.min(e, end);
             u.wake = true;
-            lock.release();
+            u.mutex.unlock();
             u.wake_signal.signal();
         }
 
@@ -183,16 +185,16 @@ pub const Pool = struct {
     }
 
     fn wakeAsync(self: *Pool) void {
-        const lock = self.asyncp.mutex.acquire();
+        self.asyncp.mutex.lock();
         self.asyncp.wake = true;
-        lock.release();
+        self.asyncp.mutex.unlock();
         self.asyncp.wake_signal.signal();
     }
 
     fn waitAll(self: *Pool, num: usize) void {
         for (self.uniques[0..num]) |*u| {
-            const lock = u.mutex.acquire();
-            defer lock.release();
+            u.mutex.lock();
+            defer u.mutex.unlock();
 
             while (u.wake) {
                 u.done_signal.wait(&u.mutex);
@@ -203,8 +205,8 @@ pub const Pool = struct {
     }
 
     pub fn waitAsync(self: *Pool) void {
-        const lock = self.asyncp.mutex.acquire();
-        defer lock.release();
+        self.asyncp.mutex.lock();
+        defer self.asyncp.mutex.unlock();
 
         while (self.asyncp.wake) {
             self.asyncp.done_signal.wait(&self.asyncp.mutex);
@@ -215,7 +217,8 @@ pub const Pool = struct {
         var u = &self.uniques[id];
 
         while (true) {
-            const lock = u.mutex.acquire();
+            u.mutex.lock();
+            defer u.mutex.unlock();
 
             while (!u.wake) {
                 u.wake_signal.wait(&u.mutex);
@@ -231,14 +234,14 @@ pub const Pool = struct {
             }
 
             u.wake = false;
-            lock.release();
             u.done_signal.signal();
         }
     }
 
     fn asyncLoop(self: *Async) void {
         while (true) {
-            const lock = self.mutex.acquire();
+            self.mutex.lock();
+            defer self.mutex.unlock();
 
             while (!self.wake) {
                 self.wake_signal.wait(&self.mutex);
@@ -251,7 +254,6 @@ pub const Pool = struct {
             self.program(self.context);
 
             self.wake = false;
-            lock.release();
             self.done_signal.signal();
         }
     }

@@ -11,11 +11,11 @@ pub const IndexTriangle = struct {
 };
 
 pub fn min(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return math.min(a, math.min(b, c));
+    return @minimum(a, @minimum(b, c));
 }
 
 pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return math.max(a, math.max(b, c));
+    return @maximum(a, @maximum(b, c));
 }
 
 pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f32) bool {
@@ -79,10 +79,14 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
 
 pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
-    return a.mulScalar(w).add(b.mulScalar(u)).add(c.mulScalar(v));
+    return a * @splat(2, w) + b * @splat(2, u) + c * @splat(2, v);
 }
 
 pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
     return a * @splat(4, w) + b * @splat(4, u) + c * @splat(4, v);
+}
+
+pub fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {
+    return 0.5 * math.length3(math.cross3(b - a, c - a));
 }

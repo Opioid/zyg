@@ -5,7 +5,7 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;
-const Vec3b = math.Vec3b;
+const Pack3b = math.Pack3b;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -32,13 +32,13 @@ pub const Reader = struct {
 
         data: []u8 = &.{},
 
-        pub fn allocate(self: *Chunk, alloc: *Allocator) !void {
-            if (self.length >= self.data.len) {
+        pub fn allocate(self: *Chunk, alloc: Allocator) !void {
+            if (self.data.len < self.length) {
                 self.data = try alloc.realloc(self.data, self.length);
             }
         }
 
-        pub fn deinit(self: *Chunk, alloc: *Allocator) void {
+        pub fn deinit(self: *Chunk, alloc: Allocator) void {
             alloc.free(self.data);
         }
     };
@@ -83,7 +83,7 @@ pub const Reader = struct {
             return info;
         }
 
-        pub fn deinit(self: *Info, alloc: *Allocator) void {
+        pub fn deinit(self: *Info, alloc: Allocator) void {
             if (self.stream.zfree) |_| {
                 _ = mz.mz_inflateEnd(&self.stream);
             }
@@ -91,7 +91,7 @@ pub const Reader = struct {
             alloc.free(self.buffer);
         }
 
-        pub fn allocate(self: *Info, alloc: *Allocator) !void {
+        pub fn allocate(self: *Info, alloc: Allocator) !void {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             const buffer_size = row_size * @intCast(u32, self.height);
             const num_bytes = buffer_size + 2 * row_size;
@@ -102,8 +102,6 @@ pub const Reader = struct {
 
             self.current_row_data = self.buffer.ptr + buffer_size;
             self.previous_row_data = self.current_row_data + row_size;
-
-            self.current_row_data[row_size - 1] = 124;
 
             if (self.stream.zalloc) |_| {
                 if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
@@ -126,16 +124,13 @@ pub const Reader = struct {
 
     info: Info = Info.init(),
 
-    pub fn deinit(self: *Reader, alloc: *Allocator) void {
+    pub fn deinit(self: *Reader, alloc: Allocator) void {
         self.info.deinit(alloc);
         self.chunk.deinit(alloc);
     }
 
-    pub fn read(self: *Reader, alloc: *Allocator, stream: *ReadStream, swizzle: Swizzle) !Image {
-        _ = self;
-
+    pub fn read(self: *Reader, alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool) !Image {
         var signature: [Signature.len]u8 = undefined;
-
         _ = try stream.read(&signature);
 
         if (!std.mem.eql(u8, &signature, &Signature)) {
@@ -144,23 +139,28 @@ pub const Reader = struct {
 
         while (handleChunk(alloc, stream, &self.chunk, &self.info)) {}
 
-        return try createImage(alloc, self.info, swizzle);
+        return try createImage(alloc, self.info, swizzle, invert);
     }
 
-    fn createImage(alloc: *Allocator, info: Info, swizzle: Swizzle) !Image {
+    pub fn createFromBuffer(self: Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
+        return try createImage(alloc, self.info, swizzle, invert);
+    }
+
+    fn createImage(alloc: Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         var swap_xy = false;
         switch (swizzle) {
-            .W => {
+            .X, .W => {
                 num_channels = 1;
             },
             .XY => {
                 num_channels = 2;
             },
-            .XYZ => {
-                num_channels = 3;
+            .YX => {
+                num_channels = 2;
+                swap_xy = true;
             },
-            else => {
+            .XYZ => {
                 num_channels = 3;
             },
         }
@@ -169,7 +169,7 @@ pub const Reader = struct {
 
         num_channels = std.math.min(num_channels, info.num_channels);
 
-        const dimensions = Vec2i.init2(info.width, info.height);
+        const dimensions = Vec2i{ info.width, info.height };
 
         if (1 == num_channels) {
             var image = try img.Byte1.init(alloc, img.Description.init2D(dimensions));
@@ -192,13 +192,18 @@ pub const Reader = struct {
             while (i < len) : (i += 1) {
                 const o = i * info.num_channels;
 
-                const color = info.buffer[o + c];
+                var color = info.buffer[o + c];
+                if (invert) {
+                    color = 255 - color;
+                }
 
                 image.pixels[i] = color;
             }
 
             return Image{ .Byte1 = image };
-        } else if (2 == num_channels) {
+        }
+
+        if (2 == num_channels) {
             var image = try img.Byte2.init(alloc, img.Description.init2D(dimensions));
 
             if (byte_compatible) {
@@ -206,10 +211,17 @@ pub const Reader = struct {
             } else {
                 var i: u32 = 0;
                 const len = @intCast(u32, info.width * info.height);
-                while (i < len) : (i += 1) {
-                    const o = i * info.num_channels;
 
-                    image.pixels[i] = Vec2b.init2(info.buffer[o + 0], info.buffer[o + 1]);
+                if (swap_xy) {
+                    while (i < len) : (i += 1) {
+                        const o = i * info.num_channels;
+                        image.pixels[i] = Vec2b{ info.buffer[o + 1], info.buffer[o + 0] };
+                    }
+                } else {
+                    while (i < len) : (i += 1) {
+                        const o = i * info.num_channels;
+                        image.pixels[i] = Vec2b{ info.buffer[o + 0], info.buffer[o + 1] };
+                    }
                 }
             }
 
@@ -219,7 +231,28 @@ pub const Reader = struct {
         if (3 == num_channels) {
             var image = try img.Byte3.init(alloc, img.Description.init2D(dimensions));
 
-            std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
+            if (byte_compatible) {
+                std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
+            } else {
+                var color = Pack3b.init1(0);
+
+                var i: u32 = 0;
+                const len = @intCast(u32, info.width * info.height);
+                while (i < len) : (i += 1) {
+                    const o = i * info.num_channels;
+
+                    var c: u32 = 0;
+                    while (c < num_channels) : (c += 1) {
+                        color.v[c] = info.buffer[o + c];
+                    }
+
+                    if (swap_xy) {
+                        std.mem.swap(u8, &color.v[0], &color.v[1]);
+                    }
+
+                    image.pixels[i] = color;
+                }
+            }
 
             return Image{ .Byte3 = image };
         }
@@ -227,7 +260,7 @@ pub const Reader = struct {
         return Error.UnexpectedError;
     }
 
-    fn handleChunk(alloc: *Allocator, stream: *ReadStream, chunk: *Chunk, info: *Info) bool {
+    fn handleChunk(alloc: Allocator, stream: *ReadStream, chunk: *Chunk, info: *Info) bool {
         var length: u32 = 0;
         _ = stream.read(std.mem.asBytes(&length)) catch return false;
 
@@ -269,7 +302,7 @@ pub const Reader = struct {
         return true;
     }
 
-    fn readChunk(alloc: *Allocator, stream: *ReadStream, chunk: *Chunk) !void {
+    fn readChunk(alloc: Allocator, stream: *ReadStream, chunk: *Chunk) !void {
         try chunk.allocate(alloc);
 
         _ = try stream.read(chunk.data[0..chunk.length]);
@@ -278,7 +311,7 @@ pub const Reader = struct {
         try stream.seekBy(4);
     }
 
-    fn parseHeader(alloc: *Allocator, chunk: *const Chunk, info: *Info) !void {
+    fn parseHeader(alloc: Allocator, chunk: *const Chunk, info: *Info) !void {
         info.width = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[0..4]));
         info.height = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[4..8]));
 
@@ -363,26 +396,29 @@ pub const Reader = struct {
     fn filter(byte: u8, f: Filter, info: *const Info) u8 {
         return switch (f) {
             .None => byte,
-            .Sub => @truncate(u8, @as(u32, byte) + @as(u32, raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info))),
-            .Up => @truncate(u8, @as(u32, byte) + @as(u32, prior(@intCast(i32, info.current_byte), info))),
-            .Average => @truncate(u8, @as(u32, byte) + @as(u32, average(
+            .Sub => @truncate(u8, @as(u32, byte) + raw(@intCast(i32, info.current_byte) -
+                @intCast(i32, info.bytes_per_pixel), info)),
+            .Up => @truncate(u8, @as(u32, byte) +
+                @as(u32, prior(@intCast(i32, info.current_byte), info))),
+            .Average => @truncate(u8, @as(u32, byte) +
+                @as(u32, average(
                 raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
                 prior(@intCast(i32, info.current_byte), info),
             ))),
-            .Paeth => @truncate(u8, @as(u32, byte) + @as(u32, paethPredictor(
+            .Paeth => @truncate(u8, @as(u32, byte) + paethPredictor(
                 raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
                 prior(@intCast(i32, info.current_byte), info),
                 prior(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-            ))),
+            )),
         };
     }
 
-    fn raw(column: i32, info: *const Info) u8 {
+    fn raw(column: i32, info: *const Info) u32 {
         if (column < 0) {
             return 0;
         }
 
-        return info.current_row_data[@intCast(u32, column)];
+        return @as(u32, info.current_row_data[@intCast(u32, column)]);
     }
 
     fn prior(column: i32, info: *const Info) u8 {
@@ -393,14 +429,14 @@ pub const Reader = struct {
         return info.previous_row_data[@intCast(u32, column)];
     }
 
-    fn average(a: u8, b: u8) u8 {
-        return @truncate(u8, (@as(u32, a) + @as(u32, b)) >> 1);
+    fn average(a: u32, b: u32) u8 {
+        return @truncate(u8, (a + b) >> 1);
     }
 
-    fn paethPredictor(a: u8, b: u8, c: u8) u8 {
-        const A = @as(i32, a);
-        const B = @as(i32, b);
-        const C = @as(i32, c);
+    fn paethPredictor(a: u32, b: u32, c: u32) u32 {
+        const A = @intCast(i32, a);
+        const B = @intCast(i32, b);
+        const C = @intCast(i32, c);
         const p = A + B - C;
         const pa = std.math.absInt(p - A) catch unreachable;
         const pb = std.math.absInt(p - B) catch unreachable;

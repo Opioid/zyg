@@ -13,12 +13,12 @@ pub const Tonemapper = union(enum) {
             .ACES => |*a| {
                 a.super.source = source;
                 a.super.destination = destination;
-                threads.runRange(a, ACES.applyRange, 0, @intCast(u32, source.description.numPixels()));
+                _ = threads.runRange(a, ACES.applyRange, 0, @intCast(u32, source.description.numPixels()));
             },
             .Linear => |*l| {
                 l.super.source = source;
                 l.super.destination = destination;
-                threads.runRange(l, Linear.applyRange, 0, @intCast(u32, source.description.numPixels()));
+                _ = threads.runRange(l, Linear.applyRange, 0, @intCast(u32, source.description.numPixels()));
             },
         }
     }

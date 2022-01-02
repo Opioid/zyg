@@ -32,17 +32,17 @@ pub const Mat4x4 = struct {
 
     pub fn compose(basis: Mat3x3, scale: Vec4f, origin: Vec4f) Mat4x4 {
         return init16(
-            basis.m(0, 0) * scale[0],
-            basis.m(0, 1) * scale[0],
-            basis.m(0, 2) * scale[0],
+            basis.r[0][0] * scale[0],
+            basis.r[0][1] * scale[0],
+            basis.r[0][2] * scale[0],
             0.0,
-            basis.m(1, 0) * scale[1],
-            basis.m(1, 1) * scale[1],
-            basis.m(1, 2) * scale[1],
+            basis.r[1][0] * scale[1],
+            basis.r[1][1] * scale[1],
+            basis.r[1][2] * scale[1],
             0.0,
-            basis.m(2, 0) * scale[2],
-            basis.m(2, 1) * scale[2],
-            basis.m(2, 2) * scale[2],
+            basis.r[2][0] * scale[2],
+            basis.r[2][1] * scale[2],
+            basis.r[2][2] * scale[2],
             0.0,
             origin[0],
             origin[1],
@@ -67,12 +67,12 @@ pub const Mat4x4 = struct {
         //     0.0,
         // };
 
-        var result = @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.r[0];
-        var temp = @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.r[1];
         result = result + temp;
-        temp = @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.r[2];
         return result + temp;
     }
@@ -85,12 +85,12 @@ pub const Mat4x4 = struct {
         //     0.0,
         // };
 
-        var result = @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.r[0];
-        var temp = @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.r[1];
         result = result + temp;
-        temp = @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.r[2];
         result = result + temp;
         return result + self.r[3];

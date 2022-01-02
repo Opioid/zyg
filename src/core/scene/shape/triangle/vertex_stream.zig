@@ -1,6 +1,6 @@
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
-const Vec3f = math.Vec3f;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
@@ -13,7 +13,7 @@ pub const VertexStream = union(enum) {
     Separate: Separate,
     Compact: Compact,
 
-    pub fn deinit(self: *VertexStream, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *VertexStream, alloc: Allocator) void {
         return switch (self.*) {
             .Json => {},
             .Separate => |*v| v.deinit(alloc),
@@ -56,9 +56,9 @@ pub const VertexStream = union(enum) {
 
     pub fn uv(self: VertexStream, i: usize) Vec2f {
         return switch (self) {
-            .Json => |v| v.uvs[i],
+            .Json => |v| v.uv(i),
             .Separate => |v| v.uvs[i],
-            .Compact => Vec2f.init1(0.0),
+            .Compact => @splat(2, @as(f32, 0.0)),
         };
     }
 
@@ -72,9 +72,9 @@ pub const VertexStream = union(enum) {
 };
 
 const Json = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
-    tangents: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
+    tangents: []Pack3f,
     uvs: []Vec2f,
     bts: []u8,
 
@@ -83,27 +83,38 @@ const Json = struct {
     pub fn frame(self: Self, i: usize) Quaternion {
         const n3 = self.normals[i];
         const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-        const t3 = self.tangents[i];
-        const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
+
+        var t: Vec4f = undefined;
+
+        if (self.tangents.len > 0) {
+            const t3 = self.tangents[i];
+            t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
+        } else {
+            t = math.tangent3(n);
+        }
 
         return quaternion.initFromTN(t, n);
     }
 
+    pub fn uv(self: Self, i: usize) Vec2f {
+        return if (self.uvs.len > 0) self.uvs[i] else .{ 0.0, 0.0 };
+    }
+
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return self.bts[i] > 0;
+        return if (self.bts.len > 0) self.bts[i] > 0 else false;
     }
 };
 
 pub const Separate = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
-    tangents: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
+    tangents: []Pack3f,
     uvs: []Vec2f,
     bts: []u8,
 
     const Self = @This();
 
-    pub fn init(positions: []Vec3f, normals: []Vec3f, tangents: []Vec3f, uvs: []Vec2f, bts: []u8) !Self {
+    pub fn init(positions: []Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) !Self {
         return Self{
             .positions = positions,
             .normals = normals,
@@ -113,7 +124,7 @@ pub const Separate = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.bts);
         alloc.free(self.uvs);
         alloc.free(self.tangents);
@@ -136,19 +147,19 @@ pub const Separate = struct {
 };
 
 pub const Compact = struct {
-    positions: []Vec3f,
-    normals: []Vec3f,
+    positions: []Pack3f,
+    normals: []Pack3f,
 
     const Self = @This();
 
-    pub fn init(positions: []Vec3f, normals: []Vec3f) !Self {
+    pub fn init(positions: []Pack3f, normals: []Pack3f) !Self {
         return Self{
             .positions = positions,
             .normals = normals,
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *std.mem.Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.normals);
         alloc.free(self.positions);
     }

@@ -8,10 +8,16 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f, radiance: Vec4f) Sample {
-        return .{ .super = Base.init(rs, wo, radiance, radiance) };
+        return .{ .super = Base.init(
+            rs,
+            wo,
+            radiance,
+            radiance,
+            @splat(2, @as(f32, 1.0)),
+        ) };
     }
 
     pub fn sample() bxdf.Sample {
-        return .{ .reflection = undefined, .wi = undefined, .pdf = 0.0 };
+        return .{ .wavelength = 0.0 };
     }
 };

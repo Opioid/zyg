@@ -13,7 +13,7 @@ pub const Sampler = union(enum) {
     Random,
     GoldenRatio: GoldenRatio,
 
-    pub fn deinit(self: *Sampler, alloc: *Allocator) void {
+    pub fn deinit(self: *Sampler, alloc: Allocator) void {
         switch (self.*) {
             .Random => {},
             .GoldenRatio => |*gr| gr.deinit(alloc),
@@ -27,17 +27,26 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn sample2D(self: *Sampler, rng: *RNG, dimension: u32) Vec2f {
+    pub fn sample1D(self: *Sampler, rng: *RNG, dimension: usize) f32 {
         return switch (self.*) {
-            .Random => Vec2f.init2(rng.randomFloat(), rng.randomFloat()),
-            .GoldenRatio => |*gr| gr.sample2D(rng, dimension),
+            .Random => rng.randomFloat(),
+            .GoldenRatio => |*gr| gr.sample1D(rng, @intCast(u32, dimension)),
         };
     }
 
-    pub fn sample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
+    pub fn sample2D(self: *Sampler, rng: *RNG, dimension: usize) Vec2f {
+        return switch (self.*) {
+            .Random => .{ rng.randomFloat(), rng.randomFloat() },
+            .GoldenRatio => |*gr| gr.sample2D(rng, @intCast(u32, dimension)),
+        };
+    }
+
+    pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
         return .{
             .pixel = pixel,
             .pixel_uv = self.sample2D(rng, 0),
+            .lens_uv = self.sample2D(rng, 1),
+            .time = self.sample1D(rng, 0),
         };
     }
 };
@@ -48,7 +57,7 @@ pub const Factory = union(enum) {
 
     pub fn create(
         self: Factory,
-        alloc: *Allocator,
+        alloc: Allocator,
         num_dimensions_1D: u32,
         num_dimensions_2D: u32,
         max_samples: u32,

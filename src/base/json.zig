@@ -1,11 +1,14 @@
 const math = @import("math/math.zig");
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
+const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
 const Transformation = math.Transformation;
 const Quaternion = math.Quaternion;
 const quaternion = math.quaternion;
+
 const std = @import("std");
 const Value = std.json.Value;
 
@@ -16,10 +19,16 @@ pub fn readBool(value: Value) bool {
     };
 }
 
-pub fn readFloat(value: Value) f32 {
+pub fn readBoolMember(value: Value, name: []const u8, default: bool) bool {
+    const member = value.Object.get(name) orelse return default;
+
+    return readBool(member);
+}
+
+pub fn readFloat(comptime T: type, value: Value) T {
     return switch (value) {
-        .Integer => |int| @intToFloat(f32, int),
-        .Float => |float| @floatCast(f32, float),
+        .Integer => |int| @intToFloat(T, int),
+        .Float => |float| @floatCast(T, float),
         else => 0.0,
     };
 }
@@ -27,7 +36,7 @@ pub fn readFloat(value: Value) f32 {
 pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
     const member = value.Object.get(name) orelse return default;
 
-    return readFloat(member);
+    return readFloat(f32, member);
 }
 
 pub fn readUInt(value: Value) u32 {
@@ -46,31 +55,59 @@ pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
     return @intCast(u64, member.Integer);
 }
 
+pub fn readVec2f(value: Value) Vec2f {
+    return .{
+        readFloat(f32, value.Array.items[0]),
+        readFloat(f32, value.Array.items[1]),
+    };
+}
+
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
     const member = value.Object.get(name) orelse return default;
 
-    return Vec2i.init2(
+    return .{
         @intCast(i32, member.Array.items[0].Integer),
         @intCast(i32, member.Array.items[1].Integer),
+    };
+}
+
+pub fn readVec3iMember(value: Value, name: []const u8, default: Vec3i) Vec3i {
+    const member = value.Object.get(name) orelse return default;
+
+    return Vec3i.init3(
+        @intCast(i32, member.Array.items[0].Integer),
+        @intCast(i32, member.Array.items[1].Integer),
+        @intCast(i32, member.Array.items[2].Integer),
     );
 }
 
 pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
     const member = value.Object.get(name) orelse return default;
 
-    return Vec4i.init4(
+    return .{
         @intCast(i32, member.Array.items[0].Integer),
         @intCast(i32, member.Array.items[1].Integer),
         @intCast(i32, member.Array.items[2].Integer),
         @intCast(i32, member.Array.items[3].Integer),
-    );
+    };
 }
 
 pub fn readVec4f3(value: Value) Vec4f {
     return .{
-        readFloat(value.Array.items[0]),
-        readFloat(value.Array.items[1]),
-        readFloat(value.Array.items[2]),
+        readFloat(f32, value.Array.items[0]),
+        readFloat(f32, value.Array.items[1]),
+        readFloat(f32, value.Array.items[2]),
+        0.0,
+    };
+}
+
+pub fn readVec4f3Member(value: Value, name: []const u8, default: Vec4f) Vec4f {
+    const member = value.Object.get(name) orelse return default;
+
+    return .{
+        readFloat(f32, member.Array.items[0]),
+        readFloat(f32, member.Array.items[1]),
+        readFloat(f32, member.Array.items[2]),
         0.0,
     };
 }
@@ -85,7 +122,7 @@ pub fn readStringMember(value: Value, name: []const u8, default: []const u8) []c
     return member.String;
 }
 
-fn createRotationMatrix(xyz: Vec4f) Mat3x3 {
+pub fn createRotationMatrix(xyz: Vec4f) Mat3x3 {
     const rot_x = Mat3x3.initRotationX(math.degreesToRadians(xyz[0]));
     const rot_y = Mat3x3.initRotationY(math.degreesToRadians(xyz[1]));
     const rot_z = Mat3x3.initRotationZ(math.degreesToRadians(xyz[2]));

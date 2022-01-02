@@ -3,6 +3,8 @@ const img = @import("image.zig");
 const Swizzle = img.Swizzle;
 const Image = img.Image;
 const PngReader = @import("encoding/png/reader.zig").Reader;
+const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
+const SubReader = @import("encoding/sub/reader.zig").Reader;
 const Resources = @import("../resource/manager.zig").Manager;
 const Variants = @import("base").memory.VariantMap;
 
@@ -16,25 +18,59 @@ pub const Provider = struct {
 
     png_reader: PngReader = .{},
 
-    pub fn deinit(self: *Provider, alloc: *Allocator) void {
+    previous_name: []u8,
+
+    pub fn init(alloc: Allocator) !Provider {
+        var buffer = try alloc.alloc(u8, 256);
+        std.mem.set(u8, buffer, 0);
+
+        return Provider{ .previous_name = buffer };
+    }
+
+    pub fn deinit(self: *Provider, alloc: Allocator) void {
+        alloc.free(self.previous_name);
         self.png_reader.deinit(alloc);
     }
 
     pub fn loadFile(
         self: *Provider,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
         resources: *Resources,
     ) !Image {
-        var stream = try resources.fs.readStream(name);
+        var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
+
+        const resolved_name = resources.fs.lastResolvedName();
+
+        const same_file = std.mem.startsWith(u8, self.previous_name, resolved_name);
+
+        if (self.previous_name.len < resolved_name.len) {
+            self.previous_name = try alloc.realloc(self.previous_name, resolved_name.len);
+        }
+
+        std.mem.copy(u8, self.previous_name, resolved_name);
 
         const file_type = file.queryType(&stream);
 
-        if (file.Type.PNG == file_type) {
-            const swizzle = options.query("swizzle", Swizzle.XYZ);
-            return try self.png_reader.read(alloc, &stream, swizzle);
+        if (.PNG == file_type) {
+            const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
+            const invert = options.queryOrDef("invert", false);
+
+            if (same_file) {
+                return try self.png_reader.createFromBuffer(alloc, swizzle, invert);
+            }
+
+            return try self.png_reader.read(alloc, &stream, swizzle, invert);
+        }
+
+        if (.RGBE == file_type) {
+            return RgbeReader.read(alloc, &stream);
+        }
+
+        if (.SUB == file_type) {
+            return SubReader.read(alloc, &stream);
         }
 
         return Error.UnknownImageType;

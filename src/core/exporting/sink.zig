@@ -1,0 +1,31 @@
+const FFMPEG = @import("ffmpeg.zig").FFMPEG;
+const ImageSequence = @import("image_sequence.zig").ImageSequence;
+const img = @import("../image/image.zig");
+const Float4 = img.Float4;
+
+const base = @import("base");
+const Threads = base.thread.Pool;
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
+pub const Sink = union(enum) {
+    FFMPEG: FFMPEG,
+    ImageSequence: ImageSequence,
+
+    const Self = @This();
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        switch (self.*) {
+            .FFMPEG => |*s| s.deinit(alloc),
+            .ImageSequence => |*s| s.deinit(alloc),
+        }
+    }
+
+    pub fn write(self: *Self, alloc: Allocator, image: Float4, frame: u32, threads: *Threads) !void {
+        switch (self.*) {
+            .FFMPEG => |*s| try s.write(alloc, image, threads),
+            .ImageSequence => |*s| try s.write(alloc, image, frame, threads),
+        }
+    }
+};

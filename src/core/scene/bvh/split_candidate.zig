@@ -12,7 +12,7 @@ pub const Reference = struct {
         index: u32,
     };
 
-    bounds: [2]Vector,
+    bounds: [2]Vector align(16),
 
     pub fn aabb(self: Reference) AABB {
         return AABB.init(
@@ -149,7 +149,7 @@ pub const SplitCandidate = struct {
 
     pub fn distribute(
         self: Self,
-        alloc: *Allocator,
+        alloc: Allocator,
         references: []const Reference,
         references0: *References,
         references1: *References,

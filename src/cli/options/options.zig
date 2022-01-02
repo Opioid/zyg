@@ -12,8 +12,10 @@ pub const Options = struct {
     num_frames: u32 = 1,
 
     no_tex: bool = false,
+    no_tex_dwim: bool = false,
+    debug_material: bool = false,
 
-    pub fn deinit(self: *Options, alloc: *Allocator) void {
+    pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
             alloc.free(mount);
         }
@@ -25,7 +27,7 @@ pub const Options = struct {
         }
     }
 
-    pub fn parse(alloc: *Allocator, args: std.process.ArgIterator) !Options {
+    pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
         var options = Options{};
 
         var iter = args;
@@ -37,19 +39,15 @@ pub const Options = struct {
 
         var executed = false;
 
-        var i_i = iter.next(alloc);
+        var i_i = try iter.next(alloc);
         while (i_i) |arg_i| {
-            const argument_i = try arg_i;
+            const command = arg_i[1..];
 
-            const command = argument_i[1..];
-
-            var i_j = iter.next(alloc);
+            var i_j = try iter.next(alloc);
             if (i_j) |arg_j| {
-                const argument_j = try arg_j;
-
-                if (isParameter(argument_j)) {
-                    try options.handleAll(command, argument_j, alloc);
-                    alloc.free(argument_j);
+                if (isParameter(arg_j)) {
+                    try options.handleAll(alloc, command, arg_j);
+                    alloc.free(arg_j);
 
                     executed = true;
 
@@ -58,10 +56,10 @@ pub const Options = struct {
             }
 
             if (!executed) {
-                try options.handleAll(command, "", alloc);
+                try options.handleAll(alloc, command, "");
             }
 
-            alloc.free(argument_i);
+            alloc.free(arg_i);
             i_i = i_j;
 
             executed = false;
@@ -70,17 +68,17 @@ pub const Options = struct {
         return options;
     }
 
-    fn handleAll(self: *Options, command: []u8, parameter: []u8, alloc: *Allocator) !void {
+    fn handleAll(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
         if ('-' == command[0]) {
-            try self.handle(command[1..], parameter, alloc);
+            try self.handle(alloc, command[1..], parameter);
         } else {
             for (command) |_, i| {
-                try self.handle(command[i .. i + 1], parameter, alloc);
+                try self.handle(alloc, command[i .. i + 1], parameter);
             }
         }
     }
 
-    fn handle(self: *Options, command: []u8, parameter: []u8, alloc: *Allocator) !void {
+    fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "frame", command) or std.mem.eql(u8, "f", command)) {
@@ -100,6 +98,10 @@ pub const Options = struct {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "no-tex", command)) {
             self.no_tex = true;
+        } else if (std.mem.eql(u8, "no-tex-dwim", command)) {
+            self.no_tex_dwim = true;
+        } else if (std.mem.eql(u8, "debug-mat", command)) {
+            self.debug_material = true;
         }
     }
 
@@ -142,7 +144,7 @@ pub const Options = struct {
             \\                                 logical CPUs minus x.
             \\                                 The default value is 0.
             \\      --no-tex                   Disables loading of all textures.
-            \\
+            \\      --debug-mat                Force all materials to debug material type.
         ;
 
         stdout.print(text, .{}) catch return;

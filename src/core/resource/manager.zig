@@ -27,22 +27,23 @@ const Error = error{
 pub const Manager = struct {
     threads: *Threads,
 
-    fs: Filesystem = .{},
+    fs: Filesystem,
 
     images: Images,
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(threads: *Threads) Manager {
-        return .{
+    pub fn init(alloc: Allocator, threads: *Threads) !Manager {
+        return Manager{
             .threads = threads,
-            .images = Images.init(ImageProvider{}),
+            .fs = try Filesystem.init(alloc),
+            .images = Images.init(try ImageProvider.init(alloc)),
             .materials = Materials.init(MaterialProvider{}),
             .shapes = Shapes.init(TriangleMeshProvider{}),
         };
     }
 
-    pub fn deinit(self: *Manager, alloc: *Allocator) void {
+    pub fn deinit(self: *Manager, alloc: Allocator) void {
         self.shapes.deinit(alloc);
         self.materials.deinit(alloc);
         self.images.deinit(alloc);
@@ -52,7 +53,7 @@ pub const Manager = struct {
     pub fn loadFile(
         self: *Manager,
         comptime T: type,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         options: Variants,
     ) !u32 {
@@ -74,7 +75,7 @@ pub const Manager = struct {
     pub fn loadData(
         self: *Manager,
         comptime T: type,
-        alloc: *Allocator,
+        alloc: Allocator,
         name: []const u8,
         data: usize,
         options: Variants,
@@ -102,17 +103,17 @@ pub const Manager = struct {
         return null;
     }
 
-    pub fn getByName(self: Manager, comptime T: type, name: []const u8) ?u32 {
+    pub fn getByName(self: Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
-            return self.images.getByName(name);
+            return self.images.getByName(name, options);
         }
 
         if (Material == T) {
-            return self.materials.getByName(name);
+            return self.materials.getByName(name, options);
         }
 
         if (Shape == T) {
-            return self.shapes.getByName(name);
+            return self.shapes.getByName(name, options);
         }
 
         return null;

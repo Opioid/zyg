@@ -1,15 +1,24 @@
 const tk = @import("take.zig");
 pub const Take = tk.Take;
 pub const View = tk.View;
+const PhotonSettings = tk.PhotonSettings;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
+const volume = @import("../rendering/integrator/volume/integrator.zig");
+const lt = @import("../rendering/integrator/particle/lighttracer.zig");
+const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
 const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
 const Scene = @import("../scene/scene.zig").Scene;
+const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
 const ReadStream = @import("../file/read_stream.zig").ReadStream;
+const ExrWriter = @import("../image/encoding/exr/writer.zig").Writer;
+const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const RgbeWriter = @import("../image/encoding/rgbe/writer.zig").Writer;
+const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
 const base = @import("base");
 const json = base.json;
@@ -27,10 +36,10 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *Resources) !Take {
+pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Resources) !Take {
     _ = resources;
 
-    const buffer = try stream.reader.unbuffered_reader.readAllAlloc(alloc, std.math.maxInt(u64));
+    const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
     var parser = std.json.Parser.init(alloc, false);
@@ -39,10 +48,11 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     var document = try parser.parse(buffer);
     defer document.deinit();
 
-    var take = Take.init();
+    var take = try Take.init(alloc);
 
     const root = document.root;
 
+    var exporter_value_ptr: ?*std.json.Value = null;
     var integrator_value_ptr: ?*std.json.Value = null;
     var post_value_ptr: ?*std.json.Value = null;
     var sampler_value_ptr: ?*std.json.Value = null;
@@ -51,6 +61,8 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
             try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
+        } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
+            exporter_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
             integrator_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "post", entry.key_ptr.*)) {
@@ -72,12 +84,6 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         loadIntegrators(integrator_value.*, &take.view);
     }
 
-    if (surface.Factory.Invalid == take.view.surfaces) {
-        take.view.surfaces = surface.Factory{ .AO = .{
-            .settings = .{ .num_samples = 1, .radius = 1.0 },
-        } };
-    }
-
     if (sampler_value_ptr) |sampler_value| {
         take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
     }
@@ -86,17 +92,22 @@ pub fn load(alloc: *Allocator, stream: *ReadStream, scene: *Scene, resources: *R
         loadPostProcessors(post_value.*, &take.view);
     }
 
+    if (exporter_value_ptr) |exporter_value| {
+        take.exporters = try loadExporters(alloc, exporter_value.*, take.view);
+    }
+
+    setDefaultIntegrators(&take.view);
+
     try take.view.configure(alloc);
 
     return take;
 }
 
-fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
+fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
         var iter = value.Object.iterator();
-
         while (iter.next()) |entry| {
             type_value_ptr = entry.value_ptr;
         }
@@ -106,6 +117,7 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         return;
     }
 
+    var param_value_ptr: ?*std.json.Value = null;
     var sensor_value_ptr: ?*std.json.Value = null;
 
     var trafo = Transformation{
@@ -118,8 +130,7 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
         var iter = type_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
-                const fov = entry.value_ptr.Object.get("fov") orelse continue;
-                camera.fov = math.degreesToRadians(json.readFloat(fov));
+                param_value_ptr = entry.value_ptr;
             } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                 json.readTransformation(entry.value_ptr.*, &trafo);
             } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {
@@ -129,14 +140,17 @@ fn loadCamera(alloc: *Allocator, camera: *cam.Perspective, value: std.json.Value
     }
 
     if (sensor_value_ptr) |sensor_value| {
-        const resolution = json.readVec2iMember(sensor_value.*, "resolution", Vec2i.init1(0));
-        const crop = json.readVec4iMember(sensor_value.*, "crop", Vec4i.init2_2(Vec2i.init1(0), resolution));
+        const resolution = json.readVec2iMember(sensor_value.*, "resolution", .{ 0, 0 });
+        const crop = json.readVec4iMember(sensor_value.*, "crop", Vec4i{ 0, 0, resolution[0], resolution[1] });
 
         camera.setResolution(resolution, crop);
-
-        camera.setSensor(loadSensor(sensor_value.*));
+        camera.sensor = loadSensor(sensor_value.*);
     } else {
         return;
+    }
+
+    if (param_value_ptr) |param_value| {
+        camera.setParameters(param_value.*);
     }
 
     const prop_id = try scene.createEntity(alloc);
@@ -167,6 +181,7 @@ const Blackman = struct {
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
+    var clamp = snsr.Clamp{ .Identity = .{} };
 
     var filter_value_ptr: ?*std.json.Value = null;
 
@@ -175,6 +190,14 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
                 alpha_transparency = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
+                switch (entry.value_ptr.*) {
+                    .Array => {
+                        const max = json.readVec4f3(entry.value_ptr.*);
+                        clamp = snsr.Clamp{ .Max = .{ .max = Vec4f{ max[0], max[1], max[2], 1.0 } } };
+                    },
+                    else => clamp = snsr.Clamp{ .Luminance = .{ .max = json.readFloat(f32, entry.value_ptr.*) } },
+                }
             } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
                 filter_value_ptr = entry.value_ptr;
             }
@@ -190,10 +213,29 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
             {
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
 
-                if (alpha_transparency) {} else {
+                if (alpha_transparency) {
+                    if (radius <= 1.0) {
+                        return snsr.Sensor{
+                            .Filtered_1p0_transparent = snsr.Filtered_1p0_transparent.init(
+                                clamp,
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    } else if (radius <= 2.0) {
+                        return snsr.Sensor{
+                            .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
+                                clamp,
+                                radius,
+                                Blackman{ .r = radius },
+                            ),
+                        };
+                    }
+                } else {
                     if (radius <= 1.0) {
                         return snsr.Sensor{
                             .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(
+                                clamp,
                                 radius,
                                 Blackman{ .r = radius },
                             ),
@@ -201,6 +243,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                     } else if (radius <= 2.0) {
                         return snsr.Sensor{
                             .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
+                                clamp,
                                 radius,
                                 Blackman{ .r = radius },
                             ),
@@ -212,49 +255,189 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     }
 
     if (alpha_transparency) {
-        return snsr.Sensor{ .Unfiltered_transparent = .{} };
+        return snsr.Sensor{ .Unfiltered_transparent = .{ .clamp = clamp } };
     }
 
-    return snsr.Sensor{ .Unfiltered_opaque = .{} };
+    return snsr.Sensor{ .Unfiltered_opaque = .{ .clamp = clamp } };
+}
+
+fn peekSurfaceIntegrator(value: std.json.Value) bool {
+    var niter = value.Object.iterator();
+    while (niter.next()) |n| {
+        if (std.mem.eql(u8, "surface", n.key_ptr.*)) {
+            var siter = n.value_ptr.Object.iterator();
+            while (siter.next()) |s| {
+                if (std.mem.eql(u8, "AO", s.key_ptr.*)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 fn loadIntegrators(value: std.json.Value, view: *View) void {
+    if (value.Object.get("particle")) |particle_node| {
+        const surface_integrator = peekSurfaceIntegrator(value);
+
+        loadParticleIntegrator(particle_node, view, surface_integrator);
+    }
+
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-            loadSurfaceIntegrator(entry.value_ptr.*, view);
+            loadSurfaceIntegrator(entry.value_ptr.*, view, null != view.lighttracers);
+        } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
+            loadVolumeIntegrator(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
+            view.photon_settings = loadPhotonSettings(entry.value_ptr.*);
         }
     }
 }
 
-fn loadSurfaceIntegrator(value: std.json.Value, view: *View) void {
+fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) void {
     const Default_min_bounces = 4;
     const Default_max_bounces = 8;
 
+    var light_sampling = LightSampling.Adaptive;
+
+    const Default_caustics = true;
+
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "AO", entry.key_ptr.*)) {
-            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+        if (std.mem.eql(u8, "AOV", entry.key_ptr.*)) {
+            const value_name = json.readStringMember(entry.value_ptr.*, "value", "");
+            var value_type: surface.AOV.Value = .AO;
 
+            if (std.mem.eql(u8, "Tangent", value_name)) {
+                value_type = .Tangent;
+            } else if (std.mem.eql(u8, "Bitangent", value_name)) {
+                value_type = .Bitangent;
+            } else if (std.mem.eql(u8, "Geometric_normal", value_name)) {
+                value_type = .GeometricNormal;
+            } else if (std.mem.eql(u8, "Shading_normal", value_name)) {
+                value_type = .ShadingNormal;
+            } else if (std.mem.eql(u8, "Photons", value_name)) {
+                value_type = .Photons;
+            }
+
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
-            view.surfaces = surface.Factory{ .AO = .{
-                .settings = .{ .num_samples = num_samples, .radius = radius },
+            view.surfaces = surface.Factory{ .AOV = .{
+                .settings = .{ .value = value_type, .num_samples = num_samples, .radius = radius },
             } };
         } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
-
             const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
             const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
             view.surfaces = surface.Factory{ .PT = .{
                 .settings = .{
                     .num_samples = num_samples,
                     .min_bounces = min_bounces,
                     .max_bounces = max_bounces,
+                    .avoid_caustics = !enable_caustics,
+                },
+            } };
+        } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+            const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
+
+            loadLightSampling(entry.value_ptr.*, &light_sampling);
+
+            view.surfaces = surface.Factory{ .PTDL = .{
+                .settings = .{
+                    .num_samples = num_samples,
+                    .min_bounces = min_bounces,
+                    .max_bounces = max_bounces,
+                    .light_sampling = light_sampling,
+                    .avoid_caustics = !enable_caustics,
+                },
+            } };
+        } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
+            const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+            const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+            const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics) and !lighttracer;
+
+            loadLightSampling(entry.value_ptr.*, &light_sampling);
+
+            view.surfaces = surface.Factory{ .PTMIS = .{
+                .settings = .{
+                    .num_samples = num_samples,
+                    .min_bounces = min_bounces,
+                    .max_bounces = max_bounces,
+                    .light_sampling = light_sampling,
+                    .avoid_caustics = !enable_caustics,
+                    .photons_not_only_through_specular = !lighttracer,
                 },
             } };
         }
+    }
+}
+
+fn loadVolumeIntegrator(value: std.json.Value) void {
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
+            const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
+            MaterialBase.setSimilarityRelationRange(@intCast(u32, sr_range[0]), @intCast(u32, sr_range[1]));
+        }
+    }
+}
+
+fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator: bool) void {
+    const num_samples = json.readUIntMember(value, "num_samples", 1);
+    const max_bounces = json.readUIntMember(value, "max_bounces", 8);
+    const full_light_path = json.readBoolMember(value, "full_light_path", true);
+    view.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
+
+    view.lighttracers = lt.Factory{ .settings = .{
+        .num_samples = num_samples,
+        .min_bounces = 1,
+        .max_bounces = max_bounces,
+        .full_light_path = full_light_path and !surface_integrator,
+    } };
+}
+
+fn loadPhotonSettings(value: std.json.Value) PhotonSettings {
+    return .{
+        .num_photons = json.readUIntMember(value, "num_photons", 0),
+        .max_bounces = json.readUIntMember(value, "max_bounces", 4),
+        .iteration_threshold = json.readFloatMember(value, "iteration_threshold", 1.0),
+        .search_radius = json.readFloatMember(value, "search_radius", 0.002),
+        .merge_radius = json.readFloatMember(value, "merge_radius", 0.001),
+        .full_light_path = json.readBoolMember(value, "full_light_path", false),
+    };
+}
+
+fn setDefaultIntegrators(view: *View) void {
+    if (null == view.surfaces and null != view.lighttracers) {
+        view.num_samples_per_pixel = 0;
+    }
+
+    if (null == view.surfaces) {
+        view.surfaces = .{ .AOV = .{
+            .settings = .{ .value = .AO, .num_samples = 1, .radius = 1.0 },
+        } };
+    }
+
+    if (null == view.volumes) {
+        view.volumes = .{ .Multi = .{} };
+    }
+
+    if (null == view.lighttracers) {
+        view.lighttracers = .{ .settings = .{
+            .num_samples = 0,
+            .min_bounces = 0,
+            .max_bounces = 0,
+            .full_light_path = false,
+        } };
     }
 }
 
@@ -288,8 +471,6 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
 fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        std.debug.print("{s}\n", .{entry.key_ptr.*});
-
         const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 0.0);
 
         if (std.mem.eql(u8, "ACES", entry.key_ptr.*)) {
@@ -302,4 +483,66 @@ fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
     }
 
     return .{ .Linear = tm.Linear.init(0.0) };
+}
+
+fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
+    const light_sampling_node = value.Object.get("light_sampling") orelse return;
+
+    var iter = light_sampling_node.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "strategy", entry.key_ptr.*)) {
+            const strategy = entry.value_ptr.String;
+
+            if (std.mem.eql(u8, "Single", strategy)) {
+                sampling.* = .Single;
+            } else if (std.mem.eql(u8, "Single", strategy)) {
+                sampling.* = .Adaptive;
+            }
+        } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {}
+    }
+}
+
+fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Exporters {
+    var exporters = tk.Exporters{};
+
+    var iter = value.Object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
+            const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
+
+            const alpha = view.camera.sensor.alphaTransparency();
+
+            if (std.mem.eql(u8, "EXR", format)) {
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .EXR = .{ .alpha = alpha } },
+                } });
+            } else if (std.mem.eql(u8, "RGBE", format)) {
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .RGBE = .{} },
+                } });
+            } else {
+                const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+                try exporters.append(alloc, .{ .ImageSequence = .{
+                    .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
+                } });
+            }
+        } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
+            var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
+            if (0 == framerate) {
+                framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, view.camera.frame_step)));
+            }
+
+            const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+            try exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
+                alloc,
+                view.camera.sensorDimensions(),
+                framerate,
+                error_diffusion,
+            ) });
+        }
+    }
+
+    return exporters;
 }

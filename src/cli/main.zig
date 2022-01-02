@@ -6,7 +6,6 @@ const resource = core.resource;
 const scn = core.scn;
 const thread = base.thread;
 const tk = core.tk;
-const PngWriter = core.image.encoding.png.Writer;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -15,6 +14,8 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 
 pub fn main() !void {
+    // try core.ggx_integrate.integrate();
+
     const stdout = std.io.getStdOut().writer();
 
     stdout.print("Welcome to zyg!\n", .{}) catch unreachable;
@@ -27,7 +28,7 @@ pub fn main() !void {
     //     }
     // }
 
-    // const alloc = &gpa.allocator;
+    // const alloc = gpa.allocator();
     const alloc = std.heap.c_allocator;
 
     var options = try Options.parse(alloc, std.process.args());
@@ -46,10 +47,10 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = resource.Manager.init(&threads);
+    var resources = try resource.Manager.init(alloc, &threads);
     defer resources.deinit(alloc);
 
-    resources.materials.provider.setSettings(options.no_tex);
+    resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
 
     var fs = &resources.fs;
 
@@ -73,20 +74,25 @@ pub fn main() !void {
     );
     defer scene.deinit(alloc);
 
-    var stream = try resources.fs.readStream(options.take.?);
-
     stdout.print("Loading...\n", .{}) catch unreachable;
 
     const loading_start = std.time.milliTimestamp();
 
-    var take = tk.load(alloc, &stream, &scene, &resources) catch |err| {
-        std.debug.print("Loading take {} \n", .{err});
+    var stream = resources.fs.readStream(alloc, options.take.?) catch |err| {
+        std.debug.print("Open stream \"{s}\": {} \n", .{ options.take.?, err });
+        return;
+    };
+
+    var take = tk.load(alloc, stream, &scene, &resources) catch |err| {
+        std.debug.print("Loading take: {} \n", .{err});
         return;
     };
     defer take.deinit(alloc);
 
-    scene_loader.load(alloc, take.scene_filename, &scene) catch |err| {
-        std.debug.print("Loading scene {} \n", .{err});
+    stream.deinit();
+
+    scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
+        std.debug.print("Loading scene: {} \n", .{err});
         return;
     };
 
@@ -101,15 +107,12 @@ pub fn main() !void {
 
     try driver.configure(alloc, &take.view, &scene);
 
-    driver.render();
-    driver.exportFrame();
+    var i = options.start_frame;
+    const end = i + options.num_frames;
+    while (i < end) : (i += 1) {
+        try driver.render(alloc, i);
+        try driver.exportFrame(alloc, i, take.exporters.items);
+    }
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
-    const export_start = std.time.milliTimestamp();
-
-    var png_writer = PngWriter.init(take.view.camera.sensor.alphaTransparency());
-    defer png_writer.deinit(alloc);
-    try png_writer.write(alloc, driver.target, &threads);
-
-    stdout.print("Export time {d:.2} s\n", .{chrono.secondsSince(export_start)}) catch unreachable;
 }

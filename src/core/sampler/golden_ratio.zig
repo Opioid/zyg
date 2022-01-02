@@ -19,7 +19,7 @@ pub const GoldenRatio = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: *Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !GoldenRatio {
+    pub fn init(alloc: Allocator, num_dimensions_1D: u32, num_dimensions_2D: u32, max_samples: u32) !GoldenRatio {
         return GoldenRatio{
             .num_dimensions_1D = num_dimensions_1D,
             .num_dimensions_2D = num_dimensions_2D,
@@ -30,7 +30,7 @@ pub const GoldenRatio = struct {
         };
     }
 
-    pub fn deinit(self: *Self, alloc: *Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.samples_2D);
         alloc.free(self.samples_1D);
         alloc.free(self.current_samples);
@@ -40,6 +40,19 @@ pub const GoldenRatio = struct {
         for (self.current_samples) |*s| {
             s.* = 0;
         }
+    }
+
+    pub fn sample1D(self: *Self, rng: *RNG, dimension: u32) f32 {
+        var cs = &self.current_samples[dimension];
+
+        const current = cs.*;
+        cs.* += 1;
+
+        if (0 == current) {
+            self.generate1D(rng, dimension);
+        }
+
+        return self.samples_1D[dimension * self.num_samples + current];
     }
 
     pub fn sample2D(self: *Self, rng: *RNG, dimension: u32) Vec2f {
@@ -55,14 +68,25 @@ pub const GoldenRatio = struct {
         return self.samples_2D[dimension * self.num_samples + current];
     }
 
+    fn generate1D(self: *Self, rng: *RNG, dimension: u32) void {
+        const num_samples = self.num_samples;
+        const begin = dimension * num_samples;
+        const end = begin + num_samples;
+
+        var slice = self.samples_1D[begin..end];
+        const r = rng.randomFloat();
+        math.goldenRatio1D(slice, r);
+
+        rnd.biasedShuffle(f32, slice, rng);
+    }
+
     fn generate2D(self: *Self, rng: *RNG, dimension: u32) void {
         const num_samples = self.num_samples;
         const begin = dimension * num_samples;
         const end = begin + num_samples;
 
         var slice = self.samples_2D[begin..end];
-
-        const r = Vec2f.init2(rng.randomFloat(), rng.randomFloat());
+        const r = Vec2f{ rng.randomFloat(), rng.randomFloat() };
         math.goldenRatio2D(slice, r);
 
         rnd.biasedShuffle(Vec2f, slice, rng);
