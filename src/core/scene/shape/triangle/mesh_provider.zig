@@ -66,7 +66,7 @@ pub const Provider = struct {
     num_indices: u32 = undefined,
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
-    mesh: *Mesh = undefined,
+    tree: bvh.Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
@@ -78,7 +78,20 @@ pub const Provider = struct {
         _ = alloc;
     }
 
+    pub fn commitAsync(self: *Provider, resources: *Resources) void {
+        if (resources.shapes.getLast()) |last| {
+            switch (last.*) {
+                .TriangleMesh => |*m| m.tree = self.tree,
+                else => {},
+            }
+        }
+    }
+
     pub fn loadFile(self: *Provider, alloc: Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
+        // resources.threads.waitAsync();
+
+        // self.commitAsync(resources);
+
         _ = self;
         _ = options;
 
@@ -145,9 +158,9 @@ pub const Provider = struct {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
-        try buildBVH(alloc, &mesh, handler.triangles.items, vertices, resources.threads);
+        try buildBVH(alloc, &mesh.tree, handler.triangles.items, vertices, resources.threads);
 
-        return Shape{ .Triangle_mesh = mesh };
+        return Shape{ .TriangleMesh = mesh };
     }
 
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
@@ -495,7 +508,6 @@ pub const Provider = struct {
         self.num_indices = num_indices;
         self.index_bytes = index_bytes;
         self.delta_indices = delta_indices;
-        self.mesh = &mesh;
         self.parts = parts;
         self.indices = indices;
         self.vertices = vertices;
@@ -505,7 +517,7 @@ pub const Provider = struct {
 
         threads.runAsync(self, buildBinaryAsync);
 
-        return Shape{ .Triangle_mesh = mesh };
+        return Shape{ .TriangleMesh = mesh };
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
@@ -529,7 +541,7 @@ pub const Provider = struct {
             }
         }
 
-        buildBVH(self.alloc, self.mesh, triangles, self.vertices, self.threads) catch {};
+        buildBVH(self.alloc, &self.tree, triangles, self.vertices, self.threads) catch {};
 
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
@@ -537,7 +549,7 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        mesh: *Mesh,
+        tree: *bvh.Tree,
         triangles: []const IndexTriangle,
         vertices: vs.VertexStream,
         threads: *Threads,
@@ -545,7 +557,7 @@ pub const Provider = struct {
         var builder = try Builder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
-        try builder.build(alloc, &mesh.tree, triangles, vertices, threads);
+        try builder.build(alloc, tree, triangles, vertices, threads);
     }
 
     fn fillTriangles(
