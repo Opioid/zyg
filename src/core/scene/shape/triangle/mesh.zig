@@ -11,12 +11,13 @@ const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-pub const bvh = @import("bvh/tree.zig");
+const bvh = @import("bvh/tree.zig");
 const LightTree = @import("../../light/tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;

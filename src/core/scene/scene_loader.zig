@@ -131,6 +131,8 @@ pub const Loader = struct {
         }
 
         fs.popMount(alloc);
+
+        self.resources.commitAsync();
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {

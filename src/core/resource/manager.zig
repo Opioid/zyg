@@ -91,6 +91,12 @@ pub const Manager = struct {
         return Error.UnknownResource;
     }
 
+    pub fn commitAsync(self: *Manager) void {
+        self.threads.waitAsync();
+
+        self.shapes.provider.commitAsync(self);
+    }
+
     pub fn get(self: Manager, comptime T: type, id: u32) ?*T {
         if (Image == T) {
             return self.images.get(id);
