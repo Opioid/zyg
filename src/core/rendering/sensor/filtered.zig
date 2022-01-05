@@ -2,6 +2,7 @@ const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Clamp = @import("clamp.zig").Clamp;
+
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;

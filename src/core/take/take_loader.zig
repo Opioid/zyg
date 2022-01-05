@@ -179,6 +179,23 @@ const Blackman = struct {
     }
 };
 
+const Mitchell = struct {
+    b: f32,
+    c: f32,
+
+    pub fn eval(self: Mitchell, x: f32) f32 {
+        const xx = x * x;
+
+        if (x > 1.0) {
+            return ((-self.b - 6.0 * self.c) * xx * x + (6.0 * self.b + 30.0 * self.c) * xx +
+                (-12.0 * self.b - 48.0 * self.c) * x + (8.0 * self.b + 24.0 * self.c)) / 6.0;
+        }
+
+        return ((12.0 - 9.0 * self.b - 6.0 * self.c) * xx * x + (-18.0 + 12.0 * self.b + 6.0 * self.c) * xx +
+            (6.0 - 2.0 * self.b)) / 6.0;
+    }
+};
+
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
     var clamp = snsr.Clamp{ .Identity = .{} };
@@ -208,8 +225,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         var iter = filter_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Gaussian", entry.key_ptr.*) or
-                std.mem.eql(u8, "Blackman", entry.key_ptr.*) or
-                std.mem.eql(u8, "Mitchell", entry.key_ptr.*))
+                std.mem.eql(u8, "Blackman", entry.key_ptr.*))
             {
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
 
@@ -249,6 +265,26 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                             ),
                         };
                     }
+                }
+            } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
+                const radius: f32 = 2.0;
+
+                if (alpha_transparency) {
+                    return snsr.Sensor{
+                        .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
+                            clamp,
+                            radius,
+                            Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+                        ),
+                    };
+                } else {
+                    return snsr.Sensor{
+                        .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
+                            clamp,
+                            radius,
+                            Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+                        ),
+                    };
                 }
             }
         }
