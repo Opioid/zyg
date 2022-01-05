@@ -39,13 +39,13 @@ pub fn Base(comptime T: type) type {
 
             for (result.distribution.conditional) |*c, y| {
                 const sy = -radius + @intToFloat(f32, y) * interval;
-                const fy = f.eval(sy);
+                const fy = f.eval(@fabs(sy));
 
                 var data: [N]f32 = undefined;
 
                 for (data) |*d, x| {
                     const sx = -radius + @intToFloat(f32, x) * interval;
-                    d.* = fy * f.eval(sx);
+                    d.* = @fabs(fy * f.eval(@fabs(sx)));
                 }
 
                 c.configure(data);
@@ -56,11 +56,14 @@ pub fn Base(comptime T: type) type {
             return result;
         }
 
-        pub fn pixelToImageCoordinates(self: Self, sample: Sample) Vec2f {
+        pub fn pixelToImageCoordinates(self: Self, sample: *Sample) Vec2f {
             const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
             const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
 
-            return center + @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
+            const filter_uv = @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
+            sample.pixel_uv = filter_uv;
+
+            return center + filter_uv;
         }
 
         pub fn splat(
@@ -92,7 +95,7 @@ pub fn Base(comptime T: type) type {
         }
 
         pub fn eval(self: Self, s: f32) f32 {
-            return self.filter.eval(std.math.fabs(s));
+            return self.filter.eval(@fabs(s));
         }
 
         fn integral(self: Self, num_samples: u32, radius: f32) f32 {
@@ -128,9 +131,12 @@ pub fn Filtered_1p0(comptime T: type) type {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
+            const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
+            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
+
             const clamped = self.base.clamp.clamp(color);
 
-            self.base.add(.{ x, y }, 1.0, clamped, bounds);
+            self.base.add(.{ x, y }, weigth, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -182,9 +188,12 @@ pub fn Filtered_2p0(comptime T: type) type {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
+            const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
+            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
+
             const clamped = self.base.clamp.clamp(color);
 
-            self.base.add(.{ x, y }, 1.0, clamped, bounds);
+            self.base.add(.{ x, y }, weigth, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
