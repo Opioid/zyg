@@ -184,15 +184,16 @@ const Mitchell = struct {
     c: f32,
 
     pub fn eval(self: Mitchell, x: f32) f32 {
+        const b = self.b;
+        const c = self.c;
         const xx = x * x;
 
         if (x > 1.0) {
-            return ((-self.b - 6.0 * self.c) * xx * x + (6.0 * self.b + 30.0 * self.c) * xx +
-                (-12.0 * self.b - 48.0 * self.c) * x + (8.0 * self.b + 24.0 * self.c)) / 6.0;
+            return ((-b - 6.0 * c) * xx * x + (6.0 * b + 30.0 * c) * xx +
+                (-12.0 * b - 48.0 * c) * x + (8.0 * b + 24.0 * c)) / 6.0;
         }
 
-        return ((12.0 - 9.0 * self.b - 6.0 * self.c) * xx * x + (-18.0 + 12.0 * self.b + 6.0 * self.c) * xx +
-            (6.0 - 2.0 * self.b)) / 6.0;
+        return ((12.0 - 9.0 * b - 6.0 * c) * xx * x + (-18.0 + 12.0 * b + 6.0 * c) * xx + (6.0 - 2.0 * b)) / 6.0;
     }
 };
 
