@@ -360,10 +360,17 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
             }
 
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
             view.surfaces = surface.Factory{ .AOV = .{
-                .settings = .{ .value = value_type, .num_samples = num_samples, .radius = radius },
+                .settings = .{
+                    .value = value_type,
+                    .num_samples = num_samples,
+                    .max_bounces = max_bounces,
+                    .radius = radius,
+                    .photons_not_only_through_specular = !lighttracer,
+                },
             } };
         } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
@@ -460,7 +467,13 @@ fn setDefaultIntegrators(view: *View) void {
 
     if (null == view.surfaces) {
         view.surfaces = .{ .AOV = .{
-            .settings = .{ .value = .AO, .num_samples = 1, .radius = 1.0 },
+            .settings = .{
+                .value = .AO,
+                .num_samples = 1,
+                .max_bounces = 1,
+                .radius = 1.0,
+                .photons_not_only_through_specular = false,
+            },
         } };
     }
 

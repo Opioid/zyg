@@ -2,7 +2,11 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
+const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const scn = @import("../../../scene/constants.zig");
+const ro = @import("../../../scene/ray_offset.zig");
 const smp = @import("../../../sampler/sampler.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -10,6 +14,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const AOV = struct {
+    const Num_dedicated_samplers = 1;
+
     pub const Value = enum {
         AO,
         Tangent,
@@ -21,13 +27,18 @@ pub const AOV = struct {
 
     pub const Settings = struct {
         value: Value,
+
         num_samples: u32,
+        max_bounces: u32,
+
         radius: f32,
+
+        photons_not_only_through_specular: bool,
     };
 
     settings: Settings,
 
-    sampler: smp.Sampler,
+    samplers: [Num_dedicated_samplers + 1]smp.Sampler,
 
     const Self = @This();
 
@@ -36,18 +47,23 @@ pub const AOV = struct {
 
         return Self{
             .settings = settings,
-            .sampler = .{
-                .GoldenRatio = try smp.GoldenRatio.init(alloc, 0, 1, total_samples_per_pixel),
+            .samplers = .{
+                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
+                .{ .Random = .{} },
             },
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        self.sampler.deinit(alloc);
+        for (self.samplers) |*s| {
+            s.deinit(alloc);
+        }
     }
 
     pub fn startPixel(self: *Self) void {
-        self.sampler.startPixel();
+        for (self.samplers) |*s| {
+            s.startPixel();
+        }
     }
 
     pub fn li(
@@ -62,7 +78,7 @@ pub const AOV = struct {
         return switch (self.settings.value) {
             .AO => self.ao(ray.*, isec.*, worker),
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
-            .Photons => photons(ray.*, isec.*, worker),
+            .Photons => self.photons(ray, isec, worker),
         };
     }
 
@@ -82,7 +98,7 @@ pub const AOV = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = self.sampler.sample2D(&worker.super.rng, 0);
+            const sample = self.materialSampler(ray.depth).sample2D(&worker.super.rng, 0);
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -125,13 +141,108 @@ pub const AOV = struct {
         return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
     }
 
-    fn photons(ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
-        const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+    fn photons(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+        var primary_ray = true;
+        var direct = true;
+        var from_subsurface = false;
 
-        worker.addPhoton(worker.photonLi(isec, mat_sample));
+        var throughput = @splat(4, @as(f32, 1.0));
+        var wo1 = @splat(4, @as(f32, 0.0));
+
+        var i: u32 = 0;
+        while (true) : (i += 1) {
+            const wo = -ray.ray.direction;
+
+            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+
+            const mat_sample = worker.super.sampleMaterial(
+                ray.*,
+                wo,
+                wo1,
+                isec.*,
+                filter,
+                0.0,
+                true,
+                from_subsurface,
+            );
+
+            wo1 = wo;
+
+            if (mat_sample.isPureEmissive()) {
+                break;
+            }
+
+            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            if (0.0 == sample_result.pdf) {
+                break;
+            }
+
+            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no(.Straight)) {
+                if (primary_ray) {
+                    primary_ray = false;
+
+                    const indirect = !direct and 0 != ray.depth;
+                    if (self.settings.photons_not_only_through_specular or indirect) {
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        break;
+                    }
+                }
+            }
+
+            if (!sample_result.typef.equals(.StraightTransmission)) {
+                ray.depth += 1;
+            }
+
+            if (ray.depth >= self.settings.max_bounces) {
+                break;
+            }
+
+            if (sample_result.typef.is(.Straight)) {
+                ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+            } else {
+                ray.ray.origin = isec.offsetP(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi);
+
+                direct = false;
+                from_subsurface = false;
+            }
+
+            ray.ray.setMaxT(scn.Ray_max_t);
+
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
+            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+
+            if (sample_result.typef.is(.Transmission)) {
+                worker.super.interfaceChange(sample_result.wi, isec.*);
+            }
+
+            from_subsurface = from_subsurface or isec.subsurface;
+
+            if (!worker.super.interface_stack.empty()) {
+                const vr = worker.volume(ray, isec, filter);
+
+                throughput *= vr.tr;
+
+                if (.Abort == vr.event) {
+                    break;
+                }
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+                break;
+            }
+        }
 
         return @splat(4, @as(f32, 0.0));
+    }
+
+    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
+        if (Num_dedicated_samplers > bounce) {
+            return &self.samplers[bounce];
+        }
+
+        return &self.samplers[Num_dedicated_samplers];
     }
 };
 
