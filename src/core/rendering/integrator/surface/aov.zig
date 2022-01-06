@@ -177,7 +177,7 @@ pub const AOV = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no(.Straight)) {
+            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no2(.Straight, .Transmission)) {
                 if (primary_ray) {
                     primary_ray = false;
 
