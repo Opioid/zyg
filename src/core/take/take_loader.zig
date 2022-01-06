@@ -328,7 +328,7 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
         } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
             loadVolumeIntegrator(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
-            view.photon_settings = loadPhotonSettings(entry.value_ptr.*);
+            view.photon_settings = loadPhotonSettings(entry.value_ptr.*, null != view.lighttracers);
         }
     }
 }
@@ -449,14 +449,14 @@ fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator
     } };
 }
 
-fn loadPhotonSettings(value: std.json.Value) PhotonSettings {
+fn loadPhotonSettings(value: std.json.Value, lighttracer: bool) PhotonSettings {
     return .{
         .num_photons = json.readUIntMember(value, "num_photons", 0),
         .max_bounces = json.readUIntMember(value, "max_bounces", 4),
         .iteration_threshold = json.readFloatMember(value, "iteration_threshold", 1.0),
         .search_radius = json.readFloatMember(value, "search_radius", 0.002),
         .merge_radius = json.readFloatMember(value, "merge_radius", 0.001),
-        .full_light_path = json.readBoolMember(value, "full_light_path", false),
+        .full_light_path = json.readBoolMember(value, "full_light_path", false) and !lighttracer,
     };
 }
 
