@@ -353,9 +353,7 @@ pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: Worker) Ray {
     const local_origin = trafo.worldToObjectPoint(ray.ray.origin);
     const local_dir = trafo.worldToObjectVector(ray.ray.direction);
 
-    const shape_inst = worker.scene.propShape(entity);
-
-    const aabb = shape_inst.aabb();
+    const aabb = worker.scene.propShape(entity).aabb();
 
     const iextent = @splat(4, @as(f32, 1.0)) / aabb.extent();
     const origin = (local_origin - aabb.bounds[0]) * iextent;

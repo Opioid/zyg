@@ -150,7 +150,7 @@ pub const Material = union(enum) {
 
     pub fn heterogeneousVolume(self: Material) bool {
         return switch (self) {
-            .Volumetric => |m| m.density.valid(),
+            .Volumetric => |m| m.density_map.valid(),
             else => false,
         };
     }

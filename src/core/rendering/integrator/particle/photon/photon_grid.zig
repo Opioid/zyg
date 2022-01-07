@@ -684,6 +684,18 @@ pub const Grid = struct {
     fn scatteringCoefficient(isec: Intersection, worker: Worker) Vec4f {
         const material = isec.material(worker.super);
 
+        if (material.heterogeneousVolume()) {
+            const scene = worker.super.scene;
+
+            const trafo = scene.propTransformationAt(isec.prop, scene.current_time_start);
+            const local_position = trafo.worldToObjectPoint(isec.geo.p);
+
+            const aabb = scene.propShape(isec.prop).aabb();
+            const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
+
+            return material.collisionCoefficients(uvw, null, worker.super).s;
+        }
+
         return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, worker.super).s;
     }
 };
