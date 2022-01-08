@@ -15,10 +15,11 @@ pub fn Unfiltered(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) Vec4f {
             const pixel = sample.pixel + offset;
-
-            self.sensor.addPixel(pixel, self.clamp.clamp(color), 1.0);
+            const clamped = self.clamp.clamp(color);
+            self.sensor.addPixel(pixel, clamped, 1.0);
+            return clamped;
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i) void {

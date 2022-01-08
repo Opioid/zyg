@@ -211,11 +211,13 @@ pub const Driver = struct {
     fn renderTiles(context: ThreadContext, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
-        const num_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+        const max_samples = self.view.num_samples_per_pixel;
+        const min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, max_samples))));
+        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, max_samples)));
+        const target_cv = self.view.cv;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, num_samples, num_photon_samples);
+            self.workers[id].render(self.frame, tile, min_samples, max_samples, num_photon_samples, target_cv);
 
             self.progressor.tick();
         }

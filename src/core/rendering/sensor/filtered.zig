@@ -127,7 +127,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Vec4f {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
@@ -135,8 +135,8 @@ pub fn Filtered_1p0(comptime T: type) type {
             const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-
             self.base.add(.{ x, y }, weigth, clamped, bounds);
+            return clamped;
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -184,7 +184,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Vec4f {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
@@ -192,8 +192,8 @@ pub fn Filtered_2p0(comptime T: type) type {
             const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-
             self.base.add(.{ x, y }, weigth, clamped, bounds);
+            return clamped;
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {

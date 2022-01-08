@@ -85,7 +85,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
     }
 
     if (sampler_value_ptr) |sampler_value| {
-        take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
+        take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel, &take.view.cv);
     }
 
     if (post_value_ptr) |post_value| {
@@ -478,10 +478,11 @@ fn setDefaultIntegrators(view: *View) void {
     }
 }
 
-fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory {
+fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32, cv: *f32) smpl.Factory {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         num_samples_per_pixel.* = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
+        cv.* = json.readFloatMember(entry.value_ptr.*, "cv", 0.0);
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
             return .{ .Random = {} };

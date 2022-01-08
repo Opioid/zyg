@@ -83,7 +83,15 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
-    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32, num_photon_samples: u32) void {
+    pub fn render(
+        self: *Worker,
+        frame: u32,
+        tile: Vec4i,
+        min_samples: u32,
+        max_samples: u32,
+        num_photon_samples: u32,
+        target_cv: f32,
+    ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
@@ -115,9 +123,17 @@ pub const Worker = struct {
 
                 const pixel = Vec2i{ x, y };
 
+                var old_m: f32 = undefined;
+                var new_m: f32 = undefined;
+                var old_s: f32 = undefined;
+                var new_s: f32 = undefined;
+                var total: f32 = 0.0;
+
                 var s: u32 = 0;
-                while (s < num_samples) : (s += 1) {
+                while (s < max_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
+
+                    var value: f32 = 0.0;
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -127,9 +143,38 @@ pub const Worker = struct {
                             photon /= @splat(4, photon[3]);
                         }
 
-                        sensor.addSample(sample, color + photon, offset, crop);
+                        const clamped = sensor.addSample(sample, color + photon, offset, crop);
+                        const v = math.maxComponent3(clamped);
+                        value = v;
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                    }
+
+                    // https://www.johndcook.com/blog/standard_deviation/
+                    const n = s + 1;
+                    if (1 == n) {
+                        old_m = value;
+                        new_m = value;
+                        old_s = 0.0;
+                    } else {
+                        new_m = old_m + (value - old_m) / @intToFloat(f32, n);
+                        new_s = old_s + (value - old_m) * (value - new_m);
+
+                        // set up for next iteration
+                        old_m = new_m;
+                        old_s = new_s;
+                    }
+
+                    total += value;
+
+                    if (s > min_samples) {
+                        const average = total / @intToFloat(f32, n);
+                        const variance = new_s / @intToFloat(f32, s);
+                        const coeff = @sqrt(variance) / average;
+
+                        if (coeff <= target_cv) {
+                            break;
+                        }
                     }
                 }
             }
