@@ -144,7 +144,7 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, offset, crop);
-                        const v = math.maxComponent3(clamped);
+                        const v = clamped[math.indexMaxComponent3(@fabs(clamped))];
                         value = v;
                     } else {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
