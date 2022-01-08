@@ -41,12 +41,13 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
+    pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) Vec4f {
         const d = self.base.dimensions;
 
         var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
         const wc = @splat(4, weight) * color;
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
+        return wc;
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {

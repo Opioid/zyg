@@ -86,12 +86,14 @@ pub fn Base(comptime T: type) type {
             weight: f32,
             color: Vec4f,
             bounds: Vec4i,
-        ) void {
+        ) Vec4f {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                self.sensor.addPixel(pixel, color, weight);
+                return self.sensor.addPixel(pixel, color, weight);
             }
+
+            return @splat(4, @as(f32, 0.0));
         }
 
         pub fn eval(self: Self, s: f32) f32 {
@@ -135,8 +137,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-            self.base.add(.{ x, y }, weigth, clamped, bounds);
-            return clamped;
+            return self.base.add(.{ x, y }, weigth, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -192,8 +193,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-            self.base.add(.{ x, y }, weigth, clamped, bounds);
-            return clamped;
+            return self.base.add(.{ x, y }, weigth, clamped, bounds);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {

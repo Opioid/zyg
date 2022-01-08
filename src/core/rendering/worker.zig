@@ -167,7 +167,11 @@ pub const Worker = struct {
 
                     total += value;
 
-                    if (s > min_samples) {
+                    if (s > min_samples and total >= 0.0) {
+                        if (0.0 == total) {
+                            break;
+                        }
+
                         const average = total / @intToFloat(f32, n);
                         const variance = new_s / @intToFloat(f32, s);
                         const coeff = @sqrt(variance) / average;
