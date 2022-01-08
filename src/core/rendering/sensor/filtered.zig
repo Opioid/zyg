@@ -131,9 +131,8 @@ pub fn Filtered_1p0(comptime T: type) type {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
-            const wx = self.base.eval(sample.pixel_uv[0]);
-            const wy = self.base.eval(sample.pixel_uv[1]);
-            const weigth: f32 = if (wx < 0.0 or wy < 0.0) -1.0 else 1.0;
+            const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
+            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
 
@@ -189,9 +188,8 @@ pub fn Filtered_2p0(comptime T: type) type {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
-            const wx = self.base.eval(sample.pixel_uv[0]);
-            const wy = self.base.eval(sample.pixel_uv[1]);
-            const weigth: f32 = if (wx < 0.0 or wy < 0.0) -1.0 else 1.0;
+            const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
+            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
 
