@@ -8,6 +8,7 @@ const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const progress = @import("../progress/std_out.zig");
+const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -178,6 +179,24 @@ pub const Driver = struct {
         }
 
         std.debug.print("Export time {d:.3} s\n", .{chrono.secondsSince(start)});
+
+        const d = self.view.camera.sensorDimensions();
+        const sensor = self.view.camera.sensor;
+
+        var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
+        defer alloc.free(weights);
+
+        sensor.copyWeights(weights);
+
+        var min: f32 = std.math.f32_max;
+        var max: f32 = 0.0;
+
+        for (weights) |w| {
+            min = @minimum(min, w);
+            max = @maximum(max, w);
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max);
     }
 
     fn renderFrameBackward(self: *Driver, frame: u32) void {

@@ -121,6 +121,17 @@ pub const Sensor = union(enum) {
         }
     }
 
+    pub fn copyWeights(self: Sensor, weights: []f32) void {
+        switch (self) {
+            .Unfiltered_opaque => |s| s.sensor.copyWeights(weights),
+            .Unfiltered_transparent => |s| s.sensor.copyWeights(weights),
+            .Filtered_1p0_opaque => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_2p0_opaque => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_1p0_transparent => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_2p0_transparent => |s| s.base.sensor.copyWeights(weights),
+        }
+    }
+
     pub fn filterRadiusInt(self: Sensor) i32 {
         return switch (self) {
             .Unfiltered_opaque => 0,

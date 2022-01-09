@@ -90,4 +90,10 @@ pub const Opaque = struct {
             target.set1D(ui, Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0));
         }
     }
+
+    pub fn copyWeights(self: Opaque, weights: []f32) void {
+        for (self.pixels) |p, i| {
+            weights[i] = p.v[3];
+        }
+    }
 };
