@@ -231,7 +231,7 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         const max_samples = self.view.num_samples_per_pixel;
-        const min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, max_samples))));
+        const min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * max_samples))));
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, max_samples)));
         const target_cv = self.view.cv;
 
