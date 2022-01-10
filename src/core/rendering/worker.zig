@@ -106,6 +106,8 @@ pub const Worker = struct {
 
         const r = camera.resolution;
 
+        const remaining_samples = max_samples - min_samples;
+
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
         const y_back = tile[3];
@@ -117,8 +119,8 @@ pub const Worker = struct {
             while (x <= x_back) : (x += 1) {
                 self.super.rng.start(0, o1 + @intCast(u64, x));
 
-                self.sampler.startPixel();
-                self.surface_integrator.startPixel();
+                self.sampler.startPixel(min_samples);
+                self.surface_integrator.startPixel(min_samples);
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
@@ -129,7 +131,7 @@ pub const Worker = struct {
                 var new_s: f32 = undefined;
 
                 var s: u32 = 0;
-                while (s < max_samples) : (s += 1) {
+                while (s < min_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     var value: f32 = 0.0;
@@ -163,8 +165,42 @@ pub const Worker = struct {
                         old_m = new_m;
                         old_s = new_s;
                     }
+                }
 
-                    if (s > min_samples and new_m >= 0.0) {
+                self.sampler.startPixel(remaining_samples);
+                self.surface_integrator.startPixel(remaining_samples);
+
+                while (s < max_samples) : (s += 1) {
+                    var sample = self.sampler.cameraSample(&self.super.rng, pixel);
+
+                    var value: f32 = 0.0;
+
+                    if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
+                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+
+                        var photon = self.photon;
+                        if (photon[3] > 0.0) {
+                            photon /= @splat(4, photon[3]);
+                        }
+
+                        const clamped = sensor.addSample(sample, color + photon, offset, crop);
+                        const v = clamped[math.indexMaxComponent3(@fabs(clamped))];
+                        value = v;
+                    } else {
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                    }
+
+                    // https://www.johndcook.com/blog/standard_deviation/
+                    const n = s + 1;
+
+                    new_m = old_m + (value - old_m) / @intToFloat(f32, n);
+                    new_s = old_s + (value - old_m) * (value - new_m);
+
+                    // set up for next iteration
+                    old_m = new_m;
+                    old_s = new_s;
+
+                    if (new_m >= 0.0) {
                         if (0.0 == new_m) {
                             break;
                         }

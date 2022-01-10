@@ -46,8 +46,9 @@ pub const AOV = struct {
         self.sampler.deinit(alloc);
     }
 
-    pub fn startPixel(self: *Self) void {
-        self.sampler.startPixel();
+    pub fn startPixel(self: *Self, num_samples: u32) void {
+        const total_samples_per_pixel = self.settings.num_samples * num_samples;
+        self.sampler.startPixel(total_samples_per_pixel);
     }
 
     pub fn li(

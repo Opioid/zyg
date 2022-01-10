@@ -23,7 +23,7 @@ pub const GoldenRatio = struct {
         return GoldenRatio{
             .num_dimensions_1D = num_dimensions_1D,
             .num_dimensions_2D = num_dimensions_2D,
-            .num_samples = max_samples,
+            .num_samples = 0,
             .current_samples = try alloc.alloc(u32, num_dimensions_1D + num_dimensions_2D),
             .samples_1D = try alloc.alloc(f32, num_dimensions_1D * max_samples),
             .samples_2D = try alloc.alloc(Vec2f, num_dimensions_2D * max_samples),
@@ -36,7 +36,9 @@ pub const GoldenRatio = struct {
         alloc.free(self.current_samples);
     }
 
-    pub fn startPixel(self: *Self) void {
+    pub fn startPixel(self: *Self, num_samples: u32) void {
+        self.num_samples = num_samples;
+
         for (self.current_samples) |*s| {
             s.* = 0;
         }
