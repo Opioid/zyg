@@ -127,7 +127,6 @@ pub const Worker = struct {
                 var new_m: f32 = undefined;
                 var old_s: f32 = undefined;
                 var new_s: f32 = undefined;
-                var total: f32 = 0.0;
 
                 var s: u32 = 0;
                 while (s < max_samples) : (s += 1) {
@@ -165,16 +164,13 @@ pub const Worker = struct {
                         old_s = new_s;
                     }
 
-                    total += value;
-
-                    if (s > min_samples and total >= 0.0) {
-                        if (0.0 == total) {
+                    if (s > min_samples and new_m >= 0.0) {
+                        if (0.0 == new_m) {
                             break;
                         }
 
-                        const average = total / @intToFloat(f32, n);
                         const variance = new_s / @intToFloat(f32, s);
-                        const coeff = @sqrt(variance) / average;
+                        const coeff = @sqrt(variance) / new_m;
 
                         if (coeff <= target_cv) {
                             break;
