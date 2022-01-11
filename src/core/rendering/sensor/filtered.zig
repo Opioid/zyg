@@ -81,22 +81,6 @@ pub fn Base(comptime T: type) type {
             }
         }
 
-        pub fn add(
-            self: *Self,
-            pixel: Vec2i,
-            weight: f32,
-            color: Vec4f,
-            bounds: Vec4i,
-        ) Result {
-            if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
-                @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
-            {
-                return self.sensor.addPixel(pixel, color, weight);
-            }
-
-            return .{ .last = @splat(4, @as(f32, 0.0)), .mean = @splat(4, @as(f32, 0.0)) };
-        }
-
         pub fn eval(self: Self, s: f32) f32 {
             return self.filter.eval(@fabs(s));
         }
@@ -130,15 +114,15 @@ pub fn Filtered_1p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Result {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) Result {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
             const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
-            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
+            const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-            return self.base.add(.{ x, y }, weigth, clamped, bounds);
+            return self.base.sensor.addPixel(.{ x, y }, clamped, weight);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -186,15 +170,15 @@ pub fn Filtered_2p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Result {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) Result {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
             const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
-            const weigth: f32 = if (w < 0.0) -1.0 else 1.0;
+            const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const clamped = self.base.clamp.clamp(color);
-            return self.base.add(.{ x, y }, weigth, clamped, bounds);
+            return self.base.sensor.addPixel(.{ x, y }, clamped, weight);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {

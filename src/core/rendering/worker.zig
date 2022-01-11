@@ -100,13 +100,6 @@ pub const Worker = struct {
         const scene = self.super.scene;
 
         const offset = @splat(2, @as(i32, 0));
-
-        var crop = camera.crop;
-        crop[2] -= crop[0] + 1;
-        crop[3] -= crop[1] + 1;
-        crop[0] += offset[0];
-        crop[1] += offset[1];
-
         const r = camera.resolution;
 
         const remaining_samples = max_samples - min_samples;
@@ -146,11 +139,11 @@ pub const Worker = struct {
                             photon /= @splat(4, photon[3]);
                         }
 
-                        const clamped = sensor.addSample(sample, color + photon, offset, crop);
+                        const clamped = sensor.addSample(sample, color + photon, offset);
                         value = clamped.last;
                         new_m = clamped.mean;
                     } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset);
                     }
 
                     const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
@@ -177,11 +170,11 @@ pub const Worker = struct {
                             photon /= @splat(4, photon[3]);
                         }
 
-                        const clamped = sensor.addSample(sample, color + photon, offset, crop);
+                        const clamped = sensor.addSample(sample, color + photon, offset);
                         value = clamped.last;
                         new_m = clamped.mean;
                     } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset);
                     }
 
                     const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
