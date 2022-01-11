@@ -128,15 +128,15 @@ pub const Worker = struct {
 
                 const pixel = Vec2i{ x, y };
 
-                var old_m: f32 = 0.0;
+                var old_m = @splat(4, @as(f32, 0.0));
                 var old_s: f32 = 0.0;
 
                 var s: u32 = 0;
                 while (s < min_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
-                    var value: f32 = 0.0;
-                    var new_m: f32 = 0.0;
+                    var value = @splat(4, @as(f32, 0.0));
+                    var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -147,15 +147,13 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, offset, crop);
-                        const v = clamped.last[math.indexMaxComponent3(@fabs(clamped.last))];
-                        const m = clamped.mean[math.indexMaxComponent3(@fabs(clamped.mean))];
-                        value = v;
-                        new_m = m;
+                        value = clamped.last;
+                        new_m = clamped.mean;
                     } else {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
                     }
 
-                    const new_s = old_s + (value - old_m) * (value - new_m);
+                    const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
 
                     // set up for next iteration
                     old_m = new_m;
@@ -168,8 +166,8 @@ pub const Worker = struct {
                 while (s < max_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
-                    var value: f32 = 0.0;
-                    var new_m: f32 = 0.0;
+                    var value = @splat(4, @as(f32, 0.0));
+                    var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -180,27 +178,28 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, offset, crop);
-                        const v = clamped.last[math.indexMaxComponent3(@fabs(clamped.last))];
-                        const m = clamped.mean[math.indexMaxComponent3(@fabs(clamped.mean))];
-                        value = v;
-                        new_m = m;
+                        value = clamped.last;
+                        new_m = clamped.mean;
                     } else {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
                     }
 
-                    const new_s = old_s + (value - old_m) * (value - new_m);
+                    const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
 
                     // set up for next iteration
                     old_m = new_m;
                     old_s = new_s;
 
-                    if (new_m >= 0.0) {
-                        if (0.0 == new_m) {
+                    const mim = math.minComponent3(new_m);
+                    const mam = math.maxComponent3(new_m);
+
+                    if (mim >= 0.0) {
+                        if (0.0 == mam) {
                             break;
                         }
 
                         const variance = new_s / @intToFloat(f32, s);
-                        const coeff = @sqrt(variance) / new_m;
+                        const coeff = @sqrt(variance) / mam;
 
                         if (coeff <= target_cv) {
                             break;
