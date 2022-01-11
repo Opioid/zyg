@@ -1,4 +1,5 @@
 pub const Clamp = @import("clamp.zig").Clamp;
+const Result = @import("base.zig").Base.Result;
 
 pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const filtered = @import("filtered.zig");
@@ -77,7 +78,7 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Vec4f {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Result {
         return switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),

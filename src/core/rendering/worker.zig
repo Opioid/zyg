@@ -83,6 +83,9 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
+    // Running variance calculation inspired by
+    // https://www.johndcook.com/blog/standard_deviation/
+
     pub fn render(
         self: *Worker,
         frame: u32,
@@ -126,15 +129,14 @@ pub const Worker = struct {
                 const pixel = Vec2i{ x, y };
 
                 var old_m: f32 = 0.0;
-                var new_m: f32 = 0.0;
                 var old_s: f32 = 0.0;
-                var new_s: f32 = 0.0;
 
                 var s: u32 = 0;
                 while (s < min_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     var value: f32 = 0.0;
+                    var new_m: f32 = 0.0;
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -145,17 +147,15 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, offset, crop);
-                        const v = clamped[math.indexMaxComponent3(@fabs(clamped))];
+                        const v = clamped.last[math.indexMaxComponent3(@fabs(clamped.last))];
+                        const m = clamped.mean[math.indexMaxComponent3(@fabs(clamped.mean))];
                         value = v;
+                        new_m = m;
                     } else {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
                     }
 
-                    // https://www.johndcook.com/blog/standard_deviation/
-                    const n = s + 1;
-
-                    new_m = old_m + (value - old_m) / @intToFloat(f32, n);
-                    new_s = old_s + (value - old_m) * (value - new_m);
+                    const new_s = old_s + (value - old_m) * (value - new_m);
 
                     // set up for next iteration
                     old_m = new_m;
@@ -169,6 +169,7 @@ pub const Worker = struct {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
                     var value: f32 = 0.0;
+                    var new_m: f32 = 0.0;
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -179,17 +180,15 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, offset, crop);
-                        const v = clamped[math.indexMaxComponent3(@fabs(clamped))];
+                        const v = clamped.last[math.indexMaxComponent3(@fabs(clamped.last))];
+                        const m = clamped.mean[math.indexMaxComponent3(@fabs(clamped.mean))];
                         value = v;
+                        new_m = m;
                     } else {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
                     }
 
-                    // https://www.johndcook.com/blog/standard_deviation/
-                    const n = s + 1;
-
-                    new_m = old_m + (value - old_m) / @intToFloat(f32, n);
-                    new_s = old_s + (value - old_m) * (value - new_m);
+                    const new_s = old_s + (value - old_m) * (value - new_m);
 
                     // set up for next iteration
                     old_m = new_m;

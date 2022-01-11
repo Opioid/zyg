@@ -2,6 +2,7 @@ const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Clamp = @import("clamp.zig").Clamp;
+const Result = @import("base.zig").Base.Result;
 
 const base = @import("base");
 const math = base.math;
@@ -86,14 +87,14 @@ pub fn Base(comptime T: type) type {
             weight: f32,
             color: Vec4f,
             bounds: Vec4i,
-        ) Vec4f {
+        ) Result {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
                 return self.sensor.addPixel(pixel, color, weight);
             }
 
-            return @splat(4, @as(f32, 0.0));
+            return .{ .last = @splat(4, @as(f32, 0.0)), .mean = @splat(4, @as(f32, 0.0)) };
         }
 
         pub fn eval(self: Self, s: f32) f32 {
@@ -129,7 +130,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Vec4f {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Result {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
@@ -185,7 +186,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             return .{ .base = Base(T).init(clamp, radius, f) };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Vec4f {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) Result {
             const x = offset[0] + sample.pixel[0];
             const y = offset[1] + sample.pixel[1];
 
