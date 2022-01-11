@@ -89,13 +89,6 @@ pub const Worker = struct {
         const scene = self.super.scene;
 
         const offset = @splat(2, @as(i32, 0));
-
-        var crop = camera.crop;
-        crop[2] -= crop[0] + 1;
-        crop[3] -= crop[1] + 1;
-        crop[0] += offset[0];
-        crop[1] += offset[1];
-
         const r = camera.resolution;
 
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
@@ -127,9 +120,9 @@ pub const Worker = struct {
                             photon /= @splat(4, photon[3]);
                         }
 
-                        sensor.addSample(sample, color + photon, offset, crop);
+                        sensor.addSample(sample, color + photon, offset);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset);
                     }
                 }
             }

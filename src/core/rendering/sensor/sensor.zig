@@ -77,14 +77,14 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, bounds),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, bounds),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, bounds),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, bounds),
+            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset),
+            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset),
         }
     }
 
