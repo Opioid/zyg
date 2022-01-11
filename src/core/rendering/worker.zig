@@ -125,10 +125,10 @@ pub const Worker = struct {
 
                 const pixel = Vec2i{ x, y };
 
-                var old_m: f32 = undefined;
-                var new_m: f32 = undefined;
-                var old_s: f32 = undefined;
-                var new_s: f32 = undefined;
+                var old_m: f32 = 0.0;
+                var new_m: f32 = 0.0;
+                var old_s: f32 = 0.0;
+                var new_s: f32 = 0.0;
 
                 var s: u32 = 0;
                 while (s < min_samples) : (s += 1) {
@@ -153,18 +153,13 @@ pub const Worker = struct {
 
                     // https://www.johndcook.com/blog/standard_deviation/
                     const n = s + 1;
-                    if (1 == n) {
-                        old_m = value;
-                        new_m = value;
-                        old_s = 0.0;
-                    } else {
-                        new_m = old_m + (value - old_m) / @intToFloat(f32, n);
-                        new_s = old_s + (value - old_m) * (value - new_m);
 
-                        // set up for next iteration
-                        old_m = new_m;
-                        old_s = new_s;
-                    }
+                    new_m = old_m + (value - old_m) / @intToFloat(f32, n);
+                    new_s = old_s + (value - old_m) * (value - new_m);
+
+                    // set up for next iteration
+                    old_m = new_m;
+                    old_s = new_s;
                 }
 
                 self.sampler.startPixel(remaining_samples);
