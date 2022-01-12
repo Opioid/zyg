@@ -86,14 +86,12 @@ pub const Worker = struct {
     // Running variance calculation inspired by
     // https://www.johndcook.com/blog/standard_deviation/
 
-    pub fn render(
+    pub fn renderTrackVariance(
         self: *Worker,
         frame: u32,
         tile: Vec4i,
         min_samples: u32,
-        max_samples: u32,
         num_photon_samples: u32,
-        target_cv: f32,
     ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
@@ -101,8 +99,6 @@ pub const Worker = struct {
 
         const offset = @splat(2, @as(i32, 0));
         const r = camera.resolution;
-
-        const remaining_samples = max_samples - min_samples;
 
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
@@ -154,10 +150,47 @@ pub const Worker = struct {
                 }
 
                 sensor.base().setErrorEstimate(pixel, old_s);
+            }
+        }
+    }
+
+    pub fn renderRemainder(
+        self: *Worker,
+        frame: u32,
+        tile: Vec4i,
+        min_samples: u32,
+        max_samples: u32,
+        target_cv: f32,
+    ) void {
+        var camera = self.super.camera;
+        const sensor = &camera.sensor;
+        const scene = self.super.scene;
+
+        const offset = @splat(2, @as(i32, 0));
+        const r = camera.resolution;
+
+        const remaining_samples = max_samples - min_samples;
+
+        const o0 = 1 * @intCast(u64, r[0] * r[1]);
+
+        const y_back = tile[3];
+        var y: i32 = tile[1];
+        while (y <= y_back) : (y += 1) {
+            const o1 = @intCast(u64, y * r[0]) + o0;
+            const x_back = tile[2];
+            var x: i32 = tile[0];
+            while (x <= x_back) : (x += 1) {
+                self.super.rng.start(0, o1 + @intCast(u64, x));
+
+                const pixel = Vec2i{ x, y };
+
+                var old_m = sensor.mean(pixel);
+                var old_s = sensor.base().errorEstimate(pixel);
 
                 self.sampler.startPixel(remaining_samples);
                 self.surface_integrator.startPixel(remaining_samples);
 
+                var s = min_samples;
                 while (s < max_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
 
@@ -165,14 +198,9 @@ pub const Worker = struct {
                     var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+                        const color = self.li(ray, false, camera.interface_stack);
 
-                        var photon = self.photon;
-                        if (photon[3] > 0.0) {
-                            photon /= @splat(4, photon[3]);
-                        }
-
-                        const clamped = sensor.addSample(sample, color + photon, offset);
+                        const clamped = sensor.addSample(sample, color, offset);
                         value = clamped.last;
                         new_m = clamped.mean;
                     } else {

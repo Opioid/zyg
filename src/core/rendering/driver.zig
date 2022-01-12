@@ -198,19 +198,33 @@ pub const Driver = struct {
 
         try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
 
-        const error_estimate = sensor.base().error_estimate;
+        const ee = sensor.base().ee;
 
         min = std.math.f32_max;
         max = 0.0;
 
-        for (error_estimate) |s| {
+        for (ee) |s| {
             min = @minimum(min, s);
             max = @maximum(max, s);
 
             //  std.debug.print("{}\n", .{s});
         }
 
-        try PngWriter.writeHeatmap(alloc, d[0], d[1], error_estimate, min, max, "info_error_estimate.png");
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], ee, min, max, "info_error_estimate.png");
+
+        const dee = sensor.base().dee;
+
+        min = std.math.f32_max;
+        max = 0.0;
+
+        for (dee) |s| {
+            min = @minimum(min, s);
+            max = @maximum(max, s);
+
+            //  std.debug.print("{}\n", .{s});
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], dee, min, max, "info_diluted_error_estimate.png");
     }
 
     fn renderFrameBackward(self: *Driver, frame: u32) void {
@@ -241,16 +255,29 @@ pub const Driver = struct {
         std.debug.print("Light ray time {d:.3} s\n", .{chrono.secondsSince(start)});
     }
 
-    fn renderTiles(context: ThreadContext, id: u32) void {
+    fn renderTilesTrackVariance(context: ThreadContext, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
         const max_samples = self.view.num_samples_per_pixel;
         const min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * max_samples))));
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, max_samples)));
+
+        while (self.tiles.pop()) |tile| {
+            self.workers[id].renderTrackVariance(self.frame, tile, min_samples, num_photon_samples);
+
+            self.progressor.tick();
+        }
+    }
+
+    fn renderTilesRemainder(context: ThreadContext, id: u32) void {
+        const self = @intToPtr(*Driver, context);
+
+        const max_samples = self.view.num_samples_per_pixel;
+        const min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * max_samples))));
         const target_cv = self.view.cv;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, min_samples, max_samples, num_photon_samples, target_cv);
+            self.workers[id].renderRemainder(self.frame, tile, min_samples, max_samples, target_cv);
 
             self.progressor.tick();
         }
@@ -268,12 +295,17 @@ pub const Driver = struct {
 
         camera.sensor.clear(0.0);
 
-        self.progressor.start(self.tiles.size());
+        self.progressor.start(self.tiles.size() * 2);
 
-        self.tiles.restart();
         self.frame = frame;
 
-        self.threads.runParallel(self, renderTiles, 0);
+        self.tiles.restart();
+        self.threads.runParallel(self, renderTilesTrackVariance, 0);
+
+        camera.sensor.base().diluteErrorEstimate();
+
+        self.tiles.restart();
+        self.threads.runParallel(self, renderTilesRemainder, 0);
 
         std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(start)});
     }

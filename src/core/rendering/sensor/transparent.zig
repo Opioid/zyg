@@ -49,6 +49,15 @@ pub const Transparent = struct {
         }
     }
 
+    pub fn mean(self: Transparent, pixel: Vec2i) Vec4f {
+        const d = self.base.dimensions;
+        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+        const nw = self.pixel_weights[i];
+        const nc = self.pixels[i];
+        return Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw);
+    }
+
     pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
         const d = self.base.dimensions;
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);

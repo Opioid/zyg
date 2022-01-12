@@ -43,6 +43,14 @@ pub const Opaque = struct {
         }
     }
 
+    pub fn mean(self: Opaque, pixel: Vec2i) Vec4f {
+        const d = self.base.dimensions;
+
+        const value = self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        const div = if (0.0 == value.v[3]) 1.0 else value.v[3];
+        return Vec4f{ value.v[0], value.v[1], value.v[2], 1.0 } / @splat(4, div);
+    }
+
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
         const d = self.base.dimensions;
 
