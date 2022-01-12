@@ -607,29 +607,42 @@ pub const Grid = struct {
         var buffer = Buffer{};
         buffer.clear();
 
-        if (isec.subsurface) {} else {
-            const two_sided = isec.material(worker.super).twoSided();
+        const subsurface = isec.subsurface;
 
-            for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                var i = cell[0];
-                const len = cell[1];
-                while (i < len) : (i += 1) {
-                    const p = self.photons[i];
+        for (adjacency.cells[0..adjacency.num_cells]) |cell| {
+            for (self.photons[cell[0]..cell[1]]) |p, i| {
+                if (subsurface != p.volumetric) {
+                    continue;
+                }
 
-                    if (p.volumetric) {
-                        continue;
-                    }
-
-                    const distance2 = math.squaredDistance3(p.p, position);
-                    if (distance2 < radius2) {
-                        buffer.consider(.{ .id = i, .d2 = distance2 });
-                    }
+                const distance2 = math.squaredDistance3(p.p, position);
+                if (distance2 < radius2) {
+                    buffer.consider(.{ .id = cell[0] + @intCast(u32, i), .d2 = distance2 });
                 }
             }
+        }
 
-            if (buffer.num_entries > 0) {
-                const used_entries = buffer.num_entries;
-                const max_radius2 = buffer.entries[used_entries - 1].d2;
+        if (buffer.num_entries > 0) {
+            const used_entries = buffer.num_entries;
+            const max_radius2 = buffer.entries[used_entries - 1].d2;
+
+            if (subsurface) {
+                const max_radius3 = max_radius2 * @sqrt(max_radius2);
+
+                for (buffer.entries[0..used_entries]) |entry| {
+                    const p = self.photons[entry.id];
+
+                    const bxdf = sample.evaluate(p.wi);
+
+                    result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                }
+
+                const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
+                const mu_s = scatteringCoefficient(isec, worker);
+
+                result /= @splat(4, normalization) * mu_s;
+            } else {
+                const two_sided = isec.material(worker.super).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
                 for (buffer.entries[0..used_entries]) |entry| {
@@ -668,8 +681,22 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn conelyFilter(squared_distance: f32, inv_squared_radius: f32) f32 {
-        return 1.0 - squared_distance * inv_squared_radius;
+    fn scatteringCoefficient(isec: Intersection, worker: Worker) Vec4f {
+        const material = isec.material(worker.super);
+
+        if (material.heterogeneousVolume()) {
+            const scene = worker.super.scene;
+
+            const trafo = scene.propTransformationAt(isec.prop, scene.current_time_start);
+            const local_position = trafo.worldToObjectPoint(isec.geo.p);
+
+            const aabb = scene.propShape(isec.prop).aabb();
+            const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
+
+            return material.collisionCoefficients(uvw, null, worker.super).s;
+        }
+
+        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, worker.super).s;
     }
 };
 

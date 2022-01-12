@@ -328,7 +328,7 @@ fn loadIntegrators(value: std.json.Value, view: *View) void {
         } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
             loadVolumeIntegrator(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
-            view.photon_settings = loadPhotonSettings(entry.value_ptr.*);
+            view.photon_settings = loadPhotonSettings(entry.value_ptr.*, null != view.lighttracers);
         }
     }
 }
@@ -360,10 +360,17 @@ fn loadSurfaceIntegrator(value: std.json.Value, view: *View, lighttracer: bool) 
             }
 
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
+            const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
             const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
             view.surfaces = surface.Factory{ .AOV = .{
-                .settings = .{ .value = value_type, .num_samples = num_samples, .radius = radius },
+                .settings = .{
+                    .value = value_type,
+                    .num_samples = num_samples,
+                    .max_bounces = max_bounces,
+                    .radius = radius,
+                    .photons_not_only_through_specular = !lighttracer,
+                },
             } };
         } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
             const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
@@ -442,14 +449,14 @@ fn loadParticleIntegrator(value: std.json.Value, view: *View, surface_integrator
     } };
 }
 
-fn loadPhotonSettings(value: std.json.Value) PhotonSettings {
+fn loadPhotonSettings(value: std.json.Value, lighttracer: bool) PhotonSettings {
     return .{
         .num_photons = json.readUIntMember(value, "num_photons", 0),
         .max_bounces = json.readUIntMember(value, "max_bounces", 4),
         .iteration_threshold = json.readFloatMember(value, "iteration_threshold", 1.0),
         .search_radius = json.readFloatMember(value, "search_radius", 0.002),
         .merge_radius = json.readFloatMember(value, "merge_radius", 0.001),
-        .full_light_path = json.readBoolMember(value, "full_light_path", false),
+        .full_light_path = json.readBoolMember(value, "full_light_path", false) and !lighttracer,
     };
 }
 
@@ -460,7 +467,13 @@ fn setDefaultIntegrators(view: *View) void {
 
     if (null == view.surfaces) {
         view.surfaces = .{ .AOV = .{
-            .settings = .{ .value = .AO, .num_samples = 1, .radius = 1.0 },
+            .settings = .{
+                .value = .AO,
+                .num_samples = 1,
+                .max_bounces = 1,
+                .radius = 1.0,
+                .photons_not_only_through_specular = false,
+            },
         } };
     }
 

@@ -181,7 +181,7 @@ pub const PathtracerMIS = struct {
 
                 effective_bxdf_pdf = sample_result.pdf;
 
-                if (state.is(.PrimaryRay)) {
+                if (pr) {
                     state.unset(.PrimaryRay);
 
                     const indirect = state.no(.Direct) and 0 != ray.depth;
