@@ -153,6 +153,8 @@ pub const Worker = struct {
                     old_s = new_s;
                 }
 
+                sensor.base().setErrorEstimate(pixel, old_s);
+
                 self.sampler.startPixel(remaining_samples);
                 self.surface_integrator.startPixel(remaining_samples);
 
@@ -191,7 +193,8 @@ pub const Worker = struct {
                             break;
                         }
 
-                        const variance = new_s / @intToFloat(f32, s);
+                        //const variance = new_s / @intToFloat(f32, s);
+                        const variance = new_s * new_m[3];
                         const coeff = @sqrt(variance) / mam;
 
                         if (coeff <= target_cv) {

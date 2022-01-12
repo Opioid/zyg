@@ -1,5 +1,5 @@
 pub const Clamp = @import("clamp.zig").Clamp;
-const Result = @import("base.zig").Base.Result;
+const Base = @import("base.zig").Base;
 
 pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const filtered = @import("filtered.zig");
@@ -56,6 +56,17 @@ pub const Sensor = union(enum) {
         };
     }
 
+    pub fn base(self: *Sensor) *Base {
+        return switch (self.*) {
+            .Unfiltered_opaque => |*s| &s.sensor.base,
+            .Unfiltered_transparent => |*s| &s.sensor.base,
+            .Filtered_1p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_2p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_1p0_transparent => |*s| &s.base.sensor.base,
+            .Filtered_2p0_transparent => |*s| &s.base.sensor.base,
+        };
+    }
+
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.clear(weight),
@@ -78,7 +89,7 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) Result {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) Base.Result {
         return switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),

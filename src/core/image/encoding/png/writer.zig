@@ -88,7 +88,15 @@ pub const Writer = struct {
         c.mz_free(png);
     }
 
-    pub fn writeHeatmap(alloc: Allocator, width: i32, height: i32, data: []f32, min: f32, max: f32) !void {
+    pub fn writeHeatmap(
+        alloc: Allocator,
+        width: i32,
+        height: i32,
+        data: []f32,
+        min: f32,
+        max: f32,
+        name: []const u8,
+    ) !void {
         const num_pixels = @intCast(u32, width * height);
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
@@ -112,7 +120,7 @@ pub const Writer = struct {
             &buffer_len,
         );
 
-        var file = try std.fs.cwd().createFile("temp_image.png", .{});
+        var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
         const writer = file.writer();

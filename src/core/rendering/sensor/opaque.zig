@@ -16,10 +16,11 @@ pub const Opaque = struct {
 
     pub fn deinit(self: *Opaque, alloc: Allocator) void {
         alloc.free(self.pixels);
+        self.base.deinit(alloc);
     }
 
     pub fn resize(self: *Opaque, alloc: Allocator, dimensions: Vec2i) !void {
-        self.base.dimensions = dimensions;
+        try self.base.resize(alloc, dimensions);
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);
 
@@ -50,7 +51,8 @@ pub const Opaque = struct {
 
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
 
-        return .{ .last = wc, .mean = Vec4f{ value.v[0], value.v[1], value.v[2], 0.0 } / @splat(4, value.v[3]) };
+        const div = if (0.0 == value.v[3]) 1.0 else value.v[3];
+        return .{ .last = wc, .mean = Vec4f{ value.v[0], value.v[1], value.v[2], 1.0 } / @splat(4, div) };
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {

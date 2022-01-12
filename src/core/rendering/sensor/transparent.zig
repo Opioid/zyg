@@ -14,13 +14,14 @@ pub const Transparent = struct {
 
     pixels: []Pack4f = &.{},
 
-    pub fn deinit(self: Transparent, alloc: Allocator) void {
+    pub fn deinit(self: *Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
         alloc.free(self.pixel_weights);
+        self.base.deinit(alloc);
     }
 
     pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i) !void {
-        self.base.dimensions = dimensions;
+        try self.base.resize(alloc, dimensions);
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);
 
@@ -59,7 +60,7 @@ pub const Transparent = struct {
 
         const nw = self.pixel_weights[i];
         const nc = self.pixels[i];
-        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], nc.v[3] } / @splat(4, nw) };
+        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
     }
 
     pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {

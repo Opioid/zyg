@@ -181,7 +181,7 @@ pub const Driver = struct {
         std.debug.print("Export time {d:.3} s\n", .{chrono.secondsSince(start)});
 
         const d = self.view.camera.sensorDimensions();
-        const sensor = self.view.camera.sensor;
+        var sensor = self.view.camera.sensor;
 
         var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
         defer alloc.free(weights);
@@ -196,7 +196,21 @@ pub const Driver = struct {
             max = @maximum(max, w);
         }
 
-        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max);
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
+
+        const error_estimate = sensor.base().error_estimate;
+
+        min = std.math.f32_max;
+        max = 0.0;
+
+        for (error_estimate) |s| {
+            min = @minimum(min, s);
+            max = @maximum(max, s);
+
+            //  std.debug.print("{}\n", .{s});
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], error_estimate, min, max, "info_error_estimate.png");
     }
 
     fn renderFrameBackward(self: *Driver, frame: u32) void {
