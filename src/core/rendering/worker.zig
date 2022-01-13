@@ -86,13 +86,7 @@ pub const Worker = struct {
     // Running variance calculation inspired by
     // https://www.johndcook.com/blog/standard_deviation/
 
-    pub fn renderTrackVariance(
-        self: *Worker,
-        frame: u32,
-        tile: Vec4i,
-        min_samples: u32,
-        num_photon_samples: u32,
-    ) void {
+    pub fn renderTrackVariance(self: *Worker, frame: u32, tile: Vec4i, min_samples: u32) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
@@ -128,7 +122,7 @@ pub const Worker = struct {
                     var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+                        const color = self.li(ray, true, camera.interface_stack);
 
                         var photon = self.photon;
                         if (photon[3] > 0.0) {
@@ -190,6 +184,7 @@ pub const Worker = struct {
                 self.sampler.startPixel(remaining_samples);
                 self.surface_integrator.startPixel(remaining_samples);
 
+                var c: u32 = 0;
                 var s = min_samples;
                 while (s < max_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(&self.super.rng, pixel);
@@ -216,19 +211,25 @@ pub const Worker = struct {
                     const mim = math.minComponent3(new_m);
                     const mam = math.maxComponent3(new_m);
 
-                    if (mim >= 0.0) {
-                        if (0.0 == mam) {
-                            break;
-                        }
+                    if (0 == c) {
+                        if (mim >= 0.0) {
+                            if (0.0 == mam) {
+                                break;
+                            }
 
-                        //const variance = new_s / @intToFloat(f32, s);
-                        const variance = new_s * new_m[3];
-                        const coeff = @sqrt(variance) / mam;
+                            //const variance = new_s / @intToFloat(f32, s);
+                            const variance = new_s * new_m[3];
+                            const coeff = @sqrt(variance) / mam;
 
-                        if (coeff <= target_cv) {
-                            break;
+                            if (coeff <= target_cv) {
+                                break;
+                            }
+
+                            c = min_samples + 1;
                         }
                     }
+
+                    c -= 1;
                 }
             }
         }

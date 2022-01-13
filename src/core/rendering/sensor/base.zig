@@ -1,6 +1,8 @@
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
 
 const Allocator = @import("std").mem.Allocator;
 
@@ -38,11 +40,19 @@ pub const Base = struct {
         self.ee[i] = s;
     }
 
-    pub fn diluteErrorEstimate(self: *Base) void {
+    pub fn diluteErrorEstimate(self: *Base, threads: *Threads) void {
+        _ = threads.runRange(self, diluteErrorEstimateRange, 0, @intCast(u32, self.dimensions[1]));
+    }
+
+    fn diluteErrorEstimateRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+        _ = id;
+
+        const self = @intToPtr(*Base, context);
+
         const d = self.dimensions;
 
-        var y: i32 = 0;
-        while (y < d[1]) : (y += 1) {
+        var y = @intCast(i32, begin);
+        while (y < end) : (y += 1) {
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
                 const dest = @intCast(usize, d[0] * y + x);
