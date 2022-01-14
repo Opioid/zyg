@@ -12,7 +12,8 @@ pub usingnamespace @import("ray.zig");
 pub usingnamespace @import("sample_distribution.zig");
 pub const smpl = @import("sampling.zig");
 pub usingnamespace @import("transformation.zig");
-pub usingnamespace @import("vector2.zig");
+const vec2 = @import("vector2.zig");
+pub usingnamespace vec2;
 pub usingnamespace @import("vector3.zig");
 const vec4 = @import("vector4.zig");
 pub usingnamespace vec4;
@@ -37,6 +38,11 @@ pub fn saturate(x: f32) f32 {
 pub fn lerp(a: f32, b: f32, t: f32) f32 {
     const u = 1.0 - t;
     return u * a + t * b;
+}
+
+pub fn lerp2(a: vec2.Vec2f, b: vec2.Vec2f, t: f32) vec2.Vec2f {
+    const u = @splat(2, 1.0 - t);
+    return u * a + @splat(2, t) * b;
 }
 
 pub fn lerp3(a: vec4.Vec4f, b: vec4.Vec4f, t: f32) vec4.Vec4f {

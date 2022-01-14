@@ -70,21 +70,47 @@ pub const Multi = struct {
 
             var result = Result.initPass(@splat(4, @as(f32, 1.0)));
 
-            while (local_ray.minT() < d) {
-                if (tree.intersect(&local_ray)) |tcm| {
-                    var cm = tcm;
-                    cm.minorant_mu_s *= srs;
-                    cm.majorant_mu_s *= srs;
+            if (material.emissive()) {
+                while (local_ray.minT() < d) {
+                    if (tree.intersect(&local_ray)) |tcm| {
+                        var cm = tcm;
+                        cm.minorant_mu_s *= srs;
+                        cm.majorant_mu_s *= srs;
 
-                    result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, worker);
-                    if (.Scatter == result.event) {
-                        setScattering(isec, interface, ray.ray.point(result.t));
-                        break;
+                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, filter, worker);
+                        if (.Scatter == result.event) {
+                            setScattering(isec, interface, ray.ray.point(result.t));
+                            break;
+                        }
+
+                        if (.Absorb == result.event) {
+                            ray.ray.setMaxT(result.t);
+                            // This is in local space on purpose! Alas, the purpose was not commented...
+                            isec.geo.p = local_ray.point(result.t);
+                            return result;
+                        }
                     }
-                }
 
-                local_ray.setMinT(ro.offsetF(local_ray.maxT()));
-                local_ray.setMaxT(d);
+                    local_ray.setMinT(ro.offsetF(local_ray.maxT()));
+                    local_ray.setMaxT(d);
+                }
+            } else {
+                while (local_ray.minT() < d) {
+                    if (tree.intersect(&local_ray)) |tcm| {
+                        var cm = tcm;
+                        cm.minorant_mu_s *= srs;
+                        cm.majorant_mu_s *= srs;
+
+                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, worker);
+                        if (.Scatter == result.event) {
+                            setScattering(isec, interface, ray.ray.point(result.t));
+                            break;
+                        }
+                    }
+
+                    local_ray.setMinT(ro.offsetF(local_ray.maxT()));
+                    local_ray.setMaxT(d);
+                }
             }
 
             if (!math.anyGreaterEqual3(result.tr, tracking.Abort_epsilon)) {

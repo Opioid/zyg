@@ -301,9 +301,9 @@ pub const Scene = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn commitMaterials(self: *Scene, alloc: Allocator, threads: *Threads) void {
+    pub fn commitMaterials(self: *Scene, alloc: Allocator, threads: *Threads) !void {
         for (self.materials.items) |*m| {
-            m.commit(alloc, self.*, threads);
+            try m.commit(alloc, self.*, threads);
         }
     }
 

@@ -347,6 +347,79 @@ pub fn trackingHetero(
     }
 }
 
+pub fn trackingHeteroEmission(
+    ray: Ray,
+    cm: CM,
+    material: Material,
+    srs: f32,
+    w: Vec4f,
+    filter: ?Filter,
+    worker: *Worker,
+) Result {
+    const mt = cm.majorant_mu_t();
+    if (mt < Min_mt) {
+        return Result.initPass(w);
+    }
+
+    var rng = &worker.rng;
+
+    var lw = w;
+
+    const imt = 1.0 / mt;
+
+    const d = ray.maxT();
+    var t = ray.minT();
+    while (true) {
+        const r0 = rng.randomFloat();
+        t -= @log(1.0 - r0) * imt;
+        if (t > d) {
+            return Result.initPass(lw);
+        }
+
+        const uvw = ray.point(t);
+
+        const cce = material.collisionCoefficientsEmission(uvw, filter, worker.*);
+        var mu = cce.cc;
+        mu.s *= @splat(4, srs);
+
+        const mu_t = mu.a + mu.s;
+        const mu_n = @splat(4, mt) - mu_t;
+
+        const ma = math.average3(mu.a * lw);
+        const ms = math.average3(mu.s * lw);
+        const mn = math.average3(mu_n * lw);
+        const c = 1.0 / (ma + ms + mn);
+
+        const pa = ma * c;
+        const ps = ms * c;
+        const pn = mn * c;
+
+        const r1 = rng.randomFloat();
+        if (r1 < pa) {
+            const wa = mu.a / @splat(4, mt * pa);
+            return Result{
+                .li = w * wa * cce.e,
+                .tr = @splat(4, @as(f32, 0.0)),
+                .t = t,
+                .event = .Absorb,
+            };
+        }
+
+        if (r1 <= 1.0 - pn and ps > 0.0) {
+            const ws = mu.s / @splat(4, mt * ps);
+            return Result{
+                .li = @splat(4, @as(f32, 0.0)),
+                .tr = lw * ws,
+                .t = t,
+                .event = .Scatter,
+            };
+        }
+
+        const wn = mu_n / @splat(4, mt * pn);
+        lw *= wn;
+    }
+}
+
 pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: Worker) Ray {
     const trafo = worker.scene.propTransformationAt(entity, ray.time);
 

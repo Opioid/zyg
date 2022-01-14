@@ -157,7 +157,7 @@ fn reloadFrameDependant(
 
     const loading_start = std.time.milliTimestamp();
 
-    scene.commitMaterials(alloc, resources.threads);
+    try scene.commitMaterials(alloc, resources.threads);
     scene.clear(alloc);
 
     var stream = resources.fs.readStream(alloc, take_text) catch |err| {

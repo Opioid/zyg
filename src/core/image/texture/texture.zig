@@ -286,6 +286,24 @@ pub const Texture = struct {
         };
     }
 
+    pub fn get3D_2(self: Texture, x: i32, y: i32, z: i32, scene: Scene) Vec2f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Float2 => image.Float2.get3D(x, y, z),
+            else => @splat(2.0, @as(f32, 0.0)),
+        };
+    }
+
+    pub fn gather3D_2(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]Vec2f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Float2 => image.Float2.gather3D(xyz, xyz1),
+            else => [_]Vec2f{@splat(2, @as(f32, 0.0))} ** 8,
+        };
+    }
+
     pub fn description(self: Texture, scene: Scene) Description {
         return scene.image(self.image).description();
     }

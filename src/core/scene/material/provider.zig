@@ -8,6 +8,7 @@ const Texture = tx.Texture;
 const TexUsage = tx.Usage;
 const ts = @import("../../image/texture/sampler.zig");
 const Resources = @import("../../resource/manager.zig").Manager;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -370,6 +371,7 @@ pub const Provider = struct {
         var sampler_key = ts.Key{};
 
         var density = Texture{};
+        var temperature = Texture{};
 
         var color = @splat(4, @as(f32, 0.5));
         var emission = @splat(4, @as(f32, 0.0));
@@ -387,6 +389,8 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
                 density = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
+            } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
+                temperature = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
@@ -419,6 +423,7 @@ pub const Provider = struct {
         material.super.emission = emission;
         material.super.setVolumetric(attenuation_color, subsurface_color, attenuation_distance, anisotropy);
         material.density_map = density;
+        material.temperature_map = temperature;
 
         return Material{ .Volumetric = material };
     }

@@ -54,13 +54,13 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) !void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
             .Sky => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
-            .Volumetric => |*m| m.commit(alloc, scene, threads),
+            .Volumetric => |*m| try m.commit(alloc, scene, threads),
             else => {},
         }
     }
@@ -194,11 +194,7 @@ pub const Material = union(enum) {
 
         switch (self) {
             .Volumetric => |m| {
-                const d = @splat(4, m.density(uvw, filter, worker));
-                return .{
-                    .cc = .{ .a = d * cc.a, .s = d * cc.s },
-                    .e = m.super.emission,
-                };
+                return m.collisionCoefficientsEmission(uvw, filter, worker);
             },
             else => {
                 const e = self.super().emission;
