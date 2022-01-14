@@ -1,4 +1,5 @@
 const Resources = @import("manager.zig").Manager;
+const Filesystem = @import("../file/system.zig").System;
 const Variants = @import("base").memory.VariantMap;
 
 const std = @import("std");
@@ -115,6 +116,29 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             self.resources.deinit(alloc);
 
             self.provider.deinit(alloc);
+        }
+
+        pub fn reloadFrameDependant(self: *Self, alloc: Allocator, resources: *Resources) !bool {
+            var deprecated = false;
+
+            var iter = self.entries.iterator();
+            while (iter.next()) |entry| {
+                const filename = entry.key_ptr.name;
+
+                if (Filesystem.frameDependantName(filename)) {
+                    const item = self.provider.loadFile(alloc, filename, entry.key_ptr.options, resources) catch |e| {
+                        std.debug.print("Cannot re-load file \"{s}\": {}\n", .{ filename, e });
+                        return e;
+                    };
+
+                    const id = entry.value_ptr.id;
+                    self.resources.items[id].deinit(alloc);
+                    self.resources.items[id] = item;
+                    deprecated = true;
+                }
+            }
+
+            return deprecated;
         }
 
         pub fn loadFile(

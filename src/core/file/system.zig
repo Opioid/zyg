@@ -10,8 +10,6 @@ pub const System = struct {
     mounts: std.ArrayListUnmanaged([]u8) = .{},
 
     name_buffer: []u8,
-    frame_string: []u8 = &.{},
-    frame_string_buffer: [16]u8 = undefined,
 
     resolved_name_len: u32 = 0,
     frame: u32 = 0,
@@ -70,6 +68,10 @@ pub const System = struct {
 
     const Frame_marker = "{FRAME}";
 
+    pub fn frameDependantName(name: []const u8) bool {
+        return null != std.mem.indexOf(u8, name, Frame_marker);
+    }
+
     fn openReadStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
         var modified_name = name;
         defer {
@@ -81,8 +83,8 @@ pub const System = struct {
         if (std.mem.indexOf(u8, name, Frame_marker)) |fm| {
             modified_name = try std.fmt.allocPrint(
                 alloc,
-                "{s}{s}{s}",
-                .{ name[0..fm], self.frame_string, name[fm + 7 ..] },
+                "{s}{d}{s}",
+                .{ name[0..fm], self.frame, name[fm + 7 ..] },
             );
         }
 
@@ -123,10 +125,5 @@ pub const System = struct {
         var buffer = try alloc.alloc(u8, len);
         std.mem.copy(u8, buffer, self.name_buffer[0..len]);
         return buffer;
-    }
-
-    pub fn setFrame(self: *System, frame: u32) void {
-        self.frame = frame;
-        self.frame_string = std.fmt.bufPrint(&self.frame_string_buffer, "{d}", .{frame}) catch &.{};
     }
 };

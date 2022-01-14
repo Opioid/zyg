@@ -12,6 +12,7 @@ const chrono = base.chrono;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
     // try core.ggx_integrate.integrate();
@@ -91,7 +92,7 @@ pub fn main() !void {
 
     stream.deinit();
 
-    resources.fs.setFrame(options.start_frame);
+    resources.fs.frame = options.start_frame;
 
     scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
         std.debug.print("Loading scene: {} \n", .{err});
@@ -112,9 +113,39 @@ pub fn main() !void {
     var i = options.start_frame;
     const end = i + options.num_frames;
     while (i < end) : (i += 1) {
+        reloadFrameDependant(alloc, i, &scene, &resources, stdout) catch continue;
+
         try driver.render(alloc, i);
         try driver.exportFrame(alloc, i, take.exporters.items);
     }
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
+}
+
+fn reloadFrameDependant(
+    alloc: Allocator,
+    frame: u32,
+    scene: *scn.Scene,
+    resources: *resource.Manager,
+    stdout: std.fs.File.Writer,
+) !void {
+    var fs = &resources.fs;
+
+    if (frame == fs.frame) {
+        return;
+    }
+
+    fs.frame = frame;
+
+    if (!try resources.images.reloadFrameDependant(alloc, resources)) {
+        return;
+    }
+
+    stdout.print("Loading...\n", .{}) catch unreachable;
+
+    const loading_start = std.time.milliTimestamp();
+
+    scene.commitMaterials(alloc, resources.threads);
+
+    stdout.print("Loading time {d:.2} s\n", .{chrono.secondsSince(loading_start)}) catch unreachable;
 }

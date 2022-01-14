@@ -277,6 +277,12 @@ pub const Scene = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
+    pub fn commitMaterials(self: *Scene, alloc: Allocator, threads: *Threads) void {
+        for (self.materials.items) |*m| {
+            m.commit(alloc, self.*, threads);
+        }
+    }
+
     pub fn calculateNumInterpolationFrames(self: *Scene, frame_step: u64, frame_duration: u64) void {
         self.num_interpolation_frames = countFrames(frame_step, frame_duration) + 1;
     }
