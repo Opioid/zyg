@@ -157,6 +157,30 @@ pub const Scene = struct {
         self.props.deinit(alloc);
     }
 
+    pub fn clear(self: *Scene, alloc: Allocator) void {
+        self.volumes.clearRetainingCapacity();
+        self.infinite_props.clearRetainingCapacity();
+        self.finite_props.clearRetainingCapacity();
+
+        for (self.animations.items) |*a| {
+            a.deinit(alloc, self.num_interpolation_frames);
+        }
+        self.animations.clearRetainingCapacity();
+        self.keyframes.clearRetainingCapacity();
+        self.light_ids.clearRetainingCapacity();
+        self.material_ids.clearRetainingCapacity();
+        self.light_cones.clearRetainingCapacity();
+        self.light_aabbs.clearRetainingCapacity();
+        self.lights.clearRetainingCapacity();
+        self.prop_aabbs.clearRetainingCapacity();
+        self.prop_topology.clearRetainingCapacity();
+        self.prop_frames.clearRetainingCapacity();
+        self.prop_parts.clearRetainingCapacity();
+        self.prop_world_positions.clearRetainingCapacity();
+        self.prop_world_transformations.clearRetainingCapacity();
+        self.props.clearRetainingCapacity();
+    }
+
     pub fn aabb(self: Scene) AABB {
         return self.prop_bvh.aabb();
     }
@@ -277,6 +301,12 @@ pub const Scene = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
+    pub fn commitMaterials(self: *Scene, alloc: Allocator, threads: *Threads) !void {
+        for (self.materials.items) |*m| {
+            try m.commit(alloc, self.*, threads);
+        }
+    }
+
     pub fn calculateNumInterpolationFrames(self: *Scene, frame_step: u64, frame_duration: u64) void {
         self.num_interpolation_frames = countFrames(frame_step, frame_duration) + 1;
     }
@@ -340,7 +370,9 @@ pub const Scene = struct {
             }
 
             if (mat.scatteringVolume()) {
-                if (shape_inst.analytical() and mat.emissionMapped()) {} else {
+                if (shape_inst.analytical() and mat.emissionMapped()) {
+                    try self.allocateLight(alloc, .VolumeImage, false, entity, i);
+                } else {
                     try self.allocateLight(alloc, .Volume, false, entity, i);
                 }
             } else {

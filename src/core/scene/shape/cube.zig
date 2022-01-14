@@ -101,6 +101,22 @@ pub const Cube = struct {
         return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), r3, sl / volume, t);
     }
 
+    pub fn sampleVolumeToUv(
+        p: Vec4f,
+        uvw: Vec4f,
+        trafo: Transformation,
+        volume: f32,
+    ) SampleTo {
+        const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
+        const wp = trafo.objectToWorldPoint(xyz);
+        const axis = wp - p;
+
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+
+        return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), uvw, sl / volume, t);
+    }
+
     pub fn volumePdf(ray: Ray, volume: f32) f32 {
         const t = ray.maxT();
         return (t * t) / volume;

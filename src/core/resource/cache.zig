@@ -1,4 +1,5 @@
 const Resources = @import("manager.zig").Manager;
+const Filesystem = @import("../file/system.zig").System;
 const Variants = @import("base").memory.VariantMap;
 
 const std = @import("std");
@@ -80,7 +81,13 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         }
     };
 
-    const HashMap = std.HashMapUnmanaged(Key, u32, KeyContext, 80);
+    const Entry = struct {
+        id: u32,
+
+        source_name: []u8 = &.{},
+    };
+
+    const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 
     return struct {
         provider: P,
@@ -97,6 +104,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             var iter = self.entries.iterator();
             while (iter.next()) |entry| {
                 entry.key_ptr.deinit(alloc);
+                alloc.free(entry.value_ptr.source_name);
             }
 
             self.entries.deinit(alloc);
@@ -110,6 +118,29 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             self.provider.deinit(alloc);
         }
 
+        pub fn reloadFrameDependant(self: *Self, alloc: Allocator, resources: *Resources) !bool {
+            var deprecated = false;
+
+            var iter = self.entries.iterator();
+            while (iter.next()) |entry| {
+                const filename = entry.key_ptr.name;
+
+                if (Filesystem.frameDependantName(filename)) {
+                    const item = self.provider.loadFile(alloc, filename, entry.key_ptr.options, resources) catch |e| {
+                        std.debug.print("Cannot re-load file \"{s}\": {}\n", .{ filename, e });
+                        return e;
+                    };
+
+                    const id = entry.value_ptr.id;
+                    self.resources.items[id].deinit(alloc);
+                    self.resources.items[id] = item;
+                    deprecated = true;
+                }
+            }
+
+            return deprecated;
+        }
+
         pub fn loadFile(
             self: *Self,
             alloc: Allocator,
@@ -119,7 +150,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         ) !u32 {
             const key = Key{ .name = name, .options = options };
             if (self.entries.get(key)) |entry| {
-                return entry;
+                return entry.id;
             }
 
             const item = self.provider.loadFile(alloc, name, options, resources) catch |e| {
@@ -131,7 +162,11 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
             const id = @intCast(u32, self.resources.items.len - 1);
 
-            try self.entries.put(alloc, try key.clone(alloc), id);
+            try self.entries.put(
+                alloc,
+                try key.clone(alloc),
+                .{ .id = id, .source_name = try resources.fs.cloneLastResolvedName(alloc) },
+            );
 
             return id;
         }
@@ -150,7 +185,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
             const key = Key{ .name = name, .options = options };
             if (self.entries.get(key)) |entry| {
-                id = entry;
+                id = entry.id;
             }
 
             if (Null == id) {
@@ -162,7 +197,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             if (0 != name.len) {
-                try self.entries.put(alloc, try key.clone(alloc), id);
+                try self.entries.put(alloc, try key.clone(alloc), .{ .id = id });
             }
 
             return id;
@@ -183,7 +218,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         pub fn getByName(self: Self, name: []const u8, options: Variants) ?u32 {
             const key = Key{ .name = name, .options = options };
             if (self.entries.get(key)) |entry| {
-                return entry;
+                return entry.id;
             }
 
             return null;

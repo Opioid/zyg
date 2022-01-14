@@ -12,6 +12,7 @@ const chrono = base.chrono;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
     // try core.ggx_integrate.integrate();
@@ -91,6 +92,8 @@ pub fn main() !void {
 
     stream.deinit();
 
+    resources.fs.frame = options.start_frame;
+
     scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
         std.debug.print("Loading scene: {} \n", .{err});
         return;
@@ -110,9 +113,69 @@ pub fn main() !void {
     var i = options.start_frame;
     const end = i + options.num_frames;
     while (i < end) : (i += 1) {
+        reloadFrameDependant(
+            alloc,
+            i,
+            &take,
+            options.take.?,
+            &scene,
+            &scene_loader,
+            &resources,
+            stdout,
+        ) catch continue;
+
         try driver.render(alloc, i);
         try driver.exportFrame(alloc, i, take.exporters.items);
     }
 
     stdout.print("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)}) catch unreachable;
+}
+
+fn reloadFrameDependant(
+    alloc: Allocator,
+    frame: u32,
+    take: *tk.Take,
+    take_text: []const u8,
+    scene: *scn.Scene,
+    scene_loader: *scn.Loader,
+    resources: *resource.Manager,
+    stdout: std.fs.File.Writer,
+) !void {
+    var fs = &resources.fs;
+
+    if (frame == fs.frame) {
+        return;
+    }
+
+    fs.frame = frame;
+
+    if (!try resources.images.reloadFrameDependant(alloc, resources)) {
+        return;
+    }
+
+    stdout.print("Loading...\n", .{}) catch unreachable;
+
+    const loading_start = std.time.milliTimestamp();
+
+    try scene.commitMaterials(alloc, resources.threads);
+    scene.clear(alloc);
+
+    var stream = resources.fs.readStream(alloc, take_text) catch |err| {
+        std.debug.print("Open stream \"{s}\": {} \n", .{ take_text, err });
+        return err;
+    };
+
+    tk.loadCameraTransformation(alloc, stream, &take.view.camera, scene) catch |err| {
+        std.debug.print("Loading take: {} \n", .{err});
+        return err;
+    };
+
+    stream.deinit();
+
+    scene_loader.load(alloc, take.scene_filename, take.*, scene) catch |err| {
+        std.debug.print("Loading scene: {} \n", .{err});
+        return err;
+    };
+
+    stdout.print("Loading time {d:.2} s\n", .{chrono.secondsSince(loading_start)}) catch unreachable;
 }

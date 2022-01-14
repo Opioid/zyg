@@ -23,7 +23,6 @@ const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 const base = @import("base");
 const json = base.json;
 const math = base.math;
-
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
@@ -103,6 +102,37 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
     return take;
 }
 
+pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *cam.Perspective, scene: *Scene) !void {
+    const buffer = try stream.readAll(alloc);
+    defer alloc.free(buffer);
+
+    var parser = std.json.Parser.init(alloc, false);
+    defer parser.deinit();
+
+    var document = try parser.parse(buffer);
+    defer document.deinit();
+
+    const root = document.root;
+
+    if (root.Object.get("camera")) |camera_node| {
+        if (camera_node.Object.iterator().next()) |type_value| {
+            var trafo = Transformation{
+                .position = @splat(4, @as(f32, 0.0)),
+                .scale = @splat(4, @as(f32, 1.0)),
+                .rotation = math.quaternion.identity,
+            };
+
+            if (type_value.value_ptr.Object.get("transformation")) |trafo_node| {
+                json.readTransformation(trafo_node, &trafo);
+            }
+
+            const prop_id = try scene.createEntity(alloc);
+            scene.propSetWorldTransformation(prop_id, trafo);
+            camera.entity = prop_id;
+        }
+    }
+}
+
 fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
@@ -154,9 +184,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     }
 
     const prop_id = try scene.createEntity(alloc);
-
     scene.propSetWorldTransformation(prop_id, trafo);
-
     camera.entity = prop_id;
 }
 

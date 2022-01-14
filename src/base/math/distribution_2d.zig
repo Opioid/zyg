@@ -30,6 +30,10 @@ pub const Distribution2D = struct {
 
     pub fn allocate(self: *Self, alloc: Allocator, num: u32) ![]Distribution1D {
         if (self.conditional.len != num) {
+            for (self.conditional) |*c| {
+                c.deinit(alloc);
+            }
+
             self.conditional = try alloc.realloc(self.conditional, num);
             std.mem.set(Distribution1D, self.conditional, .{});
         }
@@ -46,6 +50,10 @@ pub const Distribution2D = struct {
         }
 
         try self.marginal.configure(alloc, integrals, 0);
+    }
+
+    pub fn integral(self: Self) f32 {
+        return self.marginal.integral;
     }
 
     pub fn sampleContinous(self: Self, r2: Vec2f) Continuous {
