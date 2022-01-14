@@ -157,6 +157,30 @@ pub const Scene = struct {
         self.props.deinit(alloc);
     }
 
+    pub fn clear(self: *Scene, alloc: Allocator) void {
+        self.volumes.clearRetainingCapacity();
+        self.infinite_props.clearRetainingCapacity();
+        self.finite_props.clearRetainingCapacity();
+
+        for (self.animations.items) |*a| {
+            a.deinit(alloc, self.num_interpolation_frames);
+        }
+        self.animations.clearRetainingCapacity();
+        self.keyframes.clearRetainingCapacity();
+        self.light_ids.clearRetainingCapacity();
+        self.material_ids.clearRetainingCapacity();
+        self.light_cones.clearRetainingCapacity();
+        self.light_aabbs.clearRetainingCapacity();
+        self.lights.clearRetainingCapacity();
+        self.prop_aabbs.clearRetainingCapacity();
+        self.prop_topology.clearRetainingCapacity();
+        self.prop_frames.clearRetainingCapacity();
+        self.prop_parts.clearRetainingCapacity();
+        self.prop_world_positions.clearRetainingCapacity();
+        self.prop_world_transformations.clearRetainingCapacity();
+        self.props.clearRetainingCapacity();
+    }
+
     pub fn aabb(self: Scene) AABB {
         return self.prop_bvh.aabb();
     }

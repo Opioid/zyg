@@ -113,7 +113,16 @@ pub fn main() !void {
     var i = options.start_frame;
     const end = i + options.num_frames;
     while (i < end) : (i += 1) {
-        reloadFrameDependant(alloc, i, &scene, &resources, stdout) catch continue;
+        reloadFrameDependant(
+            alloc,
+            i,
+            &take,
+            options.take.?,
+            &scene,
+            &scene_loader,
+            &resources,
+            stdout,
+        ) catch continue;
 
         try driver.render(alloc, i);
         try driver.exportFrame(alloc, i, take.exporters.items);
@@ -125,7 +134,10 @@ pub fn main() !void {
 fn reloadFrameDependant(
     alloc: Allocator,
     frame: u32,
+    take: *tk.Take,
+    take_text: []const u8,
     scene: *scn.Scene,
+    scene_loader: *scn.Loader,
     resources: *resource.Manager,
     stdout: std.fs.File.Writer,
 ) !void {
@@ -146,6 +158,24 @@ fn reloadFrameDependant(
     const loading_start = std.time.milliTimestamp();
 
     scene.commitMaterials(alloc, resources.threads);
+    scene.clear(alloc);
+
+    var stream = resources.fs.readStream(alloc, take_text) catch |err| {
+        std.debug.print("Open stream \"{s}\": {} \n", .{ take_text, err });
+        return err;
+    };
+
+    tk.loadCameraTransformation(alloc, stream, &take.view.camera, scene) catch |err| {
+        std.debug.print("Loading take: {} \n", .{err});
+        return err;
+    };
+
+    stream.deinit();
+
+    scene_loader.load(alloc, take.scene_filename, take.*, scene) catch |err| {
+        std.debug.print("Loading scene: {} \n", .{err});
+        return err;
+    };
 
     stdout.print("Loading time {d:.2} s\n", .{chrono.secondsSince(loading_start)}) catch unreachable;
 }

@@ -296,6 +296,11 @@ pub const Material = union(enum) {
                     return m.emission_map.description(scene);
                 }
             },
+            .Volumetric => |m| {
+                if (m.density_map.valid()) {
+                    return m.density_map.description(scene);
+                }
+            },
             else => {},
         }
 
