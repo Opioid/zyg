@@ -315,6 +315,22 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn sampleVolumeToUv(
+        self: Shape,
+        part: u32,
+        p: Vec4f,
+        uvw: Vec4f,
+        trafo: Transformation,
+        extent: f32,
+    ) ?SampleTo {
+        _ = part;
+
+        return switch (self) {
+            .Cube => Cube.sampleVolumeToUv(p, uvw, trafo, extent),
+            else => null,
+        };
+    }
+
     pub fn sampleFromUv(
         self: Shape,
         part: u32,

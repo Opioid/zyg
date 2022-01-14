@@ -12,6 +12,7 @@ pub const System = struct {
     name_buffer: []u8,
 
     resolved_name_len: u32 = 0,
+    frame: u32 = 0,
 
     stream: FileReadStream = .{},
     gzip_stream: GzipReadStream = .{},
@@ -65,16 +66,37 @@ pub const System = struct {
         return stream;
     }
 
+    const Frame_marker = "{FRAME}";
+
+    pub fn frameDependantName(name: []const u8) bool {
+        return null != std.mem.indexOf(u8, name, Frame_marker);
+    }
+
     fn openReadStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
+        var modified_name = name;
+        defer {
+            if (modified_name.ptr != name.ptr) {
+                alloc.free(modified_name);
+            }
+        }
+
+        if (std.mem.indexOf(u8, name, Frame_marker)) |fm| {
+            modified_name = try std.fmt.allocPrint(
+                alloc,
+                "{s}{d}{s}",
+                .{ name[0..fm], self.frame, name[fm + 7 ..] },
+            );
+        }
+
         for (self.mounts.items) |m| {
-            const resolved_name_len = @intCast(u32, m.len + name.len);
+            const resolved_name_len = @intCast(u32, m.len + modified_name.len);
 
             if (self.name_buffer.len < resolved_name_len) {
                 self.name_buffer = try alloc.realloc(self.name_buffer, resolved_name_len);
             }
 
             std.mem.copy(u8, self.name_buffer[0..], m);
-            std.mem.copy(u8, self.name_buffer[m.len..], name);
+            std.mem.copy(u8, self.name_buffer[m.len..], modified_name);
             self.resolved_name_len = resolved_name_len;
 
             const resolved_name = self.name_buffer[0..resolved_name_len];
@@ -87,14 +109,21 @@ pub const System = struct {
             return ReadStream.initFile(&self.stream);
         }
 
-        std.mem.copy(u8, self.name_buffer[0..], name);
-        self.resolved_name_len = @intCast(u32, name.len);
+        std.mem.copy(u8, self.name_buffer[0..], modified_name);
+        self.resolved_name_len = @intCast(u32, modified_name.len);
 
-        self.stream.setFile(try std.fs.cwd().openFile(name, .{}));
+        self.stream.setFile(try std.fs.cwd().openFile(modified_name, .{}));
         return ReadStream.initFile(&self.stream);
     }
 
     pub fn lastResolvedName(self: System) []const u8 {
         return self.name_buffer[0..self.resolved_name_len];
+    }
+
+    pub fn cloneLastResolvedName(self: System, alloc: Allocator) ![]u8 {
+        const len = self.resolved_name_len;
+        var buffer = try alloc.alloc(u8, len);
+        std.mem.copy(u8, buffer, self.name_buffer[0..len]);
+        return buffer;
     }
 };

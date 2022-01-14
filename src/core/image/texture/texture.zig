@@ -245,6 +245,7 @@ pub const Texture = struct {
             },
             .Float1 => image.Float1.get3D(x, y, z),
             .Float1Sparse => image.Float1Sparse.get3D(x, y, z),
+            .Float2 => image.Float2.get3D(x, y, z)[0],
             else => 0.0,
         };
     }
@@ -268,7 +269,38 @@ pub const Texture = struct {
             },
             .Float1 => image.Float1.gather3D(xyz, xyz1),
             .Float1Sparse => image.Float1Sparse.gather3D(xyz, xyz1),
+            .Float2 => {
+                const values = image.Float2.gather3D(xyz, xyz1);
+                return .{
+                    values[0][0],
+                    values[1][0],
+                    values[2][0],
+                    values[3][0],
+                    values[4][0],
+                    values[5][0],
+                    values[6][0],
+                    values[7][0],
+                };
+            },
             else => [_]f32{0.0} ** 8,
+        };
+    }
+
+    pub fn get3D_2(self: Texture, x: i32, y: i32, z: i32, scene: Scene) Vec2f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Float2 => image.Float2.get3D(x, y, z),
+            else => @splat(2.0, @as(f32, 0.0)),
+        };
+    }
+
+    pub fn gather3D_2(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]Vec2f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Float2 => image.Float2.gather3D(xyz, xyz1),
+            else => [_]Vec2f{@splat(2, @as(f32, 0.0))} ** 8,
         };
     }
 

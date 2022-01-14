@@ -14,8 +14,12 @@ const Address = struct {
     u: AddressMode,
     v: AddressMode,
 
-    pub fn address(self: Address, uv: Vec2f) Vec2f {
+    pub fn address2(self: Address, uv: Vec2f) Vec2f {
         return .{ self.u.f(uv[0]), self.v.f(uv[1]) };
+    }
+
+    pub fn address3(self: Address, uvw: Vec4f) Vec4f {
+        return .{ self.u.f(uvw[0]), self.u.f(uvw[1]), self.u.f(uvw[2]), 0.0 };
     }
 };
 
@@ -61,6 +65,13 @@ pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_1(texture, uvw, key.address, scene),
         .Linear => Linear3D.sample_1(texture, uvw, key.address, scene),
+    };
+}
+
+pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) Vec2f {
+    return switch (key.filter) {
+        .Nearest => Nearest3D.sample_2(texture, uvw, key.address, scene),
+        .Linear => Linear3D.sample_2(texture, uvw, key.address, scene),
     };
 }
 
@@ -149,16 +160,6 @@ const Linear2D = struct {
             },
         };
     }
-
-    fn bilinear2(c: [4]Vec2f, s: f32, t: f32) Vec2f {
-        const vs = @splat(2, s);
-        const vt = @splat(2, t);
-
-        const _s = @splat(2, @as(f32, 1.0)) - vs;
-        const _t = @splat(2, @as(f32, 1.0)) - vt;
-
-        return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
-    }
 };
 
 const Nearest3D = struct {
@@ -166,6 +167,12 @@ const Nearest3D = struct {
         const d = texture.description(scene).dimensions;
         const xyz = map(d, uvw, adr);
         return texture.get3D_1(xyz.v[0], xyz.v[1], xyz.v[2], scene);
+    }
+
+    pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) Vec2f {
+        const d = texture.description(scene).dimensions;
+        const xyz = map(d, uvw, adr);
+        return texture.get3D_2(xyz.v[0], xyz.v[1], xyz.v[2], scene);
     }
 
     fn map(d: Vec3i, uvw: Vec4f, adr: Address) Vec3i {
@@ -203,6 +210,17 @@ const Linear3D = struct {
         return math.lerp(c0, c1, m.w[2]);
     }
 
+    pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) Vec2f {
+        const d = texture.description(scene).dimensions;
+        const m = map(d, uvw, adr);
+        const c = texture.gather3D_2(m.xyz, m.xyz1, scene);
+
+        const c0 = bilinear2(.{ c[0], c[1], c[2], c[3] }, m.w[0], m.w[1]);
+        const c1 = bilinear2(.{ c[4], c[5], c[6], c[7] }, m.w[0], m.w[1]);
+
+        return math.lerp2(c0, c1, m.w[2]);
+    }
+
     fn map(d: Vec3i, uvw: Vec4f, adr: Address) Map {
         const df = math.vec3iTo4f(d);
 
@@ -235,3 +253,13 @@ const Linear3D = struct {
         };
     }
 };
+
+fn bilinear2(c: [4]Vec2f, s: f32, t: f32) Vec2f {
+    const vs = @splat(2, s);
+    const vt = @splat(2, t);
+
+    const _s = @splat(2, @as(f32, 1.0)) - vs;
+    const _t = @splat(2, @as(f32, 1.0)) - vt;
+
+    return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
+}

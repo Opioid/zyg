@@ -201,6 +201,16 @@ pub const Loader = struct {
                 }
             }
 
+            if (trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2 and 1 == scene.propShape(entity_id).numParts()) {
+                const material = scene.propMaterial(entity_id, 0);
+                if (material.heterogeneousVolume()) {
+                    const desc = material.usefulTextureDescription(scene.*);
+                    const voxel_scale = @splat(4, trafo.scale[0]);
+                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec3iTo4f(desc.dimensions);
+                    trafo.position += trafo.scale + voxel_scale * math.vec3iTo4f(desc.offset);
+                }
+            }
+
             const animation = if (animation_ptr) |animation|
                 try anim.load(alloc, animation.*, trafo, entity_id, scene)
             else
@@ -392,7 +402,7 @@ pub const Loader = struct {
             const material = self.resources.loadData(Material, alloc, name, data, .{}) catch resource.Null;
             if (resource.Null != material) {
                 if (self.resources.get(Material, material)) |mp| {
-                    mp.commit(alloc, scene, self.resources.threads);
+                    mp.commit(alloc, scene, self.resources.threads) catch {};
                 }
                 return material;
             }
@@ -404,7 +414,7 @@ pub const Loader = struct {
             return self.fallback_material;
         };
 
-        if (self.resources.get(Material, material)) |mp| mp.commit(alloc, scene, self.resources.threads);
+        if (self.resources.get(Material, material)) |mp| mp.commit(alloc, scene, self.resources.threads) catch {};
         return material;
     }
 

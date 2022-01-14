@@ -8,13 +8,14 @@ const Allocator = std.mem.Allocator;
 
 pub const Description = struct {
     dimensions: Vec3i = Vec3i.init1(0),
+    offset: Vec3i = Vec3i.init1(0),
 
     pub fn init2D(dim: Vec2i) Description {
         return .{ .dimensions = Vec3i.init3(dim[0], dim[1], 1) };
     }
 
-    pub fn init3D(dim: Vec3i) Description {
-        return .{ .dimensions = dim };
+    pub fn init3D(dim: Vec3i, offset: Vec3i) Description {
+        return .{ .dimensions = dim, .offset = offset };
     }
 
     pub fn numPixels(self: Description) u64 {

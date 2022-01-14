@@ -74,12 +74,23 @@ pub const Gridtree = struct {
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
+        if (num_nodes != self.num_nodes) {
+            alloc.free(self.nodes[0..self.num_nodes]);
+        }
+
+        self.num_nodes = num_nodes;
         self.nodes = (try alloc.alloc(Node, num_nodes)).ptr;
         return self.nodes;
     }
 
     pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]CM {
+        if (num_data != self.num_data) {
+            alloc.free(self.data[0..self.num_data]);
+        }
+
+        self.num_data = num_data;
         self.data = (try alloc.alloc(CM, num_data)).ptr;
+
         return self.data;
     }
 

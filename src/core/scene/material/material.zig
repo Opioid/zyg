@@ -17,6 +17,7 @@ const Transformation = @import("../composed_transformation.zig").ComposedTransfo
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const ts = @import("../../image/texture/sampler.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -54,13 +55,13 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) !void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
             .Sky => |*m| m.commit(),
             .Substitute => |*m| m.commit(),
-            .Volumetric => |*m| m.commit(alloc, scene, threads),
+            .Volumetric => |*m| try m.commit(alloc, scene, threads),
             else => {},
         }
     }
@@ -194,11 +195,7 @@ pub const Material = union(enum) {
 
         switch (self) {
             .Volumetric => |m| {
-                const d = @splat(4, m.density(uvw, filter, worker));
-                return .{
-                    .cc = .{ .a = d * cc.a, .s = d * cc.s },
-                    .e = m.super.emission,
-                };
+                return m.collisionCoefficientsEmission(uvw, filter, worker);
             },
             else => {
                 const e = self.super().emission;
@@ -251,6 +248,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.radianceSample(r3),
             .Sky => |m| m.radianceSample(r3),
+            .Volumetric => |m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
         };
     }
@@ -259,6 +257,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
             .Sky => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
+            .Volumetric => |m| m.emissionPdf(uvw),
             else => 1.0,
         };
     }
@@ -294,6 +293,11 @@ pub const Material = union(enum) {
             .Substitute => |m| {
                 if (m.emission_map.valid()) {
                     return m.emission_map.description(scene);
+                }
+            },
+            .Volumetric => |m| {
+                if (m.density_map.valid()) {
+                    return m.density_map.description(scene);
                 }
             },
             else => {},
