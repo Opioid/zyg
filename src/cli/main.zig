@@ -91,6 +91,8 @@ pub fn main() !void {
 
     stream.deinit();
 
+    resources.fs.setFrame(options.start_frame);
+
     scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
         std.debug.print("Loading scene: {} \n", .{err});
         return;

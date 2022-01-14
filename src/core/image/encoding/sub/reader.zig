@@ -4,6 +4,7 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
 const math = base.math;
+const Vec2f = math.Vec2f;
 const Vec3i = math.Vec3i;
 const json = base.json;
 const Bitfield = base.memory.Bitfield;
@@ -103,7 +104,6 @@ pub const Reader = struct {
 
             if (.Byte1 == image_type) {
                 var image = try img.Byte1.init(alloc, description);
-
                 return Image{ .Byte1 = image };
             }
 
@@ -141,6 +141,18 @@ pub const Reader = struct {
 
             if (.Float2 == image_type) {
                 var image = try img.Float2.init(alloc, description);
+
+                var i: u64 = 0;
+                const len = description.numPixels();
+                while (i < len) : (i += 1) {
+                    if (field.get(i)) {
+                        var val: Vec2f = undefined;
+                        _ = try stream.read(std.mem.asBytes(&val));
+                        image.pixels[i] = val;
+                    } else {
+                        image.pixels[i] = @splat(2, @as(f32, 0.0));
+                    }
+                }
 
                 return Image{ .Float2 = image };
             }

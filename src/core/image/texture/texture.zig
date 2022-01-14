@@ -245,6 +245,7 @@ pub const Texture = struct {
             },
             .Float1 => image.Float1.get3D(x, y, z),
             .Float1Sparse => image.Float1Sparse.get3D(x, y, z),
+            .Float2 => image.Float2.get3D(x, y, z)[0],
             else => 0.0,
         };
     }
@@ -268,6 +269,19 @@ pub const Texture = struct {
             },
             .Float1 => image.Float1.gather3D(xyz, xyz1),
             .Float1Sparse => image.Float1Sparse.gather3D(xyz, xyz1),
+            .Float2 => {
+                const values = image.Float2.gather3D(xyz, xyz1);
+                return .{
+                    values[0][0],
+                    values[1][0],
+                    values[2][0],
+                    values[3][0],
+                    values[4][0],
+                    values[5][0],
+                    values[6][0],
+                    values[7][0],
+                };
+            },
             else => [_]f32{0.0} ** 8,
         };
     }
