@@ -1,18 +1,15 @@
 const Vec2f = @import("vector2.zig").Vec2f;
+const Vec4f = @import("vector4.zig").Vec4f;
 const Distribution1D = @import("distribution_1d.zig").Distribution1D;
+const Distribution2D = @import("distribution_2d.zig").Distribution2D;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Distribution2D = struct {
-    pub const Continuous = struct {
-        uv: Vec2f,
-        pdf: f32,
-    };
-
+pub const Distribution3D = struct {
     marginal: Distribution1D = .{},
 
-    conditional: []Distribution1D = &.{},
+    conditional: []Distribution2D = &.{},
 
     const Self = @This();
 
@@ -26,14 +23,14 @@ pub const Distribution2D = struct {
         self.marginal.deinit(alloc);
     }
 
-    pub fn allocate(self: *Self, alloc: Allocator, num: u32) ![]Distribution1D {
+    pub fn allocate(self: *Self, alloc: Allocator, num: u32) ![]Distribution2D {
         if (self.conditional.len != num) {
             for (self.conditional) |*c| {
                 c.deinit(alloc);
             }
 
             self.conditional = try alloc.realloc(self.conditional, num);
-            std.mem.set(Distribution1D, self.conditional, .{});
+            std.mem.set(Distribution2D, self.conditional, .{});
         }
 
         return self.conditional;
@@ -44,35 +41,30 @@ pub const Distribution2D = struct {
         defer alloc.free(integrals);
 
         for (self.conditional) |c, i| {
-            integrals[i] = c.integral;
+            integrals[i] = c.integral();
         }
 
         try self.marginal.configure(alloc, integrals, 0);
     }
 
-    pub fn integral(self: Self) f32 {
-        return self.marginal.integral;
-    }
+    pub fn sampleContinous(self: Self, r3: Vec4f) Vec4f {
+        const w = self.marginal.sampleContinous(r3[2]);
 
-    pub fn sampleContinous(self: Self, r2: Vec2f) Continuous {
-        const v = self.marginal.sampleContinous(r2[1]);
-
-        const i = @floatToInt(u32, v.offset * @intToFloat(f32, self.conditional.len));
+        const i = @floatToInt(u32, w.offset * @intToFloat(f32, self.conditional.len));
         const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
 
-        const u = self.conditional[c].sampleContinous(r2[0]);
+        const uv = self.conditional[c].sampleContinous(.{ r3[0], r3[1] });
 
-        return .{ .uv = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
+        return .{ uv.uv[0], uv.uv[1], w.offset, uv.pdf * w.pdf };
     }
 
-    pub fn pdf(self: Self, uv: Vec2f) f32 {
-        const v_pdf = self.marginal.pdfF(uv[1]);
+    pub fn pdf(self: Self, uvw: Vec4f) f32 {
+        const w_pdf = self.marginal.pdfF(uvw[2]);
 
-        const i = @floatToInt(u32, uv[1] * @intToFloat(f32, self.conditional.len));
+        const i = @floatToInt(u32, uvw[2] * @intToFloat(f32, self.conditional.len));
         const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
 
-        const u_pdf = self.conditional[c].pdfF(uv[0]);
-
-        return u_pdf * v_pdf;
+        const uv_pdf = self.conditional[c].pdf(.{ uvw[0], uvw[1] });
+        return uv_pdf * w_pdf;
     }
 };

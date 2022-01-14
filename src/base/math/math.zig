@@ -3,6 +3,7 @@ pub const AABB = aabb.AABB;
 pub const cone = @import("cone.zig");
 pub usingnamespace @import("distribution_1d.zig");
 pub usingnamespace @import("distribution_2d.zig");
+pub usingnamespace @import("distribution_3d.zig");
 pub usingnamespace @import("interpolated_function.zig");
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;

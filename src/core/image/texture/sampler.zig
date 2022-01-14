@@ -14,8 +14,12 @@ const Address = struct {
     u: AddressMode,
     v: AddressMode,
 
-    pub fn address(self: Address, uv: Vec2f) Vec2f {
+    pub fn address2(self: Address, uv: Vec2f) Vec2f {
         return .{ self.u.f(uv[0]), self.v.f(uv[1]) };
+    }
+
+    pub fn address3(self: Address, uvw: Vec4f) Vec4f {
+        return .{ self.u.f(uvw[0]), self.u.f(uvw[1]), self.u.f(uvw[2]), 0.0 };
     }
 };
 

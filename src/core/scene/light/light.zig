@@ -120,7 +120,15 @@ pub const Light = struct {
                 sampler_d,
                 worker,
             ),
-            else => null,
+            .VolumeImage => self.volumeImageSampleTo(
+                p,
+                n,
+                trafo,
+                total_sphere,
+                sampler,
+                sampler_d,
+                worker,
+            ),
         };
     }
 
@@ -174,7 +182,7 @@ pub const Light = struct {
             .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, worker),
             .PropImage => self.propImagePdf(ray, isec, trafo, worker),
             .Volume => self.volumePdf(ray, isec, trafo, worker),
-            else => 0.0,
+            .VolumeImage => self.volumeImagePdf(ray, isec, trafo, worker),
         };
     }
 
@@ -341,6 +349,42 @@ pub const Light = struct {
         return null;
     }
 
+    fn volumeImageSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Transformation,
+        total_sphere: bool,
+        sampler: *Sampler,
+        sampler_d: usize,
+        worker: *Worker,
+    ) ?SampleTo {
+        const s2d = sampler.sample2D(&worker.rng, sampler_d);
+        const s1d = sampler.sample1D(&worker.rng, sampler_d);
+
+        const material = worker.scene.propMaterial(self.prop, self.part);
+        const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return null;
+        }
+
+        const shape = worker.scene.propShape(self.prop);
+        var result = shape.sampleVolumeToUv(
+            self.part,
+            p,
+            rs.uvw,
+            trafo,
+            self.extent,
+        ) orelse return null;
+
+        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
+            result.mulAssignPdf(rs.pdf());
+            return result;
+        }
+
+        return null;
+    }
+
     fn propPdf(
         self: Light,
         ray: Ray,
@@ -384,11 +428,20 @@ pub const Light = struct {
         trafo: Transformation,
         worker: Worker,
     ) f32 {
-        return isec.shape(worker).volumePdf(
-            ray,
-            isec.geo,
-            trafo,
-            self.extent,
-        );
+        return isec.shape(worker).volumePdf(ray, isec.geo, trafo, self.extent);
+    }
+
+    fn volumeImagePdf(
+        self: Light,
+        ray: Ray,
+        isec: Intersection,
+        trafo: Transformation,
+        worker: Worker,
+    ) f32 {
+        const material_pdf = isec.material(worker).emissionPdf(isec.geo.p);
+
+        const shape_pdf = isec.shape(worker).volumePdf(ray, isec.geo, trafo, self.extent);
+
+        return material_pdf * shape_pdf;
     }
 };

@@ -17,6 +17,7 @@ const Transformation = @import("../composed_transformation.zig").ComposedTransfo
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const ts = @import("../../image/texture/sampler.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -247,6 +248,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.radianceSample(r3),
             .Sky => |m| m.radianceSample(r3),
+            .Volumetric => |m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
         };
     }
@@ -255,6 +257,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
             .Sky => |m| m.emissionPdf(.{ uvw[0], uvw[1] }),
+            .Volumetric => |m| m.emissionPdf(uvw),
             else => 1.0,
         };
     }

@@ -370,7 +370,9 @@ pub const Scene = struct {
             }
 
             if (mat.scatteringVolume()) {
-                if (shape_inst.analytical() and mat.emissionMapped()) {} else {
+                if (shape_inst.analytical() and mat.emissionMapped()) {
+                    try self.allocateLight(alloc, .VolumeImage, false, entity, i);
+                } else {
                     try self.allocateLight(alloc, .Volume, false, entity, i);
                 }
             } else {
