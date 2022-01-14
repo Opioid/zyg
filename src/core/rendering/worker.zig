@@ -219,7 +219,7 @@ pub const Worker = struct {
 
                             //const variance = new_s / @intToFloat(f32, s);
                             const variance = new_s * new_m[3];
-                            const coeff = @sqrt(variance) / mam;
+                            const coeff = @sqrt(variance) / @maximum(mam, 0.02);
 
                             if (coeff <= target_cv) {
                                 break;
