@@ -78,8 +78,8 @@ pub fn build(b: *std.build.Builder) void {
             //"--debug-mat",
             "-f",
             "64",
-            "-n",
-            "4",
+            // "-n",
+            // "4",
         });
     }
 

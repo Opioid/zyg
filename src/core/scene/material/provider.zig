@@ -366,9 +366,7 @@ pub const Provider = struct {
     }
 
     fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
-        _ = self;
-
-        var sampler_key = ts.Key{};
+        var sampler_key = ts.Key{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } };
 
         var density = Texture{};
         var temperature = Texture{};
