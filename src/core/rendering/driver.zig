@@ -175,9 +175,6 @@ pub const Driver = struct {
     pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
-        _ = self;
-        //self.view.camera.sensor.resolve(&self.target);
-
         for (exporters) |*e| {
             try e.write(alloc, self.target, frame, self.threads);
         }
