@@ -77,9 +77,9 @@ pub fn build(b: *std.build.Builder) void {
             //"--no-tex-dwim",
             //"--debug-mat",
             "-f",
-            "64",
-            // "-n",
-            // "4",
+            "0",
+            "-n",
+            "16",
         });
     }
 
