@@ -1,6 +1,7 @@
 const Scene = @import("../../scene/scene.zig").Scene;
 const Texture = @import("texture.zig").Texture;
 pub const AddressMode = @import("address_mode.zig").Mode;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;

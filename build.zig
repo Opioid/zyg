@@ -71,16 +71,17 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/candle.take",
             //"takes/disney_cloud.take",
             //"takes/sky.take",
-            "takes/rene.take",
+            //"takes/rene.take",
+            "takes/embergen.take",
             "-t",
             "-4",
             //"--no-tex",
             //"--no-tex-dwim",
             //"--debug-mat",
-            //"-f",
-            //"67",
-            // "-n",
-            // "1",
+            "-f",
+            "0",
+            "-n",
+            "16",
         });
     }
 
