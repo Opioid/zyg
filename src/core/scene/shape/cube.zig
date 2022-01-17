@@ -101,7 +101,7 @@ pub const Cube = struct {
         return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), r3, sl / volume, t);
     }
 
-    pub fn sampleVolumeToUv(
+    pub fn sampleVolumeToUvw(
         p: Vec4f,
         uvw: Vec4f,
         trafo: Transformation,
@@ -115,6 +115,27 @@ pub const Cube = struct {
         const t = @sqrt(sl);
 
         return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), uvw, sl / volume, t);
+    }
+
+    pub fn sampleVolumeFromUvw(
+        uvw: Vec4f,
+        trafo: Transformation,
+        volume: f32,
+        importance_uv: Vec2f,
+    ) SampleFrom {
+        const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
+        const wp = trafo.objectToWorldPoint(xyz);
+
+        const dir = math.smpl.sphereUniform(importance_uv);
+
+        return SampleFrom.init(
+            wp,
+            @splat(4, @as(f32, 0.0)),
+            dir,
+            uvw,
+            importance_uv,
+            1.0 / (4.0 * std.math.pi * volume),
+        );
     }
 
     pub fn volumePdf(ray: Ray, volume: f32) f32 {

@@ -51,6 +51,13 @@ pub const Light = struct {
         return scene.propShape(self.prop).finite();
     }
 
+    pub fn volumetric(self: Light) bool {
+        return switch (self.typef) {
+            .Volume, .VolumeImage => true,
+            else => false,
+        };
+    }
+
     pub fn prepareSampling(
         self: Light,
         alloc: Allocator,
@@ -157,6 +164,12 @@ pub const Light = struct {
                 bounds,
                 worker,
             ),
+            .VolumeImage => self.volumeImageSampleFrom(
+                trafo,
+                sampler,
+                sampler_d,
+                worker,
+            ),
             else => null,
         };
     }
@@ -170,9 +183,7 @@ pub const Light = struct {
     pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, worker: Worker) Vec4f {
         const material = worker.scene.propMaterial(self.prop, self.part);
 
-        const uvw = Vec4f{ sample.uv[0], sample.uv[1], 0.0, 0.0 };
-
-        return material.evaluateRadiance(-sample.dir, sample.n, uvw, self.extent, filter, worker);
+        return material.evaluateRadiance(-sample.dir, sample.n, sample.uvw, self.extent, filter, worker);
     }
 
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, worker: Worker) f32 {
@@ -369,7 +380,7 @@ pub const Light = struct {
         }
 
         const shape = worker.scene.propShape(self.prop);
-        var result = shape.sampleVolumeToUv(
+        var result = shape.sampleVolumeToUvw(
             self.part,
             p,
             rs.uvw,
@@ -383,6 +394,39 @@ pub const Light = struct {
         }
 
         return null;
+    }
+
+    fn volumeImageSampleFrom(
+        self: Light,
+        trafo: Transformation,
+        sampler: *Sampler,
+        sampler_d: usize,
+        worker: *Worker,
+    ) ?SampleFrom {
+        const s2d = sampler.sample2D(&worker.rng, sampler_d);
+        const s1d = sampler.sample1D(&worker.rng, sampler_d);
+
+        const material = worker.scene.propMaterial(self.prop, self.part);
+        const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return null;
+        }
+
+        const importance_uv = sampler.sample2D(&worker.rng, 0);
+
+        const shape = worker.scene.propShape(self.prop);
+
+        var result = shape.sampleVolumeFromUvw(
+            self.part,
+            rs.uvw,
+            trafo,
+            self.extent,
+            importance_uv,
+        ) orelse return null;
+
+        result.mulAssignPdf(rs.pdf());
+
+        return result;
     }
 
     fn propPdf(
