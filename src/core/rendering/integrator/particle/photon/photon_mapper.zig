@@ -99,8 +99,6 @@ pub const Mapper = struct {
 
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
-            worker.super.interface_stack.clear();
-
             var filter: ?Filter = null;
 
             var caustic_path = false;
@@ -116,14 +114,29 @@ pub const Mapper = struct {
                 &light_sample,
             ) orelse continue;
 
+            const light = worker.super.scene.light(light_id);
+
+            worker.super.interface_stack.clear();
+            if (light.volumetric()) {
+                worker.super.interface_stack.pushVolumeLight(light);
+            }
+
+            var throughput = @splat(4, @as(f32, 1.0));
+
             var isec = Intersection{};
-            if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
+            if (!worker.super.interface_stack.empty()) {
+                const vr = worker.volume(&ray, &isec, null);
+                throughput = vr.tr;
+
+                if (.Abort == vr.event or .Absorb == vr.event) {
+                    continue;
+                }
+            } else if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
                 continue;
             }
 
-            const light = worker.super.scene.light(light_id);
-
             var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+            radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
 
