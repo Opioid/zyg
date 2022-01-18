@@ -15,17 +15,27 @@ pub fn build(b: *std.build.Builder) void {
     // base.setTarget(target);
     // base.setBuildMode(mode);
 
-    const zyg = b.addExecutable("zyg", "src/cli/main.zig");
+    const cli = b.addExecutable("zyg", "src/cli/main.zig");
+    const capi = b.addSharedLibrary("zyg", "src/capi/capi.zig", .{ .unversioned = {} });
 
-    zyg.addIncludeDir("thirdparty/include");
+    cli.addIncludeDir("thirdparty/include");
+    capi.addIncludeDir("thirdparty/include");
 
     const cflags = [_][]const u8{
         "-std=c99",
         "-Wall",
         "-fno-sanitize=undefined",
     };
-    zyg.addCSourceFile("thirdparty/include/miniz/miniz.c", &cflags);
-    zyg.addCSourceFile("thirdparty/include/arpraguesky/ArPragueSkyModelGround.c", &cflags);
+
+    const csources = [_][]const u8{
+        "thirdparty/include/miniz/miniz.c",
+        "thirdparty/include/arpraguesky/ArPragueSkyModelGround.c",
+    };
+
+    for (csources) |source| {
+        cli.addCSourceFile(source, &cflags);
+        capi.addCSourceFile(source, &cflags);
+    }
 
     const base = std.build.Pkg{
         .name = "base",
@@ -40,19 +50,30 @@ pub fn build(b: *std.build.Builder) void {
         },
     };
 
-    zyg.addPackage(base);
-    zyg.addPackage(core);
+    cli.addPackage(base);
+    cli.addPackage(core);
 
-    zyg.setTarget(target);
-    zyg.setBuildMode(mode);
-    zyg.linkLibC();
+    cli.setTarget(target);
+    cli.setBuildMode(mode);
+    cli.linkLibC();
 
-    // zyg.sanitize_thread = true;
-    // zyg.strip = true;
+    // cli.sanitize_thread = true;
+    // cli.strip = true;
 
-    zyg.install();
+    cli.install();
 
-    const run_cmd = zyg.run();
+    capi.addPackage(base);
+    capi.addPackage(core);
+
+    capi.setTarget(target);
+    capi.setBuildMode(mode);
+    capi.linkLibC();
+
+    capi.strip = true;
+
+    capi.install();
+
+    const run_cmd = cli.run();
     run_cmd.step.dependOn(b.getInstallStep());
     run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
@@ -79,7 +100,7 @@ pub fn build(b: *std.build.Builder) void {
             "-f",
             "0",
             "-n",
-            "16",
+            "130",
         });
     }
 
