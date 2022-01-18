@@ -497,7 +497,7 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShapeRef(entity);
+        var shape_inst = self.propShapePtr(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -547,7 +547,7 @@ pub const Scene = struct {
         return self.shapes.items[self.props.items[entity].shape];
     }
 
-    pub fn propShapeRef(self: Scene, entity: usize) *Shape {
+    pub fn propShapePtr(self: Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
@@ -556,7 +556,7 @@ pub const Scene = struct {
         return self.materials.items[self.material_ids.items[p]];
     }
 
-    pub fn propMaterialRef(self: Scene, entity: usize, part: u32) *Material {
+    pub fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
@@ -574,7 +574,7 @@ pub const Scene = struct {
         return self.images.items[image_id];
     }
 
-    pub fn imageRef(self: Scene, image_id: u32) *Image {
+    pub fn imagePtr(self: Scene, image_id: u32) *Image {
         return &self.images.items[image_id];
     }
 
@@ -582,7 +582,7 @@ pub const Scene = struct {
         return self.materials.items[material_id];
     }
 
-    pub fn materialRef(self: Scene, material_id: u32) *Material {
+    pub fn materialPtr(self: Scene, material_id: u32) *Material {
         return &self.materials.items[material_id];
     }
 

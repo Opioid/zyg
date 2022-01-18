@@ -106,12 +106,12 @@ pub const Sky = struct {
         };
         defer model.deinit();
 
-        scene.propMaterialRef(self.sun, 0).Sky.setSunRadiance(model);
+        scene.propMaterialPtr(self.sun, 0).Sky.setSunRadiance(model);
 
         var context = SkyContext{
             .model = &model,
-            .shape = scene.propShapeRef(self.sky),
-            .image = scene.imageRef(self.sky_image),
+            .shape = scene.propShapePtr(self.sky),
+            .image = scene.imagePtr(self.sky_image),
             .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
         };
 
