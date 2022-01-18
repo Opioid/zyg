@@ -1,3 +1,4 @@
+const log = @import("../log/log.zig");
 const Model = @import("model.zig").Model;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
@@ -101,7 +102,7 @@ pub const Sky = struct {
         }
 
         var model = Model.init(alloc, self.sunDirection(), self.visibility) catch {
-            std.debug.print("Could not initialize sky model\n", .{});
+            log.err("Could not initialize sky model", .{});
             return;
         };
         defer model.deinit();

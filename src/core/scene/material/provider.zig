@@ -1,3 +1,4 @@
+const log = @import("../../log/log.zig");
 const mat = @import("material.zig");
 const Material = mat.Material;
 const metal = @import("metal_presets.zig");
@@ -590,7 +591,7 @@ fn createTexture(
         }
 
         return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch |e| {
-            std.debug.print("Could not load texture \"{s}\": {}\n", .{ filename, e });
+            log.err("Could not load texture \"{s}\": {}", .{ filename, e });
             return .{};
         };
     }

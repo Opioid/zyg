@@ -530,8 +530,6 @@ pub const Scene = struct {
             const cone = shape_inst.cone(part);
             const tc = trafo.objectToWorldNormal(cone);
             self.light_cones.items[light_id] = Vec4f{ tc[0], tc[1], tc[2], cone[3] };
-
-            //   std.debug.print("{}\n", .{self.light_cones.items[light_id]});
         } else {}
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
