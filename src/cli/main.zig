@@ -1,4 +1,4 @@
-const Options = @import("options/options.zig").Options;
+const Options = @import("options.zig").Options;
 
 const core = @import("core");
 const log = core.log;
