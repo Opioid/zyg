@@ -12,6 +12,10 @@ pub fn queryType(stream: *ReadStream) Type {
 
     stream.seekTo(0) catch {};
 
+    if (std.mem.startsWith(u8, &header, "\x76\x2F\x31\x01")) {
+        return .EXR;
+    }
+
     if (std.mem.startsWith(u8, &header, "\x1f\x8b")) {
         return .GZIP;
     }
