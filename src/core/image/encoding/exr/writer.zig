@@ -16,10 +16,8 @@ const mz = @cImport({
 });
 
 pub const Writer = struct {
-    half: bool = true,
+    half: bool,
     alpha: bool,
-
-    //  const Stream = std.io.CountingWriter(std.fs.File.Writer).Writer;
 
     const Self = @This();
 
