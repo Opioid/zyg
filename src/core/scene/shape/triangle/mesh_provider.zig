@@ -1,3 +1,4 @@
+const log = @import("../../../log.zig");
 const Mesh = @import("mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
@@ -103,7 +104,7 @@ pub const Provider = struct {
 
             if (file.Type.SUB == file.queryType(&stream)) {
                 return self.loadBinary(alloc, &stream, resources) catch |e| {
-                    std.debug.print("Loading mesh \"{s}\": {}\n", .{ name, e });
+                    log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
                 };
             }
@@ -115,7 +116,7 @@ pub const Provider = struct {
             defer parser.deinit();
 
             var document = parser.parse(buffer) catch |e| {
-                std.debug.print("Loading mesh \"{s}\": {}\n", .{ name, e });
+                log.err("Loading mesh \"{s}\": {}", .{ name, e });
                 return e;
             };
             defer document.deinit();
@@ -444,7 +445,7 @@ pub const Provider = struct {
         var vertices: vs.VertexStream = undefined;
 
         if (interleaved_vertex_stream) {
-            std.debug.print("interleaved\n", .{});
+            log.err("interleaved", .{});
         } else {
             var positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));

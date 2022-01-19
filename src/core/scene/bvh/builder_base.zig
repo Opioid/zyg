@@ -1,3 +1,4 @@
+const log = @import("../../log.zig");
 const Node = @import("node.zig").Node;
 const spc = @import("split_candidate.zig");
 const SplitCandidate = spc.SplitCandidate;
@@ -126,7 +127,7 @@ const Kernel = struct {
                 if (num_primitives <= 0xFF) {
                     try self.assign(alloc, node, references);
                 } else {
-                    std.debug.print("Cannot split node further \n", .{});
+                    log.err("Cannot split node further", .{});
                 }
             }
         }
@@ -316,8 +317,6 @@ pub const Base = struct {
             try std.math.powi(u32, 2, self.settings.parallel_build_depth),
             @intCast(u32, references.len / Parallelize_threshold),
         );
-
-        //  std.debug.print("num_tasks: {}", .{num_tasks});
 
         var tasks: Tasks = if (num_tasks > 0) try Tasks.initCapacity(alloc, num_tasks) else .{};
         defer {

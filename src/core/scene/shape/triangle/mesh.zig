@@ -141,7 +141,7 @@ pub const Part = struct {
             self.cones = cones;
         }
 
-        const m = worker.scene.materialRef(material);
+        const m = worker.scene.materialPtr(material);
 
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
@@ -599,7 +599,14 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
-        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, tc, importance_uv, s.pdf / (std.math.pi * extent));
+        return SampleFrom.init(
+            ro.offsetRay(ws, wn),
+            wn,
+            dir,
+            .{ tc[0], tc[1], 0.0, 0.0 },
+            importance_uv,
+            s.pdf / (std.math.pi * extent),
+        );
     }
 
     pub fn pdf(

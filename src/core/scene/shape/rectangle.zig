@@ -211,7 +211,7 @@ pub const Rectangle = struct {
             ro.offsetRay(ws, wn),
             wn,
             dir,
-            uv,
+            .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             1.0 / (std.math.pi * area),
         );

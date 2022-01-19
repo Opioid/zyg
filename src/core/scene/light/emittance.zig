@@ -48,8 +48,6 @@ pub const Emittance = struct {
 
     pub fn radiance(self: Emittance, area: f32) Vec4f {
         if (self.quantity == .Intensity) {
-            //  std.debug.print("value {} area {} \n", .{ self.value, area });
-
             return self.value / @splat(4, area);
         }
 

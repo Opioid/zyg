@@ -174,8 +174,7 @@ pub const GzipReadStream = struct {
 
     pub fn seekBy(self: *Self, count: u64) SeekError!void {
         const cur = self.z_stream.total_out - self.buffer_count;
-
-        return try self.stream.seekBy(cur + count);
+        try self.stream.seekTo(cur + count);
     }
 
     fn initZstream(self: *Self) !void {

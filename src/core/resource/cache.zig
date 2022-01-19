@@ -1,3 +1,4 @@
+const log = @import("../log.zig");
 const Resources = @import("manager.zig").Manager;
 const Filesystem = @import("../file/system.zig").System;
 const Variants = @import("base").memory.VariantMap;
@@ -127,7 +128,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
                 if (Filesystem.frameDependantName(filename)) {
                     const item = self.provider.loadFile(alloc, filename, entry.key_ptr.options, resources) catch |e| {
-                        std.debug.print("Cannot re-load file \"{s}\": {}\n", .{ filename, e });
+                        log.err("Cannot re-load file \"{s}\": {}", .{ filename, e });
                         return e;
                     };
 
@@ -154,7 +155,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             const item = self.provider.loadFile(alloc, name, options, resources) catch |e| {
-                std.debug.print("Cannot load file \"{s}\": {}\n", .{ name, e });
+                log.err("Could not load file \"{s}\": {}", .{ name, e });
                 return e;
             };
 

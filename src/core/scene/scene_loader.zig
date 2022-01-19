@@ -1,3 +1,4 @@
+const log = @import("../log.zig");
 pub const Scene = @import("scene.zig").Scene;
 pub const Prop = @import("prop/prop.zig").Prop;
 const resource = @import("../resource/manager.zig");
@@ -410,7 +411,7 @@ pub const Loader = struct {
 
         // Lastly, try loading the material from the filesystem.
         const material = self.resources.loadFile(Material, alloc, name, .{}) catch {
-            std.debug.print("Using fallback for material \"{s}\"\n", .{name});
+            log.warning("Using fallback for material \"{s}\"", .{name});
             return self.fallback_material;
         };
 

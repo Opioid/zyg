@@ -106,18 +106,37 @@ pub const Lighttracer = struct {
             &light_sample,
         ) orelse return;
 
+        const light = worker.super.scene.light(light_id);
+        const volumetric = light.volumetric();
+
+        worker.super.interface_stack.clear();
+        if (volumetric) {
+            worker.super.interface_stack.pushVolumeLight(light);
+        }
+
+        var throughput = @splat(4, @as(f32, 1.0));
+
         var isec = Intersection{};
-        if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
+        if (!worker.super.interface_stack.empty()) {
+            const vr = worker.volume(&ray, &isec, null);
+            throughput = vr.tr;
+
+            if (.Abort == vr.event or .Absorb == vr.event) {
+                return;
+            }
+        } else if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
             return;
         }
 
-        const light = worker.super.scene.light(light_id);
-
-        const radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+        const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
             worker.super.interface_stack.clear();
+            if (volumetric) {
+                worker.super.interface_stack.pushVolumeLight(light);
+            }
 
             var split_ray = ray;
             var split_isec = isec;

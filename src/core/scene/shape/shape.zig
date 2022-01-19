@@ -315,7 +315,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleVolumeToUv(
+    pub fn sampleVolumeToUvw(
         self: Shape,
         part: u32,
         p: Vec4f,
@@ -326,7 +326,7 @@ pub const Shape = union(enum) {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeToUv(p, uvw, trafo, extent),
+            .Cube => Cube.sampleVolumeToUvw(p, uvw, trafo, extent),
             else => null,
         };
     }
@@ -349,6 +349,22 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy => Canopy.sampleFromUv(uv, trafo, importance_uv, bounds),
             .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            else => null,
+        };
+    }
+
+    pub fn sampleVolumeFromUvw(
+        self: Shape,
+        part: u32,
+        uvw: Vec4f,
+        trafo: Transformation,
+        extent: f32,
+        importance_uv: Vec2f,
+    ) ?SampleFrom {
+        _ = part;
+
+        return switch (self) {
+            .Cube => Cube.sampleVolumeFromUvw(uvw, trafo, extent, importance_uv),
             else => null,
         };
     }

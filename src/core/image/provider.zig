@@ -2,6 +2,7 @@ const file = @import("../file/file.zig");
 const img = @import("image.zig");
 const Swizzle = img.Swizzle;
 const Image = img.Image;
+const ExrReader = @import("encoding/exr/reader.zig").Reader;
 const PngReader = @import("encoding/png/reader.zig").Reader;
 const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
 const SubReader = @import("encoding/sub/reader.zig").Reader;
@@ -53,6 +54,11 @@ pub const Provider = struct {
         std.mem.copy(u8, self.previous_name, resolved_name);
 
         const file_type = file.queryType(&stream);
+
+        if (.EXR == file_type) {
+            const color = options.queryOrDef("color", false);
+            return ExrReader.read(alloc, &stream, color);
+        }
 
         if (.PNG == file_type) {
             const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
