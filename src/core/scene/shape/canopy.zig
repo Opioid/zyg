@@ -124,7 +124,7 @@ pub const Canopy = struct {
             p,
             @splat(4, @as(f32, 0.0)),
             ws,
-            uv,
+            .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             1.0 / ((2.0 * std.math.pi) * (1.0 * std.math.pi) * bounds_radius2),
         );

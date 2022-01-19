@@ -3,6 +3,7 @@ const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
 const Vec3i = v3.Vec3i;
 const Pack3b = v3.Pack3b;
+const Pack3h = v3.Pack3h;
 const Pack3f = v3.Pack3f;
 
 const std = @import("std");
@@ -104,8 +105,8 @@ pub fn Vec4(comptime T: type) type {
             return init4(v.v[0] * is, v.v[1] * is, v.v[2] * is, v.v[3] * is);
         }
 
-        pub fn equals3(a: Vec4(T), b: Vec4(T)) bool {
-            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2];
+        pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
+            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
         }
 
         pub fn min3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
@@ -135,6 +136,7 @@ pub fn Vec4(comptime T: type) type {
 }
 
 pub const Vec4b = std.meta.Vector(4, u8);
+pub const Pack4i = Vec4(i32);
 pub const Vec4i = std.meta.Vector(4, i32);
 pub const Pack4f = Vec4(f32);
 pub const Vec4f = std.meta.Vector(4, f32);
@@ -379,6 +381,14 @@ pub fn vec4fTo3b(v: Vec4f) Pack3b {
     );
 }
 
+pub fn vec4fTo3h(v: Vec4f) Pack3h {
+    return Pack3h.init3(
+        @floatCast(f16, v[0]),
+        @floatCast(f16, v[1]),
+        @floatCast(f16, v[2]),
+    );
+}
+
 pub fn vec4fTo4b(v: Vec4f) Vec4b {
     return .{
         @floatToInt(u8, v[0]),
@@ -393,6 +403,15 @@ pub fn vec3iTo4f(v: Vec3i) Vec4f {
         @intToFloat(f32, v.v[0]),
         @intToFloat(f32, v.v[1]),
         @intToFloat(f32, v.v[2]),
+        0.0,
+    };
+}
+
+pub fn vec3hTo4f(v: Pack3h) Vec4f {
+    return .{
+        @floatCast(f32, v.v[0]),
+        @floatCast(f32, v.v[1]),
+        @floatCast(f32, v.v[2]),
         0.0,
     };
 }

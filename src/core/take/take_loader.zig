@@ -592,8 +592,9 @@ fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Export
             const alpha = view.camera.sensor.alphaTransparency();
 
             if (std.mem.eql(u8, "EXR", format)) {
+                const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
                 try exporters.append(alloc, .{ .ImageSequence = .{
-                    .writer = .{ .EXR = .{ .alpha = alpha } },
+                    .writer = .{ .EXR = .{ .half = 16 == bitdepth, .alpha = alpha } },
                 } });
             } else if (std.mem.eql(u8, "RGBE", format)) {
                 try exporters.append(alloc, .{ .ImageSequence = .{

@@ -50,6 +50,13 @@ pub const ReadStream = union(enum) {
         };
     }
 
+    pub fn readUntilDelimiterAlloc(self: Self, alloc: Allocator, delimiter: u8) ![]u8 {
+        return switch (self) {
+            .File => |s| try s.reader.reader().readUntilDelimiterAlloc(alloc, delimiter, 256),
+            .Gzip => |s| try s.reader().readUntilDelimiterAlloc(alloc, delimiter, 256),
+        };
+    }
+
     pub fn skipUntilDelimiter(self: Self, delimiter: u8) !void {
         return switch (self) {
             .File => |s| try s.reader.reader().skipUntilDelimiterOrEof(delimiter),

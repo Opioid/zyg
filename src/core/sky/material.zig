@@ -122,7 +122,7 @@ pub const Material = struct {
 
             var context = Context{
                 .shape = &shape,
-                .image = scene.imageRef(self.emission_map.image),
+                .image = scene.imagePtr(self.emission_map.image),
                 .dimensions = .{ d.v[0], d.v[1] },
                 .conditional = self.distribution.allocate(alloc, height) catch
                     return @splat(4, @as(f32, 0.0)),

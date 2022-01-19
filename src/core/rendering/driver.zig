@@ -1,3 +1,4 @@
+const log = @import("../log.zig");
 const View = @import("../take/take.zig").View;
 const Sink = @import("../exporting/sink.zig").Sink;
 const Scene = @import("../scene/scene.zig").Scene;
@@ -7,7 +8,7 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const progress = @import("../progress/std_out.zig");
+const progress = @import("../progress.zig");
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 
 const base = @import("base");
@@ -132,7 +133,7 @@ pub const Driver = struct {
     }
 
     pub fn render(self: *Driver, alloc: Allocator, frame: u32) !void {
-        std.debug.print("Frame {}\n", .{frame});
+        log.info("Frame {}", .{frame});
 
         const render_start = std.time.milliTimestamp();
 
@@ -151,13 +152,13 @@ pub const Driver = struct {
 
         camera.update(start, &self.workers[0].super);
 
-        std.debug.print("Preparation time {d:.3} s\n", .{chrono.secondsSince(render_start)});
+        log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
         self.bakePhotons(alloc, frame);
         self.renderFrameBackward(frame);
         self.renderFrameForward(frame);
 
-        std.debug.print("Render time {d:.3} s\n", .{chrono.secondsSince(render_start)});
+        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
 
         const pp_start = std.time.milliTimestamp();
 
@@ -169,7 +170,7 @@ pub const Driver = struct {
 
         self.postprocess();
 
-        std.debug.print("Post-process time {d:.3} s\n", .{chrono.secondsSince(pp_start)});
+        log.info("Post-process time {d:.3} s", .{chrono.secondsSince(pp_start)});
     }
 
     pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
@@ -179,7 +180,7 @@ pub const Driver = struct {
             try e.write(alloc, self.target, frame, self.threads);
         }
 
-        std.debug.print("Export time {d:.3} s\n", .{chrono.secondsSince(start)});
+        log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
 
         const d = self.view.camera.sensorDimensions();
         var sensor = self.view.camera.sensor;
@@ -233,7 +234,7 @@ pub const Driver = struct {
             return;
         }
 
-        std.debug.print("Tracing light rays...\n", .{});
+        log.info("Tracing light rays...", .{});
 
         const start = std.time.milliTimestamp();
 
@@ -253,7 +254,7 @@ pub const Driver = struct {
             self.view.pipeline.seed(camera.sensor, &self.target, self.threads);
         }
 
-        std.debug.print("Light ray time {d:.3} s\n", .{chrono.secondsSince(start)});
+        log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
     fn renderTilesTrackVariance(context: Threads.Context, id: u32) void {
@@ -283,7 +284,7 @@ pub const Driver = struct {
             return;
         }
 
-        std.debug.print("Tracing camera rays...\n", .{});
+        log.info("Tracing camera rays...", .{});
         const start = std.time.milliTimestamp();
 
         var camera = &self.view.camera;
@@ -302,7 +303,7 @@ pub const Driver = struct {
         self.tiles.restart();
         self.threads.runParallel(self, renderTilesRemainder, 0);
 
-        std.debug.print("Camera ray time {d:.3} s\n", .{chrono.secondsSince(start)});
+        log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
     fn renderRanges(context: Threads.Context, id: u32) void {
@@ -322,7 +323,7 @@ pub const Driver = struct {
             return;
         }
 
-        std.debug.print("Baking photons...\n", .{});
+        log.info("Baking photons...", .{});
         const start = std.time.milliTimestamp();
 
         for (self.workers) |*w, i| {
@@ -350,7 +351,7 @@ pub const Driver = struct {
             }
 
             if (0 == num_paths) {
-                std.debug.print("No photons\n", .{});
+                log.info("No photons", .{});
                 break;
             }
 
@@ -372,7 +373,7 @@ pub const Driver = struct {
 
         self.photon_map.compileFinalize();
 
-        std.debug.print("Photon time {d:.3} s\n", .{chrono.secondsSince(start)});
+        log.info("Photon time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {

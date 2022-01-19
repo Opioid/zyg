@@ -25,6 +25,11 @@ pub const Provider = struct {
     ) !Texture {
         const usage = options.queryOrDef("usage", Usage.Color);
 
+        const color = switch (usage) {
+            .Color, .Emission => true,
+            else => false,
+        };
+
         var swizzle = options.query(img.Swizzle, "swizzle");
         if (null == swizzle) {
             swizzle = switch (usage) {
@@ -37,6 +42,10 @@ pub const Provider = struct {
 
         var image_options = try options.cloneExcept(alloc, "usage");
         defer image_options.deinit(alloc);
+
+        if (color) {
+            try image_options.set(alloc, "color", true);
+        }
 
         try image_options.set(alloc, "swizzle", swizzle.?);
 

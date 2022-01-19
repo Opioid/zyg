@@ -32,15 +32,15 @@ pub const From = struct {
     p: Vec4f,
     n: Vec4f,
     dir: Vec4f,
-    uv: Vec2f,
+    uvw: Vec4f,
     xy: Vec2f,
 
-    pub fn init(p: Vec4f, n: Vec4f, dir: Vec4f, uv: Vec2f, xy: Vec2f, pdf_: f32) From {
+    pub fn init(p: Vec4f, n: Vec4f, dir: Vec4f, uvw: Vec4f, xy: Vec2f, pdf_: f32) From {
         return .{
             .p = .{ p[0], p[1], p[2], pdf_ },
             .n = n,
             .dir = dir,
-            .uv = uv,
+            .uvw = uvw,
             .xy = xy,
         };
     }

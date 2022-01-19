@@ -1,6 +1,8 @@
 const Intersection = @import("intersection.zig").Intersection;
 const Worker = @import("../worker.zig").Worker;
+const Light = @import("../light/light.zig").Light;
 const Material = @import("../material/material.zig").Material;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 
@@ -106,6 +108,13 @@ pub const Stack = struct {
     pub fn push(self: *Stack, isec: Intersection) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
+            self.index += 1;
+        }
+    }
+
+    pub fn pushVolumeLight(self: *Stack, light: Light) void {
+        if (self.index < Num_entries - 1) {
+            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .uv = .{ 0.0, 0.0 } };
             self.index += 1;
         }
     }

@@ -10,6 +10,13 @@ pub const Channel = struct {
     name: []const u8,
 
     typef: Type,
+
+    pub fn byteSize(self: Channel) u32 {
+        return switch (self.typef) {
+            .Half => 2,
+            else => 4,
+        };
+    }
 };
 
 pub const Compression = enum(u8) {
