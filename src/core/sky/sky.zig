@@ -1,4 +1,4 @@
-const log = @import("../log/log.zig");
+const log = @import("../log.zig");
 const Model = @import("model.zig").Model;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;

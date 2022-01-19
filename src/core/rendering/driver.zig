@@ -1,4 +1,4 @@
-const log = @import("../log/log.zig");
+const log = @import("../log.zig");
 const View = @import("../take/take.zig").View;
 const Sink = @import("../exporting/sink.zig").Sink;
 const Scene = @import("../scene/scene.zig").Scene;
@@ -8,7 +8,7 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const progress = @import("../progress/std_out.zig");
+const progress = @import("../progress.zig");
 
 const base = @import("base");
 const chrono = base.chrono;

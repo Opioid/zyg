@@ -1,4 +1,4 @@
-const log = @import("../log/log.zig");
+const log = @import("../log.zig");
 const Resources = @import("manager.zig").Manager;
 const Filesystem = @import("../file/system.zig").System;
 const Variants = @import("base").memory.VariantMap;

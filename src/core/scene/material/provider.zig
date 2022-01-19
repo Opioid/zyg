@@ -1,4 +1,4 @@
-const log = @import("../../log/log.zig");
+const log = @import("../../log.zig");
 const mat = @import("material.zig");
 const Material = mat.Material;
 const metal = @import("metal_presets.zig");

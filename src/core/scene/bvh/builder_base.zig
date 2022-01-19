@@ -1,4 +1,4 @@
-const log = @import("../../log/log.zig");
+const log = @import("../../log.zig");
 const Node = @import("node.zig").Node;
 const spc = @import("split_candidate.zig");
 const SplitCandidate = spc.SplitCandidate;

@@ -1,4 +1,4 @@
-const log = @import("../log/log.zig");
+const log = @import("../log.zig");
 pub const Scene = @import("scene.zig").Scene;
 pub const Prop = @import("prop/prop.zig").Prop;
 const resource = @import("../resource/manager.zig");

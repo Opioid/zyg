@@ -1,4 +1,4 @@
-const log = @import("../../../log/log.zig");
+const log = @import("../../../log.zig");
 const Mesh = @import("mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
