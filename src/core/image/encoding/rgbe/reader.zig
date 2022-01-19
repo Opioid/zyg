@@ -1,6 +1,7 @@
 const img = @import("../../image.zig");
 const Image = img.Image;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
@@ -27,9 +28,6 @@ pub const Reader = struct {
     };
 
     pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
-        _ = alloc;
-        _ = stream;
-
         const header = try readHeader(stream);
 
         const dimensions = Vec2i{ @intCast(i32, header.width), @intCast(i32, header.height) };
@@ -60,7 +58,7 @@ pub const Reader = struct {
                 break;
             }
 
-            if (!std.mem.startsWith(u8, line, "FORMAT=32-bit_rle_rgbe")) {
+            if (std.mem.eql(u8, line, "FORMAT=32-bit_rle_rgbe")) {
                 format_specifier = true;
             }
         }

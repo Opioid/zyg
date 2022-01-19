@@ -155,7 +155,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             const item = self.provider.loadFile(alloc, name, options, resources) catch |e| {
-                log.err("Cannot load file \"{s}\": {}", .{ name, e });
+                log.err("Could not load file \"{s}\": {}", .{ name, e });
                 return e;
             };
 

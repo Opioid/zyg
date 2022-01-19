@@ -126,7 +126,7 @@ pub fn main() !void {
         try driver.exportFrame(alloc, i, take.exporters.items);
     }
 
-    log.info("Total render time {d:.2} s\n", .{chrono.secondsSince(rendering_start)});
+    log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
 }
 
 fn reloadFrameDependant(
