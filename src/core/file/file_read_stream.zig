@@ -21,20 +21,27 @@ pub const FileReadStream = struct {
     }
 
     pub fn seekTo(self: *Self, pos: u64) !void {
-        // // This won't work, befause Fifo.discard() overwrites the buffer content!
-        // const buffer_len = self.reader.fifo.head + self.reader.fifo.count;
-        // const buffer_start = (try self.seeker.getPos()) - buffer_len;
-        // const buffer_offset = @intCast(i64, pos) - @intCast(i64, buffer_start);
+        const buffer_len = self.reader.fifo.head + self.reader.fifo.count;
+        const buffer_start = (try self.seeker.getPos()) - buffer_len;
+        const buffer_offset = @intCast(i64, pos) - @intCast(i64, buffer_start);
 
-        // if (buffer_offset >= 0 and buffer_offset < buffer_len) {
-        //     const d = @intCast(i64, self.reader.fifo.head) - buffer_offset;
-        //     self.reader.fifo.head = @intCast(usize, buffer_offset);
-        //     self.reader.fifo.count = @intCast(usize, @intCast(i64, self.reader.fifo.count) + d);
-        // } else {
-        self.reader.fifo.head = 0;
-        self.reader.fifo.count = 0;
-        try self.seeker.seekTo(pos);
-        // }
+        if (buffer_offset >= 0 and buffer_offset < buffer_len) {
+            if (buffer_offset < self.reader.fifo.head) {
+                // This special case is needed, befause Fifo.discard() overwrites the buffer content!
+                // Otherwise we could simply go back in the available buffer...
+                self.reader.fifo.head = 0;
+                self.reader.fifo.count = 0;
+                try self.seeker.seekTo(pos);
+            } else {
+                const d = @intCast(i64, self.reader.fifo.head) - buffer_offset;
+                self.reader.fifo.head = @intCast(usize, buffer_offset);
+                self.reader.fifo.count = @intCast(usize, @intCast(i64, self.reader.fifo.count) + d);
+            }
+        } else {
+            self.reader.fifo.head = 0;
+            self.reader.fifo.count = 0;
+            try self.seeker.seekTo(pos);
+        }
     }
 
     pub fn seekBy(self: *Self, count: u64) !void {
