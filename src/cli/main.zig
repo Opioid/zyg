@@ -16,6 +16,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
+    // core.size_test.testSize();
     // try core.ggx_integrate.integrate();
 
     log.info("Welcome to zyg!", .{});
