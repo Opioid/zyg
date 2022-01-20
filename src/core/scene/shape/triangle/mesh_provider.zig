@@ -310,6 +310,7 @@ pub const Provider = struct {
                     t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
                     t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
                     t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
+                    t.*.part = 0;
                 }
             }
         }

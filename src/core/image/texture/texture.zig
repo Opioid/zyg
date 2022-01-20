@@ -2,6 +2,7 @@ const Null = @import("../../resource/cache.zig").Null;
 const Description = @import("../typed_image.zig").Description;
 const Scene = @import("../../scene/scene.zig").Scene;
 const enc = @import("encoding.zig");
+
 const base = @import("base");
 const math = base.math;
 const spectrum = base.spectrum;

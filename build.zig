@@ -102,7 +102,7 @@ pub fn build(b: *std.build.Builder) void {
             "-f",
             "0",
             "-n",
-            "130",
+            "1",
         });
     }
 
