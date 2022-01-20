@@ -54,19 +54,14 @@ pub const Perspective = struct {
 
     focus: Focus = .{},
 
-    interface_stack: InterfaceStack,
+    interface_stack: InterfaceStack = undefined,
 
     frame_step: u64 = Default_frame_time,
     frame_duration: u64 = Default_frame_time,
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator) !Self {
-        return Perspective{ .interface_stack = try InterfaceStack.init(alloc) };
-    }
-
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        self.interface_stack.deinit(alloc);
         self.sensor.deinit(alloc);
     }
 

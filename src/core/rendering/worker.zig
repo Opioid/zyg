@@ -40,17 +40,12 @@ pub const Worker = struct {
 
     photon: Vec4f = undefined,
 
-    pub fn init(alloc: Allocator) !Worker {
-        return Worker{ .super = try SceneWorker.init(alloc) };
-    }
-
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
         self.lighttracer.deinit(alloc);
         self.volume_integrator.deinit(alloc);
         self.surface_integrator.deinit(alloc);
         self.sampler.deinit(alloc);
-        self.super.deinit(alloc);
     }
 
     pub fn configure(
@@ -204,7 +199,8 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        self.super.interface_stack_temp.copy(self.super.interface_stack);
+        var temp_stack: InterfaceStack = undefined;
+        temp_stack.copy(self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
@@ -249,7 +245,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.swap(&self.super.interface_stack_temp);
+        self.super.interface_stack.copy(temp_stack);
 
         return w;
     }

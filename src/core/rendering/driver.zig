@@ -56,9 +56,6 @@ pub const Driver = struct {
 
     pub fn init(alloc: Allocator, threads: *Threads) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
-        for (workers) |*w| {
-            w.* = try Worker.init(alloc);
-        }
 
         return Driver{
             .threads = threads,

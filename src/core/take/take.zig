@@ -65,11 +65,11 @@ pub const Take = struct {
 
     exporters: Exporters = .{},
 
-    pub fn init(alloc: Allocator) !Take {
+    pub fn init() Take {
         return Take{
             .scene_filename = &.{},
             .view = .{
-                .camera = try cam.Perspective.init(alloc),
+                .camera = cam.Perspective{},
                 .pipeline = .{},
             },
         };

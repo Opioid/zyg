@@ -26,30 +26,13 @@ pub const Interface = struct {
 pub const Stack = struct {
     const Num_entries = 16;
 
-    index: u32,
-    stack: [*]Interface,
-
-    pub fn init(alloc: Allocator) !Stack {
-        return Stack{
-            .index = 0,
-            .stack = (try alloc.alloc(Interface, Num_entries)).ptr,
-        };
-    }
-
-    pub fn deinit(self: *Stack, alloc: Allocator) void {
-        alloc.free(self.stack[0..Num_entries]);
-    }
+    index: u32 = 0,
+    stack: [Num_entries]Interface = undefined,
 
     pub fn copy(self: *Stack, other: Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
-    }
-
-    pub fn swap(self: *Stack, other: *Stack) void {
-        const temp = self.stack;
-        self.* = other.*;
-        other.stack = temp;
     }
 
     pub fn empty(self: Stack) bool {

@@ -47,7 +47,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
     var document = try parser.parse(buffer);
     defer document.deinit();
 
-    var take = try Take.init(alloc);
+    var take = Take.init();
 
     const root = document.root;
 

@@ -38,24 +38,11 @@ pub const Worker = struct {
 
     rng: RNG = undefined,
 
-    interface_stack: InterfaceStack,
-    interface_stack_temp: InterfaceStack,
+    interface_stack: InterfaceStack = undefined,
 
     node_stack: NodeStack = undefined,
 
     lights: Lights = undefined,
-
-    pub fn init(alloc: Allocator) !Worker {
-        return Worker{
-            .interface_stack = try InterfaceStack.init(alloc),
-            .interface_stack_temp = try InterfaceStack.init(alloc),
-        };
-    }
-
-    pub fn deinit(self: *Worker, alloc: Allocator) void {
-        self.interface_stack_temp.deinit(alloc);
-        self.interface_stack.deinit(alloc);
-    }
 
     pub fn configure(self: *Worker, camera: *cam.Perspective, scene: *Scene) void {
         self.camera = camera;
