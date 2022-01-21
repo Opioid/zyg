@@ -79,7 +79,7 @@ pub const Opaque = struct {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            target.set1D(@intCast(i32, i + begin), Pack4f.init4(color[0], color[1], color[2], 1.0));
+            target.pixels[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
         }
     }
 
@@ -87,11 +87,9 @@ pub const Opaque = struct {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            const ui = @intCast(i32, i + begin);
-
-            const old = target.get1D(ui);
-
-            target.set1D(ui, Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0));
+            const j = i + begin;
+            const old = target.pixels[j];
+            target.pixels[j] = Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0);
         }
     }
 };

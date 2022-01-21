@@ -285,7 +285,7 @@ pub const Writer = struct {
             while (y < end) : (y += 1) {
                 const num_rows_here = std.math.min(width - (y * self.rows_per_block), self.rows_per_block);
 
-                const pixel = @intCast(i32, y * self.rows_per_block * width);
+                const pixel = y * self.rows_per_block * width;
 
                 if (self.half) {
                     blockHalf(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
@@ -325,7 +325,7 @@ pub const Writer = struct {
             _ = mz.mz_deflateEnd(&zip);
         }
 
-        fn blockHalf(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: i32) void {
+        fn blockHalf(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
             const width = @intCast(u32, image.description.dimensions.v[0]);
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
@@ -336,7 +336,7 @@ pub const Writer = struct {
                 const o = row * width * num_channels;
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const c = image.get1D(current);
+                    const c = image.pixels[current];
 
                     if (4 == num_channels) {
                         halfs[o + width * 0 + x] = @floatCast(f16, c.v[3]);
@@ -354,7 +354,7 @@ pub const Writer = struct {
             }
         }
 
-        fn blockFloat(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: i32) void {
+        fn blockFloat(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
             const width = @intCast(u32, image.description.dimensions.v[0]);
 
             var floats = std.mem.bytesAsSlice(f32, destination);
@@ -365,7 +365,7 @@ pub const Writer = struct {
                 const o = row * width * num_channels;
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const c = image.get1D(current);
+                    const c = image.pixels[current];
 
                     if (4 == num_channels) {
                         floats[o + width * 0 + x] = c.v[3];
