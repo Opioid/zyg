@@ -86,7 +86,7 @@ const Json = struct {
 
         var t: Vec4f = undefined;
 
-        if (self.tangents.len > 0) {
+        if (self.tangents.len > i) {
             const t3 = self.tangents[i];
             t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
         } else {
@@ -97,11 +97,11 @@ const Json = struct {
     }
 
     pub fn uv(self: Self, i: usize) Vec2f {
-        return if (self.uvs.len > 0) self.uvs[i] else .{ 0.0, 0.0 };
+        return if (self.uvs.len > i) self.uvs[i] else .{ 0.0, 0.0 };
     }
 
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return if (self.bts.len > 0) self.bts[i] > 0 else false;
+        return if (self.bts.len > i) self.bts[i] > 0 else false;
     }
 };
 

@@ -62,7 +62,7 @@ pub const Part = struct {
         }
     };
 
-    material: u32 = undefined,
+    material: u32 = 0,
     num_triangles: u32 = 0,
     area: f32 = undefined,
 
