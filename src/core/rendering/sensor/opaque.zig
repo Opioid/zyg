@@ -75,19 +75,19 @@ pub const Opaque = struct {
         _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
     }
 
-    pub fn resolve(self: Opaque, target: *Float4) void {
-        for (self.pixels) |p, i| {
+    pub fn resolve(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            target.set1D(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], 1.0));
+            target.set1D(@intCast(i32, i + begin), Pack4f.init4(color[0], color[1], color[2], 1.0));
         }
     }
 
-    pub fn resolveAccumlate(self: Opaque, target: *Float4) void {
-        for (self.pixels) |p, i| {
+    pub fn resolveAccumlate(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            const ui = @intCast(i32, i);
+            const ui = @intCast(i32, i + begin);
 
             const old = target.get1D(ui);
 
