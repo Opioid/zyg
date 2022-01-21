@@ -1,5 +1,6 @@
 const Base = @import("base.zig").Base;
 const Float4 = @import("../../image/image.zig").Float4;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
@@ -8,10 +9,14 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Opaque = struct {
-    base: Base = .{},
+    base: Base,
 
     // weight_sum is saved in pixel.w
     pixels: []Pack4f = &.{},
+
+    pub fn init(clamp_max: f32) Opaque {
+        return .{ .base = .{ .max = clamp_max } };
+    }
 
     pub fn deinit(self: *Opaque, alloc: Allocator) void {
         alloc.free(self.pixels);

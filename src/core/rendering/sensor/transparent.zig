@@ -8,11 +8,15 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Transparent = struct {
-    base: Base = .{},
+    base: Base,
 
     pixel_weights: []f32 = &.{},
 
     pixels: []Pack4f = &.{},
+
+    pub fn init(clamp_max: f32) Transparent {
+        return .{ .base = .{ .max = clamp_max } };
+    }
 
     pub fn deinit(self: Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);

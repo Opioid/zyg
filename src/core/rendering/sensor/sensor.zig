@@ -1,9 +1,10 @@
-pub const Clamp = @import("clamp.zig").Clamp;
+const Unfiltered = @import("unfiltered.zig").Unfiltered;
+const filtered = @import("filtered.zig");
+const Opaque = @import("opaque.zig").Opaque;
+const Transparent = @import("transparent.zig").Transparent;
 
-pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
-pub const filtered = @import("filtered.zig");
-pub const Opaque = @import("opaque.zig").Opaque;
-pub const Transparent = @import("transparent.zig").Transparent;
+pub const Unfiltered_opaque = Unfiltered(Opaque);
+pub const Unfiltered_transparent = Unfiltered(Transparent);
 
 pub const Filtered_1p0_opaque = filtered.Filtered_1p0(Opaque);
 pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
