@@ -33,8 +33,10 @@ pub const Distribution1D = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.lut[0..self.lut_size]);
-        alloc.free(self.cdf[0..self.size]);
+        if (self.size > 0) {
+            alloc.free(self.lut[0..self.lut_size]);
+            alloc.free(self.cdf[0..self.size]);
+        }
     }
 
     pub fn sample(self: Self, r: f32) u32 {

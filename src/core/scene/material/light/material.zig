@@ -24,12 +24,12 @@ const Allocator = std.mem.Allocator;
 pub const Material = struct {
     super: Base,
 
-    emission_map: Texture = undefined,
+    emission_map: Texture = .{},
     distribution: Distribution2D = .{},
     emittance: Emittance = undefined,
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
-    emission_factor: f32 = undefined,
-    total_weight: f32 = undefined,
+    emission_factor: f32 = 1.0,
+    total_weight: f32 = 0.0,
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
         return .{ .super = Base.init(sampler_key, two_sided) };

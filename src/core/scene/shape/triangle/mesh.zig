@@ -403,7 +403,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partIdToMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 
