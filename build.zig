@@ -58,7 +58,7 @@ pub fn build(b: *std.build.Builder) void {
     cli.linkLibC();
 
     // cli.sanitize_thread = true;
-    // cli.strip = true;
+    cli.strip = true;
 
     cli.install();
 
@@ -83,7 +83,7 @@ pub fn build(b: *std.build.Builder) void {
             "-i",
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
-            //"takes/san_miguel.take",
+            "takes/san_miguel.take",
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
@@ -91,7 +91,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
-            "takes/embergen.take",
+            //"takes/embergen.take",
             "-t",
             "-4",
             //"--no-tex",
