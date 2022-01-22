@@ -227,9 +227,9 @@ pub const Worker = struct {
 
                             c = min_samples + 1;
                         }
+                    } else {
+                        c -= 1;
                     }
-
-                    c -= 1;
                 }
             }
         }
