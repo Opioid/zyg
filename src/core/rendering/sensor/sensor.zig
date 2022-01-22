@@ -103,13 +103,13 @@ pub const Sensor = union(enum) {
     pub fn resolve(self: Sensor, target: *Float4, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target };
 
-        _ = threads.runRange(&context, ResolveContext.resolve, 0, @intCast(u32, target.description.numPixels()));
+        _ = threads.runRange(&context, ResolveContext.resolve, 0, @intCast(u32, target.description.numPixels()), 16);
     }
 
     pub fn resolveAccumlate(self: Sensor, target: *Float4, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target };
 
-        _ = threads.runRange(&context, ResolveContext.resolveAccumlate, 0, @intCast(u32, target.description.numPixels()));
+        _ = threads.runRange(&context, ResolveContext.resolveAccumlate, 0, @intCast(u32, target.description.numPixels()), 16);
     }
 
     const ResolveContext = struct {

@@ -219,7 +219,7 @@ pub const Writer = struct {
             alloc.free(context.image_buffer);
         }
 
-        _ = threads.runRange(&context, Context.compress, 0, row_blocks);
+        _ = threads.runRange(&context, Context.compress, 0, row_blocks, 0);
 
         var scanline_offset = writer.context.bytes_written + row_blocks * 8;
 

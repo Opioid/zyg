@@ -168,7 +168,7 @@ pub const Part = struct {
             alloc.free(context.temps);
         }
 
-        const num_tasks = threads.runRange(&context, Context.run, 0, num);
+        const num_tasks = threads.runRange(&context, Context.run, 0, num, 0);
 
         var temp: Temp = .{};
         for (context.temps[0..num_tasks]) |t| {

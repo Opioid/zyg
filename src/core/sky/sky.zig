@@ -116,7 +116,7 @@ pub const Sky = struct {
             .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
         };
 
-        _ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]));
+        _ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]), 0);
 
         // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
