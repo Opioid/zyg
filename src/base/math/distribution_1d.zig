@@ -15,8 +15,11 @@ pub const Distribution1D = struct {
     integral: f32 = -1.0,
     lut_range: f32 = 0.0,
 
-    cdf: []f32 = &.{},
-    lut: []u32 = &.{},
+    size: u32 = 0,
+    lut_size: u32 = 0,
+
+    cdf: [*]f32 = undefined,
+    lut: [*]u32 = undefined,
 
     const Self = @This();
 
@@ -24,21 +27,22 @@ pub const Distribution1D = struct {
         try self.precompute1DPdfCdf(alloc, data);
 
         var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
-
-        lut_size = std.math.min(std.math.max(lut_size, 1), @intCast(u32, self.cdf.len));
+        lut_size = std.math.min(std.math.max(lut_size, 1), self.size);
 
         try self.initLut(alloc, lut_size);
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.lut);
-        alloc.free(self.cdf);
+        if (self.size > 0) {
+            alloc.free(self.lut[0..self.lut_size]);
+            alloc.free(self.cdf[0..self.size]);
+        }
     }
 
     pub fn sample(self: Self, r: f32) u32 {
         const bucket = self.map(r);
         const begin = self.lut[bucket];
-        const it = search(self.cdf.ptr, begin, @intCast(u32, self.cdf.len - 1), r);
+        const it = search(self.cdf, begin, self.size - 1, r);
 
         return if (0 == it) 0 else it - 1;
     }
@@ -60,7 +64,7 @@ pub const Distribution1D = struct {
         }
 
         const t = (c - r) / v;
-        const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, self.cdf.len - 1);
+        const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, self.size - 1);
         return .{ .offset = result, .pdf = v };
     }
 
@@ -69,7 +73,7 @@ pub const Distribution1D = struct {
     }
 
     pub fn pdfF(self: Self, u: f32) f32 {
-        const len = self.cdf.len;
+        const len = self.size;
         const o = std.math.min(@floatToInt(u32, u * @intToFloat(f32, len - 1)), len - 2);
 
         return self.cdf[o + 1] - self.cdf[o];
@@ -83,7 +87,8 @@ pub const Distribution1D = struct {
 
         if (0.0 == integral) {
             if (0.0 != self.integral) {
-                self.cdf = try alloc.realloc(self.cdf, 2);
+                self.cdf = (try alloc.realloc(self.cdf[0..self.size], 2)).ptr;
+                self.size = 2;
 
                 self.cdf[0] = 1.0;
                 self.cdf[1] = 1.0;
@@ -93,8 +98,9 @@ pub const Distribution1D = struct {
             return;
         }
 
-        if (self.cdf.len != data.len + 1) {
-            self.cdf = try alloc.realloc(self.cdf, data.len + 1);
+        if (self.size != data.len + 1) {
+            self.cdf = (try alloc.realloc(self.cdf[0..self.size], data.len + 1)).ptr;
+            self.size = @intCast(u32, data.len + 1);
         }
 
         const ii = 1.0 / integral;
@@ -111,8 +117,9 @@ pub const Distribution1D = struct {
     fn initLut(self: *Self, alloc: Allocator, lut_size: u32) !void {
         const padded_lut_size = lut_size + 2;
 
-        if (padded_lut_size != @intCast(u32, self.lut.len)) {
-            self.lut = try alloc.realloc(self.lut, padded_lut_size);
+        if (padded_lut_size != self.lut_size) {
+            self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
+            self.lut_size = padded_lut_size;
             self.lut_range = @intToFloat(f32, lut_size);
         }
 
@@ -121,7 +128,7 @@ pub const Distribution1D = struct {
         var border: u32 = 0;
         var last: u32 = 0;
 
-        const len = @intCast(u32, self.cdf.len);
+        const len = self.size;
         var i: u32 = 1;
         while (i < len) : (i += 1) {
             const mapped = self.map(self.cdf[i]);

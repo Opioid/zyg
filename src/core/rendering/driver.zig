@@ -279,7 +279,7 @@ pub const Driver = struct {
         while (true) : (iteration += 1) {
             self.frame_iteration = iteration;
 
-            const num = self.threads.runRange(self, bakeRanges, begin, num_photons);
+            const num = self.threads.runRange(self, bakeRanges, begin, num_photons, 0);
 
             for (self.photon_infos[0..num]) |i| {
                 num_paths += i.num_paths;

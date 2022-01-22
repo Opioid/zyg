@@ -1,9 +1,10 @@
-pub const Clamp = @import("clamp.zig").Clamp;
+const Unfiltered = @import("unfiltered.zig").Unfiltered;
+const filtered = @import("filtered.zig");
+const Opaque = @import("opaque.zig").Opaque;
+const Transparent = @import("transparent.zig").Transparent;
 
-pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
-pub const filtered = @import("filtered.zig");
-pub const Opaque = @import("opaque.zig").Opaque;
-pub const Transparent = @import("transparent.zig").Transparent;
+pub const Unfiltered_opaque = Unfiltered(Opaque);
+pub const Unfiltered_transparent = Unfiltered(Transparent);
 
 pub const Filtered_1p0_opaque = filtered.Filtered_1p0(Opaque);
 pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
@@ -21,6 +22,7 @@ const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -99,27 +101,54 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn resolve(self: Sensor, target: *Float4) void {
-        switch (self) {
-            .Unfiltered_opaque => |s| s.sensor.resolve(target),
-            .Unfiltered_transparent => |s| s.sensor.resolve(target),
-            .Filtered_1p0_opaque => |s| s.base.sensor.resolve(target),
-            .Filtered_2p0_opaque => |s| s.base.sensor.resolve(target),
-            .Filtered_1p0_transparent => |s| s.base.sensor.resolve(target),
-            .Filtered_2p0_transparent => |s| s.base.sensor.resolve(target),
-        }
+    pub fn resolve(self: Sensor, target: *Float4, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = &self, .target = target };
+
+        _ = threads.runRange(&context, ResolveContext.resolve, 0, @intCast(u32, target.description.numPixels()), 16);
     }
 
-    pub fn resolveAccumlate(self: Sensor, target: *Float4) void {
-        switch (self) {
-            .Unfiltered_opaque => |s| s.sensor.resolveAccumlate(target),
-            .Unfiltered_transparent => |s| s.sensor.resolveAccumlate(target),
-            .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumlate(target),
-            .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumlate(target),
-            .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumlate(target),
-            .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumlate(target),
-        }
+    pub fn resolveAccumlate(self: Sensor, target: *Float4, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = &self, .target = target };
+
+        _ = threads.runRange(&context, ResolveContext.resolveAccumlate, 0, @intCast(u32, target.description.numPixels()), 16);
     }
+
+    const ResolveContext = struct {
+        sensor: *const Sensor,
+        target: *Float4,
+
+        pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            _ = id;
+
+            const self = @intToPtr(*const ResolveContext, context);
+            const target = self.target;
+
+            switch (self.sensor.*) {
+                .Unfiltered_opaque => |s| s.sensor.resolve(target, begin, end),
+                .Unfiltered_transparent => |s| s.sensor.resolve(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.base.sensor.resolve(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.base.sensor.resolve(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.base.sensor.resolve(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.base.sensor.resolve(target, begin, end),
+            }
+        }
+
+        pub fn resolveAccumlate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            _ = id;
+
+            const self = @intToPtr(*const ResolveContext, context);
+            const target = self.target;
+
+            switch (self.sensor.*) {
+                .Unfiltered_opaque => |s| s.sensor.resolveAccumlate(target, begin, end),
+                .Unfiltered_transparent => |s| s.sensor.resolveAccumlate(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumlate(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumlate(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumlate(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumlate(target, begin, end),
+            }
+        }
+    };
 
     pub fn filterRadiusInt(self: Sensor) i32 {
         return switch (self) {

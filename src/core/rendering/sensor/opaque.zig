@@ -1,5 +1,6 @@
 const Base = @import("base.zig").Base;
 const Float4 = @import("../../image/image.zig").Float4;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
@@ -8,10 +9,14 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Opaque = struct {
-    base: Base = .{},
+    base: Base,
 
     // weight_sum is saved in pixel.w
     pixels: []Pack4f = &.{},
+
+    pub fn init(clamp_max: f32) Opaque {
+        return .{ .base = .{ .max = clamp_max } };
+    }
 
     pub fn deinit(self: *Opaque, alloc: Allocator) void {
         alloc.free(self.pixels);
@@ -70,23 +75,21 @@ pub const Opaque = struct {
         _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
     }
 
-    pub fn resolve(self: Opaque, target: *Float4) void {
-        for (self.pixels) |p, i| {
+    pub fn resolve(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            target.set1D(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], 1.0));
+            target.pixels[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
         }
     }
 
-    pub fn resolveAccumlate(self: Opaque, target: *Float4) void {
-        for (self.pixels) |p, i| {
+    pub fn resolveAccumlate(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            const ui = @intCast(i32, i);
-
-            const old = target.get1D(ui);
-
-            target.set1D(ui, Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0));
+            const j = i + begin;
+            const old = target.pixels[j];
+            target.pixels[j] = Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0);
         }
     }
 };

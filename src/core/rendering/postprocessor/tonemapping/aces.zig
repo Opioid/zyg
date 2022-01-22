@@ -30,8 +30,7 @@ pub const ACES = struct {
             const odt = spectrum.RRTandODT(rrt);
             const srgb = spectrum.ODTSATtosRGB(odt);
 
-            const j = begin + i;
-            self.super.destination.pixels[j] = Pack4f.init4(srgb[0], srgb[1], srgb[2], p.v[3]);
+            self.super.destination.pixels[i + begin] = Pack4f.init4(srgb[0], srgb[1], srgb[2], p.v[3]);
         }
     }
 };

@@ -183,7 +183,7 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                const parts = entry.value_ptr.*.Array.items;
+                const parts = entry.value_ptr.Array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
 
@@ -201,7 +201,7 @@ pub const Provider = struct {
                 var viter = entry.value_ptr.Object.iterator();
                 while (viter.next()) |ventry| {
                     if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
-                        const positions = ventry.value_ptr.*.Array.items;
+                        const positions = ventry.value_ptr.Array.items;
                         const num_positions = positions.len / 3;
 
                         handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
@@ -215,7 +215,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
-                        const normals = ventry.value_ptr.*.Array.items;
+                        const normals = ventry.value_ptr.Array.items;
                         const num_normals = normals.len / 3;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
@@ -245,9 +245,10 @@ pub const Provider = struct {
                                 json.readFloat(f32, tangents[i * 4 + 2]),
                             );
 
-                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) > 0.0) 0 else 1;
+                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) >= 0.0) 0 else 1;
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
+                        log.warning("It is reading tangent space", .{});
                         const tangent_spaces = ventry.value_ptr.*.Array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
@@ -276,16 +277,14 @@ pub const Provider = struct {
                             }
 
                             const tbn = quaternion.toMat3x3(ts);
-
-                            n.* = Pack3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
-
+                            n.* = math.vec4fTo3f(tbn.r[2]);
                             var t = &handler.tangents.items[i];
-                            t.* = Pack3f.init3(tbn.r[0][0], tbn.r[0][1], tbn.r[0][1]);
+                            t.* = math.vec4fTo3f(tbn.r[0]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
-                        const uvs = ventry.value_ptr.*.Array.items;
+                        const uvs = ventry.value_ptr.Array.items;
                         const num_uvs = uvs.len / 2;
 
                         handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
@@ -300,7 +299,7 @@ pub const Provider = struct {
                     }
                 }
             } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                const indices = entry.value_ptr.*.Array.items;
+                const indices = entry.value_ptr.Array.items;
                 const num_triangles = indices.len / 3;
 
                 handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
@@ -451,7 +450,9 @@ pub const Provider = struct {
             var positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
-            if (tangent_space_as_quaternion) {} else {
+            if (tangent_space_as_quaternion) {
+                log.err("tangent space as quaternion", .{});
+            } else {
                 var normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 

@@ -50,8 +50,8 @@ pub const Base = struct {
     emission: Vec4f = @splat(4, @as(f32, 0.0)),
 
     ior: f32 = 1.5,
-    attenuation_distance: f32 = undefined,
-    volumetric_anisotropy: f32 = undefined,
+    attenuation_distance: f32 = 0.0,
+    volumetric_anisotropy: f32 = 1.0,
 
     pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
         return .{

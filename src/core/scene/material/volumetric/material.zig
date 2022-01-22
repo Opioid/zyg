@@ -129,7 +129,7 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            _ = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[2]));
+            _ = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[2]), 0);
 
             for (context.averages) |a| {
                 avg += a;
@@ -150,7 +150,7 @@ pub const Material = struct {
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[2]));
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[2]), 0);
         }
 
         self.distribution.configure(alloc) catch

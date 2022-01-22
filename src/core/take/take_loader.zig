@@ -227,7 +227,7 @@ const Mitchell = struct {
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
-    var clamp = snsr.Clamp{ .Identity = .{} };
+    var clamp_max: f32 = std.math.f32_max;
 
     var filter_value_ptr: ?*std.json.Value = null;
 
@@ -238,11 +238,8 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                 alpha_transparency = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
                 switch (entry.value_ptr.*) {
-                    .Array => {
-                        const max = json.readVec4f3(entry.value_ptr.*);
-                        clamp = snsr.Clamp{ .Max = .{ .max = Vec4f{ max[0], max[1], max[2], 1.0 } } };
-                    },
-                    else => clamp = snsr.Clamp{ .Luminance = .{ .max = json.readFloat(f32, entry.value_ptr.*) } },
+                    .Array => |a| clamp_max = json.readFloat(f32, a.items[0]),
+                    else => clamp_max = json.readFloat(f32, entry.value_ptr.*),
                 }
             } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
                 filter_value_ptr = entry.value_ptr;
@@ -257,73 +254,39 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                 std.mem.eql(u8, "Blackman", entry.key_ptr.*))
             {
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
+                const filter = Blackman{ .r = radius };
 
                 if (alpha_transparency) {
                     if (radius <= 1.0) {
-                        return snsr.Sensor{
-                            .Filtered_1p0_transparent = snsr.Filtered_1p0_transparent.init(
-                                clamp,
-                                radius,
-                                Blackman{ .r = radius },
-                            ),
-                        };
+                        return .{ .Filtered_1p0_transparent = snsr.Filtered_1p0_transparent.init(clamp_max, radius, filter) };
                     } else if (radius <= 2.0) {
-                        return snsr.Sensor{
-                            .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
-                                clamp,
-                                radius,
-                                Blackman{ .r = radius },
-                            ),
-                        };
+                        return .{ .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(clamp_max, radius, filter) };
                     }
                 } else {
                     if (radius <= 1.0) {
-                        return snsr.Sensor{
-                            .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(
-                                clamp,
-                                radius,
-                                Blackman{ .r = radius },
-                            ),
-                        };
+                        return .{ .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(clamp_max, radius, filter) };
                     } else if (radius <= 2.0) {
-                        return snsr.Sensor{
-                            .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
-                                clamp,
-                                radius,
-                                Blackman{ .r = radius },
-                            ),
-                        };
+                        return .{ .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(clamp_max, radius, filter) };
                     }
                 }
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
                 const radius: f32 = 2.0;
+                const filter = Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
                 if (alpha_transparency) {
-                    return snsr.Sensor{
-                        .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(
-                            clamp,
-                            radius,
-                            Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
-                        ),
-                    };
+                    return .{ .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(clamp_max, radius, filter) };
                 } else {
-                    return snsr.Sensor{
-                        .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(
-                            clamp,
-                            radius,
-                            Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
-                        ),
-                    };
+                    return .{ .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(clamp_max, radius, filter) };
                 }
             }
         }
     }
 
     if (alpha_transparency) {
-        return snsr.Sensor{ .Unfiltered_transparent = .{ .clamp = clamp } };
+        return .{ .Unfiltered_transparent = snsr.Unfiltered_transparent.init(clamp_max) };
     }
 
-    return snsr.Sensor{ .Unfiltered_opaque = .{ .clamp = clamp } };
+    return .{ .Unfiltered_opaque = snsr.Unfiltered_opaque.init(clamp_max) };
 }
 
 fn peekSurfaceIntegrator(value: std.json.Value) bool {

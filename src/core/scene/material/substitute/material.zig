@@ -17,17 +17,15 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 const Coating = struct {
-    normal_map: Texture = undefined,
+    normal_map: Texture = .{},
     thickness_map: Texture = .{},
 
-    absorption_coef: Vec4f = undefined,
+    absorption_coef: Vec4f = @splat(4, @as(f32, 0.0)),
 
     thickness: f32 = 0.0,
-    ior: f32 = undefined,
-    alpha: f32 = undefined,
+    ior: f32 = 1.5,
+    alpha: f32 = 1.0,
 
     pub fn setAttenuation(self: *Coating, color: Vec4f, distance: f32) void {
         self.absorption_coef = ccoef.attenutionCoefficient(color, distance);
@@ -42,22 +40,22 @@ const Coating = struct {
 pub const Material = struct {
     super: Base,
 
-    normal_map: Texture = undefined,
-    surface_map: Texture = undefined,
-    emission_map: Texture = undefined,
+    normal_map: Texture = .{},
+    surface_map: Texture = .{},
+    emission_map: Texture = .{},
 
-    color: Vec4f = undefined,
+    color: Vec4f = @splat(4, @as(f32, 0.0)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
 
-    alpha: Vec2f = undefined,
+    alpha: Vec2f = @splat(2, @as(f32, 0.0)),
 
-    anisotropy: f32 = undefined,
-    rotation: f32 = undefined,
-    metallic: f32 = undefined,
-    emission_factor: f32 = undefined,
-    thickness: f32 = undefined,
-    attenuation_distance: f32 = undefined,
-    transparency: f32 = undefined,
+    anisotropy: f32 = 0.0,
+    rotation: f32 = 0.0,
+    metallic: f32 = 0.0,
+    emission_factor: f32 = 1.0,
+    thickness: f32 = 0.0,
+    attenuation_distance: f32 = 0.0,
+    transparency: f32 = 0.0,
 
     coating: Coating = .{},
 

@@ -68,7 +68,7 @@ pub const Shape = union(enum) {
 
     pub fn partIdToMaterialId(self: Shape, part: u32) u32 {
         return switch (self) {
-            .TriangleMesh => |m| m.partIdToMaterialId(part),
+            .TriangleMesh => |m| m.partMaterialId(part),
             else => part,
         };
     }

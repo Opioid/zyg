@@ -62,7 +62,7 @@ pub const Part = struct {
         }
     };
 
-    material: u32 = undefined,
+    material: u32 = 0,
     num_triangles: u32 = 0,
     area: f32 = undefined,
 
@@ -168,7 +168,7 @@ pub const Part = struct {
             alloc.free(context.temps);
         }
 
-        const num_tasks = threads.runRange(&context, Context.run, 0, num);
+        const num_tasks = threads.runRange(&context, Context.run, 0, num, 0);
 
         var temp: Temp = .{};
         for (context.temps[0..num_tasks]) |t| {
@@ -403,7 +403,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partIdToMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 

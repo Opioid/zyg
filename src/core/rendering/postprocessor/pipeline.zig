@@ -22,20 +22,19 @@ pub const Pipeline = struct {
     }
 
     pub fn seed(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
-        sensor.resolve(&self.scratch);
+        sensor.resolve(&self.scratch, threads);
 
         _ = destination;
-        _ = threads;
     }
 
     pub fn apply(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
-        sensor.resolve(&self.scratch);
+        sensor.resolve(&self.scratch, threads);
 
         self.tonemapper.apply(&self.scratch, destination, threads);
     }
 
     pub fn applyAccumulate(self: *Pipeline, sensor: Sensor, destination: *img.Float4, threads: *Threads) void {
-        sensor.resolveAccumlate(&self.scratch);
+        sensor.resolveAccumlate(&self.scratch, threads);
 
         self.tonemapper.apply(&self.scratch, destination, threads);
     }

@@ -88,7 +88,7 @@ pub const Map = struct {
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {
-        const num = threads.runRange(self, calculateAabbRange, 0, num_photons);
+        const num = threads.runRange(self, calculateAabbRange, 0, num_photons, 0);
 
         var aabb = math.aabb.empty;
         for (self.aabbs[0..num]) |b| {

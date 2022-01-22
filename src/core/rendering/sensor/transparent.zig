@@ -8,11 +8,15 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Transparent = struct {
-    base: Base = .{},
+    base: Base,
 
     pixel_weights: []f32 = &.{},
 
     pixels: []Pack4f = &.{},
+
+    pub fn init(clamp_max: f32) Transparent {
+        return .{ .base = .{ .max = clamp_max } };
+    }
 
     pub fn deinit(self: Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
@@ -84,30 +88,29 @@ pub const Transparent = struct {
         _ = @atomicRmw(f32, &value.v[3], .Add, weight * color[3], .Monotonic);
     }
 
-    pub fn resolve(self: Transparent, target: *Float4) void {
-        for (self.pixels) |p, i| {
-            const weight = self.pixel_weights[i];
+    pub fn resolve(self: Transparent, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
+            const j = i + begin;
+            const weight = self.pixel_weights[j];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
-            target.set1D(@intCast(i32, i), Pack4f.init4(color[0], color[1], color[2], color[3]));
+            target.pixels[j] = Pack4f.init4(color[0], color[1], color[2], color[3]);
         }
     }
 
-    pub fn resolveAccumlate(self: Transparent, target: *Float4) void {
-        for (self.pixels) |p, i| {
-            const weight = self.pixel_weights[i];
+    pub fn resolveAccumlate(self: Transparent, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
+            const j = i + begin;
+            const weight = self.pixel_weights[j];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
-            const ui = @intCast(i32, i);
-
-            const old = target.get1D(ui);
-
-            target.set1D(ui, Pack4f.init4(
+            const old = target.pixels[j];
+            target.pixels[j] = Pack4f.init4(
                 old.v[0] + color[0],
                 old.v[1] + color[1],
                 old.v[2] + color[2],
                 old.v[3] + color[3],
-            ));
+            );
         }
     }
 };

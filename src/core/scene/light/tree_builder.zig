@@ -699,7 +699,7 @@ pub const Builder = struct {
                 .variant = variant,
             };
 
-            _ = threads.runRange(&context, Eval.run, 0, num_candidates);
+            _ = threads.runRange(&context, Eval.run, 0, num_candidates, 0);
         } else {
             for (candidates[0..num_candidates]) |*c| {
                 c.evaluate(@TypeOf(set), lights, bounds, cone_weight, set, variant);

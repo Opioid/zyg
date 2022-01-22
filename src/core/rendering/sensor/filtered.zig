@@ -1,7 +1,6 @@
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
-const Clamp = @import("clamp.zig").Clamp;
 
 const base = @import("base");
 const math = base.math;
@@ -16,9 +15,7 @@ pub fn Base(comptime T: type) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
-        sensor: T = .{},
-
-        clamp: Clamp,
+        sensor: T,
 
         radius: f32,
 
@@ -28,8 +25,8 @@ pub fn Base(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
-            var result = Self{ .clamp = clamp, .radius = radius, .filter = Func.init(0.0, radius, f) };
+        pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
+            var result = Self{ .sensor = T.init(clamp_max), .radius = radius, .filter = Func.init(0.0, radius, f) };
 
             result.filter.scale(1.0 / result.integral(64, radius));
 
@@ -109,8 +106,8 @@ pub fn Filtered_1p0(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(clamp, radius, f) };
+        pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
+            return .{ .base = Base(T).init(clamp_max, radius, f) };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) void {
@@ -120,7 +117,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
-            const clamped = self.base.clamp.clamp(color);
+            const clamped = self.base.sensor.base.clamp(color);
 
             self.base.sensor.addPixel(.{ x, y }, clamped, weight);
         }
@@ -140,7 +137,7 @@ pub fn Filtered_1p0(comptime T: type) type {
             const wy1 = self.base.eval(oy);
             const wy2 = self.base.eval(oy - 1.0);
 
-            const clamped = self.base.clamp.clamp(color);
+            const clamped = self.base.sensor.base.clamp(color);
 
             // 1. row
             self.base.splat(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
@@ -166,8 +163,8 @@ pub fn Filtered_2p0(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn init(clamp: Clamp, radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(clamp, radius, f) };
+        pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
+            return .{ .base = Base(T).init(clamp_max, radius, f) };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) void {
@@ -177,7 +174,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             const w = self.base.eval(sample.pixel_uv[0]) * self.base.eval(sample.pixel_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
-            const clamped = self.base.clamp.clamp(color);
+            const clamped = self.base.sensor.base.clamp(color);
 
             self.base.sensor.addPixel(.{ x, y }, clamped, weight);
         }
@@ -201,7 +198,7 @@ pub fn Filtered_2p0(comptime T: type) type {
             const wy3 = self.base.eval(oy - 1.0);
             const wy4 = self.base.eval(oy - 2.0);
 
-            const clamped = self.base.clamp.clamp(color);
+            const clamped = self.base.sensor.base.clamp(color);
 
             // 1. row
             self.base.splat(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);

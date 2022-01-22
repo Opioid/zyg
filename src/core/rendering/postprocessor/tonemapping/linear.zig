@@ -27,8 +27,7 @@ pub const Linear = struct {
             const scaled = @splat(4, factor) * Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] };
             const srgb = spectrum.AP1tosRGB(scaled);
 
-            const j = begin + i;
-            self.super.destination.pixels[j] = Pack4f.init4(srgb[0], srgb[1], srgb[2], p.v[3]);
+            self.super.destination.pixels[i + begin] = Pack4f.init4(srgb[0], srgb[1], srgb[2], p.v[3]);
         }
     }
 };

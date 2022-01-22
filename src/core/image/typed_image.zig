@@ -53,14 +53,6 @@ pub fn TypedImage(comptime T: type) type {
             }
         }
 
-        pub fn get1D(self: Self, x: i32) T {
-            return self.pixels[@intCast(usize, x)];
-        }
-
-        pub fn set1D(self: *Self, x: i32, v: T) void {
-            self.pixels[@intCast(usize, x)] = v;
-        }
-
         pub fn get2D(self: Self, x: i32, y: i32) T {
             const i = y * self.description.dimensions.v[0] + x;
 

@@ -100,8 +100,15 @@ pub const Pool = struct {
         self.runParallelInt(@ptrToInt(context), program, num_tasks_hint);
     }
 
-    pub fn runRange(self: *Pool, context: anytype, program: RangeProgram, begin: u32, end: u32) usize {
-        return self.runRangeInt(@ptrToInt(context), program, begin, end);
+    pub fn runRange(
+        self: *Pool,
+        context: anytype,
+        program: RangeProgram,
+        begin: u32,
+        end: u32,
+        item_size_hint: u32,
+    ) usize {
+        return self.runRangeInt(@ptrToInt(context), program, begin, end, item_size_hint);
     }
 
     pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
@@ -117,11 +124,18 @@ pub const Pool = struct {
         self.waitAll(num);
     }
 
-    fn runRangeInt(self: *Pool, context: Context, program: RangeProgram, begin: u32, end: u32) usize {
+    fn runRangeInt(
+        self: *Pool,
+        context: Context,
+        program: RangeProgram,
+        begin: u32,
+        end: u32,
+        item_size_hint: u32,
+    ) usize {
         self.context = context;
         self.program = .{ .Range = program };
 
-        const num = self.wakeAllRange(begin, end);
+        const num = self.wakeAllRange(begin, end, item_size_hint);
 
         self.waitAll(num);
 
@@ -155,13 +169,19 @@ pub const Pool = struct {
         return num_tasks;
     }
 
-    fn wakeAllRange(self: *Pool, begin: u32, end: u32) usize {
+    const Cache_line = 64;
+
+    fn wakeAllRange(self: *Pool, begin: u32, end: u32, item_size_hint: u32) usize {
         self.running_parallel = true;
 
         const range = @intToFloat(f32, end - begin);
         const num_threads = @intToFloat(f32, self.threads.len);
 
-        const step = @floatToInt(u32, @ceil(range / num_threads));
+        const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
+            @floatToInt(u32, @ceil((range * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
+                Cache_line / item_size_hint
+        else
+            @floatToInt(u32, @ceil(range / num_threads));
 
         var e = begin;
 

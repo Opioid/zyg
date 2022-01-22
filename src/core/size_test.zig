@@ -6,16 +6,15 @@ const Texture = @import("image/texture/texture.zig").Texture;
 
 const base = @import("base");
 const math = base.math;
-const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
 
 const std = @import("std");
 
 pub fn testSize() void {
     std.debug.print("Name: measured size (expected size)\n", .{});
 
-    testType(Vec2f, "Vec2f", 8);
-    testType(Vec3i, "Vec3i", 12);
+    testType(math.Vec2f, "Vec2f", 8);
+    testType(math.Vec3i, "Vec3i", 12);
+    testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 128);
     testType(Light, "Light", 16);
     testType(BvhNode, "BvhNode", 32);

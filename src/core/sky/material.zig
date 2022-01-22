@@ -133,7 +133,7 @@ pub const Material = struct {
 
             defer alloc.free(context.averages);
 
-            _ = threads.runRange(&context, Context.calculate, 0, height);
+            _ = threads.runRange(&context, Context.calculate, 0, height, 0);
 
             for (context.averages) |a| {
                 avg += a;
