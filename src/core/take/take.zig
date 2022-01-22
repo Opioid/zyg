@@ -36,6 +36,7 @@ pub const View = struct {
 
     num_samples_per_pixel: u32 = 1,
     num_particles_per_pixel: u32 = 0,
+    cv: f32 = 0.0,
 
     photon_settings: PhotonSettings = .{},
 

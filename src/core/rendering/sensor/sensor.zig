@@ -2,6 +2,7 @@ const Unfiltered = @import("unfiltered.zig").Unfiltered;
 const filtered = @import("filtered.zig");
 const Opaque = @import("opaque.zig").Opaque;
 const Transparent = @import("transparent.zig").Transparent;
+const Base = @import("base.zig").Base;
 
 pub const Unfiltered_opaque = Unfiltered(Opaque);
 pub const Unfiltered_transparent = Unfiltered(Transparent);
@@ -57,6 +58,17 @@ pub const Sensor = union(enum) {
         };
     }
 
+    pub fn base(self: *Sensor) *Base {
+        return switch (self.*) {
+            .Unfiltered_opaque => |*s| &s.sensor.base,
+            .Unfiltered_transparent => |*s| &s.sensor.base,
+            .Filtered_1p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_2p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_1p0_transparent => |*s| &s.base.sensor.base,
+            .Filtered_2p0_transparent => |*s| &s.base.sensor.base,
+        };
+    }
+
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.clear(weight),
@@ -79,15 +91,26 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) void {
-        switch (self.*) {
+    pub fn mean(self: Sensor, pixel: Vec2i) Vec4f {
+        return switch (self) {
+            .Unfiltered_opaque => |s| s.sensor.mean(pixel),
+            .Unfiltered_transparent => |s| s.sensor.mean(pixel),
+            .Filtered_1p0_opaque => |s| s.base.sensor.mean(pixel),
+            .Filtered_2p0_opaque => |s| s.base.sensor.mean(pixel),
+            .Filtered_1p0_transparent => |s| s.base.sensor.mean(pixel),
+            .Filtered_2p0_transparent => |s| s.base.sensor.mean(pixel),
+        };
+    }
+
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i) Base.Result {
+        return switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
             .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset),
             .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset),
             .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset),
             .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset),
-        }
+        };
     }
 
     pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
@@ -149,6 +172,17 @@ pub const Sensor = union(enum) {
             }
         }
     };
+
+    pub fn copyWeights(self: Sensor, weights: []f32) void {
+        switch (self) {
+            .Unfiltered_opaque => |s| s.sensor.copyWeights(weights),
+            .Unfiltered_transparent => |s| s.sensor.copyWeights(weights),
+            .Filtered_1p0_opaque => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_2p0_opaque => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_1p0_transparent => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_2p0_transparent => |s| s.base.sensor.copyWeights(weights),
+        }
+    }
 
     pub fn filterRadiusInt(self: Sensor) i32 {
         return switch (self) {

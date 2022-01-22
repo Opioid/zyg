@@ -1,5 +1,6 @@
 const Base = @import("base.zig").Base;
 const Float4 = @import("../../image/image.zig").Float4;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
@@ -18,13 +19,14 @@ pub const Transparent = struct {
         return .{ .base = .{ .max = clamp_max } };
     }
 
-    pub fn deinit(self: Transparent, alloc: Allocator) void {
+    pub fn deinit(self: *Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
         alloc.free(self.pixel_weights);
+        self.base.deinit(alloc);
     }
 
     pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i) !void {
-        self.base.dimensions = dimensions;
+        try self.base.resize(alloc, dimensions);
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);
 
@@ -52,7 +54,16 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
+    pub fn mean(self: Transparent, pixel: Vec2i) Vec4f {
+        const d = self.base.dimensions;
+        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+        const nw = self.pixel_weights[i];
+        const nc = self.pixels[i];
+        return Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw);
+    }
+
+    pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
         const d = self.base.dimensions;
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
@@ -60,6 +71,10 @@ pub const Transparent = struct {
 
         const wc = @splat(4, weight) * color;
         self.pixels[i].addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], wc[3]));
+
+        const nw = self.pixel_weights[i];
+        const nc = self.pixels[i];
+        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
     }
 
     pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
@@ -111,6 +126,12 @@ pub const Transparent = struct {
                 old.v[2] + color[2],
                 old.v[3] + color[3],
             );
+        }
+    }
+
+    pub fn copyWeights(self: Transparent, weights: []f32) void {
+        for (self.pixel_weights) |w, i| {
+            weights[i] = w;
         }
     }
 };

@@ -20,10 +20,10 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn startPixel(self: *Sampler) void {
+    pub fn startPixel(self: *Sampler, num_samples: u32) void {
         switch (self.*) {
             .Random => {},
-            .GoldenRatio => |*gr| gr.startPixel(),
+            .GoldenRatio => |*gr| gr.startPixel(num_samples),
         }
     }
 

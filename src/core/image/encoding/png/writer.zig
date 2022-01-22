@@ -57,9 +57,7 @@ pub const Writer = struct {
 
     pub fn writeFloat3Scaled(alloc: Allocator, image: Float3, factor: f32) !void {
         const d = image.description.dimensions;
-
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
-
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 
@@ -81,6 +79,48 @@ pub const Writer = struct {
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
+        defer file.close();
+
+        const writer = file.writer();
+
+        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+
+        c.mz_free(png);
+    }
+
+    pub fn writeHeatmap(
+        alloc: Allocator,
+        width: i32,
+        height: i32,
+        data: []f32,
+        min: f32,
+        max: f32,
+        name: []const u8,
+    ) !void {
+        const num_pixels = @intCast(u32, width * height);
+        const buffer = try alloc.alloc(u8, 3 * num_pixels);
+        defer alloc.free(buffer);
+
+        const range = max - min;
+
+        for (data) |p, i| {
+            const turbo = spectrum.turbo((p - min) / range);
+
+            buffer[i * 3 + 0] = turbo[0];
+            buffer[i * 3 + 1] = turbo[1];
+            buffer[i * 3 + 2] = turbo[2];
+        }
+
+        var buffer_len: usize = 0;
+        const png = c.tdefl_write_image_to_png_file_in_memory(
+            @ptrCast(*const anyopaque, buffer.ptr),
+            width,
+            height,
+            3,
+            &buffer_len,
+        );
+
+        var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
         const writer = file.writer();

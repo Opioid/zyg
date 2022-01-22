@@ -77,8 +77,10 @@ pub const Lighttracer = struct {
     }
 
     pub fn startPixel(self: *Self) void {
-        self.sampler.startPixel();
-        self.light_sampler.startPixel();
+        const num_samples = self.settings.num_samples;
+
+        self.sampler.startPixel(num_samples);
+        self.light_sampler.startPixel(num_samples);
     }
 
     pub fn li(
@@ -89,8 +91,10 @@ pub const Lighttracer = struct {
     ) void {
         _ = initial_stack;
 
+        const num_samples = self.settings.num_samples;
+
         for (self.samplers) |*s| {
-            s.startPixel();
+            s.startPixel(num_samples);
         }
 
         const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
@@ -131,7 +135,7 @@ pub const Lighttracer = struct {
         const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
-        var i = self.settings.num_samples;
+        var i = num_samples;
         while (i > 0) : (i -= 1) {
             worker.super.interface_stack.clear();
             if (volumetric) {

@@ -60,9 +60,10 @@ pub const AOV = struct {
         }
     }
 
-    pub fn startPixel(self: *Self) void {
+    pub fn startPixel(self: *Self, num_samples: u32) void {
+        const total_samples_per_pixel = self.settings.num_samples * num_samples;
         for (self.samplers) |*s| {
-            s.startPixel();
+            s.startPixel(total_samples_per_pixel);
         }
     }
 

@@ -11,6 +11,7 @@ pub const GoldenRatio = struct {
     num_dimensions_2D: u32,
 
     num_samples: u32,
+    max_samples: u32,
 
     current_samples: [*]u32,
 
@@ -23,7 +24,8 @@ pub const GoldenRatio = struct {
         return GoldenRatio{
             .num_dimensions_1D = num_dimensions_1D,
             .num_dimensions_2D = num_dimensions_2D,
-            .num_samples = max_samples,
+            .num_samples = 0,
+            .max_samples = max_samples,
             .current_samples = (try alloc.alloc(u32, num_dimensions_1D + num_dimensions_2D)).ptr,
             .samples_1D = (try alloc.alloc(f32, num_dimensions_1D * max_samples)).ptr,
             .samples_2D = (try alloc.alloc(Vec2f, num_dimensions_2D * max_samples)).ptr,
@@ -31,12 +33,14 @@ pub const GoldenRatio = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.samples_2D[0 .. self.num_dimensions_2D * self.num_samples]);
-        alloc.free(self.samples_1D[0 .. self.num_dimensions_1D * self.num_samples]);
+        alloc.free(self.samples_2D[0 .. self.num_dimensions_2D * self.max_samples]);
+        alloc.free(self.samples_1D[0 .. self.num_dimensions_1D * self.max_samples]);
         alloc.free(self.current_samples[0 .. self.num_dimensions_1D + self.num_dimensions_2D]);
     }
 
-    pub fn startPixel(self: *Self) void {
+    pub fn startPixel(self: *Self, num_samples: u32) void {
+        self.num_samples = num_samples;
+
         for (self.current_samples[0 .. self.num_dimensions_1D + self.num_dimensions_2D]) |*s| {
             s.* = 0;
         }

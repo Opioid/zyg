@@ -1,6 +1,7 @@
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
+const Result = @import("base.zig").Base.Result;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -16,10 +17,9 @@ pub fn Unfiltered(comptime T: type) type {
             return .{ .sensor = .{ .base = .{ .max = clamp_max } } };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) void {
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) Result {
             const pixel = sample.pixel + offset;
-
-            self.sensor.addPixel(pixel, self.sensor.base.clamp(color), 1.0);
+            return self.sensor.addPixel(pixel, self.sensor.base.clamp(color), 1.0);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i) void {

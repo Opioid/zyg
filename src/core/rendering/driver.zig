@@ -9,13 +9,12 @@ const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const progress = @import("../progress.zig");
+const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 
 const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
-const ThreadContext = base.thread.Pool.Context;
-
-const math = @import("base").math;
+const math = base.math;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
@@ -49,8 +48,10 @@ pub const Driver = struct {
 
     photon_map: PhotonMap = .{},
 
-    frame: u32 = undefined,
-    frame_iteration: u32 = undefined,
+    min_samples: u32 = 0,
+    max_samples: u32 = 0,
+    frame: u32 = 0,
+    frame_iteration: u32 = 0,
 
     progressor: progress.StdOut = undefined,
 
@@ -89,6 +90,10 @@ pub const Driver = struct {
         self.view = view;
         self.scene = scene;
 
+        const max_samples = view.num_samples_per_pixel;
+        self.min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * max_samples))));
+        self.max_samples = max_samples;
+
         const camera = &self.view.camera;
         const dim = camera.sensorDimensions();
         try camera.sensor.resize(alloc, dim);
@@ -108,7 +113,7 @@ pub const Driver = struct {
                 alloc,
                 camera,
                 scene,
-                view.num_samples_per_pixel,
+                max_samples,
                 view.samplers,
                 surfaces,
                 volumes,
@@ -176,6 +181,52 @@ pub const Driver = struct {
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
+
+        const d = self.view.camera.sensorDimensions();
+        var sensor = self.view.camera.sensor;
+
+        var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
+        defer alloc.free(weights);
+
+        sensor.copyWeights(weights);
+
+        var min: f32 = std.math.f32_max;
+        var max: f32 = 0.0;
+
+        for (weights) |w| {
+            min = @minimum(min, w);
+            max = @maximum(max, w);
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
+
+        const ee = sensor.base().ee;
+
+        min = std.math.f32_max;
+        max = 0.0;
+
+        for (ee) |s| {
+            min = @minimum(min, s);
+            max = @maximum(max, s);
+
+            //  std.debug.print("{}\n", .{s});
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], ee, min, max, "info_error_estimate.png");
+
+        const dee = sensor.base().dee;
+
+        min = std.math.f32_max;
+        max = 0.0;
+
+        for (dee) |s| {
+            min = @minimum(min, s);
+            max = @maximum(max, s);
+
+            //  std.debug.print("{}\n", .{s});
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], dee, min, max, "info_diluted_error_estimate.png");
     }
 
     fn renderFrameBackward(self: *Driver, frame: u32) void {
@@ -206,14 +257,23 @@ pub const Driver = struct {
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn renderTiles(context: ThreadContext, id: u32) void {
+    fn renderTilesTrackVariance(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
-        const num_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+        while (self.tiles.pop()) |tile| {
+            self.workers[id].renderTrackVariance(self.frame, tile, self.min_samples);
+
+            self.progressor.tick();
+        }
+    }
+
+    fn renderTilesRemainder(context: Threads.Context, id: u32) void {
+        const self = @intToPtr(*Driver, context);
+
+        const target_cv = self.view.cv;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, num_samples, num_photon_samples);
+            self.workers[id].renderRemainder(self.frame, tile, self.min_samples, self.max_samples, target_cv);
 
             self.progressor.tick();
         }
@@ -231,17 +291,22 @@ pub const Driver = struct {
 
         camera.sensor.clear(0.0);
 
-        self.progressor.start(self.tiles.size());
+        self.progressor.start(self.tiles.size() * 2);
 
-        self.tiles.restart();
         self.frame = frame;
 
-        self.threads.runParallel(self, renderTiles, 0);
+        self.tiles.restart();
+        self.threads.runParallel(self, renderTilesTrackVariance, 0);
+
+        camera.sensor.base().diluteErrorEstimate(self.threads);
+
+        self.tiles.restart();
+        self.threads.runParallel(self, renderTilesRemainder, 0);
 
         log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn renderRanges(context: ThreadContext, id: u32) void {
+    fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
         while (self.ranges.pop()) |range| {
@@ -311,7 +376,7 @@ pub const Driver = struct {
         log.info("Photon time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn bakeRanges(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+    fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self = @intToPtr(*Driver, context);
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(

@@ -40,12 +40,12 @@ pub const Integrator = union(enum) {
         }
     }
 
-    pub fn startPixel(self: *Integrator) void {
+    pub fn startPixel(self: *Integrator, num_samples: u32) void {
         switch (self.*) {
-            .AOV => |*i| i.startPixel(),
-            .PT => |*i| i.startPixel(),
-            .PTDL => |*i| i.startPixel(),
-            .PTMIS => |*i| i.startPixel(),
+            .AOV => |*i| i.startPixel(num_samples),
+            .PT => |*i| i.startPixel(num_samples),
+            .PTDL => |*i| i.startPixel(num_samples),
+            .PTMIS => |*i| i.startPixel(num_samples),
         }
     }
 
