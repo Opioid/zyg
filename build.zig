@@ -91,6 +91,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
+            //"takes/rene.take",
             //"takes/embergen.take",
             "-t",
             "-4",
