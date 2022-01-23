@@ -18,11 +18,13 @@ const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const spectrum = base.spectrum;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -221,6 +223,13 @@ pub const Worker = struct {
                             const variance = new_s * new_m[3];
                             const coeff = @sqrt(variance) / @maximum(mam, 0.02);
 
+                            // const variance = new_s * new_m[3];
+                            // const peak = tonemap(new_m + @splat(4, 0.5 * @sqrt(variance)));
+                            // const tm = tonemap(new_m);
+
+                            // const new_variance = 2.0 * math.maxComponent3(peak - tm);
+                            // const coeff = @sqrt(new_variance) / @maximum(math.maxComponent3(tm), 0.02);
+
                             if (coeff <= target_cv) {
                                 break;
                             }
@@ -233,6 +242,15 @@ pub const Worker = struct {
                 }
             }
         }
+    }
+
+    fn tonemap(color: Vec4f) Vec4f {
+        const factor = std.math.exp2(@as(f32, 1.5));
+
+        const scaled = @splat(4, factor) * color;
+        const rrt = spectrum.AP1toRRT_SAT(scaled);
+        const odt = spectrum.RRTandODT(rrt);
+        return spectrum.ODTSATtosRGB(odt);
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
