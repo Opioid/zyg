@@ -225,7 +225,7 @@ pub const Worker = struct {
                                 break;
                             }
 
-                            c = min_samples + 1;
+                            c = min_samples;
                         }
                     } else {
                         c -= 1;
