@@ -75,7 +75,7 @@ pub const Sample = struct {
         self.super.properties.set(.Translucent, true);
         self.super.albedo = @splat(4, 1.0 - transparency) * color;
         self.translucent_color = color;
-        self.attenuation = ccoef.attenutionCoefficient(color, attenuation_distance);
+        self.attenuation = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.thickness = thickness;
         self.transparency = transparency;
         self.volumetric = false;
