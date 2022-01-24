@@ -1,3 +1,5 @@
+const Base = @import("base.zig").Base;
+
 const Unfiltered = @import("unfiltered.zig").Unfiltered;
 const filtered = @import("filtered.zig");
 const Opaque = @import("opaque.zig").Opaque;
@@ -57,6 +59,17 @@ pub const Sensor = union(enum) {
         };
     }
 
+    pub fn basePtr(self: *Sensor) *Base {
+        return switch (self.*) {
+            .Unfiltered_opaque => |*s| &s.sensor.base,
+            .Unfiltered_transparent => |*s| &s.sensor.base,
+            .Filtered_1p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_2p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_1p0_transparent => |*s| &s.base.sensor.base,
+            .Filtered_2p0_transparent => |*s| &s.base.sensor.base,
+        };
+    }
+
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.clear(weight),
@@ -103,14 +116,20 @@ pub const Sensor = union(enum) {
 
     pub fn resolve(self: Sensor, target: *Float4, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target };
-
-        _ = threads.runRange(&context, ResolveContext.resolve, 0, @intCast(u32, target.description.numPixels()), 16);
+        const num_pixels = @intCast(u32, target.description.numPixels());
+        _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAccumlate(self: Sensor, target: *Float4, threads: *Threads) void {
+    pub fn resolveTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target };
+        const num_pixels = @intCast(u32, target.description.numPixels());
+        _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
+    }
 
-        _ = threads.runRange(&context, ResolveContext.resolveAccumlate, 0, @intCast(u32, target.description.numPixels()), 16);
+    pub fn resolveAccumulateTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = &self, .target = target };
+        const num_pixels = @intCast(u32, target.description.numPixels());
+        _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     const ResolveContext = struct {
@@ -133,19 +152,35 @@ pub const Sensor = union(enum) {
             }
         }
 
-        pub fn resolveAccumlate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+        pub fn resolveTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
             const self = @intToPtr(*const ResolveContext, context);
             const target = self.target;
 
             switch (self.sensor.*) {
-                .Unfiltered_opaque => |s| s.sensor.resolveAccumlate(target, begin, end),
-                .Unfiltered_transparent => |s| s.sensor.resolveAccumlate(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumlate(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumlate(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumlate(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumlate(target, begin, end),
+                .Unfiltered_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
+                .Unfiltered_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.base.sensor.resolveTonemap(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.base.sensor.resolveTonemap(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.base.sensor.resolveTonemap(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.base.sensor.resolveTonemap(target, begin, end),
+            }
+        }
+
+        pub fn resolveAccumulateTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            _ = id;
+
+            const self = @intToPtr(*const ResolveContext, context);
+            const target = self.target;
+
+            switch (self.sensor.*) {
+                .Unfiltered_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Unfiltered_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
             }
         }
     };

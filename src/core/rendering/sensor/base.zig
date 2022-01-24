@@ -1,3 +1,5 @@
+const Tonemapper = @import("tonemapper.zig").Tonemapper;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec4f = math.Vec4f;
@@ -6,6 +8,8 @@ pub const Base = struct {
     dimensions: Vec2i = @splat(2, @as(i32, 0)),
 
     max: f32,
+
+    tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 
     pub fn clamp(self: Base, color: Vec4f) Vec4f {
         const mc = math.maxComponent3(color);

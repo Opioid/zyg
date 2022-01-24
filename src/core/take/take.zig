@@ -3,7 +3,6 @@ const SurfaceFactory = @import("../rendering/integrator/surface/integrator.zig")
 const VolumeFactory = @import("../rendering/integrator/volume/integrator.zig").Factory;
 const LighttracerFactory = @import("../rendering/integrator/particle/lighttracer.zig").Factory;
 const cam = @import("../camera/perspective.zig");
-const Pipeline = @import("../rendering/postprocessor/pipeline.zig").Pipeline;
 const Sink = @import("../exporting/sink.zig").Sink;
 
 const std = @import("std");
@@ -32,21 +31,16 @@ pub const View = struct {
 
     camera: cam.Perspective,
 
-    pipeline: Pipeline,
-
     num_samples_per_pixel: u32 = 1,
     num_particles_per_pixel: u32 = 0,
 
     photon_settings: PhotonSettings = .{},
 
     pub fn deinit(self: *View, alloc: Allocator) void {
-        self.pipeline.deinit(alloc);
         self.camera.deinit(alloc);
     }
 
-    pub fn configure(self: *View, alloc: Allocator) !void {
-        try self.pipeline.configure(alloc, self.camera);
-
+    pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
         self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
     }
@@ -68,10 +62,7 @@ pub const Take = struct {
     pub fn init(alloc: Allocator) !Take {
         return Take{
             .scene_filename = &.{},
-            .view = .{
-                .camera = try cam.Perspective.init(alloc),
-                .pipeline = .{},
-            },
+            .view = .{ .camera = try cam.Perspective.init(alloc) },
         };
     }
 

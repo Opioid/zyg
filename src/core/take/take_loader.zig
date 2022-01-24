@@ -5,12 +5,13 @@ const PhotonSettings = tk.PhotonSettings;
 
 const cam = @import("../camera/perspective.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
+const Tonemapper = @import("../rendering/sensor/tonemapper.zig").Tonemapper;
 const smpl = @import("../sampler/sampler.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
-const tm = @import("../rendering/postprocessor/tonemapping/tonemapper.zig");
+
 const Scene = @import("../scene/scene.zig").Scene;
 const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const Resources = @import("../resource/manager.zig").Manager;
@@ -97,7 +98,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
 
     setDefaultIntegrators(&take.view);
 
-    try take.view.configure(alloc);
+    take.view.configure();
 
     return take;
 }
@@ -503,27 +504,27 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
     for (value.Array.items) |pp| {
         if (pp.Object.iterator().next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
-                view.pipeline.tonemapper = loadTonemapper(entry.value_ptr.*);
+                view.camera.sensor.basePtr().tonemapper = loadTonemapper(entry.value_ptr.*);
             }
         }
     }
 }
 
-fn loadTonemapper(value: std.json.Value) tm.Tonemapper {
+fn loadTonemapper(value: std.json.Value) Tonemapper {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 0.0);
 
         if (std.mem.eql(u8, "ACES", entry.key_ptr.*)) {
-            return .{ .ACES = tm.ACES.init(exposure) };
+            return Tonemapper.init(.ACES, exposure);
         }
 
         if (std.mem.eql(u8, "Linear", entry.key_ptr.*)) {
-            return .{ .Linear = tm.Linear.init(exposure) };
+            return Tonemapper.init(.Linear, exposure);
         }
     }
 
-    return .{ .Linear = tm.Linear.init(0.0) };
+    return Tonemapper.init(.Linear, 0.0);
 }
 
 fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
