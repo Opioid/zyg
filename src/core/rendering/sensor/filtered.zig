@@ -10,7 +10,7 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub fn Base(comptime T: type) type {
+pub fn Filtered(comptime T: type, N: comptime_int) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
@@ -28,7 +28,171 @@ pub fn Base(comptime T: type) type {
             return result;
         }
 
-        pub fn splat(
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+            const clamped = self.sensor.base.clamp(color);
+
+            const x = offset[0] + sample.pixel[0];
+            const y = offset[1] + sample.pixel[1];
+
+            const ox = sample.pixel_uv[0] - 0.5;
+            const oy = sample.pixel_uv[1] - 0.5;
+
+            if (1 == N) {
+                const wx0 = self.eval(ox + 1.0);
+                const wx1 = self.eval(ox);
+                const wx2 = self.eval(ox - 1.0);
+
+                const wy0 = self.eval(oy + 1.0);
+                const wy1 = self.eval(oy);
+                const wy2 = self.eval(oy - 1.0);
+
+                // 1. row
+                self.add(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds, isolated);
+                self.add(.{ x, y - 1 }, wx1 * wy0, clamped, bounds, isolated);
+                self.add(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds, isolated);
+
+                // 2. row
+                self.add(.{ x - 1, y }, wx0 * wy1, clamped, bounds, isolated);
+                self.add(.{ x, y }, wx1 * wy1, clamped, bounds, isolated);
+                self.add(.{ x + 1, y }, wx2 * wy1, clamped, bounds, isolated);
+
+                // 3. row
+                self.add(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds, isolated);
+                self.add(.{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
+                self.add(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
+            } else if (2 == N) {
+                const wx0 = self.eval(ox + 2.0);
+                const wx1 = self.eval(ox + 1.0);
+                const wx2 = self.eval(ox);
+                const wx3 = self.eval(ox - 1.0);
+                const wx4 = self.eval(ox - 2.0);
+
+                const wy0 = self.eval(oy + 2.0);
+                const wy1 = self.eval(oy + 1.0);
+                const wy2 = self.eval(oy);
+                const wy3 = self.eval(oy - 1.0);
+                const wy4 = self.eval(oy - 2.0);
+
+                // 1. row
+                self.add(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds, isolated);
+                self.add(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds, isolated);
+                self.add(.{ x, y - 2 }, wx2 * wy0, clamped, bounds, isolated);
+                self.add(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds, isolated);
+                self.add(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds, isolated);
+
+                // 2. row
+                self.add(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds, isolated);
+                self.add(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds, isolated);
+                self.add(.{ x, y - 1 }, wx2 * wy1, clamped, bounds, isolated);
+                self.add(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds, isolated);
+                self.add(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds, isolated);
+
+                // 3. row
+                self.add(.{ x - 2, y }, wx0 * wy2, clamped, bounds, isolated);
+                self.add(.{ x - 1, y }, wx1 * wy2, clamped, bounds, isolated);
+                self.add(.{ x, y }, wx2 * wy2, clamped, bounds, isolated);
+                self.add(.{ x + 1, y }, wx3 * wy2, clamped, bounds, isolated);
+                self.add(.{ x + 2, y }, wx4 * wy2, clamped, bounds, isolated);
+
+                // 4. row
+                self.add(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds, isolated);
+                self.add(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds, isolated);
+                self.add(.{ x, y + 1 }, wx2 * wy3, clamped, bounds, isolated);
+                self.add(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds, isolated);
+                self.add(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds, isolated);
+
+                // 5. row
+                self.add(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds, isolated);
+                self.add(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds, isolated);
+                self.add(.{ x, y + 2 }, wx2 * wy4, clamped, bounds, isolated);
+                self.add(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
+                self.add(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
+            }
+        }
+
+        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+            const clamped = self.sensor.base.clamp(color);
+
+            const x = offset[0] + sample.pixel[0];
+            const y = offset[1] + sample.pixel[1];
+
+            const ox = sample.pixel_uv[0] - 0.5;
+            const oy = sample.pixel_uv[1] - 0.5;
+
+            if (1 == N) {
+                const wx0 = self.eval(ox + 1.0);
+                const wx1 = self.eval(ox);
+                const wx2 = self.eval(ox - 1.0);
+
+                const wy0 = self.eval(oy + 1.0);
+                const wy1 = self.eval(oy);
+                const wy2 = self.eval(oy - 1.0);
+
+                // 1. row
+                self.splat(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
+                self.splat(.{ x, y - 1 }, wx1 * wy0, clamped, bounds);
+                self.splat(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
+
+                // 2. row
+                self.splat(.{ x - 1, y }, wx0 * wy1, clamped, bounds);
+                self.splat(.{ x, y }, wx1 * wy1, clamped, bounds);
+                self.splat(.{ x + 1, y }, wx2 * wy1, clamped, bounds);
+
+                // 3. row
+                self.splat(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
+                self.splat(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
+                self.splat(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
+            } else if (2 == N) {
+                const wx0 = self.eval(ox + 2.0);
+                const wx1 = self.eval(ox + 1.0);
+                const wx2 = self.eval(ox);
+                const wx3 = self.eval(ox - 1.0);
+                const wx4 = self.eval(ox - 2.0);
+
+                const wy0 = self.eval(oy + 2.0);
+                const wy1 = self.eval(oy + 1.0);
+                const wy2 = self.eval(oy);
+                const wy3 = self.eval(oy - 1.0);
+                const wy4 = self.eval(oy - 2.0);
+
+                // 1. row
+                self.splat(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
+                self.splat(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
+                self.splat(.{ x, y - 2 }, wx2 * wy0, clamped, bounds);
+                self.splat(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
+                self.splat(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
+
+                // 2. row
+                self.splat(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
+                self.splat(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
+                self.splat(.{ x, y - 1 }, wx2 * wy1, clamped, bounds);
+                self.splat(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
+                self.splat(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
+
+                // 3. row
+                self.splat(.{ x - 2, y }, wx0 * wy2, clamped, bounds);
+                self.splat(.{ x - 1, y }, wx1 * wy2, clamped, bounds);
+                self.splat(.{ x, y }, wx2 * wy2, clamped, bounds);
+                self.splat(.{ x + 1, y }, wx3 * wy2, clamped, bounds);
+                self.splat(.{ x + 2, y }, wx4 * wy2, clamped, bounds);
+
+                // 4. row
+                self.splat(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
+                self.splat(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
+                self.splat(.{ x, y + 1 }, wx2 * wy3, clamped, bounds);
+                self.splat(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
+                self.splat(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
+
+                // 5. row
+                self.splat(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
+                self.splat(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
+                self.splat(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
+                self.splat(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
+                self.splat(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
+            }
+        }
+
+        fn splat(
             self: *Self,
             pixel: Vec2i,
             weight: f32,
@@ -42,7 +206,7 @@ pub fn Base(comptime T: type) type {
             }
         }
 
-        pub fn add(
+        fn add(
             self: *Self,
             pixel: Vec2i,
             weight: f32,
@@ -63,7 +227,7 @@ pub fn Base(comptime T: type) type {
             }
         }
 
-        pub fn eval(self: Self, s: f32) f32 {
+        fn eval(self: Self, s: f32) f32 {
             return self.filter.eval(std.math.fabs(s));
         }
 
@@ -82,210 +246,6 @@ pub fn Base(comptime T: type) type {
             }
 
             return sum + sum;
-        }
-    };
-}
-
-pub fn Filtered_1p0(comptime T: type) type {
-    return struct {
-        base: Base(T),
-
-        const Self = @This();
-
-        pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(clamp_max, radius, f) };
-        }
-
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
-
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
-
-            const wx0 = self.base.eval(ox + 1.0);
-            const wx1 = self.base.eval(ox);
-            const wx2 = self.base.eval(ox - 1.0);
-
-            const wy0 = self.base.eval(oy + 1.0);
-            const wy1 = self.base.eval(oy);
-            const wy2 = self.base.eval(oy - 1.0);
-
-            const clamped = self.base.sensor.base.clamp(color);
-
-            // 1. row
-            self.base.add(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x, y - 1 }, wx1 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds, isolated);
-
-            // 2. row
-            self.base.add(.{ x - 1, y }, wx0 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x, y }, wx1 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y }, wx2 * wy1, clamped, bounds, isolated);
-
-            // 3. row
-            self.base.add(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
-        }
-
-        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
-
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
-
-            const wx0 = self.base.eval(ox + 1.0);
-            const wx1 = self.base.eval(ox);
-            const wx2 = self.base.eval(ox - 1.0);
-
-            const wy0 = self.base.eval(oy + 1.0);
-            const wy1 = self.base.eval(oy);
-            const wy2 = self.base.eval(oy - 1.0);
-
-            const clamped = self.base.sensor.base.clamp(color);
-
-            // 1. row
-            self.base.splat(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
-            self.base.splat(.{ x, y - 1 }, wx1 * wy0, clamped, bounds);
-            self.base.splat(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
-
-            // 2. row
-            self.base.splat(.{ x - 1, y }, wx0 * wy1, clamped, bounds);
-            self.base.splat(.{ x, y }, wx1 * wy1, clamped, bounds);
-            self.base.splat(.{ x + 1, y }, wx2 * wy1, clamped, bounds);
-
-            // 3. row
-            self.base.splat(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
-            self.base.splat(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
-            self.base.splat(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
-        }
-    };
-}
-
-pub fn Filtered_2p0(comptime T: type) type {
-    return struct {
-        base: Base(T),
-
-        const Self = @This();
-
-        pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
-            return .{ .base = Base(T).init(clamp_max, radius, f) };
-        }
-
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
-
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
-
-            const wx0 = self.base.eval(ox + 2.0);
-            const wx1 = self.base.eval(ox + 1.0);
-            const wx2 = self.base.eval(ox);
-            const wx3 = self.base.eval(ox - 1.0);
-            const wx4 = self.base.eval(ox - 2.0);
-
-            const wy0 = self.base.eval(oy + 2.0);
-            const wy1 = self.base.eval(oy + 1.0);
-            const wy2 = self.base.eval(oy);
-            const wy3 = self.base.eval(oy - 1.0);
-            const wy4 = self.base.eval(oy - 2.0);
-
-            const clamped = self.base.sensor.base.clamp(color);
-
-            // 1. row
-            self.base.add(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x, y - 2 }, wx2 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds, isolated);
-            self.base.add(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds, isolated);
-
-            // 2. row
-            self.base.add(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x, y - 1 }, wx2 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds, isolated);
-            self.base.add(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds, isolated);
-
-            // 3. row
-            self.base.add(.{ x - 2, y }, wx0 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x - 1, y }, wx1 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x, y }, wx2 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y }, wx3 * wy2, clamped, bounds, isolated);
-            self.base.add(.{ x + 2, y }, wx4 * wy2, clamped, bounds, isolated);
-
-            // 4. row
-            self.base.add(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds, isolated);
-            self.base.add(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds, isolated);
-            self.base.add(.{ x, y + 1 }, wx2 * wy3, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds, isolated);
-            self.base.add(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds, isolated);
-
-            // 5. row
-            self.base.add(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds, isolated);
-            self.base.add(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds, isolated);
-            self.base.add(.{ x, y + 2 }, wx2 * wy4, clamped, bounds, isolated);
-            self.base.add(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
-            self.base.add(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
-        }
-
-        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
-
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
-
-            const wx0 = self.base.eval(ox + 2.0);
-            const wx1 = self.base.eval(ox + 1.0);
-            const wx2 = self.base.eval(ox);
-            const wx3 = self.base.eval(ox - 1.0);
-            const wx4 = self.base.eval(ox - 2.0);
-
-            const wy0 = self.base.eval(oy + 2.0);
-            const wy1 = self.base.eval(oy + 1.0);
-            const wy2 = self.base.eval(oy);
-            const wy3 = self.base.eval(oy - 1.0);
-            const wy4 = self.base.eval(oy - 2.0);
-
-            const clamped = self.base.sensor.base.clamp(color);
-
-            // 1. row
-            self.base.splat(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
-            self.base.splat(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
-            self.base.splat(.{ x, y - 2 }, wx2 * wy0, clamped, bounds);
-            self.base.splat(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
-            self.base.splat(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
-
-            // 2. row
-            self.base.splat(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
-            self.base.splat(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
-            self.base.splat(.{ x, y - 1 }, wx2 * wy1, clamped, bounds);
-            self.base.splat(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
-            self.base.splat(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
-
-            // 3. row
-            self.base.splat(.{ x - 2, y }, wx0 * wy2, clamped, bounds);
-            self.base.splat(.{ x - 1, y }, wx1 * wy2, clamped, bounds);
-            self.base.splat(.{ x, y }, wx2 * wy2, clamped, bounds);
-            self.base.splat(.{ x + 1, y }, wx3 * wy2, clamped, bounds);
-            self.base.splat(.{ x + 2, y }, wx4 * wy2, clamped, bounds);
-
-            // 4. row
-            self.base.splat(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
-            self.base.splat(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
-            self.base.splat(.{ x, y + 1 }, wx2 * wy3, clamped, bounds);
-            self.base.splat(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
-            self.base.splat(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
-
-            // 5. row
-            self.base.splat(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
-            self.base.splat(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
-            self.base.splat(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
-            self.base.splat(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
-            self.base.splat(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
         }
     };
 }
