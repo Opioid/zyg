@@ -83,13 +83,22 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn resolveAccumlate(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: Opaque, target: *Float4, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
+            const tm = self.base.tonemapper.tonemap(color);
+            target.pixels[i + begin] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+        }
+    }
 
+    pub fn resolveAccumulateTonemap(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+        for (self.pixels[begin..end]) |p, i| {
+            const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
             const j = i + begin;
             const old = target.pixels[j];
-            target.pixels[j] = Pack4f.init4(old.v[0] + color[0], old.v[1] + color[1], old.v[2] + color[2], 1.0);
+            const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
+            const tm = self.base.tonemapper.tonemap(combined);
+            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
         }
     }
 };
