@@ -1,3 +1,5 @@
+const Tonemapper = @import("tonemapper.zig").Tonemapper;
+
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
@@ -10,6 +12,8 @@ pub const Base = struct {
     dimensions: Vec2i = @splat(2, @as(i32, 0)),
 
     max: f32,
+
+    tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 
     ee: []f32 = &.{},
     dee: []f32 = &.{},

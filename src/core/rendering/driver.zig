@@ -158,19 +158,19 @@ pub const Driver = struct {
         self.renderFrameBackward(frame);
         self.renderFrameForward(frame);
 
-        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
-
-        const pp_start = std.time.milliTimestamp();
-
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
             camera.sensor.fixZeroWeights();
         }
 
-        self.postprocess();
+        if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
+            camera.sensor.resolveAccumulateTonemap(&self.target, self.threads);
+        } else {
+            camera.sensor.resolveTonemap(&self.target, self.threads);
+        }
 
-        log.info("Post-process time {d:.3} s", .{chrono.secondsSince(pp_start)});
+        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
     pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
@@ -200,7 +200,7 @@ pub const Driver = struct {
 
         try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
 
-        const ee = sensor.base().ee;
+        const ee = sensor.basePtr().ee;
 
         min = std.math.f32_max;
         max = 0.0;
@@ -214,7 +214,7 @@ pub const Driver = struct {
 
         try PngWriter.writeHeatmap(alloc, d[0], d[1], ee, min, max, "info_error_estimate.png");
 
-        const dee = sensor.base().dee;
+        const dee = sensor.basePtr().dee;
 
         min = std.math.f32_max;
         max = 0.0;
@@ -251,7 +251,7 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            self.view.pipeline.seed(camera.sensor, &self.target, self.threads);
+            camera.sensor.resolve(&self.target, self.threads);
         }
 
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
@@ -298,7 +298,7 @@ pub const Driver = struct {
         self.tiles.restart();
         self.threads.runParallel(self, renderTilesTrackVariance, 0);
 
-        camera.sensor.base().diluteErrorEstimate(self.threads);
+        camera.sensor.basePtr().diluteErrorEstimate(self.threads);
 
         self.tiles.restart();
         self.threads.runParallel(self, renderTilesRemainder, 0);
@@ -385,15 +385,5 @@ pub const Driver = struct {
             self.frame,
             self.frame_iteration,
         );
-    }
-
-    fn postprocess(self: *Driver) void {
-        var camera = &self.view.camera;
-
-        if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            self.view.pipeline.applyAccumulate(camera.sensor, &self.target, self.threads);
-        } else {
-            self.view.pipeline.apply(camera.sensor, &self.target, self.threads);
-        }
     }
 };

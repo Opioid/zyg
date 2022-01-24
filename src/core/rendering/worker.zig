@@ -145,7 +145,7 @@ pub const Worker = struct {
                     old_s = new_s;
                 }
 
-                sensor.base().setErrorEstimate(pixel, old_s);
+                sensor.basePtr().setErrorEstimate(pixel, old_s);
             }
         }
     }
@@ -181,7 +181,7 @@ pub const Worker = struct {
                 const pixel = Vec2i{ x, y };
 
                 var old_m = sensor.mean(pixel);
-                var old_s = sensor.base().errorEstimate(pixel);
+                var old_s = sensor.basePtr().errorEstimate(pixel);
 
                 self.sampler.startPixel(remaining_samples);
                 self.surface_integrator.startPixel(remaining_samples);
