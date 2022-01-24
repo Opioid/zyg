@@ -1,4 +1,4 @@
-const Tonemapper = @import("tonemapper.zig").Tonemapper;
+const Base = @import("base.zig").Base;
 
 const Unfiltered = @import("unfiltered.zig").Unfiltered;
 const filtered = @import("filtered.zig");
@@ -58,15 +58,15 @@ pub const Sensor = union(enum) {
         };
     }
 
-    pub fn setTonemapper(self: *Sensor, tonemapper: Tonemapper) void {
-        switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.base.tonemapper = tonemapper,
-            .Unfiltered_transparent => |*s| s.sensor.base.tonemapper = tonemapper,
-            .Filtered_1p0_opaque => |*s| s.base.sensor.base.tonemapper = tonemapper,
-            .Filtered_2p0_opaque => |*s| s.base.sensor.base.tonemapper = tonemapper,
-            .Filtered_1p0_transparent => |*s| s.base.sensor.base.tonemapper = tonemapper,
-            .Filtered_2p0_transparent => |*s| s.base.sensor.base.tonemapper = tonemapper,
-        }
+    pub fn basePtr(self: *Sensor) *Base {
+        return switch (self.*) {
+            .Unfiltered_opaque => |*s| &s.sensor.base,
+            .Unfiltered_transparent => |*s| &s.sensor.base,
+            .Filtered_1p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_2p0_opaque => |*s| &s.base.sensor.base,
+            .Filtered_1p0_transparent => |*s| &s.base.sensor.base,
+            .Filtered_2p0_transparent => |*s| &s.base.sensor.base,
+        };
     }
 
     pub fn clear(self: *Sensor, weight: f32) void {

@@ -504,7 +504,7 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
     for (value.Array.items) |pp| {
         if (pp.Object.iterator().next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
-                view.camera.sensor.setTonemapper(loadTonemapper(entry.value_ptr.*));
+                view.camera.sensor.basePtr().tonemapper = loadTonemapper(entry.value_ptr.*);
             }
         }
     }
