@@ -259,15 +259,15 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
 
                 if (alpha_transparency) {
                     if (radius <= 1.0) {
-                        return .{ .Filtered_1p0_transparent = snsr.Filtered_1p0_transparent.init(clamp_max, radius, filter) };
+                        return .{ .Filtered_1p0_transparent = snsr.Filtered(snsr.Transparent, 1).init(clamp_max, radius, filter) };
                     } else if (radius <= 2.0) {
-                        return .{ .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(clamp_max, radius, filter) };
+                        return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
                     }
                 } else {
                     if (radius <= 1.0) {
-                        return .{ .Filtered_1p0_opaque = snsr.Filtered_1p0_opaque.init(clamp_max, radius, filter) };
+                        return .{ .Filtered_1p0_opaque = snsr.Filtered(snsr.Opaque, 1).init(clamp_max, radius, filter) };
                     } else if (radius <= 2.0) {
-                        return .{ .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(clamp_max, radius, filter) };
+                        return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
                     }
                 }
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
@@ -275,19 +275,19 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                 const filter = Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
                 if (alpha_transparency) {
-                    return .{ .Filtered_2p0_transparent = snsr.Filtered_2p0_transparent.init(clamp_max, radius, filter) };
+                    return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
                 } else {
-                    return .{ .Filtered_2p0_opaque = snsr.Filtered_2p0_opaque.init(clamp_max, radius, filter) };
+                    return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
                 }
             }
         }
     }
 
     if (alpha_transparency) {
-        return .{ .Unfiltered_transparent = snsr.Unfiltered_transparent.init(clamp_max) };
+        return .{ .Unfiltered_transparent = snsr.Unfiltered(snsr.Transparent).init(clamp_max) };
     }
 
-    return .{ .Unfiltered_opaque = snsr.Unfiltered_opaque.init(clamp_max) };
+    return .{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque).init(clamp_max) };
 }
 
 fn peekSurfaceIntegrator(value: std.json.Value) bool {

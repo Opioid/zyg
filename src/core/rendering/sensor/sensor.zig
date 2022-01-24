@@ -1,17 +1,9 @@
 const Base = @import("base.zig").Base;
 
-const Unfiltered = @import("unfiltered.zig").Unfiltered;
-const filtered = @import("filtered.zig");
-const Opaque = @import("opaque.zig").Opaque;
-const Transparent = @import("transparent.zig").Transparent;
-
-pub const Unfiltered_opaque = Unfiltered(Opaque);
-pub const Unfiltered_transparent = Unfiltered(Transparent);
-
-pub const Filtered_1p0_opaque = filtered.Filtered_1p0(Opaque);
-pub const Filtered_2p0_opaque = filtered.Filtered_2p0(Opaque);
-pub const Filtered_1p0_transparent = filtered.Filtered_1p0(Transparent);
-pub const Filtered_2p0_transparent = filtered.Filtered_2p0(Transparent);
+pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
+pub const Filtered = @import("filtered.zig").Filtered;
+pub const Opaque = @import("opaque.zig").Opaque;
+pub const Transparent = @import("transparent.zig").Transparent;
 
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
@@ -32,19 +24,19 @@ const Allocator = std.mem.Allocator;
 pub const Sensor = union(enum) {
     Unfiltered_opaque: Unfiltered(Opaque),
     Unfiltered_transparent: Unfiltered(Transparent),
-    Filtered_1p0_opaque: Filtered_1p0_opaque,
-    Filtered_2p0_opaque: Filtered_2p0_opaque,
-    Filtered_1p0_transparent: Filtered_1p0_transparent,
-    Filtered_2p0_transparent: Filtered_2p0_transparent,
+    Filtered_1p0_opaque: Filtered(Opaque, 1),
+    Filtered_2p0_opaque: Filtered(Opaque, 2),
+    Filtered_1p0_transparent: Filtered(Transparent, 1),
+    Filtered_2p0_transparent: Filtered(Transparent, 2),
 
     pub fn deinit(self: *Sensor, alloc: Allocator) void {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.deinit(alloc),
             .Unfiltered_transparent => |*s| s.sensor.deinit(alloc),
-            .Filtered_1p0_opaque => |*s| s.base.sensor.deinit(alloc),
-            .Filtered_2p0_opaque => |*s| s.base.sensor.deinit(alloc),
-            .Filtered_1p0_transparent => |*s| s.base.sensor.deinit(alloc),
-            .Filtered_2p0_transparent => |*s| s.base.sensor.deinit(alloc),
+            .Filtered_1p0_opaque => |*s| s.sensor.deinit(alloc),
+            .Filtered_2p0_opaque => |*s| s.sensor.deinit(alloc),
+            .Filtered_1p0_transparent => |*s| s.sensor.deinit(alloc),
+            .Filtered_2p0_transparent => |*s| s.sensor.deinit(alloc),
         }
     }
 
@@ -52,10 +44,10 @@ pub const Sensor = union(enum) {
         try switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.resize(alloc, dimensions),
             .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions),
-            .Filtered_1p0_opaque => |*s| s.base.sensor.resize(alloc, dimensions),
-            .Filtered_2p0_opaque => |*s| s.base.sensor.resize(alloc, dimensions),
-            .Filtered_1p0_transparent => |*s| s.base.sensor.resize(alloc, dimensions),
-            .Filtered_2p0_transparent => |*s| s.base.sensor.resize(alloc, dimensions),
+            .Filtered_1p0_opaque => |*s| s.sensor.resize(alloc, dimensions),
+            .Filtered_2p0_opaque => |*s| s.sensor.resize(alloc, dimensions),
+            .Filtered_1p0_transparent => |*s| s.sensor.resize(alloc, dimensions),
+            .Filtered_2p0_transparent => |*s| s.sensor.resize(alloc, dimensions),
         };
     }
 
@@ -63,10 +55,10 @@ pub const Sensor = union(enum) {
         return switch (self.*) {
             .Unfiltered_opaque => |*s| &s.sensor.base,
             .Unfiltered_transparent => |*s| &s.sensor.base,
-            .Filtered_1p0_opaque => |*s| &s.base.sensor.base,
-            .Filtered_2p0_opaque => |*s| &s.base.sensor.base,
-            .Filtered_1p0_transparent => |*s| &s.base.sensor.base,
-            .Filtered_2p0_transparent => |*s| &s.base.sensor.base,
+            .Filtered_1p0_opaque => |*s| &s.sensor.base,
+            .Filtered_2p0_opaque => |*s| &s.sensor.base,
+            .Filtered_1p0_transparent => |*s| &s.sensor.base,
+            .Filtered_2p0_transparent => |*s| &s.sensor.base,
         };
     }
 
@@ -74,10 +66,10 @@ pub const Sensor = union(enum) {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.clear(weight),
             .Unfiltered_transparent => |*s| s.sensor.clear(weight),
-            .Filtered_1p0_opaque => |*s| s.base.sensor.clear(weight),
-            .Filtered_2p0_opaque => |*s| s.base.sensor.clear(weight),
-            .Filtered_1p0_transparent => |*s| s.base.sensor.clear(weight),
-            .Filtered_2p0_transparent => |*s| s.base.sensor.clear(weight),
+            .Filtered_1p0_opaque => |*s| s.sensor.clear(weight),
+            .Filtered_2p0_opaque => |*s| s.sensor.clear(weight),
+            .Filtered_1p0_transparent => |*s| s.sensor.clear(weight),
+            .Filtered_2p0_transparent => |*s| s.sensor.clear(weight),
         }
     }
 
@@ -85,10 +77,10 @@ pub const Sensor = union(enum) {
         switch (self.*) {
             .Unfiltered_opaque => |*s| s.sensor.fixZeroWeights(),
             .Unfiltered_transparent => |*s| s.sensor.fixZeroWeights(),
-            .Filtered_1p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
-            .Filtered_2p0_opaque => |*s| s.base.sensor.fixZeroWeights(),
-            .Filtered_1p0_transparent => |*s| s.base.sensor.fixZeroWeights(),
-            .Filtered_2p0_transparent => |*s| s.base.sensor.fixZeroWeights(),
+            .Filtered_1p0_opaque => |*s| s.sensor.fixZeroWeights(),
+            .Filtered_2p0_opaque => |*s| s.sensor.fixZeroWeights(),
+            .Filtered_1p0_transparent => |*s| s.sensor.fixZeroWeights(),
+            .Filtered_2p0_transparent => |*s| s.sensor.fixZeroWeights(),
         }
     }
 
@@ -96,10 +88,10 @@ pub const Sensor = union(enum) {
         return switch (self) {
             .Unfiltered_opaque => |s| s.sensor.mean(pixel),
             .Unfiltered_transparent => |s| s.sensor.mean(pixel),
-            .Filtered_1p0_opaque => |s| s.base.sensor.mean(pixel),
-            .Filtered_2p0_opaque => |s| s.base.sensor.mean(pixel),
-            .Filtered_1p0_transparent => |s| s.base.sensor.mean(pixel),
-            .Filtered_2p0_transparent => |s| s.base.sensor.mean(pixel),
+            .Filtered_1p0_opaque => |s| s.sensor.mean(pixel),
+            .Filtered_2p0_opaque => |s| s.sensor.mean(pixel),
+            .Filtered_1p0_transparent => |s| s.sensor.mean(pixel),
+            .Filtered_2p0_transparent => |s| s.sensor.mean(pixel),
         };
     }
 
@@ -156,10 +148,10 @@ pub const Sensor = union(enum) {
             switch (self.sensor.*) {
                 .Unfiltered_opaque => |s| s.sensor.resolve(target, begin, end),
                 .Unfiltered_transparent => |s| s.sensor.resolve(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.base.sensor.resolve(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.base.sensor.resolve(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.base.sensor.resolve(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.base.sensor.resolve(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.sensor.resolve(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.sensor.resolve(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.sensor.resolve(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.sensor.resolve(target, begin, end),
             }
         }
 
@@ -172,10 +164,10 @@ pub const Sensor = union(enum) {
             switch (self.sensor.*) {
                 .Unfiltered_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
                 .Unfiltered_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.base.sensor.resolveTonemap(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.base.sensor.resolveTonemap(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.base.sensor.resolveTonemap(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.base.sensor.resolveTonemap(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
             }
         }
 
@@ -188,10 +180,10 @@ pub const Sensor = union(enum) {
             switch (self.sensor.*) {
                 .Unfiltered_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
                 .Unfiltered_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.base.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_1p0_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_2p0_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_1p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                .Filtered_2p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
             }
         }
     };
@@ -200,10 +192,10 @@ pub const Sensor = union(enum) {
         switch (self) {
             .Unfiltered_opaque => |s| s.sensor.copyWeights(weights),
             .Unfiltered_transparent => |s| s.sensor.copyWeights(weights),
-            .Filtered_1p0_opaque => |s| s.base.sensor.copyWeights(weights),
-            .Filtered_2p0_opaque => |s| s.base.sensor.copyWeights(weights),
-            .Filtered_1p0_transparent => |s| s.base.sensor.copyWeights(weights),
-            .Filtered_2p0_transparent => |s| s.base.sensor.copyWeights(weights),
+            .Filtered_1p0_opaque => |s| s.sensor.copyWeights(weights),
+            .Filtered_2p0_opaque => |s| s.sensor.copyWeights(weights),
+            .Filtered_1p0_transparent => |s| s.sensor.copyWeights(weights),
+            .Filtered_2p0_transparent => |s| s.sensor.copyWeights(weights),
         }
     }
 
@@ -218,10 +210,10 @@ pub const Sensor = union(enum) {
 
     pub fn pixelToImageCoordinates(self: Sensor, sample: *Sample) Vec2f {
         return switch (self) {
-            .Filtered_1p0_opaque => |s| s.base.pixelToImageCoordinates(sample),
-            .Filtered_1p0_transparent => |s| s.base.pixelToImageCoordinates(sample),
-            .Filtered_2p0_opaque => |s| s.base.pixelToImageCoordinates(sample),
-            .Filtered_2p0_transparent => |s| s.base.pixelToImageCoordinates(sample),
+            .Filtered_1p0_opaque => |s| s.pixelToImageCoordinates(sample),
+            .Filtered_1p0_transparent => |s| s.pixelToImageCoordinates(sample),
+            .Filtered_2p0_opaque => |s| s.pixelToImageCoordinates(sample),
+            .Filtered_2p0_transparent => |s| s.pixelToImageCoordinates(sample),
             else => math.vec2iTo2f(sample.pixel) + sample.pixel_uv,
         };
     }
