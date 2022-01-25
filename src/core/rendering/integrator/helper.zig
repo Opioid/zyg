@@ -17,7 +17,7 @@ pub fn attenuation3(c: Vec4f, distance: f32) Vec4f {
 }
 
 pub fn composeAlpha(radiance: Vec4f, throughput: Vec4f, transparent: bool) Vec4f {
-    const alpha = if (transparent) std.math.max(1 - math.average3(throughput), 0.0) else 1.0;
+    const alpha = if (transparent) std.math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
 
     return .{ radiance[0], radiance[1], radiance[2], alpha };
 }

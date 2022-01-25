@@ -129,9 +129,8 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            _ = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[2]), 0);
-
-            for (context.averages) |a| {
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[2]), 0);
+            for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }

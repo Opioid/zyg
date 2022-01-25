@@ -18,8 +18,8 @@ pub fn build(b: *std.build.Builder) void {
     const cli = b.addExecutable("zyg", "src/cli/main.zig");
     const capi = b.addSharedLibrary("zyg", "src/capi/capi.zig", .{ .unversioned = {} });
 
-    cli.addIncludeDir("thirdparty/include");
-    capi.addIncludeDir("thirdparty/include");
+    cli.addIncludePath("thirdparty/include");
+    capi.addIncludePath("thirdparty/include");
 
     const cflags = [_][]const u8{
         "-std=c99",

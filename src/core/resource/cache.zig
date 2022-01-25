@@ -8,88 +8,81 @@ const Allocator = std.mem.Allocator;
 
 pub const Null = 0xFFFFFFFF;
 
-pub fn Cache(comptime T: type, comptime P: type) type {
-    const Key = struct {
-        name: []const u8,
-        options: Variants,
+const Key = struct {
+    name: []const u8,
+    options: Variants,
 
-        const Self = @This();
+    const Self = @This();
 
-        pub fn clone(self: Self, alloc: Allocator) !Self {
-            var tmp_name = try alloc.alloc(u8, self.name.len);
-            std.mem.copy(u8, tmp_name, self.name);
-            return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
+    pub fn clone(self: Self, alloc: Allocator) !Self {
+        var tmp_name = try alloc.alloc(u8, self.name.len);
+        std.mem.copy(u8, tmp_name, self.name);
+        return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.options.deinit(alloc);
+        alloc.free(self.name);
+    }
+};
+
+const KeyContext = struct {
+    const Self = @This();
+
+    pub fn hash(self: Self, k: Key) u64 {
+        _ = self;
+        var hasher = std.hash.Wyhash.init(0);
+
+        hasher.update(k.name);
+
+        var iter = k.options.map.iterator();
+        while (iter.next()) |entry| {
+            hasher.update(entry.key_ptr.*);
+            entry.value_ptr.hash(&hasher);
         }
 
-        pub fn deinit(self: *Self, alloc: Allocator) void {
-            self.options.deinit(alloc);
-            alloc.free(self.name);
-        }
-    };
+        return hasher.final();
+    }
 
-    const KeyContext = struct {
-        const Self = @This();
+    pub fn eql(self: Self, a: Key, b: Key) bool {
+        _ = self;
 
-        pub fn hash(self: Self, k: Key) u64 {
-            _ = self;
-            var hasher = std.hash.Wyhash.init(0);
-
-            hasher.update(k.name);
-
-            var iter = k.options.map.iterator();
-            while (iter.next()) |entry| {
-                hasher.update(entry.key_ptr.*);
-                hasher.update(std.mem.asBytes(entry.value_ptr));
-            }
-
-            const h = hasher.final();
-
-            return h;
+        if (!std.mem.eql(u8, a.name, b.name)) {
+            return false;
         }
 
-        pub fn eql(self: Self, a: Key, b: Key) bool {
-            _ = self;
+        if (a.options.map.count() != b.options.map.count()) {
+            return false;
+        }
 
-            if (!std.mem.eql(u8, a.name, b.name)) {
-                return false;
-            }
-
-            if (a.options.map.count() != b.options.map.count()) {
-                return false;
-            }
-
-            var a_iter = a.options.map.iterator();
-            var b_iter = b.options.map.iterator();
-            while (a_iter.next()) |a_entry| {
-                if (b_iter.next()) |b_entry| {
-                    if (!std.mem.eql(u8, a_entry.key_ptr.*, b_entry.key_ptr.*)) {
-                        return false;
-                    }
-
-                    if (!std.mem.eql(
-                        u8,
-                        std.mem.asBytes(a_entry.value_ptr),
-                        std.mem.asBytes(b_entry.value_ptr),
-                    )) {
-                        return false;
-                    }
-                } else {
+        var a_iter = a.options.map.iterator();
+        var b_iter = b.options.map.iterator();
+        while (a_iter.next()) |a_entry| {
+            if (b_iter.next()) |b_entry| {
+                if (!std.mem.eql(u8, a_entry.key_ptr.*, b_entry.key_ptr.*)) {
                     return false;
                 }
+
+                if (!a_entry.value_ptr.eql(b_entry.value_ptr.*)) {
+                    return false;
+                }
+            } else {
+                return false;
             }
-
-            return true;
         }
-    };
 
-    const Entry = struct {
-        id: u32,
+        return true;
+    }
+};
 
-        source_name: []u8 = &.{},
-    };
+const Entry = struct {
+    id: u32,
+    source_name: []u8 = &.{},
+};
 
-    const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
+const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 
+pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
         resources: std.ArrayListUnmanaged(T) = .{},
@@ -185,8 +178,10 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             var id: u32 = Null;
 
             const key = Key{ .name = name, .options = options };
-            if (self.entries.get(key)) |entry| {
-                id = entry.id;
+            if (0 != name.len) {
+                if (self.entries.get(key)) |entry| {
+                    id = entry.id;
+                }
             }
 
             if (Null == id) {
@@ -194,6 +189,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
                 id = @intCast(u32, self.resources.items.len - 1);
             } else {
+                self.resources.items[id].deinit(alloc);
                 self.resources.items[id] = item;
             }
 
