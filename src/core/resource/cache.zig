@@ -38,7 +38,7 @@ const KeyContext = struct {
         var iter = k.options.map.iterator();
         while (iter.next()) |entry| {
             hasher.update(entry.key_ptr.*);
-            hasher.update(std.mem.asBytes(entry.value_ptr));
+            entry.value_ptr.hash(&hasher);
         }
 
         return hasher.final();
@@ -63,11 +63,7 @@ const KeyContext = struct {
                     return false;
                 }
 
-                if (!std.mem.eql(
-                    u8,
-                    std.mem.asBytes(a_entry.value_ptr),
-                    std.mem.asBytes(b_entry.value_ptr),
-                )) {
+                if (!a_entry.value_ptr.eql(b_entry.value_ptr.*)) {
                     return false;
                 }
             } else {

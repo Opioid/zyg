@@ -5,6 +5,29 @@ pub const VariantMap = struct {
     const Variant = union(enum) {
         Bool: bool,
         UInt: u32,
+
+        pub fn eql(self: Variant, other: Variant) bool {
+            return switch (self) {
+                .Bool => |s| switch (other) {
+                    .Bool => |o| s == o,
+                    else => false,
+                },
+                .UInt => |s| switch (other) {
+                    .UInt => |o| s == o,
+                    else => false,
+                },
+            };
+        }
+
+        pub fn hash(self: Variant, hasher: anytype) void {
+            const et = @enumToInt(self);
+            hasher.update(std.mem.asBytes(&et));
+
+            switch (self) {
+                .Bool => |b| hasher.update(std.mem.asBytes(&b)),
+                .UInt => |i| hasher.update(std.mem.asBytes(&i)),
+            }
+        }
     };
 
     map: std.StringHashMapUnmanaged(Variant) = .{},
