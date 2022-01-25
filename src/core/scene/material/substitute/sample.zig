@@ -24,7 +24,7 @@ const std = @import("std");
 pub const Sample = struct {
     super: Base,
 
-    coating: Coating = undefined,
+    coating: Coating = .{},
 
     f0: Vec4f,
     translucent_color: Vec4f = undefined,

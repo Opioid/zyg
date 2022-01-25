@@ -15,7 +15,7 @@ pub const Coating = struct {
 
     absorption_coef: Vec4f = undefined,
 
-    thickness: f32 = undefined,
+    thickness: f32 = 0.0,
     ior: f32 = undefined,
     f0: f32 = undefined,
     alpha: f32 = undefined,
