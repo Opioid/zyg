@@ -42,9 +42,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
                 hasher.update(std.mem.asBytes(entry.value_ptr));
             }
 
-            const h = hasher.final();
-
-            return h;
+            return hasher.final();
         }
 
         pub fn eql(self: Self, a: Key, b: Key) bool {
@@ -84,7 +82,6 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
     const Entry = struct {
         id: u32,
-
         source_name: []u8 = &.{},
     };
 

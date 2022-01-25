@@ -174,23 +174,29 @@ pub const Pool = struct {
     fn wakeAllRange(self: *Pool, begin: u32, end: u32, item_size_hint: u32) usize {
         self.running_parallel = true;
 
-        const range = @intToFloat(f32, end - begin);
+        const range = end - begin;
+        const rangef = @intToFloat(f32, range);
         const num_threads = @intToFloat(f32, self.threads.len);
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
-            @floatToInt(u32, @ceil((range * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
+            @floatToInt(u32, @ceil((rangef * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
                 Cache_line / item_size_hint
         else
-            @floatToInt(u32, @ceil(range / num_threads));
+            @floatToInt(u32, @floor(rangef / num_threads));
 
+        var r = range - std.math.min(step * @intCast(u32, self.threads.len), range);
         var e = begin;
 
         for (self.uniques) |*u, i| {
+            if (e >= end) {
+                return i;
+            }
+
             const b = e;
             e += step;
 
-            if (b >= end) {
-                return i;
+            if (i < r) {
+                e += 1;
             }
 
             u.mutex.lock();
