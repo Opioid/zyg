@@ -16,29 +16,23 @@ pub const VariantMap = struct {
     }
 
     pub fn clone(self: Self, alloc: Allocator) !Self {
-        var result = VariantMap{};
-
-        var iter = self.map.iterator();
-        while (iter.next()) |entry| {
-            const k = entry.key_ptr.*;
-            try result.map.put(alloc, k, entry.value_ptr.*);
-        }
-
-        return result;
+        return VariantMap{ .map = try self.map.clone(alloc) };
     }
 
     pub fn cloneExcept(self: Self, alloc: Allocator, key: []const u8) !Self {
-        var result = VariantMap{};
+        var map = std.StringHashMapUnmanaged(Variant){};
+
+        try map.ensureTotalCapacity(alloc, self.map.count());
 
         var iter = self.map.iterator();
         while (iter.next()) |entry| {
             const k = entry.key_ptr.*;
             if (!std.mem.eql(u8, key, k)) {
-                try result.map.put(alloc, k, entry.value_ptr.*);
+                try map.put(alloc, k, entry.value_ptr.*);
             }
         }
 
-        return result;
+        return VariantMap{ .map = map };
     }
 
     pub fn query(self: Self, comptime T: type, key: []const u8) ?T {
