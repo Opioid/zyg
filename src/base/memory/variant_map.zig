@@ -86,12 +86,8 @@ pub const VariantMap = struct {
 
     pub fn set(self: *Self, alloc: Allocator, key: []const u8, val: anytype) !void {
         switch (@typeInfo(@TypeOf(val))) {
-            .Bool => {
-                try self.map.put(alloc, key, .{ .Bool = val });
-            },
-            .Enum => {
-                try self.map.put(alloc, key, .{ .UInt = @as(u32, @enumToInt(val)) });
-            },
+            .Bool => try self.map.put(alloc, key, .{ .Bool = val }),
+            .Enum => try self.map.put(alloc, key, .{ .UInt = @as(u32, @enumToInt(val)) }),
             else => {},
         }
     }
