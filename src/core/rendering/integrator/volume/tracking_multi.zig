@@ -8,6 +8,7 @@ const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -15,12 +16,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(
-        ray: *Ray,
-        isec: *Intersection,
-        filter: ?Filter,
-        worker: *Worker,
-    ) Result {
+    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, worker: *Worker) Result {
         if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),

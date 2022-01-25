@@ -28,7 +28,7 @@ const Coating = struct {
     alpha: f32 = 1.0,
 
     pub fn setAttenuation(self: *Coating, color: Vec4f, distance: f32) void {
-        self.absorption_coef = ccoef.attenutionCoefficient(color, distance);
+        self.absorption_coef = ccoef.attenuationCoefficient(color, distance);
     }
 
     pub fn setRoughness(self: *Coating, roughness: f32) void {
