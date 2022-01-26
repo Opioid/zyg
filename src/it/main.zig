@@ -64,13 +64,21 @@ pub fn main() !void {
             continue;
         };
 
-        try write(alloc, input, texture, options.exposure, scene, &threads);
+        try write(alloc, input, texture, options.exposure, options.format, scene, &threads);
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
 }
 
-fn write(alloc: Allocator, name: []const u8, texture: core.tx.Texture, exposure: f32, scene: scn.Scene, threads: *Threads) !void {
+fn write(
+    alloc: Allocator,
+    name: []const u8,
+    texture: core.tx.Texture,
+    exposure: f32,
+    format: Options.Format,
+    scene: scn.Scene,
+    threads: *Threads,
+) !void {
     const desc = texture.description(scene);
 
     var context = Context{
@@ -83,9 +91,16 @@ fn write(alloc: Allocator, name: []const u8, texture: core.tx.Texture, exposure:
 
     _ = threads.runRange(&context, Context.run, 0, @intCast(u32, desc.dimensions.v[1]), 0);
 
-    var writer = core.ExrWriter{ .alpha = texture.numChannels() > 3, .half = true };
+    const alpha = texture.numChannels() > 3;
 
-    var output_name = try std.fmt.allocPrint(alloc, "{s}.it.exr", .{name});
+    var writer = switch (format) {
+        .EXR => core.ImageWriter{ .EXR = .{ .half = true, .alpha = alpha } },
+        .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false, alpha) },
+        .RGBE => core.ImageWriter{ .RGBE = .{} },
+    };
+    defer writer.deinit(alloc);
+
+    var output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
     defer alloc.free(output_name);
     var file = try std.fs.cwd().createFile(output_name, .{});
     defer file.close();

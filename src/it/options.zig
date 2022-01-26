@@ -2,7 +2,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Options = struct {
+    pub const Format = enum {
+        EXR,
+        PNG,
+        RGBE,
+    };
+
     inputs: std.ArrayListUnmanaged([]u8) = .{},
+
+    format: Format = .PNG,
 
     exposure: f32 = 0.0,
 
@@ -76,6 +84,14 @@ pub const Options = struct {
             try self.inputs.append(alloc, input);
         } else if (std.mem.eql(u8, "exposure", command) or std.mem.eql(u8, "e", command)) {
             self.exposure = std.fmt.parseFloat(f32, parameter) catch 0.0;
+        } else if (std.mem.eql(u8, "format", command) or std.mem.eql(u8, "f", command)) {
+            if (std.mem.eql(u8, "exr", parameter)) {
+                self.format = .EXR;
+            } else if (std.mem.eql(u8, "png", parameter)) {
+                self.format = .PNG;
+            } else if (std.mem.eql(u8, "rgbe", parameter) or std.mem.eql(u8, "hdr", parameter)) {
+                self.format = .RGBE;
+            }
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         }
