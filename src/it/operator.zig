@@ -15,7 +15,7 @@ pub const Operator = struct {
         Over,
         Tonemap,
 
-        pub fn cummulative(self: Type) bool {
+        pub fn cumulative(self: Type) bool {
             return switch (self) {
                 .Tonemap => false,
                 else => true,

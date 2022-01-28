@@ -85,43 +85,29 @@ pub fn main() !void {
 
     const alpha = operator.textures.items[0].numChannels() > 3;
 
-    if (operator.typef.cummulative()) {
+    var writer = switch (options.format) {
+        .EXR => core.ImageWriter{ .EXR = .{ .half = true, .alpha = alpha } },
+        .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false, alpha) },
+        .RGBE => core.ImageWriter{ .RGBE = .{} },
+    };
+    defer writer.deinit(alloc);
+
+    if (operator.typef.cumulative()) {
         operator.run(&threads);
 
-        try write(
-            alloc,
-            options.inputs.items[operator.input_ids.items[0]],
-            operator.target,
-            alpha,
-            options.format,
-            &threads,
-        );
+        const name = options.inputs.items[operator.input_ids.items[0]];
+
+        try write(alloc, name, operator.target, &writer, &threads);
     } else {
         for (operator.textures.items) |_, i| {
             operator.current = @intCast(u32, i);
             operator.run(&threads);
 
-            try write(
-                alloc,
-                options.inputs.items[operator.input_ids.items[i]],
-                operator.target,
-                alpha,
-                options.format,
-                &threads,
-            );
+            const name = options.inputs.items[operator.input_ids.items[i]];
+
+            try write(alloc, name, operator.target, &writer, &threads);
         }
     }
-
-    // for (options.inputs.items) |input| {
-    //     log.info("Processing file {s}", .{input});
-
-    //     const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
-    //         log.err("Could not load texture \"{s}\": {}", .{ input, e });
-    //         continue;
-    //     };
-
-    //     try write(alloc, input, texture, options.exposure, options.format, scene, &threads);
-    // }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
 }
@@ -130,17 +116,9 @@ fn write(
     alloc: Allocator,
     name: []const u8,
     target: core.image.Float4,
-    alpha: bool,
-    format: Options.Format,
+    writer: *core.ImageWriter,
     threads: *Threads,
 ) !void {
-    var writer = switch (format) {
-        .EXR => core.ImageWriter{ .EXR = .{ .half = true, .alpha = alpha } },
-        .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false, alpha) },
-        .RGBE => core.ImageWriter{ .RGBE = .{} },
-    };
-    defer writer.deinit(alloc);
-
     var output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
     defer alloc.free(output_name);
     var file = try std.fs.cwd().createFile(output_name, .{});
