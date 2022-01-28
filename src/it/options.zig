@@ -1,3 +1,5 @@
+const OperatorType = @import("operator.zig").Operator.Type;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -9,11 +11,9 @@ pub const Options = struct {
     };
 
     inputs: std.ArrayListUnmanaged([]u8) = .{},
-
+    operator: OperatorType = .Over,
     format: Format = .PNG,
-
     exposure: f32 = 0.0,
-
     threads: i32 = 0,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
@@ -76,7 +76,9 @@ pub const Options = struct {
     }
 
     fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
-        if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
+        if (std.mem.eql(u8, "add", command)) {
+            self.operator = .Add;
+        } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.alloc(u8, parameter.len);
@@ -92,8 +94,12 @@ pub const Options = struct {
             } else if (std.mem.eql(u8, "rgbe", parameter) or std.mem.eql(u8, "hdr", parameter)) {
                 self.format = .RGBE;
             }
+        } else if (std.mem.eql(u8, "over", command)) {
+            self.operator = .Over;
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
+        } else if (std.mem.eql(u8, "tone", command)) {
+            self.operator = .Tonemap;
         }
     }
 

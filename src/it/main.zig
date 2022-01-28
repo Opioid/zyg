@@ -1,4 +1,5 @@
 const Options = @import("options.zig").Options;
+const Operator = @import("operator.zig").Operator;
 
 const core = @import("core");
 const log = core.log;
@@ -61,16 +62,66 @@ pub fn main() !void {
     defer image_options.deinit(alloc);
     try image_options.set(alloc, "usage", core.tx.Usage.ColorAndOpacity);
 
-    for (options.inputs.items) |input| {
-        log.info("Processing file {s}", .{input});
+    var operator = Operator{
+        .typef = options.operator,
+        .tonemapper = core.Tonemapper.init(if (.Tonemap == options.operator) .ACES else .Linear, options.exposure),
+        .scene = &scene,
+    };
+    defer operator.deinit(alloc);
+
+    for (options.inputs.items) |input, i| {
+        log.info("Loading file {s}", .{input});
 
         const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ input, e });
             continue;
         };
 
-        try write(alloc, input, texture, options.exposure, options.format, scene, &threads);
+        try operator.textures.append(alloc, texture);
+        try operator.input_ids.append(alloc, @intCast(u32, i));
     }
+
+    try operator.configure(alloc);
+
+    const alpha = operator.textures.items[0].numChannels() > 3;
+
+    if (operator.typef.cummulative()) {
+        operator.run(&threads);
+
+        try write(
+            alloc,
+            options.inputs.items[operator.input_ids.items[0]],
+            operator.target,
+            alpha,
+            options.format,
+            &threads,
+        );
+    } else {
+        for (operator.textures.items) |_, i| {
+            operator.current = @intCast(u32, i);
+            operator.run(&threads);
+
+            try write(
+                alloc,
+                options.inputs.items[operator.input_ids.items[i]],
+                operator.target,
+                alpha,
+                options.format,
+                &threads,
+            );
+        }
+    }
+
+    // for (options.inputs.items) |input| {
+    //     log.info("Processing file {s}", .{input});
+
+    //     const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
+    //         log.err("Could not load texture \"{s}\": {}", .{ input, e });
+    //         continue;
+    //     };
+
+    //     try write(alloc, input, texture, options.exposure, options.format, scene, &threads);
+    // }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
 }
@@ -78,26 +129,11 @@ pub fn main() !void {
 fn write(
     alloc: Allocator,
     name: []const u8,
-    texture: core.tx.Texture,
-    exposure: f32,
+    target: core.image.Float4,
+    alpha: bool,
     format: Options.Format,
-    scene: scn.Scene,
     threads: *Threads,
 ) !void {
-    const desc = texture.description(scene);
-
-    var context = Context{
-        .texture = &texture,
-        .target = try core.image.Float4.init(alloc, desc),
-        .tonemapper = core.Tonemapper.init(.ACES, exposure),
-        .scene = &scene,
-    };
-    defer context.target.deinit(alloc);
-
-    _ = threads.runRange(&context, Context.run, 0, @intCast(u32, desc.dimensions.v[1]), 0);
-
-    const alpha = texture.numChannels() > 3;
-
     var writer = switch (format) {
         .EXR => core.ImageWriter{ .EXR = .{ .half = true, .alpha = alpha } },
         .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false, alpha) },
@@ -111,34 +147,6 @@ fn write(
     defer file.close();
 
     var buffered = std.io.bufferedWriter(file.writer());
-    try writer.write(alloc, buffered.writer(), context.target, threads);
+    try writer.write(alloc, buffered.writer(), target, threads);
     try buffered.flush();
 }
-
-const Context = struct {
-    texture: *const core.tx.Texture,
-    target: core.image.Float4,
-    tonemapper: core.Tonemapper,
-    scene: *const scn.Scene,
-
-    pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        _ = id;
-
-        var self = @intToPtr(*Context, context);
-
-        const dim = self.texture.description(self.scene.*).dimensions;
-        const width = dim.v[0];
-
-        var y = begin;
-        while (y < end) : (y += 1) {
-            var x: u32 = 0;
-            while (x < width) : (x += 1) {
-                const ux = @intCast(i32, x);
-                const uy = @intCast(i32, y);
-                const color = self.texture.get2D_4(ux, uy, self.scene.*);
-                const tm = self.tonemapper.tonemap(color);
-                self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
-            }
-        }
-    }
-};
