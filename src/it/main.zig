@@ -13,6 +13,7 @@ const chrono = base.chrono;
 const math = base.math;
 const Pack4f = math.Pack4f;
 const Threads = base.thread.Pool;
+const Variants = base.memory.VariantMap;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -56,10 +57,14 @@ pub fn main() !void {
 
     const loading_start = std.time.milliTimestamp();
 
+    var image_options: Variants = .{};
+    defer image_options.deinit(alloc);
+    try image_options.set(alloc, "usage", core.tx.Usage.ColorAndOpacity);
+
     for (options.inputs.items) |input| {
         log.info("Processing file {s}", .{input});
 
-        const texture = core.tx.Provider.loadFile(alloc, input, .{}, .{ 1.0, 1.0 }, &resources) catch |e| {
+        const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ input, e });
             continue;
         };
@@ -130,7 +135,7 @@ const Context = struct {
             while (x < width) : (x += 1) {
                 const ux = @intCast(i32, x);
                 const uy = @intCast(i32, y);
-                const color = self.texture.get2D_3(ux, uy, self.scene.*);
+                const color = self.texture.get2D_4(ux, uy, self.scene.*);
                 const tm = self.tonemapper.tonemap(color);
                 self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
             }
