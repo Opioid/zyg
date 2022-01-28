@@ -104,7 +104,7 @@ pub const Transparent = struct {
             const weight = self.pixel_weights[j];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
             const tm = self.base.tonemapper.tonemap(color);
-            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], color[3]);
+            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], @maximum(color[3], 0.0));
         }
     }
 
@@ -116,7 +116,7 @@ pub const Transparent = struct {
             const old = target.pixels[j];
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
-            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], combined[3]);
+            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], @maximum(combined[3], 0.0));
         }
     }
 };
