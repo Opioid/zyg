@@ -107,7 +107,7 @@ pub const Options = struct {
                 return false;
             }
 
-            _ = std.fmt.parseInt(i32, text[1..], 0) catch return false;
+            _ = std.fmt.parseFloat(f32, text[1..]) catch return false;
         }
 
         return true;
