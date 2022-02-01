@@ -5,7 +5,7 @@ const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -38,33 +38,12 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [Num_dedicated_samplers + 1]smp.Sampler,
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        return Self{
-            .settings = settings,
-            .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .Random = .{} },
-            },
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-    }
-
-    pub fn startPixel(self: *Self, num_samples: u32) void {
-        const total_samples_per_pixel = self.settings.num_samples * num_samples;
-        for (self.samplers) |*s| {
-            s.startPixel(total_samples_per_pixel);
-        }
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        self.sampler.startPixel(sample, seed);
     }
 
     pub fn li(
@@ -99,7 +78,7 @@ pub const AOV = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = self.materialSampler(ray.depth).sample2D(&worker.super.rng, 0);
+            const sample = self.sampler.sample2D(&worker.super.rng);
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -112,6 +91,8 @@ pub const AOV = struct {
             if (worker.super.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
+
+            self.sampler.incrementSample();
         }
 
         return .{ result, result, result, 1.0 };
@@ -173,7 +154,7 @@ pub const AOV = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -233,24 +214,20 @@ pub const AOV = struct {
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            self.sampler.incrementBounce();
         }
+
+        self.sampler.incrementSample();
 
         return @splat(4, @as(f32, 0.0));
-    }
-
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[bounce];
-        }
-
-        return &self.samplers[Num_dedicated_samplers];
     }
 };
 
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !AOV {
-        return try AOV.init(alloc, self.settings, max_samples_per_pixel);
+    pub fn create(self: Factory) AOV {
+        return .{ .settings = self.settings };
     }
 };

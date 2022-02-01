@@ -148,7 +148,7 @@ pub const Sample = struct {
             return result;
         } else {
             if (0.0 == self.abbe) {
-                const p = sampler.sample1D(rng, 0);
+                const p = sampler.sample1D(rng);
 
                 var result = self.thickSample(ior, p);
                 result.wavelength = 0.0;
@@ -157,7 +157,7 @@ pub const Sample = struct {
                 var weight: Vec4f = undefined;
                 var wavelength = self.wavelength;
 
-                const r = sampler.sample2D(rng, 0);
+                const r = sampler.sample2D(rng);
 
                 if (0.0 == wavelength) {
                     const start = Material.Start_wavelength;
@@ -245,7 +245,7 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        const p = sampler.sample1D(rng, 0);
+        const p = sampler.sample1D(rng);
         if (p <= f) {
             return reflect(wo, n, n_dot_wo);
         } else {
@@ -279,7 +279,7 @@ pub const Sample = struct {
         const layer = self.super.layer.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D(rng, 0);
+        const xi = sampler.sample2D(rng);
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
@@ -303,7 +303,7 @@ pub const Sample = struct {
 
         var result = bxdf.Sample{};
 
-        const p = sampler.sample1D(rng, 0);
+        const p = sampler.sample1D(rng);
         if (p <= f) {
             const n_dot_wi = ggx.Iso.reflectNoFresnel(
                 wo,

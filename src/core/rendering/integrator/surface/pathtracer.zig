@@ -6,7 +6,8 @@ const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -25,36 +26,12 @@ pub const Pathtracer = struct {
 
     settings: Settings,
 
-    samplers: [Num_dedicated_samplers + 1]smp.Sampler,
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        return Self{
-            .settings = settings,
-            .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .Random = .{} },
-            },
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-    }
-
-    pub fn startPixel(self: *Self, num_samples: u32) void {
-        const total_samples_per_pixel = self.settings.num_samples * num_samples;
-
-        for (self.samplers) |*s| {
-            s.startPixel(total_samples_per_pixel);
-        }
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        self.sampler.startPixel(sample, seed);
     }
 
     pub fn li(
@@ -76,6 +53,8 @@ pub const Pathtracer = struct {
             var split_isec = isec.*;
 
             result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
+
+            self.sampler.incrementSample();
         }
 
         return result;
@@ -124,12 +103,12 @@ pub const Pathtracer = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, self.defaultSampler().sample1D(&worker.super.rng, 0))) {
+                if (hlp.russianRoulette(&throughput, self.sampler.sample1D(&worker.super.rng))) {
                     break;
                 }
             }
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -182,32 +161,18 @@ pub const Pathtracer = struct {
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            self.sampler.incrementBounce();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
-    }
-
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[bounce];
-        }
-
-        return &self.samplers[Num_dedicated_samplers];
-    }
-
-    fn defaultSampler(self: *Self) *smp.Sampler {
-        return &self.samplers[Num_dedicated_samplers];
     }
 };
 
 pub const Factory = struct {
     settings: Pathtracer.Settings,
 
-    pub fn create(
-        self: Factory,
-        alloc: Allocator,
-        max_samples_per_pixel: u32,
-    ) !Pathtracer {
-        return try Pathtracer.init(alloc, self.settings, max_samples_per_pixel);
+    pub fn create(self: Factory) Pathtracer {
+        return .{ .settings = self.settings };
     }
 };

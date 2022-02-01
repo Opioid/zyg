@@ -85,10 +85,9 @@ pub const Cube = struct {
         volume: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) SampleTo {
-        const r2 = sampler.sample2D(rng, sampler_d);
-        const r1 = sampler.sample1D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
+        const r1 = sampler.sample1D(rng);
 
         const r3 = Vec4f{ r2[0], r2[1], r1, 0.0 };
         const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));

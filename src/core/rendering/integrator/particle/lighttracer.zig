@@ -9,7 +9,7 @@ const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const mat = @import("../../../scene/material/material_helper.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -33,54 +33,12 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    samplers: [Num_dedicated_samplers]smp.Sampler,
-    sampler: smp.Sampler,
-    light_sampler: smp.Sampler,
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings) !Self {
-        const num_samples = settings.num_samples;
-
-        if (num_samples <= 1) {
-            return Self{
-                .settings = settings,
-                .samplers = .{
-                    .{ .Random = .{} },
-                    .{ .Random = .{} },
-                    .{ .Random = .{} },
-                },
-                .sampler = .{ .Random = .{} },
-                .light_sampler = .{ .Random = .{} },
-            };
-        } else {
-            return Self{
-                .settings = settings,
-                .samplers = .{
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                },
-                .sampler = .{ .Random = .{} },
-                .light_sampler = .{ .Random = .{} },
-            };
-        }
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-
-        self.sampler.deinit(alloc);
-        self.light_sampler.deinit(alloc);
-    }
-
-    pub fn startPixel(self: *Self) void {
-        const num_samples = self.settings.num_samples;
-
-        self.sampler.startPixel(num_samples);
-        self.light_sampler.startPixel(num_samples);
+    pub fn startPixel(self: *Self, seed: u32) void {
+        self.sampler.startPixel(0, seed);
     }
 
     pub fn li(
@@ -90,12 +48,6 @@ pub const Lighttracer = struct {
         initial_stack: InterfaceStack,
     ) void {
         _ = initial_stack;
-
-        const num_samples = self.settings.num_samples;
-
-        for (self.samplers) |*s| {
-            s.startPixel(num_samples);
-        }
 
         const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
         const frustum_bounds = world_bounds;
@@ -135,7 +87,7 @@ pub const Lighttracer = struct {
         const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
-        var i = num_samples;
+        var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
             worker.super.interface_stack.clear();
             if (volumetric) {
@@ -146,6 +98,8 @@ pub const Lighttracer = struct {
             var split_isec = isec;
 
             self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
+
+            self.sampler.incrementSample();
         }
     }
 
@@ -190,7 +144,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -252,6 +206,8 @@ pub const Lighttracer = struct {
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            self.sampler.incrementBounce();
         }
 
         _ = light_id;
@@ -267,13 +223,13 @@ pub const Lighttracer = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var rng = &worker.super.rng;
-        const select = self.light_sampler.sample1D(rng, 0);
+        const select = self.sampler.sample1D(rng);
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.light_sampler.sample1D(rng, 2));
+        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
 
         const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.light_sampler, 1, bounds, &worker.super) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
@@ -310,7 +266,6 @@ pub const Lighttracer = struct {
             p,
             &self.sampler,
             &worker.super.rng,
-            0,
             worker.super.scene.*,
         ) orelse return false;
 
@@ -342,20 +297,12 @@ pub const Lighttracer = struct {
 
         return true;
     }
-
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[bounce];
-        }
-
-        return &self.sampler;
-    }
 };
 
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(self: Factory, alloc: Allocator) !Lighttracer {
-        return try Lighttracer.init(alloc, self.settings);
+    pub fn create(self: Factory) Lighttracer {
+        return .{ .settings = self.settings };
     }
 };

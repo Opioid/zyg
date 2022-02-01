@@ -48,10 +48,6 @@ pub const Worker = struct {
 
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
-        self.lighttracer.deinit(alloc);
-        self.volume_integrator.deinit(alloc);
-        self.surface_integrator.deinit(alloc);
-        self.sampler.deinit(alloc);
         self.super.deinit(alloc);
     }
 
@@ -70,11 +66,11 @@ pub const Worker = struct {
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = try samplers.create(alloc, 1, 2, num_samples_per_pixel);
+        self.sampler = samplers.create(alloc, 1, 2, num_samples_per_pixel);
 
-        self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
-        self.volume_integrator = try volumes.create(alloc, num_samples_per_pixel);
-        self.lighttracer = try lighttracers.create(alloc);
+        self.surface_integrator = surfaces.create();
+        self.volume_integrator = volumes.create();
+        self.lighttracer = lighttracers.create();
 
         const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
         self.photon_mapper = try PhotonMapper.init(alloc, .{
@@ -107,8 +103,9 @@ pub const Worker = struct {
             while (x <= x_back) : (x += 1) {
                 self.super.rng.start(0, o1 + @intCast(u64, x));
 
-                self.sampler.startPixel(min_samples);
-                self.surface_integrator.startPixel(min_samples);
+                self.sampler.startPixel(0, @intCast(u32, y * r[0] + x));
+                self.surface_integrator.startPixel(0, @intCast(u32, y * r[0] + x + r[0] * r[1]));
+
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
@@ -166,8 +163,6 @@ pub const Worker = struct {
         const offset = @splat(2, @as(i32, 0));
         const r = camera.resolution;
 
-        const remaining_samples = max_samples - min_samples;
-
         const o0 = 1 * @intCast(u64, r[0] * r[1]);
 
         const y_back = tile[3];
@@ -184,8 +179,8 @@ pub const Worker = struct {
                 var old_m = sensor.mean(pixel);
                 var old_s = sensor.basePtr().errorEstimate(pixel);
 
-                self.sampler.startPixel(remaining_samples);
-                self.surface_integrator.startPixel(remaining_samples);
+                self.sampler.startPixel(min_samples, @intCast(u32, y * r[0] + x));
+                self.surface_integrator.startPixel(min_samples, @intCast(u32, y * r[0] + x + r[0] * r[1]));
 
                 var c: u32 = 0;
                 var s = min_samples;
@@ -258,7 +253,7 @@ pub const Worker = struct {
         var camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel();
+        self.lighttracer.startPixel(self.super.rng.randomUint());
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {

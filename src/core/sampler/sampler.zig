@@ -1,59 +1,78 @@
 const CameraSample = @import("camera_sample.zig").CameraSample;
-pub const GoldenRatio = @import("golden_ratio.zig").GoldenRatio;
+pub const Sobol = @import("sobol.zig").Sobol;
 
 const base = @import("base");
 const math = base.math;
 const RNG = base.rnd.Generator;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 
 const Allocator = @import("std").mem.Allocator;
 
 pub const Sampler = union(enum) {
     Random,
-    GoldenRatio: GoldenRatio,
+    Sobol: Sobol,
 
-    pub fn deinit(self: *Sampler, alloc: Allocator) void {
+    pub fn startPixel(self: *Sampler, sample: u32, seed: u32) void {
         switch (self.*) {
             .Random => {},
-            .GoldenRatio => |*gr| gr.deinit(alloc),
+            .Sobol => |*s| s.startPixel(sample, seed),
         }
     }
 
-    pub fn startPixel(self: *Sampler, num_samples: u32) void {
+    pub fn incrementSample(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
-            .GoldenRatio => |*gr| gr.startPixel(num_samples),
+            .Sobol => |*s| s.incrementSample(),
         }
     }
 
-    pub fn sample1D(self: *Sampler, rng: *RNG, dimension: usize) f32 {
+    pub fn incrementBounce(self: *Sampler) void {
+        switch (self.*) {
+            .Random => {},
+            .Sobol => |*s| s.incrementBounce(),
+        }
+    }
+
+    pub fn sample1D(self: *Sampler, rng: *RNG) f32 {
         return switch (self.*) {
             .Random => rng.randomFloat(),
-            .GoldenRatio => |*gr| gr.sample1D(rng, @intCast(u32, dimension)),
+            .Sobol => |*s| s.sample1D(),
         };
     }
 
-    pub fn sample2D(self: *Sampler, rng: *RNG, dimension: usize) Vec2f {
+    pub fn sample2D(self: *Sampler, rng: *RNG) Vec2f {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat() },
-            .GoldenRatio => |*gr| gr.sample2D(rng, @intCast(u32, dimension)),
+            .Sobol => |*s| s.sample2D(),
+        };
+    }
+
+    pub fn sample3D(self: *Sampler, rng: *RNG) Vec4f {
+        return switch (self.*) {
+            .Random => .{ rng.randomFloat(), rng.randomFloat(), rng.randomFloat(), 0.0 },
+            .Sobol => |*s| s.sample3D(),
         };
     }
 
     pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
-        return .{
+        const sample = CameraSample{
             .pixel = pixel,
-            .pixel_uv = self.sample2D(rng, 0),
-            .lens_uv = self.sample2D(rng, 1),
-            .time = self.sample1D(rng, 0),
+            .pixel_uv = self.sample2D(rng),
+            .lens_uv = self.sample2D(rng),
+            .time = self.sample1D(rng),
         };
+
+        self.incrementSample();
+
+        return sample;
     }
 };
 
 pub const Factory = union(enum) {
     Random,
-    GoldenRatio,
+    Sobol,
 
     pub fn create(
         self: Factory,
@@ -61,12 +80,15 @@ pub const Factory = union(enum) {
         num_dimensions_1D: u32,
         num_dimensions_2D: u32,
         max_samples: u32,
-    ) !Sampler {
+    ) Sampler {
+        _ = alloc;
+        _ = num_dimensions_1D;
+        _ = num_dimensions_2D;
+        _ = max_samples;
+
         return switch (self) {
             .Random => Sampler{ .Random = {} },
-            .GoldenRatio => Sampler{
-                .GoldenRatio = try GoldenRatio.init(alloc, num_dimensions_1D, num_dimensions_2D, max_samples),
-            },
+            .Sobol => Sampler{ .Sobol = .{} },
         };
     }
 };

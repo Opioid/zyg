@@ -494,7 +494,7 @@ fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32, cv: *f32) smp
         }
 
         if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
-            return .{ .GoldenRatio = {} };
+            return .{ .Sobol = {} };
         }
     }
 

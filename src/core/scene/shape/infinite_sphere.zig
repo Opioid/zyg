@@ -48,9 +48,8 @@ pub const InfiniteSphere = struct {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) SampleTo {
-        const uv = sampler.sample2D(rng, sampler_d);
+        const uv = sampler.sample2D(rng);
 
         var dir: Vec4f = undefined;
         var pdf_: f32 = undefined;

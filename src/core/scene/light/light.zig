@@ -94,7 +94,6 @@ pub const Light = struct {
         time: u64,
         total_sphere: bool,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
         const trafo = worker.scene.propTransformationAt(self.prop, time);
@@ -106,7 +105,6 @@ pub const Light = struct {
                 trafo,
                 total_sphere,
                 sampler,
-                sampler_d,
                 worker,
             ),
             .PropImage => self.propImageSampleTo(
@@ -115,7 +113,6 @@ pub const Light = struct {
                 trafo,
                 total_sphere,
                 sampler,
-                sampler_d,
                 worker,
             ),
             .Volume => self.volumeSampleTo(
@@ -124,7 +121,6 @@ pub const Light = struct {
                 trafo,
                 total_sphere,
                 sampler,
-                sampler_d,
                 worker,
             ),
             .VolumeImage => self.volumeImageSampleTo(
@@ -133,7 +129,6 @@ pub const Light = struct {
                 trafo,
                 total_sphere,
                 sampler,
-                sampler_d,
                 worker,
             ),
         };
@@ -143,33 +138,15 @@ pub const Light = struct {
         self: Light,
         time: u64,
         sampler: *Sampler,
-        sampler_d: usize,
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
         const trafo = worker.scene.propTransformationAt(self.prop, time);
 
         return switch (self.typef) {
-            .Prop => self.propSampleFrom(
-                trafo,
-                sampler,
-                sampler_d,
-                bounds,
-                worker,
-            ),
-            .PropImage => self.propImageSampleFrom(
-                trafo,
-                sampler,
-                sampler_d,
-                bounds,
-                worker,
-            ),
-            .VolumeImage => self.volumeImageSampleFrom(
-                trafo,
-                sampler,
-                sampler_d,
-                worker,
-            ),
+            .Prop => self.propSampleFrom(trafo, sampler, bounds, worker),
+            .PropImage => self.propImageSampleFrom(trafo, sampler, bounds, worker),
+            .VolumeImage => self.volumeImageSampleFrom(trafo, sampler, worker),
             else => null,
         };
     }
@@ -204,7 +181,6 @@ pub const Light = struct {
         trafo: Transformation,
         total_sphere: bool,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
         const shape = worker.scene.propShape(self.prop);
@@ -219,7 +195,6 @@ pub const Light = struct {
             total_sphere,
             sampler,
             &worker.rng,
-            sampler_d,
         ) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
@@ -233,11 +208,10 @@ pub const Light = struct {
         self: Light,
         trafo: Transformation,
         sampler: *Sampler,
-        sampler_d: usize,
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
-        const importance_uv = sampler.sample2D(&worker.rng, 0);
+        const importance_uv = sampler.sample2D(&worker.rng);
 
         const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
 
@@ -250,7 +224,6 @@ pub const Light = struct {
             self.two_sided,
             sampler,
             &worker.rng,
-            sampler_d,
             importance_uv,
             bounds,
         );
@@ -263,10 +236,9 @@ pub const Light = struct {
         trafo: Transformation,
         total_sphere: bool,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
-        const s2d = sampler.sample2D(&worker.rng, sampler_d);
+        const s2d = sampler.sample2D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2d[0], s2d[1], 0.0, 0.0 });
@@ -298,11 +270,10 @@ pub const Light = struct {
         self: Light,
         trafo: Transformation,
         sampler: *Sampler,
-        sampler_d: usize,
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
-        const s2d = sampler.sample2D(&worker.rng, sampler_d);
+        const s2d = sampler.sample2D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2d[0], s2d[1], 0.0, 0.0 });
@@ -310,7 +281,7 @@ pub const Light = struct {
             return null;
         }
 
-        const importance_uv = sampler.sample2D(&worker.rng, 0);
+        const importance_uv = sampler.sample2D(&worker.rng);
 
         const shape = worker.scene.propShape(self.prop);
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
@@ -322,7 +293,6 @@ pub const Light = struct {
             self.two_sided,
             sampler,
             &worker.rng,
-            sampler_d,
             importance_uv,
             bounds,
         ) orelse return null;
@@ -339,7 +309,6 @@ pub const Light = struct {
         trafo: Transformation,
         total_sphere: bool,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
         const shape = worker.scene.propShape(self.prop);
@@ -350,7 +319,6 @@ pub const Light = struct {
             self.extent,
             sampler,
             &worker.rng,
-            sampler_d,
         ) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
@@ -367,11 +335,10 @@ pub const Light = struct {
         trafo: Transformation,
         total_sphere: bool,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleTo {
-        const s2d = sampler.sample2D(&worker.rng, sampler_d);
-        const s1d = sampler.sample1D(&worker.rng, sampler_d);
+        const s2d = sampler.sample2D(&worker.rng);
+        const s1d = sampler.sample1D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
@@ -400,11 +367,10 @@ pub const Light = struct {
         self: Light,
         trafo: Transformation,
         sampler: *Sampler,
-        sampler_d: usize,
         worker: *Worker,
     ) ?SampleFrom {
-        const s2d = sampler.sample2D(&worker.rng, sampler_d);
-        const s1d = sampler.sample1D(&worker.rng, sampler_d);
+        const s2d = sampler.sample2D(&worker.rng);
+        const s1d = sampler.sample1D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
@@ -412,7 +378,7 @@ pub const Light = struct {
             return null;
         }
 
-        const importance_uv = sampler.sample2D(&worker.rng, 0);
+        const importance_uv = sampler.sample2D(&worker.rng);
 
         const shape = worker.scene.propShape(self.prop);
 

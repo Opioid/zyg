@@ -132,9 +132,8 @@ pub const Rectangle = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
-        const uv = sampler.sample2D(rng, sampler_d);
+        const uv = sampler.sample2D(rng);
         return sampleToUv(p, uv, trafo, area, two_sided);
     }
 
@@ -144,11 +143,10 @@ pub const Rectangle = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
     ) SampleFrom {
-        const uv = sampler.sample2D(rng, sampler_d);
-        return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, sampler_d, importance_uv);
+        const uv = sampler.sample2D(rng);
+        return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, importance_uv);
     }
 
     pub fn sampleToUv(
@@ -187,7 +185,6 @@ pub const Rectangle = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
     ) SampleFrom {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
@@ -202,7 +199,7 @@ pub const Rectangle = struct {
             wn,
         );
 
-        if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
+        if (two_sided and sampler.sample1D(rng) > 0.5) {
             wn = -wn;
             dir = -dir;
         }
