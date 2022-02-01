@@ -522,12 +522,11 @@ pub const Mesh = struct {
         sampler: *Sampler,
         rng: *RNG,
     ) ?SampleTo {
-        const r = sampler.sample1D(rng);
-        const r2 = sampler.sample2D(rng);
+        const r = sampler.sample3D(rng);
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
-        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r);
+        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r[0]);
 
         if (0.0 == s.pdf) {
             return null;
@@ -535,7 +534,7 @@ pub const Mesh = struct {
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, r2, &sv, &tc);
+        self.tree.data.sample(s.global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
         var wn = trafo.rotation.transformVector(sn);

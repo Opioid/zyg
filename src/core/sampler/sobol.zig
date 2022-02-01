@@ -1,6 +1,7 @@
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 
 pub const Sobol = struct {
     sample: u32 = 0,
@@ -51,6 +52,19 @@ pub const Sobol = struct {
         self.dimension += 2;
 
         return .{ sobolOwen(i, s, d), sobolOwen(i, s, d + 1) };
+    }
+
+    pub fn sample3D(self: *Self) Vec4f {
+        if (self.dimension >= 2) {
+            self.incrementBounce();
+        }
+
+        const i = self.sample;
+        const s = self.run_seed;
+        const d = self.dimension;
+        self.dimension += 3;
+
+        return .{ sobolOwen(i, s, d), sobolOwen(i, s, d + 1), sobolOwen(i, s, d + 2), 0.0 };
     }
 };
 

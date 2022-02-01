@@ -6,6 +6,7 @@ const math = base.math;
 const RNG = base.rnd.Generator;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 
 const Allocator = @import("std").mem.Allocator;
 
@@ -45,6 +46,13 @@ pub const Sampler = union(enum) {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat() },
             .Sobol => |*s| s.sample2D(),
+        };
+    }
+
+    pub fn sample3D(self: *Sampler, rng: *RNG) Vec4f {
+        return switch (self.*) {
+            .Random => .{ rng.randomFloat(), rng.randomFloat(), rng.randomFloat(), 0.0 },
+            .Sobol => |*s| s.sample3D(),
         };
     }
 
