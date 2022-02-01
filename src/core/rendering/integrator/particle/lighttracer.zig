@@ -9,7 +9,7 @@ const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const mat = @import("../../../scene/material/material_helper.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -33,7 +33,7 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    sampler: smp.Sampler = .{ .Sobol = .{} },
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 

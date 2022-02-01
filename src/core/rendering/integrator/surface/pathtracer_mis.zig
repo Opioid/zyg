@@ -10,7 +10,8 @@ const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const mat = @import("../../../scene/material/material.zig");
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -46,7 +47,7 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    sampler: smp.Sampler = .{ .Sobol = .{} },
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 

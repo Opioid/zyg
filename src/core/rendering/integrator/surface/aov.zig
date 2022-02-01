@@ -5,7 +5,7 @@ const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -38,7 +38,7 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    sampler: smp.Sampler = .{ .Sobol = .{} },
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
