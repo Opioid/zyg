@@ -18,10 +18,12 @@ pub const Texture = struct {
         Byte2_snorm,
         Byte3_sRGB,
         Half3,
+        Half4,
         Float1,
         Float1Sparse,
         Float2,
         Float3,
+        Float4,
     };
 
     type: Type = undefined,
@@ -43,6 +45,7 @@ pub const Texture = struct {
             .Byte1_unorm, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
+            .Half4, .Float4 => 4,
         };
     }
 
@@ -233,6 +236,55 @@ pub const Texture = struct {
                 @splat(4, @as(f32, 0.0)),
                 @splat(4, @as(f32, 0.0)),
             },
+        };
+    }
+
+    pub fn get2D_4(self: Texture, x: i32, y: i32, scene: Scene) Vec4f {
+        const image = scene.image(self.image);
+
+        return switch (self.type) {
+            .Byte3_sRGB => {
+                const value = image.Byte3.get2D(x, y);
+                const ap = spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+                return .{ ap[0], ap[1], ap[2], 1.0 };
+            },
+            .Half3 => {
+                const value = image.Half3.get2D(x, y);
+                return .{
+                    @floatCast(f32, value.v[0]),
+                    @floatCast(f32, value.v[1]),
+                    @floatCast(f32, value.v[2]),
+                    1.0,
+                };
+            },
+            .Float3 => {
+                const value = image.Float3.get2D(x, y);
+                return .{
+                    @floatCast(f32, value.v[0]),
+                    @floatCast(f32, value.v[1]),
+                    @floatCast(f32, value.v[2]),
+                    1.0,
+                };
+            },
+            .Half4 => {
+                const value = image.Half4.get2D(x, y);
+                return .{
+                    @floatCast(f32, value.v[0]),
+                    @floatCast(f32, value.v[1]),
+                    @floatCast(f32, value.v[2]),
+                    @floatCast(f32, value.v[3]),
+                };
+            },
+            .Float4 => {
+                const value = image.Float4.get2D(x, y);
+                return .{
+                    @floatCast(f32, value.v[0]),
+                    @floatCast(f32, value.v[1]),
+                    @floatCast(f32, value.v[2]),
+                    @floatCast(f32, value.v[3]),
+                };
+            },
+            else => .{ 0.0, 0.0, 0.0, 1.0 },
         };
     }
 

@@ -2,8 +2,10 @@ pub const Texture = @import("texture.zig").Texture;
 const img = @import("../image.zig");
 const Image = img.Image;
 const Resources = @import("../../resource/manager.zig").Manager;
-const Variants = @import("base").memory.VariantMap;
-const math = @import("base").math;
+
+const base = @import("base");
+const Variants = base.memory.VariantMap;
+const math = base.math;
 const Vec2f = math.Vec2f;
 
 const std = @import("std");
@@ -13,7 +15,15 @@ const Error = error{
     UnsupportedImageType,
 };
 
-pub const Usage = enum { Color, Emission, Normal, Roughness, Surface, Mask };
+pub const Usage = enum {
+    Color,
+    ColorAndOpacity,
+    Emission,
+    Normal,
+    Opacity,
+    Roughness,
+    Surface,
+};
 
 pub const Provider = struct {
     pub fn loadFile(
@@ -26,17 +36,18 @@ pub const Provider = struct {
         const usage = options.queryOrDef("usage", Usage.Color);
 
         const color = switch (usage) {
-            .Color, .Emission => true,
+            .Color, .ColorAndOpacity, .Emission => true,
             else => false,
         };
 
         var swizzle = options.query(img.Swizzle, "swizzle");
         if (null == swizzle) {
             swizzle = switch (usage) {
+                .ColorAndOpacity => .XYZW,
                 .Color, .Emission => .XYZ,
                 .Normal, .Surface => .XY,
+                .Opacity => .W,
                 .Roughness => .X,
-                .Mask => .W,
             };
         }
 
@@ -61,10 +72,12 @@ pub const Provider = struct {
             },
             .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id, .scale = scale },
             .Half3 => Texture{ .type = .Half3, .image = image_id, .scale = scale },
+            .Half4 => Texture{ .type = .Half4, .image = image_id, .scale = scale },
             .Float1 => Texture{ .type = .Float1, .image = image_id, .scale = scale },
             .Float1Sparse => Texture{ .type = .Float1Sparse, .image = image_id, .scale = scale },
             .Float2 => Texture{ .type = .Float2, .image = image_id, .scale = scale },
-            else => Error.UnsupportedImageType,
+            .Float3 => Texture{ .type = .Float3, .image = image_id, .scale = scale },
+            .Float4 => Texture{ .type = .Float4, .image = image_id, .scale = scale },
         };
     }
 };

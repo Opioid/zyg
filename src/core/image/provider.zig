@@ -55,13 +55,15 @@ pub const Provider = struct {
 
         const file_type = file.queryType(&stream);
 
+        const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
+
         if (.EXR == file_type) {
             const color = options.queryOrDef("color", false);
-            return ExrReader.read(alloc, &stream, color);
+
+            return ExrReader.read(alloc, &stream, swizzle, color);
         }
 
         if (.PNG == file_type) {
-            const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
             const invert = options.queryOrDef("invert", false);
 
             if (same_file) {

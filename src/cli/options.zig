@@ -136,7 +136,7 @@ pub const Options = struct {
             \\                                 The default value is 1.
             \\  -i, --input       file/string  Path of the take file to render,
             \\                                 or json-string describing the take.
-            \\  -m, --mount       path+        Specifies a mount point for the data directory.
+            \\  -m, --mount       path         Specifies a mount point for the data directory.
             \\                                 The default value is "../data/"
             \\  -t, --threads     int          Specifies the number of threads used by sprout.
             \\                                 0 creates one thread for each logical CPU.

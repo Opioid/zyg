@@ -1,6 +1,6 @@
 const img = @import("../../image.zig");
-const Swizzle = img.Swizzle;
 const Image = img.Image;
+const Swizzle = img.Swizzle;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
@@ -163,11 +163,14 @@ pub const Reader = struct {
             .XYZ => {
                 num_channels = 3;
             },
+            .XYZW => {
+                num_channels = 3;
+            },
         }
 
         const byte_compatible = num_channels == info.num_channels and !swap_xy;
 
-        num_channels = std.math.min(num_channels, info.num_channels);
+        num_channels = @minimum(num_channels, info.num_channels);
 
         const dimensions = Vec2i{ info.width, info.height };
 
