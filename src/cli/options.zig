@@ -39,18 +39,15 @@ pub const Options = struct {
 
         var executed = false;
 
-        var i_i = try iter.next(alloc);
+        var i_i = iter.next();
         while (i_i) |arg_i| {
             const command = arg_i[1..];
 
-            var i_j = try iter.next(alloc);
+            var i_j = iter.next();
             if (i_j) |arg_j| {
                 if (isParameter(arg_j)) {
                     try options.handleAll(alloc, command, arg_j);
-                    alloc.free(arg_j);
-
                     executed = true;
-
                     continue;
                 }
             }
@@ -59,7 +56,6 @@ pub const Options = struct {
                 try options.handleAll(alloc, command, "");
             }
 
-            alloc.free(arg_i);
             i_i = i_j;
 
             executed = false;
@@ -68,7 +64,7 @@ pub const Options = struct {
         return options;
     }
 
-    fn handleAll(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handleAll(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if ('-' == command[0]) {
             try self.handle(alloc, command[1..], parameter);
         } else {
@@ -78,7 +74,7 @@ pub const Options = struct {
         }
     }
 
-    fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "frame", command) or std.mem.eql(u8, "f", command)) {
@@ -105,7 +101,7 @@ pub const Options = struct {
         }
     }
 
-    fn isParameter(text: []u8) bool {
+    fn isParameter(text: []const u8) bool {
         if (text.len <= 1) {
             return true;
         }
