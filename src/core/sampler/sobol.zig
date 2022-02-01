@@ -26,8 +26,8 @@ pub const Sobol = struct {
 
     pub fn incrementBounce(self: *Self) void {
         self.dimension = 0;
-        self.run_seed += 1;
-        // self.run_seed = hash(self.run_seed +% 1);
+        //self.run_seed += 1;
+        self.run_seed = hash(self.run_seed +% 1);
     }
 
     pub fn sample1D(self: *Self) f32 {
@@ -70,10 +70,19 @@ pub const Sobol = struct {
 
 fn hash(i: u32) u32 {
     // finalizer from murmurhash3
+    // var x = i ^ (i >> 16);
+    // x *%= 0x85ebca6b;
+    // x ^= x >> 13;
+    // x *%= 0xc2b2ae35;
+    // x ^= x >> 16;
+    // return x;
+
+    // https://github.com/skeeto/hash-prospector
+
     var x = i ^ (i >> 16);
-    x *%= 0x85ebca6b;
-    x ^= x >> 13;
-    x *%= 0xc2b2ae35;
+    x *%= 0x7feb352d;
+    x ^= x >> 15;
+    x *%= 0x846ca68b;
     x ^= x >> 16;
     return x;
 }
@@ -97,13 +106,22 @@ fn nestedUniformScrambleBase2(x: u32, seed: u32) u32 {
     return @bitReverse(u32, o);
 }
 
-fn laineKarrasPermutation(x: u32, seed: u32) u32 {
-    var o = x +% seed;
-    o ^= o *% 0x6c50b47c;
-    o ^= o *% 0xb82f1e52;
-    o ^= o *% 0xc7afe638;
-    o ^= o *% 0x8d22f6e6;
-    return o;
+fn laineKarrasPermutation(i: u32, seed: u32) u32 {
+    // var x = i +% seed;
+    // x ^= x *% 0x6c50b47c;
+    // x ^= x *% 0xb82f1e52;
+    // x ^= x *% 0xc7afe638;
+    // x ^= x *% 0x8d22f6e6;
+    // return x;
+
+    // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
+
+    var x = i ^ (i *% 0x3d20adea);
+    x +%= seed;
+    x *%= (seed >> 16) | 1;
+    x ^= x *% 0x05526c56;
+    x ^= x *% 0x53a22864;
+    return x;
 }
 
 fn sobol(index: u32, dim: u32) u32 {
