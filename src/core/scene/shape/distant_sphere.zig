@@ -72,9 +72,8 @@ pub const DistantSphere = struct {
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) SampleTo {
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -95,11 +94,10 @@ pub const DistantSphere = struct {
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
         bounds: AABB,
     ) SampleFrom {
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };

@@ -219,15 +219,14 @@ pub const Shape = union(enum) {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         return switch (self) {
-            .Canopy => Canopy.sampleTo(trafo, sampler, rng, sampler_d),
-            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
-            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng, sampler_d),
-            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
-            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
-            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
+            .Canopy => Canopy.sampleTo(trafo, sampler, rng),
+            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng),
+            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng),
+            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng),
+            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng),
+            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng),
             .TriangleMesh => |m| m.sampleTo(
                 part,
                 variant,
@@ -239,7 +238,6 @@ pub const Shape = union(enum) {
                 total_sphere,
                 sampler,
                 rng,
-                sampler_d,
             ),
             else => null,
         };
@@ -253,12 +251,11 @@ pub const Shape = union(enum) {
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng, sampler_d),
+            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng),
             else => null,
         };
     }
@@ -272,15 +269,14 @@ pub const Shape = union(enum) {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
         return switch (self) {
-            .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
-            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv),
+            .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, importance_uv, bounds),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(
                 part,
                 variant,
@@ -289,7 +285,6 @@ pub const Shape = union(enum) {
                 two_sided,
                 sampler,
                 rng,
-                sampler_d,
                 importance_uv,
             ),
             else => null,
@@ -340,7 +335,6 @@ pub const Shape = union(enum) {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
@@ -348,7 +342,7 @@ pub const Shape = union(enum) {
 
         return switch (self) {
             .Canopy => Canopy.sampleFromUv(uv, trafo, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, importance_uv),
             else => null,
         };
     }

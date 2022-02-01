@@ -123,9 +123,8 @@ pub const Disk = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -155,10 +154,9 @@ pub const Disk = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng, sampler_d);
+        const r0 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r0);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -167,7 +165,7 @@ pub const Disk = struct {
 
         var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-        if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
+        if (two_sided and sampler.sample1D(rng) > 0.5) {
             wn = -wn;
             dir = -dir;
         }

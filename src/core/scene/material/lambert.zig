@@ -7,7 +7,7 @@ const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
 pub fn reflect(color: Vec4f, layer: Layer, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) f32 {
-    const s2d = sampler.sample2D(rng, 0);
+    const s2d = sampler.sample2D(rng);
     const is = math.smpl.hemisphereCosine(s2d);
     const wi = math.normalize3(layer.tangentToWorld(is));
 

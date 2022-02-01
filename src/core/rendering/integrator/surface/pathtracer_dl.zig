@@ -8,7 +8,8 @@ const hlp = @import("../helper.zig");
 const mat = @import("../../../scene/material/material.zig");
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -30,37 +31,12 @@ pub const PathtracerDL = struct {
 
     settings: Settings,
 
-    samplers: [2 * Num_dedicated_samplers + 1]smp.Sampler,
+    sampler: Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        return Self{
-            .settings = settings,
-            .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 1, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .Random = .{} },
-            },
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-    }
-
-    pub fn startPixel(self: *Self) void {
-        for (self.samplers) |*s| {
-            s.startPixel();
-        }
+    pub fn startPixel(self: *Self, seed: u32) void {
+        self.sampler.startPixel(seed);
     }
 
     pub fn li(
@@ -82,6 +58,8 @@ pub const PathtracerDL = struct {
             var split_isec = isec.*;
 
             result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
+
+            self.sampler.incrementSample();
         }
 
         return result;
@@ -130,7 +108,7 @@ pub const PathtracerDL = struct {
 
             result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, worker);
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -202,10 +180,12 @@ pub const PathtracerDL = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, self.defaultSampler().sample1D(&worker.super.rng, 0))) {
+                if (hlp.russianRoulette(&throughput, self.sampler.sample1D(&worker.super.rng))) {
                     break;
                 }
             }
+
+            self.sampler.incrementBounce();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
@@ -236,21 +216,19 @@ pub const PathtracerDL = struct {
         shadow_ray.time = ray.time;
         shadow_ray.wavelength = ray.wavelength;
 
-        var sampler = self.lightSampler(ray.depth);
-        const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
+        const select = self.sampler.sample1D(&worker.super.rng);
         const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
 
-        for (lights) |l, i| {
+        for (lights) |l| {
             const light = worker.super.scene.light(l.offset);
             const light_sample = light.sampleTo(
                 p,
                 n,
                 ray.time,
                 translucent,
-                sampler,
-                i,
+                &self.sampler,
                 &worker.super,
             ) orelse continue;
 
@@ -270,26 +248,6 @@ pub const PathtracerDL = struct {
         return result;
     }
 
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[2 * bounce];
-        }
-
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
-    fn lightSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[2 * bounce + 1];
-        }
-
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
-    fn defaultSampler(self: *Self) *smp.Sampler {
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
     fn splitting(self: Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and
             bounce < Num_dedicated_samplers;
@@ -299,7 +257,7 @@ pub const PathtracerDL = struct {
 pub const Factory = struct {
     settings: PathtracerDL.Settings,
 
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !PathtracerDL {
-        return try PathtracerDL.init(alloc, self.settings, max_samples_per_pixel);
+    pub fn create(self: Factory) PathtracerDL {
+        return .{ .settings = self.settings };
     }
 };

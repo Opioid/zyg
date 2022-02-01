@@ -31,7 +31,7 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const s2d = sampler.sample2D(rng, 0);
+        const s2d = sampler.sample2D(rng);
 
         const is = math.smpl.hemisphereCosine(s2d);
         const wi = math.normalize3(self.super.layer.tangentToWorld(is));

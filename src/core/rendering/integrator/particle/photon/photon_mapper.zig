@@ -207,7 +207,7 @@ pub const Mapper = struct {
 
                     const continue_prob = std.math.min(1.0, avg);
 
-                    if (self.sampler.sample1D(&worker.super.rng, 0) > continue_prob) {
+                    if (self.sampler.sample1D(&worker.super.rng) > continue_prob) {
                         break;
                     }
 
@@ -273,13 +273,13 @@ pub const Mapper = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var rng = &worker.super.rng;
-        const select = self.sampler.sample1D(rng, 0);
+        const select = self.sampler.sample1D(rng);
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng, 2));
+        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
 
         const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, 1, bounds, &worker.super) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
