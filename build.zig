@@ -94,8 +94,8 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
             //"takes/bistro_day.take",
-            //"takes/bistro_night.take",
-            "takes/san_miguel.take",
+            "takes/bistro_night.take",
+            //"takes/san_miguel.take",
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
@@ -117,9 +117,6 @@ pub fn build(b: *std.build.Builder) void {
         });
     }
 
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
     // const run_cmd = it.run();
     // run_cmd.step.dependOn(b.getInstallStep());
     // run_cmd.cwd = "/home/beni/workspace/sprout/system";
@@ -128,10 +125,17 @@ pub fn build(b: *std.build.Builder) void {
     // } else {
     //     run_cmd.addArgs(&[_][]const u8{
     //         "-i",
-    //         "sm.exr",
+    //         "image_00000000.exr",
+    //         "-i",
+    //         "image_00000064.exr",
+    //         //"san_miguel.exr",
+    //         "-t",
+    //         "-4",
+    //         "-e",
+    //         "0.0",
     //     });
     // }
 
-    // const run_step = b.step("run", "Run the app");
-    // run_step.dependOn(&run_cmd.step);
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 }
