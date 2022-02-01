@@ -521,10 +521,9 @@ pub const Mesh = struct {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
-        const r = sampler.sample1D(rng, sampler_d);
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r = sampler.sample1D(rng);
+        const r2 = sampler.sample2D(rng);
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
@@ -575,13 +574,12 @@ pub const Mesh = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r = sampler.sample1D(rng, sampler_d);
+        const r = sampler.sample1D(rng);
         const s = self.parts[part].sampleRandom(variant, r);
 
-        const r0 = sampler.sample2D(rng, sampler_d);
+        const r0 = sampler.sample2D(rng);
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;

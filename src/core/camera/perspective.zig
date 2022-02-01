@@ -141,7 +141,6 @@ pub const Perspective = struct {
         p: Vec4f,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: u32,
         scene: Scene,
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
@@ -153,7 +152,7 @@ pub const Perspective = struct {
         var out_dir: Vec4f = undefined;
 
         if (self.lens_radius > 0.0) {
-            const uv = sampler.sample2D(rng, sampler_d);
+            const uv = sampler.sample2D(rng);
             const lens = math.smpl.diskConcentric(uv) * @splat(2, self.lens_radius);
             const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
             const axis = po - origin;

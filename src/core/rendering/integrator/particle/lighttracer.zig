@@ -33,52 +33,12 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    samplers: [Num_dedicated_samplers]smp.Sampler,
-    sampler: smp.Sampler,
-    light_sampler: smp.Sampler,
+    sampler: smp.Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings) !Self {
-        const num_samples = settings.num_samples;
-
-        if (num_samples <= 1) {
-            return Self{
-                .settings = settings,
-                .samplers = .{
-                    .{ .Random = .{} },
-                    .{ .Random = .{} },
-                    .{ .Random = .{} },
-                },
-                .sampler = .{ .Random = .{} },
-                .light_sampler = .{ .Random = .{} },
-            };
-        } else {
-            return Self{
-                .settings = settings,
-                .samplers = .{
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                    .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, num_samples) },
-                },
-                .sampler = .{ .Random = .{} },
-                .light_sampler = .{ .Random = .{} },
-            };
-        }
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-
-        self.sampler.deinit(alloc);
-        self.light_sampler.deinit(alloc);
-    }
-
-    pub fn startPixel(self: *Self) void {
-        self.sampler.startPixel();
-        self.light_sampler.startPixel();
+    pub fn startPixel(self: *Self, seed: u32) void {
+        self.sampler.startPixel(seed);
     }
 
     pub fn li(
@@ -88,10 +48,6 @@ pub const Lighttracer = struct {
         initial_stack: InterfaceStack,
     ) void {
         _ = initial_stack;
-
-        for (self.samplers) |*s| {
-            s.startPixel();
-        }
 
         const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
         const frustum_bounds = world_bounds;
@@ -142,6 +98,8 @@ pub const Lighttracer = struct {
             var split_isec = isec;
 
             self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
+
+            self.sampler.incrementSample();
         }
     }
 
@@ -186,7 +144,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -248,6 +206,8 @@ pub const Lighttracer = struct {
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            self.sampler.incrementBounce();
         }
 
         _ = light_id;
@@ -263,13 +223,13 @@ pub const Lighttracer = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var rng = &worker.super.rng;
-        const select = self.light_sampler.sample1D(rng, 0);
+        const select = self.sampler.sample1D(rng);
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.light_sampler.sample1D(rng, 2));
+        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
 
         const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.light_sampler, 1, bounds, &worker.super) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
@@ -306,7 +266,6 @@ pub const Lighttracer = struct {
             p,
             &self.sampler,
             &worker.super.rng,
-            0,
             worker.super.scene.*,
         ) orelse return false;
 
@@ -338,20 +297,12 @@ pub const Lighttracer = struct {
 
         return true;
     }
-
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[bounce];
-        }
-
-        return &self.sampler;
-    }
 };
 
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(self: Factory, alloc: Allocator) !Lighttracer {
-        return try Lighttracer.init(alloc, self.settings);
+    pub fn create(self: Factory) Lighttracer {
+        return .{ .settings = self.settings };
     }
 };

@@ -149,7 +149,6 @@ pub const Sphere = struct {
         trafo: Transformation,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         const v = trafo.position - p;
         const il = math.rlength3(v);
@@ -160,7 +159,7 @@ pub const Sphere = struct {
         const z = @splat(4, il) * v;
         const xy = math.orthonormalBasis3(z);
 
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
         const dir = math.smpl.orientedConeUniform(r2, cos_theta_max, xy[0], xy[1], z);
 
         const b = math.dot3(dir, v);
@@ -191,10 +190,9 @@ pub const Sphere = struct {
         area: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng, sampler_d);
+        const r0 = sampler.sample2D(rng);
         const ls = math.smpl.sphereUniform(r0);
         const ws = trafo.objectToWorldPoint(ls);
 

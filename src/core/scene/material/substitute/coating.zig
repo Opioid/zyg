@@ -95,7 +95,7 @@ pub const Coating = struct {
     }
 
     pub fn sample(self: Self, wo: Vec4f, sampler: *Sampler, rng: *RNG, n_dot_h: *f32, result: *bxdf.Sample) f32 {
-        const xi = sampler.sample2D(rng, 1);
+        const xi = sampler.sample2D(rng);
         const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, self.layer, n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);

@@ -46,37 +46,12 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    samplers: [2 * Num_dedicated_samplers + 1]smp.Sampler,
+    sampler: smp.Sampler = .{ .Sobol = .{} },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        return Self{
-            .settings = settings,
-            .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, Max_lights + 1, Max_lights, total_samples_per_pixel) },
-                .{ .Random = .{} },
-            },
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-    }
-
-    pub fn startPixel(self: *Self) void {
-        for (self.samplers) |*s| {
-            s.startPixel();
-        }
+    pub fn startPixel(self: *Self, seed: u32) void {
+        self.sampler.startPixel(seed);
     }
 
     pub fn li(
@@ -105,6 +80,8 @@ pub const PathtracerMIS = struct {
                 num_samples == i and gather_photons,
                 worker,
             );
+
+            self.sampler.incrementSample();
         }
 
         return result;
@@ -163,7 +140,7 @@ pub const PathtracerMIS = struct {
 
             var effective_bxdf_pdf = sample_result.pdf;
 
-            sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -286,10 +263,12 @@ pub const PathtracerMIS = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, self.defaultSampler().sample1D(&worker.super.rng, 0))) {
+                if (hlp.russianRoulette(&throughput, self.sampler.sample1D(&worker.super.rng))) {
                     break;
                 }
             }
+
+            self.sampler.incrementBounce();
         }
 
         return hlp.composeAlpha(result, throughput, state.is(.Direct));
@@ -314,16 +293,15 @@ pub const PathtracerMIS = struct {
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, translucent);
 
-        var sampler = self.lightSampler(ray.depth);
-        const select = sampler.sample1D(&worker.super.rng, worker.super.lights.len);
+        const select = self.sampler.sample1D(&worker.super.rng);
         const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
 
-        for (lights) |l, i| {
+        for (lights) |l| {
             const light = worker.super.scene.light(l.offset);
 
-            result += self.evaluateLight(light, l.pdf, ray, p, i, isec, mat_sample, filter, worker);
+            result += self.evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, worker);
         }
 
         return result;
@@ -335,7 +313,6 @@ pub const PathtracerMIS = struct {
         light_weight: f32,
         history: Ray,
         p: Vec4f,
-        sampler_d: usize,
         isec: Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
@@ -347,8 +324,7 @@ pub const PathtracerMIS = struct {
             mat_sample.super().geometricNormal(),
             history.time,
             mat_sample.isTranslucent(),
-            self.lightSampler(history.depth),
-            sampler_d,
+            &self.sampler,
             &worker.super,
         ) orelse return @splat(4, @as(f32, 0.0));
 
@@ -454,26 +430,6 @@ pub const PathtracerMIS = struct {
         return hlp.powerHeuristic(bxdf_pdf, ls_pdf * light_pick.pdf);
     }
 
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[2 * bounce];
-        }
-
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
-    fn lightSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[2 * bounce + 1];
-        }
-
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
-    fn defaultSampler(self: *Self) *smp.Sampler {
-        return &self.samplers[2 * Num_dedicated_samplers];
-    }
-
     fn splitting(self: Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and
             bounce < Num_dedicated_samplers;
@@ -483,7 +439,7 @@ pub const PathtracerMIS = struct {
 pub const Factory = struct {
     settings: PathtracerMIS.Settings = .{ .num_samples = 1, .radius = 1.0 },
 
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !PathtracerMIS {
-        return try PathtracerMIS.init(alloc, self.settings, max_samples_per_pixel);
+    pub fn create(self: Factory) PathtracerMIS {
+        return .{ .settings = self.settings };
     }
 };

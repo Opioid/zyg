@@ -139,7 +139,7 @@ pub const Sample = struct {
         if (th > 0.0) {
             const tr = self.transparency;
 
-            const p = sampler.sample1D(rng, 0);
+            const p = sampler.sample1D(rng);
             if (p < tr) {
                 const n_dot_wi = lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
                 const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
@@ -249,7 +249,7 @@ pub const Sample = struct {
         if (1.0 == self.metallic) {
             self.pureGlossSample(sampler, rng, result);
         } else {
-            const p = sampler.sample1D(rng, 0);
+            const p = sampler.sample1D(rng);
             if (p < 0.5) {
                 self.diffuseSample(sampler, rng, result);
             } else {
@@ -262,7 +262,7 @@ pub const Sample = struct {
         var n_dot_h: f32 = undefined;
         const f = self.coating.sample(self.super.wo, sampler, rng, &n_dot_h, result);
 
-        const p = sampler.sample1D(rng, 0);
+        const p = sampler.sample1D(rng);
         if (p <= f) {
             self.coatingReflect(f, n_dot_h, result);
         } else {
@@ -285,7 +285,7 @@ pub const Sample = struct {
 
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
-        const xi = sampler.sample2D(rng, 0);
+        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = disney.Iso.reflect(
             wo,
@@ -330,7 +330,7 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        const xi = sampler.sample2D(rng, 0);
+        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = ggx.Aniso.reflect(
             wo,
@@ -364,7 +364,7 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        const xi = sampler.sample2D(rng, 0);
+        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = ggx.Aniso.reflect(
             wo,
@@ -540,7 +540,7 @@ pub const Sample = struct {
         const layer = self.super.layer.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D(rng, 0);
+        const xi = sampler.sample2D(rng);
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
@@ -561,7 +561,7 @@ pub const Sample = struct {
             f = fresnel.schlick1(cos_x, self.f0[0]);
         }
 
-        const p = sampler.sample1D(rng, 0);
+        const p = sampler.sample1D(rng);
         if (same_side) {
             if (p <= f) {
                 const n_dot_wi = ggx.Iso.reflectNoFresnel(
