@@ -136,6 +136,7 @@ pub fn Vec4(comptime T: type) type {
 }
 
 pub const Vec4b = std.meta.Vector(4, u8);
+pub const Pack4h = Vec4(f16);
 pub const Pack4i = Vec4(i32);
 pub const Vec4i = std.meta.Vector(4, i32);
 pub const Pack4f = Vec4(f32);
@@ -386,6 +387,15 @@ pub fn vec4fTo3h(v: Vec4f) Pack3h {
         @floatCast(f16, v[0]),
         @floatCast(f16, v[1]),
         @floatCast(f16, v[2]),
+    );
+}
+
+pub fn vec4fTo4h(v: Vec4f) Pack4h {
+    return Pack4h.init4(
+        @floatCast(f16, v[0]),
+        @floatCast(f16, v[1]),
+        @floatCast(f16, v[2]),
+        @floatCast(f16, v[3]),
     );
 }
 

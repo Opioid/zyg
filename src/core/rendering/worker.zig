@@ -118,6 +118,7 @@ pub const Worker = struct {
                         var photon = self.photon;
                         if (photon[3] > 0.0) {
                             photon /= @splat(4, photon[3]);
+                            photon[3] = 0.0;
                         }
 
                         sensor.addSample(sample, color + photon, offset);

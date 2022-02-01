@@ -275,6 +275,7 @@ pub const Writer = struct {
             }
 
             const width = @intCast(u32, self.image.description.dimensions.v[0]);
+            const height = @intCast(u32, self.image.description.dimensions.v[1]);
             const bpb = self.bytes_per_block;
             const offset = id * bpb;
 
@@ -283,7 +284,7 @@ pub const Writer = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const num_rows_here = std.math.min(width - (y * self.rows_per_block), self.rows_per_block);
+                const num_rows_here = @minimum(height - (y * self.rows_per_block), self.rows_per_block);
 
                 const pixel = y * self.rows_per_block * width;
 

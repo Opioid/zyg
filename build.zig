@@ -11,15 +11,13 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    // const base = b.addStaticLibrary("base", "src/base/index.zig");
-    // base.setTarget(target);
-    // base.setBuildMode(mode);
-
     const cli = b.addExecutable("zyg", "src/cli/main.zig");
     const capi = b.addSharedLibrary("zyg", "src/capi/capi.zig", .{ .unversioned = {} });
+    const it = b.addExecutable("it", "src/it/main.zig");
 
     cli.addIncludePath("thirdparty/include");
     capi.addIncludePath("thirdparty/include");
+    it.addIncludePath("thirdparty/include");
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -36,6 +34,8 @@ pub fn build(b: *std.build.Builder) void {
         cli.addCSourceFile(source, &cflags);
         capi.addCSourceFile(source, &cflags);
     }
+
+    it.addCSourceFile(csources[0], &cflags);
 
     const base = std.build.Pkg{
         .name = "base",
@@ -73,6 +73,18 @@ pub fn build(b: *std.build.Builder) void {
 
     capi.install();
 
+    it.addPackage(base);
+    it.addPackage(core);
+
+    it.setTarget(target);
+    it.setBuildMode(mode);
+    it.linkLibC();
+
+    // cli.sanitize_thread = true;
+    it.strip = true;
+
+    it.install();
+
     const run_cmd = cli.run();
     run_cmd.step.dependOn(b.getInstallStep());
     run_cmd.cwd = "/home/beni/workspace/sprout/system";
@@ -82,8 +94,8 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
             //"takes/bistro_day.take",
-            //"takes/bistro_night.take",
-            "takes/san_miguel.take",
+            "takes/bistro_night.take",
+            //"takes/san_miguel.take",
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
@@ -105,6 +117,25 @@ pub fn build(b: *std.build.Builder) void {
             "1",
         });
     }
+
+    // const run_cmd = it.run();
+    // run_cmd.step.dependOn(b.getInstallStep());
+    // run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    // if (b.args) |args| {
+    //     run_cmd.addArgs(args);
+    // } else {
+    //     run_cmd.addArgs(&[_][]const u8{
+    //         "-i",
+    //         "image_00000000.exr",
+    //         "-i",
+    //         "image_00000064.exr",
+    //         //"san_miguel.exr",
+    //         "-t",
+    //         "-4",
+    //         "-e",
+    //         "0.0",
+    //     });
+    // }
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);

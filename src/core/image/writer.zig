@@ -12,6 +12,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = union(enum) {
+    pub const ExrWriter = EXR;
+    pub const PngWriter = PNG;
+    pub const RgbeWriter = RGBE;
+
     EXR: EXR,
     PNG: PNG,
     RGBE: RGBE,
