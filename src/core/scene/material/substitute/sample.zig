@@ -139,7 +139,8 @@ pub const Sample = struct {
         if (th > 0.0) {
             const tr = self.transparency;
 
-            const p = sampler.sample1D(rng);
+            const s3 = sampler.sample3D(rng);
+            const p = s3[0];
             if (p < tr) {
                 const n_dot_wi = lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
                 const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
@@ -155,7 +156,7 @@ pub const Sample = struct {
             } else {
                 const o = 1.0 - tr;
 
-                const xi = sampler.sample2D(rng);
+                const xi = Vec2f{ s3[1], s3[2] };
 
                 if (p < tr + 0.5 * o) {
                     self.diffuseSample(xi, &result);
@@ -267,11 +268,12 @@ pub const Sample = struct {
         var n_dot_h: f32 = undefined;
         const f = self.coating.sample(self.super.wo, sampler, rng, &n_dot_h, result);
 
-        const p = sampler.sample1D(rng);
+        const s3 = sampler.sample3D(rng);
+        const p = s3[0];
         if (p <= f) {
             self.coatingReflect(f, n_dot_h, result);
         } else {
-            const xi = sampler.sample2D(rng);
+            const xi = Vec2f{ s3[1], s3[2] };
 
             if (1.0 == self.metallic) {
                 self.coatingBaseSample(pureGlossSample, xi, f, result);
@@ -541,7 +543,7 @@ pub const Sample = struct {
         const ior = quo_ior.swapped(same_side);
 
         const s3 = sampler.sample3D(rng);
-        const xi = Vec2f{s3[1], s3[2]};
+        const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
