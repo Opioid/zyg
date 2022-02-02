@@ -78,7 +78,7 @@ pub const AOV = struct {
         occlusion_ray.ray.setMaxT(self.settings.radius);
         occlusion_ray.time = ray.time;
 
-        var sampler = self.samplers[0];
+        var sampler = &self.samplers[0];
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
