@@ -9,9 +9,11 @@ const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
@@ -238,10 +240,10 @@ pub const Light = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) ?SampleTo {
-        const s2d = sampler.sample2D(&worker.rng);
+        const s2 = sampler.sample2D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(.{ s2d[0], s2d[1], 0.0, 0.0 });
+        const rs = material.radianceSample(.{ s2[0], s2[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return null;
         }
@@ -273,15 +275,15 @@ pub const Light = struct {
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
-        const s2d = sampler.sample2D(&worker.rng);
+        const s4 = sampler.sample4D(&worker.rng);
 
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(.{ s2d[0], s2d[1], 0.0, 0.0 });
+        const rs = material.radianceSample(.{ s4[0], s4[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return null;
         }
 
-        const importance_uv = sampler.sample2D(&worker.rng);
+        const importance_uv = Vec2f{ s4[2], s4[3] };
 
         const shape = worker.scene.propShape(self.prop);
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
@@ -337,11 +339,8 @@ pub const Light = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) ?SampleTo {
-        const s2d = sampler.sample2D(&worker.rng);
-        const s1d = sampler.sample1D(&worker.rng);
-
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
+        const rs = material.radianceSample(sampler.sample3D(&worker.rng));
         if (0.0 == rs.pdf()) {
             return null;
         }
@@ -369,11 +368,8 @@ pub const Light = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) ?SampleFrom {
-        const s2d = sampler.sample2D(&worker.rng);
-        const s1d = sampler.sample1D(&worker.rng);
-
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(.{ s2d[0], s2d[1], s1d, 0.0 });
+        const rs = material.radianceSample(sampler.sample3D(&worker.rng));
         if (0.0 == rs.pdf()) {
             return null;
         }

@@ -86,10 +86,7 @@ pub const Cube = struct {
         sampler: *Sampler,
         rng: *RNG,
     ) SampleTo {
-        const r2 = sampler.sample2D(rng);
-        const r1 = sampler.sample1D(rng);
-
-        const r3 = Vec4f{ r2[0], r2[1], r1, 0.0 };
+        const r3 = sampler.sample3D(rng);
         const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
