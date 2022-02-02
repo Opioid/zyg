@@ -28,10 +28,10 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn incrementBounce(self: *Sampler) void {
+    pub fn incrementPadding(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
-            .Sobol => |*s| s.incrementBounce(),
+            .Sobol => |*s| s.incrementPadding(),
         }
     }
 

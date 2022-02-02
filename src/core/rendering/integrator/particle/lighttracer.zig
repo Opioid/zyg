@@ -207,7 +207,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            self.sampler.incrementBounce();
+            self.sampler.incrementPadding();
         }
 
         _ = light_id;

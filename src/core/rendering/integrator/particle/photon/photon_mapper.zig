@@ -254,11 +254,15 @@ pub const Mapper = struct {
                 } else if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
                     break;
                 }
+
+                self.sampler.incrementPadding();
             }
 
             if (iteration > 0) {
                 return .{ .num_iterations = iteration, .num_photons = num_photons };
             }
+
+            self.sampler.incrementSample();
         }
 
         return .{ .num_iterations = 0, .num_photons = 0 };

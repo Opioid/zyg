@@ -162,7 +162,7 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            self.sampler.incrementBounce();
+            self.sampler.incrementPadding();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);

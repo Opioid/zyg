@@ -215,7 +215,7 @@ pub const AOV = struct {
                 break;
             }
 
-            self.sampler.incrementBounce();
+            self.sampler.incrementPadding();
         }
 
         self.sampler.incrementSample();

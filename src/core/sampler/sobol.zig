@@ -24,7 +24,7 @@ pub const Sobol = struct {
         self.run_seed = self.start_seed;
     }
 
-    pub fn incrementBounce(self: *Self) void {
+    pub fn incrementPadding(self: *Self) void {
         self.dimension = 0;
         //self.run_seed += 1;
         self.run_seed = hash(self.run_seed +% 1);
@@ -32,7 +32,7 @@ pub const Sobol = struct {
 
     pub fn sample1D(self: *Self) f32 {
         if (self.dimension >= 4) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
         const d = self.dimension;
@@ -43,7 +43,7 @@ pub const Sobol = struct {
 
     pub fn sample2D(self: *Self) Vec2f {
         if (self.dimension >= 3) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
         const i = self.sample;
@@ -56,7 +56,7 @@ pub const Sobol = struct {
 
     pub fn sample3D(self: *Self) Vec4f {
         if (self.dimension >= 2) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
         const i = self.sample;

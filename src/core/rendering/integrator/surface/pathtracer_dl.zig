@@ -185,7 +185,7 @@ pub const PathtracerDL = struct {
                 }
             }
 
-            self.sampler.incrementBounce();
+            self.sampler.incrementPadding();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
@@ -249,8 +249,7 @@ pub const PathtracerDL = struct {
     }
 
     fn splitting(self: Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and
-            bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
     }
 };
 
