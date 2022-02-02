@@ -83,6 +83,7 @@ pub const Worker = struct {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
+        var rng = &self.super.rng;
 
         const offset = @splat(2, @as(i32, 0));
 
@@ -113,17 +114,17 @@ pub const Worker = struct {
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                self.super.rng.start(0, o1 + @intCast(u64, x + fr));
+                rng.start(0, o1 + @intCast(u64, x + fr));
 
-                self.sampler.startPixel(self.super.rng.randomUint());
-                self.surface_integrator.startPixel(self.super.rng.randomUint());
+                self.sampler.startPixel(rng.randomUint());
+                self.surface_integrator.startPixel(rng.randomUint());
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.cameraSample(&self.super.rng, pixel);
+                    const sample = self.sampler.cameraSample(rng, pixel);
 
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
