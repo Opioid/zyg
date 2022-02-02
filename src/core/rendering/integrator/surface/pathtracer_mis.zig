@@ -47,12 +47,14 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    sampler: Sampler = .{ .Sobol = .{} },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
 
     pub fn startPixel(self: *Self, seed: u32) void {
-        self.sampler.startPixel(seed);
+        for (self.samplers) |*s| {
+            s.startPixel(seed);
+        }
     }
 
     pub fn li(
@@ -82,7 +84,9 @@ pub const PathtracerMIS = struct {
                 worker,
             );
 
-            self.sampler.incrementSample();
+            for (self.samplers) |*s| {
+                s.incrementSample();
+            }
         }
 
         return result;
@@ -137,11 +141,13 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            result += throughput * self.sampleLights(ray.*, isec.*, mat_sample, filter, worker);
+            var sampler = self.pickSampler(ray.depth);
+
+            result += throughput * self.sampleLights(ray.*, isec.*, mat_sample, filter, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
-            sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+            sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -264,12 +270,12 @@ pub const PathtracerMIS = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, self.sampler.sample1D(&worker.super.rng))) {
+                if (hlp.russianRoulette(&throughput, sampler.sample1D(&worker.super.rng))) {
                     break;
                 }
             }
 
-            self.sampler.incrementPadding();
+            sampler.incrementPadding();
         }
 
         return hlp.composeAlpha(result, throughput, state.is(.Direct));
@@ -281,6 +287,7 @@ pub const PathtracerMIS = struct {
         isec: Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
@@ -294,7 +301,7 @@ pub const PathtracerMIS = struct {
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, translucent);
 
-        const select = self.sampler.sample1D(&worker.super.rng);
+        const select = sampler.sample1D(&worker.super.rng);
         const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
@@ -302,14 +309,13 @@ pub const PathtracerMIS = struct {
         for (lights) |l| {
             const light = worker.super.scene.light(l.offset);
 
-            result += self.evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, worker);
+            result += evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, sampler, worker);
         }
 
         return result;
     }
 
     fn evaluateLight(
-        self: *Self,
         light: Light,
         light_weight: f32,
         history: Ray,
@@ -317,6 +323,7 @@ pub const PathtracerMIS = struct {
         isec: Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
         // Light source importance sample
@@ -325,7 +332,7 @@ pub const PathtracerMIS = struct {
             mat_sample.super().geometricNormal(),
             history.time,
             mat_sample.isTranslucent(),
-            &self.sampler,
+            sampler,
             &worker.super,
         ) orelse return @splat(4, @as(f32, 0.0));
 
@@ -433,6 +440,14 @@ pub const PathtracerMIS = struct {
 
     fn splitting(self: Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
+    }
+
+    fn pickSampler(self: *Self, bounce: u32) *Sampler {
+        if (bounce < 4) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 };
 

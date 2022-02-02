@@ -147,7 +147,7 @@ pub const Worker = struct {
         var camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel(self.super.rng.randomUint());
+        self.lighttracer.startPixel(&self.super.rng);
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {

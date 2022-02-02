@@ -17,6 +17,7 @@ const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -33,12 +34,17 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    sampler: Sampler = .{ .Sobol = .{} },
+    light_sampler: Sampler = .{ .Sobol = .{} },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, seed: u32) void {
-        self.sampler.startPixel(seed);
+    pub fn startPixel(self: *Self, rng: *RNG) void {
+        self.light_sampler.startPixel(rng.randomUint());
+
+        for (self.samplers) |*s| {
+            s.startPixel(rng.randomUint());
+        }
     }
 
     pub fn li(
@@ -99,7 +105,9 @@ pub const Lighttracer = struct {
 
             self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
 
-            self.sampler.incrementSample();
+            for (self.samplers) |*s| {
+                s.incrementSample();
+            }
         }
     }
 
@@ -144,7 +152,9 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+            var sampler = self.pickSampler(ray.depth);
+
+            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -164,7 +174,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = self.directCamera(camera, radiance, ray.*, isec.*, mat_sample, filter, worker);
+                    _ = directCamera(camera, radiance, ray.*, isec.*, mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.typef.is(.Specular)) {
@@ -207,7 +217,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            self.sampler.incrementPadding();
+            sampler.incrementPadding();
         }
 
         _ = light_id;
@@ -223,28 +233,31 @@ pub const Lighttracer = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var rng = &worker.super.rng;
-        const select = self.sampler.sample1D(rng);
+        var sampler = &self.light_sampler;
+        const select = sampler.sample1D(rng);
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
+        const time = worker.super.absoluteTime(frame, sampler.sample1D(rng));
 
         const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
+        light_sample.* = light.sampleFrom(time, sampler, bounds, &worker.super) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
+
+        sampler.incrementSample();
 
         return Ray.init(light_sample.p, light_sample.dir, 0.0, scn.Ray_max_t, 0, 0.0, time);
     }
 
     fn directCamera(
-        self: *Self,
         camera: *Camera,
         radiance: Vec4f,
         history: Ray,
         isec: Intersection,
         mat_sample: MaterialSample,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) bool {
         if (!isec.visibleInCamera(worker.super)) {
@@ -264,7 +277,7 @@ pub const Lighttracer = struct {
             filter_crop,
             history.time,
             p,
-            &self.sampler,
+            sampler,
             &worker.super.rng,
             worker.super.scene.*,
         ) orelse return false;
@@ -296,6 +309,14 @@ pub const Lighttracer = struct {
         sensor.splatSample(camera_sample, result, .{ 0, 0 }, crop);
 
         return true;
+    }
+
+    fn pickSampler(self: *Self, bounce: u32) *Sampler {
+        if (bounce < 4) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 };
 
