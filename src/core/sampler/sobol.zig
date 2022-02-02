@@ -35,10 +35,12 @@ pub const Sobol = struct {
             self.incrementPadding();
         }
 
+        const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 1;
 
-        return sobolOwen(self.sample, self.run_seed, d);
+        return sobolOwen(i, s, d);
     }
 
     pub fn sample2D(self: *Self) Vec2f {
@@ -46,8 +48,8 @@ pub const Sobol = struct {
             self.incrementPadding();
         }
 
-        const i = self.sample;
         const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 2;
 
@@ -59,12 +61,35 @@ pub const Sobol = struct {
             self.incrementPadding();
         }
 
-        const i = self.sample;
         const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 3;
 
-        return .{ sobolOwen(i, s, d), sobolOwen(i, s, d + 1), sobolOwen(i, s, d + 2), 0.0 };
+        return .{
+            sobolOwen(i, s, d),
+            sobolOwen(i, s, d + 1),
+            sobolOwen(i, s, d + 2),
+            0.0,
+        };
+    }
+
+    pub fn sample4D(self: *Self) Vec4f {
+        if (self.dimension >= 1) {
+            self.incrementPadding();
+        }
+
+        const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
+        const d = self.dimension;
+        self.dimension += 4;
+
+        return .{
+            sobolOwen(i, s, d),
+            sobolOwen(i, s, d + 1),
+            sobolOwen(i, s, d + 2),
+            sobolOwen(i, s, d + 3),
+        };
     }
 };
 
@@ -89,10 +114,8 @@ fn hash(i: u32) u32 {
 
 const S: f32 = 1.0 / @intToFloat(f32, 1 << 32);
 
-fn sobolOwen(index: u32, seed: u32, dim: u32) f32 {
-    const si = nestedUniformScrambleBase2(index, seed);
-    const sob = sobol(si, dim);
-
+fn sobolOwen(scrambled_index: u32, seed: u32, dim: u32) f32 {
+    const sob = sobol(scrambled_index, dim);
     return @intToFloat(f32, nestedUniformScrambleBase2(sob, hashCombine(seed, dim))) * S;
 }
 

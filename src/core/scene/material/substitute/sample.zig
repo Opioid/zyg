@@ -155,10 +155,12 @@ pub const Sample = struct {
             } else {
                 const o = 1.0 - tr;
 
+                const xi = sampler.sample2D(rng);
+
                 if (p < tr + 0.5 * o) {
-                    self.diffuseSample(sampler, rng, &result);
+                    self.diffuseSample(xi, &result);
                 } else {
-                    self.glossSample(sampler, rng, &result);
+                    self.glossSample(xi, &result);
                 }
 
                 result.pdf *= o;
@@ -247,13 +249,16 @@ pub const Sample = struct {
 
     fn baseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
         if (1.0 == self.metallic) {
-            self.pureGlossSample(sampler, rng, result);
+            const xi = sampler.sample2D(rng);
+            self.pureGlossSample(xi, result);
         } else {
-            const p = sampler.sample1D(rng);
+            const s3 = sampler.sample3D(rng);
+            const p = s3[0];
+            const xi = Vec2f{ s3[1], s3[2] };
             if (p < 0.5) {
-                self.diffuseSample(sampler, rng, result);
+                self.diffuseSample(xi, result);
             } else {
-                self.glossSample(sampler, rng, result);
+                self.glossSample(xi, result);
             }
         }
     }
@@ -266,26 +271,26 @@ pub const Sample = struct {
         if (p <= f) {
             self.coatingReflect(f, n_dot_h, result);
         } else {
+            const xi = sampler.sample2D(rng);
+
             if (1.0 == self.metallic) {
-                self.coatingBaseSample(pureGlossSample, sampler, rng, f, result);
+                self.coatingBaseSample(pureGlossSample, xi, f, result);
             } else {
                 const p1 = (p - f) / (1.0 - f);
                 if (p1 < 0.5) {
-                    self.coatingBaseSample(diffuseSample, sampler, rng, f, result);
+                    self.coatingBaseSample(diffuseSample, xi, f, result);
                 } else {
-                    self.coatingBaseSample(glossSample, sampler, rng, f, result);
+                    self.coatingBaseSample(glossSample, xi, f, result);
                 }
             }
         }
     }
 
-    fn diffuseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn diffuseSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
-
-        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = disney.Iso.reflect(
             wo,
@@ -322,15 +327,13 @@ pub const Sample = struct {
         result.pdf = 0.5 * (result.pdf + gg.pdf());
     }
 
-    fn glossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn glossSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
-
-        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = ggx.Aniso.reflect(
             wo,
@@ -356,15 +359,13 @@ pub const Sample = struct {
         result.pdf = 0.5 * (result.pdf + d.pdf());
     }
 
-    fn pureGlossSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn pureGlossSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
-
-        const xi = sampler.sample2D(rng);
 
         const n_dot_wi = ggx.Aniso.reflect(
             wo,
@@ -405,17 +406,16 @@ pub const Sample = struct {
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
     }
 
-    const SampleFunc = fn (self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void;
+    const SampleFunc = fn (self: Sample, xi: Vec2f, result: *bxdf.Sample) void;
 
     fn coatingBaseSample(
         self: Sample,
         sampleFunc: SampleFunc,
-        sampler: *Sampler,
-        rng: *RNG,
+        xi: Vec2f,
         f: f32,
         result: *bxdf.Sample,
     ) void {
-        sampleFunc(self, sampler, rng, result);
+        sampleFunc(self, xi, result);
 
         const coating = self.coating.evaluate(
             result.wi,
@@ -540,7 +540,8 @@ pub const Sample = struct {
         const layer = self.super.layer.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D(rng);
+        const s3 = sampler.sample3D(rng);
+        const xi = Vec2f{s3[1], s3[2]};
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
@@ -561,7 +562,7 @@ pub const Sample = struct {
             f = fresnel.schlick1(cos_x, self.f0[0]);
         }
 
-        const p = sampler.sample1D(rng);
+        const p = s3[0];
         if (same_side) {
             if (p <= f) {
                 const n_dot_wi = ggx.Iso.reflectNoFresnel(
