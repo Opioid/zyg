@@ -35,7 +35,7 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
-    photon_mapper: PhotonMapper = undefined,
+    photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
     photon: Vec4f = undefined,

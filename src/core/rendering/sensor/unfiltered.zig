@@ -8,7 +8,7 @@ const Vec4f = math.Vec4f;
 
 pub fn Unfiltered(comptime T: type) type {
     return struct {
-        sensor: T,
+        sensor: T = .{},
 
         const Self = @This();
 

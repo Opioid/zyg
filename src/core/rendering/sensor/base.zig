@@ -7,7 +7,7 @@ const Vec4f = math.Vec4f;
 pub const Base = struct {
     dimensions: Vec2i = @splat(2, @as(i32, 0)),
 
-    max: f32,
+    max: f32 = 0.0,
 
     tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 

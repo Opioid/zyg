@@ -11,7 +11,7 @@ const Filter = @import("../../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../../scene/constants.zig");
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
-const smp = @import("../../../../sampler/sampler.zig");
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -22,27 +22,26 @@ const Allocator = std.mem.Allocator;
 
 pub const Mapper = struct {
     pub const Settings = struct {
-        max_bounces: u32,
-        full_light_path: bool,
+        max_bounces: u32 = 0,
+        full_light_path: bool = false,
     };
 
-    settings: Settings,
-    sampler: smp.Sampler,
+    settings: Settings = .{},
+    sampler: Sampler = Sampler{ .Random = .{} },
 
-    photons: [*]Photon,
+    photons: []Photon = &.{},
 
     const Self = @This();
 
     pub fn init(alloc: Allocator, settings: Settings) !Self {
         return Self{
             .settings = settings,
-            .sampler = .{ .Random = .{} },
-            .photons = (try alloc.alloc(Photon, settings.max_bounces)).ptr,
+            .photons = try alloc.alloc(Photon, settings.max_bounces),
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.photons[0..self.settings.max_bounces]);
+        alloc.free(self.photons);
     }
 
     pub fn bake(

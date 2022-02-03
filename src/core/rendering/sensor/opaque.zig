@@ -9,7 +9,7 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Opaque = struct {
-    base: Base,
+    base: Base = .{},
 
     // weight_sum is saved in pixel.w
     pixels: []Pack4f = &.{},

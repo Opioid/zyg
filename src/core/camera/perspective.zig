@@ -41,7 +41,7 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(4, @as(i32, 0)),
 
-    sensor: Sensor = undefined,
+    sensor: Sensor = .{ .Unfiltered_opaque = .{} },
 
     left_top: Vec4f = @splat(4, @as(f32, 0.0)),
     d_x: Vec4f = @splat(4, @as(f32, 0.0)),

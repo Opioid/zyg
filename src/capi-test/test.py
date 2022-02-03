@@ -8,4 +8,6 @@ else:
 
 #sprout.su_init(False) 
 
+print(zyg.su_init())
+
 print(zyg.su_add(4, 8))
