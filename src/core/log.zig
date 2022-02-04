@@ -33,30 +33,18 @@ pub const StdOut = struct {
 };
 
 pub const CFunc = struct {
-    pub const Func = fn (level: u32, text: [*:0]const u8) void;
+    pub const Func = fn (level: c_uint, text: [*:0]u8) callconv(.C) void;
 
-    func: *Func,
+    func: Func,
 
     buffer: [256]u8 = undefined,
 
     const Self = @This();
 
     pub fn post(self: *Self, comptime level: Level, comptime format: []const u8, args: anytype) void {
-        var line = std.fmt.bufPrint(&self.buffer, format, args) catch return;
-        self.buffer[line.len] = 0;
-        const slice = self.buffer[0..line.len :0];
+        var line = std.fmt.bufPrintZ(&self.buffer, format, args) catch return;
 
-        std.debug.print("We came here {s}\n", .{slice});
-
-        _ = level;
-        self.func.*(0, slice);
-
-        // _ = self;
-        // _ = level;
-        // _ = format;
-        // _ = args;
-
-        // std.debug.print("We came here {s}\n", .{slice});
+        self.func(@enumToInt(level), line);
     }
 };
 

@@ -283,15 +283,7 @@ const CopyFramebufferContext = struct {
     }
 };
 
-export fn su_register_log(post: ?*log.CFunc.Func) i32 {
-    if (post) |p| {
-        log.log = .{ .CFunc = .{ .func = p } };
-        return 0;
-    }
-
-    return -1;
-}
-
-export fn su_register_progress() i32 {
-    return -1;
+export fn su_register_log(post: log.CFunc.Func) i32 {
+    log.log = .{ .CFunc = .{ .func = post } };
+    return 0;
 }
