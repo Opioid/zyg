@@ -79,7 +79,14 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
-    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32, num_photon_samples: u32) void {
+    pub fn render(
+        self: *Worker,
+        frame: u32,
+        tile: Vec4i,
+        iteration: u32,
+        num_samples: u32,
+        num_photon_samples: u32,
+    ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
@@ -105,19 +112,24 @@ pub const Worker = struct {
 
         const r = camera.resolution + @splat(2, 2 * fr);
 
+        const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
+
         const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, (y + fr) * r[0]) + o0;
+            const pixel_n = @intCast(u32, (y + fr) * r[0]);
+            const o1 = pixel_n + o0;
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                rng.start(0, o1 + @intCast(u64, x + fr));
+                const pixel_r = @intCast(u32, x + fr);
+                rng.start(0, o1 + pixel_r);
 
-                self.sampler.startPixel(rng.randomUint());
-                self.surface_integrator.startPixel(rng.randomUint());
+                const pixel_id = pixel_n + pixel_r;
+                self.sampler.startPixel(iteration, pixel_id);
+                self.surface_integrator.startPixel(iteration, pixel_id + a);
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };

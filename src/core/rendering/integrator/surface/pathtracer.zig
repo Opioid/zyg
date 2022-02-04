@@ -30,9 +30,10 @@ pub const Pathtracer = struct {
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, seed: u32) void {
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        const os = sample * self.settings.num_samples;
         for (self.samplers) |*s| {
-            s.startPixel(seed);
+            s.startPixel(os, seed);
         }
     }
 

@@ -11,11 +11,12 @@ pub const Sobol = struct {
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, seed: u32) void {
-        self.sample = 0;
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        self.sample = sample;
         self.dimension = 0;
-        self.start_seed = seed;
-        self.run_seed = seed;
+        const hashed = hash(seed);
+        self.start_seed = hashed;
+        self.run_seed = hashed;
     }
 
     pub fn incrementSample(self: *Self) void {

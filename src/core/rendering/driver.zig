@@ -8,7 +8,7 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const progress = @import("../progress.zig");
+const Progressor = @import("../progress.zig").Progressor;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -51,10 +51,11 @@ pub const Driver = struct {
 
     frame: u32 = undefined,
     frame_iteration: u32 = undefined,
+    progressive: bool = undefined,
 
-    progressor: progress.StdOut = undefined,
+    progressor: Progressor,
 
-    pub fn init(alloc: Allocator, threads: *Threads) !Driver {
+    pub fn init(alloc: Allocator, threads: *Threads, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
             w.* = try Worker.init(alloc);
@@ -64,6 +65,7 @@ pub const Driver = struct {
             .threads = threads,
             .workers = workers,
             .photon_infos = try alloc.alloc(PhotonInfo, threads.numThreads()),
+            .progressor = progressor,
         };
     }
 
@@ -132,6 +134,9 @@ pub const Driver = struct {
 
         const render_start = std.time.milliTimestamp();
 
+        self.frame = frame;
+        self.progressive = false;
+
         var camera = &self.view.camera;
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
@@ -149,9 +154,11 @@ pub const Driver = struct {
 
         log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
-        self.bakePhotons(alloc, frame);
-        self.renderFrameBackward(frame);
-        self.renderFrameForward(frame);
+        self.bakePhotons(alloc);
+        self.frame_iteration = 0;
+
+        self.renderFrameBackward();
+        self.renderFrameForward();
 
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
@@ -168,6 +175,40 @@ pub const Driver = struct {
         log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
+    pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32) !void {
+        self.frame = frame;
+        self.frame_iteration = 0;
+        self.progressive = true;
+
+        var camera = &self.view.camera;
+        const camera_pos = self.scene.propWorldPosition(camera.entity);
+
+        const start = @as(u64, frame) * camera.frame_step;
+        try self.scene.simulate(
+            alloc,
+            camera_pos,
+            start,
+            start + camera.frame_duration,
+            self.workers[0].super,
+            self.threads,
+        );
+
+        camera.update(start, &self.workers[0].super);
+
+        camera.sensor.clear(0.0);
+    }
+
+    pub fn renderIteration(self: *Driver, iteration: u32) void {
+        self.frame_iteration = iteration;
+
+        self.renderFrameIterationForward();
+    }
+
+    pub fn resolve(self: *Driver) void {
+        var camera = &self.view.camera;
+        camera.sensor.resolveTonemap(&self.target, self.threads);
+    }
+
     pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
@@ -178,7 +219,7 @@ pub const Driver = struct {
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn renderFrameBackward(self: *Driver, frame: u32) void {
+    fn renderFrameBackward(self: *Driver) void {
         if (0 == self.ranges.size()) {
             return;
         }
@@ -194,7 +235,6 @@ pub const Driver = struct {
         self.progressor.start(self.ranges.size());
 
         self.ranges.restart(0);
-        self.frame = frame;
 
         self.threads.runParallel(self, renderRanges, 0);
 
@@ -209,17 +249,18 @@ pub const Driver = struct {
     fn renderTiles(context: ThreadContext, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
-        const num_samples = self.view.num_samples_per_pixel;
+        const iteration = self.frame_iteration;
+        const num_samples = if (self.progressive) 1 else self.view.num_samples_per_pixel;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, num_samples, num_photon_samples);
+            self.workers[id].render(self.frame, tile, iteration, num_samples, num_photon_samples);
 
             self.progressor.tick();
         }
     }
 
-    fn renderFrameForward(self: *Driver, frame: u32) void {
+    fn renderFrameForward(self: *Driver) void {
         if (0 == self.view.num_samples_per_pixel) {
             return;
         }
@@ -234,11 +275,22 @@ pub const Driver = struct {
         self.progressor.start(self.tiles.size());
 
         self.tiles.restart();
-        self.frame = frame;
 
         self.threads.runParallel(self, renderTiles, 0);
 
         log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
+    }
+
+    fn renderFrameIterationForward(self: *Driver) void {
+        if (0 == self.view.num_samples_per_pixel) {
+            return;
+        }
+
+        self.progressor.start(self.tiles.size());
+
+        self.tiles.restart();
+
+        self.threads.runParallel(self, renderTiles, 0);
     }
 
     fn renderRanges(context: ThreadContext, id: u32) void {
@@ -251,7 +303,7 @@ pub const Driver = struct {
         }
     }
 
-    fn bakePhotons(self: *Driver, alloc: Allocator, frame: u32) void {
+    fn bakePhotons(self: *Driver, alloc: Allocator) void {
         const num_photons = self.view.photon_settings.num_photons;
 
         if (0 == num_photons) {
@@ -271,8 +323,6 @@ pub const Driver = struct {
         const iteration_threshold = self.view.photon_settings.iteration_threshold;
 
         self.photon_map.start();
-
-        self.frame = frame;
 
         var iteration: u32 = 0;
 

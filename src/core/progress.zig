@@ -1,11 +1,35 @@
 const std = @import("std");
 
-const step = 1.0;
+pub const Progressor = union(enum) {
+    StdOut: StdOut,
+    CFunc: CFunc,
+    Null,
+
+    const Self = @This();
+
+    pub fn start(self: *Self, resolution: u32) void {
+        switch (self.*) {
+            .StdOut => |*p| p.start(resolution),
+            .CFunc => |p| p.start(resolution),
+            .Null => {},
+        }
+    }
+
+    pub fn tick(self: *Self) void {
+        switch (self.*) {
+            .StdOut => |*p| p.tick(),
+            .CFunc => |p| p.tick(),
+            .Null => {},
+        }
+    }
+};
 
 pub const StdOut = struct {
     resolution: u32 = undefined,
     progress: u32 = undefined,
     threshold: f32 = undefined,
+
+    const step = 1.0;
 
     pub fn start(self: *StdOut, resolution: u32) void {
         self.resolution = resolution;
@@ -27,5 +51,18 @@ pub const StdOut = struct {
             const stdout = std.io.getStdOut().writer();
             stdout.print("{}%\r", .{@floatToInt(u32, p)}) catch return;
         }
+    }
+};
+
+pub const CFunc = struct {
+    const Self = @This();
+
+    pub fn start(self: Self, resolution: u32) void {
+        _ = self;
+        _ = resolution;
+    }
+
+    pub fn tick(self: Self) void {
+        _ = self;
     }
 };

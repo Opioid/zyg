@@ -40,10 +40,10 @@ pub const Lighttracer = struct {
     const Self = @This();
 
     pub fn startPixel(self: *Self, rng: *RNG) void {
-        self.light_sampler.startPixel(rng.randomUint());
+        self.light_sampler.startPixel(0, rng.randomUint());
 
         for (self.samplers) |*s| {
-            s.startPixel(rng.randomUint());
+            s.startPixel(0, rng.randomUint());
         }
     }
 

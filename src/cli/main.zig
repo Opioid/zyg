@@ -104,7 +104,7 @@ pub fn main() !void {
 
     const rendering_start = std.time.milliTimestamp();
 
-    var driver = try rendering.Driver.init(alloc, &threads);
+    var driver = try rendering.Driver.init(alloc, &threads, .{ .StdOut = .{} });
     defer driver.deinit(alloc);
 
     try driver.configure(alloc, &take.view, &scene);

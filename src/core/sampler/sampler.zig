@@ -14,10 +14,10 @@ pub const Sampler = union(enum) {
     Random,
     Sobol: Sobol,
 
-    pub fn startPixel(self: *Sampler, seed: u32) void {
+    pub fn startPixel(self: *Sampler, sample: u32, seed: u32) void {
         switch (self.*) {
             .Random => {},
-            .Sobol => |*s| s.startPixel(seed),
+            .Sobol => |*s| s.startPixel(sample, seed),
         }
     }
 
