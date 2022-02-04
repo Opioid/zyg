@@ -13,7 +13,6 @@ const Progressor = @import("../progress.zig").Progressor;
 const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
-const ThreadContext = base.thread.Pool.Context;
 
 const math = @import("base").math;
 const Vec4i = math.Vec4i;
@@ -246,7 +245,7 @@ pub const Driver = struct {
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn renderTiles(context: ThreadContext, id: u32) void {
+    fn renderTiles(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
         const iteration = self.frame_iteration;
@@ -293,7 +292,7 @@ pub const Driver = struct {
         self.threads.runParallel(self, renderTiles, 0);
     }
 
-    fn renderRanges(context: ThreadContext, id: u32) void {
+    fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
         while (self.ranges.pop()) |range| {
@@ -361,7 +360,7 @@ pub const Driver = struct {
         log.info("Photon time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn bakeRanges(context: ThreadContext, id: u32, begin: u32, end: u32) void {
+    fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self = @intToPtr(*Driver, context);
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(

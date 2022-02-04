@@ -1,5 +1,6 @@
 const core = @import("core");
 const log = core.log;
+const image = core.image;
 const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
@@ -226,24 +227,51 @@ export fn su_copy_framebuffer(
     destination: [*]u8,
 ) i32 {
     if (engine) |*e| {
-        _ = format;
-        _ = num_channels;
+        var context = CopyFramebufferContext{
+            .format = format,
+            .width = width,
+            .num_channels = num_channels,
+            .destination = destination,
+            .source = e.driver.target,
+        };
 
         const buffer = e.driver.target;
-
         const d = buffer.description.dimensions;
-
-        const used_width = @minimum(width, @intCast(u32, d.v[0]));
         const used_height = @minimum(height, @intCast(u32, d.v[1]));
 
-        // var target = std.mem.asSlice()
+        _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
 
-        var y: u32 = 0;
-        while (y < used_height) : (y += 1) {
+        return 0;
+    }
+
+    return -1;
+}
+
+const CopyFramebufferContext = struct {
+    format: u32,
+    width: u32,
+    num_channels: u32,
+    destination: [*]u8,
+    source: image.Float4,
+
+    fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+        _ = id;
+
+        const self = @intToPtr(*CopyFramebufferContext, context);
+
+        const d = self.source.description.dimensions;
+
+        const width = self.width;
+        const used_width = @minimum(self.width, @intCast(u32, d.v[0]));
+
+        var destination = self.destination;
+
+        var y: u32 = begin;
+        while (y < end) : (y += 1) {
             var o: u32 = y * width * 3;
             var x: u32 = 0;
             while (x < used_width) : (x += 1) {
-                const color = buffer.get2D(@intCast(i32, x), @intCast(i32, y));
+                const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
 
                 destination[o + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[0]));
                 destination[o + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[1]));
@@ -252,12 +280,8 @@ export fn su_copy_framebuffer(
                 o += 3;
             }
         }
-
-        return 0;
     }
-
-    return -1;
-}
+};
 
 export fn su_register_log(post: ?*log.CFunc.Func) i32 {
     if (post) |p| {

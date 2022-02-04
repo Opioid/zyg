@@ -109,12 +109,9 @@ pub const Worker = struct {
         isolated_bounds[3] -= isolated_bounds[1];
 
         const fr = sensor.filterRadiusInt();
-
         const r = camera.resolution + @splat(2, 2 * fr);
-
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
-
-        const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
+        const o0 = @as(u64, iteration) * a;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
