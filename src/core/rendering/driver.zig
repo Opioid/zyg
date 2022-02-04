@@ -50,6 +50,7 @@ pub const Driver = struct {
 
     frame: u32 = undefined,
     frame_iteration: u32 = undefined,
+    frame_iteration_samples: u32 = undefined,
     progressive: bool = undefined,
 
     progressor: Progressor,
@@ -197,8 +198,9 @@ pub const Driver = struct {
         camera.sensor.clear(0.0);
     }
 
-    pub fn renderIteration(self: *Driver, iteration: u32) void {
+    pub fn renderIterations(self: *Driver, iteration: u32, num_samples: u32) void {
         self.frame_iteration = iteration;
+        self.frame_iteration_samples = num_samples;
 
         self.renderFrameIterationForward();
     }
@@ -249,7 +251,7 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         const iteration = self.frame_iteration;
-        const num_samples = if (self.progressive) 1 else self.view.num_samples_per_pixel;
+        const num_samples = if (self.progressive) self.frame_iteration_samples else self.view.num_samples_per_pixel;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {

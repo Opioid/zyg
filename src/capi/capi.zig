@@ -199,10 +199,10 @@ export fn su_start_frame(frame: u32) i32 {
     return -1;
 }
 
-export fn su_render_iteration() i32 {
+export fn su_render_iterations(num_steps: u32) i32 {
     if (engine) |*e| {
-        e.driver.renderIteration(e.iteration);
-        e.iteration += 1;
+        e.driver.renderIterations(e.iteration, num_steps);
+        e.iteration += num_steps;
 
         return 0;
     }
