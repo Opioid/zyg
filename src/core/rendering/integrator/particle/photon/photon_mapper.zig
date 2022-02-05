@@ -33,11 +33,9 @@ pub const Mapper = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings) !Self {
-        return Self{
-            .settings = settings,
-            .photons = try alloc.alloc(Photon, settings.max_bounces),
-        };
+    pub fn configure(self: *Self, alloc: Allocator, settings: Settings) !void {
+        self.settings = settings;
+        self.photons = try alloc.realloc(self.photons, settings.max_bounces);
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {

@@ -71,7 +71,7 @@ pub const Worker = struct {
         self.lighttracer = lighttracers.create();
 
         const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
-        self.photon_mapper = try PhotonMapper.init(alloc, .{
+        try self.photon_mapper.configure(alloc, .{
             .max_bounces = max_bounces,
             .full_light_path = photon_settings.full_light_path,
         });
