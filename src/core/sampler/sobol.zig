@@ -20,7 +20,7 @@ pub const Sobol = struct {
     }
 
     pub fn incrementSample(self: *Self) void {
-        self.sample += 1;
+        self.sample +%= 1;
         self.dimension = 0;
         self.run_seed = self.start_seed;
     }

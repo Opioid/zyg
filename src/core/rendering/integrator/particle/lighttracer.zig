@@ -39,11 +39,11 @@ pub const Lighttracer = struct {
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, rng: *RNG) void {
-        self.light_sampler.startPixel(0, rng.randomUint());
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        self.light_sampler.startPixel(sample, seed);
 
         for (self.samplers) |*s| {
-            s.startPixel(0, rng.randomUint());
+            s.startPixel(sample, seed + 1);
         }
     }
 
@@ -232,12 +232,10 @@ pub const Lighttracer = struct {
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Ray {
-        var rng = &worker.super.rng;
         var sampler = &self.light_sampler;
-        const select = sampler.sample1D(rng);
-        const l = worker.super.scene.randomLight(select);
-
-        const time = worker.super.absoluteTime(frame, sampler.sample1D(rng));
+        const s2 = sampler.sample2D(&worker.super.rng);
+        const l = worker.super.scene.randomLight(s2[0]);
+        const time = worker.super.absoluteTime(frame, s2[1]);
 
         const light = worker.super.scene.light(l.offset);
         light_sample.* = light.sampleFrom(time, sampler, bounds, &worker.super) orelse return null;

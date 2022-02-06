@@ -86,6 +86,7 @@ pub const Worker = struct {
         iteration: u32,
         num_samples: u32,
         num_photon_samples: u32,
+        progressive: bool,
     ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
@@ -125,8 +126,17 @@ pub const Worker = struct {
                 rng.start(0, o1 + pixel_r);
 
                 const pixel_id = pixel_n + pixel_r;
-                self.sampler.startPixel(iteration, pixel_id);
-                self.surface_integrator.startPixel(iteration, pixel_id + a);
+                if (progressive) {
+                    self.sampler.startPixel(iteration, pixel_id);
+                    self.surface_integrator.startPixel(iteration, pixel_id + a);
+                } else {
+                    const sample_index = @as(u64, pixel_id) * @as(u64, num_samples);
+                    const tsi = @truncate(u32, sample_index);
+                    const rsi = @truncate(u32, sample_index >> 32);
+                    self.sampler.startPixel(tsi, rsi);
+                    self.surface_integrator.startPixel(tsi, rsi + a);
+                }
+
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
@@ -157,7 +167,7 @@ pub const Worker = struct {
         var camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel(&self.super.rng);
+        self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
