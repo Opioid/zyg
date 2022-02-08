@@ -80,12 +80,12 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
         return Error.NoScene;
     }
 
-    if (integrator_value_ptr) |integrator_value| {
-        loadIntegrators(integrator_value.*, &take.view);
+    if (sampler_value_ptr) |sampler_value| {
+        loadSampler(sampler_value.*, &take.view);
     }
 
-    if (sampler_value_ptr) |sampler_value| {
-        take.view.samplers = loadSampler(sampler_value.*, &take.view.num_samples_per_pixel);
+    if (integrator_value_ptr) |integrator_value| {
+        loadIntegrators(integrator_value.*, &take.view);
     }
 
     if (post_value_ptr) |post_value| {
@@ -95,8 +95,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
     if (exporter_value_ptr) |exporter_value| {
         take.exporters = try loadExporters(alloc, exporter_value.*, take.view);
     }
-
-    setDefaultIntegrators(&take.view);
 
     take.view.configure();
 
@@ -290,37 +288,21 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     return .{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque).init(clamp_max) };
 }
 
-fn peekSurfaceIntegrator(value: std.json.Value) bool {
-    var niter = value.Object.iterator();
-    while (niter.next()) |n| {
-        if (std.mem.eql(u8, "surface", n.key_ptr.*)) {
-            var siter = n.value_ptr.Object.iterator();
-            while (siter.next()) |s| {
-                if (std.mem.eql(u8, "AO", s.key_ptr.*)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
-
 fn loadIntegrators(value: std.json.Value, view: *View) void {
     if (value.Object.get("particle")) |particle_node| {
-        const surface_integrator = peekSurfaceIntegrator(value);
-
-        loadParticleIntegrator(particle_node, view, surface_integrator);
+        loadParticleIntegrator(particle_node, view, view.num_samples_per_pixel > 0);
     }
+
+    const lighttracer = view.num_particles_per_pixel > 0;
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-            loadSurfaceIntegrator(entry.value_ptr.*, view, null != view.lighttracers);
+            loadSurfaceIntegrator(entry.value_ptr.*, view, lighttracer);
         } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
             loadVolumeIntegrator(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
-            view.photon_settings = loadPhotonSettings(entry.value_ptr.*, null != view.lighttracers);
+            view.photon_settings = loadPhotonSettings(entry.value_ptr.*, lighttracer);
         }
     }
 }
@@ -452,52 +434,23 @@ fn loadPhotonSettings(value: std.json.Value, lighttracer: bool) PhotonSettings {
     };
 }
 
-fn setDefaultIntegrators(view: *View) void {
-    if (null == view.surfaces and null != view.lighttracers) {
-        view.num_samples_per_pixel = 0;
-    }
-
-    if (null == view.surfaces) {
-        view.surfaces = .{ .AOV = .{
-            .settings = .{
-                .value = .AO,
-                .num_samples = 1,
-                .max_bounces = 1,
-                .radius = 1.0,
-                .photons_not_only_through_specular = false,
-            },
-        } };
-    }
-
-    if (null == view.volumes) {
-        view.volumes = .{ .Multi = .{} };
-    }
-
-    if (null == view.lighttracers) {
-        view.lighttracers = .{ .settings = .{
-            .num_samples = 0,
-            .min_bounces = 0,
-            .max_bounces = 0,
-            .full_light_path = false,
-        } };
-    }
-}
-
-fn loadSampler(value: std.json.Value, num_samples_per_pixel: *u32) smpl.Factory {
+fn loadSampler(value: std.json.Value, view: *View) void {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        num_samples_per_pixel.* = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
+        view.num_samples_per_pixel = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
-            return .{ .Random = {} };
+            view.samplers = .{ .Random = {} };
+            return;
         }
 
         if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
-            return .{ .Sobol = {} };
+            view.samplers = .{ .Sobol = {} };
+            return;
         }
     }
 
-    return .{ .Random = {} };
+    view.samplers = .{ .Random = {} };
 }
 
 fn loadPostProcessors(value: std.json.Value, view: *View) void {

@@ -20,12 +20,6 @@ const Vec4i = math.Vec4i;
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
-const Error = error{
-    InvalidSurfaceIntegrator,
-    InvalidVolumeIntegrator,
-    InvalidLighttracer,
-};
-
 const Num_particles_per_chunk = 1024;
 
 pub const Driver = struct {
@@ -84,10 +78,6 @@ pub const Driver = struct {
     }
 
     pub fn configure(self: *Driver, alloc: Allocator, view: *View, scene: *Scene) !void {
-        const surfaces = view.surfaces orelse return Error.InvalidSurfaceIntegrator;
-        const volumes = view.volumes orelse return Error.InvalidVolumeIntegrator;
-        const lighttracers = view.lighttracers orelse return Error.InvalidLighttracer;
-
         self.view = view;
         self.scene = scene;
 
@@ -112,9 +102,9 @@ pub const Driver = struct {
                 scene,
                 view.num_samples_per_pixel,
                 view.samplers,
-                surfaces,
-                volumes,
-                lighttracers,
+                view.surfaces,
+                view.volumes,
+                view.lighttracers,
                 view.photon_settings,
                 &self.photon_map,
             );

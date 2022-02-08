@@ -25,13 +25,28 @@ pub const PhotonSettings = struct {
 pub const View = struct {
     samplers: SamplerFactory = undefined,
 
-    surfaces: ?SurfaceFactory = null,
-    volumes: ?VolumeFactory = null,
-    lighttracers: ?LighttracerFactory = null,
+    surfaces: SurfaceFactory = .{ .AOV = .{
+        .settings = .{
+            .value = .AO,
+            .num_samples = 1,
+            .max_bounces = 1,
+            .radius = 1.0,
+            .photons_not_only_through_specular = false,
+        },
+    } },
+
+    volumes: VolumeFactory = .{ .Multi = .{} },
+
+    lighttracers: LighttracerFactory = .{ .settings = .{
+        .num_samples = 0,
+        .min_bounces = 0,
+        .max_bounces = 0,
+        .full_light_path = false,
+    } },
 
     camera: cam.Perspective,
 
-    num_samples_per_pixel: u32 = 1,
+    num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
 
     photon_settings: PhotonSettings = .{},
@@ -46,24 +61,19 @@ pub const View = struct {
     }
 
     pub fn numParticleSamplesPerPixel(self: View) u32 {
-        const lt = self.lighttracers orelse return 0;
-
-        return self.num_particles_per_pixel * lt.settings.num_samples;
+        return self.num_particles_per_pixel * self.lighttracers.settings.num_samples;
     }
 };
 
 pub const Take = struct {
-    scene_filename: []u8,
+    scene_filename: []u8 = &.{},
 
     view: View,
 
     exporters: Exporters = .{},
 
     pub fn init(alloc: Allocator) !Take {
-        return Take{
-            .scene_filename = &.{},
-            .view = .{ .camera = try cam.Perspective.init(alloc) },
-        };
+        return Take{ .view = .{ .camera = try cam.Perspective.init(alloc) } };
     }
 
     pub fn deinit(self: *Take, alloc: Allocator) void {
