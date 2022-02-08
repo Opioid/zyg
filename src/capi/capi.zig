@@ -9,6 +9,9 @@ const Progressor = core.progress.Progressor;
 
 const base = @import("base");
 const math = base.math;
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
+const Pack4f = math.Pack4f;
 const encoding = base.encoding;
 const spectrum = base.spectrum;
 const Threads = base.thread.Pool;
@@ -128,9 +131,31 @@ export fn su_load_take(string: [*:0]const u8) i32 {
             return -1;
         };
 
+        e.take.deinit(e.alloc);
         e.take = take;
 
         return 0;
+    }
+
+    return -1;
+}
+
+export fn su_create_perspective_camera(width: u32, height: u32) i32 {
+    if (engine) |*e| {
+        const resolution = Vec2i{ @intCast(i32, width), @intCast(i32, height) };
+        const crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
+
+        var camera = &e.take.view.camera;
+
+        camera.setResolution(resolution, crop);
+        camera.fov = math.degreesToRadians(80.0);
+
+        const prop_id = e.scene.createEntity(e.alloc) catch {
+            return -1;
+        };
+
+        camera.entity = prop_id;
+        return @intCast(i32, prop_id);
     }
 
     return -1;
@@ -226,12 +251,14 @@ export fn su_copy_framebuffer(
     num_channels: u32,
     destination: [*]u8,
 ) i32 {
+    const bpc: u32 = if (0 == format) 1 else 4;
+
     if (engine) |*e| {
         var context = CopyFramebufferContext{
             .format = format,
             .width = width,
             .num_channels = num_channels,
-            .destination = destination,
+            .destination = destination[0 .. bpc * num_channels * width * height],
             .source = e.driver.target,
         };
 
@@ -251,7 +278,7 @@ const CopyFramebufferContext = struct {
     format: u32,
     width: u32,
     num_channels: u32,
-    destination: [*]u8,
+    destination: []u8,
     source: image.Float4,
 
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -264,20 +291,37 @@ const CopyFramebufferContext = struct {
         const width = self.width;
         const used_width = @minimum(self.width, @intCast(u32, d.v[0]));
 
-        var destination = self.destination;
+        if (3 == self.num_channels) {
+            var destination = self.destination;
 
-        var y: u32 = begin;
-        while (y < end) : (y += 1) {
-            var o: u32 = y * width * 3;
-            var x: u32 = 0;
-            while (x < used_width) : (x += 1) {
-                const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
+            var y: u32 = begin;
+            while (y < end) : (y += 1) {
+                var o: u32 = y * width * 3;
+                var x: u32 = 0;
+                while (x < used_width) : (x += 1) {
+                    const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
 
-                destination[o + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[0]));
-                destination[o + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[1]));
-                destination[o + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[2]));
+                    destination[o + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[0]));
+                    destination[o + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[1]));
+                    destination[o + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[2]));
 
-                o += 3;
+                    o += 3;
+                }
+            }
+        } else if (4 == self.num_channels) {
+            var destination = std.mem.bytesAsSlice(Pack4f, self.destination);
+
+            var y: u32 = begin;
+            while (y < end) : (y += 1) {
+                var o: u32 = y * width;
+                var x: u32 = 0;
+                while (x < used_width) : (x += 1) {
+                    // const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
+
+                    destination[o] = Pack4f.init4(1.0, @intToFloat(f32, x) / @intToFloat(f32, used_width - 1), 0.0, 1.0); // color;
+
+                    o += 1;
+                }
             }
         }
     }
