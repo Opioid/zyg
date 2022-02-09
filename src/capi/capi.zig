@@ -205,7 +205,30 @@ export fn su_create_material(string: [*:0]const u8) i32 {
 
 export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
     if (engine) |*e| {
-        const prop = e.scene.createProp(e.alloc, shape, materials[0..num_materials]) catch return -1;
+        if (shape >= e.scene.shapes.items.len) {
+            return -1;
+        }
+
+        const scene_mat_len = e.scene.materials.items.len;
+        const num_expected_mats = e.scene.shape(shape).numMaterials();
+        const fallback_mat = e.scene_loader.fallback_material;
+
+        var matbuf = &e.scene_loader.materials;
+
+        matbuf.ensureTotalCapacity(e.alloc, num_expected_mats) catch return -1;
+        matbuf.clearRetainingCapacity();
+
+        var i: u32 = 0;
+        while (i < num_materials) : (i += 1) {
+            const m = materials[i];
+            matbuf.appendAssumeCapacity(if (m >= scene_mat_len) fallback_mat else m);
+        }
+
+        while (matbuf.items.len < num_expected_mats) {
+            matbuf.appendAssumeCapacity(fallback_mat);
+        }
+
+        const prop = e.scene.createProp(e.alloc, shape, matbuf.items) catch return -1;
 
         return @intCast(i32, prop);
     }

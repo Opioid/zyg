@@ -8,7 +8,8 @@ const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
 const ts = @import("../../image/texture/sampler.zig");
-const Resources = @import("../../resource/manager.zig").Manager;
+const rsc = @import("../../resource/manager.zig");
+const Resources = rsc.Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -430,6 +431,7 @@ pub const Provider = struct {
 
 const TextureDescription = struct {
     filename: ?[]u8 = null,
+    id: u32 = rsc.Null,
 
     swizzle: ?img.Swizzle = null,
 
@@ -447,6 +449,8 @@ const TextureDescription = struct {
                 const filename = try alloc.alloc(u8, string.len);
                 std.mem.copy(u8, filename, string);
                 desc.filename = filename;
+            } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
+                desc.id = json.readUInt(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
                 const swizzle = entry.value_ptr.String;
 
@@ -592,6 +596,11 @@ fn createTexture(
 
         return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ filename, e });
+            return .{};
+        };
+    } else if (rsc.Null != desc.id) {
+        return tx.Provider.createTexture(desc.id, usage, desc.scale, resources) catch |e| {
+            log.err("Could not create texture \"{}\": {}", .{ desc.id, e });
             return .{};
         };
     }

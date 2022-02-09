@@ -12,7 +12,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const Error = error{
-    UnsupportedImageType,
+    InvalidImageId,
 };
 
 pub const Usage = enum {
@@ -61,7 +61,12 @@ pub const Provider = struct {
         try image_options.set(alloc, "swizzle", swizzle.?);
 
         const image_id = try resources.loadFile(Image, alloc, name, image_options);
-        const image = resources.get(Image, image_id) orelse unreachable;
+
+        return try createTexture(image_id, usage, scale, resources);
+    }
+
+    pub fn createTexture(image_id: u32, usage: Usage, scale: Vec2f, resources: *Resources) !Texture {
+        const image = resources.get(Image, image_id) orelse return Error.InvalidImageId;
 
         return switch (image.*) {
             .Byte1 => Texture{ .type = .Byte1_unorm, .image = image_id, .scale = scale },
