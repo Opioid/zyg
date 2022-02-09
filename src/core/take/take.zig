@@ -23,7 +23,7 @@ pub const PhotonSettings = struct {
 };
 
 pub const View = struct {
-    samplers: SamplerFactory = undefined,
+    samplers: SamplerFactory = .{ .Sobol = {} },
 
     surfaces: SurfaceFactory = .{ .AOV = .{
         .settings = .{

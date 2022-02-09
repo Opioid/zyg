@@ -12,6 +12,9 @@ const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Pack4f = math.Pack4f;
+const Mat3x3 = math.Mat3x3;
+const Mat4x4 = math.Mat4x4;
+const Transformation = math.Transformation;
 const encoding = base.encoding;
 const spectrum = base.spectrum;
 const Threads = base.thread.Pool;
@@ -80,6 +83,8 @@ export fn su_init() i32 {
         return -1;
     };
 
+    engine.?.take.view.num_samples_per_pixel = 1;
+
     engine.?.driver = rendering.Driver.init(alloc, &engine.?.threads, engine.?.progress) catch {
         engine = null;
         return -1;
@@ -96,6 +101,7 @@ export fn su_release() i32 {
         e.scene_loader.deinit(e.alloc);
         e.resources.deinit(e.alloc);
         e.threads.deinit(e.alloc);
+        engine = null;
         return 0;
     }
 
@@ -150,12 +156,15 @@ export fn su_create_perspective_camera(width: u32, height: u32) i32 {
         camera.setResolution(resolution, crop);
         camera.fov = math.degreesToRadians(80.0);
 
-        const prop_id = e.scene.createEntity(e.alloc) catch {
-            return -1;
-        };
+        if (scn.Prop.Null == camera.entity) {
+            const prop_id = e.scene.createEntity(e.alloc) catch {
+                return -1;
+            };
 
-        camera.entity = prop_id;
-        return @intCast(i32, prop_id);
+            camera.entity = prop_id;
+        }
+
+        return @intCast(i32, camera.entity);
     }
 
     return -1;
@@ -172,10 +181,63 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     return -1;
 }
 
+export fn su_create_material(string: [*:0]const u8) i32 {
+    if (engine) |*e| {
+        var parser = std.json.Parser.init(e.alloc, false);
+        defer parser.deinit();
+
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        defer document.deinit();
+
+        const data = @ptrToInt(&document.root);
+
+        const material = e.resources.loadData(scn.Material, e.alloc, "", data, .{}) catch return -1;
+
+        if (e.resources.get(scn.Material, material)) |mp| {
+            mp.commit(e.alloc, e.scene, &e.threads) catch return -1;
+        }
+
+        return @intCast(i32, material);
+    }
+
+    return -1;
+}
+
+export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
+    if (engine) |*e| {
+        const prop = e.scene.createProp(e.alloc, shape, materials[0..num_materials]) catch return -1;
+
+        return @intCast(i32, prop);
+    }
+
+    return -1;
+}
+
+export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
+    if (engine) |*e| {
+        if (prop >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        const m = Mat4x4.initArray(trafo[0..16].*);
+
+        var r: Mat3x3 = undefined;
+        var t: Transformation = undefined;
+        m.decompose(&r, &t.scale, &t.position);
+        t.rotation = math.quaternion.initFromMat3x3(r);
+
+        e.scene.propSetWorldTransformation(prop, t);
+        return 0;
+    }
+
+    return -1;
+}
+
 export fn su_render_frame(frame: u32) i32 {
     if (engine) |*e| {
         e.threads.waitAsync();
 
+        e.take.view.configure();
         e.driver.configure(e.alloc, &e.take.view, &e.scene) catch {
             return -1;
         };
@@ -208,6 +270,7 @@ export fn su_start_frame(frame: u32) i32 {
     if (engine) |*e| {
         e.threads.waitAsync();
 
+        e.take.view.configure();
         e.driver.configure(e.alloc, &e.take.view, &e.scene) catch {
             return -1;
         };
@@ -316,9 +379,11 @@ const CopyFramebufferContext = struct {
                 var o: u32 = y * width;
                 var x: u32 = 0;
                 while (x < used_width) : (x += 1) {
-                    // const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
+                    const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
 
-                    destination[o] = Pack4f.init4(1.0, @intToFloat(f32, x) / @intToFloat(f32, used_width - 1), 0.0, 1.0); // color;
+                    destination[o] = color;
+
+                    //   destination[o] = Pack4f.init4(1.0, @intToFloat(f32, x) / @intToFloat(f32, used_width - 1), 0.0, 1.0);
 
                     o += 1;
                 }

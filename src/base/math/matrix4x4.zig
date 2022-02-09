@@ -1,5 +1,6 @@
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
-const Vec4f = @import("vector4.zig").Vec4f;
+const math = @import("vector4.zig");
+const Vec4f = math.Vec4f;
 
 pub const Mat4x4 = struct {
     r: [4]Vec4f,
@@ -30,6 +31,15 @@ pub const Mat4x4 = struct {
         } };
     }
 
+    pub fn initArray(ma: [16]f32) Mat4x4 {
+        return .{ .r = .{
+            .{ ma[0], ma[1], ma[2], ma[3] },
+            .{ ma[4], ma[5], ma[6], ma[7] },
+            .{ ma[8], ma[9], ma[10], ma[11] },
+            .{ ma[12], ma[13], ma[14], ma[15] },
+        } };
+    }
+
     pub fn compose(basis: Mat3x3, scale: Vec4f, origin: Vec4f) Mat4x4 {
         return init16(
             basis.r[0][0] * scale[0],
@@ -51,12 +61,42 @@ pub const Mat4x4 = struct {
         );
     }
 
-    pub fn m(self: Mat4x4, y: u32, x: u32) f32 {
-        return self.r[y][x];
+    pub fn decompose(self: Mat4x4, basis: *Mat3x3, scale: *Vec4f, origin: *Vec4f) void {
+        const mx = self.x();
+        const my = self.y();
+        const mz = self.z();
+
+        const sx = math.length3(mx);
+        const sy = math.length3(my);
+        const sz = math.length3(mz);
+
+        basis.* = Mat3x3.init3(mx / @splat(4, sx), my / @splat(4, sy), mz / @splat(4, sz));
+        scale.* = Vec4f{ sx, sy, sz, 0.0 };
+        origin.* = self.w();
     }
 
-    pub fn setElem(self: *Mat4x4, y: u32, x: u32, s: f32) void {
-        self.r[y][x] = s;
+    pub fn m(self: Mat4x4, cy: u32, cx: u32) f32 {
+        return self.r[cy][cx];
+    }
+
+    pub fn x(self: Mat4x4) Vec4f {
+        return self.r[0];
+    }
+
+    pub fn y(self: Mat4x4) Vec4f {
+        return self.r[1];
+    }
+
+    pub fn z(self: Mat4x4) Vec4f {
+        return self.r[2];
+    }
+
+    pub fn w(self: Mat4x4) Vec4f {
+        return self.r[3];
+    }
+
+    pub fn setElem(self: *Mat4x4, cy: u32, cx: u32, s: f32) void {
+        self.r[cy][cx] = s;
     }
 
     pub fn transformVector(self: Mat4x4, v: Vec4f) Vec4f {
