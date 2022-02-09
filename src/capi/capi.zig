@@ -383,8 +383,6 @@ const CopyFramebufferContext = struct {
 
                     destination[o] = color;
 
-                    //   destination[o] = Pack4f.init4(1.0, @intToFloat(f32, x) / @intToFloat(f32, used_width - 1), 0.0, 1.0);
-
                     o += 1;
                 }
             }
