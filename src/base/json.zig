@@ -40,19 +40,19 @@ pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
 }
 
 pub fn readUInt(value: Value) u32 {
-    return @intCast(u32, value.Integer);
+    return @truncate(u32, @bitCast(u64, value.Integer));
 }
 
 pub fn readUIntMember(value: Value, name: []const u8, default: u32) u32 {
     const member = value.Object.get(name) orelse return default;
 
-    return @intCast(u32, member.Integer);
+    return @truncate(u32, @bitCast(u64, member.Integer));
 }
 
 pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
     const member = value.Object.get(name) orelse return default;
 
-    return @intCast(u64, member.Integer);
+    return @bitCast(u64, member.Integer);
 }
 
 pub fn readVec2f(value: Value) Vec2f {

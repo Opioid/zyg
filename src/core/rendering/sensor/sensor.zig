@@ -20,6 +20,39 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+pub const Blackman = struct {
+    r: f32,
+
+    pub fn eval(self: Blackman, x: f32) f32 {
+        const a0 = 0.35875;
+        const a1 = 0.48829;
+        const a2 = 0.14128;
+        const a3 = 0.01168;
+
+        const b = (std.math.pi * (x + self.r)) / self.r;
+
+        return a0 - a1 * @cos(b) + a2 * @cos(2.0 * b) - a3 * @cos(3.0 * b);
+    }
+};
+
+pub const Mitchell = struct {
+    b: f32,
+    c: f32,
+
+    pub fn eval(self: Mitchell, x: f32) f32 {
+        const b = self.b;
+        const c = self.c;
+        const xx = x * x;
+
+        if (x > 1.0) {
+            return ((-b - 6.0 * c) * xx * x + (6.0 * b + 30.0 * c) * xx +
+                (-12.0 * b - 48.0 * c) * x + (8.0 * b + 24.0 * c)) / 6.0;
+        }
+
+        return ((12.0 - 9.0 * b - 6.0 * c) * xx * x + (-18.0 + 12.0 * b + 6.0 * c) * xx + (6.0 - 2.0 * b)) / 6.0;
+    }
+};
+
 pub const Sensor = union(enum) {
     Unfiltered_opaque: Unfiltered(Opaque),
     Unfiltered_transparent: Unfiltered(Transparent),

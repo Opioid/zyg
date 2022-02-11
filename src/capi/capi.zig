@@ -190,6 +190,46 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     return -1;
 }
 
+export fn su_create_exporters(string: [*:0]const u8) i32 {
+    if (engine) |*e| {
+        var parser = std.json.Parser.init(e.alloc, false);
+        defer parser.deinit();
+
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        defer document.deinit();
+
+        tk.loadExporters(e.alloc, document.root, &e.take) catch return -1;
+
+        return 0;
+    }
+
+    return -1;
+}
+
+export fn su_create_sampler(num_samples: u32) i32 {
+    if (engine) |*e| {
+        e.take.view.num_samples_per_pixel = num_samples;
+    }
+
+    return -1;
+}
+
+export fn su_create_integrators(string: [*:0]const u8) i32 {
+    if (engine) |*e| {
+        var parser = std.json.Parser.init(e.alloc, false);
+        defer parser.deinit();
+
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        defer document.deinit();
+
+        tk.loadIntegrators(document.root, &e.take.view);
+
+        return 0;
+    }
+
+    return -1;
+}
+
 export fn su_create_image(format: u32, num_channels: u32, width: u32, height: u32, depth: u32, pixel_stride: u32, data: [*]u8) i32 {
     if (engine) |*e| {
         const ef = @intToEnum(Format, format);
@@ -204,7 +244,7 @@ export fn su_create_image(format: u32, num_channels: u32, width: u32, height: u3
             Vec3i.init1(0),
         );
 
-        var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 4, null) catch {
+        var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
             return -1;
         };
 
@@ -219,6 +259,13 @@ export fn su_create_image(format: u32, num_channels: u32, width: u32, height: u3
                 1 => img.Image{ .Byte1 = img.Byte1.initFromBytes(desc, buffer) },
                 2 => img.Image{ .Byte2 = img.Byte2.initFromBytes(desc, buffer) },
                 3 => img.Image{ .Byte3 = img.Byte3.initFromBytes(desc, buffer) },
+                else => null,
+            },
+            .Float32 => switch (num_channels) {
+                1 => img.Image{ .Float1 = img.Float1.initFromBytes(desc, buffer) },
+                2 => img.Image{ .Float2 = img.Float2.initFromBytes(desc, buffer) },
+                3 => img.Image{ .Float3 = img.Float3.initFromBytes(desc, buffer) },
+                4 => img.Image{ .Float4 = img.Float4.initFromBytes(desc, buffer) },
                 else => null,
             },
             else => null,
@@ -289,6 +336,20 @@ export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32
         const prop = e.scene.createProp(e.alloc, shape, matbuf.items) catch return -1;
 
         return @intCast(i32, prop);
+    }
+
+    return -1;
+}
+
+export fn su_create_light(prop: u32) i32 {
+    if (engine) |*e| {
+        if (prop >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        e.scene.createLight(e.alloc, prop) catch return -1;
+
+        return 0;
     }
 
     return -1;

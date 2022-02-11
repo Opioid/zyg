@@ -77,12 +77,17 @@ pub const Take = struct {
     }
 
     pub fn deinit(self: *Take, alloc: Allocator) void {
+        self.clearExporters(alloc);
+        self.exporters.deinit(alloc);
+        self.view.deinit(alloc);
+        alloc.free(self.scene_filename);
+    }
+
+    pub fn clearExporters(self: *Take, alloc: Allocator) void {
         for (self.exporters.items) |*e| {
             e.deinit(alloc);
         }
 
-        self.exporters.deinit(alloc);
-        self.view.deinit(alloc);
-        alloc.free(self.scene_filename);
+        self.exporters.clearRetainingCapacity();
     }
 };

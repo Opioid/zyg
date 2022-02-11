@@ -93,7 +93,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene, resources: *Res
     }
 
     if (exporter_value_ptr) |exporter_value| {
-        take.exporters = try loadExporters(alloc, exporter_value.*, take.view);
+        try loadExporters(alloc, exporter_value.*, &take);
     }
 
     take.view.configure();
@@ -187,43 +187,6 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     camera.entity = prop_id;
 }
 
-fn identity(x: f32) f32 {
-    return x;
-}
-
-const Blackman = struct {
-    r: f32,
-
-    pub fn eval(self: Blackman, x: f32) f32 {
-        const a0 = 0.35875;
-        const a1 = 0.48829;
-        const a2 = 0.14128;
-        const a3 = 0.01168;
-
-        const b = (std.math.pi * (x + self.r)) / self.r;
-
-        return a0 - a1 * @cos(b) + a2 * @cos(2.0 * b) - a3 * @cos(3.0 * b);
-    }
-};
-
-const Mitchell = struct {
-    b: f32,
-    c: f32,
-
-    pub fn eval(self: Mitchell, x: f32) f32 {
-        const b = self.b;
-        const c = self.c;
-        const xx = x * x;
-
-        if (x > 1.0) {
-            return ((-b - 6.0 * c) * xx * x + (6.0 * b + 30.0 * c) * xx +
-                (-12.0 * b - 48.0 * c) * x + (8.0 * b + 24.0 * c)) / 6.0;
-        }
-
-        return ((12.0 - 9.0 * b - 6.0 * c) * xx * x + (-18.0 + 12.0 * b + 6.0 * c) * xx + (6.0 - 2.0 * b)) / 6.0;
-    }
-};
-
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
     var clamp_max: f32 = std.math.f32_max;
@@ -247,30 +210,22 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     }
 
     if (filter_value_ptr) |filter_value| {
+        const radius: f32 = 2.0;
+
         var iter = filter_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Gaussian", entry.key_ptr.*) or
                 std.mem.eql(u8, "Blackman", entry.key_ptr.*))
             {
-                const radius = json.readFloatMember(entry.value_ptr.*, "radius", 2.0);
-                const filter = Blackman{ .r = radius };
+                const filter = snsr.Blackman{ .r = radius };
 
                 if (alpha_transparency) {
-                    if (radius <= 1.0) {
-                        return .{ .Filtered_1p0_transparent = snsr.Filtered(snsr.Transparent, 1).init(clamp_max, radius, filter) };
-                    } else if (radius <= 2.0) {
-                        return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
-                    }
+                    return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
                 } else {
-                    if (radius <= 1.0) {
-                        return .{ .Filtered_1p0_opaque = snsr.Filtered(snsr.Opaque, 1).init(clamp_max, radius, filter) };
-                    } else if (radius <= 2.0) {
-                        return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
-                    }
+                    return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
                 }
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
-                const radius: f32 = 2.0;
-                const filter = Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
+                const filter = snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
                 if (alpha_transparency) {
                     return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
@@ -288,7 +243,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     return .{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque).init(clamp_max) };
 }
 
-fn loadIntegrators(value: std.json.Value, view: *View) void {
+pub fn loadIntegrators(value: std.json.Value, view: *View) void {
     if (value.Object.get("particle")) |particle_node| {
         loadParticleIntegrator(particle_node, view, view.num_samples_per_pixel > 0);
     }
@@ -443,14 +398,9 @@ fn loadSampler(value: std.json.Value, view: *View) void {
             view.samplers = .{ .Random = {} };
             return;
         }
-
-        if (std.mem.eql(u8, "Golden_ratio", entry.key_ptr.*)) {
-            view.samplers = .{ .Sobol = {} };
-            return;
-        }
     }
 
-    view.samplers = .{ .Random = {} };
+    view.samplers = .{ .Sobol = {} };
 }
 
 fn loadPostProcessors(value: std.json.Value, view: *View) void {
@@ -497,48 +447,46 @@ fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
     }
 }
 
-fn loadExporters(alloc: Allocator, value: std.json.Value, view: View) !tk.Exporters {
-    var exporters = tk.Exporters{};
+pub fn loadExporters(alloc: Allocator, value: std.json.Value, take: *Take) !void {
+    take.clearExporters(alloc);
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
             const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
 
-            const alpha = view.camera.sensor.alphaTransparency();
+            const alpha = take.view.camera.sensor.alphaTransparency();
 
             if (std.mem.eql(u8, "EXR", format)) {
                 const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
-                try exporters.append(alloc, .{ .ImageSequence = .{
+                try take.exporters.append(alloc, .{ .ImageSequence = .{
                     .writer = .{ .EXR = .{ .half = 16 == bitdepth, .alpha = alpha } },
                 } });
             } else if (std.mem.eql(u8, "RGBE", format)) {
-                try exporters.append(alloc, .{ .ImageSequence = .{
+                try take.exporters.append(alloc, .{ .ImageSequence = .{
                     .writer = .{ .RGBE = .{} },
                 } });
             } else {
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
 
-                try exporters.append(alloc, .{ .ImageSequence = .{
+                try take.exporters.append(alloc, .{ .ImageSequence = .{
                     .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
                 } });
             }
         } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
             var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
             if (0 == framerate) {
-                framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, view.camera.frame_step)));
+                framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, take.view.camera.frame_step)));
             }
 
             const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
 
-            try exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
+            try take.exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
                 alloc,
-                view.camera.sensorDimensions(),
+                take.view.camera.sensorDimensions(),
                 framerate,
                 error_diffusion,
             ) });
         }
     }
-
-    return exporters;
 }
