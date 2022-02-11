@@ -1,18 +1,18 @@
 pub const Signature = [4]u8{ 0x76, 0x2f, 0x31, 0x01 };
 
 pub const Channel = struct {
-    pub const Type = enum(u32) {
-        Uint = 0,
+    pub const Format = enum(u32) {
+        Uint,
         Half,
         Float,
     };
 
     name: []const u8,
 
-    typef: Type,
+    format: Format,
 
     pub fn byteSize(self: Channel) u32 {
-        return switch (self.typef) {
+        return switch (self.format) {
             .Half => 2,
             else => 4,
         };

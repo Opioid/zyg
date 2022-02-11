@@ -28,7 +28,7 @@ pub const Reader = struct {
         DisplayWindowNotEqlDataWindow,
         NoChannels,
         Exactly3ChannelsSupported,
-        MixedChannelTypes,
+        MixedChannelFormats,
         NotZipCompression,
         MZUncompressFailed,
         IncompatibleContent,
@@ -99,8 +99,8 @@ pub const Reader = struct {
             return Error.NoChannels;
         }
 
-        if (!channels.singleType()) {
-            return Error.MixedChannelTypes;
+        if (!channels.singleFormat()) {
+            return Error.MixedChannelFormats;
         }
 
         if (.ZIP != compression) {
@@ -148,7 +148,7 @@ pub const Reader = struct {
         var uncompressed = try alloc.alloc(u8, bytes_per_row_block);
         defer alloc.free(uncompressed);
 
-        const half = .Half == channels.channels.items[0].typef;
+        const half = .Half == channels.channels.items[0].format;
         const desc = img.Description.init2D(dimensions);
 
         var image = switch (num_channels) {
@@ -344,15 +344,15 @@ const Channels = struct {
         self.channels.deinit(alloc);
     }
 
-    pub fn singleType(self: Channels) bool {
+    pub fn singleFormat(self: Channels) bool {
         if (0 == self.channels.items.len) {
             return true;
         }
 
-        const typef = self.channels.items[0].typef;
+        const format = self.channels.items[0].format;
 
         for (self.channels.items[1..]) |c| {
-            if (typef != c.typef) {
+            if (format != c.format) {
                 return false;
             }
         }
@@ -378,7 +378,7 @@ const Channels = struct {
                 break;
             }
 
-            _ = try stream.read(std.mem.asBytes(&channel.typef));
+            _ = try stream.read(std.mem.asBytes(&channel.format));
 
             // pLinear
             try stream.seekBy(1);

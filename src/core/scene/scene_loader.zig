@@ -60,16 +60,16 @@ pub const Loader = struct {
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return Loader{
             .resources = resources,
-            .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }),
-            .canopy = resources.shapes.store(alloc, Shape{ .Canopy = .{} }),
-            .cube = resources.shapes.store(alloc, Shape{ .Cube = .{} }),
-            .disk = resources.shapes.store(alloc, Shape{ .Disk = .{} }),
-            .distant_sphere = resources.shapes.store(alloc, Shape{ .DistantSphere = .{} }),
-            .infinite_sphere = resources.shapes.store(alloc, Shape{ .InfiniteSphere = .{} }),
-            .plane = resources.shapes.store(alloc, Shape{ .Plane = .{} }),
-            .rectangle = resources.shapes.store(alloc, Shape{ .Rectangle = .{} }),
-            .sphere = resources.shapes.store(alloc, Shape{ .Sphere = .{} }),
-            .fallback_material = resources.materials.store(alloc, fallback_material),
+            .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }) catch resource.Null,
+            .canopy = resources.shapes.store(alloc, Shape{ .Canopy = .{} }) catch resource.Null,
+            .cube = resources.shapes.store(alloc, Shape{ .Cube = .{} }) catch resource.Null,
+            .disk = resources.shapes.store(alloc, Shape{ .Disk = .{} }) catch resource.Null,
+            .distant_sphere = resources.shapes.store(alloc, Shape{ .DistantSphere = .{} }) catch resource.Null,
+            .infinite_sphere = resources.shapes.store(alloc, Shape{ .InfiniteSphere = .{} }) catch resource.Null,
+            .plane = resources.shapes.store(alloc, Shape{ .Plane = .{} }) catch resource.Null,
+            .rectangle = resources.shapes.store(alloc, Shape{ .Rectangle = .{} }) catch resource.Null,
+            .sphere = resources.shapes.store(alloc, Shape{ .Sphere = .{} }) catch resource.Null,
+            .fallback_material = resources.materials.store(alloc, fallback_material) catch resource.Null,
         };
     }
 
@@ -429,18 +429,18 @@ pub const Loader = struct {
         const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
 
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
-        const sky_image = self.resources.images.store(alloc, .{ .Float3 = image });
+        const sky_image = try self.resources.images.store(alloc, .{ .Float3 = image });
 
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
         var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
         sky_mat.commit();
-        const sky_mat_id = self.resources.materials.store(alloc, .{ .Sky = sky_mat });
+        const sky_mat_id = try self.resources.materials.store(alloc, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
 
         var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
         sun_mat.commit();
-        const sun_mat_id = self.resources.materials.store(alloc, .{ .Sky = sun_mat });
+        const sun_mat_id = try self.resources.materials.store(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
 
         sky.configure(sky_prop, sun_prop, sky_image, scene);

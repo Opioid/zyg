@@ -1,6 +1,6 @@
 const core = @import("core");
 const log = core.log;
-const image = core.image;
+const img = core.image;
 const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
@@ -10,6 +10,7 @@ const Progressor = core.progress.Progressor;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Pack4f = math.Pack4f;
 const Mat3x3 = math.Mat3x3;
@@ -21,6 +22,14 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
+const Format = enum(u32) {
+    UInt8,
+    UInt16,
+    UInt32,
+    Float16,
+    Float32,
+};
 
 const Engine = struct {
     alloc: Allocator,
@@ -181,6 +190,55 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     return -1;
 }
 
+export fn su_create_image(format: u32, num_channels: u32, width: u32, height: u32, depth: u32, pixel_stride: u32, data: [*]u8) i32 {
+    if (engine) |*e| {
+        const ef = @intToEnum(Format, format);
+        const bpc: u32 = switch (ef) {
+            .UInt8 => 1,
+            .UInt16, .Float16 => 2,
+            .UInt32, .Float32 => 4,
+        };
+
+        const desc = img.Description.init3D(
+            Vec3i.init3(@intCast(i32, width), @intCast(i32, height), @intCast(i32, depth)),
+            Vec3i.init1(0),
+        );
+
+        var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 4, null) catch {
+            return -1;
+        };
+
+        const bpp = bpc * num_channels;
+
+        if (bpp == pixel_stride) {
+            std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+        }
+
+        const image: ?img.Image = switch (ef) {
+            .UInt8 => switch (num_channels) {
+                1 => img.Image{ .Byte1 = img.Byte1.initFromBytes(desc, buffer) },
+                2 => img.Image{ .Byte2 = img.Byte2.initFromBytes(desc, buffer) },
+                3 => img.Image{ .Byte3 = img.Byte3.initFromBytes(desc, buffer) },
+                else => null,
+            },
+            else => null,
+        };
+
+        if (image) |i| {
+            const image_id = e.resources.images.store(e.alloc, i) catch {
+                return -1;
+            };
+            return @intCast(i32, image_id);
+        }
+
+        e.alloc.free(buffer);
+
+        return -1;
+    }
+
+    return -1;
+}
+
 export fn su_create_material(string: [*:0]const u8) i32 {
     if (engine) |*e| {
         var parser = std.json.Parser.init(e.alloc, false);
@@ -332,18 +390,18 @@ export fn su_resolve_frame() i32 {
 
 export fn su_copy_framebuffer(
     format: u32,
+    num_channels: u32,
     width: u32,
     height: u32,
-    num_channels: u32,
     destination: [*]u8,
 ) i32 {
     const bpc: u32 = if (0 == format) 1 else 4;
 
     if (engine) |*e| {
         var context = CopyFramebufferContext{
-            .format = format,
-            .width = width,
+            .format = @intToEnum(Format, format),
             .num_channels = num_channels,
+            .width = width,
             .destination = destination[0 .. bpc * num_channels * width * height],
             .source = e.driver.target,
         };
@@ -361,11 +419,11 @@ export fn su_copy_framebuffer(
 }
 
 const CopyFramebufferContext = struct {
-    format: u32,
-    width: u32,
+    format: Format,
     num_channels: u32,
+    width: u32,
     destination: []u8,
-    source: image.Float4,
+    source: img.Float4,
 
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;

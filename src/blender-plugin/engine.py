@@ -110,7 +110,7 @@ def render(engine, depsgraph):
     
     zyg.su_render_frame(0)
     
-    zyg.su_copy_framebuffer(1, size_x, size_y, 4, buf.ctypes.data_as(POINTER(c_uint8)))
+    zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
 
     #zyg.su_export_frame(0)
     

@@ -221,10 +221,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn store(self: *Self, alloc: Allocator, item: T) u32 {
-            self.resources.append(alloc, item) catch {
-                return Null;
-            };
+        pub fn store(self: *Self, alloc: Allocator, item: T) !u32 {
+            try self.resources.append(alloc, item);
 
             return @intCast(u32, self.resources.items.len - 1);
         }

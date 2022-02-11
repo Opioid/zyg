@@ -44,15 +44,15 @@ pub const Writer = struct {
             const size = num_channels * (2 + 4 + 4 + 4 + 4) + 1;
             try writer.writeAll(std.mem.asBytes(&size));
 
-            const typef: exr.Channel.Type = if (self.half) .Half else .Float;
+            const format: exr.Channel.Format = if (self.half) .Half else .Float;
 
             if (self.alpha) {
-                try writeChannel(writer, .{ .name = "A", .typef = typef });
+                try writeChannel(writer, .{ .name = "A", .format = format });
             }
 
-            try writeChannel(writer, .{ .name = "B", .typef = typef });
-            try writeChannel(writer, .{ .name = "G", .typef = typef });
-            try writeChannel(writer, .{ .name = "R", .typef = typef });
+            try writeChannel(writer, .{ .name = "B", .format = format });
+            try writeChannel(writer, .{ .name = "G", .format = format });
+            try writeChannel(writer, .{ .name = "R", .format = format });
             try writer.writeByte(0x00);
         }
 
@@ -443,7 +443,7 @@ pub const Writer = struct {
     fn writeChannel(writer: anytype, channel: exr.Channel) !void {
         try writeString(writer, channel.name);
 
-        try writer.writeAll(std.mem.asBytes(&channel.typef));
+        try writer.writeAll(std.mem.asBytes(&channel.format));
 
         try writeScalar(u32, writer, 0);
 
