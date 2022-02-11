@@ -55,14 +55,19 @@ pub const StdOut = struct {
 };
 
 pub const CFunc = struct {
+    pub const Start = fn (resolution: u32) callconv(.C) void;
+    pub const Tick = fn () callconv(.C) void;
+
+    start_func: Start,
+    tick_func: Tick,
+
     const Self = @This();
 
     pub fn start(self: Self, resolution: u32) void {
-        _ = self;
-        _ = resolution;
+        self.start_func(resolution);
     }
 
     pub fn tick(self: Self) void {
-        _ = self;
+        self.tick_func();
     }
 };

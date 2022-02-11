@@ -5,7 +5,7 @@ const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
 const tk = core.tk;
-const Progressor = core.progress.Progressor;
+const prg = core.progress;
 
 const base = @import("base");
 const math = base.math;
@@ -45,8 +45,6 @@ const Engine = struct {
 
     frame: u32 = 0,
     iteration: u32 = 0,
-
-    progress: Progressor = .{ .Null = {} },
 };
 
 var engine: ?Engine = null;
@@ -94,7 +92,7 @@ export fn su_init() i32 {
 
     engine.?.take.view.num_samples_per_pixel = 1;
 
-    engine.?.driver = rendering.Driver.init(alloc, &engine.?.threads, engine.?.progress) catch {
+    engine.?.driver = rendering.Driver.init(alloc, &engine.?.threads, .{ .Null = {} }) catch {
         engine = null;
         return -1;
     };
@@ -230,7 +228,15 @@ export fn su_create_integrators(string: [*:0]const u8) i32 {
     return -1;
 }
 
-export fn su_create_image(format: u32, num_channels: u32, width: u32, height: u32, depth: u32, pixel_stride: u32, data: [*]u8) i32 {
+export fn su_create_image(
+    format: u32,
+    num_channels: u32,
+    width: u32,
+    height: u32,
+    depth: u32,
+    pixel_stride: u32,
+    data: [*]u8,
+) i32 {
     if (engine) |*e| {
         const ef = @intToEnum(Format, format);
         const bpc: u32 = switch (ef) {
@@ -456,9 +462,9 @@ export fn su_copy_framebuffer(
     height: u32,
     destination: [*]u8,
 ) i32 {
-    const bpc: u32 = if (0 == format) 1 else 4;
-
     if (engine) |*e| {
+        const bpc: u32 = if (0 == format) 1 else 4;
+
         var context = CopyFramebufferContext{
             .format = @intToEnum(Format, format),
             .num_channels = num_channels,
@@ -535,4 +541,13 @@ const CopyFramebufferContext = struct {
 export fn su_register_log(post: log.CFunc.Func) i32 {
     log.log = .{ .CFunc = .{ .func = post } };
     return 0;
+}
+
+export fn su_register_progress(start: prg.CFunc.Start, tick: prg.CFunc.Tick) i32 {
+    if (engine) |*e| {
+        e.driver.progressor = .{ .CFunc = .{ .start_func = start, .tick_func = tick } };
+        return 0;
+    }
+
+    return -1;
 }
