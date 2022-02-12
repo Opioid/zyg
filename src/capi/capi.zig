@@ -314,6 +314,47 @@ export fn su_create_material(string: [*:0]const u8) i32 {
     return -1;
 }
 
+export fn su_create_triangle_mesh(
+    num_parts: u32,
+    parts: [*]const u32,
+    num_triangles: u32,
+    indices: [*]const u32,
+    num_vertices: u32,
+    positions: [*]const f32,
+    positions_stride: u32,
+    normals: [*]const f32,
+    normals_stride: u32,
+    tangents: [*]const f32,
+    tangents_stride: u32,
+    uvs: [*]const f32,
+    uvs_stride: u32,
+) i32 {
+    if (engine) |*e| {
+        const desc = resource.TriangleMeshProvider.Description{
+            .num_parts = num_parts,
+            .num_triangles = num_triangles,
+            .num_vertices = num_vertices,
+            .positions_stride = positions_stride,
+            .normals_stride = normals_stride,
+            .tangents_stride = tangents_stride,
+            .uvs_stride = uvs_stride,
+            .parts = parts,
+            .indices = indices,
+            .positions = positions,
+            .normals = normals,
+            .tangents = tangents,
+            .uvs = uvs,
+        };
+
+        const data = @ptrToInt(&desc);
+
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, "", data, .{}) catch return -1;
+        return @intCast(i32, mesh_id);
+    }
+
+    return -1;
+}
+
 export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
     if (engine) |*e| {
         if (shape >= e.scene.shapes.items.len) {
@@ -383,7 +424,7 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
 
 export fn su_render_frame(frame: u32) i32 {
     if (engine) |*e| {
-        e.threads.waitAsync();
+        e.resources.commitAsync();
 
         e.take.view.configure();
         e.driver.configure(e.alloc, &e.take.view, &e.scene) catch {
@@ -416,7 +457,7 @@ export fn su_export_frame() i32 {
 
 export fn su_start_frame(frame: u32) i32 {
     if (engine) |*e| {
-        e.threads.waitAsync();
+        e.resources.commitAsync();
 
         e.take.view.configure();
         e.driver.configure(e.alloc, &e.take.view, &e.scene) catch {
