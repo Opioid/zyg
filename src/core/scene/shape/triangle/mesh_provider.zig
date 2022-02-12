@@ -73,12 +73,12 @@ pub const Provider = struct {
         tangents_stride: u32,
         uvs_stride: u32,
 
-        parts: [*]const u32,
-        indices: [*]const u32,
+        parts: ?[*]const u32,
+        indices: ?[*]const u32,
         positions: [*]const f32,
         normals: [*]const f32,
-        tangents: [*]const f32,
-        uvs: [*]const f32,
+        tangents: ?[*]const f32,
+        uvs: ?[*]const f32,
     };
 
     num_indices: u32 = undefined,
@@ -194,10 +194,10 @@ pub const Provider = struct {
 
         var mesh = try Mesh.init(alloc, num_parts);
 
-        if (desc.num_parts > 0) {
+        if (desc.num_parts > 0 and null != desc.parts) {
             var i: u32 = 0;
             while (i < num_parts) : (i += 1) {
-                mesh.setMaterialForPart(i, desc.parts[i * 3 + 2]);
+                mesh.setMaterialForPart(i, desc.parts.?[i * 3 + 2]);
             }
         } else {
             mesh.setMaterialForPart(0, 0);
@@ -604,10 +604,18 @@ pub const Provider = struct {
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
-        const desc = self.desc;
+        var desc = self.desc;
+
+        if (null == desc.tangents) {
+            desc.tangents_stride = 0;
+        }
+
+        if (null == desc.uvs) {
+            desc.uvs_stride = 0;
+        }
 
         const empty_part = [3]u32{ 0, num_triangles, 0 };
-        const parts = if (desc.num_parts > 0) desc.parts else &empty_part;
+        const parts = if (desc.num_parts > 0 and null != desc.parts) desc.parts.? else &empty_part;
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
         var p: u32 = 0;
@@ -619,17 +627,28 @@ pub const Provider = struct {
             const triangles_end = (start_index + num_indices) / 3;
 
             var i = triangles_start;
-            while (i < triangles_end) : (i += 1) {
-                const t = i * 3;
-                triangles[i].i[0] = desc.indices[t + 0];
-                triangles[i].i[1] = desc.indices[t + 1];
-                triangles[i].i[2] = desc.indices[t + 2];
+            if (desc.indices) |indices| {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = indices[t + 0];
+                    triangles[i].i[1] = indices[t + 1];
+                    triangles[i].i[2] = indices[t + 2];
 
-                triangles[i].part = p;
+                    triangles[i].part = p;
+                }
+            } else {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = t + 0;
+                    triangles[i].i[1] = t + 1;
+                    triangles[i].i[2] = t + 2;
+
+                    triangles[i].part = p;
+                }
             }
         }
 
-        const empty_uv = [2]f32{ 0.0, 0.0 };
+        const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
 
         const vertices = vs.VertexStream{ .C = vs.CAPI.init(
             desc.num_vertices,
@@ -639,8 +658,8 @@ pub const Provider = struct {
             desc.uvs_stride,
             desc.positions,
             desc.normals,
-            desc.tangents,
-            if (desc.uvs_stride > 0) desc.uvs else &empty_uv,
+            if (desc.tangents_stride > 0) desc.tangents.? else &null_floats,
+            if (desc.uvs_stride > 0) desc.uvs.? else &null_floats,
         ) };
 
         buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};

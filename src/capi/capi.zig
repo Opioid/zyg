@@ -316,17 +316,17 @@ export fn su_create_material(string: [*:0]const u8) i32 {
 
 export fn su_create_triangle_mesh(
     num_parts: u32,
-    parts: [*]const u32,
+    parts: ?[*]const u32,
     num_triangles: u32,
-    indices: [*]const u32,
+    indices: ?[*]const u32,
     num_vertices: u32,
     positions: [*]const f32,
     positions_stride: u32,
     normals: [*]const f32,
     normals_stride: u32,
-    tangents: [*]const f32,
+    tangents: ?[*]const f32,
     tangents_stride: u32,
-    uvs: [*]const f32,
+    uvs: ?[*]const f32,
     uvs_stride: u32,
 ) i32 {
     if (engine) |*e| {
