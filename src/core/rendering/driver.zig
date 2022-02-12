@@ -13,14 +13,17 @@ const Progressor = @import("../progress.zig").Progressor;
 const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
-
-const math = @import("base").math;
+const math = base.math;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
 const Num_particles_per_chunk = 1024;
+
+const Error = error{
+    NoCameraProp,
+};
 
 pub const Driver = struct {
     const PhotonInfo = struct {
@@ -82,6 +85,11 @@ pub const Driver = struct {
         self.scene = scene;
 
         const camera = &self.view.camera;
+
+        if (Scene.Null == camera.entity) {
+            return Error.NoCameraProp;
+        }
+
         const dim = camera.sensorDimensions();
         try camera.sensor.resize(alloc, dim);
 
@@ -171,6 +179,11 @@ pub const Driver = struct {
         self.progressive = true;
 
         var camera = &self.view.camera;
+
+        if (Scene.Null == camera.entity) {
+            return Error.NoCameraProp;
+        }
+
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;

@@ -177,6 +177,15 @@ export fn su_create_perspective_camera(width: u32, height: u32) i32 {
     return -1;
 }
 
+export fn su_camera_set_fov(fov: f32) i32 {
+    if (engine) |*e| {
+        e.take.view.camera.fov = fov;
+        return 0;
+    }
+
+    return -1;
+}
+
 export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     if (engine) |*e| {
         const d = e.take.view.camera.sensorDimensions();
@@ -349,6 +358,50 @@ export fn su_create_triangle_mesh(
         const data = @ptrToInt(&desc);
 
         const mesh_id = e.resources.loadData(scn.Shape, e.alloc, "", data, .{}) catch return -1;
+
+        e.resources.commitAsync();
+
+        return @intCast(i32, mesh_id);
+    }
+
+    return -1;
+}
+
+export fn su_create_triangle_mesh_async(
+    num_parts: u32,
+    parts: ?[*]const u32,
+    num_triangles: u32,
+    indices: ?[*]const u32,
+    num_vertices: u32,
+    positions: [*]const f32,
+    positions_stride: u32,
+    normals: [*]const f32,
+    normals_stride: u32,
+    tangents: ?[*]const f32,
+    tangents_stride: u32,
+    uvs: ?[*]const f32,
+    uvs_stride: u32,
+) i32 {
+    if (engine) |*e| {
+        const desc = resource.TriangleMeshProvider.Description{
+            .num_parts = num_parts,
+            .num_triangles = num_triangles,
+            .num_vertices = num_vertices,
+            .positions_stride = positions_stride,
+            .normals_stride = normals_stride,
+            .tangents_stride = tangents_stride,
+            .uvs_stride = uvs_stride,
+            .parts = parts,
+            .indices = indices,
+            .positions = positions,
+            .normals = normals,
+            .tangents = tangents,
+            .uvs = uvs,
+        };
+
+        const data = @ptrToInt(&desc);
+
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, "", data, .{}) catch return -1;
         return @intCast(i32, mesh_id);
     }
 
@@ -413,6 +466,7 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
         var r: Mat3x3 = undefined;
         var t: Transformation = undefined;
         m.decompose(&r, &t.scale, &t.position);
+
         t.rotation = math.quaternion.initFromMat3x3(r);
 
         e.scene.propSetWorldTransformation(prop, t);

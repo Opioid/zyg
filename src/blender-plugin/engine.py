@@ -5,6 +5,11 @@ from ctypes import *
 import platform
 import numpy as np
 
+import mathutils
+import math
+
+Transformation = c_float * 16
+
 def init():
     import bpy
     import os.path
@@ -38,34 +43,13 @@ def reset(engine, data, depsgraph):
         return
     print("engine.reset()")
 
-def render(engine, depsgraph):
-    if not engine.session:
-        return
-    print("engine.render()")
-
     scene = depsgraph.scene
     scale = scene.render.resolution_percentage / 100.0
     size_x = int(scene.render.resolution_x * scale)
     size_y = int(scene.render.resolution_y * scale)
 
-    # Fill the render result with a flat color. The framebuffer is
-    # defined as a list of pixels, each pixel itself being a list of
-    # R,G,B,A values.
-    # if engine.is_preview:
-    #     color = [c_float(0.1), c_float(0.2), c_float(0.1), c_float(1.0)]
-    # else:
-    #     color = [c_float(0.2), c_float(0.1), c_float(0.1), c_float(1.0)]
-
-    # pixel_count = size_x * size_y
-    # rect = [color] * pixel_count
-
-
-    # print(zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/")))
-    # print(zyg.su_load_take(c_char_p(b"takes/cornell.take")))
-
+    zyg.su_create_sampler(16)
     
-    buf = np.empty((size_x * size_y, 4), dtype=np.float32)
-
     camera = zyg.su_create_perspective_camera(size_x, size_y)
 
     material_a_desc = """{
@@ -80,34 +64,85 @@ def render(engine, depsgraph):
 
     material_a = c_uint(zyg.su_create_material(c_char_p(material_a_desc.encode('utf-8'))));
 
-    sphere_a = zyg.su_create_prop(8, 1, byref(material_a))
+    for object_instance in depsgraph.object_instances:
+            # This is an object which is being instanced.
+            obj = object_instance.object
+            # `is_instance` denotes whether the object is coming from instances (as an opposite of
+            # being an emitting object. )
+            if not object_instance.is_instance:
+                if obj.type == 'MESH':
+                    mesh = obj.to_mesh()
 
-    plane_a = zyg.su_create_prop(6, 1, byref(material_a))
+                    mesh.calc_loop_triangles()
+
+                    num_triangles = len(mesh.loop_triangles)
+
+                    num_vertices = len(mesh.vertices)
+ 
+                    Indices = c_uint32 * (num_triangles * 3)
+
+                    indices = Indices()
 
 
-    Transformation = c_float * 16
+                    Vectors = c_float * (num_vertices * 3)
+                    
+                    i = 0  
+                    for t in mesh.loop_triangles:
+                        for v in t.vertices:
+                            indices[i] = v
+                            i += 1
+                    
+                   
+                    positions = Vectors()
+                    normals = Vectors()
 
-    transformation = Transformation(1.0, 0.0, 0.0, 0.0,
-                                    0.0, 1.0, 0.0, 0.0,
-                                    0.0, 0.0, 1.0, 0.0,
-                                    0.0, 1.0, 0.0, 1.0)
+                    i = 0
+                    for v in mesh.vertices:
+                        positions[i * 3 + 0] = v.co[0]
+                        positions[i * 3 + 1] = v.co[1]
+                        positions[i * 3 + 2] = v.co[2]
 
-    zyg.su_prop_set_transformation(camera, transformation)
+                        normals[i * 3 + 0] = v.normal[0]
+                        normals[i * 3 + 1] = v.normal[1]
+                        normals[i * 3 + 2] = v.normal[2]
+                        i += 1
 
-    transformation = Transformation(1.0, 0.0, 0.0, 0.0,
-                                    0.0, 1.0, 0.0, 0.0,
-                                    0.0, 0.0, 1.0, 0.0,
-                                    0.0, 1.0, 5.0, 1.0)
+                    vertices_stride = 3
 
-    zyg.su_prop_set_transformation(sphere_a, transformation)
+                    zmesh = zyg.su_create_triangle_mesh(0, None,
+                                       num_triangles, indices,
+                                       num_vertices,
+                                       positions, vertices_stride,
+                                       normals, vertices_stride,
+                                       None, 0, 
+                                       None, 0)
 
-    transformation = Transformation(1.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.0, -1.0, 0.0,
-                                    0.0, 1.0, 0.0, 0.0,
-                                    0.0, 0.0, 0.0, 1.0)
+                    zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
 
-    zyg.su_prop_set_transformation(plane_a, transformation)
-    
+                    converted = convert_matrix(object_instance.matrix_world)
+                    zyg.su_prop_set_transformation(zmesh_instance, converted)
+
+                if obj.type == 'CAMERA':
+                    zyg.su_camera_set_fov(c_float(obj.data.angle))
+                    converted = convert_camera_matrix(object_instance.matrix_world)
+                    zyg.su_prop_set_transformation(camera, converted)
+            else:
+                # Instanced will additionally have fields like uv, random_id and others which are
+                # specific for instances. See Python API for DepsgraphObjectInstance for details,
+                print(f"Instance of {obj.name} at {object_instance.matrix_world}")
+
+def render(engine, depsgraph):
+    if not engine.session:
+        return
+    print("engine.render()")
+
+    scene = depsgraph.scene
+    scale = scene.render.resolution_percentage / 100.0
+    size_x = int(scene.render.resolution_x * scale)
+    size_y = int(scene.render.resolution_y * scale)
+
+    buf = np.empty((size_x * size_y, 4), dtype=np.float32)
+
     zyg.su_render_frame(0)
     
     zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
@@ -125,3 +160,16 @@ def render_frame_finish(engine):
     if not engine.session:
         return
     print("engine.render_frame_finish()")
+
+
+def convert_matrix(m):
+    return Transformation(m[0][0], m[1][0], m[2][0], m[3][0],
+                          m[0][1], m[1][1], m[2][1], m[3][1],
+                          m[0][2], m[1][2], m[2][2], m[3][2],
+                          m[0][3], m[1][3], m[2][3], m[3][3]) 
+
+def convert_camera_matrix(m):
+    return Transformation(m[0][0], m[1][0], m[2][0], m[3][0],
+                          -m[0][1], -m[1][1], -m[2][1], m[3][1],
+                          -m[0][2], -m[1][2], -m[2][2], m[3][2],
+                          m[0][3], m[1][3], m[2][3], m[3][3]) 

@@ -614,7 +614,7 @@ pub const Provider = struct {
             desc.uvs_stride = 0;
         }
 
-        const empty_part = [3]u32{ 0, num_triangles, 0 };
+        const empty_part = [3]u32{ 0, num_triangles * 3, 0 };
         const parts = if (desc.num_parts > 0 and null != desc.parts) desc.parts.? else &empty_part;
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;

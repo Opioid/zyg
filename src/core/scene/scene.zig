@@ -40,6 +40,8 @@ const Num_reserved_props = 32;
 const LightPick = Distribution1D.Discrete;
 
 pub const Scene = struct {
+    pub const Null = Prop.Null;
+
     images: *ALU(Image),
     materials: *ALU(Material),
     shapes: *ALU(Shape),

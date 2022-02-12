@@ -78,11 +78,10 @@ class ZygRender(bpy.types.RenderEngine):
     # viewport render
     def view_update(self, context, depsgraph):
         print("view_update()")
-        # if not self.session:
-        #     engine.create(self, context.blend_data,
-        #                   context.region, context.space_data, context.region_data)
+        if not self.session:
+            engine.create(self, data)
 
-        # engine.reset(self, context.blend_data, depsgraph)
+        engine.reset(self, data, depsgraph)
         # engine.sync(self, depsgraph, context.blend_data)
 
     def view_draw(self, context, depsgraph):
