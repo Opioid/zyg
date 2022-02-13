@@ -145,7 +145,7 @@ def reset(engine, data, depsgraph):
 
                     light = obj.data
                     if light.type == 'POINT':
-                        radius = 0.01
+                        radius = light.shadow_soft_size
                         area = 4.0 * math.pi * (radius * radius)
                         energy = light.energy / area
 
@@ -160,6 +160,8 @@ def reset(engine, data, depsgraph):
 
                         trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
                         zyg.su_prop_set_transformation(light_instance, trafo)
+                        zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
+
                     if light.type == 'SUN':
                         radius = light.angle / 2.0
                         solid_angle = (2.0 * math.pi) * (1.0 - (1.0 / math.sqrt(radius * radius + 1.0)))
@@ -176,6 +178,7 @@ def reset(engine, data, depsgraph):
 
                         trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
                         zyg.su_prop_set_transformation(light_instance, trafo)
+                        zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
 
                 if obj.type == 'CAMERA':
                     zyg.su_camera_set_fov(c_float(obj.data.angle))

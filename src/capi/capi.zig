@@ -476,6 +476,19 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
     return -1;
 }
 
+export fn su_prop_set_visibility(prop: u32, in_camera: u32, in_reflection: u32, in_shadow: u32) i32 {
+    if (engine) |*e| {
+        if (prop >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        e.scene.propSetVisibility(prop, in_camera > 0, in_reflection > 0, in_shadow > 0);
+        return 0;
+    }
+
+    return -1;
+}
+
 export fn su_render_frame(frame: u32) i32 {
     if (engine) |*e| {
         e.resources.commitAsync();
