@@ -76,118 +76,132 @@ def reset(engine, data, depsgraph):
     material_a = c_uint(zyg.su_create_material(c_char_p(material_a_desc.encode('utf-8'))));
 
     for object_instance in depsgraph.object_instances:
-            # This is an object which is being instanced.
-            obj = object_instance.object
-            # `is_instance` denotes whether the object is coming from instances (as an opposite of
-            # being an emitting object. )
-            if not object_instance.is_instance:
-                if obj.type == 'MESH':
-                    mesh = obj.to_mesh()
+        # This is an object which is being instanced.
+        obj = object_instance.object
+        # `is_instance` denotes whether the object is coming from instances (as an opposite of
+        # being an emitting object. )
+        if not object_instance.is_instance:
+            if obj.type == 'MESH':
+                mesh = obj.to_mesh()
 
-                    mesh.calc_loop_triangles()
+                mesh.calc_loop_triangles()
 
-                    #   mesh.calc_tangents()
-                    mesh.calc_normals_split()
+                #   mesh.calc_tangents()
+                mesh.calc_normals_split()
 
-                    num_triangles = len(mesh.loop_triangles)
+                num_triangles = len(mesh.loop_triangles)
 
-                    num_loops = len(mesh.loops)
+                num_loops = len(mesh.loops)
 
-                    Indices = c_uint32 * (num_triangles * 3)
+                Indices = c_uint32 * (num_triangles * 3)
 
-                    indices = Indices()
+                indices = Indices()
 
-                    i = 0  
-                    for t in mesh.loop_triangles:
-                        for l in t.loops:
-                            indices[i] = l
-                            i += 1
-
-
-                    Vectors = c_float * (num_loops * 3)
-                   
-                    positions = Vectors()
-                    normals = Vectors()
-
-                    i = 0
-                    for l in mesh.loops:
-                        v = mesh.vertices[l.vertex_index]
-                        positions[i * 3 + 0] = v.co[0]
-                        positions[i * 3 + 1] = v.co[1]
-                        positions[i * 3 + 2] = v.co[2]
-
-                        normals[i * 3 + 0] = l.normal[0]
-                        normals[i * 3 + 1] = l.normal[1]
-                        normals[i * 3 + 2] = l.normal[2]
+                i = 0
+                for t in mesh.loop_triangles:
+                    for l in t.loops:
+                        indices[i] = l
                         i += 1
 
-                    vertices_stride = 3
+                Vectors = c_float * (num_loops * 3)
 
-                    zmesh = zyg.su_create_triangle_mesh(0, None,
-                                       num_triangles, indices,
-                                       num_loops,
-                                       positions, vertices_stride,
-                                       normals, vertices_stride,
-                                       None, 0, 
-                                       None, 0)
+                positions = Vectors()
+                normals = Vectors()
 
-                    zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
+                i = 0
+                for l in mesh.loops:
+                    v = mesh.vertices[l.vertex_index]
+                    positions[i * 3 + 0] = v.co[0]
+                    positions[i * 3 + 1] = v.co[1]
+                    positions[i * 3 + 2] = v.co[2]
 
-                    trafo = convert_matrix(object_instance.matrix_world)
-                    zyg.su_prop_set_transformation(zmesh_instance, trafo)
+                    normals[i * 3 + 0] = l.normal[0]
+                    normals[i * 3 + 1] = l.normal[1]
+                    normals[i * 3 + 2] = l.normal[2]
+                    i += 1
 
-                if obj.type == 'LIGHT':
-                    material_pattern = """{{
-                        "rendering": {{
-                        "Light": {{
-                        "emission": [{}, {}, {}]
-                        }}}}}}"""
+                vertex_stride = 3
 
-                    light = obj.data
-                    if light.type == 'POINT':
-                        radius = light.shadow_soft_size
-                        area = 4.0 * math.pi * (radius * radius)
-                        energy = light.energy / area
+                zmesh = zyg.su_create_triangle_mesh(0, None,
+                                                    num_triangles, indices,
+                                                    num_loops,
+                                                    positions, vertex_stride,
+                                                    normals, vertex_stride,
+                                                    None, 0,
+                                                    None, 0)
 
-                        material_desc = material_pattern.format(energy * light.color[0],
-                                                                energy * light.color[1],
-                                                                energy * light.color[2])
+                zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
 
-                        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+                trafo = convert_matrix(object_instance.matrix_world)
+                zyg.su_prop_set_transformation(zmesh_instance, trafo)
 
-                        light_instance = zyg.su_create_prop(8, 1, byref(material))
-                        zyg.su_create_light(light_instance)
+            if obj.type == 'LIGHT':
+                material_pattern = """{{
+                "rendering": {{
+                "Light": {{
+                "emission": [{}, {}, {}]
+                }}}}}}"""
 
-                        trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
-                        zyg.su_prop_set_transformation(light_instance, trafo)
-                        zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
+                light = obj.data
+                if light.type == 'POINT':
+                    radius = light.shadow_soft_size
+                    area = 4.0 * math.pi * (radius * radius)
+                    energy = light.energy / area
 
-                    if light.type == 'SUN':
-                        radius = light.angle / 2.0
-                        solid_angle = (2.0 * math.pi) * (1.0 - (1.0 / math.sqrt(radius * radius + 1.0)))
-                        energy = light.energy / solid_angle
+                    material_desc = material_pattern.format(energy * light.color[0],
+                                                            energy * light.color[1],
+                                                            energy * light.color[2])
 
-                        material_desc = material_pattern.format(energy * light.color[0],
-                                                                energy * light.color[1],
-                                                                energy * light.color[2])
+                    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
 
-                        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+                    light_instance = zyg.su_create_prop(8, 1, byref(material))
+                    zyg.su_create_light(light_instance)
 
-                        light_instance = zyg.su_create_prop(4, 1, byref(material))
-                        zyg.su_create_light(light_instance)
+                    trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
+                    zyg.su_prop_set_transformation(light_instance, trafo)
+                    zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
 
-                        trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
-                        zyg.su_prop_set_transformation(light_instance, trafo)
-                        zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
+                if light.type == 'SUN':
+                    radius = light.angle / 2.0
+                    solid_angle = (2.0 * math.pi) * (1.0 - (1.0 / math.sqrt(radius * radius + 1.0)))
+                    energy = light.energy / solid_angle
 
-                if obj.type == 'CAMERA':
-                    zyg.su_camera_set_fov(c_float(obj.data.angle))
-                    trafo = convert_camera_matrix(object_instance.matrix_world)
-                    zyg.su_prop_set_transformation(camera, trafo)
-            else:
-                # Instanced will additionally have fields like uv, random_id and others which are
-                # specific for instances. See Python API for DepsgraphObjectInstance for details,
-                print(f"Instance of {obj.name} at {object_instance.matrix_world}")
+                    material_desc = material_pattern.format(energy * light.color[0],
+                                                            energy * light.color[1],
+                                                            energy * light.color[2])
+
+                    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+                    light_instance = zyg.su_create_prop(4, 1, byref(material))
+                    zyg.su_create_light(light_instance)
+
+                    trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
+                    zyg.su_prop_set_transformation(light_instance, trafo)
+                    zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
+
+            if obj.type == 'CAMERA':
+                zyg.su_camera_set_fov(c_float(obj.data.angle))
+                trafo = convert_camera_matrix(object_instance.matrix_world)
+                zyg.su_prop_set_transformation(camera, trafo)
+        else:
+            # Instanced will additionally have fields like uv, random_id and others which are
+            # specific for instances. See Python API for DepsgraphObjectInstance for details,
+            print(f"Instance of {obj.name} at {object_instance.matrix_world}")
+
+    background = True
+    if background:
+        color = scene.world.color;
+
+        material_desc = """{{
+        "rendering": {{
+        "Light": {{
+        "emission": [{}, {}, {}]
+        }}}}}}""".format(color[0], color[1], color[2])
+
+        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+        light_instance = zyg.su_create_prop(5, 1, byref(material))
+        zyg.su_create_light(light_instance)
 
 def render(engine, depsgraph):
     if not engine.session:
