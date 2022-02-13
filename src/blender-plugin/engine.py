@@ -35,6 +35,9 @@ def release(engine):
 
 def create(engine, data):
     print("engine.create()")
+    if engine.session:
+        return
+
     engine.session = 1
     zyg.su_init()
 
@@ -52,11 +55,19 @@ def reset(engine, data, depsgraph):
     
     camera = zyg.su_create_perspective_camera(size_x, size_y)
 
+    integrators_desc = """{
+    "surface": {
+    "PTMIS": {}
+    }
+    }"""
+
+    zyg.su_create_integrators(c_char_p(integrators_desc.encode('utf-8')))
+
     material_a_desc = """{
     "rendering": {
     "Substitute": {
-        "color": [0, 1, 0.5],
-        "roughness": 0.2,
+        "color": [0.5, 0.5, 0.5],
+        "roughness": 0.5,
         "metallic": 0
     }
     }
@@ -75,43 +86,46 @@ def reset(engine, data, depsgraph):
 
                     mesh.calc_loop_triangles()
 
+                    #   mesh.calc_tangents()
+                    mesh.calc_normals_split()
+
                     num_triangles = len(mesh.loop_triangles)
 
-                    num_vertices = len(mesh.vertices)
- 
+                    num_loops = len(mesh.loops)
+
                     Indices = c_uint32 * (num_triangles * 3)
 
                     indices = Indices()
 
-
-                    Vectors = c_float * (num_vertices * 3)
-                    
                     i = 0  
                     for t in mesh.loop_triangles:
-                        for v in t.vertices:
-                            indices[i] = v
+                        for l in t.loops:
+                            indices[i] = l
                             i += 1
-                    
+
+
+                    Vectors = c_float * (num_loops * 3)
                    
                     positions = Vectors()
                     normals = Vectors()
 
                     i = 0
-                    for v in mesh.vertices:
+                    for l in mesh.loops:
+                        v = mesh.vertices[l.vertex_index]
                         positions[i * 3 + 0] = v.co[0]
                         positions[i * 3 + 1] = v.co[1]
                         positions[i * 3 + 2] = v.co[2]
 
-                        normals[i * 3 + 0] = v.normal[0]
-                        normals[i * 3 + 1] = v.normal[1]
-                        normals[i * 3 + 2] = v.normal[2]
+                        normals[i * 3 + 0] = l.normal[0]
+                        normals[i * 3 + 1] = l.normal[1]
+                        normals[i * 3 + 2] = l.normal[2]
                         i += 1
 
                     vertices_stride = 3
 
                     zmesh = zyg.su_create_triangle_mesh(0, None,
                                        num_triangles, indices,
-                                       num_vertices,
+                                       num_loops,
                                        positions, vertices_stride,
                                        normals, vertices_stride,
                                        None, 0, 
@@ -119,13 +133,54 @@ def reset(engine, data, depsgraph):
 
                     zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
 
-                    converted = convert_matrix(object_instance.matrix_world)
-                    zyg.su_prop_set_transformation(zmesh_instance, converted)
+                    trafo = convert_matrix(object_instance.matrix_world)
+                    zyg.su_prop_set_transformation(zmesh_instance, trafo)
+
+                if obj.type == 'LIGHT':
+                    material_pattern = """{{
+                        "rendering": {{
+                        "Light": {{
+                        "emission": [{}, {}, {}]
+                        }}}}}}"""
+
+                    light = obj.data
+                    if light.type == 'POINT':
+                        radius = 0.01
+                        area = 4.0 * math.pi * (radius * radius)
+                        energy = light.energy / area
+
+                        material_desc = material_pattern.format(energy * light.color[0],
+                                                                energy * light.color[1],
+                                                                energy * light.color[2])
+
+                        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+                        light_instance = zyg.su_create_prop(8, 1, byref(material))
+                        zyg.su_create_light(light_instance)
+
+                        trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
+                        zyg.su_prop_set_transformation(light_instance, trafo)
+                    if light.type == 'SUN':
+                        radius = light.angle / 2.0
+                        solid_angle = (2.0 * math.pi) * (1.0 - (1.0 / math.sqrt(radius * radius + 1.0)))
+                        energy = light.energy / solid_angle
+
+                        material_desc = material_pattern.format(energy * light.color[0],
+                                                                energy * light.color[1],
+                                                                energy * light.color[2])
+
+                        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+                        light_instance = zyg.su_create_prop(4, 1, byref(material))
+                        zyg.su_create_light(light_instance)
+
+                        trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
+                        zyg.su_prop_set_transformation(light_instance, trafo)
 
                 if obj.type == 'CAMERA':
                     zyg.su_camera_set_fov(c_float(obj.data.angle))
-                    converted = convert_camera_matrix(object_instance.matrix_world)
-                    zyg.su_prop_set_transformation(camera, converted)
+                    trafo = convert_camera_matrix(object_instance.matrix_world)
+                    zyg.su_prop_set_transformation(camera, trafo)
             else:
                 # Instanced will additionally have fields like uv, random_id and others which are
                 # specific for instances. See Python API for DepsgraphObjectInstance for details,
@@ -163,13 +218,25 @@ def render_frame_finish(engine):
 
 
 def convert_matrix(m):
-    return Transformation(m[0][0], m[1][0], m[2][0], m[3][0],
-                          m[0][1], m[1][1], m[2][1], m[3][1],
-                          m[0][2], m[1][2], m[2][2], m[3][2],
-                          m[0][3], m[1][3], m[2][3], m[3][3]) 
+    return Transformation(m[0][0], m[1][0], m[2][0], 0.0,
+                          m[0][1], m[1][1], m[2][1], 0.0,
+                          m[0][2], m[1][2], m[2][2], 0.0,
+                          m[0][3], m[1][3], m[2][3], 1.0)
+
+def convert_pointlight_matrix(m, s):
+    return Transformation(s, 0.0, 0.0, 0.0,
+                          0.0, s, 0.0, 0.0,
+                          0.0, 0.0, s, 0.0,
+                          m[0][3], m[1][3], m[2][3], 1.0)
+
+def convert_dirlight_matrix(m, s):
+    return Transformation(s * m[0][0], s * m[1][0], s * m[2][0], 0.0,
+                          -s * m[0][1], -s * m[1][1], -s * m[2][1], 0.0,
+                          -s * m[0][2], -s * m[1][2], -s * m[2][2], 0.0,
+                          m[0][3], m[1][3], m[2][3], 1.0)
 
 def convert_camera_matrix(m):
-    return Transformation(m[0][0], m[1][0], m[2][0], m[3][0],
-                          -m[0][1], -m[1][1], -m[2][1], m[3][1],
-                          -m[0][2], -m[1][2], -m[2][2], m[3][2],
-                          m[0][3], m[1][3], m[2][3], m[3][3]) 
+    return Transformation(m[0][0], m[1][0], m[2][0], 0.0,
+                          -m[0][1], -m[1][1], -m[2][1], 0.0,
+                          -m[0][2], -m[1][2], -m[2][2], 0.0,
+                          m[0][3], m[1][3], m[2][3], 1.0)
