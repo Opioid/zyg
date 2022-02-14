@@ -39,6 +39,7 @@ def create(engine, data):
         return
 
     engine.session = 1
+    engine.meshes = {}
     zyg.su_init()
 
 def reset(engine, data, depsgraph):
@@ -57,7 +58,9 @@ def reset(engine, data, depsgraph):
 
     integrators_desc = """{
     "surface": {
-    "PTMIS": {}
+    "PTMIS": {
+    "light_sampling": { "strategy": "Single", "num_samples": 1 }
+    }
     }
     }"""
 
@@ -66,9 +69,10 @@ def reset(engine, data, depsgraph):
     material_a_desc = """{
     "rendering": {
     "Substitute": {
-        "color": [0.5, 0.5, 0.5],
-        "roughness": 0.5,
-        "metallic": 0
+    "color": [0.5, 0.5, 0.5],
+    "roughness": 0.5,
+    "ior": 1.5,
+    "metallic": 0
     }
     }
     }"""
@@ -135,46 +139,42 @@ def reset(engine, data, depsgraph):
                 trafo = convert_matrix(object_instance.matrix_world)
                 zyg.su_prop_set_transformation(zmesh_instance, trafo)
 
+                engine.meshes[obj.name] = zmesh
+
+
             if obj.type == 'LIGHT':
                 material_pattern = """{{
                 "rendering": {{
                 "Light": {{
-                "emission": [{}, {}, {}]
-                }}}}}}"""
+                "emittance": {{
+                "quantity": "Radiant_intensity",
+                "spectrum":[{}, {}, {}],
+                "value": {}
+                }}}}}}}}"""
 
                 light = obj.data
                 if light.type == 'POINT':
-                    radius = light.shadow_soft_size
-                    area = 4.0 * math.pi * (radius * radius)
-                    energy = light.energy / area
-
-                    material_desc = material_pattern.format(energy * light.color[0],
-                                                            energy * light.color[1],
-                                                            energy * light.color[2])
+                    material_desc = material_pattern.format(light.color[0], light.color[1], light.color[2], light.energy)
 
                     material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
 
                     light_instance = zyg.su_create_prop(8, 1, byref(material))
                     zyg.su_create_light(light_instance)
 
+                    radius = light.shadow_soft_size
                     trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
                     zyg.su_prop_set_transformation(light_instance, trafo)
                     zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
 
                 if light.type == 'SUN':
-                    radius = light.angle / 2.0
-                    solid_angle = (2.0 * math.pi) * (1.0 - (1.0 / math.sqrt(radius * radius + 1.0)))
-                    energy = light.energy / solid_angle
-
-                    material_desc = material_pattern.format(energy * light.color[0],
-                                                            energy * light.color[1],
-                                                            energy * light.color[2])
+                    material_desc = material_pattern.format(light.color[0], light.color[1], light.color[2], light.energy)
 
                     material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
 
                     light_instance = zyg.su_create_prop(4, 1, byref(material))
                     zyg.su_create_light(light_instance)
 
+                    radius = light.angle / 2.0
                     trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
                     zyg.su_prop_set_transformation(light_instance, trafo)
                     zyg.su_prop_set_visibility(light_instance, 0, 1, 0)
@@ -187,6 +187,10 @@ def reset(engine, data, depsgraph):
             # Instanced will additionally have fields like uv, random_id and others which are
             # specific for instances. See Python API for DepsgraphObjectInstance for details,
             print(f"Instance of {obj.name} at {object_instance.matrix_world}")
+            # zmesh = engine.meshes.get(obj.name)
+            # if (None != zmesh):
+            #     print(f"We created this mesh!!! {zmesh}")
+
 
     background = True
     if background:
@@ -203,6 +207,11 @@ def reset(engine, data, depsgraph):
         light_instance = zyg.su_create_prop(5, 1, byref(material))
         zyg.su_create_light(light_instance)
 
+
+    print(f"{engine.meshes}")
+
+#def create_mesh(engine, obj):
+    
 def render(engine, depsgraph):
     if not engine.session:
         return

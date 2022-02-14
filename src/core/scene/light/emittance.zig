@@ -40,6 +40,12 @@ pub const Emittance = struct {
         self.quantity = .Radiance;
     }
 
+    // unit: watt per unit solid angle (W / sr)
+    pub fn setRadiantIntensity(self: *Emittance, color: Vec4f, value: f32) void {
+        self.value = @splat(4, value) * color;
+        self.quantity = Quantity.Intensity;
+    }
+
     // unit: watt per unit solid angle per unit projected area (W / sr / m^2)
     pub fn setRadiance(self: *Emittance, rad: Vec4f) void {
         self.value = rad;

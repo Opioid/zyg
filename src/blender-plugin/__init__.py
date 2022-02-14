@@ -42,7 +42,7 @@ class ZygRender(bpy.types.RenderEngine):
     bl_label = "Zyg"
     bl_use_eevee_viewport = True
     bl_use_preview = True
-    bl_use_exclude_layers = True
+    #bl_use_exclude_layers = True
     bl_use_spherical_stereo = True
     bl_use_custom_freestyle = True
     bl_use_alembic_procedural = True

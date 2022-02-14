@@ -226,10 +226,12 @@ pub const Provider = struct {
 
         if (std.mem.eql(u8, "Flux", quantity)) {
             material.emittance.setLuminousFlux(color, value);
-        } else if (std.mem.eql(u8, "Intensity", quantity)) {
+        } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
             material.emittance.setLuminousIntensity(color, value);
         } else if (std.mem.eql(u8, "Luminance", quantity)) {
             material.emittance.setLuminance(color, value);
+        } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
+            material.emittance.setRadiantIntensity(color, value);
         } else {
             material.emittance.setRadiance(emission.value);
         }

@@ -440,7 +440,7 @@ fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
 
             if (std.mem.eql(u8, "Single", strategy)) {
                 sampling.* = .Single;
-            } else if (std.mem.eql(u8, "Single", strategy)) {
+            } else if (std.mem.eql(u8, "Adaptive", strategy)) {
                 sampling.* = .Adaptive;
             }
         } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {}
