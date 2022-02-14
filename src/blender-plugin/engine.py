@@ -86,61 +86,10 @@ def reset(engine, data, depsgraph):
         # being an emitting object. )
         if not object_instance.is_instance:
             if obj.type == 'MESH':
-                mesh = obj.to_mesh()
-
-                mesh.calc_loop_triangles()
-
-                #   mesh.calc_tangents()
-                mesh.calc_normals_split()
-
-                num_triangles = len(mesh.loop_triangles)
-
-                num_loops = len(mesh.loops)
-
-                Indices = c_uint32 * (num_triangles * 3)
-
-                indices = Indices()
-
-                i = 0
-                for t in mesh.loop_triangles:
-                    for l in t.loops:
-                        indices[i] = l
-                        i += 1
-
-                Vectors = c_float * (num_loops * 3)
-
-                positions = Vectors()
-                normals = Vectors()
-
-                i = 0
-                for l in mesh.loops:
-                    v = mesh.vertices[l.vertex_index]
-                    positions[i * 3 + 0] = v.co[0]
-                    positions[i * 3 + 1] = v.co[1]
-                    positions[i * 3 + 2] = v.co[2]
-
-                    normals[i * 3 + 0] = l.normal[0]
-                    normals[i * 3 + 1] = l.normal[1]
-                    normals[i * 3 + 2] = l.normal[2]
-                    i += 1
-
-                vertex_stride = 3
-
-                zmesh = zyg.su_create_triangle_mesh(0, None,
-                                                    num_triangles, indices,
-                                                    num_loops,
-                                                    positions, vertex_stride,
-                                                    normals, vertex_stride,
-                                                    None, 0,
-                                                    None, 0)
-
+                zmesh = create_mesh(engine, obj, material_a)
                 zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
-
                 trafo = convert_matrix(object_instance.matrix_world)
                 zyg.su_prop_set_transformation(zmesh_instance, trafo)
-
-                engine.meshes[obj.name] = zmesh
-
 
             if obj.type == 'LIGHT':
                 material_pattern = """{{
@@ -186,10 +135,14 @@ def reset(engine, data, depsgraph):
         else:
             # Instanced will additionally have fields like uv, random_id and others which are
             # specific for instances. See Python API for DepsgraphObjectInstance for details,
-            print(f"Instance of {obj.name} at {object_instance.matrix_world}")
-            # zmesh = engine.meshes.get(obj.name)
-            # if (None != zmesh):
-            #     print(f"We created this mesh!!! {zmesh}")
+            #print(f"Instance of {obj.name} at {object_instance.matrix_world}")
+            zmesh = engine.meshes.get(obj.name)
+            if (None == zmesh):
+                zmesh = create_mesh(engine, obj, material_a)
+
+            zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
+            trafo = convert_matrix(object_instance.matrix_world)
+            zyg.su_prop_set_transformation(zmesh_instance, trafo)
 
 
     background = True
@@ -210,7 +163,57 @@ def reset(engine, data, depsgraph):
 
     print(f"{engine.meshes}")
 
-#def create_mesh(engine, obj):
+def create_mesh(engine, obj, material_a):
+    mesh = obj.to_mesh()
+
+    mesh.calc_loop_triangles()
+
+    #   mesh.calc_tangents()
+    mesh.calc_normals_split()
+
+    num_triangles = len(mesh.loop_triangles)
+
+    num_loops = len(mesh.loops)
+
+    Indices = c_uint32 * (num_triangles * 3)
+
+    indices = Indices()
+
+    i = 0
+    for t in mesh.loop_triangles:
+        for l in t.loops:
+            indices[i] = l
+            i += 1
+
+    Vectors = c_float * (num_loops * 3)
+
+    positions = Vectors()
+    normals = Vectors()
+
+    i = 0
+    for l in mesh.loops:
+        v = mesh.vertices[l.vertex_index]
+        positions[i * 3 + 0] = v.co[0]
+        positions[i * 3 + 1] = v.co[1]
+        positions[i * 3 + 2] = v.co[2]
+
+        normals[i * 3 + 0] = l.normal[0]
+        normals[i * 3 + 1] = l.normal[1]
+        normals[i * 3 + 2] = l.normal[2]
+        i += 1
+
+    vertex_stride = 3
+
+    zmesh = zyg.su_create_triangle_mesh(0, None,
+                                        num_triangles, indices,
+                                        num_loops,
+                                        positions, vertex_stride,
+                                        normals, vertex_stride,
+                                        None, 0,
+                                        None, 0)
+
+    engine.meshes[obj.name] = zmesh
+    return zmesh
     
 def render(engine, depsgraph):
     if not engine.session:
