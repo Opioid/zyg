@@ -85,8 +85,8 @@ pub const Worker = struct {
         tile: Vec4i,
         iteration: u32,
         num_samples: u32,
+        num_expected_samples: u32,
         num_photon_samples: u32,
-        progressive: bool,
     ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
@@ -112,30 +112,27 @@ pub const Worker = struct {
         const fr = sensor.filterRadiusInt();
         const r = camera.resolution + @splat(2, 2 * fr);
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
-        const o0 = @as(u64, iteration) * a;
+        const o = @as(u64, iteration) * a;
+        const so = iteration / num_expected_samples + a;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
             const pixel_n = @intCast(u32, (y + fr) * r[0]);
-            const o1 = pixel_n + o0;
+
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                const pixel_r = @intCast(u32, x + fr);
-                rng.start(0, o1 + pixel_r);
+                const pixel_id = pixel_n + @intCast(u32, x + fr);
 
-                const pixel_id = pixel_n + pixel_r;
-                if (progressive) {
-                    self.sampler.startPixel(iteration, pixel_id);
-                    self.surface_integrator.startPixel(iteration, pixel_id + a);
-                } else {
-                    const sample_index = @as(u64, pixel_id) * @as(u64, num_samples);
-                    const tsi = @truncate(u32, sample_index);
-                    const rsi = @truncate(u32, sample_index >> 32);
-                    self.sampler.startPixel(tsi, rsi);
-                    self.surface_integrator.startPixel(tsi, rsi + a);
-                }
+                rng.start(0, @as(u64, pixel_id) + o);
+
+                const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
+                const tsi = @truncate(u32, sample_index);
+                const rsi = @truncate(u32, sample_index >> 32);
+
+                self.sampler.startPixel(tsi, rsi + so);
+                self.surface_integrator.startPixel(tsi, rsi + so + a);
 
                 self.photon = @splat(4, @as(f32, 0.0));
 

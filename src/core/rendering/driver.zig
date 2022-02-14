@@ -253,13 +253,13 @@ pub const Driver = struct {
     fn renderTiles(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
-        const progressive = self.progressive;
         const iteration = self.frame_iteration;
-        const num_samples = if (progressive) self.frame_iteration_samples else self.view.num_samples_per_pixel;
+        const num_expected_samples = self.view.num_samples_per_pixel;
+        const num_samples = if (self.progressive) self.frame_iteration_samples else num_expected_samples;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, iteration, num_samples, num_photon_samples, progressive);
+            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples);
 
             self.progressor.tick();
         }
