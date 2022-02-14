@@ -144,7 +144,6 @@ def reset(engine, data, depsgraph):
             trafo = convert_matrix(object_instance.matrix_world)
             zyg.su_prop_set_transformation(zmesh_instance, trafo)
 
-
     background = True
     if background:
         color = scene.world.color;
@@ -159,9 +158,6 @@ def reset(engine, data, depsgraph):
 
         light_instance = zyg.su_create_prop(5, 1, byref(material))
         zyg.su_create_light(light_instance)
-
-
-    print(f"{engine.meshes}")
 
 def create_mesh(engine, obj, material_a):
     mesh = obj.to_mesh()
@@ -213,6 +209,9 @@ def create_mesh(engine, obj, material_a):
                                         None, 0)
 
     engine.meshes[obj.name] = zmesh
+
+    obj.to_mesh_clear()
+
     return zmesh
     
 def render(engine, depsgraph):
