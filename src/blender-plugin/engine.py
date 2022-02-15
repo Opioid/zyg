@@ -1,12 +1,17 @@
 # <pep8 compliant>
 from __future__ import annotations 
 
+from typing import NamedTuple
 from ctypes import *
 import platform
 import numpy as np
 
 import mathutils
 import math
+
+class Prop(NamedTuple):
+    shape: int
+    material: c_uint
 
 Transformation = c_float * 16
 
@@ -39,7 +44,7 @@ def create(engine, data):
         return
 
     engine.session = 1
-    engine.meshes = {}
+    engine.props = {}
     zyg.su_init()
 
 def reset(engine, data, depsgraph):
@@ -86,10 +91,10 @@ def reset(engine, data, depsgraph):
         # being an emitting object. )
         if not object_instance.is_instance:
             if obj.type == 'MESH':
-                zmesh = create_mesh(engine, obj, material_a)
-                zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
+                prop = create_mesh(engine, obj, material_a)
+                mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
                 trafo = convert_matrix(object_instance.matrix_world)
-                zyg.su_prop_set_transformation(zmesh_instance, trafo)
+                zyg.su_prop_set_transformation(mesh_instance, trafo)
 
             if obj.type == 'LIGHT':
                 material_pattern = """{{
@@ -136,13 +141,13 @@ def reset(engine, data, depsgraph):
             # Instanced will additionally have fields like uv, random_id and others which are
             # specific for instances. See Python API for DepsgraphObjectInstance for details,
             #print(f"Instance of {obj.name} at {object_instance.matrix_world}")
-            zmesh = engine.meshes.get(obj.name)
-            if (None == zmesh):
-                zmesh = create_mesh(engine, obj, material_a)
+            prop = engine.props.get(obj.name)
+            if (None == prop):
+                prop = create_mesh(engine, obj, material_a)
 
-            zmesh_instance = zyg.su_create_prop(zmesh, 1, byref(material_a))
+            mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
             trafo = convert_matrix(object_instance.matrix_world)
-            zyg.su_prop_set_transformation(zmesh_instance, trafo)
+            zyg.su_prop_set_transformation(mesh_instance, trafo)
 
     background = True
     if background:
@@ -200,6 +205,8 @@ def create_mesh(engine, obj, material_a):
 
     vertex_stride = 3
 
+    obj.to_mesh_clear()
+
     zmesh = zyg.su_create_triangle_mesh(0, None,
                                         num_triangles, indices,
                                         num_loops,
@@ -208,11 +215,9 @@ def create_mesh(engine, obj, material_a):
                                         None, 0,
                                         None, 0)
 
-    engine.meshes[obj.name] = zmesh
-
-    obj.to_mesh_clear()
-
-    return zmesh
+    prop = Prop(zmesh, material_a)
+    engine.props[obj.name] = prop
+    return prop
     
 def render(engine, depsgraph):
     if not engine.session:
