@@ -148,18 +148,7 @@ def reset(engine, data, depsgraph):
 
     background = True
     if background:
-        color = scene.world.color;
-
-        material_desc = """{{
-        "rendering": {{
-        "Light": {{
-        "emission": [{}, {}, {}]
-        }}}}}}""".format(color[0], color[1], color[2])
-
-        material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
-
-        light_instance = zyg.su_create_prop(5, 1, byref(material))
-        zyg.su_create_light(light_instance)
+        create_background(scene)
 
 def render(engine, depsgraph):
     if not engine.session:
@@ -198,13 +187,13 @@ def create_material(engine, bmaterial):
         return None
 
     existing = engine.materials.get(bmaterial.name)
-    if None != existing:
+    if existing:
         return existing
 
     tree = bmaterial.node_tree
-    if None != tree:
+    if tree:
         bsdf = tree.nodes.get("Principled BSDF")
-        if None != bsdf:
+        if bsdf:
             # print("some bsdf here")
             # for i, o in enumerate(bsdf.inputs):
             #     print(f"{i}, {o.name}")
@@ -227,9 +216,9 @@ def invisible_material_heuristic(bmaterial):
         return True
 
     tree = bmaterial.node_tree
-    if None != tree:
+    if tree:
         bsdf = tree.nodes.get("Principled BSDF")
-        if None != bsdf:
+        if bsdf:
             alpha = bsdf.inputs.get("Alpha").default_value
 
             if 'OPAQUE' != bmaterial.blend_method and 0.0 == alpha:
@@ -328,6 +317,65 @@ def create_prop(prop, object_instance):
     trafo = convert_matrix(object_instance.matrix_world)
     zyg.su_prop_set_transformation(mesh_instance, trafo)
 
+def create_background(scene):
+    if scene.world.node_tree:
+        nodes = scene.world.node_tree.nodes
+        hdri = nodes.get("World HDRI Tex")
+        if hdri:
+            image = hdri.image
+
+            nc = image.channels
+            num_pixels = image.size[0] * image.size[1]
+
+            pixels = image.pixels[:]
+
+            Pixels = c_float * (num_pixels * 3)
+            image_buffer =  Pixels()
+
+            i = 0
+            while (i < num_pixels):
+                image_buffer[i * 3 + 0] = pixels[i * nc + 0]
+                image_buffer[i * 3 + 1] = pixels[i * nc + 1]
+                image_buffer[i * 3 + 2] = pixels[i * nc + 2]
+                i += 1
+
+            pixel_type = 4
+            num_channels = 3
+            depth = 1
+            stride = 12
+
+            zimage = zyg.su_create_image(pixel_type, num_channels, image.size[0], image.size[1], depth,
+                                         stride, image_buffer)
+
+            material_desc = """{{
+            "rendering": {{
+            "Light": {{
+            "sampler": {{ "address": [ "Repeat", "Clamp" ] }},
+            "emission": {{"id":{} }}
+            }}}}}}""".format(zimage)
+
+            material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+            light_instance = zyg.su_create_prop(5, 1, byref(material))
+            zyg.su_prop_set_transformation(light_instance, environment_matrix())
+            zyg.su_create_light(light_instance)
+
+            return
+
+    color = scene.world.color;
+
+    material_desc = """{{
+    "rendering": {{
+    "Light": {{
+    "emission": [{}, {}, {}]
+    }}}}}}""".format(color[0], color[1], color[2])
+
+    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+
+    light_instance = zyg.su_create_prop(5, 1, byref(material))
+    zyg.su_prop_set_transformation(light_instance, environment_matrix())
+    zyg.su_create_light(light_instance)
+
 def convert_matrix(m):
     return Transformation(m[0][0], m[1][0], m[2][0], 0.0,
                           m[0][1], m[1][1], m[2][1], 0.0,
@@ -351,3 +399,9 @@ def convert_camera_matrix(m):
                           -m[0][1], -m[1][1], -m[2][1], 0.0,
                           -m[0][2], -m[1][2], -m[2][2], 0.0,
                           m[0][3], m[1][3], m[2][3], 1.0)
+
+def environment_matrix():
+    return Transformation(1.0, 0.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0)
