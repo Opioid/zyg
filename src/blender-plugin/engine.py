@@ -235,7 +235,8 @@ def create_substitute_desc(color, roughness, ior, metallic):
     "color": [{}, {}, {}],
     "roughness": {},
     "ior": {},
-    "metallic": {}
+    "metallic": {},
+    "two_sided": true
     }}
     }}
     }}""".format(color[0], color[1], color[2], roughness, ior, metallic)
@@ -402,6 +403,6 @@ def convert_camera_matrix(m):
 
 def environment_matrix():
     return Transformation(1.0, 0.0, 0.0, 0.0,
-                          0.0, 1.0, 0.0, 0.0,
-                          0.0, 0.0, 1.0, 0.0,
+                          0.0, -1.0, 0.0, 0.0,
+                          0.0, 0.0, -1.0, 0.0,
                           0.0, 0.0, 0.0, 1.0)
