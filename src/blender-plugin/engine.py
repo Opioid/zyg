@@ -45,6 +45,7 @@ def create(engine, data):
 
     engine.session = 1
     engine.props = {}
+    engine.materials = {}
     zyg.su_init()
 
 def reset(engine, data, depsgraph):
@@ -92,9 +93,7 @@ def reset(engine, data, depsgraph):
         if not object_instance.is_instance:
             if obj.type == 'MESH':
                 prop = create_mesh(engine, obj, material_a)
-                mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
-                trafo = convert_matrix(object_instance.matrix_world)
-                zyg.su_prop_set_transformation(mesh_instance, trafo)
+                create_prop(prop, object_instance)
 
             if obj.type == 'LIGHT':
                 material_pattern = """{{
@@ -142,12 +141,10 @@ def reset(engine, data, depsgraph):
             # specific for instances. See Python API for DepsgraphObjectInstance for details,
             #print(f"Instance of {obj.name} at {object_instance.matrix_world}")
             prop = engine.props.get(obj.name)
-            if (None == prop):
+            if None == prop:
                 prop = create_mesh(engine, obj, material_a)
 
-            mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
-            trafo = convert_matrix(object_instance.matrix_world)
-            zyg.su_prop_set_transformation(mesh_instance, trafo)
+            create_prop(prop, object_instance)
 
     background = True
     if background:
@@ -164,8 +161,112 @@ def reset(engine, data, depsgraph):
         light_instance = zyg.su_create_prop(5, 1, byref(material))
         zyg.su_create_light(light_instance)
 
-def create_mesh(engine, obj, material_a):
+def render(engine, depsgraph):
+    if not engine.session:
+        return
+    print("engine.render()")
+
+    scene = depsgraph.scene
+    scale = scene.render.resolution_percentage / 100.0
+    size_x = int(scene.render.resolution_x * scale)
+    size_y = int(scene.render.resolution_y * scale)
+
+    buf = np.empty((size_x * size_y, 4), dtype=np.float32)
+
+    zyg.su_render_frame(0)
+
+    zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
+
+    #zyg.su_export_frame(0)
+
+    # Here we write the pixel values to the RenderResult
+    result = engine.begin_result(0, 0, size_x, size_y)
+    layer = result.layers[0].passes["Combined"]
+    layer.rect = buf
+    engine.end_result(result)
+
+def render_frame_finish(engine):
+    if not engine.session:
+        return
+    print("engine.render_frame_finish()")
+
+def specular_to_ior(s):
+    return (25.0 + 10.0 * math.sqrt(2.0) * math.sqrt(s) + 2.0 * s) / (25.0 - 2.0 * s)
+
+def create_material(engine, bmaterial):
+    if None == bmaterial:
+        return None
+
+    existing = engine.materials.get(bmaterial.name)
+    if None != existing:
+        return existing
+
+    tree = bmaterial.node_tree
+    if None != tree:
+        bsdf = tree.nodes.get("Principled BSDF")
+        if None != bsdf:
+            # print("some bsdf here")
+            # for i, o in enumerate(bsdf.inputs):
+            #     print(f"{i}, {o.name}")
+            color = bsdf.inputs.get("Base Color").default_value
+            roughness = bsdf.inputs.get("Roughness").default_value
+            specular = bsdf.inputs.get("Specular").default_value
+            metallic = bsdf.inputs.get("Metallic").default_value
+
+            material_desc = create_substitute_desc(color, roughness, specular_to_ior(specular), metallic)
+            created = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))))
+            engine.materials[bmaterial.name] = created
+            return created
+
+    print(f"{bmaterial}")
+
+    return None
+
+def invisible_material_heuristic(bmaterial):
+    if None == bmaterial:
+        return True
+
+    tree = bmaterial.node_tree
+    if None != tree:
+        bsdf = tree.nodes.get("Principled BSDF")
+        if None != bsdf:
+            alpha = bsdf.inputs.get("Alpha").default_value
+
+            if 'OPAQUE' != bmaterial.blend_method and 0.0 == alpha:
+                return True
+
+            return False
+
+    return False
+
+def create_substitute_desc(color, roughness, ior, metallic):
+    return """{{
+    "rendering": {{
+    "Substitute": {{
+    "color": [{}, {}, {}],
+    "roughness": {},
+    "ior": {},
+    "metallic": {}
+    }}
+    }}
+    }}""".format(color[0], color[1], color[2], roughness, ior, metallic)
+
+def create_mesh(engine, obj, default_material):
     mesh = obj.to_mesh()
+
+    materials = []
+    for m in mesh.materials.values():
+        mat = create_material(engine, m)
+        if None != mat:
+            materials.append(mat)
+        else:
+            materials.append(default_material)
+
+    if 0 == len(materials):
+        return None
+
+    if invisible_material_heuristic(mesh.materials.values()[0]):
+        return None
 
     mesh.calc_loop_triangles()
 
@@ -215,40 +316,17 @@ def create_mesh(engine, obj, material_a):
                                         None, 0,
                                         None, 0)
 
-    prop = Prop(zmesh, material_a)
+    prop = Prop(zmesh, materials[0])
     engine.props[obj.name] = prop
     return prop
-    
-def render(engine, depsgraph):
-    if not engine.session:
+
+def create_prop(prop, object_instance):
+    if None == prop:
         return
-    print("engine.render()")
 
-    scene = depsgraph.scene
-    scale = scene.render.resolution_percentage / 100.0
-    size_x = int(scene.render.resolution_x * scale)
-    size_y = int(scene.render.resolution_y * scale)
-
-    buf = np.empty((size_x * size_y, 4), dtype=np.float32)
-
-    zyg.su_render_frame(0)
-    
-    zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
-
-    #zyg.su_export_frame(0)
-    
-    # Here we write the pixel values to the RenderResult
-    result = engine.begin_result(0, 0, size_x, size_y)
-    layer = result.layers[0].passes["Combined"]
-    layer.rect = buf
-    engine.end_result(result)
-
-    
-def render_frame_finish(engine):
-    if not engine.session:
-        return
-    print("engine.render_frame_finish()")
-
+    mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
+    trafo = convert_matrix(object_instance.matrix_world)
+    zyg.su_prop_set_transformation(mesh_instance, trafo)
 
 def convert_matrix(m):
     return Transformation(m[0][0], m[1][0], m[2][0], 0.0,
