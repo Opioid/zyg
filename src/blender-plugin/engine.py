@@ -350,8 +350,12 @@ def create_background(scene):
             "rendering": {{
             "Light": {{
             "sampler": {{ "address": [ "Repeat", "Clamp" ] }},
-            "emission": {{"id":{} }}
-            }}}}}}""".format(zimage)
+            "emission": {{"id":{} }},
+            "emittance": {{
+            "quantity": "Radiance",
+            "spectrum": [1, 1, 1],
+            "value": 1
+            }}}}}}}}""".format(zimage)
 
             material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
 

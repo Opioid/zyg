@@ -185,7 +185,7 @@ pub const Provider = struct {
 
         var quantity: []const u8 = "";
 
-        var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 10.0)));
+        var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 1.0)));
 
         var mask = Texture{};
 
@@ -231,12 +231,13 @@ pub const Provider = struct {
         } else if (std.mem.eql(u8, "Luminance", quantity)) {
             material.emittance.setLuminance(color, value);
         } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
-            material.emittance.setRadiantIntensity(color, value);
+            material.emittance.setRadiantIntensity(@splat(4, value) * color);
+        } else if (std.mem.eql(u8, "Radiance", quantity)) {
+            material.emittance.setRadiance(@splat(4, value) * color);
         } else {
-            material.emittance.setRadiance(emission.value);
+            material.emittance.setRadiance(@splat(4, emission_factor) * emission.value);
         }
 
-        material.emission_factor = emission_factor;
         material.super.ior = 1.5;
 
         return Material{ .Light = material };

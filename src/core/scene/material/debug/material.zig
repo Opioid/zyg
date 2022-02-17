@@ -11,13 +11,7 @@ pub const Material = struct {
     const color_back = Vec4f{ 0.9, 0.1, 0.4, 0.0 };
 
     pub fn init() Material {
-        var super = Base.init(.{}, true);
-        super.mask = .{};
-        super.color_map = .{};
-        super.emission = @splat(4, @as(f32, 1.0));
-        super.ior = 1.5;
-
-        return .{ .super = super };
+        return .{ .super = Base.init(.{}, true) };
     }
 
     pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
