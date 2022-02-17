@@ -65,7 +65,7 @@ def reset(engine, data, depsgraph):
     integrators_desc = """{
     "surface": {
     "PTMIS": {
-    "light_sampling": { "strategy": "Single", "num_samples": 1 }
+    "light_sampling": { "strategy": "Adaptive", "num_samples": 1 }
     }
     }
     }"""
@@ -247,7 +247,7 @@ def create_mesh(engine, obj, default_material):
     materials = []
     for m in mesh.materials.values():
         mat = create_material(engine, m)
-        if None != mat:
+        if mat:
             materials.append(mat)
         else:
             materials.append(default_material)
@@ -264,11 +264,9 @@ def create_mesh(engine, obj, default_material):
     mesh.calc_normals_split()
 
     num_triangles = len(mesh.loop_triangles)
-
     num_loops = len(mesh.loops)
 
     Indices = c_uint32 * (num_triangles * 3)
-
     indices = Indices()
 
     i = 0
@@ -402,7 +400,7 @@ def convert_camera_matrix(m):
                           m[0][3], m[1][3], m[2][3], 1.0)
 
 def environment_matrix():
-    return Transformation(1.0, 0.0, 0.0, 0.0,
-                          0.0, -1.0, 0.0, 0.0,
+    return Transformation(0.0, -1.0, 0.0, 0.0,
                           0.0, 0.0, -1.0, 0.0,
+                          1.0, 0.0, 0.0, 0.0,
                           0.0, 0.0, 0.0, 1.0)
