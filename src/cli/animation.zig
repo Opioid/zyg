@@ -1,4 +1,6 @@
-const Scene = @import("../scene.zig").Scene;
+const core = @import("core");
+const Scene = core.scn.Scene;
+
 const math = @import("base").math;
 const Transformation = math.Transformation;
 

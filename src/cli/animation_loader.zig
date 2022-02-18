@@ -1,6 +1,8 @@
+const Graph = @import("scene_graph.zig").Graph;
+const Keyframe = @import("animation.zig").Keyframe;
+
 const core = @import("core");
 const scn = core.scn;
-const Keyframe = scn.Keyframe;
 const Scene = scn.Scene;
 
 const base = @import("base");
@@ -16,7 +18,7 @@ pub fn load(
     value: std.json.Value,
     default_trafo: Transformation,
     entity: u32,
-    scene: *Scene,
+    graph: *Graph,
 ) !bool {
     var start_time: u64 = 0;
     var frame_step: u64 = 0;
@@ -36,7 +38,7 @@ pub fn load(
                 entity,
                 start_time,
                 frame_step,
-                scene,
+                graph,
             );
         }
     }
@@ -51,11 +53,11 @@ pub fn loadKeyframes(
     entity: u32,
     start_time: u64,
     frame_step: u64,
-    scene: *Scene,
+    graph: *Graph,
 ) !bool {
     return switch (value) {
         .Array => |array| {
-            const animation = try scene.createAnimation(alloc, entity, @intCast(u32, array.items.len));
+            const animation = try graph.createAnimation(alloc, entity, @intCast(u32, array.items.len));
 
             var current_time = start_time;
 
@@ -71,7 +73,7 @@ pub fn loadKeyframes(
                     }
                 }
 
-                scene.animationSetFrame(animation, i, keyframe);
+                graph.animationSetFrame(animation, i, keyframe);
 
                 current_time += frame_step;
             }

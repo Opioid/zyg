@@ -139,11 +139,10 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.simulate(
+        try self.scene.compile(
             alloc,
             camera_pos,
             start,
-            start + camera.frame_duration,
             self.workers[0].super,
             self.threads,
         );
@@ -187,11 +186,10 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.simulate(
+        try self.scene.compile(
             alloc,
             camera_pos,
             start,
-            start + camera.frame_duration,
             self.workers[0].super,
             self.threads,
         );

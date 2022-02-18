@@ -1,4 +1,5 @@
 const Options = @import("options.zig").Options;
+const Graph = @import("scene_graph.zig").Graph;
 const SceneLoader = @import("scene_loader.zig").Loader;
 
 const core = @import("core");
@@ -21,16 +22,16 @@ pub fn main() !void {
 
     log.info("Welcome to zyg!", .{});
 
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer {
-    //     const leaked = gpa.deinit();
-    //     if (leaked) {
-    //         log.warning("Memory leak {}", .{leaked});
-    //     }
-    // }
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const leaked = gpa.deinit();
+        if (leaked) {
+            log.warning("Memory leak {}", .{leaked});
+        }
+    }
 
-    // const alloc = gpa.allocator();
-    const alloc = std.heap.c_allocator;
+    const alloc = gpa.allocator();
+    // const alloc = std.heap.c_allocator;
 
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
@@ -48,10 +49,10 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var scene = try scn.Scene.init(alloc);
-    defer scene.deinit(alloc);
+    var graph = Graph{ .scene = try scn.Scene.init(alloc) };
+    defer graph.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &scene, &threads);
+    var resources = try resource.Manager.init(alloc, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
@@ -78,7 +79,7 @@ pub fn main() !void {
         return;
     };
 
-    var take = tk.load(alloc, stream, &scene, &resources) catch |err| {
+    var take = tk.load(alloc, stream, &graph.scene, &resources) catch |err| {
         log.err("Loading take: {}", .{err});
         return;
     };
@@ -88,7 +89,7 @@ pub fn main() !void {
 
     resources.fs.frame = options.start_frame;
 
-    scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take, &graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return;
     };
@@ -102,7 +103,7 @@ pub fn main() !void {
     var driver = try rendering.Driver.init(alloc, &threads, .{ .StdOut = .{} });
     defer driver.deinit(alloc);
 
-    try driver.configure(alloc, &take.view, &scene);
+    try driver.configure(alloc, &take.view, &graph.scene);
 
     var i = options.start_frame;
     const end = i + options.num_frames;
@@ -112,10 +113,14 @@ pub fn main() !void {
             i,
             &take,
             options.take.?,
-            &scene,
+            &graph,
             &scene_loader,
             &resources,
         ) catch continue;
+
+        const camera = take.view.camera;
+        const start = @as(u64, i) * camera.frame_step;
+        graph.simulate(start, start + camera.frame_duration);
 
         try driver.render(alloc, i);
         try driver.exportFrame(alloc, i, take.exporters.items);
@@ -129,7 +134,7 @@ fn reloadFrameDependant(
     frame: u32,
     take: *tk.Take,
     take_text: []const u8,
-    scene: *scn.Scene,
+    graph: *Graph,
     scene_loader: *SceneLoader,
     resources: *resource.Manager,
 ) !void {
@@ -149,22 +154,22 @@ fn reloadFrameDependant(
 
     const loading_start = std.time.milliTimestamp();
 
-    try scene.commitMaterials(alloc, resources.threads);
-    scene.clear(alloc);
+    try graph.scene.commitMaterials(alloc, resources.threads);
+    graph.clear(alloc);
 
     var stream = resources.fs.readStream(alloc, take_text) catch |err| {
         log.err("Open stream \"{s}\": {}", .{ take_text, err });
         return err;
     };
 
-    tk.loadCameraTransformation(alloc, stream, &take.view.camera, scene) catch |err| {
+    tk.loadCameraTransformation(alloc, stream, &take.view.camera, &graph.scene) catch |err| {
         log.err("Loading take: {}", .{err});
         return err;
     };
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take.*, scene) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take.*, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return err;
     };

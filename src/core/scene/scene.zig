@@ -9,9 +9,6 @@ const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
 pub const Material = @import("material/material.zig").Material;
-const anim = @import("animation/animation.zig");
-const Animation = anim.Animation;
-pub const Keyframe = anim.Keyframe;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
@@ -31,15 +28,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ALU = std.ArrayListUnmanaged;
 
-const Tick_duration = cnst.Units_per_second / 60;
-const Num_steps = 4;
-const Interval = 1.0 / @intToFloat(f32, Num_steps);
-
-const Num_reserved_props = 32;
-
 const LightPick = Distribution1D.Discrete;
 
 pub const Scene = struct {
+    pub const Tick_duration = cnst.Units_per_second / 60;
+    const Num_steps = 4;
+    const Interval = 1.0 / @intToFloat(f32, Num_steps);
+
+    const Num_reserved_props = 32;
+
     pub const Null = Prop.Null;
 
     pub const ShapeID = enum(u32) {
@@ -86,7 +83,6 @@ pub const Scene = struct {
     light_ids: ALU(u32),
 
     keyframes: ALU(math.Transformation),
-    animations: ALU(Animation),
 
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
@@ -130,7 +126,6 @@ pub const Scene = struct {
             .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
-            .animations = try ALU(Animation).initCapacity(alloc, Num_reserved_props),
             .finite_props = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try ALU(u32).initCapacity(alloc, 3),
             .volumes = try ALU(u32).initCapacity(alloc, Num_reserved_props),
@@ -159,10 +154,6 @@ pub const Scene = struct {
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
 
-        for (self.animations.items) |*a| {
-            a.deinit(alloc, self.num_interpolation_frames);
-        }
-        self.animations.deinit(alloc);
         self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
@@ -182,15 +173,10 @@ pub const Scene = struct {
         deinitResources(Image, alloc, &self.images);
     }
 
-    pub fn clear(self: *Scene, alloc: Allocator) void {
+    pub fn clear(self: *Scene) void {
         self.volumes.clearRetainingCapacity();
         self.infinite_props.clearRetainingCapacity();
         self.finite_props.clearRetainingCapacity();
-
-        for (self.animations.items) |*a| {
-            a.deinit(alloc, self.num_interpolation_frames);
-        }
-        self.animations.clearRetainingCapacity();
         self.keyframes.clearRetainingCapacity();
         self.light_ids.clearRetainingCapacity();
         self.material_ids.clearRetainingCapacity();
@@ -218,30 +204,7 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn simulate(
-        self: *Scene,
-        alloc: Allocator,
-        camera_pos: Vec4f,
-        start: u64,
-        end: u64,
-        worker: Worker,
-        threads: *Threads,
-    ) !void {
-        const frames_start = start - (start % Tick_duration);
-        const end_rem = end % Tick_duration;
-        const frames_end = end + (if (end_rem > 0) Tick_duration - end_rem else 0);
-
-        self.current_time_start = frames_start;
-
-        for (self.animations.items) |*a| {
-            a.resample(frames_start, frames_end, Tick_duration);
-            a.update(self);
-        }
-
-        try self.compile(alloc, camera_pos, start, worker, threads);
-    }
-
-    fn compile(
+    pub fn compile(
         self: *Scene,
         alloc: Allocator,
         camera_pos: Vec4f,
@@ -249,6 +212,9 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) !void {
+        const frames_start = time - (time % Tick_duration);
+        self.current_time_start = frames_start;
+
         self.tinted_shadow = false;
 
         for (self.props.items) |p, i| {
@@ -756,18 +722,6 @@ pub const Scene = struct {
         }
 
         return false;
-    }
-
-    pub fn createAnimation(self: *Scene, alloc: Allocator, entity: u32, count: u32) !u32 {
-        try self.animations.append(alloc, try Animation.init(alloc, entity, count, self.num_interpolation_frames));
-
-        try self.propAllocateFrames(alloc, entity, true);
-
-        return @intCast(u32, self.animations.items.len - 1);
-    }
-
-    pub fn animationSetFrame(self: *Scene, animation: u32, index: usize, keyframe: Keyframe) void {
-        self.animations.items[animation].set(index, keyframe);
     }
 
     pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {

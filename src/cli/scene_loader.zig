@@ -1,4 +1,5 @@
 const anim = @import("animation_loader.zig");
+const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
 const log = core.log;
@@ -58,10 +59,10 @@ pub const Loader = struct {
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: Take, scene: *Scene) !void {
+    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: Take, graph: *Graph) !void {
         const camera = take.view.camera;
 
-        scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+        graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
         const fs = &self.resources.fs;
 
@@ -107,7 +108,7 @@ pub const Loader = struct {
                     parent_id,
                     parent_trafo,
                     local_materials,
-                    scene,
+                    graph,
                 );
             }
         }
@@ -132,8 +133,10 @@ pub const Loader = struct {
         parent_id: u32,
         parent_trafo: Transformation,
         local_materials: LocalMaterials,
-        scene: *Scene,
+        graph: *Graph,
     ) Error!void {
+        const scene = &graph.scene;
+
         for (value.Array.items) |entity| {
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;
@@ -194,7 +197,7 @@ pub const Loader = struct {
             }
 
             const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, entity_id, scene)
+                try anim.load(alloc, animation.*, trafo, entity_id, graph)
             else
                 false;
 
@@ -225,7 +228,7 @@ pub const Loader = struct {
                     entity_id,
                     trafo,
                     local_materials,
-                    scene,
+                    graph,
                 );
             }
         }
