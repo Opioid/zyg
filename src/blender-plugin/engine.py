@@ -58,9 +58,9 @@ def reset(engine, data, depsgraph):
     size_x = int(scene.render.resolution_x * scale)
     size_y = int(scene.render.resolution_y * scale)
 
-    zyg.su_create_sampler(16)
+    zyg.su_sampler_create(16)
     
-    camera = zyg.su_create_perspective_camera(size_x, size_y)
+    camera = zyg.su_perspective_camera_create(size_x, size_y)
 
     integrators_desc = """{
     "surface": {
@@ -70,7 +70,7 @@ def reset(engine, data, depsgraph):
     }
     }"""
 
-    zyg.su_create_integrators(c_char_p(integrators_desc.encode('utf-8')))
+    zyg.su_integrators_create(c_char_p(integrators_desc.encode('utf-8')))
 
     material_a_desc = """{
     "rendering": {
@@ -83,7 +83,7 @@ def reset(engine, data, depsgraph):
     }
     }"""
 
-    material_a = c_uint(zyg.su_create_material(c_char_p(material_a_desc.encode('utf-8'))));
+    material_a = c_uint(zyg.su_material_create(-1, c_char_p(material_a_desc.encode('utf-8'))));
 
     for object_instance in depsgraph.object_instances:
         # This is an object which is being instanced.
@@ -109,10 +109,10 @@ def reset(engine, data, depsgraph):
                 if light.type == 'POINT':
                     material_desc = material_pattern.format(light.color[0], light.color[1], light.color[2], light.energy)
 
-                    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+                    material = c_uint(zyg.su_material_create(-1, c_char_p(material_desc.encode('utf-8'))));
 
-                    light_instance = zyg.su_create_prop(8, 1, byref(material))
-                    zyg.su_create_light(light_instance)
+                    light_instance = zyg.su_prop_create(8, 1, byref(material))
+                    zyg.su_light_create(light_instance)
 
                     radius = light.shadow_soft_size
                     trafo = convert_pointlight_matrix(object_instance.matrix_world, radius)
@@ -122,10 +122,10 @@ def reset(engine, data, depsgraph):
                 if light.type == 'SUN':
                     material_desc = material_pattern.format(light.color[0], light.color[1], light.color[2], light.energy)
 
-                    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+                    material = c_uint(zyg.su_material_create(-1, c_char_p(material_desc.encode('utf-8'))));
 
-                    light_instance = zyg.su_create_prop(4, 1, byref(material))
-                    zyg.su_create_light(light_instance)
+                    light_instance = zyg.su_prop_create(4, 1, byref(material))
+                    zyg.su_light_create(light_instance)
 
                     radius = light.angle / 2.0
                     trafo = convert_dirlight_matrix(object_instance.matrix_world, radius)
@@ -203,7 +203,7 @@ def create_material(engine, bmaterial):
             metallic = bsdf.inputs.get("Metallic").default_value
 
             material_desc = create_substitute_desc(color, roughness, specular_to_ior(specular), metallic)
-            created = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))))
+            created = c_uint(zyg.su_material_create(-1, c_char_p(material_desc.encode('utf-8'))))
             engine.materials[bmaterial.name] = created
             return created
 
@@ -296,7 +296,7 @@ def create_mesh(engine, obj, default_material):
 
     obj.to_mesh_clear()
 
-    zmesh = zyg.su_create_triangle_mesh(0, None,
+    zmesh = zyg.su_triangle_mesh_create(-1, 0, None,
                                         num_triangles, indices,
                                         num_loops,
                                         positions, vertex_stride,
@@ -312,7 +312,7 @@ def create_prop(prop, object_instance):
     if None == prop:
         return
 
-    mesh_instance = zyg.su_create_prop(prop.shape, 1, byref(prop.material))
+    mesh_instance = zyg.su_prop_create(prop.shape, 1, byref(prop.material))
     trafo = convert_matrix(object_instance.matrix_world)
     zyg.su_prop_set_transformation(mesh_instance, trafo)
 
@@ -343,7 +343,7 @@ def create_background(scene):
             depth = 1
             stride = 12
 
-            zimage = zyg.su_create_image(pixel_type, num_channels, image.size[0], image.size[1], depth,
+            zimage = zyg.su_image_create(-1, pixel_type, num_channels, image.size[0], image.size[1], depth,
                                          stride, image_buffer)
 
             material_desc = """{{
@@ -357,11 +357,11 @@ def create_background(scene):
             "value": 1
             }}}}}}}}""".format(zimage)
 
-            material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+            material = c_uint(zyg.su_material_create(-1, c_char_p(material_desc.encode('utf-8'))));
 
-            light_instance = zyg.su_create_prop(5, 1, byref(material))
+            light_instance = zyg.su_prop_create(5, 1, byref(material))
             zyg.su_prop_set_transformation(light_instance, environment_matrix())
-            zyg.su_create_light(light_instance)
+            zyg.su_light_create(light_instance)
 
             return
 
@@ -373,11 +373,11 @@ def create_background(scene):
     "emission": [{}, {}, {}]
     }}}}}}""".format(color[0], color[1], color[2])
 
-    material = c_uint(zyg.su_create_material(c_char_p(material_desc.encode('utf-8'))));
+    material = c_uint(zyg.su_material_create(c_char_p(material_desc.encode('utf-8'))));
 
-    light_instance = zyg.su_create_prop(5, 1, byref(material))
+    light_instance = zyg.su_prop_create(5, 1, byref(material))
     zyg.su_prop_set_transformation(light_instance, environment_matrix())
-    zyg.su_create_light(light_instance)
+    zyg.su_light_create(light_instance)
 
 def convert_matrix(m):
     return Transformation(m[0][0], m[1][0], m[2][0], 0.0,

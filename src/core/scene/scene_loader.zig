@@ -45,6 +45,8 @@ pub const Loader = struct {
 
     materials: std.ArrayListUnmanaged(u32) = .{},
 
+    const Null = resource.Null;
+
     const LocalMaterials = struct {
         materials: std.StringHashMap(*std.json.Value),
 
@@ -60,16 +62,16 @@ pub const Loader = struct {
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return Loader{
             .resources = resources,
-            .null_shape = resources.shapes.store(alloc, Shape{ .Null = {} }) catch resource.Null,
-            .canopy = resources.shapes.store(alloc, Shape{ .Canopy = .{} }) catch resource.Null,
-            .cube = resources.shapes.store(alloc, Shape{ .Cube = .{} }) catch resource.Null,
-            .disk = resources.shapes.store(alloc, Shape{ .Disk = .{} }) catch resource.Null,
-            .distant_sphere = resources.shapes.store(alloc, Shape{ .DistantSphere = .{} }) catch resource.Null,
-            .infinite_sphere = resources.shapes.store(alloc, Shape{ .InfiniteSphere = .{} }) catch resource.Null,
-            .plane = resources.shapes.store(alloc, Shape{ .Plane = .{} }) catch resource.Null,
-            .rectangle = resources.shapes.store(alloc, Shape{ .Rectangle = .{} }) catch resource.Null,
-            .sphere = resources.shapes.store(alloc, Shape{ .Sphere = .{} }) catch resource.Null,
-            .fallback_material = resources.materials.store(alloc, fallback_material) catch resource.Null,
+            .null_shape = resources.shapes.store(alloc, Null, Shape{ .Null = {} }) catch Null,
+            .canopy = resources.shapes.store(alloc, Null, Shape{ .Canopy = .{} }) catch Null,
+            .cube = resources.shapes.store(alloc, Null, Shape{ .Cube = .{} }) catch Null,
+            .disk = resources.shapes.store(alloc, Null, Shape{ .Disk = .{} }) catch Null,
+            .distant_sphere = resources.shapes.store(alloc, Null, Shape{ .DistantSphere = .{} }) catch Null,
+            .infinite_sphere = resources.shapes.store(alloc, Null, Shape{ .InfiniteSphere = .{} }) catch Null,
+            .plane = resources.shapes.store(alloc, Null, Shape{ .Plane = .{} }) catch Null,
+            .rectangle = resources.shapes.store(alloc, Null, Shape{ .Rectangle = .{} }) catch Null,
+            .sphere = resources.shapes.store(alloc, Null, Shape{ .Sphere = .{} }) catch Null,
+            .fallback_material = resources.materials.store(alloc, Null, fallback_material) catch Null,
         };
     }
 
@@ -257,7 +259,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         scene: *Scene,
     ) !u32 {
-        var shape: u32 = resource.Null;
+        var shape: u32 = Null;
 
         var materials_value_ptr: ?*std.json.Value = null;
         var visibility_ptr: ?*std.json.Value = null;
@@ -273,7 +275,7 @@ pub const Loader = struct {
             }
         }
 
-        if (resource.Null == shape) {
+        if (Null == shape) {
             return Prop.Null;
         }
 
@@ -326,10 +328,10 @@ pub const Loader = struct {
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            return self.resources.loadFile(Shape, alloc, file, .{}) catch resource.Null;
+            return self.resources.loadFile(Shape, alloc, file, .{}) catch Null;
         }
 
-        return resource.Null;
+        return Null;
     }
 
     fn getShape(self: Loader, type_name: []const u8) u32 {
@@ -365,7 +367,7 @@ pub const Loader = struct {
             return self.sphere;
         }
 
-        return resource.Null;
+        return Null;
     }
 
     fn loadMaterials(
@@ -400,8 +402,10 @@ pub const Loader = struct {
         if (local_materials.materials.get(name)) |material_node| {
             const data = @ptrToInt(material_node);
 
-            const material = self.resources.loadData(Material, alloc, name, data, .{}) catch resource.Null;
-            if (resource.Null != material) {
+            const material = self.resources.loadData(Material, alloc, Null, data, .{}) catch Null;
+            if (Null != material) {
+                self.resources.associate(Material, alloc, material, name, .{}) catch {};
+
                 if (self.resources.get(Material, material)) |mp| {
                     mp.commit(alloc, scene, self.resources.threads) catch {};
                 }
@@ -420,7 +424,11 @@ pub const Loader = struct {
     }
 
     fn loadSky(self: Loader, alloc: Allocator, value: std.json.Value, scene: *Scene) !u32 {
-        if (scene.sky) |sky| {
+        if (scene.sky) |*sky| {
+            if (value.Object.get("parameters")) |parameters| {
+                sky.setParameters(parameters, scene);
+            }
+
             return sky.prop;
         }
 
@@ -429,18 +437,18 @@ pub const Loader = struct {
         const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
 
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
-        const sky_image = try self.resources.images.store(alloc, .{ .Float3 = image });
+        const sky_image = try self.resources.images.store(alloc, Null, .{ .Float3 = image });
 
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
         var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
         sky_mat.commit();
-        const sky_mat_id = try self.resources.materials.store(alloc, .{ .Sky = sky_mat });
+        const sky_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
 
         var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
         sun_mat.commit();
-        const sun_mat_id = try self.resources.materials.store(alloc, .{ .Sky = sun_mat });
+        const sun_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
 
         sky.configure(sky_prop, sun_prop, sky_image, scene);

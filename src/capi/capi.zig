@@ -153,7 +153,7 @@ export fn su_load_take(string: [*:0]const u8) i32 {
     return -1;
 }
 
-export fn su_create_perspective_camera(width: u32, height: u32) i32 {
+export fn su_perspective_camera_create(width: u32, height: u32) i32 {
     if (engine) |*e| {
         const resolution = Vec2i{ @intCast(i32, width), @intCast(i32, height) };
         const crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
@@ -197,7 +197,7 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     return -1;
 }
 
-export fn su_create_exporters(string: [*:0]const u8) i32 {
+export fn su_exporters_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
         var parser = std.json.Parser.init(e.alloc, false);
         defer parser.deinit();
@@ -213,7 +213,7 @@ export fn su_create_exporters(string: [*:0]const u8) i32 {
     return -1;
 }
 
-export fn su_create_sampler(num_samples: u32) i32 {
+export fn su_sampler_create(num_samples: u32) i32 {
     if (engine) |*e| {
         e.take.view.num_samples_per_pixel = num_samples;
     }
@@ -221,7 +221,7 @@ export fn su_create_sampler(num_samples: u32) i32 {
     return -1;
 }
 
-export fn su_create_integrators(string: [*:0]const u8) i32 {
+export fn su_integrators_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
         var parser = std.json.Parser.init(e.alloc, false);
         defer parser.deinit();
@@ -237,7 +237,8 @@ export fn su_create_integrators(string: [*:0]const u8) i32 {
     return -1;
 }
 
-export fn su_create_image(
+export fn su_image_create(
+    id: u32,
     format: u32,
     num_channels: u32,
     width: u32,
@@ -287,7 +288,7 @@ export fn su_create_image(
         };
 
         if (image) |i| {
-            const image_id = e.resources.images.store(e.alloc, i) catch {
+            const image_id = e.resources.images.store(e.alloc, id, i) catch {
                 return -1;
             };
             return @intCast(i32, image_id);
@@ -301,7 +302,7 @@ export fn su_create_image(
     return -1;
 }
 
-export fn su_create_material(string: [*:0]const u8) i32 {
+export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
         var parser = std.json.Parser.init(e.alloc, false);
         defer parser.deinit();
@@ -311,7 +312,7 @@ export fn su_create_material(string: [*:0]const u8) i32 {
 
         const data = @ptrToInt(&document.root);
 
-        const material = e.resources.loadData(scn.Material, e.alloc, "", data, .{}) catch return -1;
+        const material = e.resources.loadData(scn.Material, e.alloc, id, data, .{}) catch return -1;
 
         if (e.resources.get(scn.Material, material)) |mp| {
             mp.commit(e.alloc, e.scene, &e.threads) catch return -1;
@@ -323,7 +324,8 @@ export fn su_create_material(string: [*:0]const u8) i32 {
     return -1;
 }
 
-export fn su_create_triangle_mesh(
+export fn su_triangle_mesh_create(
+    id: u32,
     num_parts: u32,
     parts: ?[*]const u32,
     num_triangles: u32,
@@ -357,7 +359,7 @@ export fn su_create_triangle_mesh(
 
         const data = @ptrToInt(&desc);
 
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, "", data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
 
         e.resources.commitAsync();
 
@@ -367,7 +369,8 @@ export fn su_create_triangle_mesh(
     return -1;
 }
 
-export fn su_create_triangle_mesh_async(
+export fn su_triangle_mesh_create_async(
+    id: u32,
     num_parts: u32,
     parts: ?[*]const u32,
     num_triangles: u32,
@@ -401,14 +404,14 @@ export fn su_create_triangle_mesh_async(
 
         const data = @ptrToInt(&desc);
 
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, "", data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
         return @intCast(i32, mesh_id);
     }
 
     return -1;
 }
 
-export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
+export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
     if (engine) |*e| {
         if (shape >= e.scene.shapes.items.len) {
             return -1;
@@ -441,7 +444,7 @@ export fn su_create_prop(shape: u32, num_materials: u32, materials: [*]const u32
     return -1;
 }
 
-export fn su_create_light(prop: u32) i32 {
+export fn su_light_create(prop: u32) i32 {
     if (engine) |*e| {
         if (prop >= e.scene.props.items.len) {
             return -1;

@@ -76,16 +76,14 @@ pub const Manager = struct {
         self: *Manager,
         comptime T: type,
         alloc: Allocator,
-        name: []const u8,
+        id: u32,
         data: usize,
         options: Variants,
     ) !u32 {
         if (Material == T) {
-            return try self.materials.loadData(alloc, name, data, options, self);
-        }
-
-        if (Shape == T) {
-            return try self.shapes.loadData(alloc, name, data, options, self);
+            return try self.materials.loadData(alloc, id, data, options, self);
+        } else if (Shape == T) {
+            return try self.shapes.loadData(alloc, id, data, options, self);
         }
 
         return Error.UnknownResource;
@@ -112,16 +110,31 @@ pub const Manager = struct {
     pub fn getByName(self: Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
             return self.images.getByName(name, options);
-        }
-
-        if (Material == T) {
+        } else if (Material == T) {
             return self.materials.getByName(name, options);
-        }
-
-        if (Shape == T) {
+        } else if (Shape == T) {
             return self.shapes.getByName(name, options);
         }
 
         return null;
+    }
+
+    pub fn associate(
+        self: *Manager,
+        comptime T: type,
+        alloc: Allocator,
+        id: u32,
+        name: []const u8,
+        options: Variants,
+    ) !void {
+        if (Image == T) {
+            try self.images.associate(alloc, id, name, options);
+        } else if (Material == T) {
+            try self.materials.associate(alloc, id, name, options);
+        } else if (Shape == T) {
+            try self.shapes.loadData(alloc, id, name, options);
+        }
+
+        return Error.UnknownResource;
     }
 };

@@ -40,6 +40,8 @@ print(zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/")))
 
 print(zyg.su_load_take(c_char_p(b"takes/cornell.take")))
 
+zyg.su_sampler_create(4096)
+
 Int2 = c_int32 * 2
 resolution = Int2()
 
@@ -81,7 +83,7 @@ def update(frame_number):
 
   #  if frame_iteration >= frame_next_display:
     zyg.su_resolve_frame()
-    zyg.su_copy_framebuffer(0, resolution[0], resolution[1], 3, image)
+    zyg.su_copy_framebuffer(0, 3, resolution[0], resolution[1], image)
 
     im.set_data(image)
 

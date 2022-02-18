@@ -153,7 +153,6 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             };
 
             try self.resources.append(alloc, item);
-
             const id = @intCast(u32, self.resources.items.len - 1);
 
             try self.entries.put(
@@ -168,36 +167,14 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         pub fn loadData(
             self: *Self,
             alloc: Allocator,
-            name: []const u8,
+            id: u32,
             data: usize,
             options: Variants,
             resources: *Resources,
         ) !u32 {
             const item = try self.provider.loadData(alloc, data, options, resources);
 
-            var id: u32 = Null;
-
-            const key = Key{ .name = name, .options = options };
-            if (0 != name.len) {
-                if (self.entries.get(key)) |entry| {
-                    id = entry.id;
-                }
-            }
-
-            if (Null == id) {
-                try self.resources.append(alloc, item);
-
-                id = @intCast(u32, self.resources.items.len - 1);
-            } else {
-                self.resources.items[id].deinit(alloc);
-                self.resources.items[id] = item;
-            }
-
-            if (0 != name.len) {
-                try self.entries.put(alloc, try key.clone(alloc), .{ .id = id });
-            }
-
-            return id;
+            return try store(allocator, id, item);
         }
 
         pub fn get(self: Self, id: u32) ?*T {
@@ -221,10 +198,22 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn store(self: *Self, alloc: Allocator, item: T) !u32 {
-            try self.resources.append(alloc, item);
+        pub fn store(self: *Self, alloc: Allocator, id: u32, item: T) !u32 {
+            if (id >= self.resources.items.len) {
+                try self.resources.append(alloc, item);
+                return @intCast(u32, self.resources.items.len - 1);
+            } else {
+                self.resources.items[id].deinit(alloc);
+                self.resources.items[id] = item;
+                return id;
+            }
+        }
 
-            return @intCast(u32, self.resources.items.len - 1);
+        pub fn associate(self: *Self, alloc: Allocator, id: u32, name: []const u8, options: Variants) !void {
+            if (0 != name.len) {
+                const key = Key{ .name = name, .options = options };
+                try self.entries.put(alloc, try key.clone(alloc), .{ .id = id });
+            }
         }
     };
 }
