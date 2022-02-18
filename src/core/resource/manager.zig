@@ -6,6 +6,7 @@ const ImageProvider = @import("../image/provider.zig").Provider;
 const Images = Cache(Image, ImageProvider);
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialProvider = @import("../scene/material/provider.zig").Provider;
+const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
 pub const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
@@ -33,13 +34,13 @@ pub const Manager = struct {
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(alloc: Allocator, threads: *Threads) !Manager {
+    pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Manager {
         return Manager{
             .threads = threads,
             .fs = try Filesystem.init(alloc),
-            .images = Images.init(try ImageProvider.init(alloc)),
-            .materials = Materials.init(MaterialProvider{}),
-            .shapes = Shapes.init(TriangleMeshProvider{}),
+            .images = Images.init(try ImageProvider.init(alloc), &scene.images),
+            .materials = Materials.init(MaterialProvider{}, &scene.materials),
+            .shapes = Shapes.init(TriangleMeshProvider{}, &scene.shapes),
         };
     }
 
@@ -59,13 +60,9 @@ pub const Manager = struct {
     ) !u32 {
         if (Image == T) {
             return try self.images.loadFile(alloc, name, options, self);
-        }
-
-        if (Material == T) {
+        } else if (Material == T) {
             return try self.materials.loadFile(alloc, name, options, self);
-        }
-
-        if (Shape == T) {
+        } else if (Shape == T) {
             return try self.shapes.loadFile(alloc, name, options, self);
         }
 

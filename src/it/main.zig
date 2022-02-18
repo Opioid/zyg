@@ -44,17 +44,11 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &threads);
-    defer resources.deinit(alloc);
-
-    var scene = try scn.Scene.init(
-        alloc,
-        &resources.images.resources,
-        &resources.materials.resources,
-        &resources.shapes.resources,
-        0,
-    );
+    var scene = try scn.Scene.init(alloc);
     defer scene.deinit(alloc);
+
+    var resources = try resource.Manager.init(alloc, &scene, &threads);
+    defer resources.deinit(alloc);
 
     const loading_start = std.time.milliTimestamp();
 

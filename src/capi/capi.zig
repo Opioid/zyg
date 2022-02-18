@@ -36,9 +36,9 @@ const Engine = struct {
 
     threads: Threads = .{},
 
+    scene: scn.Scene = undefined,
     resources: resource.Manager = undefined,
     scene_loader: scn.Loader = undefined,
-    scene: scn.Scene = undefined,
 
     take: tk.Take = undefined,
     driver: rendering.Driver = undefined,
@@ -65,7 +65,12 @@ export fn su_init() i32 {
         return -1;
     };
 
-    engine.?.resources = resource.Manager.init(alloc, &engine.?.threads) catch {
+    engine.?.scene = scn.Scene.init(alloc) catch {
+        engine = null;
+        return -1;
+    };
+
+    engine.?.resources = resource.Manager.init(alloc, &engine.?.scene, &engine.?.threads) catch {
         engine = null;
         return -1;
     };
@@ -73,17 +78,6 @@ export fn su_init() i32 {
     const resources = &engine.?.resources;
 
     engine.?.scene_loader = scn.Loader.init(alloc, resources, scn.mat.Provider.createFallbackMaterial());
-
-    engine.?.scene = scn.Scene.init(
-        alloc,
-        &resources.images.resources,
-        &resources.materials.resources,
-        &resources.shapes.resources,
-        engine.?.scene_loader.null_shape,
-    ) catch {
-        engine = null;
-        return -1;
-    };
 
     engine.?.take = tk.Take.init(alloc) catch {
         engine = null;

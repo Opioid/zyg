@@ -31,16 +31,6 @@ pub const Loader = struct {
 
     resources: *Resources,
 
-    null_shape: u32,
-    canopy: u32,
-    cube: u32,
-    disk: u32,
-    distant_sphere: u32,
-    infinite_sphere: u32,
-    plane: u32,
-    rectangle: u32,
-    sphere: u32,
-
     fallback_material: u32,
 
     materials: std.ArrayListUnmanaged(u32) = .{},
@@ -62,15 +52,6 @@ pub const Loader = struct {
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return Loader{
             .resources = resources,
-            .null_shape = resources.shapes.store(alloc, Null, Shape{ .Null = {} }) catch Null,
-            .canopy = resources.shapes.store(alloc, Null, Shape{ .Canopy = .{} }) catch Null,
-            .cube = resources.shapes.store(alloc, Null, Shape{ .Cube = .{} }) catch Null,
-            .disk = resources.shapes.store(alloc, Null, Shape{ .Disk = .{} }) catch Null,
-            .distant_sphere = resources.shapes.store(alloc, Null, Shape{ .DistantSphere = .{} }) catch Null,
-            .infinite_sphere = resources.shapes.store(alloc, Null, Shape{ .InfiniteSphere = .{} }) catch Null,
-            .plane = resources.shapes.store(alloc, Null, Shape{ .Plane = .{} }) catch Null,
-            .rectangle = resources.shapes.store(alloc, Null, Shape{ .Rectangle = .{} }) catch Null,
-            .sphere = resources.shapes.store(alloc, Null, Shape{ .Sphere = .{} }) catch Null,
             .fallback_material = resources.materials.store(alloc, Null, fallback_material) catch Null,
         };
     }
@@ -259,33 +240,15 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         scene: *Scene,
     ) !u32 {
-        var shape: u32 = Null;
-
-        var materials_value_ptr: ?*std.json.Value = null;
-        var visibility_ptr: ?*std.json.Value = null;
-
-        var iter = value.Object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "shape", entry.key_ptr.*)) {
-                shape = self.loadShape(alloc, entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
-                materials_value_ptr = entry.value_ptr;
-            } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
-                visibility_ptr = entry.value_ptr;
-            }
-        }
-
-        if (Null == shape) {
-            return Prop.Null;
-        }
+        const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else return Prop.Null;
 
         const num_materials = scene.shape(shape).numMaterials();
 
         try self.materials.ensureTotalCapacity(alloc, num_materials);
         self.materials.clearRetainingCapacity();
 
-        if (materials_value_ptr) |materials_value| {
-            try self.loadMaterials(alloc, materials_value.*, local_materials, scene.*);
+        if (value.Object.get("materials")) |m| {
+            try self.loadMaterials(alloc, m, local_materials, scene.*);
         }
 
         while (self.materials.items.len < num_materials) {
@@ -294,8 +257,8 @@ pub const Loader = struct {
 
         const prop = try scene.createProp(alloc, shape, self.materials.items);
 
-        if (visibility_ptr) |visibility| {
-            setVisibility(prop, visibility.*, scene);
+        if (value.Object.get("visibility")) |v| {
+            setVisibility(prop, v, scene);
         }
 
         return prop;
@@ -323,7 +286,7 @@ pub const Loader = struct {
     fn loadShape(self: Loader, alloc: Allocator, value: std.json.Value) u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
-            return self.getShape(type_name);
+            return getShape(type_name);
         }
 
         const file = json.readStringMember(value, "file", "");
@@ -334,37 +297,23 @@ pub const Loader = struct {
         return Null;
     }
 
-    fn getShape(self: Loader, type_name: []const u8) u32 {
+    fn getShape(type_name: []const u8) u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
-            return self.canopy;
-        }
-
-        if (std.mem.eql(u8, "Cube", type_name)) {
-            return self.cube;
-        }
-
-        if (std.mem.eql(u8, "Disk", type_name)) {
-            return self.disk;
-        }
-
-        if (std.mem.eql(u8, "Distant_sphere", type_name)) {
-            return self.distant_sphere;
-        }
-
-        if (std.mem.eql(u8, "Infinite_sphere", type_name)) {
-            return self.infinite_sphere;
-        }
-
-        if (std.mem.eql(u8, "Plane", type_name)) {
-            return self.plane;
-        }
-
-        if (std.mem.eql(u8, "Rectangle", type_name)) {
-            return self.rectangle;
-        }
-
-        if (std.mem.eql(u8, "Sphere", type_name)) {
-            return self.sphere;
+            return @enumToInt(Scene.ShapeID.Canopy);
+        } else if (std.mem.eql(u8, "Cube", type_name)) {
+            return @enumToInt(Scene.ShapeID.Cube);
+        } else if (std.mem.eql(u8, "Disk", type_name)) {
+            return @enumToInt(Scene.ShapeID.Disk);
+        } else if (std.mem.eql(u8, "Distant_sphere", type_name)) {
+            return @enumToInt(Scene.ShapeID.DistantSphere);
+        } else if (std.mem.eql(u8, "Infinite_sphere", type_name)) {
+            return @enumToInt(Scene.ShapeID.InfiniteSphere);
+        } else if (std.mem.eql(u8, "Plane", type_name)) {
+            return @enumToInt(Scene.ShapeID.Plane);
+        } else if (std.mem.eql(u8, "Rectangle", type_name)) {
+            return @enumToInt(Scene.ShapeID.Rectangle);
+        } else if (std.mem.eql(u8, "Sphere", type_name)) {
+            return @enumToInt(Scene.ShapeID.Sphere);
         }
 
         return Null;
@@ -444,12 +393,12 @@ pub const Loader = struct {
         var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
         sky_mat.commit();
         const sky_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, self.canopy, &.{sky_mat_id});
+        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
 
         var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
         sun_mat.commit();
         const sun_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createProp(alloc, self.distant_sphere, &.{sun_mat_id});
+        const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
 
         sky.configure(sky_prop, sun_prop, sky_image, scene);
 

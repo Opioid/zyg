@@ -47,7 +47,10 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &threads);
+    var scene = try scn.Scene.init(alloc);
+    defer scene.deinit(alloc);
+
+    var resources = try resource.Manager.init(alloc, &scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
@@ -64,15 +67,6 @@ pub fn main() !void {
 
     var scene_loader = scn.Loader.init(alloc, &resources, scn.mat.Provider.createFallbackMaterial());
     defer scene_loader.deinit(alloc);
-
-    var scene = try scn.Scene.init(
-        alloc,
-        &resources.images.resources,
-        &resources.materials.resources,
-        &resources.shapes.resources,
-        scene_loader.null_shape,
-    );
-    defer scene.deinit(alloc);
 
     log.info("Loading...", .{});
 

@@ -42,18 +42,28 @@ const LightPick = Distribution1D.Discrete;
 pub const Scene = struct {
     pub const Null = Prop.Null;
 
-    images: *ALU(Image),
-    materials: *ALU(Material),
-    shapes: *ALU(Shape),
+    pub const ShapeID = enum(u32) {
+        Null,
+        Canopy,
+        Cube,
+        Disk,
+        DistantSphere,
+        InfiniteSphere,
+        Plane,
+        Rectangle,
+        Sphere,
+    };
 
-    null_shape: u32,
+    images: ALU(Image) = .{},
+    materials: ALU(Material) = .{},
+    shapes: ALU(Shape),
 
     num_interpolation_frames: u32 = 0,
 
     current_time_start: u64 = undefined,
 
     bvh_builder: PropBvhBuilder,
-    light_tree_builder: LightTreeBuilder,
+    light_tree_builder: LightTreeBuilder = .{},
 
     prop_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
@@ -92,20 +102,21 @@ pub const Scene = struct {
     tinted_shadow: bool = undefined,
     has_volumes: bool = undefined,
 
-    pub fn init(
-        alloc: Allocator,
-        images: *ALU(Image),
-        materials: *ALU(Material),
-        shapes: *ALU(Shape),
-        null_shape: u32,
-    ) !Scene {
+    pub fn init(alloc: Allocator) !Scene {
+        var shapes = try ALU(Shape).initCapacity(alloc, 16);
+        try shapes.append(alloc, Shape{ .Null = {} });
+        try shapes.append(alloc, Shape{ .Canopy = .{} });
+        try shapes.append(alloc, Shape{ .Cube = .{} });
+        try shapes.append(alloc, Shape{ .Disk = .{} });
+        try shapes.append(alloc, Shape{ .DistantSphere = .{} });
+        try shapes.append(alloc, Shape{ .InfiniteSphere = .{} });
+        try shapes.append(alloc, Shape{ .Plane = .{} });
+        try shapes.append(alloc, Shape{ .Rectangle = .{} });
+        try shapes.append(alloc, Shape{ .Sphere = .{} });
+
         return Scene{
-            .bvh_builder = try PropBvhBuilder.init(alloc),
-            .light_tree_builder = .{},
-            .images = images,
-            .materials = materials,
             .shapes = shapes,
-            .null_shape = null_shape,
+            .bvh_builder = try PropBvhBuilder.init(alloc),
             .props = try ALU(Prop).initCapacity(alloc, Num_reserved_props),
             .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
             .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
@@ -124,6 +135,14 @@ pub const Scene = struct {
             .infinite_props = try ALU(u32).initCapacity(alloc, 3),
             .volumes = try ALU(u32).initCapacity(alloc, Num_reserved_props),
         };
+    }
+
+    fn deinitResources(comptime T: type, alloc: Allocator, resources: *ALU(T)) void {
+        for (resources.items) |*r| {
+            r.deinit(alloc);
+        }
+
+        resources.deinit(alloc);
     }
 
     pub fn deinit(self: *Scene, alloc: Allocator) void {
@@ -157,6 +176,10 @@ pub const Scene = struct {
         self.prop_world_positions.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
         self.props.deinit(alloc);
+
+        deinitResources(Shape, alloc, &self.shapes);
+        deinitResources(Material, alloc, &self.materials);
+        deinitResources(Image, alloc, &self.images);
     }
 
     pub fn clear(self: *Scene, alloc: Allocator) void {
@@ -316,7 +339,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(self.null_shape, &.{}, self.*);
+        self.props.items[p].configure(@enumToInt(ShapeID.Null), &.{}, self.*);
 
         return p;
     }

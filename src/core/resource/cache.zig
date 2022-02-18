@@ -80,18 +80,19 @@ const Entry = struct {
     source_name: []u8 = &.{},
 };
 
+const ALU = std.ArrayListUnmanaged;
 const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 
 pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
-        resources: std.ArrayListUnmanaged(T) = .{},
+        resources: *ALU(T),
         entries: HashMap = .{},
 
         const Self = @This();
 
-        pub fn init(provider: P) Self {
-            return .{ .provider = provider };
+        pub fn init(provider: P, resources: *ALU(T)) Self {
+            return .{ .provider = provider, .resources = resources };
         }
 
         pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -102,12 +103,6 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             self.entries.deinit(alloc);
-
-            for (self.resources.items) |*r| {
-                r.deinit(alloc);
-            }
-
-            self.resources.deinit(alloc);
 
             self.provider.deinit(alloc);
         }
@@ -174,7 +169,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         ) !u32 {
             const item = try self.provider.loadData(alloc, data, options, resources);
 
-            return try store(allocator, id, item);
+            return try self.store(alloc, id, item);
         }
 
         pub fn get(self: Self, id: u32) ?*T {
