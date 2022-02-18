@@ -38,7 +38,8 @@ const Engine = struct {
 
     scene: scn.Scene = undefined,
     resources: resource.Manager = undefined,
-    scene_loader: scn.Loader = undefined,
+    fallback_material: u32 = undefined,
+    materials: std.ArrayListUnmanaged(u32) = .{},
 
     take: tk.Take = undefined,
     driver: rendering.Driver = undefined,
@@ -58,49 +59,56 @@ export fn su_init() i32 {
 
     engine = .{ .alloc = alloc };
 
-    const num_workers = Threads.availableCores(0);
-    engine.?.threads.configure(alloc, num_workers) catch {
-        //_ = err;
-        engine = null;
-        return -1;
-    };
+    if (engine) |*e| {
+        const num_workers = Threads.availableCores(0);
+        e.threads.configure(alloc, num_workers) catch {
+            //_ = err;
+            engine = null;
+            return -1;
+        };
 
-    engine.?.scene = scn.Scene.init(alloc) catch {
-        engine = null;
-        return -1;
-    };
+        e.scene = scn.Scene.init(alloc) catch {
+            engine = null;
+            return -1;
+        };
 
-    engine.?.resources = resource.Manager.init(alloc, &engine.?.scene, &engine.?.threads) catch {
-        engine = null;
-        return -1;
-    };
+        e.resources = resource.Manager.init(alloc, &e.scene, &e.threads) catch {
+            engine = null;
+            return -1;
+        };
 
-    const resources = &engine.?.resources;
+        const resources = &e.resources;
 
-    engine.?.scene_loader = scn.Loader.init(alloc, resources, scn.mat.Provider.createFallbackMaterial());
+        e.fallback_material = resources.materials.store(alloc, resource.Null, scn.mat.Provider.createFallbackMaterial()) catch {
+            engine = null;
+            return -1;
+        };
 
-    engine.?.take = tk.Take.init(alloc) catch {
-        engine = null;
-        return -1;
-    };
+        e.take = tk.Take.init(alloc) catch {
+            engine = null;
+            return -1;
+        };
 
-    engine.?.take.view.num_samples_per_pixel = 1;
+        e.take.view.num_samples_per_pixel = 1;
 
-    engine.?.driver = rendering.Driver.init(alloc, &engine.?.threads, .{ .Null = {} }) catch {
-        engine = null;
-        return -1;
-    };
+        e.driver = rendering.Driver.init(alloc, &e.threads, .{ .Null = {} }) catch {
+            engine = null;
+            return -1;
+        };
 
-    return 0;
+        return 0;
+    }
+
+    return -1;
 }
 
 export fn su_release() i32 {
     if (engine) |*e| {
         e.driver.deinit(e.alloc);
         e.take.deinit(e.alloc);
-        e.scene.deinit(e.alloc);
-        e.scene_loader.deinit(e.alloc);
+        e.materials.deinit(e.alloc);
         e.resources.deinit(e.alloc);
+        e.scene.deinit(e.alloc);
         e.threads.deinit(e.alloc);
         engine = null;
         return 0;
@@ -114,32 +122,6 @@ export fn su_mount(folder: [*:0]const u8) i32 {
         e.resources.fs.pushMount(e.alloc, folder[0..std.mem.len(folder)]) catch {
             return -1;
         };
-
-        return 0;
-    }
-
-    return -1;
-}
-
-export fn su_load_take(string: [*:0]const u8) i32 {
-    if (engine) |*e| {
-        var stream = e.resources.fs.readStream(e.alloc, string[0..std.mem.len(string)]) catch {
-            //  log.err("Open stream \"{s}\": {}", .{ string, err });
-            return -1;
-        };
-
-        var take = tk.load(e.alloc, stream, &e.scene, &e.resources) catch {
-            //    log.err("Loading take: {}", .{err});
-            return -1;
-        };
-
-        e.scene_loader.load(e.alloc, take.scene_filename, take, &e.scene) catch {
-            // log.err("Loading scene: {}", .{err});
-            return -1;
-        };
-
-        e.take.deinit(e.alloc);
-        e.take = take;
 
         return 0;
     }
@@ -413,10 +395,9 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
 
         const scene_mat_len = e.scene.materials.items.len;
         const num_expected_mats = e.scene.shape(shape).numMaterials();
-        const fallback_mat = e.scene_loader.fallback_material;
+        const fallback_mat = e.fallback_material;
 
-        var matbuf = &e.scene_loader.materials;
-
+        var matbuf = &e.materials;
         matbuf.ensureTotalCapacity(e.alloc, num_expected_mats) catch return -1;
         matbuf.clearRetainingCapacity();
 
