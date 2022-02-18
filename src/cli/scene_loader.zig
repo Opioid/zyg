@@ -1,18 +1,16 @@
-const log = @import("../log.zig");
-pub const Scene = @import("scene.zig").Scene;
-pub const Prop = @import("prop/prop.zig").Prop;
-const resource = @import("../resource/manager.zig");
+const anim = @import("animation_loader.zig");
+
+const core = @import("core");
+const log = core.log;
+const img = core.img;
+const scn = core.scn;
+const Scene = scn.Scene;
+const Prop = scn.Prop;
+const Material = scn.Material;
+const Shape = scn.Shape;
+const resource = core.resource;
 const Resources = resource.Manager;
-const anim = @import("animation/loader.zig");
-const Take = @import("../take/take.zig").Take;
-pub const Shape = @import("shape/shape.zig").Shape;
-pub const Material = @import("material/material.zig").Material;
-const Sky = @import("../sky/sky.zig").Sky;
-const SkyMaterial = @import("../sky/material.zig").Material;
-const Texture = @import("../image/texture/texture.zig").Texture;
-const ts = @import("../image/texture/sampler.zig");
-pub const mat = @import("material/provider.zig");
-const img = @import("../image/image.zig");
+const Take = core.tk.Take;
 
 const base = @import("base");
 const json = base.json;
@@ -155,7 +153,7 @@ pub const Loader = struct {
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
                 entity_id = try scene.createEntity(alloc);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
-                entity_id = try self.loadSky(alloc, entity, scene);
+                entity_id = try loadSky(alloc, entity, scene);
             }
 
             if (Prop.Null == entity_id) {
@@ -372,7 +370,7 @@ pub const Loader = struct {
         return material;
     }
 
-    fn loadSky(self: Loader, alloc: Allocator, value: std.json.Value, scene: *Scene) !u32 {
+    fn loadSky(alloc: Allocator, value: std.json.Value, scene: *Scene) !u32 {
         if (scene.sky) |*sky| {
             if (value.Object.get("parameters")) |parameters| {
                 sky.setParameters(parameters, scene);
@@ -381,33 +379,13 @@ pub const Loader = struct {
             return sky.prop;
         }
 
-        var sky = try scene.createSky(alloc);
+        const sky = try scene.createSky(alloc);
 
-        const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
-
-        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
-        const sky_image = try self.resources.images.store(alloc, Null, .{ .Float3 = image });
-
-        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
-
-        var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, sky);
-        sky_mat.commit();
-        const sky_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
-
-        var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, sky);
-        sun_mat.commit();
-        const sun_mat_id = try self.resources.materials.store(alloc, Null, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
-
-        sky.configure(sky_prop, sun_prop, sky_image, scene);
+        try sky.configure(alloc, scene);
 
         if (value.Object.get("parameters")) |parameters| {
             sky.setParameters(parameters, scene);
         }
-
-        try scene.createLight(alloc, sky_prop);
-        try scene.createLight(alloc, sun_prop);
 
         return sky.prop;
     }

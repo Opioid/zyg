@@ -1,6 +1,8 @@
-const Keyframe = @import("animation.zig").Keyframe;
-const scn = @import("../constants.zig");
-const Scene = @import("../scene.zig").Scene;
+const core = @import("core");
+const scn = core.scn;
+const Keyframe = scn.Keyframe;
+const Scene = scn.Scene;
+
 const base = @import("base");
 const json = base.json;
 const math = base.math;
@@ -24,7 +26,7 @@ pub fn load(
         if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
             const fps = json.readFloat(f64, entry.value_ptr.*);
             if (fps > 0.0) {
-                frame_step = @floatToInt(u64, @round(@intToFloat(f64, scn.Units_per_second) / fps));
+                frame_step = @floatToInt(u64, @round(@intToFloat(f64, scn.cnst.Units_per_second) / fps));
             }
         } else if (std.mem.eql(u8, "keyframes", entry.key_ptr.*)) {
             return loadKeyframes(
@@ -63,7 +65,7 @@ pub fn loadKeyframes(
                 var iter = n.Object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "time", entry.key_ptr.*)) {
-                        keyframe.time = scn.time(json.readFloat(f64, entry.value_ptr.*));
+                        keyframe.time = scn.cnst.time(json.readFloat(f64, entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                         json.readTransformation(entry.value_ptr.*, &keyframe.k);
                     }

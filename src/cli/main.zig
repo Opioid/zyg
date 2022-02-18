@@ -1,4 +1,5 @@
 const Options = @import("options.zig").Options;
+const SceneLoader = @import("scene_loader.zig").Loader;
 
 const core = @import("core");
 const log = core.log;
@@ -65,7 +66,7 @@ pub fn main() !void {
         }
     }
 
-    var scene_loader = scn.Loader.init(alloc, &resources, scn.mat.Provider.createFallbackMaterial());
+    var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
     defer scene_loader.deinit(alloc);
 
     log.info("Loading...", .{});
@@ -129,7 +130,7 @@ fn reloadFrameDependant(
     take: *tk.Take,
     take_text: []const u8,
     scene: *scn.Scene,
-    scene_loader: *scn.Loader,
+    scene_loader: *SceneLoader,
     resources: *resource.Manager,
 ) !void {
     var fs = &resources.fs;

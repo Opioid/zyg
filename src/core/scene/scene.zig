@@ -1,5 +1,5 @@
-const cnst = @import("constants.zig");
-const Prop = @import("prop/prop.zig").Prop;
+pub const cnst = @import("constants.zig");
+pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/tree.zig").Tree;
 const PropBvhBuilder = @import("prop/builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
@@ -8,12 +8,12 @@ const LightTreeBuilder = @import("light/tree_builder.zig").Builder;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
-const Material = @import("material/material.zig").Material;
+pub const Material = @import("material/material.zig").Material;
 const anim = @import("animation/animation.zig");
 const Animation = anim.Animation;
-const Keyframe = anim.Keyframe;
+pub const Keyframe = anim.Keyframe;
 const shp = @import("shape/shape.zig");
-const Shape = shp.Shape;
+pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
@@ -778,6 +778,16 @@ pub const Scene = struct {
         }
 
         return &self.sky.?;
+    }
+
+    pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
+        try self.images.append(alloc, item);
+        return @intCast(u32, self.images.items.len - 1);
+    }
+
+    pub fn createMaterial(self: *Scene, alloc: Allocator, item: Material) !u32 {
+        try self.materials.append(alloc, item);
+        return @intCast(u32, self.materials.items.len - 1);
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {

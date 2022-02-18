@@ -79,7 +79,11 @@ export fn su_init() i32 {
 
         const resources = &e.resources;
 
-        e.fallback_material = resources.materials.store(alloc, resource.Null, scn.mat.Provider.createFallbackMaterial()) catch {
+        e.fallback_material = resources.materials.store(
+            alloc,
+            resource.Null,
+            resource.MaterialProvider.createFallbackMaterial(),
+        ) catch {
             engine = null;
             return -1;
         };

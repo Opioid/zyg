@@ -1,14 +1,22 @@
 const log = @import("../log.zig");
 const Model = @import("model.zig").Model;
+const SkyMaterial = @import("material.zig").Material;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Canopy = @import("../scene/shape/canopy.zig").Canopy;
 const Worker = @import("../scene/worker.zig").Worker;
 const ComposedTransformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Texture = @import("../image/texture/texture.zig").Texture;
+const ts = @import("../image/texture/sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+
+// const SkyMaterial = @import("../sky/material.zig").Material;
+// const Texture = @import("../image/texture/texture.zig").Texture;
+
+// const img = @import("../image/image.zig");
 
 const base = @import("base");
 const json = base.json;
@@ -43,13 +51,26 @@ pub const Sky = struct {
 
     const Self = @This();
 
-    pub fn init() !Sky {
-        return Sky{ .model = try Model.init() };
-    }
+    pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
+        const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
 
-    pub fn configure(self: *Self, sky: u32, sun: u32, sky_image: u32, scene: *Scene) void {
-        self.sky = sky;
-        self.sun = sun;
+        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
+        const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
+
+        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
+
+        var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, self);
+        sky_mat.commit();
+        const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
+        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
+
+        var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, self);
+        sun_mat.commit();
+        const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
+        const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
+
+        self.sky = sky_prop;
+        self.sun = sun_prop;
         self.sky_image = sky_image;
 
         const trafo = Transformation{
@@ -58,7 +79,10 @@ pub const Sky = struct {
             .rotation = math.quaternion.initRotationX(math.degreesToRadians(90.0)),
         };
 
-        scene.propSetWorldTransformation(sky, trafo);
+        scene.propSetWorldTransformation(sky_prop, trafo);
+
+        try scene.createLight(alloc, sky_prop);
+        try scene.createLight(alloc, sun_prop);
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value, scene: *Scene) void {

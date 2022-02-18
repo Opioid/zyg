@@ -6,7 +6,7 @@ pub const progress = @import("progress.zig");
 pub const rendering = @import("rendering/driver.zig");
 pub const resource = @import("resource/manager.zig");
 pub const sampler = @import("sampler/sampler.zig");
-pub const scn = @import("scene/scene_loader.zig");
+pub const scn = @import("scene/scene.zig");
 pub const tk = @import("take/take_loader.zig");
 pub const tx = @import("image/texture/provider.zig");
 
