@@ -208,7 +208,7 @@ pub const Graph = struct {
             }
         } else {
             //    const frames = self.keyframes.items.ptr + f;
-            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity] + self.scene.num_interpolation_frames;
+            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
 
             var child = self.prop_topology.items[entity].child;
             while (Scene.Null != child) {
@@ -229,28 +229,25 @@ pub const Graph = struct {
             // const local_animation = true; //self.prop(entity).hasLocalAnimation();
             const local_animation = self.prop_properties.items[entity].is(.LocalAnimation);
 
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity] + self.scene.num_interpolation_frames;
+            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
 
             var i: u32 = 0;
             const len = self.scene.num_interpolation_frames;
             while (i < len) : (i += 1) {
                 const lf = if (local_animation) i else 0;
-                //self.frames_buffer[i] = trafo.transform(frames[lf]);
                 df[i] = trafo.transform(frames[lf]);
             }
-
-            //   self.scene.propSetFrames(entity, self.frames_buffer.ptr);
         }
 
         self.propPropagateTransformation(entity);
     }
 
-    fn propInheritTransformations(self: *Graph, entity: u32, frames: [*]math.Transformation) void {
+    fn propInheritTransformations(self: *Graph, entity: u32, frames: [*]const math.Transformation) void {
         //  const local_animation = self.prop(entity).hasLocalAnimation();
         const local_animation = self.prop_properties.items[entity].is(.LocalAnimation);
 
         const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
-        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity] + self.scene.num_interpolation_frames;
+        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
 
         var i: u32 = 0;
         const len = self.scene.num_interpolation_frames;

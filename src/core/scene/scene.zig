@@ -65,6 +65,7 @@ pub const Scene = struct {
     prop_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
 
+    camera_pos: Vec4f = undefined,
     caustic_aabb: AABB = undefined,
 
     props: ALU(Prop),
@@ -208,6 +209,8 @@ pub const Scene = struct {
         worker: Worker,
         threads: *Threads,
     ) !void {
+        self.camera_pos = camera_pos;
+
         const frames_start = time - (time % Tick_duration);
         self.current_time_start = frames_start;
 
@@ -411,11 +414,6 @@ pub const Scene = struct {
         return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
     }
 
-    pub fn propSetTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
-        const f = self.prop_frames.items[entity];
-        self.keyframes.items[f + self.num_interpolation_frames] = t;
-    }
-
     pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
         self.prop_world_transformations.items[entity].prepare(t);
         self.prop_world_positions.items[entity] = t.position;
@@ -424,9 +422,7 @@ pub const Scene = struct {
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
         self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
 
-        const num_world_frames = self.num_interpolation_frames;
-        const num_local_frames = num_world_frames;
-        const num_frames = num_world_frames + num_local_frames;
+        const num_frames = self.num_interpolation_frames;
 
         var i: u32 = 0;
         while (i < num_frames) : (i += 1) {
@@ -441,11 +437,8 @@ pub const Scene = struct {
     }
 
     pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]const math.Transformation) void {
-        const num_frames = self.num_interpolation_frames;
-        const f = self.prop_frames.items[entity];
-
-        const b = f + num_frames;
-        const e = b + num_frames;
+        const b = self.prop_frames.items[entity];
+        const e = b + self.num_interpolation_frames;
         const local_frames = self.keyframes.items[b..e];
 
         for (local_frames) |*lf, i| {
@@ -732,14 +725,6 @@ pub const Scene = struct {
         } else if (Null != f) {
             const frames = self.keyframes.items.ptr + f;
 
-            {
-                var i: u32 = 0;
-                const len = self.num_interpolation_frames;
-                while (i < len) : (i += 1) {
-                    frames[i].set(frames[len + i], camera_pos);
-                }
-            }
-
             var bounds = shape_aabb.transform(frames[0].toMat4x4());
 
             var i: u32 = 0;
@@ -758,6 +743,8 @@ pub const Scene = struct {
                 }
             }
 
+            bounds.translate(-camera_pos);
+
             self.prop_aabbs.items[entity] = bounds;
         }
     }
@@ -770,7 +757,10 @@ pub const Scene = struct {
         const a = frames[f.f];
         const b = frames[f.f + 1];
 
-        return Transformation.init(a.lerp(b, f.w));
+        var inter = a.lerp(b, f.w);
+        inter.position -= self.camera_pos;
+
+        return Transformation.init(inter);
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
