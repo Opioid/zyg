@@ -90,7 +90,7 @@ pub const Lighttracer = struct {
             return;
         }
 
-        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
@@ -258,7 +258,7 @@ pub const Lighttracer = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!isec.visibleInCamera(worker.super)) {
+        if (!isec.visibleInCamera(worker.super.scene.*)) {
             return false;
         }
 
@@ -291,9 +291,9 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
 
-        const material_ior = isec.material(worker.super).ior();
+        const material_ior = isec.material(worker.super.scene.*).ior();
         if (isec.subsurface and material_ior > 1.0) {
-            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
+            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }

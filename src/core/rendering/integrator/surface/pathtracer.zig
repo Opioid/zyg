@@ -99,7 +99,7 @@ pub const Pathtracer = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 

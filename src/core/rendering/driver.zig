@@ -139,13 +139,7 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.compile(
-            alloc,
-            camera_pos,
-            start,
-            self.workers[0].super,
-            self.threads,
-        );
+        try self.scene.compile(alloc, camera_pos, start, self.threads);
 
         camera.update(start, &self.workers[0].super);
 
@@ -186,13 +180,7 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.compile(
-            alloc,
-            camera_pos,
-            start,
-            self.workers[0].super,
-            self.threads,
-        );
+        try self.scene.compile(alloc, camera_pos, start, self.threads);
 
         camera.update(start, &self.workers[0].super);
 

@@ -9,6 +9,7 @@ pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
@@ -198,11 +199,11 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*),
+            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
             .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
         };
     }
@@ -433,11 +434,11 @@ pub const Shape = union(enum) {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, worker, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
             else => 0,
         };
     }

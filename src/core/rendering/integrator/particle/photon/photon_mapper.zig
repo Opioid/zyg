@@ -132,7 +132,7 @@ pub const Mapper = struct {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
@@ -170,9 +170,9 @@ pub const Mapper = struct {
                         if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
-                            const material_ior = isec.material(worker.super).ior();
+                            const material_ior = isec.material(worker.super.scene.*).ior();
                             if (isec.subsurface and material_ior > 1.0) {
-                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
+                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
                             }

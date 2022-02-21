@@ -177,7 +177,7 @@ pub const Worker = struct {
     }
 
     pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self);
+        return self.photon_map.li(isec, sample, self.super.scene.*);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -223,7 +223,7 @@ pub const Worker = struct {
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.super.interface_stack.straight(self.super)) {
+        if (!self.super.interface_stack.straight(self.super.scene.*)) {
             self.super.interface_stack.pop();
         }
 
@@ -275,7 +275,7 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        const material = isec.material(self.super);
+        const material = isec.material(self.super.scene.*);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();

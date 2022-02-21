@@ -1,5 +1,5 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
@@ -76,11 +76,11 @@ pub const Base = struct {
         self.properties.set(.ScatteringVolume, math.anyGreaterZero3(cc.s));
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
+    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
-            return ts.sample2D_1(key, mask, uv, worker.scene.*);
+            return ts.sample2D_1(key, mask, uv, scene);
         }
 
         return 1.0;

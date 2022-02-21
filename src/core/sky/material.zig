@@ -4,7 +4,6 @@ const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Emittance = @import("../scene/light/emittance.zig").Emittance;
-const Worker = @import("../scene/worker.zig").Worker;
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
@@ -151,13 +150,13 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         var radiance: Vec4f = undefined;
 
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
-            radiance = ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
+            radiance = ts.sample2D_3(key, self.emission_map, rs.uv, scene);
         } else {
             radiance = self.sun_radiance.eval(self.sky.sunV(-wo));
         }
@@ -167,10 +166,10 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+            return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, scene);
         }
 
         return self.sun_radiance.eval(self.sky.sunV(wi));

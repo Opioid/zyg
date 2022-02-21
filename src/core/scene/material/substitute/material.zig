@@ -102,7 +102,7 @@ pub const Material = struct {
         self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: Worker) Sample {
         if (rs.subsurface) {
             const g = self.super.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
@@ -113,7 +113,7 @@ pub const Material = struct {
         const color = if (self.checkers[3] > 0.0) self.analyticCheckers(
             rs,
             key,
-            worker.*,
+            worker,
         ) else if (self.super.color_map.valid()) ts.sample2D_3(
             key,
             self.super.color_map,
@@ -222,20 +222,20 @@ pub const Material = struct {
         n: Vec4f,
         uvw: Vec4f,
         filter: ?ts.Filter,
-        worker: Worker,
+        scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
         const uv = Vec2f{ uvw[0], uvw[1] };
 
         const ef = @splat(4, self.emission_factor);
         const radiance = if (self.emission_map.valid())
-            ef * ts.sample2D_3(key, self.emission_map, uv, worker.scene.*)
+            ef * ts.sample2D_3(key, self.emission_map, uv, scene)
         else
             ef * self.super.emission;
 
         var coating_thickness: f32 = undefined;
         if (self.coating.thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, worker.scene.*);
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, scene);
             coating_thickness = self.coating.thickness * relative_thickness;
         } else {
             coating_thickness = self.coating.thickness;

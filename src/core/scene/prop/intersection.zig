@@ -2,10 +2,12 @@ const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
 const Ray = @import("../ray.zig").Ray;
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const mat = @import("../material/material.zig");
 const ro = @import("../ray_offset.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -16,24 +18,24 @@ pub const Intersection = struct {
 
     const Self = @This();
 
-    pub fn material(self: Self, worker: Worker) mat.Material {
-        return worker.scene.propMaterial(self.prop, self.geo.part);
+    pub fn material(self: Self, scene: Scene) mat.Material {
+        return scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn shape(self: Self, worker: Worker) Shape {
-        return worker.scene.propShape(self.prop);
+    pub fn shape(self: Self, scene: Scene) Shape {
+        return scene.propShape(self.prop);
     }
 
-    pub fn lightId(self: Self, worker: Worker) u32 {
-        return worker.scene.propLightId(self.prop, self.geo.part);
+    pub fn lightId(self: Self, scene: Scene) u32 {
+        return scene.propLightId(self.prop, self.geo.part);
     }
 
-    pub fn visibleInCamera(self: Self, worker: Worker) bool {
-        return worker.scene.prop(self.prop).visibleInCamera();
+    pub fn visibleInCamera(self: Self, scene: Scene) bool {
+        return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, filter: ?Filter, worker: Worker) f32 {
-        return self.material(worker).opacity(self.geo.uv, filter, worker);
+    pub fn opacity(self: Self, filter: ?Filter, scene: Scene) f32 {
+        return self.material(scene).opacity(self.geo.uv, filter, scene);
     }
 
     pub fn sample(
@@ -42,9 +44,9 @@ pub const Intersection = struct {
         ray: Ray,
         filter: ?Filter,
         avoid_caustics: bool,
-        worker: *Worker,
+        worker: Worker,
     ) mat.Sample {
-        const m = self.material(worker.*);
+        const m = self.material(worker.scene.*);
         const p = self.geo.p;
         const b = self.geo.b;
 
@@ -78,10 +80,10 @@ pub const Intersection = struct {
         self: Self,
         wo: Vec4f,
         filter: ?Filter,
-        worker: Worker,
+        scene: Scene,
         pure_emissive: *bool,
     ) ?Vec4f {
-        const m = self.material(worker);
+        const m = self.material(scene);
 
         pure_emissive.* = m.pureEmissive();
 
@@ -89,10 +91,10 @@ pub const Intersection = struct {
             return null;
         }
 
-        const extent = worker.scene.lightArea(self.prop, self.geo.part);
+        const extent = scene.lightArea(self.prop, self.geo.part);
 
         const uv = self.geo.uv;
-        return m.evaluateRadiance(wo, self.geo.geo_n, .{ uv[0], uv[1], 0.0, 0.0 }, extent, filter, worker);
+        return m.evaluateRadiance(wo, self.geo.geo_n, .{ uv[0], uv[1], 0.0, 0.0 }, extent, filter, scene);
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

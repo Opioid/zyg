@@ -2,7 +2,6 @@ const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
-const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
 const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
@@ -111,12 +110,12 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
-        var rad = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+        var rad = self.emittance.radiance(scene.lightArea(rs.prop, rs.part));
 
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, rs.filter);
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
+            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, scene);
         }
 
         var result = Sample.init(rs, wo, rad);
@@ -124,12 +123,12 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, scene: Scene) Vec4f {
         const rad = self.emittance.radiance(extent);
 
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return rad * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+            return rad * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, scene);
         }
 
         return rad;

@@ -71,7 +71,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -105,7 +105,7 @@ pub const AOV = struct {
 
     fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var vec: Vec4f = undefined;
 

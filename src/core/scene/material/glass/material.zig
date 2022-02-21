@@ -1,7 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Worker = @import("../../worker.zig").Worker;
+const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
@@ -37,13 +37,13 @@ pub const Material = struct {
         self.alpha = roughness * roughness;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
         var alpha: f32 = undefined;
 
         if (self.roughness_map.valid()) {
-            const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, worker.scene.*);
+            const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, scene);
             const r = ggx.mapRoughness(roughness);
             alpha = r * r;
         } else {
@@ -63,7 +63,7 @@ pub const Material = struct {
         );
 
         if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, scene);
             const tb = math.orthonormalBasis3(n);
 
             result.super.layer.setTangentFrame(tb[0], tb[1], n);
@@ -74,8 +74,8 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
-        const o = self.super.opacity(uv, filter, worker);
+    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) ?Vec4f {
+        const o = self.super.opacity(uv, filter, scene);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;

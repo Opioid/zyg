@@ -1,4 +1,5 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
+const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -223,7 +224,7 @@ pub const PathtracerMIS = struct {
                             isec.*,
                             effective_bxdf_pdf,
                             state,
-                            worker.*,
+                            worker.super.scene.*,
                         );
 
                         result += @splat(4, w) * (throughput * vr.li);
@@ -255,14 +256,14 @@ pub const PathtracerMIS = struct {
                 sample_result,
                 state,
                 filter,
-                worker.*,
+                worker.super.scene.*,
                 &pure_emissive,
             );
 
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.andSet(.Direct, !isec.visibleInCamera(worker.super) and ray.ray.maxT() >= scn.Ray_max_t);
+                state.andSet(.Direct, !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t);
                 break;
             }
 
@@ -356,7 +357,7 @@ pub const PathtracerMIS = struct {
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(light_sample, .Nearest, worker.super);
+        const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
@@ -372,12 +373,10 @@ pub const PathtracerMIS = struct {
         sample_result: BxdfSample,
         state: PathState,
         filter: ?Filter,
-        worker: Worker,
+        scene: Scene,
         pure_emissive: *bool,
     ) Vec4f {
-        const scene_worker = worker.super;
-
-        const light_id = isec.lightId(scene_worker);
+        const light_id = isec.lightId(scene);
         if (!Light.isAreaLight(light_id)) {
             pure_emissive.* = false;
             return @splat(4, @as(f32, 0.0));
@@ -388,7 +387,7 @@ pub const PathtracerMIS = struct {
         const ls_energy = isec.evaluateRadiance(
             wo,
             filter,
-            worker.super,
+            scene,
             pure_emissive,
         ) orelse return @splat(4, @as(f32, 0.0));
 
@@ -399,10 +398,10 @@ pub const PathtracerMIS = struct {
         const translucent = state.is(.IsTranslucent);
         const split = self.splitting(ray.depth);
 
-        const light_pick = scene_worker.scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
-        const light = scene_worker.scene.light(light_pick.offset);
+        const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light = scene.light(light_pick.offset);
 
-        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene_worker);
+        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene);
         const weight = hlp.powerHeuristic(sample_result.pdf, ls_pdf * light_pick.pdf);
 
         return @splat(4, weight) * ls_energy;
@@ -415,11 +414,9 @@ pub const PathtracerMIS = struct {
         isec: Intersection,
         bxdf_pdf: f32,
         state: PathState,
-        worker: Worker,
+        scene: Scene,
     ) f32 {
-        const scene_worker = worker.super;
-
-        const light_id = isec.lightId(scene_worker);
+        const light_id = isec.lightId(scene);
         if (!Light.isLight(light_id)) {
             return 0.0;
         }
@@ -431,10 +428,10 @@ pub const PathtracerMIS = struct {
         const translucent = state.is(.IsTranslucent);
         const split = self.splitting(ray.depth);
 
-        const light_pick = scene_worker.scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
-        const light = scene_worker.scene.light(light_pick.offset);
+        const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light = scene.light(light_pick.offset);
 
-        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene_worker);
+        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene);
 
         return hlp.powerHeuristic(bxdf_pdf, ls_pdf * light_pick.pdf);
     }

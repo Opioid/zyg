@@ -201,14 +201,7 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(
-        self: *Scene,
-        alloc: Allocator,
-        camera_pos: Vec4f,
-        time: u64,
-        worker: Worker,
-        threads: *Threads,
-    ) !void {
+    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads) !void {
         self.camera_pos = camera_pos;
 
         const frames_start = time - (time % Tick_duration);
@@ -241,7 +234,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(alloc, i, time, self, worker, threads);
+            l.prepareSampling(alloc, i, time, self, threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -458,7 +451,6 @@ pub const Scene = struct {
         light_id: usize,
         time: u64,
         volume: bool,
-        worker: Worker,
         threads: *Threads,
     ) void {
         var shape_inst = self.propShapePtr(entity);
@@ -469,7 +461,7 @@ pub const Scene = struct {
 
         const m = self.material_ids.items[p];
 
-        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, worker, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self.*, threads) catch 0;
         self.lights.items[light_id].variant = @intCast(u16, variant);
 
         const trafo = self.propTransformationAt(entity, time);
