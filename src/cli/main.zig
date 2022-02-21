@@ -49,7 +49,7 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var graph = Graph{ .scene = try scn.Scene.init(alloc) };
+    var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
     var resources = try resource.Manager.init(alloc, &graph.scene, &threads);

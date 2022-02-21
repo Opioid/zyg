@@ -60,6 +60,8 @@ pub const Loader = struct {
     }
 
     pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: Take, graph: *Graph) !void {
+        try graph.bumpProps(alloc);
+
         const camera = take.view.camera;
 
         graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
@@ -142,21 +144,17 @@ pub const Loader = struct {
             const type_name = type_node.String;
 
             var entity_id: u32 = Prop.Null;
+            var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                const prop_id = try self.loadProp(alloc, entity, local_materials, scene);
-
-                if (Prop.Null != prop_id and scene.prop(prop_id).visibleInReflection()) {
-                    try scene.createLight(alloc, prop_id);
-                }
-
-                entity_id = prop_id;
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
+                is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, scene);
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                entity_id = try scene.createEntity(alloc);
+                entity_id = try graph.createEntity(alloc);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
-                entity_id = try loadSky(alloc, entity, scene);
+                entity_id = try loadSky(alloc, entity, graph);
             }
 
             if (Prop.Null == entity_id) {
@@ -202,12 +200,12 @@ pub const Loader = struct {
                 false;
 
             if (Prop.Null != parent_id) {
-                try scene.propSerializeChild(alloc, parent_id, entity_id);
+                try graph.propSerializeChild(alloc, parent_id, entity_id);
             }
 
             if (!animation) {
                 if (scene.propHasAnimatedFrames(entity_id)) {
-                    scene.propSetTransformation(entity_id, trafo);
+                    graph.propSetTransformation(entity_id, trafo);
                 } else {
                     if (Prop.Null != parent_id) {
                         trafo = parent_trafo.transform(trafo);
@@ -219,6 +217,10 @@ pub const Loader = struct {
 
             if (visibility_ptr) |visibility| {
                 setVisibility(entity_id, visibility.*, scene);
+            }
+
+            if (is_light and scene.prop(entity_id).visibleInReflection()) {
+                try scene.createLight(alloc, entity_id);
             }
 
             if (children_ptr) |children| {
@@ -239,8 +241,10 @@ pub const Loader = struct {
         alloc: Allocator,
         value: std.json.Value,
         local_materials: LocalMaterials,
-        scene: *Scene,
+        graph: *Graph,
     ) !u32 {
+        const scene = &graph.scene;
+
         const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else return Prop.Null;
 
         const num_materials = scene.shape(shape).numMaterials();
@@ -256,13 +260,7 @@ pub const Loader = struct {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        const prop = try scene.createProp(alloc, shape, self.materials.items);
-
-        if (value.Object.get("visibility")) |v| {
-            setVisibility(prop, v, scene);
-        }
-
-        return prop;
+        return try graph.createProp(alloc, shape, self.materials.items);
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
@@ -373,7 +371,9 @@ pub const Loader = struct {
         return material;
     }
 
-    fn loadSky(alloc: Allocator, value: std.json.Value, scene: *Scene) !u32 {
+    fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
+        const scene = &graph.scene;
+
         if (scene.sky) |*sky| {
             if (value.Object.get("parameters")) |parameters| {
                 sky.setParameters(parameters, scene);
@@ -383,6 +383,8 @@ pub const Loader = struct {
         }
 
         const sky = try scene.createSky(alloc);
+
+        try graph.bumpProps(alloc);
 
         try sky.configure(alloc, scene);
 

@@ -14,7 +14,7 @@ pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
-const Transformation = @import("composed_transformation.zig").ComposedTransformation;
+pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 
 const base = @import("base");
@@ -35,7 +35,7 @@ pub const Scene = struct {
     const Num_steps = 4;
     const Interval = 1.0 / @intToFloat(f32, Num_steps);
 
-    const Num_reserved_props = 32;
+    pub const Num_reserved_props = 32;
 
     pub const Null = Prop.Null;
 
@@ -72,7 +72,6 @@ pub const Scene = struct {
     prop_world_positions: ALU(Vec4f),
     prop_parts: ALU(u32),
     prop_frames: ALU(u32),
-    prop_topology: ALU(Prop.Topology),
     prop_aabbs: ALU(AABB),
 
     lights: ALU(Light),
@@ -118,7 +117,6 @@ pub const Scene = struct {
             .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
             .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .prop_frames = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_topology = try ALU(Prop.Topology).initCapacity(alloc, Num_reserved_props),
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
             .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
@@ -161,7 +159,6 @@ pub const Scene = struct {
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
         self.prop_aabbs.deinit(alloc);
-        self.prop_topology.deinit(alloc);
         self.prop_frames.deinit(alloc);
         self.prop_parts.deinit(alloc);
         self.prop_world_positions.deinit(alloc);
@@ -184,7 +181,6 @@ pub const Scene = struct {
         self.light_aabbs.clearRetainingCapacity();
         self.lights.clearRetainingCapacity();
         self.prop_aabbs.clearRetainingCapacity();
-        self.prop_topology.clearRetainingCapacity();
         self.prop_frames.clearRetainingCapacity();
         self.prop_parts.clearRetainingCapacity();
         self.prop_world_positions.clearRetainingCapacity();
@@ -311,7 +307,7 @@ pub const Scene = struct {
     }
 
     pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
-        const p = self.allocateProp(alloc) catch return Prop.Null;
+        const p = self.allocateProp(alloc) catch return Null;
 
         self.props.items[p].configure(shape_id, materials, self.*);
 
@@ -329,7 +325,7 @@ pub const Scene = struct {
             var i: u32 = 0;
             while (i < num_parts) : (i += 1) {
                 try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
-                try self.light_ids.append(alloc, Prop.Null);
+                try self.light_ids.append(alloc, Null);
             }
         }
 
@@ -400,7 +396,7 @@ pub const Scene = struct {
     pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
         const f = self.prop_frames.items[entity];
 
-        if (Prop.Null == f) {
+        if (Null == f) {
             return self.prop_world_transformations.items[entity];
         }
 
@@ -425,27 +421,11 @@ pub const Scene = struct {
         self.prop_world_positions.items[entity] = t.position;
     }
 
-    pub fn propSerializeChild(self: *Scene, alloc: Allocator, parent_id: u32, child_id: u32) !void {
-        self.props.items[child_id].setHasParent();
-
-        if (self.propHasAnimatedFrames(parent_id) and !self.propHasAnimatedFrames(child_id)) {
-            // This is the case if child has no animation attached to it directly
-            try self.propAllocateFrames(alloc, child_id, false);
-        }
-
-        const pt = &self.prop_topology.items[parent_id];
-        if (Prop.Null == pt.child) {
-            pt.child = child_id;
-        } else {
-            self.prop_topology.items[self.prop_topology.items.len - 2].next = child_id;
-        }
-    }
-
-    pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32, local_animation: bool) !void {
+    pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
         self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
 
         const num_world_frames = self.num_interpolation_frames;
-        const num_local_frames = if (local_animation) num_world_frames else 1;
+        const num_local_frames = num_world_frames;
         const num_frames = num_world_frames + num_local_frames;
 
         var i: u32 = 0;
@@ -453,14 +433,14 @@ pub const Scene = struct {
             try self.keyframes.append(alloc, .{});
         }
 
-        self.props.items[entity].configureAnimated(local_animation, self.*);
+        self.props.items[entity].configureAnimated(self.*);
     }
 
     pub fn propHasAnimatedFrames(self: Scene, entity: u32) bool {
-        return Prop.Null != self.prop_frames.items[entity];
+        return Null != self.prop_frames.items[entity];
     }
 
-    pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]math.Transformation) void {
+    pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]const math.Transformation) void {
         const num_frames = self.num_interpolation_frames;
         const f = self.prop_frames.items[entity];
 
@@ -512,7 +492,7 @@ pub const Scene = struct {
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
 
-        if (Prop.Null == f) {
+        if (Null == f) {
             var bb = part_aabb.transform(trafo.objectToWorld());
             bb.cacheRadius();
 
@@ -548,10 +528,6 @@ pub const Scene = struct {
     pub fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
-    }
-
-    pub fn propTopology(self: Scene, entity: usize) Prop.Topology {
-        return self.prop_topology.items[entity];
     }
 
     pub fn propLightId(self: Scene, entity: u32, part: u32) u32 {
@@ -634,7 +610,7 @@ pub const Scene = struct {
         const p = self.prop_parts.items[entity] + part;
         const light_id = self.light_ids.items[p];
 
-        if (Prop.Null == light_id) {
+        if (Null == light_id) {
             return 1.0;
         }
 
@@ -664,8 +640,7 @@ pub const Scene = struct {
         try self.prop_world_transformations.append(alloc, .{});
         try self.prop_world_positions.append(alloc, .{});
         try self.prop_parts.append(alloc, 0);
-        try self.prop_frames.append(alloc, Prop.Null);
-        try self.prop_topology.append(alloc, .{});
+        try self.prop_frames.append(alloc, Null);
         try self.prop_aabbs.append(alloc, .{});
 
         return @intCast(u32, self.props.items.len - 1);
@@ -680,7 +655,6 @@ pub const Scene = struct {
         part: u32,
     ) !void {
         try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
-
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }
@@ -745,43 +719,26 @@ pub const Scene = struct {
     }
 
     fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
-        if (self.props.items[entity].noParent()) {
-            const f = self.prop_frames.items[entity];
+        const f = self.prop_frames.items[entity];
 
-            if (Prop.Null != f) {
-                const frames = self.keyframes.items.ptr + f;
+        const shape_aabb = self.propShape(entity).aabb();
 
+        if (Null == f) {
+            var trafo = &self.prop_world_transformations.items[entity];
+
+            trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
+
+            self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
+        } else if (Null != f) {
+            const frames = self.keyframes.items.ptr + f;
+
+            {
                 var i: u32 = 0;
                 const len = self.num_interpolation_frames;
                 while (i < len) : (i += 1) {
                     frames[i].set(frames[len + i], camera_pos);
                 }
             }
-
-            self.propPropagateTransformation(entity, camera_pos);
-        }
-    }
-
-    fn propPropagateTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
-        const f = self.prop_frames.items[entity];
-
-        const shape_aabb = self.propShape(entity).aabb();
-
-        if (Prop.Null == f) {
-            var trafo = &self.prop_world_transformations.items[entity];
-
-            trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
-
-            self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
-
-            var child = self.propTopology(entity).child;
-            while (Prop.Null != child) {
-                self.propInheritTransformation(child, trafo.*, camera_pos);
-
-                child = self.propTopology(child).next;
-            }
-        } else {
-            const frames = self.keyframes.items.ptr + f;
 
             var bounds = shape_aabb.transform(frames[0].toMat4x4());
 
@@ -802,58 +759,7 @@ pub const Scene = struct {
             }
 
             self.prop_aabbs.items[entity] = bounds;
-
-            var child = self.propTopology(entity).child;
-            while (Prop.Null != child) {
-                self.propInheritTransformations(child, frames, camera_pos);
-
-                child = self.propTopology(child).next;
-            }
         }
-    }
-
-    fn propInheritTransformation(
-        self: *Scene,
-        entity: u32,
-        trafo: Transformation,
-        camera_pos: Vec4f,
-    ) void {
-        const f = self.prop_frames.items[entity];
-
-        if (Prop.Null != f) {
-            const frames = self.keyframes.items.ptr + f;
-
-            const local_animation = self.prop(entity).hasLocalAnimation();
-
-            var i: u32 = 0;
-            const len = self.num_interpolation_frames;
-            while (i < len) : (i += 1) {
-                const lf = if (local_animation) i else 0;
-                frames[i] = trafo.transform(frames[len + lf]);
-            }
-        }
-
-        self.propPropagateTransformation(entity, camera_pos);
-    }
-
-    fn propInheritTransformations(
-        self: *Scene,
-        entity: u32,
-        frames: [*]math.Transformation,
-        camera_pos: Vec4f,
-    ) void {
-        const local_animation = self.prop(entity).hasLocalAnimation();
-
-        const tf = self.keyframes.items.ptr + self.prop_frames.items[entity];
-
-        var i: u32 = 0;
-        const len = self.num_interpolation_frames;
-        while (i < len) : (i += 1) {
-            const lf = if (local_animation) i else 0;
-            tf[i] = frames[i].transform(tf[len + lf]);
-        }
-
-        self.propPropagateTransformation(entity, camera_pos);
     }
 
     fn propAnimatedTransformationAt(self: Scene, frames_id: u32, time: u64) Transformation {
