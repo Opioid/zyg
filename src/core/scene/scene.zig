@@ -21,6 +21,7 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
+const Mat4x4 = math.Mat4x4;
 const Distribution1D = math.Distribution1D;
 const Threads = base.thread.Pool;
 
@@ -382,7 +383,12 @@ pub const Scene = struct {
     }
 
     pub fn propWorldPosition(self: Scene, entity: u32) Vec4f {
-        return self.prop_world_transformations.items[entity].position;
+        const f = self.prop_frames.items[entity];
+        if (Null == f) {
+            return self.prop_world_transformations.items[entity].position;
+        }
+
+        return self.keyframes.items[f].position;
     }
 
     pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
@@ -422,13 +428,11 @@ pub const Scene = struct {
     }
 
     pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]const math.Transformation) void {
+        const len = self.num_interpolation_frames;
         const b = self.prop_frames.items[entity];
-        const e = b + self.num_interpolation_frames;
-        const local_frames = self.keyframes.items[b..e];
+        const e = b + len;
 
-        for (local_frames) |*lf, i| {
-            lf.* = frames[i];
-        }
+        std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
     }
 
     pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
@@ -468,6 +472,7 @@ pub const Scene = struct {
 
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
+        const part_cone = shape_inst.cone(part);
 
         if (Null == f) {
             var bb = part_aabb.transform(trafo.objectToWorld());
@@ -475,10 +480,51 @@ pub const Scene = struct {
 
             self.light_aabbs.items[light_id] = bb;
 
-            const cone = shape_inst.cone(part);
-            const tc = trafo.objectToWorldNormal(cone);
-            self.light_cones.items[light_id] = Vec4f{ tc[0], tc[1], tc[2], cone[3] };
-        } else {}
+            const tc = trafo.objectToWorldNormal(part_cone);
+            self.light_cones.items[light_id] = Vec4f{ tc[0], tc[1], tc[2], part_cone[3] };
+        } else {
+            const frames = self.keyframes.items.ptr + f;
+
+            var rotation = math.quaternion.toMat3x3(frames[0].rotation);
+            var composed = Mat4x4.compose(rotation, frames[0].scale, frames[0].position);
+
+            var bb = part_aabb.transform(composed);
+
+            var tc = rotation.transformVector(part_cone);
+            var cone = Vec4f{ tc[0], tc[1], tc[2], part_cone[3] };
+
+            var i: u32 = 0;
+            const len = self.num_interpolation_frames - 1;
+            while (i < len) : (i += 1) {
+                const a = frames[i];
+                const b = frames[i + 1];
+
+                var t = Interval;
+                var j: u32 = Num_steps - 1;
+                while (j > 0) : (j -= 1) {
+                    const inter = a.lerp(b, t);
+
+                    rotation = math.quaternion.toMat3x3(inter.rotation);
+                    composed = Mat4x4.compose(rotation, inter.scale, inter.position);
+
+                    bb.mergeAssign(part_aabb.transform(composed));
+                    cone = math.cone.merge(cone, math.cone.transform(rotation, cone));
+
+                    t += Interval;
+                }
+            }
+
+            rotation = math.quaternion.toMat3x3(frames[len].rotation);
+            composed = Mat4x4.compose(rotation, frames[len].scale, frames[len].position);
+
+            bb.mergeAssign(part_aabb.transform(composed));
+            cone = math.cone.merge(cone, math.cone.transform(rotation, cone));
+
+            bb.cacheRadius();
+
+            self.light_aabbs.items[light_id] = bb;
+            self.light_cones.items[light_id] = cone;
+        }
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
             self.lights.items[light_id].power(average_radiance, self.aabb(), self.*),
@@ -717,7 +763,6 @@ pub const Scene = struct {
                 const b = frames[i + 1];
 
                 var t = Interval;
-
                 var j: u32 = Num_steps - 1;
                 while (j > 0) : (j -= 1) {
                     const inter = a.lerp(b, t);
@@ -725,6 +770,8 @@ pub const Scene = struct {
                     t += Interval;
                 }
             }
+
+            bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
         }
 
         bounds.translate(-camera_pos);
