@@ -16,14 +16,7 @@ pub const ComposedTransformation = struct {
 
     pub fn init(t: Transformation) Self {
         var self = Self{};
-        self.prepare(t);
 
-        self.world_to_object = self.objectToWorld().affineInverted();
-
-        return self;
-    }
-
-    pub fn prepare(self: *Self, t: Transformation) void {
         self.rotation = quaternion.toMat3x3(t.rotation);
 
         self.rotation.r[0][3] = t.scale[0];
@@ -31,12 +24,10 @@ pub const ComposedTransformation = struct {
         self.rotation.r[2][3] = t.scale[2];
 
         self.position = t.position;
-    }
-
-    pub fn setPosition(self: *Self, p: Vec4f) void {
-        self.position = p;
 
         self.world_to_object = self.objectToWorld().affineInverted();
+
+        return self;
     }
 
     pub fn translate(self: *Self, v: Vec4f) void {

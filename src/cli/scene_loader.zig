@@ -253,7 +253,7 @@ pub const Loader = struct {
         self.materials.clearRetainingCapacity();
 
         if (value.Object.get("materials")) |m| {
-            try self.loadMaterials(alloc, m, local_materials, scene.*);
+            try self.loadMaterials(alloc, m, local_materials);
         }
 
         while (self.materials.items.len < num_materials) {
@@ -323,10 +323,9 @@ pub const Loader = struct {
         alloc: Allocator,
         value: std.json.Value,
         local_materials: LocalMaterials,
-        scene: Scene,
     ) !void {
         for (value.Array.items) |m| {
-            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials, scene));
+            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials));
 
             if (self.materials.capacity == self.materials.items.len) {
                 return;
@@ -339,7 +338,6 @@ pub const Loader = struct {
         alloc: Allocator,
         name: []const u8,
         local_materials: LocalMaterials,
-        scene: Scene,
     ) u32 {
         // First, check if we maybe already have cached the material.
         if (self.resources.getByName(Material, name, .{})) |material| {
@@ -353,10 +351,6 @@ pub const Loader = struct {
             const material = self.resources.loadData(Material, alloc, Null, data, .{}) catch Null;
             if (Null != material) {
                 self.resources.associate(Material, alloc, material, name, .{}) catch {};
-
-                if (self.resources.get(Material, material)) |mp| {
-                    mp.commit(alloc, scene, self.resources.threads) catch {};
-                }
                 return material;
             }
         }
@@ -367,7 +361,6 @@ pub const Loader = struct {
             return self.fallback_material;
         };
 
-        if (self.resources.get(Material, material)) |mp| mp.commit(alloc, scene, self.resources.threads) catch {};
         return material;
     }
 

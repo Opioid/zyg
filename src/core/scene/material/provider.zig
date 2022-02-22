@@ -75,7 +75,9 @@ pub const Provider = struct {
 
         const root = document.root;
 
-        return try self.loadMaterial(alloc, root, resources);
+        var material = try self.loadMaterial(alloc, root, resources);
+        try material.commit(alloc, resources.scene.*, resources.threads);
+        return material;
     }
 
     pub fn loadData(
@@ -89,7 +91,9 @@ pub const Provider = struct {
 
         const value = @intToPtr(*std.json.Value, data);
 
-        return try self.loadMaterial(alloc, value.*, resources);
+        var material = try self.loadMaterial(alloc, value.*, resources);
+        try material.commit(alloc, resources.scene.*, resources.threads);
+        return material;
     }
 
     pub fn createFallbackMaterial() Material {

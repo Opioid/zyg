@@ -294,10 +294,6 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
 
         const material = e.resources.loadData(scn.Material, e.alloc, id, data, .{}) catch return -1;
 
-        if (e.resources.get(scn.Material, material)) |mp| {
-            mp.commit(e.alloc, e.scene, &e.threads) catch return -1;
-        }
-
         return @intCast(i32, material);
     }
 

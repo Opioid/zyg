@@ -26,6 +26,7 @@ const Error = error{
 };
 
 pub const Manager = struct {
+    scene: *Scene,
     threads: *Threads,
 
     fs: Filesystem,
@@ -36,6 +37,7 @@ pub const Manager = struct {
 
     pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Manager {
         return Manager{
+            .scene = scene,
             .threads = threads,
             .fs = try Filesystem.init(alloc),
             .images = Images.init(try ImageProvider.init(alloc), &scene.images),
