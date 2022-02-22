@@ -5,6 +5,8 @@ const Mat4x4 = math.Mat4x4;
 const quaternion = math.quaternion;
 const Transformation = math.Transformation;
 
+const std = @import("std");
+
 pub const ComposedTransformation = struct {
     world_to_object: Mat4x4 = undefined,
     rotation: Mat3x3 = undefined,
@@ -35,6 +37,13 @@ pub const ComposedTransformation = struct {
         self.position = p;
 
         self.world_to_object = self.objectToWorld().affineInverted();
+    }
+
+    pub fn translate(self: *Self, v: Vec4f) void {
+        self.position += v;
+
+        const t = self.worldToObjectVector(v);
+        self.world_to_object.r[3] -= t;
     }
 
     pub fn scaleX(self: Self) f32 {

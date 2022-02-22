@@ -95,10 +95,6 @@ pub const Mat4x4 = struct {
         return self.r[3];
     }
 
-    pub fn setElem(self: *Mat4x4, cy: u32, cx: u32, s: f32) void {
-        self.r[cy][cx] = s;
-    }
-
     pub fn transformVector(self: Mat4x4, v: Vec4f) Vec4f {
         // return .{
         //     v[0] * self.m(0, 0) + v[1] * self.m(1, 0) + v[2] * self.m(2, 0),
@@ -139,65 +135,55 @@ pub const Mat4x4 = struct {
     pub fn affineInverted(self: Mat4x4) Mat4x4 {
         var o: Mat4x4 = undefined;
 
-        var id: f32 = undefined;
+        const m00_11 = self.m(0, 0) * self.m(1, 1);
+        const m01_12 = self.m(0, 1) * self.m(1, 2);
+        const m02_10 = self.m(0, 2) * self.m(1, 0);
+        const m00_12 = self.m(0, 0) * self.m(1, 2);
+        const m01_10 = self.m(0, 1) * self.m(1, 0);
+        const m02_11 = self.m(0, 2) * self.m(1, 1);
 
-        {
-            const m00_11 = self.m(0, 0) * self.m(1, 1);
-            const m01_12 = self.m(0, 1) * self.m(1, 2);
-            const m02_10 = self.m(0, 2) * self.m(1, 0);
-            const m00_12 = self.m(0, 0) * self.m(1, 2);
-            const m01_10 = self.m(0, 1) * self.m(1, 0);
-            const m02_11 = self.m(0, 2) * self.m(1, 1);
+        const id = 1.0 / ((m00_11 * self.m(2, 2) + m01_12 * self.m(2, 0) + m02_10 * self.m(2, 1)) -
+            (m00_12 * self.m(2, 1) + m01_10 * self.m(2, 2) + m02_11 * self.m(2, 0)));
 
-            id = 1.0 / ((m00_11 * self.m(2, 2) + m01_12 * self.m(2, 0) + m02_10 * self.m(2, 1)) -
-                (m00_12 * self.m(2, 1) + m01_10 * self.m(2, 2) + m02_11 * self.m(2, 0)));
+        o.r[0][2] = (m01_12 - m02_11) * id;
+        o.r[1][2] = (m02_10 - m00_12) * id;
+        o.r[2][2] = (m00_11 - m01_10) * id;
+        o.r[3][2] = ((m00_12 * self.m(3, 1) + m01_10 * self.m(3, 2) + m02_11 * self.m(3, 0)) -
+            (m00_11 * self.m(3, 2) + m01_12 * self.m(3, 0) + m02_10 * self.m(3, 1))) *
+            id;
 
-            o.r[0][2] = (m01_12 - m02_11) * id;
-            o.r[1][2] = (m02_10 - m00_12) * id;
-            o.r[2][2] = (m00_11 - m01_10) * id;
-            o.r[3][2] = ((m00_12 * self.m(3, 1) + m01_10 * self.m(3, 2) + m02_11 * self.m(3, 0)) -
-                (m00_11 * self.m(3, 2) + m01_12 * self.m(3, 0) + m02_10 * self.m(3, 1))) *
-                id;
-        }
+        const m11_22 = self.m(1, 1) * self.m(2, 2);
+        const m12_21 = self.m(1, 2) * self.m(2, 1);
+        const m12_20 = self.m(1, 2) * self.m(2, 0);
+        const m10_22 = self.m(1, 0) * self.m(2, 2);
+        const m10_21 = self.m(1, 0) * self.m(2, 1);
+        const m11_20 = self.m(1, 1) * self.m(2, 0);
 
-        {
-            const m11_22 = self.m(1, 1) * self.m(2, 2);
-            const m12_21 = self.m(1, 2) * self.m(2, 1);
-            const m12_20 = self.m(1, 2) * self.m(2, 0);
-            const m10_22 = self.m(1, 0) * self.m(2, 2);
-            const m10_21 = self.m(1, 0) * self.m(2, 1);
-            const m11_20 = self.m(1, 1) * self.m(2, 0);
+        o.r[0][0] = (m11_22 - m12_21) * id;
+        o.r[1][0] = (m12_20 - m10_22) * id;
+        o.r[2][0] = (m10_21 - m11_20) * id;
+        o.r[3][0] = ((m10_22 * self.m(3, 1) + m11_20 * self.m(3, 2) + m12_21 * self.m(3, 0)) -
+            (m10_21 * self.m(3, 2) + m11_22 * self.m(3, 0) + m12_20 * self.m(3, 1))) *
+            id;
 
-            o.r[0][0] = (m11_22 - m12_21) * id;
-            o.r[1][0] = (m12_20 - m10_22) * id;
-            o.r[2][0] = (m10_21 - m11_20) * id;
-            o.r[3][0] = ((m10_22 * self.m(3, 1) + m11_20 * self.m(3, 2) + m12_21 * self.m(3, 0)) -
-                (m10_21 * self.m(3, 2) + m11_22 * self.m(3, 0) + m12_20 * self.m(3, 1))) *
-                id;
-        }
+        const m02_21 = self.m(0, 2) * self.m(2, 1);
+        const m01_22 = self.m(0, 1) * self.m(2, 2);
+        const m00_22 = self.m(0, 0) * self.m(2, 2);
+        const m02_20 = self.m(0, 2) * self.m(2, 0);
+        const m01_20 = self.m(0, 1) * self.m(2, 0);
+        const m00_21 = self.m(0, 0) * self.m(2, 1);
 
-        {
-            const m02_21 = self.m(0, 2) * self.m(2, 1);
-            const m01_22 = self.m(0, 1) * self.m(2, 2);
-            const m00_22 = self.m(0, 0) * self.m(2, 2);
-            const m02_20 = self.m(0, 2) * self.m(2, 0);
-            const m01_20 = self.m(0, 1) * self.m(2, 0);
-            const m00_21 = self.m(0, 0) * self.m(2, 1);
+        o.r[0][1] = (m02_21 - m01_22) * id;
+        o.r[1][1] = (m00_22 - m02_20) * id;
+        o.r[2][1] = (m01_20 - m00_21) * id;
+        o.r[3][1] = ((m00_21 * self.m(3, 2) + m01_22 * self.m(3, 0) + m02_20 * self.m(3, 1)) -
+            (m00_22 * self.m(3, 1) + m01_20 * self.m(3, 2) + m02_21 * self.m(3, 0))) *
+            id;
 
-            o.r[0][1] = (m02_21 - m01_22) * id;
-            o.r[1][1] = (m00_22 - m02_20) * id;
-            o.r[2][1] = (m01_20 - m00_21) * id;
-            o.r[3][1] = ((m00_21 * self.m(3, 2) + m01_22 * self.m(3, 0) + m02_20 * self.m(3, 1)) -
-                (m00_22 * self.m(3, 1) + m01_20 * self.m(3, 2) + m02_21 * self.m(3, 0))) *
-                id;
-        }
-
-        {
-            o.r[0][3] = 0.0;
-            o.r[1][3] = 0.0;
-            o.r[2][3] = 0.0;
-            o.r[3][3] = 1.0;
-        }
+        o.r[0][3] = 0.0;
+        o.r[1][3] = 0.0;
+        o.r[2][3] = 0.0;
+        o.r[3][3] = 1.0;
 
         return o;
     }

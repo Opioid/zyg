@@ -70,7 +70,6 @@ pub const Scene = struct {
 
     props: ALU(Prop),
     prop_world_transformations: ALU(Transformation),
-    prop_world_positions: ALU(Vec4f),
     prop_parts: ALU(u32),
     prop_frames: ALU(u32),
     prop_aabbs: ALU(AABB),
@@ -115,7 +114,6 @@ pub const Scene = struct {
             .bvh_builder = try PropBvhBuilder.init(alloc),
             .props = try ALU(Prop).initCapacity(alloc, Num_reserved_props),
             .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
-            .prop_world_positions = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
             .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .prop_frames = try ALU(u32).initCapacity(alloc, Num_reserved_props),
             .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
@@ -162,7 +160,6 @@ pub const Scene = struct {
         self.prop_aabbs.deinit(alloc);
         self.prop_frames.deinit(alloc);
         self.prop_parts.deinit(alloc);
-        self.prop_world_positions.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
         self.props.deinit(alloc);
 
@@ -184,7 +181,6 @@ pub const Scene = struct {
         self.prop_aabbs.clearRetainingCapacity();
         self.prop_frames.clearRetainingCapacity();
         self.prop_parts.clearRetainingCapacity();
-        self.prop_world_positions.clearRetainingCapacity();
         self.prop_world_transformations.clearRetainingCapacity();
         self.props.clearRetainingCapacity();
     }
@@ -386,30 +382,26 @@ pub const Scene = struct {
     }
 
     pub fn propWorldPosition(self: Scene, entity: u32) Vec4f {
-        return self.prop_world_positions.items[entity];
+        return self.prop_world_transformations.items[entity].position;
     }
 
     pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
         const f = self.prop_frames.items[entity];
-
-        if (Null == f) {
-            return self.prop_world_transformations.items[entity];
-        }
-
-        return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
+        return self.propTransformationAtMaybeStatic(entity, time, Null == f);
     }
 
     pub fn propTransformationAtMaybeStatic(self: Scene, entity: usize, time: u64, static: bool) Transformation {
         if (static) {
-            return self.prop_world_transformations.items[entity];
+            var trafo = self.prop_world_transformations.items[entity];
+            trafo.translate(-self.camera_pos);
+            return trafo;
         }
 
         return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
     }
 
     pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
-        self.prop_world_transformations.items[entity].prepare(t);
-        self.prop_world_positions.items[entity] = t.position;
+        self.prop_world_transformations.items[entity] = Transformation.init(t);
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
@@ -623,7 +615,6 @@ pub const Scene = struct {
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
         try self.props.append(alloc, .{});
         try self.prop_world_transformations.append(alloc, .{});
-        try self.prop_world_positions.append(alloc, .{});
         try self.prop_parts.append(alloc, 0);
         try self.prop_frames.append(alloc, Null);
         try self.prop_aabbs.append(alloc, .{});
@@ -708,16 +699,16 @@ pub const Scene = struct {
 
         const shape_aabb = self.propShape(entity).aabb();
 
+        var bounds: AABB = undefined;
+
         if (Null == f) {
-            var trafo = &self.prop_world_transformations.items[entity];
+            const trafo = self.prop_world_transformations.items[entity];
 
-            trafo.setPosition(self.prop_world_positions.items[entity] - camera_pos);
-
-            self.prop_aabbs.items[entity] = shape_aabb.transform(trafo.objectToWorld());
+            bounds = shape_aabb.transform(trafo.objectToWorld());
         } else if (Null != f) {
             const frames = self.keyframes.items.ptr + f;
 
-            var bounds = shape_aabb.transform(frames[0].toMat4x4());
+            bounds = shape_aabb.transform(frames[0].toMat4x4());
 
             var i: u32 = 0;
             const len = self.num_interpolation_frames - 1;
@@ -734,11 +725,10 @@ pub const Scene = struct {
                     t += Interval;
                 }
             }
-
-            bounds.translate(-camera_pos);
-
-            self.prop_aabbs.items[entity] = bounds;
         }
+
+        bounds.translate(-camera_pos);
+        self.prop_aabbs.items[entity] = bounds;
     }
 
     fn propAnimatedTransformationAt(self: Scene, frames_id: u32, time: u64) Transformation {
