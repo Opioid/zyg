@@ -19,6 +19,8 @@ pub const Pool = struct {
 
         mutex: std.Thread.Mutex = .{},
 
+        thread: std.Thread = undefined,
+
         wake: bool = false,
     };
 
@@ -31,15 +33,15 @@ pub const Pool = struct {
 
         mutex: std.Thread.Mutex = .{},
 
+        thread: std.Thread = undefined,
+
         wake: bool = false,
         quit: bool = false,
     };
 
     uniques: []Unique = &.{},
-    threads: []std.Thread = &.{},
 
     asyncp: Async = .{},
-    async_thread: std.Thread = undefined,
 
     context: Context = undefined,
     program: Program = undefined,
@@ -62,17 +64,11 @@ pub const Pool = struct {
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
-        for (self.uniques) |*u| {
-            u.* = .{};
+        for (self.uniques) |*u, i| {
+            u.* = .{ .thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) }) };
         }
 
-        self.threads = try alloc.alloc(std.Thread, num_threads);
-
-        for (self.threads) |*thread, i| {
-            thread.* = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
-        }
-
-        self.async_thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
+        self.asyncp.thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
     }
 
     pub fn deinit(self: *Pool, alloc: Allocator) void {
@@ -80,20 +76,19 @@ pub const Pool = struct {
 
         _ = self.wakeAll(0);
 
-        for (self.threads) |thread| {
-            thread.join();
+        for (self.uniques) |u| {
+            u.thread.join();
         }
 
         self.asyncp.quit = true;
         self.wakeAsync();
-        self.async_thread.join();
+        self.asyncp.thread.join();
 
-        alloc.free(self.threads);
         alloc.free(self.uniques);
     }
 
     pub fn numThreads(self: Pool) u32 {
-        return @intCast(u32, self.threads.len);
+        return @intCast(u32, self.uniques.len);
     }
 
     pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram, num_tasks_hint: u32) void {
@@ -176,7 +171,7 @@ pub const Pool = struct {
 
         const range = end - begin;
         const rangef = @intToFloat(f32, range);
-        const num_threads = @intToFloat(f32, self.threads.len);
+        const num_threads = @intToFloat(f32, self.uniques.len);
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
             @floatToInt(u32, @ceil((rangef * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
@@ -184,7 +179,7 @@ pub const Pool = struct {
         else
             @floatToInt(u32, @floor(rangef / num_threads));
 
-        var r = range - std.math.min(step * @intCast(u32, self.threads.len), range);
+        var r = range - std.math.min(step * @intCast(u32, self.uniques.len), range);
         var e = begin;
 
         for (self.uniques) |*u, i| {
