@@ -22,16 +22,16 @@ pub fn main() !void {
 
     log.info("Welcome to zyg!", .{});
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        const leaked = gpa.deinit();
-        if (leaked) {
-            log.warning("Memory leak {}", .{leaked});
-        }
-    }
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer {
+    //     const leaked = gpa.deinit();
+    //     if (leaked) {
+    //         log.warning("Memory leak {}", .{leaked});
+    //     }
+    // }
 
-    const alloc = gpa.allocator();
-    // const alloc = std.heap.c_allocator;
+    // const alloc = gpa.allocator();
+    const alloc = std.heap.c_allocator;
 
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
