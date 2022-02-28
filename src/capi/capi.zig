@@ -4,7 +4,7 @@ const img = core.image;
 const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
-const tk = core.tk;
+const Take = core.tk.Take;
 const prg = core.progress;
 
 const base = @import("base");
@@ -41,7 +41,7 @@ const Engine = struct {
     fallback_material: u32 = undefined,
     materials: std.ArrayListUnmanaged(u32) = .{},
 
-    take: tk.Take = undefined,
+    take: Take = undefined,
     driver: rendering.Driver = undefined,
 
     frame: u32 = 0,
@@ -88,7 +88,7 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.take = tk.Take.init(alloc) catch {
+        e.take = Take.init(alloc) catch {
             engine = null;
             return -1;
         };
@@ -185,7 +185,7 @@ export fn su_exporters_create(string: [*:0]const u8) i32 {
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
         defer document.deinit();
 
-        tk.loadExporters(e.alloc, document.root, &e.take) catch return -1;
+        e.take.loadExporters(e.alloc, document.root) catch return -1;
 
         return 0;
     }
@@ -209,7 +209,7 @@ export fn su_integrators_create(string: [*:0]const u8) i32 {
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
         defer document.deinit();
 
-        tk.loadIntegrators(document.root, &e.take.view);
+        e.take.view.loadIntegrators(document.root);
 
         return 0;
     }

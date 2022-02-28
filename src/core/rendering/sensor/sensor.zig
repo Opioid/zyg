@@ -5,6 +5,8 @@ pub const Filtered = @import("filtered.zig").Filtered;
 pub const Opaque = @import("opaque.zig").Opaque;
 pub const Transparent = @import("transparent.zig").Transparent;
 
+pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
+
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;

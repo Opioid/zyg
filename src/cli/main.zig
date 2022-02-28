@@ -1,6 +1,7 @@
 const Options = @import("options.zig").Options;
 const Graph = @import("scene_graph.zig").Graph;
 const SceneLoader = @import("scene_loader.zig").Loader;
+const TakeLoader = @import("take_loader.zig");
 
 const core = @import("core");
 const log = core.log;
@@ -79,7 +80,7 @@ pub fn main() !void {
         return;
     };
 
-    var take = tk.load(alloc, stream, &graph.scene, &resources) catch |err| {
+    var take = TakeLoader.load(alloc, stream, &graph.scene) catch |err| {
         log.err("Loading take: {}", .{err});
         return;
     };
@@ -162,7 +163,7 @@ fn reloadFrameDependant(
         return err;
     };
 
-    tk.loadCameraTransformation(alloc, stream, &take.view.camera, &graph.scene) catch |err| {
+    TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, &graph.scene) catch |err| {
         log.err("Loading take: {}", .{err});
         return err;
     };

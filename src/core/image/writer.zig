@@ -1,5 +1,5 @@
 const EXR = @import("encoding/exr/writer.zig").Writer;
-const PNG = @import("encoding/png/writer.zig").Writer;
+pub const PNG = @import("encoding/png/writer.zig").Writer;
 const RGBE = @import("encoding/rgbe/writer.zig").Writer;
 
 const img = @import("image.zig");
