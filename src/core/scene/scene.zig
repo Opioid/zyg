@@ -427,6 +427,12 @@ pub const Scene = struct {
         return Null != self.prop_frames.items[entity];
     }
 
+    pub fn propSetFrame(self: *Scene, entity: u32, index: u32, frame: math.Transformation) void {
+        const b = self.prop_frames.items[entity];
+
+        self.keyframes.items[b + index] = frame;
+    }
+
     pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]const math.Transformation) void {
         const len = self.num_interpolation_frames;
         const b = self.prop_frames.items[entity];

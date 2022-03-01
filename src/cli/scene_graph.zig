@@ -150,16 +150,11 @@ pub const Graph = struct {
     }
 
     pub fn propSetFrames(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
-        const num_frames = self.scene.num_interpolation_frames;
-        const f = self.prop_frames.items[entity];
+        const len = self.scene.num_interpolation_frames;
+        const b = self.prop_frames.items[entity];
+        const e = b + len;
 
-        const b = f;
-        const e = b + num_frames;
-        const dest_frames = self.keyframes.items[b..e];
-
-        for (dest_frames) |*df, i| {
-            df.* = frames[i];
-        }
+        std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
     }
 
     pub fn createAnimation(self: *Self, alloc: Allocator, entity: u32, count: u32) !u32 {

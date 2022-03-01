@@ -66,11 +66,11 @@ zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/"))
 camera = zyg.su_perspective_camera_create(1280, 720)
 
 exporter_desc = """{
-       "Image": {
-            "format": "PNG",
-            "_error_diffusion": true
-		}
-    }"""
+"Image": {
+"format": "PNG",
+"_error_diffusion": true
+}
+}"""
 
 
 zyg.su_exporters_create(c_char_p(exporter_desc.encode('utf-8')));
@@ -192,12 +192,21 @@ triangle_a = zyg.su_prop_create(triangle, 1, byref(material_a))
 
 Transformation = c_float * 16
 
+zyg.su_prop_allocate_frames(camera)
+
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
-                                0.0, 1.0, 0.0, 1.0)
+                                -0.5, 1.0, 0.0, 1.0)
 
-zyg.su_prop_set_transformation(camera, transformation)
+zyg.su_prop_set_frame(camera, 0, transformation)
+
+transformation = Transformation(1.0, 0.0, 0.0, 0.0,
+                                0.0, 1.0, 0.0, 0.0,
+                                0.0, 0.0, 1.0, 0.0,
+                                0.5, 1.0, 0.0, 1.0)
+
+zyg.su_prop_set_frame(camera, 1, transformation)
 
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
@@ -220,12 +229,21 @@ transformation = Transformation(0.01, 0.0, 0.0, 0.0,
 
 zyg.su_prop_set_transformation(distant_sphere, transformation)
 
+zyg.su_prop_allocate_frames(triangle_a)
+
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 -2.0, 1.0, 5.0, 1.0)
 
-zyg.su_prop_set_transformation(triangle_a, transformation)
+zyg.su_prop_set_frame(triangle_a, 0, transformation)
+
+transformation = Transformation(1.0, 0.0, 0.0, 0.0,
+                                0.0, 1.0, 0.0, 0.0,
+                                0.0, 0.0, 1.0, 0.0,
+                                -2.0, 1.5, 5.0, 1.0)
+
+zyg.su_prop_set_frame(triangle_a, 1, transformation)
 
 zyg.su_render_frame(0)
 zyg.su_export_frame(0)

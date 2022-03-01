@@ -151,6 +151,8 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
             camera.entity = prop_id;
         }
 
+        e.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+
         return @intCast(i32, camera.entity);
     }
 
@@ -448,6 +450,40 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
         t.rotation = math.quaternion.initFromMat3x3(r);
 
         e.scene.propSetWorldTransformation(prop, t);
+        return 0;
+    }
+
+    return -1;
+}
+
+export fn su_prop_allocate_frames(prop: u32) i32 {
+    if (engine) |*e| {
+        if (prop >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
+        return 0;
+    }
+
+    return -1;
+}
+
+export fn su_prop_set_frame(prop: u32, index: u32, trafo: [*]const f32) i32 {
+    if (engine) |*e| {
+        if (prop >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        const m = Mat4x4.initArray(trafo[0..16].*);
+
+        var r: Mat3x3 = undefined;
+        var t: Transformation = undefined;
+        m.decompose(&r, &t.scale, &t.position);
+
+        t.rotation = math.quaternion.initFromMat3x3(r);
+
+        e.scene.propSetFrame(prop, index, t);
         return 0;
     }
 
