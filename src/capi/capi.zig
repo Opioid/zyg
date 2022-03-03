@@ -456,23 +456,18 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
     return -1;
 }
 
-export fn su_prop_allocate_frames(prop: u32) i32 {
+export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]const f32) i32 {
     if (engine) |*e| {
         if (prop >= e.scene.props.items.len) {
             return -1;
         }
 
-        e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
-        return 0;
-    }
-
-    return -1;
-}
-
-export fn su_prop_set_frame(prop: u32, index: u32, trafo: [*]const f32) i32 {
-    if (engine) |*e| {
-        if (prop >= e.scene.props.items.len) {
+        if (frame >= e.scene.num_interpolation_frames) {
             return -1;
+        }
+
+        if (scn.Prop.Null == e.scene.prop_frames.items[prop]) {
+            e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
         }
 
         const m = Mat4x4.initArray(trafo[0..16].*);
@@ -483,7 +478,7 @@ export fn su_prop_set_frame(prop: u32, index: u32, trafo: [*]const f32) i32 {
 
         t.rotation = math.quaternion.initFromMat3x3(r);
 
-        e.scene.propSetFrame(prop, index, t);
+        e.scene.propSetFrame(prop, frame, t);
         return 0;
     }
 
