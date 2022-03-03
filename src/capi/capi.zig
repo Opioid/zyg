@@ -284,6 +284,48 @@ export fn su_image_create(
     return -1;
 }
 
+export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
+    if (engine) |*e| {
+        if (e.resources.images.get(id)) |image| {
+            const bpc: u32 = switch (image.*) {
+                .Byte1, .Byte2, .Byte3 => 1,
+                .Half3, .Half4 => 2,
+                .Float1, .Float1Sparse, .Float2, .Float3, .Float4 => 4,
+            };
+
+            const num_channels: u32 = switch (image.*) {
+                .Byte1, .Float1, .Float1Sparse => 1,
+                .Byte2, .Float2 => 2,
+                .Byte3, .Half3, .Float3 => 3,
+                .Half4, .Float4 => 4,
+            };
+
+            const bpp = bpc * num_channels;
+
+            if (bpp == pixel_stride) {
+                const desc = image.description();
+
+                const buffer = switch (image.*) {
+                    .Byte1 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Byte2 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Byte3 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Float1 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Float2 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Float3 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Float4 => |i| std.mem.sliceAsBytes(i.pixels),
+                    else => return -1,
+                };
+
+                std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+            }
+
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
         var parser = std.json.Parser.init(e.alloc, false);
