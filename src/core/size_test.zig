@@ -10,7 +10,7 @@ const math = base.math;
 const std = @import("std");
 
 pub fn testSize() void {
-    std.debug.print("Name: measured size (expected size)\n", .{});
+    std.debug.print("Name: measured size (expected size); align\n", .{});
 
     testType(math.Vec2f, "Vec2f", 8);
     testType(math.Vec3i, "Vec3i", 12);
@@ -25,5 +25,5 @@ pub fn testSize() void {
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
     const measured = @sizeOf(T);
 
-    std.debug.print("{s}: {} ({})\n", .{ name, measured, expected });
+    std.debug.print("{s}: {} ({}); {}\n", .{ name, measured, expected, @alignOf(T) });
 }
