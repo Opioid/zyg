@@ -82,14 +82,9 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "num-frames", command) or std.mem.eql(u8, "n", command)) {
             self.num_frames = std.fmt.parseUnsigned(u32, parameter, 0) catch 1;
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
-            self.take = try alloc.alloc(u8, parameter.len);
-            if (self.take) |take| {
-                std.mem.copy(u8, take, parameter);
-            }
+            self.take = try alloc.dupe(u8, parameter);
         } else if (std.mem.eql(u8, "mount", command) or std.mem.eql(u8, "m", command)) {
-            const mount = try alloc.alloc(u8, parameter.len);
-            std.mem.copy(u8, mount, parameter);
-            try self.mounts.append(alloc, mount);
+            try self.mounts.append(alloc, try alloc.dupe(u8, parameter));
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "no-tex", command)) {

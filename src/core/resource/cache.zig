@@ -15,9 +15,10 @@ const Key = struct {
     const Self = @This();
 
     pub fn clone(self: Self, alloc: Allocator) !Self {
-        var tmp_name = try alloc.alloc(u8, self.name.len);
-        std.mem.copy(u8, tmp_name, self.name);
-        return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
+        return Self{
+            .name = try alloc.dupe(u8, self.name),
+            .options = try self.options.clone(alloc),
+        };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
