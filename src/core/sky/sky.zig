@@ -52,19 +52,17 @@ pub const Sky = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
-        const sampler_key = ts.Key{ .address = .{ .u = .Clamp, .v = .Clamp } };
-
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
         const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
 
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
 
-        var sky_mat = SkyMaterial.initSky(sampler_key, emission_map, self);
+        var sky_mat = SkyMaterial.initSky(emission_map, self);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
 
-        var sun_mat = try SkyMaterial.initSun(alloc, sampler_key, self);
+        var sun_mat = try SkyMaterial.initSun(alloc, self);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});

@@ -44,11 +44,11 @@ pub const Material = struct {
     a_norm: Vec4f = undefined,
     pdf_factor: f32 = undefined,
 
-    pub fn init(sampler_key: ts.Key) Material {
-        var super = Base.init(sampler_key, false);
-        super.ior = 1.0;
-
-        return .{ .super = super };
+    pub fn init() Material {
+        return .{ .super = .{
+            .sampler_key = .{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } },
+            .ior = 1.0,
+        } };
     }
 
     pub fn deinit(self: *Material, alloc: Allocator) void {

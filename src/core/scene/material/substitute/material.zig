@@ -38,7 +38,7 @@ const Coating = struct {
 };
 
 pub const Material = struct {
-    super: Base,
+    super: Base = .{},
 
     normal_map: Texture = .{},
     surface_map: Texture = .{},
@@ -58,10 +58,6 @@ pub const Material = struct {
     transparency: f32 = 0.0,
 
     coating: Coating = .{},
-
-    pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
-        return .{ .super = Base.init(sampler_key, two_sided) };
-    }
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.EmissionMap, self.emission_map.valid());

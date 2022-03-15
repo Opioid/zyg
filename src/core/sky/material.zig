@@ -40,18 +40,18 @@ pub const Material = struct {
 
     sky: *const SkyThing,
 
-    pub fn initSky(sampler_key: ts.Key, emission_map: Texture, sky: *const SkyThing) Material {
+    pub fn initSky(emission_map: Texture, sky: *const SkyThing) Material {
         return Material{
-            .super = Base.init(sampler_key, false),
+            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = emission_map,
             .mode = .Sky,
             .sky = sky,
         };
     }
 
-    pub fn initSun(alloc: Allocator, sampler_key: ts.Key, sky: *const SkyThing) !Material {
+    pub fn initSun(alloc: Allocator, sky: *const SkyThing) !Material {
         return Material{
-            .super = Base.init(sampler_key, false),
+            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = .{},
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
             .mode = .Sun,

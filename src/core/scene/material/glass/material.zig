@@ -8,6 +8,7 @@ const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -15,7 +16,7 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Material = struct {
-    super: Base,
+    super: Base = .{},
 
     normal_map: Texture = .{},
     roughness_map: Texture = .{},
@@ -23,10 +24,6 @@ pub const Material = struct {
     thickness: f32 = 0.0,
     alpha: f32 = 0.0,
     abbe: f32 = 0.0,
-
-    pub fn init(sampler_key: ts.Key) Material {
-        return .{ .super = Base.init(sampler_key, false) };
-    }
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.TwoSided, self.thickness > 0.0);

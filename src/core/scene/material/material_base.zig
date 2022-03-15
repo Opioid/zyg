@@ -4,6 +4,7 @@ const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -38,9 +39,9 @@ pub const Base = struct {
         HeterogeneousVolume = 1 << 4,
     };
 
-    properties: Flags(Property),
+    properties: Flags(Property) = .{},
 
-    sampler_key: ts.Key,
+    sampler_key: ts.Key = .{},
 
     mask: Texture = .{},
     color_map: Texture = .{},
@@ -53,11 +54,8 @@ pub const Base = struct {
     attenuation_distance: f32 = 0.0,
     volumetric_anisotropy: f32 = 1.0,
 
-    pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
-        return .{
-            .properties = Flags(Property).init1(if (two_sided) .TwoSided else .None),
-            .sampler_key = sampler_key,
-        };
+    pub fn setTwoSided(self: *Base, two_sided: bool) void {
+        self.properties.set(.TwoSided, two_sided);
     }
 
     pub fn setVolumetric(

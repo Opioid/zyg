@@ -1,6 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -11,7 +12,9 @@ pub const Material = struct {
     const color_back = Vec4f{ 0.9, 0.1, 0.4, 0.0 };
 
     pub fn init() Material {
-        return .{ .super = Base.init(.{}, true) };
+        var super = Base{};
+        super.setTwoSided(true);
+        return .{ .super = super };
     }
 
     pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
