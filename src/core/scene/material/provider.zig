@@ -132,26 +132,19 @@ pub const Provider = struct {
     }
 
     fn loadGlass(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var material = mat.Glass{};
+        var material = mat.Glass{ .super = .{ .ior = 1.46 } };
 
         var roughness = MappedValue(f32).init(0.0);
 
-        var mask = Texture{};
-        var normal_map = Texture{};
-
         var attenuation_color = @splat(4, @as(f32, 1.0));
-
         var attenuation_distance: f32 = 1.0;
-        var ior: f32 = 1.46;
-        var abbe: f32 = 0.0;
-        var thickness: f32 = 0.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
+                material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
-                normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
+                material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
@@ -159,25 +152,20 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 roughness.read(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                ior = json.readFloat(f32, entry.value_ptr.*);
+                material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
-                abbe = json.readFloat(f32, entry.value_ptr.*);
+                material.abbe = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
-                thickness = json.readFloat(f32, entry.value_ptr.*);
+                material.thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
 
-        material.super.mask = mask;
-        material.normal_map = normal_map;
         material.roughness_map = roughness.texture;
 
         material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), attenuation_distance, 0.0);
-        material.super.ior = ior;
         material.setRoughness(roughness.value);
-        material.thickness = thickness;
-        material.abbe = abbe;
 
         return Material{ .Glass = material };
     }
@@ -189,17 +177,14 @@ pub const Provider = struct {
 
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 1.0)));
 
-        var mask = Texture{};
-
         var color = @splat(4, @as(f32, 1.0));
-
         var value: f32 = 1.0;
         var emission_factor: f32 = 1.0;
 
         var iter = light_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
+                material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
                 emission.read(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
@@ -219,7 +204,6 @@ pub const Provider = struct {
             }
         }
 
-        material.super.mask = mask;
         material.emission_map = emission.texture;
 
         if (std.mem.eql(u8, "Flux", quantity)) {
@@ -240,26 +224,17 @@ pub const Provider = struct {
     }
 
     fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var material = mat.Substitute{};
+        var material = mat.Substitute{ .super = .{ .ior = 1.46 } };
 
         var color = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.5)));
         var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 0.0)));
         var roughness = MappedValue(f32).init(0.8);
         var rotation = MappedValue(f32).init(0.0);
 
-        var mask = Texture{};
-        var normal_map = Texture{};
-
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
-        var checkers: [2]Vec4f = undefined;
-        var checkers_scale: f32 = 0.0;
-
-        var metallic: f32 = 0.0;
-        var ior: f32 = 1.46;
         var anisotropy: f32 = 0.0;
-        var emission_factor: f32 = 1.0;
         var thickness: f32 = 0.0;
         var attenuation_distance: f32 = 0.0;
         var volumetric_anisotropy: f32 = 0.0;
@@ -269,11 +244,11 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
-                mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
+                material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color.read(alloc, entry.value_ptr.*, .Color, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
-                normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
+                material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
                 emission.read(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
@@ -281,6 +256,9 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
             } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
+                var checkers: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
+                var checkers_scale: f32 = 0.0;
+
                 var citer = entry.value_ptr.Object.iterator();
                 while (citer.next()) |cn| {
                     if (std.mem.eql(u8, "scale", cn.key_ptr.*)) {
@@ -290,10 +268,12 @@ pub const Provider = struct {
                         checkers[1] = readColor(cn.value_ptr.Array.items[1]);
                     }
                 }
+
+                material.setCheckers(checkers[0], checkers[1], checkers_scale);
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
                 const eta_k = metal.iorAndAbsorption(entry.value_ptr.String);
                 color.value = fresnel.conductor(eta_k[0], eta_k[1], 1.0);
-                metallic = 1.0;
+                material.metallic = 1.0;
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
@@ -303,13 +283,13 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                metallic = json.readFloat(f32, entry.value_ptr.*);
+                material.metallic = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                ior = json.readFloat(f32, entry.value_ptr.*);
+                material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
-                emission_factor = json.readFloat(f32, entry.value_ptr.*);
+                material.emission_factor = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
@@ -323,20 +303,15 @@ pub const Provider = struct {
             }
         }
 
-        material.super.mask = mask;
         material.super.color_map = color.texture;
-        material.normal_map = normal_map;
         material.surface_map = roughness.texture;
         material.emission_map = emission.texture;
 
         material.color = color.value;
         material.super.emission = emission.value;
 
-        material.emission_factor = emission_factor;
         material.setRoughness(roughness.value, anisotropy);
         material.rotation = rotation.value;
-        material.super.ior = ior;
-        material.metallic = metallic;
         material.setTranslucency(thickness, attenuation_distance);
 
         material.super.setVolumetric(
@@ -345,10 +320,6 @@ pub const Provider = struct {
             attenuation_distance,
             volumetric_anisotropy,
         );
-
-        if (checkers_scale > 0.0) {
-            material.setCheckers(checkers[0], checkers[1], checkers_scale);
-        }
 
         if (coating.thickness.texture.valid() or coating.thickness.value > 0.0) {
             material.coating.normal_map = coating.normal_map;
@@ -365,11 +336,7 @@ pub const Provider = struct {
     fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         var material = mat.Volumetric.init();
 
-        var density = Texture{};
-        var temperature = Texture{};
-
         var color = @splat(4, @as(f32, 0.5));
-        var emission = @splat(4, @as(f32, 0.0));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
@@ -383,15 +350,15 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
-                density = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
+                material.density_map = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
-                temperature = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
+                material.temperature_map = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission = readColor(entry.value_ptr.*);
+                material.super.emission = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
                 use_attenuation_color = true;
@@ -413,10 +380,7 @@ pub const Provider = struct {
             subsurface_color = color;
         }
 
-        material.super.emission = emission;
         material.super.setVolumetric(attenuation_color, subsurface_color, attenuation_distance, anisotropy);
-        material.density_map = density;
-        material.temperature_map = temperature;
 
         return Material{ .Volumetric = material };
     }
@@ -438,10 +402,7 @@ const TextureDescription = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
-                const string = entry.value_ptr.String;
-                const filename = try alloc.alloc(u8, string.len);
-                std.mem.copy(u8, filename, string);
-                desc.filename = filename;
+                desc.filename = try alloc.dupe(u8, entry.value_ptr.String);
             } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
                 desc.id = json.readUInt(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
