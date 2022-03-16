@@ -1,5 +1,6 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Scene = @import("../scene.zig").Scene;
+const Emittance = @import("../light/emittance.zig").Emittance;
 const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
@@ -62,7 +63,7 @@ pub const Base = struct {
 
     cc: CC = undefined,
 
-    emission: Vec4f = @splat(4, @as(f32, 0.0)),
+    emittance: Emittance = .{},
 
     ior: f32 = 1.5,
     attenuation_distance: f32 = 0.0,

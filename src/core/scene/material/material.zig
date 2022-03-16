@@ -82,7 +82,7 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
             .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
-            .Substitute => |m| m.prepareSampling(scene),
+            .Substitute => |m| m.prepareSampling(extent, scene),
             .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -115,17 +115,10 @@ pub const Material = union(enum) {
 
     pub fn emissive(self: Material) bool {
         return switch (self) {
-            .Light, .Sky => true,
-            .Substitute => |m| {
-                if (m.super.properties.is(.EmissionMap)) {
-                    return true;
-                }
-
-                return math.anyGreaterZero(m.super.emission);
-            },
-            .Volumetric => |m| {
-                return math.anyGreaterZero(m.super.emission);
-            },
+            .Sky => true,
+            .Light => |m| math.anyGreaterZero(m.super.emittance.value),
+            .Substitute => |m| math.anyGreaterZero(m.super.emittance.value),
+            .Volumetric => |m| math.anyGreaterZero(m.super.emittance.value),
             else => false,
         };
     }
@@ -198,7 +191,7 @@ pub const Material = union(enum) {
                 return m.collisionCoefficientsEmission(uvw, filter, scene);
             },
             else => {
-                const e = self.super().emission;
+                const e = self.super().emittance.value;
 
                 const color_map = sup.color_map;
                 if (color_map.valid()) {
@@ -238,7 +231,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Light => |m| m.evaluateRadiance(uvw, extent, filter, scene),
             .Sky => |m| m.evaluateRadiance(wi, uvw, filter, scene),
-            .Substitute => |m| m.evaluateRadiance(wi, n, uvw, filter, scene),
+            .Substitute => |m| m.evaluateRadiance(wi, n, uvw, extent, filter, scene),
             .Volumetric => |m| m.evaluateRadiance(uvw, filter, scene),
             else => @splat(4, @as(f32, 0.0)),
         };

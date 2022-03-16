@@ -61,7 +61,7 @@ pub const Material = struct {
         self.average_emission = @splat(4, @as(f32, -1.0));
 
         self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
-            math.anyGreaterZero3(self.super.emission));
+            math.anyGreaterZero3(self.super.emittance.value));
         self.super.properties.set(.EmissionMap, self.density_map.valid());
 
         if (self.density_map.valid()) {
@@ -89,7 +89,7 @@ pub const Material = struct {
 
                 const c = spectrum.blackbody(t);
 
-                self.blackbody.samples[i] = self.super.emission * c;
+                self.blackbody.samples[i] = self.super.emittance.value * c;
             }
         }
     }
@@ -107,7 +107,7 @@ pub const Material = struct {
         }
 
         if (!self.density_map.valid()) {
-            self.average_emission = self.super.cc.a * self.super.emission;
+            self.average_emission = self.super.cc.a * self.super.emittance.value;
             return self.average_emission;
         }
 
@@ -183,7 +183,7 @@ pub const Material = struct {
         const emission = if (self.temperature_map.valid())
             self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, scene))
         else
-            self.super.emission;
+            self.super.emittance.value;
 
         if (2 == self.density_map.numChannels()) {
             const d = ts.sample3D_2(key, self.density_map, uvw, scene);
@@ -248,7 +248,7 @@ pub const Material = struct {
         const d = @splat(4, self.density(uvw, filter, scene));
         return .{
             .cc = .{ .a = d * cc.a, .s = d * cc.s },
-            .e = self.super.emission,
+            .e = self.super.emittance.value,
         };
     }
 };

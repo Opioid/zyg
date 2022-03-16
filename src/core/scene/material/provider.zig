@@ -4,6 +4,7 @@ const Material = mat.Material;
 const MappedValue = mat.Base.MappedValue;
 const metal = @import("metal_presets.zig");
 const fresnel = @import("fresnel.zig");
+const Emittance = @import("../light/emittance.zig").Emittance;
 const img = @import("../../image/image.zig");
 const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
@@ -168,37 +169,17 @@ pub const Provider = struct {
         return Material{ .Glass = material };
     }
 
-    fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) Material {
+    fn loadLight(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
-        var iter = light_value.Object.iterator();
+        var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
                 material.emission_map = readTexture(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
-                const quantity = json.readStringMember(entry.value_ptr.*, "quantity", "");
-
-                var color = @splat(4, @as(f32, 1.0));
-                if (entry.value_ptr.Object.get("spectrum")) |s| {
-                    color = readColor(s);
-                }
-
-                const value = json.readFloatMember(entry.value_ptr.*, "value", 1.0);
-
-                if (std.mem.eql(u8, "Flux", quantity)) {
-                    material.emittance.setLuminousFlux(color, value);
-                } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
-                    material.emittance.setLuminousIntensity(color, value);
-                } else if (std.mem.eql(u8, "Luminance", quantity)) {
-                    material.emittance.setLuminance(color, value);
-                } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
-                    material.emittance.setRadiantIntensity(@splat(4, value) * color);
-                } else // if (std.mem.eql(u8, "Radiance", quantity))
-                {
-                    material.emittance.setRadiance(@splat(4, value) * color);
-                }
+                loadEmittance(entry.value_ptr.*, &material.super.emittance);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
@@ -222,11 +203,13 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.0)), .Color, self.tex, resources));
+                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.5)), .Color, self.tex, resources));
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                material.setEmission(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.0)), .Emission, self.tex, resources));
+                material.emission_map = readTexture(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
+            } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
+                loadEmittance(entry.value_ptr.*, &material.super.emittance);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 roughness = readValue(f32, alloc, entry.value_ptr.*, roughness.value, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
@@ -334,8 +317,8 @@ pub const Provider = struct {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color = readColor(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                material.super.emission = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
+                loadEmittance(entry.value_ptr.*, &material.super.emittance);
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
                 use_attenuation_color = true;
@@ -368,6 +351,30 @@ pub const Provider = struct {
     }
 };
 
+fn loadEmittance(jvalue: std.json.Value, emittance: *Emittance) void {
+    const quantity = json.readStringMember(jvalue, "quantity", "");
+
+    var color = @splat(4, @as(f32, 1.0));
+    if (jvalue.Object.get("spectrum")) |s| {
+        color = readColor(s);
+    }
+
+    const value = json.readFloatMember(jvalue, "value", 1.0);
+
+    if (std.mem.eql(u8, "Flux", quantity)) {
+        emittance.setLuminousFlux(color, value);
+    } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
+        emittance.setLuminousIntensity(color, value);
+    } else if (std.mem.eql(u8, "Luminance", quantity)) {
+        emittance.setLuminance(color, value);
+    } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
+        emittance.setRadiantIntensity(@splat(4, value) * color);
+    } else // if (std.mem.eql(u8, "Radiance", quantity))
+    {
+        emittance.setRadiance(@splat(4, value) * color);
+    }
+}
+
 const TextureDescription = struct {
     filename: ?[]u8 = null,
     id: u32 = rsc.Null,
@@ -381,30 +388,35 @@ const TextureDescription = struct {
     pub fn init(alloc: Allocator, value: std.json.Value) !TextureDescription {
         var desc = TextureDescription{};
 
-        var iter = value.Object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
-                desc.filename = try alloc.dupe(u8, entry.value_ptr.String);
-            } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
-                desc.id = json.readUInt(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
-                const swizzle = entry.value_ptr.String;
+        switch (value) {
+            .Object => |o| {
+                var iter = o.iterator();
+                while (iter.next()) |entry| {
+                    if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
+                        desc.filename = try alloc.dupe(u8, entry.value_ptr.String);
+                    } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
+                        desc.id = json.readUInt(entry.value_ptr.*);
+                    } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
+                        const swizzle = entry.value_ptr.String;
 
-                if (std.mem.eql(u8, "X", swizzle)) {
-                    desc.swizzle = .X;
-                } else if (std.mem.eql(u8, "W", swizzle)) {
-                    desc.swizzle = .W;
-                } else if (std.mem.eql(u8, "YX", swizzle)) {
-                    desc.swizzle = .YX;
+                        if (std.mem.eql(u8, "X", swizzle)) {
+                            desc.swizzle = .X;
+                        } else if (std.mem.eql(u8, "W", swizzle)) {
+                            desc.swizzle = .W;
+                        } else if (std.mem.eql(u8, "YX", swizzle)) {
+                            desc.swizzle = .YX;
+                        }
+                    } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
+                        desc.scale = switch (entry.value_ptr.*) {
+                            .Array => json.readVec2f(entry.value_ptr.*),
+                            else => @splat(2, json.readFloat(f32, entry.value_ptr.*)),
+                        };
+                    } else if (std.mem.eql(u8, "invert", entry.key_ptr.*)) {
+                        desc.invert = json.readBool(entry.value_ptr.*);
+                    }
                 }
-            } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
-                desc.scale = switch (entry.value_ptr.*) {
-                    .Array => json.readVec2f(entry.value_ptr.*),
-                    else => @splat(2, json.readFloat(f32, entry.value_ptr.*)),
-                };
-            } else if (std.mem.eql(u8, "invert", entry.key_ptr.*)) {
-                desc.invert = json.readBool(entry.value_ptr.*);
-            }
+            },
+            else => {},
         }
 
         return desc;
@@ -420,29 +432,34 @@ const TextureDescription = struct {
 fn readSamplerKey(value: std.json.Value) ts.Key {
     var key = ts.Key{};
 
-    var iter = value.Object.iterator();
-    while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
-            const filter = json.readString(entry.value_ptr.*);
+    switch (value) {
+        .Object => |o| {
+            var iter = o.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
+                    const filter = json.readString(entry.value_ptr.*);
 
-            if (std.mem.eql(u8, "Nearest", filter)) {
-                key.filter = .Nearest;
-            } else if (std.mem.eql(u8, "Linear", filter)) {
-                key.filter = .Linear;
+                    if (std.mem.eql(u8, "Nearest", filter)) {
+                        key.filter = .Nearest;
+                    } else if (std.mem.eql(u8, "Linear", filter)) {
+                        key.filter = .Linear;
+                    }
+                } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
+                    switch (entry.value_ptr.*) {
+                        .Array => |a| {
+                            key.address.u = readAddress(a.items[0]);
+                            key.address.v = readAddress(a.items[1]);
+                        },
+                        else => {
+                            const adr = readAddress(entry.value_ptr.*);
+                            key.address.u = adr;
+                            key.address.v = adr;
+                        },
+                    }
+                }
             }
-        } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
-            switch (entry.value_ptr.*) {
-                .Array => |a| {
-                    key.address.u = readAddress(a.items[0]);
-                    key.address.v = readAddress(a.items[1]);
-                },
-                else => {
-                    const adr = readAddress(entry.value_ptr.*);
-                    key.address.u = adr;
-                    key.address.v = adr;
-                },
-            }
-        }
+        },
+        else => {},
     }
 
     return key;

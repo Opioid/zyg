@@ -74,22 +74,19 @@ pub const Material = struct {
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
-    pub fn prepareSampling(self: Material, scene: Scene) Vec4f {
+    pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
+        const rad = self.super.emittance.radiance(area);
+
         if (self.emission_map.valid()) {
-            return @splat(4, self.emission_factor) * self.emission_map.average_3(scene);
+            return rad * self.emission_map.average_3(scene);
         }
 
-        return @splat(4, self.emission_factor) * self.super.emission;
+        return rad;
     }
 
     pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
         self.super.color_map = color.texture;
         self.color = color.value;
-    }
-
-    pub fn setEmission(self: *Material, emission: Base.MappedValue(Vec4f)) void {
-        self.emission_map = emission.texture;
-        self.super.emission = emission.value;
     }
 
     pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {
@@ -129,13 +126,11 @@ pub const Material = struct {
             worker.scene.*,
         ) else self.color;
 
-        const ef = @splat(4, self.emission_factor);
-        const radiance = if (self.emission_map.valid()) ef * ts.sample2D_3(
-            key,
-            self.emission_map,
-            rs.uv,
-            worker.scene.*,
-        ) else ef * self.super.emission;
+        var rad = self.super.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
+
+        if (self.emission_map.valid()) {
+            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
+        }
 
         var alpha: Vec2f = undefined;
         var metallic: f32 = undefined;
@@ -177,7 +172,7 @@ pub const Material = struct {
             rs,
             wo,
             color,
-            radiance,
+            rad,
             alpha,
             ior,
             ior_outside,
@@ -230,17 +225,18 @@ pub const Material = struct {
         wi: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
+        extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
         const uv = Vec2f{ uvw[0], uvw[1] };
 
-        const ef = @splat(4, self.emission_factor);
-        const radiance = if (self.emission_map.valid())
-            ef * ts.sample2D_3(key, self.emission_map, uv, scene)
-        else
-            ef * self.super.emission;
+        var rad = self.super.emittance.radiance(extent);
+
+        if (self.emission_map.valid()) {
+            rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
+        }
 
         var coating_thickness: f32 = undefined;
         if (self.coating.thickness_map.valid()) {
@@ -257,10 +253,10 @@ pub const Material = struct {
                 hlp.clampAbsDot(wi, n),
             );
 
-            return att * radiance;
+            return att * rad;
         }
 
-        return radiance;
+        return rad;
     }
 
     fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {

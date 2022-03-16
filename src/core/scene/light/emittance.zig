@@ -13,7 +13,7 @@ pub const Emittance = struct {
         Radiance,
     };
 
-    value: Vec4f = @splat(4, @as(f32, 1.0)),
+    value: Vec4f = @splat(4, @as(f32, 0.0)),
     quantity: Quantity = .Radiance,
 
     // unit: lumen
