@@ -44,7 +44,7 @@ pub const Material = struct {
     surface_map: Texture = .{},
     emission_map: Texture = .{},
 
-    color: Vec4f = @splat(4, @as(f32, 0.0)),
+    color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
 
     alpha: Vec2f = @splat(2, @as(f32, 0.0)),
@@ -54,7 +54,6 @@ pub const Material = struct {
     metallic: f32 = 0.0,
     emission_factor: f32 = 1.0,
     thickness: f32 = 0.0,
-    attenuation_distance: f32 = 0.0,
     transparency: f32 = 0.0,
 
     coating: Coating = .{},
@@ -62,6 +61,12 @@ pub const Material = struct {
     pub fn commit(self: *Material) void {
         self.super.properties.set(.EmissionMap, self.emission_map.valid());
         self.super.properties.set(.Caustic, self.alpha[0] <= ggx.Min_alpha);
+
+        const thickness = self.thickness;
+        const transparent = thickness > 0.0;
+        const attenuation_distance = self.super.attenuation_distance;
+        self.super.properties.orSet(.TwoSided, transparent);
+        self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
     pub fn prepareSampling(self: Material, scene: Scene) Vec4f {
@@ -70,6 +75,16 @@ pub const Material = struct {
         }
 
         return @splat(4, self.emission_factor) * self.super.emission;
+    }
+
+    pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
+        self.super.color_map = color.texture;
+        self.color = color.value;
+    }
+
+    pub fn setEmission(self: *Material, emission: Base.MappedValue(Vec4f)) void {
+        self.emission_map = emission.texture;
+        self.super.emission = emission.value;
     }
 
     pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {
@@ -83,14 +98,6 @@ pub const Material = struct {
         }
 
         self.anisotropy = anisotropy;
-    }
-
-    pub fn setTranslucency(self: *Material, thickness: f32, attenuation_distance: f32) void {
-        const transparent = thickness > 0.0;
-        self.super.properties.orSet(.TwoSided, transparent);
-        self.thickness = thickness;
-        self.attenuation_distance = attenuation_distance;
-        self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
     pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
@@ -159,6 +166,7 @@ pub const Material = struct {
 
         const ior = self.super.ior;
         const ior_outside = if (coating_thickness > 0.0) coating_ior else rs.ior();
+        const attenuation_distance = self.super.attenuation_distance;
 
         var result = Surface.init(
             rs,
@@ -169,7 +177,7 @@ pub const Material = struct {
             ior,
             ior_outside,
             metallic,
-            self.attenuation_distance > 0.0,
+            attenuation_distance > 0.0,
         );
 
         if (self.normal_map.valid()) {
@@ -185,7 +193,7 @@ pub const Material = struct {
 
         const thickness = self.thickness;
         if (thickness > 0.0) {
-            result.setTranslucency(color, thickness, self.attenuation_distance, self.transparency);
+            result.setTranslucency(color, thickness, attenuation_distance, self.transparency);
         }
 
         if (coating_thickness > 0.0) {

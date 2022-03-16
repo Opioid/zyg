@@ -14,6 +14,20 @@ const Flags = base.flags.Flags;
 const std = @import("std");
 
 pub const Base = struct {
+    pub fn MappedValue(comptime Value: type) type {
+        return struct {
+            texture: Texture = .{},
+
+            value: Value,
+
+            const Self = @This();
+
+            pub fn init(value: Value) Self {
+                return .{ .value = value };
+            }
+        };
+    }
+
     pub const RadianceSample = struct {
         uvw: Vec4f,
 
@@ -52,7 +66,7 @@ pub const Base = struct {
 
     ior: f32 = 1.5,
     attenuation_distance: f32 = 0.0,
-    volumetric_anisotropy: f32 = 1.0,
+    volumetric_anisotropy: f32 = 0.0,
 
     pub fn setTwoSided(self: *Base, two_sided: bool) void {
         self.properties.set(.TwoSided, two_sided);

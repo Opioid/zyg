@@ -30,8 +30,9 @@ pub const Material = struct {
         self.super.properties.set(.Caustic, self.alpha <= ggx.Min_alpha);
     }
 
-    pub fn setRoughness(self: *Material, roughness: f32) void {
-        self.alpha = roughness * roughness;
+    pub fn setRoughness(self: *Material, value: Base.MappedValue(f32)) void {
+        self.roughness_map = value.texture;
+        self.alpha = value.value * value.value;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
