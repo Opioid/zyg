@@ -149,7 +149,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
@@ -182,7 +182,7 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission = readValue(Vec4f, alloc, entry.value_ptr.*, .Emission, self.tex, resources);
+                emission = readValue(Vec4f, alloc, entry.value_ptr.*, emission.value, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 quantity = json.readStringMember(entry.value_ptr.*, "quantity", "");
 
@@ -234,13 +234,13 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, .Color, self.tex, resources));
+                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.0)), .Color, self.tex, resources));
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                material.setEmission(readValue(Vec4f, alloc, entry.value_ptr.*, .Emission, self.tex, resources));
+                material.setEmission(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.0)), .Emission, self.tex, resources));
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                roughness = readValue(f32, alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
+                roughness = readValue(f32, alloc, entry.value_ptr.*, roughness.value, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
             } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
@@ -267,7 +267,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.rotation = readValue(f32, alloc, entry.value_ptr.*, .Roughness, self.tex, resources).value;
+                material.rotation = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources).value;
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
@@ -549,12 +549,14 @@ fn readValue(
     comptime Value: type,
     alloc: Allocator,
     value: std.json.Value,
+    default: Value,
     usage: TexUsage,
     tex: Provider.Tex,
     resources: *Resources,
 ) MappedValue(Value) {
+    var result = MappedValue(Value){ .value = default };
+
     if (Vec4f == Value) {
-        var result = MappedValue(Value){ .value = @splat(4, @as(f32, 0.0)) };
         switch (value) {
             .Object => {
                 var desc = TextureDescription.init(alloc, value) catch return result;
@@ -568,9 +570,9 @@ fn readValue(
             },
             else => result.value = readColor(value),
         }
+
         return result;
     } else {
-        var result = MappedValue(Value){ .value = 0.0 };
         switch (value) {
             .Object => {
                 var desc = TextureDescription.init(alloc, value) catch return result;
@@ -581,9 +583,9 @@ fn readValue(
             },
             else => result.value = json.readFloat(f32, value),
         }
-
-        return result;
     }
+
+    return result;
 }
 
 const CoatingDescription = struct {
@@ -619,7 +621,7 @@ const CoatingDescription = struct {
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 self.roughness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
-                self.thickness = readValue(f32, alloc, entry.value_ptr.*, .Roughness, tex, resources);
+                self.thickness = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, tex, resources);
             }
         }
     }
