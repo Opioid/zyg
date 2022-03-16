@@ -110,7 +110,7 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (self.force_debug_material) {
                 if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
-                    return try self.loadLight(alloc, entry.value_ptr.*, resources);
+                    return self.loadLight(alloc, entry.value_ptr.*, resources);
                 } else {
                     return createFallbackMaterial();
                 }
@@ -118,13 +118,13 @@ pub const Provider = struct {
                 if (std.mem.eql(u8, "Debug", entry.key_ptr.*)) {
                     return Material{ .Debug = mat.Debug.init() };
                 } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
-                    return try self.loadGlass(alloc, entry.value_ptr.*, resources);
+                    return self.loadGlass(alloc, entry.value_ptr.*, resources);
                 } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
-                    return try self.loadLight(alloc, entry.value_ptr.*, resources);
+                    return self.loadLight(alloc, entry.value_ptr.*, resources);
                 } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
-                    return try self.loadSubstitute(alloc, entry.value_ptr.*, resources);
+                    return self.loadSubstitute(alloc, entry.value_ptr.*, resources);
                 } else if (std.mem.eql(u8, "Volumetric", entry.key_ptr.*)) {
-                    return try self.loadVolumetric(alloc, entry.value_ptr.*, resources);
+                    return self.loadVolumetric(alloc, entry.value_ptr.*, resources);
                 }
             }
         }
@@ -132,11 +132,13 @@ pub const Provider = struct {
         return Error.UnknownMaterial;
     }
 
-    fn loadGlass(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
-        var material = mat.Glass{ .super = .{ .ior = 1.46 } };
+    fn loadGlass(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
+        var material = mat.Glass{ .super = .{
+            .ior = 1.46,
+            .attenuation_distance = 1.0,
+        } };
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
-        var attenuation_distance: f32 = 1.0;
 
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
@@ -147,7 +149,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
-                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+                material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
@@ -161,12 +163,12 @@ pub const Provider = struct {
             }
         }
 
-        material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), attenuation_distance, 0.0);
+        material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), material.super.attenuation_distance, 0.0);
 
         return Material{ .Glass = material };
     }
 
-    fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) !Material {
+    fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
         var quantity: []const u8 = "";
@@ -219,7 +221,7 @@ pub const Provider = struct {
         return Material{ .Light = material };
     }
 
-    fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Substitute{ .super = .{ .ior = 1.46 } };
 
         var roughness = MappedValue(f32).init(0.8);
