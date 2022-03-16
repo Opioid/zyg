@@ -25,10 +25,15 @@ const Coating = struct {
 
     thickness: f32 = 0.0,
     ior: f32 = 1.5,
-    alpha: f32 = 1.0,
+    alpha: f32 = 0.04,
 
     pub fn setAttenuation(self: *Coating, color: Vec4f, distance: f32) void {
         self.absorption_coef = ccoef.attenuationCoefficient(color, distance);
+    }
+
+    pub fn setThickness(self: *Coating, thickness: Base.MappedValue(f32)) void {
+        self.thickness_map = thickness.texture;
+        self.thickness = thickness.value;
     }
 
     pub fn setRoughness(self: *Coating, roughness: f32) void {

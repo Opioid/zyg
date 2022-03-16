@@ -227,8 +227,6 @@ pub const Provider = struct {
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
-        var coating: CoatingDescription = .{};
-
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -287,7 +285,27 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "coating", entry.key_ptr.*)) {
-                coating.read(alloc, entry.value_ptr.*, self.tex, resources);
+                var coating_color = @splat(4, @as(f32, 1.0));
+                var coating_attenuation_distance: f32 = 0.1;
+
+                var citer = entry.value_ptr.Object.iterator();
+                while (citer.next()) |c| {
+                    if (std.mem.eql(u8, "color", c.key_ptr.*)) {
+                        coating_color = readColor(c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "attenuation_distance", c.key_ptr.*)) {
+                        coating_attenuation_distance = json.readFloat(f32, c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "ior", c.key_ptr.*)) {
+                        material.coating.ior = json.readFloat(f32, c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
+                        material.coating.normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
+                    } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
+                        material.coating.setRoughness(json.readFloat(f32, c.value_ptr.*));
+                    } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
+                        material.coating.setThickness(readValue(f32, alloc, c.value_ptr.*, 0.0, .Roughness, self.tex, resources));
+                    }
+                }
+
+                material.coating.setAttenuation(coating_color, coating_attenuation_distance);
             }
         }
 
@@ -301,15 +319,6 @@ pub const Provider = struct {
             material.super.attenuation_distance,
             material.super.volumetric_anisotropy,
         );
-
-        if (coating.thickness.texture.valid() or coating.thickness.value > 0.0) {
-            material.coating.normal_map = coating.normal_map;
-            material.coating.thickness_map = coating.thickness.texture;
-            material.coating.setAttenuation(coating.color, coating.attenuation_distance);
-            material.coating.thickness = coating.thickness.value;
-            material.coating.ior = coating.ior;
-            material.coating.setRoughness(coating.roughness);
-        }
 
         return Material{ .Substitute = material };
     }
@@ -587,42 +596,3 @@ fn readValue(
 
     return result;
 }
-
-const CoatingDescription = struct {
-    thickness: MappedValue(f32) = MappedValue(f32).init(0.0),
-
-    normal_map: Texture = .{},
-
-    color: Vec4f = @splat(4, @as(f32, 1.0)),
-
-    attenuation_distance: f32 = 0.1,
-    ior: f32 = 1.5,
-    roughness: f32 = 0.2,
-
-    const Self = @This();
-
-    pub fn read(
-        self: *Self,
-        alloc: Allocator,
-        value: std.json.Value,
-        tex: Provider.Tex,
-        resources: *Resources,
-    ) void {
-        var iter = value.Object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                self.color = readColor(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
-                self.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                self.ior = json.readFloat(f32, entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
-                self.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, tex, resources);
-            } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                self.roughness = json.readFloat(f32, entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
-                self.thickness = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, tex, resources);
-            }
-        }
-    }
-};
