@@ -13,8 +13,8 @@ pub const Emittance = struct {
         Radiance,
     };
 
-    value: Vec4f,
-    quantity: Quantity,
+    value: Vec4f = @splat(4, @as(f32, 1.0)),
+    quantity: Quantity = .Radiance,
 
     // unit: lumen
     pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32) void {

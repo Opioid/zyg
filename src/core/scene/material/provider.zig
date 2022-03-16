@@ -171,51 +171,39 @@ pub const Provider = struct {
     fn loadLight(self: Provider, alloc: Allocator, light_value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
-        var quantity: []const u8 = "";
-
-        var emission = MappedValue(Vec4f).init(@splat(4, @as(f32, 1.0)));
-
-        var color = @splat(4, @as(f32, 1.0));
-        var value: f32 = 1.0;
-        var emission_factor: f32 = 1.0;
-
         var iter = light_value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
-                emission = readValue(Vec4f, alloc, entry.value_ptr.*, emission.value, .Emission, self.tex, resources);
+                material.emission_map = readTexture(alloc, entry.value_ptr.*, .Emission, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
-                quantity = json.readStringMember(entry.value_ptr.*, "quantity", "");
+                const quantity = json.readStringMember(entry.value_ptr.*, "quantity", "");
 
+                var color = @splat(4, @as(f32, 1.0));
                 if (entry.value_ptr.Object.get("spectrum")) |s| {
                     color = readColor(s);
                 }
 
-                value = json.readFloatMember(entry.value_ptr.*, "value", value);
-            } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
-                emission_factor = json.readFloat(f32, entry.value_ptr.*);
+                const value = json.readFloatMember(entry.value_ptr.*, "value", 1.0);
+
+                if (std.mem.eql(u8, "Flux", quantity)) {
+                    material.emittance.setLuminousFlux(color, value);
+                } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
+                    material.emittance.setLuminousIntensity(color, value);
+                } else if (std.mem.eql(u8, "Luminance", quantity)) {
+                    material.emittance.setLuminance(color, value);
+                } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
+                    material.emittance.setRadiantIntensity(@splat(4, value) * color);
+                } else // if (std.mem.eql(u8, "Radiance", quantity))
+                {
+                    material.emittance.setRadiance(@splat(4, value) * color);
+                }
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             }
-        }
-
-        material.emission_map = emission.texture;
-
-        if (std.mem.eql(u8, "Flux", quantity)) {
-            material.emittance.setLuminousFlux(color, value);
-        } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
-            material.emittance.setLuminousIntensity(color, value);
-        } else if (std.mem.eql(u8, "Luminance", quantity)) {
-            material.emittance.setLuminance(color, value);
-        } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
-            material.emittance.setRadiantIntensity(@splat(4, value) * color);
-        } else if (std.mem.eql(u8, "Radiance", quantity)) {
-            material.emittance.setRadiance(@splat(4, value) * color);
-        } else {
-            material.emittance.setRadiance(@splat(4, emission_factor) * emission.value);
         }
 
         return Material{ .Light = material };

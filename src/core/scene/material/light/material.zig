@@ -25,7 +25,7 @@ pub const Material = struct {
 
     emission_map: Texture = .{},
     distribution: Distribution2D = .{},
-    emittance: Emittance = undefined,
+    emittance: Emittance = .{},
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
     total_weight: f32 = 0.0,
 
