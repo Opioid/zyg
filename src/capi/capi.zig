@@ -344,6 +344,31 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     return -1;
 }
 
+export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
+    if (engine) |*e| {
+        var parser = std.json.Parser.init(e.alloc, false);
+        defer parser.deinit();
+
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        defer document.deinit();
+
+        if (id >= e.scene.materials.items.len) {
+            return -1;
+        }
+
+        var material = e.scene.materialPtr(id);
+
+        e.resources.materials.provider.updateMaterial(
+            e.alloc,
+            material,
+            document.root,
+            &e.resources,
+        ) catch return -1;
+    }
+
+    return -1;
+}
+
 export fn su_triangle_mesh_create(
     id: u32,
     num_parts: u32,

@@ -98,6 +98,24 @@ pub const Provider = struct {
         return material;
     }
 
+    pub fn updateMaterial(
+        self: Provider,
+        alloc: Allocator,
+        material: *Material,
+        value: std.json.Value,
+        resources: *Resources,
+    ) !void {
+        switch (material.*) {
+            .Glass => |*g| self.updateGlass(alloc, g, value, resources),
+            .Light => |*g| self.updateLight(alloc, g, value, resources),
+            .Substitute => |*g| self.updateSubstitute(alloc, g, value, resources),
+            .Volumetric => |*g| self.updateVolumetric(alloc, g, value, resources),
+            else => {},
+        }
+
+        try material.commit(alloc, resources.scene.*, resources.threads);
+    }
+
     pub fn createFallbackMaterial() Material {
         return Material{ .Debug = mat.Debug.init() };
     }
@@ -139,6 +157,12 @@ pub const Provider = struct {
             .attenuation_distance = 1.0,
         } };
 
+        self.updateGlass(alloc, &material, value, resources);
+
+        return Material{ .Glass = material };
+    }
+
+    fn updateGlass(self: Provider, alloc: Allocator, material: *mat.Glass, value: std.json.Value, resources: *Resources) void {
         var attenuation_color = @splat(4, @as(f32, 1.0));
 
         var iter = value.Object.iterator();
@@ -165,13 +189,17 @@ pub const Provider = struct {
         }
 
         material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), material.super.attenuation_distance, 0.0);
-
-        return Material{ .Glass = material };
     }
 
     fn loadLight(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
+        self.updateLight(alloc, &material, value, resources);
+
+        return Material{ .Light = material };
+    }
+
+    fn updateLight(self: Provider, alloc: Allocator, material: *mat.Light, value: std.json.Value, resources: *Resources) void {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -186,13 +214,17 @@ pub const Provider = struct {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
-
-        return Material{ .Light = material };
     }
 
     fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Substitute{ .super = .{ .ior = 1.46 } };
 
+        self.updateSubstitute(alloc, &material, value, resources);
+
+        return Material{ .Substitute = material };
+    }
+
+    fn updateSubstitute(self: Provider, alloc: Allocator, material: *mat.Substitute, value: std.json.Value, resources: *Resources) void {
         var roughness = MappedValue(f32).init(0.8);
 
         var attenuation_color = @splat(4, @as(f32, 0.0));
@@ -292,13 +324,17 @@ pub const Provider = struct {
             material.super.attenuation_distance,
             material.super.volumetric_anisotropy,
         );
-
-        return Material{ .Substitute = material };
     }
 
     fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         var material = mat.Volumetric.init();
 
+        self.updateVolumetric(alloc, &material, value, resources);
+
+        return Material{ .Volumetric = material };
+    }
+
+    fn updateVolumetric(self: Provider, alloc: Allocator, material: *mat.Volumetric, value: std.json.Value, resources: *Resources) void {
         var color = @splat(4, @as(f32, 0.5));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
@@ -346,8 +382,6 @@ pub const Provider = struct {
             material.super.attenuation_distance,
             material.super.volumetric_anisotropy,
         );
-
-        return Material{ .Volumetric = material };
     }
 };
 
