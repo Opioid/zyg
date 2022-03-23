@@ -17,6 +17,8 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+
 const Coating = struct {
     normal_map: Texture = .{},
     thickness_map: Texture = .{},
@@ -48,6 +50,7 @@ pub const Material = struct {
 
     normal_map: Texture = .{},
     surface_map: Texture = .{},
+    rotation_map: Texture = .{},
     emission_map: Texture = .{},
 
     color: Vec4f = @splat(4, @as(f32, 0.5)),
@@ -93,6 +96,11 @@ pub const Material = struct {
         self.roughness = ggx.clampRoughness(r);
     }
 
+    pub fn setRotation(self: *Material, rotation: Base.MappedValue(f32)) void {
+        self.rotation_map = rotation.texture;
+        self.rotation = rotation.value * (2.0 * std.math.pi);
+    }
+
     pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
         self.color = color_a;
         self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
@@ -122,24 +130,23 @@ pub const Material = struct {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
 
-        var alpha: Vec2f = undefined;
+        var roughness: f32 = undefined;
         var metallic: f32 = undefined;
 
         const nc = self.surface_map.numChannels();
         if (nc >= 2) {
             const surface = ts.sample2D_2(key, self.surface_map, rs.uv, worker.scene.*);
-            const r = ggx.mapRoughness(surface[0]);
-            alpha = anisotropicAlpha(r, self.anisotropy);
+            roughness = ggx.mapRoughness(surface[0]);
             metallic = surface[1];
         } else if (1 == nc) {
-            const r = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene.*));
-            alpha = anisotropicAlpha(r, self.anisotropy);
+            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene.*));
             metallic = self.metallic;
         } else {
-            const r = self.roughness;
-            alpha = @splat(2, r * r);
+            roughness = self.roughness;
             metallic = self.metallic;
         }
+
+        const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
         var coating_thickness: f32 = undefined;
         var coating_weight: f32 = undefined;
@@ -178,10 +185,6 @@ pub const Material = struct {
             result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
         }
 
-        if (self.rotation > 0.0) {
-            result.super.layer.rotateTangenFrame(self.rotation);
-        }
-
         const thickness = self.thickness;
         if (thickness > 0.0) {
             result.setTranslucency(color, thickness, attenuation_distance, self.transparency);
@@ -211,6 +214,16 @@ pub const Material = struct {
 
             const n_dot_wo = result.coating.layer.clampAbsNdot(wo);
             result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
+        }
+
+        // Apply rotation to base layer after coating is calculated, so that coating is not affected
+        const rotation = if (self.rotation_map.valid())
+            ts.sample2D_1(key, self.rotation_map, rs.uv, worker.scene.*) * (2.0 * std.math.pi)
+        else
+            self.rotation;
+
+        if (rotation > 0.0) {
+            result.super.layer.rotateTangenFrame(rotation);
         }
 
         return Sample{ .Substitute = result };

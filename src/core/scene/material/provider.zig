@@ -268,7 +268,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.rotation = readValue(f32, alloc, entry.value_ptr.*, material.rotation, .Roughness, self.tex, resources).value;
+                material.setRotation(readValue(f32, alloc, entry.value_ptr.*, material.rotation, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
