@@ -22,31 +22,27 @@ pub const Material = struct {
     roughness_map: Texture = .{},
 
     thickness: f32 = 0.0,
-    alpha: f32 = 0.0,
+    roughness: f32 = 0.0,
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.TwoSided, self.thickness > 0.0);
-        self.super.properties.set(.Caustic, self.alpha <= ggx.Min_alpha);
+        self.super.properties.set(.Caustic, self.roughness <= ggx.Min_roughness);
     }
 
-    pub fn setRoughness(self: *Material, value: Base.MappedValue(f32)) void {
-        self.roughness_map = value.texture;
-        self.alpha = value.value * value.value;
+    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
+        self.roughness_map = roughness.texture;
+        const r = roughness.value;
+        self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
-        var alpha: f32 = undefined;
-
-        if (self.roughness_map.valid()) {
-            const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, scene);
-            const r = ggx.mapRoughness(roughness);
-            alpha = r * r;
-        } else {
-            alpha = self.alpha;
-        }
+        const r = if (self.roughness_map.valid())
+            ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, scene))
+        else
+            self.roughness;
 
         var result = Sample.init(
             rs,
@@ -54,7 +50,7 @@ pub const Material = struct {
             self.super.cc.a,
             self.super.ior,
             rs.ior(),
-            alpha,
+            r * r,
             self.thickness,
             self.abbe,
             rs.wavelength(),

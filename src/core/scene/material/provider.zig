@@ -176,7 +176,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
@@ -225,8 +225,6 @@ pub const Provider = struct {
     }
 
     fn updateSubstitute(self: Provider, alloc: Allocator, material: *mat.Substitute, value: std.json.Value, resources: *Resources) void {
-        var roughness = MappedValue(f32).init(0.8);
-
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
@@ -235,7 +233,7 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(4, @as(f32, 0.5)), .Color, self.tex, resources));
+                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, material.color, .Color, self.tex, resources));
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emission", entry.key_ptr.*)) {
@@ -243,9 +241,9 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 loadEmittance(entry.value_ptr.*, &material.super.emittance);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                roughness = readValue(f32, alloc, entry.value_ptr.*, roughness.value, .Roughness, self.tex, resources);
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-                roughness.texture = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
+                material.surface_map = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
             } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
                 var checkers: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
                 var checkers_scale: f32 = 0.0;
@@ -270,7 +268,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.rotation = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources).value;
+                material.rotation = readValue(f32, alloc, entry.value_ptr.*, material.rotation, .Roughness, self.tex, resources).value;
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
@@ -279,8 +277,6 @@ pub const Provider = struct {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "emission_factor", entry.key_ptr.*)) {
-                material.emission_factor = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 material.thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
@@ -304,19 +300,31 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
                         material.coating.normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
-                        material.coating.setRoughness(json.readFloat(f32, c.value_ptr.*));
+                        material.coating.setRoughness(readValue(
+                            f32,
+                            alloc,
+                            c.value_ptr.*,
+                            material.coating.roughness,
+                            .Roughness,
+                            self.tex,
+                            resources,
+                        ));
                     } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
-                        material.coating.setThickness(readValue(f32, alloc, c.value_ptr.*, 0.0, .Roughness, self.tex, resources));
+                        material.coating.setThickness(readValue(
+                            f32,
+                            alloc,
+                            c.value_ptr.*,
+                            material.coating.thickness,
+                            .Roughness,
+                            self.tex,
+                            resources,
+                        ));
                     }
                 }
 
                 material.coating.setAttenuation(coating_color, coating_attenuation_distance);
             }
         }
-
-        material.surface_map = roughness.texture;
-
-        material.setRoughness(roughness.value, material.anisotropy);
 
         material.super.setVolumetric(
             attenuation_color,

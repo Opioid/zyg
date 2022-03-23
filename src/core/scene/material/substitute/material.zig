@@ -20,12 +20,13 @@ const Vec4f = math.Vec4f;
 const Coating = struct {
     normal_map: Texture = .{},
     thickness_map: Texture = .{},
+    roughness_map: Texture = .{},
 
     absorption_coef: Vec4f = @splat(4, @as(f32, 0.0)),
 
     thickness: f32 = 0.0,
     ior: f32 = 1.5,
-    alpha: f32 = 0.04,
+    roughness: f32 = 0.2,
 
     pub fn setAttenuation(self: *Coating, color: Vec4f, distance: f32) void {
         self.absorption_coef = ccoef.attenuationCoefficient(color, distance);
@@ -36,9 +37,9 @@ const Coating = struct {
         self.thickness = thickness.value;
     }
 
-    pub fn setRoughness(self: *Coating, roughness: f32) void {
-        const r = ggx.clampRoughness(roughness);
-        self.alpha = r * r;
+    pub fn setRoughness(self: *Coating, roughness: Base.MappedValue(f32)) void {
+        self.roughness_map = roughness.texture;
+        self.roughness = ggx.clampRoughness(roughness.value);
     }
 };
 
@@ -52,12 +53,10 @@ pub const Material = struct {
     color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
 
-    alpha: Vec2f = @splat(2, @as(f32, 0.0)),
-
+    roughness: f32 = 0.8,
     anisotropy: f32 = 0.0,
     rotation: f32 = 0.0,
     metallic: f32 = 0.0,
-    emission_factor: f32 = 1.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
 
@@ -65,7 +64,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.EmissionMap, self.emission_map.valid());
-        self.super.properties.set(.Caustic, self.alpha[0] <= ggx.Min_alpha);
+        self.super.properties.set(.Caustic, self.roughness <= ggx.Min_roughness);
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
@@ -76,7 +75,6 @@ pub const Material = struct {
 
     pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
         const rad = self.super.emittance.radiance(area);
-
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
         }
@@ -89,17 +87,10 @@ pub const Material = struct {
         self.color = color.value;
     }
 
-    pub fn setRoughness(self: *Material, roughness: f32, anisotropy: f32) void {
-        const r = ggx.clampRoughness(roughness);
-
-        if (anisotropy > 0.0) {
-            const rv = ggx.clampRoughness(roughness * (1.0 - anisotropy));
-            self.alpha = .{ r * r, rv * rv };
-        } else {
-            self.alpha = @splat(2, r * r);
-        }
-
-        self.anisotropy = anisotropy;
+    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
+        self.surface_map = roughness.texture;
+        const r = roughness.value;
+        self.roughness = ggx.clampRoughness(r);
     }
 
     pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
@@ -127,7 +118,6 @@ pub const Material = struct {
         ) else self.color;
 
         var rad = self.super.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
-
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
@@ -146,7 +136,8 @@ pub const Material = struct {
             alpha = anisotropicAlpha(r, self.anisotropy);
             metallic = self.metallic;
         } else {
-            alpha = self.alpha;
+            const r = self.roughness;
+            alpha = @splat(2, r * r);
             metallic = self.metallic;
         }
 
@@ -206,11 +197,16 @@ pub const Material = struct {
                 result.coating.layer.setTangentFrame(rs.t, rs.b, rs.n);
             }
 
+            const r = if (self.coating.roughness_map.valid())
+                ggx.mapRoughness(ts.sample2D_1(key, self.coating.roughness_map, rs.uv, worker.scene.*))
+            else
+                self.coating.roughness;
+
             result.coating.absorption_coef = self.coating.absorption_coef;
             result.coating.thickness = coating_thickness;
             result.coating.ior = coating_ior;
             result.coating.f0 = fresnel.Schlick.F0(coating_ior, rs.ior());
-            result.coating.alpha = self.coating.alpha;
+            result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
 
             const n_dot_wo = result.coating.layer.clampAbsNdot(wo);
