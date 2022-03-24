@@ -61,8 +61,6 @@ zyg.su_register_progress(progstartfunc, progtickfunc)
 #print(zyg.su_mount(c_char_p(b"../../data/")))
 zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/"))
 
-#print(zyg.su_load_take(c_char_p(b"takes/cornell.take")))
-
 camera = zyg.su_perspective_camera_create(1280, 720)
 
 exporter_desc = """{
@@ -129,7 +127,9 @@ material_b = c_uint(zyg.su_material_create(-1, c_char_p(material_b_desc.encode('
 material_light_desc = """{
 "rendering": {
     "Light": {
-        "emission": [10000, 10000, 10000]
+        "emittance": {
+           "spectrum": [10000, 10000, 10000]
+         }
     }
 }
 }"""
@@ -192,21 +192,19 @@ triangle_a = zyg.su_prop_create(triangle, 1, byref(material_a))
 
 Transformation = c_float * 16
 
-zyg.su_prop_allocate_frames(camera)
-
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 -0.5, 1.0, 0.0, 1.0)
 
-zyg.su_prop_set_frame(camera, 0, transformation)
+zyg.su_prop_set_transformation_frame(camera, 0, transformation)
 
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 0.5, 1.0, 0.0, 1.0)
 
-zyg.su_prop_set_frame(camera, 1, transformation)
+zyg.su_prop_set_transformation_frame(camera, 1, transformation)
 
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
@@ -229,23 +227,31 @@ transformation = Transformation(0.01, 0.0, 0.0, 0.0,
 
 zyg.su_prop_set_transformation(distant_sphere, transformation)
 
-zyg.su_prop_allocate_frames(triangle_a)
-
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 -2.0, 1.0, 5.0, 1.0)
 
-zyg.su_prop_set_frame(triangle_a, 0, transformation)
+zyg.su_prop_set_transformation_frame(triangle_a, 0, transformation)
 
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 -2.0, 1.5, 5.0, 1.0)
 
-zyg.su_prop_set_frame(triangle_a, 1, transformation)
+zyg.su_prop_set_transformation_frame(triangle_a, 1, transformation)
 
 zyg.su_render_frame(0)
 zyg.su_export_frame(0)
+
+image_buffer = Buffer(0.0, 1.0, 0.0,
+                      1.0, 0.0, 0.0,
+                      1.0, 1.0, 0.0,
+                      0.0, 0.0, 1.0)
+
+zyg.su_image_update(image_a, stride, image_buffer)
+
+zyg.su_render_frame(1)
+zyg.su_export_frame(1)
 
 zyg.su_release()

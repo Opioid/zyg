@@ -349,11 +349,11 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
         var parser = std.json.Parser.init(e.alloc, false);
         defer parser.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -2;
         defer document.deinit();
 
         if (id >= e.scene.materials.items.len) {
-            return -1;
+            return -3;
         }
 
         var material = e.scene.materialPtr(id);
@@ -363,7 +363,9 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
             material,
             document.root,
             &e.resources,
-        ) catch return -1;
+        ) catch return -4;
+
+        return 0;
     }
 
     return -1;
