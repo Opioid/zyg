@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Options = struct {
-    take: ?[]u8 = null,
+    take: []u8 = &.{},
 
     mounts: std.ArrayListUnmanaged([]u8) = .{},
 
@@ -22,9 +22,7 @@ pub const Options = struct {
 
         self.mounts.deinit(alloc);
 
-        if (self.take) |take| {
-            alloc.free(take);
-        }
+        alloc.free(self.take);
     }
 
     pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
@@ -82,6 +80,7 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "num-frames", command) or std.mem.eql(u8, "n", command)) {
             self.num_frames = std.fmt.parseUnsigned(u32, parameter, 0) catch 1;
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
+            alloc.free(self.take);
             self.take = try alloc.dupe(u8, parameter);
         } else if (std.mem.eql(u8, "mount", command) or std.mem.eql(u8, "m", command)) {
             try self.mounts.append(alloc, try alloc.dupe(u8, parameter));
