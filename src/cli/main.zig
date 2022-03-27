@@ -37,7 +37,7 @@ pub fn main() !void {
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
 
-    if (options.take == null) {
+    if (0 == options.take.len) {
         log.err("No take specified", .{});
         return;
     }
@@ -75,8 +75,8 @@ pub fn main() !void {
 
     const loading_start = std.time.milliTimestamp();
 
-    var stream = resources.fs.readStream(alloc, options.take.?) catch |err| {
-        log.err("Open stream \"{s}\": {}", .{ options.take.?, err });
+    var stream = resources.fs.readStream(alloc, options.take) catch |err| {
+        log.err("Open stream \"{s}\": {}", .{ options.take, err });
         return;
     };
 
@@ -113,7 +113,7 @@ pub fn main() !void {
             alloc,
             i,
             &take,
-            options.take.?,
+            options.take,
             &graph,
             &scene_loader,
             &resources,

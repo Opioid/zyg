@@ -37,10 +37,17 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
 
     const root = document.root;
 
+    if (root.Object.get("scene")) |scene_filename| {
+        take.scene_filename = try alloc.dupe(u8, scene_filename.String);
+    }
+
+    if (0 == take.scene_filename.len) {
+        return Error.NoScene;
+    }
+
     var exporter_value_ptr: ?*std.json.Value = null;
     var integrator_value_ptr: ?*std.json.Value = null;
     var post_value_ptr: ?*std.json.Value = null;
-    var sampler_value_ptr: ?*std.json.Value = null;
 
     var iter = root.Object.iterator();
     while (iter.next()) |entry| {
@@ -53,20 +60,8 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
         } else if (std.mem.eql(u8, "post", entry.key_ptr.*)) {
             post_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-            sampler_value_ptr = entry.value_ptr;
-        } else if (std.mem.eql(u8, "scene", entry.key_ptr.*)) {
-            const string = entry.value_ptr.String;
-            take.scene_filename = try alloc.alloc(u8, string.len);
-            std.mem.copy(u8, take.scene_filename, string);
+            loadSampler(entry.value_ptr.*, &take.view);
         }
-    }
-
-    if (0 == take.scene_filename.len) {
-        return Error.NoScene;
-    }
-
-    if (sampler_value_ptr) |sampler_value| {
-        loadSampler(sampler_value.*, &take.view);
     }
 
     if (integrator_value_ptr) |integrator_value| {
