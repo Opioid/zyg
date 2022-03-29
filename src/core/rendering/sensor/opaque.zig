@@ -1,4 +1,5 @@
 const Base = @import("base.zig").Base;
+const aov = @import("aov/value.zig");
 const Float4 = @import("../../image/image.zig").Float4;
 
 const math = @import("base").math;
@@ -20,9 +21,10 @@ pub const Opaque = struct {
 
     pub fn deinit(self: *Opaque, alloc: Allocator) void {
         alloc.free(self.pixels);
+        self.base.aov.deinit(alloc);
     }
 
-    pub fn resize(self: *Opaque, alloc: Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Opaque, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         self.base.dimensions = dimensions;
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);
@@ -30,6 +32,8 @@ pub const Opaque = struct {
         if (len > self.pixels.len) {
             self.pixels = try alloc.realloc(self.pixels, len);
         }
+
+        try self.base.aov.resize(alloc, len, factory);
     }
 
     pub fn clear(self: *Opaque, weight: f32) void {

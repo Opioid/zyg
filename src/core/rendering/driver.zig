@@ -92,7 +92,7 @@ pub const Driver = struct {
         }
 
         const dim = camera.sensorDimensions();
-        try camera.sensor.resize(alloc, dim);
+        try camera.sensor.resize(alloc, dim, view.aovs);
 
         const num_photons = view.photon_settings.num_photons;
         if (num_photons > 0) {
@@ -114,6 +114,7 @@ pub const Driver = struct {
                 view.surfaces,
                 view.volumes,
                 view.lighttracers,
+                view.aovs,
                 view.photon_settings,
                 &self.photon_map,
             );
@@ -196,15 +197,33 @@ pub const Driver = struct {
     }
 
     pub fn resolve(self: *Driver) void {
-        var camera = &self.view.camera;
+        const camera = &self.view.camera;
         camera.sensor.resolveTonemap(&self.target, self.threads);
     }
 
-    pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
+    pub fn exportFrame(self: *Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
         for (exporters) |*e| {
-            try e.write(alloc, self.target, frame, self.threads);
+            try e.write(alloc, self.target, null, frame, self.threads);
+        }
+
+        const sensor = &self.view.camera.sensor;
+
+        const len = View.AovValue.Num_classes;
+        var i: u32 = 0;
+        while (i < len) : (i += 1) {
+            for (exporters) |*e| {
+                const class = @intToEnum(View.AovValue.Class, i);
+
+                if (!self.view.aovs.activeClass(class)) {
+                    continue;
+                }
+
+                sensor.resolveAov(class, &self.target, self.threads);
+
+                try e.write(alloc, self.target, class, frame, self.threads);
+            }
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});

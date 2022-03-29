@@ -1,4 +1,5 @@
 const Base = @import("base.zig").Base;
+const aov = @import("aov/value.zig");
 
 pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const Filtered = @import("filtered.zig").Filtered;
@@ -74,14 +75,14 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         try switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.resize(alloc, dimensions),
-            .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions),
-            .Filtered_1p0_opaque => |*s| s.sensor.resize(alloc, dimensions),
-            .Filtered_2p0_opaque => |*s| s.sensor.resize(alloc, dimensions),
-            .Filtered_1p0_transparent => |*s| s.sensor.resize(alloc, dimensions),
-            .Filtered_2p0_transparent => |*s| s.sensor.resize(alloc, dimensions),
+            .Unfiltered_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
+            .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
+            .Filtered_1p0_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
+            .Filtered_2p0_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
+            .Filtered_1p0_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
+            .Filtered_2p0_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
         };
     }
 
@@ -118,14 +119,22 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+    pub fn addSample(
+        self: *Sensor,
+        sample: Sample,
+        color: Vec4f,
+        aovs: aov.Value,
+        offset: Vec2i,
+        bounds: Vec4i,
+        isolated: Vec4i,
+    ) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.addSample(sample, color, offset),
-            .Unfiltered_transparent => |*s| s.addSample(sample, color, offset),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, offset, bounds, isolated),
+            .Unfiltered_opaque => |*s| s.addSample(sample, color, aovs, offset),
+            .Unfiltered_transparent => |*s| s.addSample(sample, color, aovs, offset),
+            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
+            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
         }
     }
 
@@ -141,26 +150,33 @@ pub const Sensor = union(enum) {
     }
 
     pub fn resolve(self: Sensor, target: *Float4, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target };
+        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
         const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     pub fn resolveTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target };
+        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
         const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     pub fn resolveAccumulateTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target };
+        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
         const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
+    }
+
+    pub fn resolveAov(self: Sensor, class: aov.Value.Class, target: *Float4, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = &self, .target = target, .aov = class };
+        const num_pixels = @intCast(u32, target.description.numPixels());
+        _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     const ResolveContext = struct {
         sensor: *const Sensor,
         target: *Float4,
+        aov: aov.Value.Class,
 
         pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
@@ -207,6 +223,23 @@ pub const Sensor = union(enum) {
                 .Filtered_2p0_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
                 .Filtered_1p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
                 .Filtered_2p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+            }
+        }
+
+        pub fn resolveAov(context: Threads.Context, id: u32, begin: u32, end: u32) void {
+            _ = id;
+
+            const self = @intToPtr(*const ResolveContext, context);
+            const target = self.target;
+            const class = self.aov;
+
+            switch (self.sensor.*) {
+                .Unfiltered_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                .Unfiltered_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                .Filtered_1p0_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                .Filtered_2p0_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                .Filtered_1p0_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                .Filtered_2p0_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
             }
         }
     };

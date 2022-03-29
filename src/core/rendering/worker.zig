@@ -17,6 +17,7 @@ const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
+const aov = @import("sensor/aov/value.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -35,6 +36,9 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
+
+    aov: aov.Value = undefined,
+
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
@@ -59,6 +63,7 @@ pub const Worker = struct {
         surfaces: surface.Factory,
         volumes: vol.Factory,
         lighttracers: lt.Factory,
+        aovs: aov.Factory,
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
     ) !void {
@@ -69,6 +74,8 @@ pub const Worker = struct {
         self.surface_integrator = surfaces.create();
         self.volume_integrator = volumes.create();
         self.lighttracer = lighttracers.create();
+
+        self.aov = aovs.create();
 
         const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
         try self.photon_mapper.configure(alloc, .{
@@ -142,6 +149,8 @@ pub const Worker = struct {
                 while (s < num_samples) : (s += 1) {
                     const sample = self.sampler.cameraSample(rng, pixel);
 
+                    self.aov.clear();
+
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
 
@@ -151,9 +160,9 @@ pub const Worker = struct {
                             photon[3] = 0.0;
                         }
 
-                        sensor.addSample(sample, color + photon, offset, crop, isolated_bounds);
+                        sensor.addSample(sample, color + photon, self.aov, offset, crop, isolated_bounds);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop, isolated_bounds);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov, offset, crop, isolated_bounds);
                     }
                 }
             }
@@ -182,6 +191,14 @@ pub const Worker = struct {
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    pub fn commonAOV(self: *Worker, throughput: Vec4f, ray: Ray, mat_sample: MaterialSample, primary_ray: bool) void {
+        _ = ray;
+
+        if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
+            self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
+        }
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {

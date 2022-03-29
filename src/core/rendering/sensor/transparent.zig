@@ -1,5 +1,7 @@
 const Base = @import("base.zig").Base;
+const aov = @import("aov/value.zig");
 const Float4 = @import("../../image/image.zig").Float4;
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
@@ -23,7 +25,7 @@ pub const Transparent = struct {
         alloc.free(self.pixel_weights);
     }
 
-    pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i) !void {
+    pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         self.base.dimensions = dimensions;
 
         const len = @intCast(usize, dimensions[0] * dimensions[1]);
@@ -32,6 +34,8 @@ pub const Transparent = struct {
             self.pixel_weights = try alloc.realloc(self.pixel_weights, len);
             self.pixels = try alloc.realloc(self.pixels, len);
         }
+
+        try self.base.aov.resize(alloc, len, factory);
     }
 
     pub fn clear(self: *Transparent, weight: f32) void {

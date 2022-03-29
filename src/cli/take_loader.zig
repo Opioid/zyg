@@ -51,7 +51,9 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
 
     var iter = root.Object.iterator();
     while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
+        if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
+            take.view.loadAOV(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
             try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
         } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
             exporter_value_ptr = entry.value_ptr;

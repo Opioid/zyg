@@ -1,6 +1,7 @@
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
+const AovValue = @import("aov/value.zig").Value;
 
 const base = @import("base");
 const math = base.math;
@@ -28,7 +29,16 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             return result;
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i, bounds: Vec4i, isolated: Vec4i) void {
+        pub fn addSample(
+            self: *Self,
+            sample: Sample,
+            color: Vec4f,
+            aov: AovValue,
+            offset: Vec2i,
+            bounds: Vec4i,
+            isolated: Vec4i,
+        ) void {
+            _ = aov;
             const clamped = self.sensor.base.clamp(color);
 
             const x = offset[0] + sample.pixel[0];
@@ -60,6 +70,31 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                 self.add(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds, isolated);
                 self.add(.{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
                 self.add(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
+
+                if (aov.active()) {
+                    const len = AovValue.Num_classes;
+                    var i: u32 = 0;
+                    while (i < len) : (i += 1) {
+                        if (aov.activeClass(@intToEnum(AovValue.Class, i))) {
+                            const value = aov.values[i];
+
+                            // 1. row
+                            self.addAov(.{ x - 1, y - 1 }, i, wx0 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x, y - 1 }, i, wx1 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y - 1 }, i, wx2 * wy0, value, bounds, isolated);
+
+                            // 2. row
+                            self.addAov(.{ x - 1, y }, i, wx0 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x, y }, i, wx1 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y }, i, wx2 * wy1, value, bounds, isolated);
+
+                            // 3. row
+                            self.addAov(.{ x - 1, y + 1 }, i, wx0 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x, y + 1 }, i, wx1 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y + 1 }, i, wx2 * wy2, value, bounds, isolated);
+                        }
+                    }
+                }
             } else if (2 == N) {
                 const wx0 = self.eval(ox + 2.0);
                 const wx1 = self.eval(ox + 1.0);
@@ -107,6 +142,51 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                 self.add(.{ x, y + 2 }, wx2 * wy4, clamped, bounds, isolated);
                 self.add(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
                 self.add(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
+
+                if (aov.active()) {
+                    const len = AovValue.Num_classes;
+                    var i: u32 = 0;
+                    while (i < len) : (i += 1) {
+                        if (aov.activeClass(@intToEnum(AovValue.Class, i))) {
+                            const value = aov.values[i];
+
+                            // 1. row
+                            self.addAov(.{ x - 2, y - 2 }, i, wx0 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x - 1, y - 2 }, i, wx1 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x, y - 2 }, i, wx2 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y - 2 }, i, wx3 * wy0, value, bounds, isolated);
+                            self.addAov(.{ x + 2, y - 2 }, i, wx4 * wy0, value, bounds, isolated);
+
+                            // 2. row
+                            self.addAov(.{ x - 2, y - 1 }, i, wx0 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x - 1, y - 1 }, i, wx1 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x, y - 1 }, i, wx2 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y - 1 }, i, wx3 * wy1, value, bounds, isolated);
+                            self.addAov(.{ x + 2, y - 1 }, i, wx4 * wy1, value, bounds, isolated);
+
+                            // 3. row
+                            self.addAov(.{ x - 2, y }, i, wx0 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x - 1, y }, i, wx1 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x, y }, i, wx2 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y }, i, wx3 * wy2, value, bounds, isolated);
+                            self.addAov(.{ x + 2, y }, i, wx4 * wy2, value, bounds, isolated);
+
+                            // 4. row
+                            self.addAov(.{ x - 2, y + 1 }, i, wx0 * wy3, value, bounds, isolated);
+                            self.addAov(.{ x - 1, y + 1 }, i, wx1 * wy3, value, bounds, isolated);
+                            self.addAov(.{ x, y + 1 }, i, wx2 * wy3, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y + 1 }, i, wx3 * wy3, value, bounds, isolated);
+                            self.addAov(.{ x + 2, y + 1 }, i, wx4 * wy3, value, bounds, isolated);
+
+                            // 5. row
+                            self.addAov(.{ x - 2, y + 2 }, i, wx0 * wy4, value, bounds, isolated);
+                            self.addAov(.{ x - 1, y + 2 }, i, wx1 * wy4, value, bounds, isolated);
+                            self.addAov(.{ x, y + 2 }, i, wx2 * wy4, value, bounds, isolated);
+                            self.addAov(.{ x + 1, y + 2 }, i, wx3 * wy4, value, bounds, isolated);
+                            self.addAov(.{ x + 2, y + 2 }, i, wx4 * wy4, value, bounds, isolated);
+                        }
+                    }
+                }
             }
         }
 
@@ -223,6 +303,28 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                     self.sensor.addPixel(pixel, color, weight);
                 } else {
                     self.sensor.addPixelAtomic(pixel, color, weight);
+                }
+            }
+        }
+
+        fn addAov(
+            self: *Self,
+            pixel: Vec2i,
+            slot: u32,
+            weight: f32,
+            value: Vec4f,
+            bounds: Vec4i,
+            isolated: Vec4i,
+        ) void {
+            if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
+                @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
+            {
+                if (@bitCast(u32, pixel[0] - isolated[0]) <= @bitCast(u32, isolated[2]) and
+                    @bitCast(u32, pixel[1] - isolated[1]) <= @bitCast(u32, isolated[3]))
+                {
+                    self.sensor.base.addAov(pixel, slot, value, weight);
+                } else {
+                    self.sensor.base.addAovAtomic(pixel, slot, value, weight);
                 }
             }
         }

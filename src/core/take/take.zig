@@ -1,3 +1,4 @@
+const aov = @import("../rendering/sensor/aov/value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
@@ -51,12 +52,16 @@ pub const View = struct {
         .full_light_path = false,
     } },
 
+    aovs: aov.Factory = .{},
+
     camera: cam.Perspective,
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
 
     photon_settings: PhotonSettings = .{},
+
+    pub const AovValue = aov.Value;
 
     pub fn deinit(self: *View, alloc: Allocator) void {
         self.camera.deinit(alloc);
@@ -69,6 +74,21 @@ pub const View = struct {
 
     pub fn numParticleSamplesPerPixel(self: View) u32 {
         return self.num_particles_per_pixel * self.lighttracers.settings.num_samples;
+    }
+
+    pub fn loadAOV(self: *View, value: std.json.Value) void {
+        var iter = value.Object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "Albedo", entry.key_ptr.*)) {
+                self.aovs.set(.Albedo, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Depth", entry.key_ptr.*)) {
+                self.aovs.set(.Depth, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Material_id", entry.key_ptr.*)) {
+                self.aovs.set(.MaterialId, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Shading_normal", entry.key_ptr.*)) {
+                self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
+            }
+        }
     }
 
     pub fn loadIntegrators(self: *View, value: std.json.Value) void {

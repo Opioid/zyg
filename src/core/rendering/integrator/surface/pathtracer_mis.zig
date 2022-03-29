@@ -130,6 +130,10 @@ pub const PathtracerMIS = struct {
                 straight_border,
             );
 
+            if (worker.aov.active()) {
+                worker.commonAOV(throughput, ray.*, mat_sample, pr);
+            }
+
             wo1 = wo;
 
             // Only check direct eye-light connections for the very first hit.
