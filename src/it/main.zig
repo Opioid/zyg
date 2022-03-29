@@ -119,6 +119,6 @@ fn write(
     defer file.close();
 
     var buffered = std.io.bufferedWriter(file.writer());
-    try writer.write(alloc, buffered.writer(), target, threads);
+    try writer.write(alloc, buffered.writer(), target, null, threads);
     try buffered.flush();
 }

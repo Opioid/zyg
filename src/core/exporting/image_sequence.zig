@@ -37,7 +37,7 @@ pub const ImageSequence = struct {
         defer file.close();
 
         var buffered = std.io.bufferedWriter(file.writer());
-        try self.writer.write(alloc, buffered.writer(), image, threads);
+        try self.writer.write(alloc, buffered.writer(), image, aov, threads);
         try buffered.flush();
     }
 

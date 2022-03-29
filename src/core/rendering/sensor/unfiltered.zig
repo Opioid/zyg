@@ -26,9 +26,15 @@ pub fn Unfiltered(comptime T: type) type {
                 const len = AovValue.Num_classes;
                 var i: u32 = 0;
                 while (i < len) : (i += 1) {
-                    if (aov.activeClass(@intToEnum(AovValue.Class, i))) {
+                    const class = @intToEnum(AovValue.Class, i);
+                    if (aov.activeClass(class)) {
                         const value = aov.values[i];
-                        self.sensor.base.addAov(pixel, i, value, 1.0);
+
+                        if (.Depth == class) {
+                            self.sensor.base.lessAov(pixel, i, value[0]);
+                        } else {
+                            self.sensor.base.addAov(pixel, i, value, 1.0);
+                        }
                     }
                 }
             }

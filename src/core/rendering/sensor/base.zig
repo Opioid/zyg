@@ -35,4 +35,8 @@ pub const Base = struct {
     pub fn addAovAtomic(self: *Base, pixel: Vec2i, slot: u32, value: Vec4f, weight: f32) void {
         self.aov.addPixelAtomic(self.dimensions, pixel, slot, value, weight);
     }
+
+    pub fn lessAov(self: *Base, pixel: Vec2i, slot: u32, value: f32) void {
+        self.aov.lessPixel(self.dimensions, pixel, slot, value);
+    }
 };

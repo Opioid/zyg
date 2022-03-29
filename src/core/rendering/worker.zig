@@ -194,10 +194,20 @@ pub const Worker = struct {
     }
 
     pub fn commonAOV(self: *Worker, throughput: Vec4f, ray: Ray, mat_sample: MaterialSample, primary_ray: bool) void {
-        _ = ray;
-
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
             self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
+        }
+
+        if (ray.depth > 0) {
+            return;
+        }
+
+        if (self.aov.activeClass(.ShadingNormal)) {
+            self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
+        }
+
+        if (self.aov.activeClass(.Depth)) {
+            self.aov.insert1(.Depth, ray.ray.maxT());
         }
     }
 

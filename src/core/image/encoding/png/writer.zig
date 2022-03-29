@@ -2,6 +2,7 @@ const Srgb = @import("../srgb.zig").Srgb;
 const img = @import("../../image.zig");
 const Float3 = img.Float3;
 const Float4 = img.Float4;
+const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
 
 const base = @import("base");
 const encoding = base.encoding;
@@ -32,21 +33,19 @@ pub const Writer = struct {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        aov: ?AovClass,
         threads: *Threads,
     ) !void {
         const d = image.description.dimensions;
-        const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
 
-        try self.srgb.resize(alloc, num_pixels);
-
-        self.srgb.toSrgb(image, threads);
+        const num_channels = try self.srgb.toSrgb(alloc, image, aov, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
             @ptrCast(*const anyopaque, self.srgb.buffer.ptr),
             d.v[0],
             d.v[1],
-            if (self.srgb.alpha) 4 else 3,
+            @intCast(c_int, num_channels),
             &buffer_len,
         );
 
