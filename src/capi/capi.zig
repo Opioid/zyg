@@ -195,6 +195,22 @@ export fn su_exporters_create(string: [*:0]const u8) i32 {
     return -1;
 }
 
+export fn su_aovs_create(string: [*:0]const u8) i32 {
+    if (engine) |*e| {
+        var parser = std.json.Parser.init(e.alloc, false);
+        defer parser.deinit();
+
+        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
+        defer document.deinit();
+
+        e.take.view.loadAOV(document.root);
+
+        return 0;
+    }
+
+    return -1;
+}
+
 export fn su_sampler_create(num_samples: u32) i32 {
     if (engine) |*e| {
         e.take.view.num_samples_per_pixel = num_samples;
@@ -636,6 +652,18 @@ export fn su_resolve_frame() i32 {
     if (engine) |*e| {
         e.driver.resolve();
         return 0;
+    }
+
+    return -1;
+}
+
+export fn su_resolve_aov(class: u32) i32 {
+    if (engine) |*e| {
+        if (class >= core.tk.View.AovValue.Num_classes) {
+            return -2;
+        }
+
+        return if (e.driver.resolveAov(@intToEnum(core.tk.View.AovValue.Class, class))) 0 else -3;
     }
 
     return -1;
