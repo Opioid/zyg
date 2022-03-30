@@ -39,4 +39,8 @@ pub const Base = struct {
     pub fn lessAov(self: *Base, pixel: Vec2i, slot: u32, value: f32) void {
         self.aov.lessPixel(self.dimensions, pixel, slot, value);
     }
+
+    pub fn overwriteAov(self: *Base, pixel: Vec2i, slot: u32, value: f32, weight: f32) void {
+        self.aov.overwritePixel(self.dimensions, pixel, slot, value, weight);
+    }
 };

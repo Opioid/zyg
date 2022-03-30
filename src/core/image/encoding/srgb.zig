@@ -198,9 +198,23 @@ pub const Srgb = struct {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = image.pixels[i];
+                        const depth = image.pixels[i].v[0];
 
-                        buffer[i] = encoding.floatToUnorm(math.saturate(1.0 - (p.v[0] - mind) / range));
+                        buffer[i] = encoding.floatToUnorm(math.saturate(1.0 - (depth - mind) / range));
+
+                        i += 1;
+                    }
+                }
+            } else if (.MaterialId == self.aov.?) {
+                while (y < end) : (y += 1) {
+                    var x: u32 = 0;
+                    while (x < width) : (x += 1) {
+                        const id = @floatToInt(u32, image.pixels[i].v[0]);
+                        const mid = (id *% 9795927) % 16777216;
+
+                        buffer[i * 3 + 0] = @truncate(u8, mid >> 16);
+                        buffer[i * 3 + 1] = @truncate(u8, mid >> 8);
+                        buffer[i * 3 + 2] = @truncate(u8, mid);
 
                         i += 1;
                     }

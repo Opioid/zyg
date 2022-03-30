@@ -549,6 +549,11 @@ pub const Scene = struct {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
+    pub fn propMaterialId(self: Scene, entity: usize, part: u32) u32 {
+        const p = self.prop_parts.items[entity] + part;
+        return self.material_ids.items[p];
+    }
+
     pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
         const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];

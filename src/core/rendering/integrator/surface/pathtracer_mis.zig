@@ -131,7 +131,7 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, mat_sample, pr);
+                worker.commonAOV(throughput, ray.*, isec.*, mat_sample, pr);
             }
 
             wo1 = wo;

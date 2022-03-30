@@ -193,7 +193,14 @@ pub const Worker = struct {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
     }
 
-    pub fn commonAOV(self: *Worker, throughput: Vec4f, ray: Ray, mat_sample: MaterialSample, primary_ray: bool) void {
+    pub fn commonAOV(
+        self: *Worker,
+        throughput: Vec4f,
+        ray: Ray,
+        isec: Intersection,
+        mat_sample: MaterialSample,
+        primary_ray: bool,
+    ) void {
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
             self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
         }
@@ -208,6 +215,13 @@ pub const Worker = struct {
 
         if (self.aov.activeClass(.Depth)) {
             self.aov.insert1(.Depth, ray.ray.maxT());
+        }
+
+        if (self.aov.activeClass(.MaterialId)) {
+            self.aov.insert1(
+                .MaterialId,
+                @intToFloat(f32, 1 + self.super.scene.propMaterialId(isec.prop, isec.geo.part)),
+            );
         }
     }
 

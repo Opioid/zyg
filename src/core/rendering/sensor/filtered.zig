@@ -81,6 +81,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
 
                             if (.Depth == class) {
                                 self.lessAov(.{ x, y }, i, value[0], bounds);
+                            } else if (.MaterialId == class) {
+                                self.overwriteAov(.{ x, y }, i, wx2 * wy2, value[0], bounds);
                             } else {
                                 // 1. row
                                 self.addAov(.{ x - 1, y - 1 }, i, wx0 * wy0, value, bounds, isolated);
@@ -158,6 +160,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
 
                             if (.Depth == class) {
                                 self.lessAov(.{ x, y }, i, value[0], bounds);
+                            } else if (.MaterialId == class) {
+                                self.overwriteAov(.{ x, y }, i, wx2 * wy2, value[0], bounds);
                             } else {
                                 // 1. row
                                 self.addAov(.{ x - 2, y - 2 }, i, wx0 * wy0, value, bounds, isolated);
@@ -350,6 +354,21 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
                 self.sensor.base.lessAov(pixel, slot, value);
+            }
+        }
+
+        fn overwriteAov(
+            self: *Self,
+            pixel: Vec2i,
+            slot: u32,
+            weight: f32,
+            value: f32,
+            bounds: Vec4i,
+        ) void {
+            if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
+                @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
+            {
+                self.sensor.base.overwriteAov(pixel, slot, value, weight);
             }
         }
 

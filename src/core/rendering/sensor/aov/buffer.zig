@@ -114,4 +114,23 @@ pub const Buffer = struct {
             dest.v[0] = value;
         }
     }
+
+    pub fn overwritePixel(
+        self: *Self,
+        dimensions: Vec2i,
+        pixel: Vec2i,
+        slot: u32,
+        value: f32,
+        weight: f32,
+    ) void {
+        const d = dimensions;
+
+        const pixels = self.buffers[slot];
+        var dest = &pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+
+        if (weight > dest.v[3]) {
+            dest.v[0] = value;
+            dest.v[3] = weight;
+        }
+    }
 };
