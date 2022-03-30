@@ -153,18 +153,6 @@ pub const Driver = struct {
         self.renderFrameBackward();
         self.renderFrameForward();
 
-        const resolution = camera.resolution;
-        const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
-        if (@reduce(.Or, total_crop != camera.crop)) {
-            camera.sensor.fixZeroWeights();
-        }
-
-        if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolveAccumulateTonemap(&self.target, self.threads);
-        } else {
-            camera.sensor.resolveTonemap(&self.target, self.threads);
-        }
-
         log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
@@ -198,30 +186,48 @@ pub const Driver = struct {
 
     pub fn resolve(self: *Driver) void {
         const camera = &self.view.camera;
-        camera.sensor.resolveTonemap(&self.target, self.threads);
+
+        const resolution = camera.resolution;
+        const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
+        if (@reduce(.Or, total_crop != camera.crop)) {
+            camera.sensor.fixZeroWeights();
+        }
+
+        if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
+            camera.sensor.resolveAccumulateTonemap(&self.target, self.threads);
+        } else {
+            camera.sensor.resolveTonemap(&self.target, self.threads);
+        }
+    }
+
+    pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
+        if (!self.view.aovs.activeClass(class)) {
+            return false;
+        }
+
+        self.view.camera.sensor.resolveAov(class, &self.target, self.threads);
+
+        return true;
     }
 
     pub fn exportFrame(self: *Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
+        self.resolve();
+
         for (exporters) |*e| {
             try e.write(alloc, self.target, null, frame, self.threads);
         }
 
-        const sensor = &self.view.camera.sensor;
-
         const len = View.AovValue.Num_classes;
         var i: u32 = 0;
         while (i < len) : (i += 1) {
+            const class = @intToEnum(View.AovValue.Class, i);
+            if (!self.resolveAov(class)) {
+                continue;
+            }
+
             for (exporters) |*e| {
-                const class = @intToEnum(View.AovValue.Class, i);
-
-                if (!self.view.aovs.activeClass(class)) {
-                    continue;
-                }
-
-                sensor.resolveAov(class, &self.target, self.threads);
-
                 try e.write(alloc, self.target, class, frame, self.threads);
             }
         }
