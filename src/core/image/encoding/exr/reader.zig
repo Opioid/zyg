@@ -363,7 +363,7 @@ const Channels = struct {
     pub fn bytesPerPixel(self: Channels) u32 {
         var size: u32 = 0;
         for (self.channels.items) |c| {
-            size += c.byteSize();
+            size += c.format.byteSize();
         }
 
         return size;

@@ -32,6 +32,8 @@ pub fn Unfiltered(comptime T: type) type {
 
                         if (.Depth == class) {
                             self.sensor.base.lessAov(pixel, i, value[0]);
+                        } else if (.MaterialId == class) {
+                            self.sensor.base.overwriteAov(pixel, i, value[0], 1.0);
                         } else {
                             self.sensor.base.addAov(pixel, i, value, 1.0);
                         }

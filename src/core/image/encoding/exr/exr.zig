@@ -5,18 +5,18 @@ pub const Channel = struct {
         Uint,
         Half,
         Float,
+
+        pub fn byteSize(self: Format) u32 {
+            return switch (self) {
+                .Half => 2,
+                else => 4,
+            };
+        }
     };
 
     name: []const u8,
 
     format: Format,
-
-    pub fn byteSize(self: Channel) u32 {
-        return switch (self.format) {
-            .Half => 2,
-            else => 4,
-        };
-    }
 };
 
 pub const Compression = enum(u8) {

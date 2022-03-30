@@ -39,7 +39,7 @@ pub const Writer = union(enum) {
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .EXR => |w| try w.write(alloc, writer, image, threads),
+            .EXR => |w| try w.write(alloc, writer, image, aov, threads),
             .PNG => |*w| try w.write(alloc, writer, image, aov, threads),
             .RGBE => try RGBE.write(alloc, writer, image),
         }
