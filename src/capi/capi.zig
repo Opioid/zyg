@@ -661,6 +661,27 @@ export fn su_resolve_frame(aov: u32) i32 {
     return -1;
 }
 
+export fn su_resolve_frame_to_buffer(aov: u32, buffer: [*]f32) i32 {
+    if (engine) |*e| {
+        const num_pixels = @intCast(u32, e.driver.target.description.numPixels());
+
+        const target = @ptrCast([*]Pack4f, buffer);
+
+        if (aov >= core.tk.View.AovValue.Num_classes) {
+            e.driver.resolveToBuffer(target, num_pixels);
+            return 0;
+        }
+
+        return if (e.driver.resolveAovToBuffer(
+            @intToEnum(core.tk.View.AovValue.Class, aov),
+            target,
+            num_pixels,
+        )) 0 else -2;
+    }
+
+    return -1;
+}
+
 export fn su_copy_framebuffer(
     format: u32,
     num_channels: u32,

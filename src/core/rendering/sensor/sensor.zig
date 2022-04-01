@@ -11,13 +11,13 @@ pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
-const Float4 = @import("../../image/image.zig").Float4;
 
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const Pack4f = math.Pack4f;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -149,33 +149,29 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn resolve(self: Sensor, target: *Float4, threads: *Threads) void {
+    pub fn resolve(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
-        const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
+    pub fn resolveTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
-        const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAccumulateTonemap(self: Sensor, target: *Float4, threads: *Threads) void {
+    pub fn resolveAccumulateTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
-        const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAov(self: Sensor, class: aov.Value.Class, target: *Float4, threads: *Threads) void {
+    pub fn resolveAov(self: Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
         const context = ResolveContext{ .sensor = &self, .target = target, .aov = class };
-        const num_pixels = @intCast(u32, target.description.numPixels());
         _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     const ResolveContext = struct {
         sensor: *const Sensor,
-        target: *Float4,
+        target: [*]Pack4f,
         aov: aov.Value.Class,
 
         pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {

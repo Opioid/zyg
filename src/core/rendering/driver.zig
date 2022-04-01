@@ -16,6 +16,7 @@ const chrono = base.chrono;
 const Threads = base.thread.Pool;
 const math = base.math;
 const Vec4i = math.Vec4i;
+const Pack4f = math.Pack4f;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
@@ -184,7 +185,7 @@ pub const Driver = struct {
         self.renderFrameIterationForward();
     }
 
-    pub fn resolve(self: *Driver) void {
+    pub fn resolveToBuffer(self: *Driver, target: [*]Pack4f, num_pixels: u32) void {
         const camera = &self.view.camera;
 
         const resolution = camera.resolution;
@@ -194,20 +195,30 @@ pub const Driver = struct {
         }
 
         if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolveAccumulateTonemap(&self.target, self.threads);
+            camera.sensor.resolveAccumulateTonemap(target, num_pixels, self.threads);
         } else {
-            camera.sensor.resolveTonemap(&self.target, self.threads);
+            camera.sensor.resolveTonemap(target, num_pixels, self.threads);
         }
     }
 
-    pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
+    pub fn resolve(self: *Driver) void {
+        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        self.resolveToBuffer(self.target.pixels.ptr, num_pixels);
+    }
+
+    pub fn resolveAovToBuffer(self: *Driver, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
         if (!self.view.aovs.activeClass(class)) {
             return false;
         }
 
-        self.view.camera.sensor.resolveAov(class, &self.target, self.threads);
+        self.view.camera.sensor.resolveAov(class, target, num_pixels, self.threads);
 
         return true;
+    }
+
+    pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
+        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        return self.resolveAovToBuffer(class, self.target.pixels.ptr, num_pixels);
     }
 
     pub fn exportFrame(self: *Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
@@ -256,7 +267,8 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolve(&self.target, self.threads);
+            const num_pixels = @intCast(u32, self.target.description.numPixels());
+            camera.sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
         }
 
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});

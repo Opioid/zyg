@@ -1,6 +1,5 @@
 const Base = @import("base.zig").Base;
 const aov = @import("aov/value.zig");
-const Float4 = @import("../../image/image.zig").Float4;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -79,30 +78,30 @@ pub const Opaque = struct {
         _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
     }
 
-    pub fn resolve(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+    pub fn resolve(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
 
-            target.pixels[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
+            target[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
         }
     }
 
-    pub fn resolveTonemap(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
             const tm = self.base.tonemapper.tonemap(color);
-            target.pixels[i + begin] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+            target[i + begin] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
         }
     }
 
-    pub fn resolveAccumulateTonemap(self: Opaque, target: *Float4, begin: u32, end: u32) void {
+    pub fn resolveAccumulateTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
             const j = i + begin;
-            const old = target.pixels[j];
+            const old = target[j];
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
-            target.pixels[j] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+            target[j] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
         }
     }
 };

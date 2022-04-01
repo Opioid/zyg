@@ -1,5 +1,4 @@
 const aov = @import("value.zig");
-const Float4 = @import("../../../image/image.zig").Float4;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -43,7 +42,7 @@ pub const Buffer = struct {
         }
     }
 
-    pub fn resolve(self: Self, class: aov.Value.Class, target: *Float4, begin: u32, end: u32) void {
+    pub fn resolve(self: Self, class: aov.Value.Class, target: [*]Pack4f, begin: u32, end: u32) void {
         const bit = @as(u32, 1) << @enumToInt(class);
         if (0 == (self.slots & bit)) {
             return;
@@ -54,11 +53,11 @@ pub const Buffer = struct {
         if (.Albedo == class or .ShadingNormal == class) {
             for (pixels[begin..end]) |p, i| {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
-                target.pixels[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
+                target[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
             }
         } else {
             for (pixels[begin..end]) |p, i| {
-                target.pixels[i + begin] = Pack4f.init4(p.v[0], 0.0, 0.0, 1.0);
+                target[i + begin] = Pack4f.init4(p.v[0], 0.0, 0.0, 1.0);
             }
         }
     }

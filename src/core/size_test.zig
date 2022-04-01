@@ -14,6 +14,8 @@ pub fn testSize() void {
 
     testType(math.Vec2f, "Vec2f", 8);
     testType(math.Vec3i, "Vec3i", 12);
+    testType(math.Vec4f, "Vec4f", 16);
+    testType(math.Pack4f, "Pack4f", 16);
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 128);
     testType(Light, "Light", 16);
