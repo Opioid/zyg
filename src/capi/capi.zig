@@ -661,9 +661,9 @@ export fn su_resolve_frame(aov: u32) i32 {
     return -1;
 }
 
-export fn su_resolve_frame_to_buffer(aov: u32, buffer: [*]f32) i32 {
+export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @intCast(u32, e.driver.target.description.numPixels());
+        const num_pixels = @minimum(width * height, @intCast(u32, e.driver.target.description.numPixels()));
 
         const target = @ptrCast([*]Pack4f, buffer);
 

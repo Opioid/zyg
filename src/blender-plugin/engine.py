@@ -163,10 +163,10 @@ def render(engine, depsgraph):
     buf = np.empty((size_x * size_y, 4), dtype=np.float32)
 
     zyg.su_render_frame(0)
-    zyg.su_resolve_frame_to_buffer(-1, buf.ctypes.data_as(POINTER(c_float)))
-   # zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
+    zyg.su_resolve_frame_to_buffer(-1, size_x, size_y, buf.ctypes.data_as(POINTER(c_float)))
 
-    #zyg.su_export_frame(0)
+    # zyg.su_resolve_frame(-1)
+    # zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
 
     # Here we write the pixel values to the RenderResult
     result = engine.begin_result(0, 0, size_x, size_y)
