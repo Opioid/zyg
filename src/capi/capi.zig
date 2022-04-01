@@ -648,22 +648,14 @@ export fn su_render_iterations(num_steps: u32) i32 {
     return -1;
 }
 
-export fn su_resolve_frame() i32 {
+export fn su_resolve_frame(aov: u32) i32 {
     if (engine) |*e| {
-        e.driver.resolve();
-        return 0;
-    }
-
-    return -1;
-}
-
-export fn su_resolve_aov(class: u32) i32 {
-    if (engine) |*e| {
-        if (class >= core.tk.View.AovValue.Num_classes) {
-            return -2;
+        if (aov >= core.tk.View.AovValue.Num_classes) {
+            e.driver.resolve();
+            return 0;
         }
 
-        return if (e.driver.resolveAov(@intToEnum(core.tk.View.AovValue.Class, class))) 0 else -3;
+        return if (e.driver.resolveAov(@intToEnum(core.tk.View.AovValue.Class, aov))) 0 else -2;
     }
 
     return -1;
