@@ -163,8 +163,8 @@ def render(engine, depsgraph):
     buf = np.empty((size_x * size_y, 4), dtype=np.float32)
 
     zyg.su_render_frame(0)
-
-    zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
+    zyg.su_resolve_frame_to_buffer(-1, buf.ctypes.data_as(POINTER(c_float)))
+   # zyg.su_copy_framebuffer(4, 4, size_x, size_y, buf.ctypes.data_as(POINTER(c_uint8)))
 
     #zyg.su_export_frame(0)
 
@@ -370,10 +370,11 @@ def create_background(scene):
     material_desc = """{{
     "rendering": {{
     "Light": {{
-    "emission": [{}, {}, {}]
-    }}}}}}""".format(color[0], color[1], color[2])
+    "emittance": {{
+    "spectrum": [{}, {}, {}]
+    }}}}}}}}""".format(color[0], color[1], color[2])
 
-    material = c_uint(zyg.su_material_create(c_char_p(material_desc.encode('utf-8'))));
+    material = c_uint(zyg.su_material_create(-1, c_char_p(material_desc.encode('utf-8'))));
 
     light_instance = zyg.su_prop_create(5, 1, byref(material))
     zyg.su_prop_set_transformation(light_instance, environment_matrix())
