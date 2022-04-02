@@ -304,7 +304,7 @@ pub const Lighttracer = struct {
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
 
-        sensor.splatSample(camera_sample, result, .{ 0, 0 }, crop);
+        sensor.splatSample(camera_sample, result, crop);
 
         return true;
     }

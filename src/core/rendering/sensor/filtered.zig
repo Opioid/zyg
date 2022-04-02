@@ -34,15 +34,13 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             sample: Sample,
             color: Vec4f,
             aov: AovValue,
-            offset: Vec2i,
             bounds: Vec4i,
             isolated: Vec4i,
         ) void {
-            _ = aov;
             const clamped = self.sensor.base.clamp(color);
 
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
+            const x = sample.pixel[0];
+            const y = sample.pixel[1];
 
             const ox = sample.pixel_uv[0] - 0.5;
             const oy = sample.pixel_uv[1] - 0.5;
@@ -204,11 +202,11 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             }
         }
 
-        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
+            const x = sample.pixel[0];
+            const y = sample.pixel[1];
 
             const ox = sample.pixel_uv[0] - 0.5;
             const oy = sample.pixel_uv[1] - 0.5;

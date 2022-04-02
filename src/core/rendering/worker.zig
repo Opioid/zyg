@@ -100,19 +100,11 @@ pub const Worker = struct {
         const scene = self.super.scene;
         var rng = &self.super.rng;
 
-        const offset = @splat(2, @as(i32, 0));
-
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
-        crop[0] += offset[0];
-        crop[1] += offset[1];
 
-        const xy = offset + Vec2i{ tile[0], tile[1] };
-        const zw = offset + Vec2i{ tile[2], tile[3] };
-        const view_tile = Vec4i{ xy[0], xy[1], zw[0], zw[1] };
-
-        var isolated_bounds = sensor.isolatedTile(view_tile);
+        var isolated_bounds = sensor.isolatedTile(tile);
         isolated_bounds[2] -= isolated_bounds[0];
         isolated_bounds[3] -= isolated_bounds[1];
 
@@ -160,9 +152,9 @@ pub const Worker = struct {
                             photon[3] = 0.0;
                         }
 
-                        sensor.addSample(sample, color + photon, self.aov, offset, crop, isolated_bounds);
+                        sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov, offset, crop, isolated_bounds);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov, crop, isolated_bounds);
                     }
                 }
             }

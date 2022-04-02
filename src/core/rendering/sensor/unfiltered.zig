@@ -17,8 +17,8 @@ pub fn Unfiltered(comptime T: type) type {
             return .{ .sensor = .{ .base = .{ .max = clamp_max } } };
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue, offset: Vec2i) void {
-            const pixel = sample.pixel + offset;
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue) void {
+            const pixel = sample.pixel;
 
             self.sensor.addPixel(pixel, self.sensor.base.clamp(color), 1.0);
 
@@ -42,8 +42,8 @@ pub fn Unfiltered(comptime T: type) type {
             }
         }
 
-        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i) void {
-            self.sensor.splatPixelAtomic(sample.pixel + offset, self.sensor.base.clamp(color), 1.0);
+        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f) void {
+            self.sensor.splatPixelAtomic(sample.pixel, self.sensor.base.clamp(color), 1.0);
         }
     };
 }

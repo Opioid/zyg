@@ -124,28 +124,27 @@ pub const Sensor = union(enum) {
         sample: Sample,
         color: Vec4f,
         aovs: aov.Value,
-        offset: Vec2i,
         bounds: Vec4i,
         isolated: Vec4i,
     ) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.addSample(sample, color, aovs, offset),
-            .Unfiltered_transparent => |*s| s.addSample(sample, color, aovs, offset),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, aovs, offset, bounds, isolated),
+            .Unfiltered_opaque => |*s| s.addSample(sample, color, aovs),
+            .Unfiltered_transparent => |*s| s.addSample(sample, color, aovs),
+            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, aovs, bounds, isolated),
+            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, aovs, bounds, isolated),
+            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, aovs, bounds, isolated),
+            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, aovs, bounds, isolated),
         }
     }
 
-    pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+    pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.splatSample(sample, color, offset),
-            .Unfiltered_transparent => |*s| s.splatSample(sample, color, offset),
-            .Filtered_1p0_opaque => |*s| s.splatSample(sample, color, offset, bounds),
-            .Filtered_2p0_opaque => |*s| s.splatSample(sample, color, offset, bounds),
-            .Filtered_1p0_transparent => |*s| s.splatSample(sample, color, offset, bounds),
-            .Filtered_2p0_transparent => |*s| s.splatSample(sample, color, offset, bounds),
+            .Unfiltered_opaque => |*s| s.splatSample(sample, color),
+            .Unfiltered_transparent => |*s| s.splatSample(sample, color),
+            .Filtered_1p0_opaque => |*s| s.splatSample(sample, color, bounds),
+            .Filtered_2p0_opaque => |*s| s.splatSample(sample, color, bounds),
+            .Filtered_1p0_transparent => |*s| s.splatSample(sample, color, bounds),
+            .Filtered_2p0_transparent => |*s| s.splatSample(sample, color, bounds),
         }
     }
 
