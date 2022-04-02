@@ -1,5 +1,6 @@
 const Float4 = @import("../../image/image.zig").Float4;
 const AovClass = @import("../../rendering/sensor/aov/value.zig").Value.Class;
+const scn = @import("../../scene/constants.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -46,7 +47,7 @@ pub const Srgb = struct {
 
                         mind = @minimum(mind, depth);
 
-                        if (depth < std.math.f32_max) {
+                        if (depth < scn.Almost_ray_max_t) {
                             maxd = @maximum(maxd, depth);
                         }
                     }
