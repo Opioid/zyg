@@ -14,7 +14,6 @@ pub const Value = struct {
         pub fn default(class: Class) Vec4f {
             return switch (class) {
                 .Depth => @splat(4, @as(f32, std.math.f32_max)),
-                .ShadingNormal => @splat(4, @as(f32, -1.0)),
                 else => @splat(4, @as(f32, 0.0)),
             };
         }
@@ -42,9 +41,9 @@ pub const Value = struct {
 
         var i: u5 = 0;
         while (i < Num_classes) : (i += 1) {
-            const bit = @as(u32, 1) << i;
-            if (0 != (self.slots & bit)) {
-                self.values[i] = @intToEnum(Class, i).default();
+            const class = @intToEnum(Class, i);
+            if (self.activeClass(class)) {
+                self.values[i] = class.default();
             }
         }
     }

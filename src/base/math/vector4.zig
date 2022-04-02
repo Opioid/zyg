@@ -330,21 +330,21 @@ pub fn allFinite3(v: Vec4f) bool {
     return true;
 }
 
-pub fn vec4fTo4i(v: Vec4f) Vec4(i32) {
-    return Vec4(i32).init4(
+pub fn vec4fTo4i(v: Vec4f) Vec4i {
+    return .{
         @floatToInt(i32, v[0]),
         @floatToInt(i32, v[1]),
         @floatToInt(i32, v[2]),
         @floatToInt(i32, v[3]),
-    );
+    };
 }
 
-pub fn vec4iTo4f(v: Vec4(i32)) Vec4f {
+pub fn vec4iTo4f(v: Vec4i) Vec4f {
     return .{
-        @intToFloat(f32, v.v[0]),
-        @intToFloat(f32, v.v[1]),
-        @intToFloat(f32, v.v[2]),
-        @intToFloat(f32, v.v[3]),
+        @intToFloat(f32, v[0]),
+        @intToFloat(f32, v[1]),
+        @intToFloat(f32, v[2]),
+        @intToFloat(f32, v[3]),
     };
 }
 

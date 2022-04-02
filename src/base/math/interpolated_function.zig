@@ -227,25 +227,25 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
             const offset = math.vec4fTo4i(o);
             const t = o - math.vec4iTo4f(offset);
 
-            const col1 = std.math.min(offset.v[0] + 1, X - 1);
-            const row0 = offset.v[1] * X;
-            const row1 = std.math.min(offset.v[1] + 1, Y - 1) * X;
+            const col1 = std.math.min(offset[0] + 1, X - 1);
+            const row0 = offset[1] * X;
+            const row1 = std.math.min(offset[1] + 1, Y - 1) * X;
 
             const area = comptime X * Y;
-            const slice0 = offset.v[2] * area;
-            const slice1 = std.math.min(offset.v[2] + 1, Z - 1) * area;
+            const slice0 = offset[2] * area;
+            const slice1 = std.math.min(offset[2] + 1, Z - 1) * area;
 
             const ca = [_]f32{
-                self.samples[@intCast(u32, offset.v[0] + row0 + slice0)],
+                self.samples[@intCast(u32, offset[0] + row0 + slice0)],
                 self.samples[@intCast(u32, col1 + row0 + slice0)],
-                self.samples[@intCast(u32, offset.v[0] + row1 + slice0)],
+                self.samples[@intCast(u32, offset[0] + row1 + slice0)],
                 self.samples[@intCast(u32, col1 + row1 + slice0)],
             };
 
             const cb = [_]f32{
-                self.samples[@intCast(u32, offset.v[0] + row0 + slice1)],
+                self.samples[@intCast(u32, offset[0] + row0 + slice1)],
                 self.samples[@intCast(u32, col1 + row0 + slice1)],
-                self.samples[@intCast(u32, offset.v[0] + row1 + slice1)],
+                self.samples[@intCast(u32, offset[0] + row1 + slice1)],
                 self.samples[@intCast(u32, col1 + row1 + slice1)],
             };
 

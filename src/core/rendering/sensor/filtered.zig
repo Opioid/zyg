@@ -81,6 +81,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                                 self.lessAov(.{ x, y }, i, value[0], bounds);
                             } else if (.MaterialId == class) {
                                 self.overwriteAov(.{ x, y }, i, wx2 * wy2, value[0], bounds);
+                            } else if (.ShadingNormal == class) {
+                                self.addAov(.{ x, y }, i, 1.0, value, bounds, isolated);
                             } else {
                                 // 1. row
                                 self.addAov(.{ x - 1, y - 1 }, i, wx0 * wy0, value, bounds, isolated);
@@ -160,6 +162,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                                 self.lessAov(.{ x, y }, i, value[0], bounds);
                             } else if (.MaterialId == class) {
                                 self.overwriteAov(.{ x, y }, i, wx2 * wy2, value[0], bounds);
+                            } else if (.ShadingNormal == class) {
+                                self.addAov(.{ x, y }, i, 1.0, value, bounds, isolated);
                             } else {
                                 // 1. row
                                 self.addAov(.{ x - 2, y - 2 }, i, wx0 * wy0, value, bounds, isolated);
