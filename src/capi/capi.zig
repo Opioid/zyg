@@ -730,7 +730,7 @@ const CopyFramebufferContext = struct {
         const used_width = @minimum(self.width, @intCast(u32, d.v[0]));
 
         if (3 == self.num_channels) {
-            var destination = self.destination;
+            const destination = self.destination;
 
             var y: u32 = begin;
             while (y < end) : (y += 1) {
@@ -747,7 +747,7 @@ const CopyFramebufferContext = struct {
                 }
             }
         } else if (4 == self.num_channels) {
-            var destination = std.mem.bytesAsSlice(Pack4f, self.destination);
+            const destination = std.mem.bytesAsSlice(Pack4f, self.destination);
 
             var y: u32 = begin;
             while (y < end) : (y += 1) {
