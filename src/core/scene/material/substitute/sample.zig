@@ -52,7 +52,6 @@ pub const Sample = struct {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
         var super = Base.init(rs, wo, color, radiance, alpha);
-        super.properties.set(.CanEvaluate, ior != ior_outside);
 
         const f0 = fresnel.Schlick.F0(ior, ior_outside);
 
