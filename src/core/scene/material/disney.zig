@@ -55,7 +55,7 @@ pub const Iso = struct {
         const fmo = f_D90 - 1.0;
 
         const a = 1.0 + fmo * math.pow5(1.0 - n_dot_wi);
-        const b = 1.0 + fmo * math.pow5(1 - n_dot_wo);
+        const b = 1.0 + fmo * math.pow5(1.0 - n_dot_wo);
 
         return @splat(4, a * b * energy_factor * math.pi_inv) * color;
     }
