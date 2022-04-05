@@ -41,18 +41,17 @@ pub const Coating = struct {
             return .{ .reflection = @splat(4, @as(f32, 0.0)), .attenuation = att, .f = 0.0, .pdf = 0.0 };
         }
 
-        const n_dot_h = math.saturate(self.layer.nDot(h));
-
         const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
         var fresnel_result: Vec4f = undefined;
         const gg = ggx.Iso.reflectionF(
+            h,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
-            n_dot_h,
             self.alpha,
             schlick,
+            self.layer,
             &fresnel_result,
         );
 

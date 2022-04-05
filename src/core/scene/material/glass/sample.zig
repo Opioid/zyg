@@ -125,12 +125,11 @@ pub const Sample = struct {
             const h = math.normalize3(wo + wi);
 
             const wo_dot_h = hlp.clampDot(wo, h);
-            const n_dot_h = math.saturate(self.super.layer.nDot(h));
 
             const schlick = fresnel.Schlick1.init(self.f0);
 
             var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(n_dot_wi, n_dot_wo, wo_dot_h, n_dot_h, alpha, schlick, &fr);
+            const gg = ggx.Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, self.super.layer, &fr);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
 
             return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());

@@ -43,27 +43,31 @@ pub fn mapRoughness(roughness: f32) f32 {
 
 pub const Iso = struct {
     pub fn reflection(
+        h: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
-        n_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
+        layer: Layer,
     ) bxdf.Result {
         var fresnel_result: Vec4f = undefined;
-        return reflectionF(n_dot_wi, n_dot_wo, wo_dot_h, n_dot_h, alpha, fresnel, &fresnel_result);
+        return reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, layer, &fresnel_result);
     }
 
     pub fn reflectionF(
+        h: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
-        n_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
+        layer: Layer,
         fresnel_result: *Vec4f,
     ) bxdf.Result {
         const alpha2 = alpha * alpha;
+
+        const n_dot_h = math.saturate(math.dot3(layer.n, h));
 
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
@@ -212,12 +216,6 @@ pub const Iso = struct {
         result.h_dot_wi = wi_dot_h;
         result.typef.clearWith(if (alpha <= Min_alpha) .SpecularTransmission else .GlossyTransmission);
 
-        //      std.debug.print("{}\n", .{result.reflection});
-
-        if (std.math.isNan(result.pdf)) {
-            std.debug.print("{} {} {} {}\n", .{ n_dot_wo, abs_wo_dot_h, d, alpha2 });
-        }
-
         return n_dot_wi;
     }
 
@@ -258,12 +256,27 @@ pub const Aniso = struct {
         fresnel: anytype,
         layer: Layer,
     ) bxdf.Result {
-        const n_dot_h = math.saturate(math.dot3(layer.n, h));
+        var fresnel_result: Vec4f = undefined;
+        return reflectionF(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, layer, &fresnel_result);
+    }
 
+    pub fn reflectionF(
+        wi: Vec4f,
+        wo: Vec4f,
+        h: Vec4f,
+        n_dot_wi: f32,
+        n_dot_wo: f32,
+        wo_dot_h: f32,
+        alpha: Vec2f,
+        fresnel: anytype,
+        layer: Layer,
+        fresnel_result: *Vec4f,
+    ) bxdf.Result {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflection(n_dot_wi, n_dot_wo, wo_dot_h, n_dot_h, alpha[0], fresnel);
+            return Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, layer, fresnel_result);
         }
 
+        const n_dot_h = math.saturate(math.dot3(layer.n, h));
         const x_dot_h = math.dot3(layer.t, h);
         const y_dot_h = math.dot3(layer.b, h);
 
@@ -278,10 +291,10 @@ pub const Aniso = struct {
 
         const f = fresnel.f(wo_dot_h);
 
+        fresnel_result.* = f;
+
         const refl = @splat(4, d * g[0]) * f;
         const pdf = pdfVisible(d, g[1]);
-
-        //  SOFT_ASSERT(testing::check(reflection, h, n_dot_wi, n_dot_wo, wo_dot_h, pdf, layer));
 
         return bxdf.Result.init(refl, pdf);
     }
@@ -327,9 +340,48 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(.GlossyReflection);
+        result.typef.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
-        // SOFT_ASSERT(testing::check(result, wo, layer));
+        return n_dot_wi;
+    }
+
+    pub fn reflectNoFresnel(
+        wo: Vec4f,
+        h: Vec4f,
+        n_dot_wo: f32,
+        n_dot_h: f32,
+        wi_dot_h: f32,
+        wo_dot_h: f32,
+        alpha: Vec2f,
+        layer: Layer,
+        result: *bxdf.Sample,
+    ) f32 {
+        if (alpha[0] == alpha[1]) {
+            return Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha[0], layer, result);
+        }
+
+        const x_dot_h = math.dot3(layer.t, h);
+        const y_dot_h = math.dot3(layer.b, h);
+
+        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+
+        const n_dot_wi = layer.clampNdot(wi);
+
+        const d = distribution(n_dot_h, x_dot_h, y_dot_h, alpha);
+
+        const t_dot_wi = math.dot3(layer.t, wi);
+        const t_dot_wo = math.dot3(layer.t, wo);
+        const b_dot_wi = math.dot3(layer.b, wi);
+        const b_dot_wo = math.dot3(layer.b, wo);
+
+        const g = visibilityAndG1Wo(t_dot_wi, t_dot_wo, b_dot_wi, b_dot_wo, n_dot_wi, n_dot_wo, alpha);
+
+        result.reflection = @splat(4, d * g[0]);
+        result.wi = wi;
+        result.h = h;
+        result.pdf = pdfVisible(d, g[1]);
+        result.h_dot_wi = wi_dot_h;
+        result.typef.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }

@@ -195,7 +195,7 @@ pub const Sample = struct {
 
         const d = disney.Iso.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.super.albedo);
 
-        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
         }
 
@@ -223,7 +223,7 @@ pub const Sample = struct {
     fn pureGlossEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const alpha = self.super.alpha;
 
-        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.empty();
         }
 
@@ -305,7 +305,7 @@ pub const Sample = struct {
             result,
         );
 
-        if (self.super.avoidCaustics() and alpha[0] <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             result.reflection *= @splat(4, n_dot_wi);
             return;
         }
@@ -443,7 +443,7 @@ pub const Sample = struct {
         }
 
         const wo = self.super.wo;
-        const alpha = self.super.alpha[0];
+        const alpha = self.super.alpha;
         const layer = self.super.layer;
 
         if (!self.super.sameHemisphere(wo)) {
@@ -477,12 +477,12 @@ pub const Sample = struct {
                 wi_dot_h,
                 wo_dot_h,
                 n_dot_h,
-                alpha,
+                alpha[0],
                 ior,
                 schlick,
             );
 
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, quo_ior.eta_t);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], quo_ior.eta_t);
 
             return bxdf.Result.init(
                 @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
@@ -500,27 +500,29 @@ pub const Sample = struct {
         const n_dot_wi = layer.clampNdot(wi);
         const n_dot_wo = layer.clampAbsNdot(wo);
 
-        const d = disney.IsoNoLambert.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha, self.super.albedo);
+        const d = disney.IsoNoLambert.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.super.albedo);
 
-        if (self.super.avoidCaustics() and alpha <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
         }
 
-        const n_dot_h = math.saturate(layer.nDot(h));
         const schlick = fresnel.Schlick.init(self.f0);
 
         var fresnel_result: Vec4f = undefined;
-        var gg = ggx.Iso.reflectionF(
+        var gg = ggx.Aniso.reflectionF(
+            wi,
+            wo,
+            h,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
-            n_dot_h,
             alpha,
             schlick,
+            layer,
             &fresnel_result,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha, self.metallic);
+        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
 
         const base_reflection = @splat(4, n_dot_wi) * (d.reflection + gg.reflection);
         const base_pdf = fresnel_result[0] * gg.pdf();
@@ -580,14 +582,14 @@ pub const Sample = struct {
         const p = s3[0];
         if (same_side) {
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                     wo,
                     h,
                     n_dot_wo,
                     n_dot_h,
                     wi_dot_h,
                     wo_dot_h,
-                    alpha[0],
+                    alpha,
                     layer,
                     result,
                 );
@@ -630,14 +632,14 @@ pub const Sample = struct {
             }
         } else {
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                     wo,
                     h,
                     n_dot_wo,
                     n_dot_h,
                     wi_dot_h,
                     wo_dot_h,
-                    alpha[0],
+                    alpha,
                     layer,
                     result,
                 );
@@ -715,14 +717,14 @@ pub const Sample = struct {
                 }
 
                 if (p <= f) {
-                    const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                         wo,
                         h,
                         n_dot_wo,
                         n_dot_h,
                         wi_dot_h,
                         wo_dot_h,
-                        alpha[0],
+                        alpha,
                         layer,
                         result,
                     );
@@ -795,14 +797,14 @@ pub const Sample = struct {
             }
 
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                     wo,
                     h,
                     n_dot_wo,
                     n_dot_h,
                     wi_dot_h,
                     wo_dot_h,
-                    alpha[0],
+                    alpha,
                     layer,
                     result,
                 );
