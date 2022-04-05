@@ -86,21 +86,14 @@ pub fn main() !void {
     };
     defer writer.deinit(alloc);
 
-    if (operator.typef.cumulative()) {
+    var i: u32 = 0;
+    const len = operator.iterations();
+    while (i < len) : (i += 1) {
+        operator.current = i;
         operator.run(&threads);
 
-        const name = options.inputs.items[operator.input_ids.items[0]];
-
+        const name = options.inputs.items[operator.input_ids.items[i]];
         try write(alloc, name, operator.target, &writer, &threads);
-    } else {
-        for (operator.textures.items) |_, i| {
-            operator.current = @intCast(u32, i);
-            operator.run(&threads);
-
-            const name = options.inputs.items[operator.input_ids.items[i]];
-
-            try write(alloc, name, operator.target, &writer, &threads);
-        }
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});

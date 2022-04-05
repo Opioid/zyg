@@ -492,11 +492,6 @@ pub const Sample = struct {
 
         const h = math.normalize3(wo + wi);
         const wo_dot_h = hlp.clampDot(wo, h);
-
-        if (1.0 == self.metallic) {
-            return self.pureGlossEvaluate(wi, wo, h, wo_dot_h);
-        }
-
         const n_dot_wi = layer.clampNdot(wi);
         const n_dot_wo = layer.clampAbsNdot(wo);
 

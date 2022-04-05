@@ -79,6 +79,8 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);
+        } else if (std.mem.eql(u8, "diff", command) or std.mem.eql(u8, "d", command)) {
+            self.operator = .Diff;
         } else if (std.mem.eql(u8, "exposure", command) or std.mem.eql(u8, "e", command)) {
             self.exposure = std.fmt.parseFloat(f32, parameter) catch 0.0;
         } else if (std.mem.eql(u8, "format", command) or std.mem.eql(u8, "f", command)) {

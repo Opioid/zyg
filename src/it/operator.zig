@@ -12,15 +12,9 @@ const Allocator = std.mem.Allocator;
 pub const Operator = struct {
     pub const Type = enum {
         Add,
+        Diff,
         Over,
         Tonemap,
-
-        pub fn cumulative(self: Type) bool {
-            return switch (self) {
-                .Tonemap => false,
-                else => true,
-            };
-        }
     };
 
     typef: Type,
@@ -49,6 +43,14 @@ pub const Operator = struct {
         self.textures.deinit(alloc);
     }
 
+    pub fn iterations(self: Self) u32 {
+        return switch (self.typef) {
+            .Add, .Over => 1,
+            .Diff => @intCast(u32, self.textures.items.len - 1),
+            .Tonemap => @intCast(u32, self.textures.items.len),
+        };
+    }
+
     pub fn run(self: Self, threads: *Threads) void {
         const texture = self.textures.items[self.current];
 
@@ -68,41 +70,67 @@ pub const Operator = struct {
         const dim = texture.description(self.scene.*).dimensions;
         const width = dim.v[0];
 
-        var y = begin;
-        while (y < end) : (y += 1) {
-            var x: u32 = 0;
-            while (x < width) : (x += 1) {
-                const ux = @intCast(i32, x);
-                const uy = @intCast(i32, y);
+        if (.Diff == self.typef) {
+            const texture_b = self.textures.items[current + 1];
 
-                switch (self.typef) {
-                    .Add => {
-                        var color = texture.get2D_4(ux, uy, self.scene.*);
+            var y = begin;
+            while (y < end) : (y += 1) {
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const ux = @intCast(i32, x);
+                    const uy = @intCast(i32, y);
 
-                        for (self.textures.items[current + 1 ..]) |t| {
-                            const other = t.get2D_4(ux, uy, self.scene.*);
-                            color += other;
-                        }
+                    switch (self.typef) {
+                        .Diff => {
+                            const color_a = texture.get2D_4(ux, uy, self.scene.*);
+                            const color_b = texture_b.get2D_4(ux, uy, self.scene.*);
 
-                        const tm = self.tonemapper.tonemap(color);
-                        self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
-                    },
-                    .Over => {
-                        var color = texture.get2D_4(ux, uy, self.scene.*);
+                            const dif = @fabs(color_a - color_b);
 
-                        for (self.textures.items[current + 1 ..]) |t| {
-                            const other = t.get2D_4(ux, uy, self.scene.*);
-                            color += other * @splat(4, 1.0 - color[3]);
-                        }
+                            self.target.set2D(ux, uy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
+                        },
+                        else => unreachable,
+                    }
+                }
+            }
+        } else {
+            var y = begin;
+            while (y < end) : (y += 1) {
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const ux = @intCast(i32, x);
+                    const uy = @intCast(i32, y);
 
-                        const tm = self.tonemapper.tonemap(color);
-                        self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
-                    },
-                    .Tonemap => {
-                        const color = texture.get2D_4(ux, uy, self.scene.*);
-                        const tm = self.tonemapper.tonemap(color);
-                        self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
-                    },
+                    switch (self.typef) {
+                        .Add => {
+                            var color = texture.get2D_4(ux, uy, self.scene.*);
+
+                            for (self.textures.items[current + 1 ..]) |t| {
+                                const other = t.get2D_4(ux, uy, self.scene.*);
+                                color += other;
+                            }
+
+                            const tm = self.tonemapper.tonemap(color);
+                            self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
+                        },
+                        .Over => {
+                            var color = texture.get2D_4(ux, uy, self.scene.*);
+
+                            for (self.textures.items[current + 1 ..]) |t| {
+                                const other = t.get2D_4(ux, uy, self.scene.*);
+                                color += other * @splat(4, 1.0 - color[3]);
+                            }
+
+                            const tm = self.tonemapper.tonemap(color);
+                            self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
+                        },
+                        .Tonemap => {
+                            const color = texture.get2D_4(ux, uy, self.scene.*);
+                            const tm = self.tonemapper.tonemap(color);
+                            self.target.set2D(ux, uy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
+                        },
+                        else => unreachable,
+                    }
                 }
             }
         }
