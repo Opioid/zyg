@@ -64,14 +64,12 @@ pub const Operator = struct {
 
         var self = @intToPtr(*Self, context);
 
-        const current = self.current;
-        const texture = self.textures.items[current];
-
-        const dim = texture.description(self.scene.*).dimensions;
-        const width = dim.v[0];
-
         if (.Diff == self.typef) {
-            const texture_b = self.textures.items[current + 1];
+            const texture_a = self.textures.items[0];
+            const texture_b = self.textures.items[self.current + 1];
+
+            const dim = texture_a.description(self.scene.*).dimensions;
+            const width = dim.v[0];
 
             var y = begin;
             while (y < end) : (y += 1) {
@@ -82,7 +80,7 @@ pub const Operator = struct {
 
                     switch (self.typef) {
                         .Diff => {
-                            const color_a = texture.get2D_4(ux, uy, self.scene.*);
+                            const color_a = texture_a.get2D_4(ux, uy, self.scene.*);
                             const color_b = texture_b.get2D_4(ux, uy, self.scene.*);
 
                             const dif = @fabs(color_a - color_b);
@@ -94,6 +92,12 @@ pub const Operator = struct {
                 }
             }
         } else {
+            const current = self.current;
+            const texture = self.textures.items[current];
+
+            const dim = texture.description(self.scene.*).dimensions;
+            const width = dim.v[0];
+
             var y = begin;
             while (y < end) : (y += 1) {
                 var x: u32 = 0;
