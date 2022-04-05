@@ -45,21 +45,23 @@ pub const Sample = struct {
         radiance: Vec4f,
         alpha: Vec2f,
         ior: f32,
-        ior_outside: f32,
+        ior_outer: f32,
+        ior_medium: f32,
         metallic: f32,
         volumetric: bool,
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
         var super = Base.init(rs, wo, color, radiance, alpha);
+        super.properties.set(.CanEvaluate, ior != ior_medium);
 
-        const f0 = fresnel.Schlick.F0(ior, ior_outside);
+        const f0 = fresnel.Schlick.F0(ior, ior_outer);
 
         return .{
             .super = super,
             .f0 = math.lerp3(@splat(4, f0), albedo, metallic),
             .metallic = metallic,
-            .ior = .{ .eta_t = ior, .eta_i = ior_outside },
+            .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .volumetric = volumetric,
         };
     }
@@ -684,35 +686,34 @@ pub const Sample = struct {
 
         const s3 = sampler.sample3D(rng);
         const xi = Vec2f{ s3[1], s3[2] };
-
-        var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
-
-        const n_dot_wo = layer.clampAbsNdot(wo);
-        const wo_dot_h = hlp.clampDot(wo, h);
-        const eta = ior.eta_i / ior.eta_t;
-        const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
-
-        var f: f32 = undefined;
-        var wi_dot_h: f32 = undefined;
-        if (sint2 >= 1.0) {
-            f = 1.0;
-            wi_dot_h = 0.0;
-        } else {
-            wi_dot_h = @sqrt(1.0 - sint2);
-            const cos_x = if (ior.eta_i > ior.eta_t) wi_dot_h else wo_dot_h;
-            f = fresnel.schlick1(cos_x, self.f0[0]);
-        }
-
         const p = s3[0];
+
         if (same_side) {
             var coat_n_dot_h: f32 = undefined;
-            const cf = self.coating.sample(self.super.wo, sampler.sample2D(rng), &coat_n_dot_h, result);
-            //const cf = self.coating.sample(self.super.wo, sampler, rng, &coat_n_dot_h, result);
+            const cf = self.coating.sample(self.super.wo, xi, &coat_n_dot_h, result);
 
             if (p <= cf) {
                 self.coatingReflect(cf, coat_n_dot_h, result);
             } else {
+                var n_dot_h: f32 = undefined;
+                const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(rng), layer, &n_dot_h);
+
+                const n_dot_wo = layer.clampAbsNdot(wo);
+                const wo_dot_h = hlp.clampDot(wo, h);
+                const eta = ior.eta_i / ior.eta_t;
+                const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
+
+                var f: f32 = undefined;
+                var wi_dot_h: f32 = undefined;
+                if (sint2 >= 1.0) {
+                    f = 1.0;
+                    wi_dot_h = 0.0;
+                } else {
+                    wi_dot_h = @sqrt(1.0 - sint2);
+                    const cos_x = if (ior.eta_i > ior.eta_t) wi_dot_h else wo_dot_h;
+                    f = fresnel.schlick1(cos_x, self.f0[0]);
+                }
+
                 if (p <= f) {
                     const n_dot_wi = ggx.Iso.reflectNoFresnel(
                         wo,
@@ -774,6 +775,25 @@ pub const Sample = struct {
                 result.pdf *= 1.0 - cf;
             }
         } else {
+            var n_dot_h: f32 = undefined;
+            const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
+
+            const n_dot_wo = layer.clampAbsNdot(wo);
+            const wo_dot_h = hlp.clampDot(wo, h);
+            const eta = ior.eta_i / ior.eta_t;
+            const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
+
+            var f: f32 = undefined;
+            var wi_dot_h: f32 = undefined;
+            if (sint2 >= 1.0) {
+                f = 1.0;
+                wi_dot_h = 0.0;
+            } else {
+                wi_dot_h = @sqrt(1.0 - sint2);
+                const cos_x = if (ior.eta_i > ior.eta_t) wi_dot_h else wo_dot_h;
+                f = fresnel.schlick1(cos_x, self.f0[0]);
+            }
+
             if (p <= f) {
                 const n_dot_wi = ggx.Iso.reflectNoFresnel(
                     wo,

@@ -163,7 +163,7 @@ pub const Material = struct {
         }
 
         const ior = self.super.ior;
-        const ior_outside = if (coating_thickness > 0.0) coating_ior else rs.ior();
+        const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior();
         const attenuation_distance = self.super.attenuation_distance;
 
         var result = Surface.init(
@@ -173,7 +173,8 @@ pub const Material = struct {
             rad,
             alpha,
             ior,
-            ior_outside,
+            ior_outer,
+            rs.ior(),
             metallic,
             attenuation_distance > 0.0,
         );
