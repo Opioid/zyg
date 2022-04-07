@@ -19,7 +19,6 @@ const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
     // core.size_test.testSize();
-    // try core.ggx_integrate.integrate();
 
     log.info("Welcome to zyg!", .{});
 
@@ -49,6 +48,8 @@ pub fn main() !void {
     var threads: Threads = .{};
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
+
+    // try core.ggx_integrate.integrate(alloc, &threads);
 
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
