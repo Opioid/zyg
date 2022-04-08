@@ -38,7 +38,7 @@ fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
     const cn_dot_wo = hlp.clamp(n_dot_wo);
 
     // (sin, 0, cos)
-    const wo = Vec4f{ @sqrt(1.0 - cn_dot_wo * cn_dot_wo), 0.0, cn_dot_wo, 0.0 };
+    const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
 
     var accum: f32 = 0.0;
     var i: u32 = 0;
@@ -62,9 +62,9 @@ fn integrate_f_ss_avg(alpha: f32, e_m: E_m_func, num_samples: u32) f32 {
     var accum: f32 = 0.0;
     var i: u32 = 0;
     while (i < num_samples) : (i += 1) {
-        const cn_dot_wo = hlp.clamp(n_dot_wo);
+        //   const cn_dot_wo = hlp.clamp(n_dot_wo);
 
-        accum += e_m.eval(cn_dot_wo, alpha) / @intToFloat(f32, num_samples);
+        accum += e_m.eval(n_dot_wo, alpha) / @intToFloat(f32, num_samples);
 
         n_dot_wo += step;
     }

@@ -131,6 +131,19 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
             return result;
         }
 
+        pub fn fromArray(samples: [*]const f32) Self {
+            var result = Self{
+                .range_end = 1.0,
+                .inverse_interval = @intToFloat(f32, N - 1),
+            };
+
+            for (result.samples) |*s, i| {
+                s.* = samples[i];
+            }
+
+            return result;
+        }
+
         pub fn scale(self: *Self, x: f32) void {
             for (self.samples) |*s| {
                 s.* *= x;

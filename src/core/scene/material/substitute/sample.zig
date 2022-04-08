@@ -213,11 +213,11 @@ pub const Sample = struct {
             self.super.layer,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
 
         const pdf = 0.5 * (d.pdf() + gg.pdf());
 
-        return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection), pdf);
+        return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms), pdf);
     }
 
     fn pureGlossEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
@@ -244,9 +244,9 @@ pub const Sample = struct {
             self.super.layer,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
 
-        return bxdf.Result.init(@splat(4, n_dot_wi) * gg.reflection, gg.pdf());
+        return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
 
     fn baseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
@@ -324,9 +324,9 @@ pub const Sample = struct {
             self.super.layer,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
 
-        result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection);
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection + mms);
         result.pdf = 0.5 * (result.pdf + gg.pdf());
     }
 
@@ -348,7 +348,7 @@ pub const Sample = struct {
             result,
         );
 
-        result.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         const d = disney.Iso.reflection(
             result.h_dot_wi,
@@ -358,7 +358,7 @@ pub const Sample = struct {
             self.super.albedo,
         );
 
-        result.reflection = @splat(4, n_dot_wi) * (result.reflection + d.reflection);
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms + d.reflection);
         result.pdf = 0.5 * (result.pdf + d.pdf());
     }
 
@@ -380,8 +380,8 @@ pub const Sample = struct {
             result,
         );
 
-        result.reflection *= @splat(4, n_dot_wi) *
-            ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        result.reflection += ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        result.reflection *= @splat(4, n_dot_wi);
     }
 
     fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
@@ -517,9 +517,9 @@ pub const Sample = struct {
             &fresnel_result,
         );
 
-        gg.reflection *= ggx.ilmEpConductor(self.f0, n_dot_wo, alpha[0], self.metallic);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
 
-        const base_reflection = @splat(4, n_dot_wi) * (d.reflection + gg.reflection);
+        const base_reflection = @splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms);
         const base_pdf = fresnel_result[0] * gg.pdf();
 
         if (self.coating.thickness > 0.0) {
@@ -597,14 +597,10 @@ pub const Sample = struct {
                     self.super.albedo,
                 );
 
-                const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + d.reflection);
+                const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+                const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms + d.reflection);
 
-                result.reflection = reflection * ggx.ilmEpConductor(
-                    self.f0,
-                    n_dot_wo,
-                    alpha[0],
-                    self.metallic,
-                );
+                result.reflection = reflection;
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = -wo_dot_h;
@@ -732,14 +728,10 @@ pub const Sample = struct {
                         self.super.albedo,
                     );
 
-                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + d.reflection);
+                    const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms + d.reflection);
 
-                    result.reflection = reflection * ggx.ilmEpConductor(
-                        self.f0,
-                        n_dot_wo,
-                        alpha[0],
-                        self.metallic,
-                    );
+                    result.reflection = reflection;
                     result.pdf *= f;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;

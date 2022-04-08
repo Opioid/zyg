@@ -20,18 +20,30 @@ const E_m_tex = math.InterpolatedFunction2D_N(
     integral.E_m_size,
 ).fromArray(&integral.E_m);
 
+const E_m_avg_tex = math.InterpolatedFunction1D_N(integral.E_m_avg.len).fromArray(&integral.E_m_avg);
+
 const E_s_tex = math.InterpolatedFunction3D_N(
     integral.E_s_size,
     integral.E_s_size,
     integral.E_s_size,
 ).fromArray(&integral.E_s);
 
-pub fn ilmEpConductor(f0: Vec4f, n_dot_wo: f32, alpha: f32, metallic: f32) Vec4f {
-    return @splat(4, @as(f32, 1.0)) + @splat(4, metallic / E_m_tex.eval(n_dot_wo, alpha) - 1.0) * f0;
-}
-
 pub fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, ior: f32) f32 {
     return 1.0 / E_s_tex.eval(n_dot_wo, alpha, ior - 1.0);
+}
+
+pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
+    const e_wo = E_m_tex.eval(n_dot_wo, alpha);
+    const e_wi = E_m_tex.eval(n_dot_wi, alpha);
+    const e_avg = E_m_avg_tex.eval(alpha);
+
+    const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
+
+    const f_avg = @splat(4, @as(f32, 20.0 / 21.0)) * f0;
+
+    const f = ((f_avg * f_avg) * @splat(4, e_avg)) / (@splat(4, @as(f32, 1.0)) - f_avg * @splat(4, 1.0 - e_avg));
+
+    return @splat(4, m) * f;
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
