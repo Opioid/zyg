@@ -19,16 +19,17 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const E_m_samples = 32;
+const E_samples = 16;
 
 const E_m_func = math.InterpolatedFunction2D_N(E_m_samples, E_m_samples);
+const E_m_avg_func = math.InterpolatedFunction1D_N(E_m_samples);
+const E_func = math.InterpolatedFunction3D_N(E_samples, E_samples, E_samples);
 
 fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
-    if (alpha < ggx.Min_alpha) {
-        return 1.0;
-    }
+    const calpha = @maximum(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
-    const schlick = fresnel.Schlick.init(@splat(4, @as(f32, 1.0)));
+    const schlick = fresnel.Schlick1.init(1.0);
     const layer = Layer{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
@@ -46,7 +47,7 @@ fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
         const xi = math.hammersley(i, num_samples, 0);
 
         var result: bxdf.Sample = undefined;
-        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, alpha, xi, schlick, layer, &result);
+        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, layer, &result);
 
         accum += ((n_dot_wi * result.reflection[0]) / result.pdf) / @intToFloat(f32, num_samples);
     }
@@ -62,9 +63,69 @@ fn integrate_f_ss_avg(alpha: f32, e_m: E_m_func, num_samples: u32) f32 {
     var accum: f32 = 0.0;
     var i: u32 = 0;
     while (i < num_samples) : (i += 1) {
-        //   const cn_dot_wo = hlp.clamp(n_dot_wo);
-
         accum += e_m.eval(n_dot_wo, alpha) / @intToFloat(f32, num_samples);
+
+        n_dot_wo += step;
+    }
+
+    return accum;
+}
+
+fn dspbrMicroEc(f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, e_m: E_m_func, e_m_avg: E_m_avg_func) f32 {
+    const e_wo = e_m.eval(n_dot_wo, alpha);
+    const e_wi = e_m.eval(n_dot_wi, alpha);
+    const e_avg = e_m_avg.eval(alpha);
+
+    const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
+
+    const f_avg = (20.0 / 21.0) * f0;
+
+    const f = (f_avg * f_avg * e_avg) / (1.0 - (f_avg * (1.0 - e_avg)));
+
+    return m * f;
+}
+
+fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_m_avg_func, num_samples: u32) f32 {
+    const calpha = @maximum(alpha, ggx.Min_alpha);
+
+    // Schlickk with f0 == 1.0 always evaluates to 1.0
+    const schlick = fresnel.Schlick1.init(f0);
+    const layer = Layer{
+        .t = .{ 1.0, 0.0, 0.0, 0.0 },
+        .b = .{ 0.0, 1.0, 0.0, 0.0 },
+        .n = .{ 0.0, 0.0, 1.0, 0.0 },
+    };
+
+    const cn_dot_wo = hlp.clamp(n_dot_wo);
+
+    // (sin, 0, cos)
+    const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
+
+    var accum: f32 = 0.0;
+    var i: u32 = 0;
+    while (i < num_samples) : (i += 1) {
+        const xi = math.hammersley(i, num_samples, 0);
+
+        var result: bxdf.Sample = undefined;
+        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, layer, &result);
+
+        const mms = dspbrMicroEc(f0, n_dot_wi, n_dot_wo, calpha, e_m, e_m_avg);
+
+        accum += ((n_dot_wi * (result.reflection[0] + mms)) / result.pdf) / @intToFloat(f32, num_samples);
+    }
+
+    return @minimum(accum, 1.0);
+}
+
+fn integrate_f_ms_avg(alpha: f32, f0: f32, e: E_func, num_samples: u32) f32 {
+    const step = 1.0 / @intToFloat(f32, num_samples - 1);
+
+    var n_dot_wo: f32 = 0.0;
+
+    var accum: f32 = 0.0;
+    var i: u32 = 0;
+    while (i < num_samples) : (i += 1) {
+        accum += e.eval(n_dot_wo, alpha, f0) / @intToFloat(f32, num_samples);
 
         n_dot_wo += step;
     }
@@ -224,7 +285,13 @@ fn make_f_ss_table(comptime Num_samples: comptime_int, writer: anytype, buffer: 
     }
 }
 
-fn make_f_ss_avg_table(comptime Num_samples: comptime_int, e_m: E_m_func, writer: anytype, buffer: []u8) !void {
+fn make_f_ss_avg_table(
+    comptime Num_samples: comptime_int,
+    e_m: E_m_func,
+    writer: anytype,
+    buffer: []u8,
+    result: []f32,
+) !void {
     _ = try writer.write("\n");
 
     var line = try std.fmt.bufPrint(buffer, "pub const E_m_avg = [{}]f32{{\n    ", .{Num_samples});
@@ -252,6 +319,126 @@ fn make_f_ss_avg_table(comptime Num_samples: comptime_int, e_m: E_m_func, writer
         }
 
         alpha += step;
+
+        result[a] = e;
+    }
+}
+
+fn make_f_ms_table(
+    comptime Num_samples: comptime_int,
+    e_m: E_m_func,
+    e_m_avg: E_m_avg_func,
+    writer: anytype,
+    buffer: []u8,
+    result: []f32,
+) !void {
+    var line = try std.fmt.bufPrint(buffer, "pub const E_size = {};\n", .{Num_samples});
+    _ = try writer.write(line);
+
+    _ = try writer.write("\n");
+
+    line = try std.fmt.bufPrint(buffer, "pub const E = [{} * {} * {}]f32{{\n", .{ Num_samples, Num_samples, Num_samples });
+    _ = try writer.write(line);
+
+    const step = 1.0 / @intToFloat(f32, Num_samples - 1);
+
+    var f0: f32 = 0.0;
+    var count: u32 = 0;
+    var z: u32 = 0;
+    while (z < Num_samples) : (z += 1) {
+        line = try std.fmt.bufPrint(buffer, "    // f0 {d:.8}\n", .{f0});
+        _ = try writer.write(line);
+
+        var alpha: f32 = 0.0;
+        var a: u32 = 0;
+        while (a < Num_samples) : (a += 1) {
+            line = try std.fmt.bufPrint(buffer, "    // alpha {d:.8}\n    ", .{alpha});
+            _ = try writer.write(line);
+
+            var n_dot_wo: f32 = 0.0;
+            var i: u32 = 0;
+            while (i < Num_samples) : (i += 1) {
+                const e = integrate_f_ms(alpha, f0, n_dot_wo, e_m, e_m_avg, 1024);
+
+                line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e});
+                _ = try writer.write(line);
+
+                if (i < Num_samples - 1) {
+                    if (i > 0 and 0 == ((i + 1) % 8)) {
+                        _ = try writer.write("\n    ");
+                    } else {
+                        _ = try writer.write(" ");
+                    }
+                } else {
+                    _ = try writer.write("\n\n");
+                }
+
+                n_dot_wo += step;
+
+                result[count] = e;
+                count += 1;
+            }
+
+            alpha += step;
+        }
+
+        if (z < Num_samples - 1) {
+            _ = try writer.write("\n");
+        } else {
+            _ = try writer.write("};");
+        }
+
+        f0 += step;
+    }
+}
+
+fn make_f_ms_avg_table(comptime Num_samples: comptime_int, e: E_func, writer: anytype, buffer: []u8) !void {
+    var line = try std.fmt.bufPrint(buffer, "pub const E_avg_size = {};\n", .{Num_samples});
+    _ = try writer.write(line);
+
+    _ = try writer.write("\n");
+
+    line = try std.fmt.bufPrint(buffer, "pub const E_avg = [{} * {}]f32{{\n", .{ Num_samples, Num_samples });
+    _ = try writer.write(line);
+
+    const step = 1.0 / @intToFloat(f32, Num_samples - 1);
+
+    var f0: f32 = 0.0;
+
+    var a: u32 = 0;
+    while (a < Num_samples) : (a += 1) {
+        line = try std.fmt.bufPrint(buffer, "    // f0 {d:.8}\n    ", .{f0});
+        _ = try writer.write(line);
+
+        var alpha: f32 = 0.0;
+
+        var i: u32 = 0;
+        while (i < Num_samples) : (i += 1) {
+            const e_avg = integrate_f_ms_avg(alpha, f0, e, 1024);
+
+            line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e_avg});
+            _ = try writer.write(line);
+
+            if (i < Num_samples - 1) {
+                if (i > 0 and 0 == ((i + 1) % 8)) {
+                    _ = try writer.write("\n    ");
+                } else {
+                    _ = try writer.write(" ");
+                }
+            } else {
+                _ = try writer.write("\n");
+            }
+
+            alpha += step;
+        }
+
+        if (a < Num_samples - 1) {
+            _ = try writer.write("\n");
+        } else {
+            _ = try writer.write("};");
+        }
+
+        f0 += step;
     }
 }
 
@@ -322,20 +509,36 @@ pub fn integrate(alloc: Allocator, threads: *Threads) !void {
 
     var buffer: [256]u8 = undefined;
 
-    {
-        const result = try alloc.alloc(f32, E_m_samples * E_m_samples);
-        defer alloc.free(result);
+    const e_m_buffer = try alloc.alloc(f32, E_m_samples * E_m_samples);
+    defer alloc.free(e_m_buffer);
 
-        try make_f_ss_table(E_m_samples, writer, &buffer, result);
+    try make_f_ss_table(E_m_samples, writer, &buffer, e_m_buffer);
 
-        try writeImage(alloc, E_m_samples, result, threads);
+    try writeImage(alloc, E_m_samples, e_m_buffer, threads);
 
-        _ = try writer.write("\n\n");
+    _ = try writer.write("\n\n");
 
-        const e_m = E_m_func.fromArray(result.ptr);
+    const e_m = E_m_func.fromArray(e_m_buffer.ptr);
 
-        try make_f_ss_avg_table(E_m_samples, e_m, writer, &buffer);
-    }
+    const e_m_avg_buffer = try alloc.alloc(f32, E_m_samples);
+    defer alloc.free(e_m_avg_buffer);
+
+    try make_f_ss_avg_table(E_m_samples, e_m, writer, &buffer, e_m_avg_buffer);
+
+    _ = try writer.write("\n\n");
+
+    const e_m_avg = E_m_avg_func.fromArray(e_m_avg_buffer.ptr);
+
+    const e_buffer = try alloc.alloc(f32, E_samples * E_samples * E_samples);
+    defer alloc.free(e_buffer);
+
+    try make_f_ms_table(E_samples, e_m, e_m_avg, writer, &buffer, e_buffer);
+
+    _ = try writer.write("\n\n");
+
+    const e = E_func.fromArray(e_buffer.ptr);
+
+    try make_f_ms_avg_table(E_samples, e, writer, &buffer);
 
     _ = try writer.write("\n\n");
 

@@ -6,7 +6,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
-const disney = @import("../disney.zig");
+const diffuse = @import("../diffuse.zig");
 const lambert = @import("../lambert.zig");
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../sample_helper.zig");
@@ -193,7 +193,13 @@ pub const Sample = struct {
         const n_dot_wi = self.super.layer.clampNdot(wi);
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
-        const d = disney.Iso.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.super.albedo);
+        const d = diffuse.Micro.reflection(
+            self.super.albedo,
+            self.f0,
+            n_dot_wi,
+            n_dot_wo,
+            alpha[0],
+        );
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
@@ -295,12 +301,13 @@ pub const Sample = struct {
 
         const n_dot_wo = self.super.layer.clampAbsNdot(wo);
 
-        const n_dot_wi = disney.Iso.reflect(
+        const n_dot_wi = diffuse.Micro.reflect(
+            self.super.albedo,
+            self.f0,
             wo,
             n_dot_wo,
             self.super.layer,
             alpha[0],
-            self.super.albedo,
             xi,
             result,
         );
@@ -350,12 +357,12 @@ pub const Sample = struct {
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
-        const d = disney.Iso.reflection(
-            result.h_dot_wi,
+        const d = diffuse.Micro.reflection(
+            self.super.albedo,
+            self.f0,
             n_dot_wi,
             n_dot_wo,
             alpha[0],
-            self.super.albedo,
         );
 
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms + d.reflection);
@@ -495,10 +502,8 @@ pub const Sample = struct {
         const n_dot_wi = layer.clampNdot(wi);
         const n_dot_wo = layer.clampAbsNdot(wo);
 
-        const d = disney.IsoNoLambert.reflection(wo_dot_h, n_dot_wi, n_dot_wo, alpha[0], self.super.albedo);
-
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
-            return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
+            return bxdf.Result.empty();
         }
 
         const schlick = fresnel.Schlick.init(self.f0);
@@ -519,7 +524,7 @@ pub const Sample = struct {
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
 
-        const base_reflection = @splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms);
+        const base_reflection = @splat(4, n_dot_wi) * (gg.reflection + mms);
         const base_pdf = fresnel_result[0] * gg.pdf();
 
         if (self.coating.thickness > 0.0) {
@@ -589,12 +594,12 @@ pub const Sample = struct {
                     result,
                 );
 
-                const d = disney.IsoNoLambert.reflection(
-                    result.h_dot_wi,
+                const d = diffuse.Micro.reflection(
+                    self.super.albedo,
+                    self.f0,
                     n_dot_wi,
                     n_dot_wo,
                     alpha[0],
-                    self.super.albedo,
                 );
 
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
@@ -720,12 +725,12 @@ pub const Sample = struct {
                         result,
                     );
 
-                    const d = disney.IsoNoLambert.reflection(
-                        result.h_dot_wi,
+                    const d = diffuse.Micro.reflection(
+                        self.super.albedo,
+                        self.f0,
                         n_dot_wi,
                         n_dot_wo,
                         alpha[0],
-                        self.super.albedo,
                     );
 
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
