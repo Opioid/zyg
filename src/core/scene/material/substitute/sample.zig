@@ -7,7 +7,6 @@ const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
 const diffuse = @import("../diffuse.zig");
-const lambert = @import("../lambert.zig");
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../sample_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
@@ -143,7 +142,7 @@ pub const Sample = struct {
             const s3 = sampler.sample3D(rng);
             const p = s3[0];
             if (p < tr) {
-                const n_dot_wi = lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
                 const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
