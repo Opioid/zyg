@@ -414,7 +414,7 @@ fn make_f_ms_avg_table(comptime Num_samples: comptime_int, e: E_func, writer: an
 
         var i: u32 = 0;
         while (i < Num_samples) : (i += 1) {
-            const e_avg = integrate_f_ms_avg(alpha, f0, e, 1024);
+            const e_avg = @minimum(integrate_f_ms_avg(alpha, f0, e, 1024), 0.9997);
 
             line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e_avg});
             _ = try writer.write(line);
@@ -505,7 +505,8 @@ pub fn integrate(alloc: Allocator, threads: *Threads) !void {
     var file = try std.fs.cwd().createFile("ggx_integral.zig", .{});
     defer file.close();
 
-    const writer = file.writer();
+    var buffered = std.io.bufferedWriter(file.writer());
+    var writer = buffered.writer();
 
     var buffer: [256]u8 = undefined;
 
@@ -543,6 +544,8 @@ pub fn integrate(alloc: Allocator, threads: *Threads) !void {
     _ = try writer.write("\n\n");
 
     try make_f_s_ss_table(writer, &buffer);
+
+    try buffered.flush();
 }
 
 fn writeImage(alloc: Allocator, dimensions: u32, data: []f32, threads: *Threads) !void {
