@@ -93,7 +93,7 @@ pub fn main() !void {
         operator.run(&threads);
 
         const name = options.inputs.items[operator.input_ids.items[i]];
-        try write(alloc, name, operator.target, &writer, &threads);
+        try write(alloc, name, operator.typef, operator.target, &writer, &threads);
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
@@ -102,16 +102,47 @@ pub fn main() !void {
 fn write(
     alloc: Allocator,
     name: []const u8,
+    operator: Operator.Type,
     target: core.image.Float4,
     writer: *core.ImageWriter,
     threads: *Threads,
 ) !void {
     var output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
     defer alloc.free(output_name);
-    var file = try std.fs.cwd().createFile(output_name, .{});
-    defer file.close();
 
-    var buffered = std.io.bufferedWriter(file.writer());
-    try writer.write(alloc, buffered.writer(), target, null, threads);
-    try buffered.flush();
+    if (.Diff == operator) {
+        var min: f32 = std.math.f32_max;
+        var max: f32 = 0.0;
+
+        const desc = target.description;
+
+        const buffer = try alloc.alloc(f32, desc.numPixels());
+        defer alloc.free(buffer);
+
+        for (target.pixels) |p, i| {
+            const v = math.maxComponent3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
+
+            buffer[i] = v;
+
+            min = @minimum(v, min);
+            max = @maximum(v, max);
+        }
+
+        try core.ImageWriter.PngWriter.writeHeatmap(
+            alloc,
+            desc.dimensions.v[0],
+            desc.dimensions.v[1],
+            buffer,
+            min,
+            max,
+            output_name,
+        );
+    } else {
+        var file = try std.fs.cwd().createFile(output_name, .{});
+        defer file.close();
+
+        var buffered = std.io.bufferedWriter(file.writer());
+        try writer.write(alloc, buffered.writer(), target, null, threads);
+        try buffered.flush();
+    }
 }
