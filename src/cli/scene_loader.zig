@@ -245,7 +245,10 @@ pub const Loader = struct {
     ) !u32 {
         const scene = &graph.scene;
 
-        const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else return Prop.Null;
+        const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else Prop.Null;
+        if (Prop.Null == shape) {
+            return Prop.Null;
+        }
 
         const num_materials = scene.shape(shape).numMaterials();
 
