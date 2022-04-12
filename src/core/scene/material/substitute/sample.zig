@@ -522,7 +522,6 @@ pub const Sample = struct {
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-
         const base_reflection = @splat(4, n_dot_wi) * (gg.reflection + mms);
         const base_pdf = fresnel_result[0] * gg.pdf();
 
@@ -593,16 +592,8 @@ pub const Sample = struct {
                     result,
                 );
 
-                const d = diffuse.Micro.reflection(
-                    self.super.albedo,
-                    self.f0,
-                    n_dot_wi,
-                    n_dot_wo,
-                    alpha[0],
-                );
-
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-                const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms + d.reflection);
+                const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                 result.reflection = reflection;
                 result.pdf *= f;
@@ -724,16 +715,8 @@ pub const Sample = struct {
                         result,
                     );
 
-                    const d = diffuse.Micro.reflection(
-                        self.super.albedo,
-                        self.f0,
-                        n_dot_wi,
-                        n_dot_wo,
-                        alpha[0],
-                    );
-
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms + d.reflection);
+                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                     result.reflection = reflection;
                     result.pdf *= f;
