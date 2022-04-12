@@ -115,7 +115,7 @@ pub const Distribution1D = struct {
     }
 
     fn initLut(self: *Self, alloc: Allocator, lut_size: u32) !void {
-        const padded_lut_size = lut_size + 2;
+        const padded_lut_size = lut_size + 1;
 
         if (padded_lut_size != self.lut_size) {
             self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
@@ -142,11 +142,6 @@ pub const Distribution1D = struct {
 
                 border = mapped;
             }
-        }
-
-        i = border + 1;
-        while (i < padded_lut_size) : (i += 1) {
-            self.lut[i] = last;
         }
     }
 

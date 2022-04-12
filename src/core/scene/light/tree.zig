@@ -328,7 +328,7 @@ pub const Tree = struct {
                     } else {
                         t.node = c1;
                         t.pdf *= p1;
-                        t.random = (t.random - p0) / p1;
+                        t.random = @minimum((t.random - p0) / p1, 1.0);
                     }
 
                     t.depth = Max_split_depth;
@@ -503,7 +503,7 @@ pub const PrimitiveTree = struct {
                 } else {
                     nid = c1;
                     pd *= p1;
-                    random = (random - p0) / p1;
+                    random = @minimum((random - p0) / p1, 1.0);
                 }
             } else {
                 if (node.num_lights <= 4) {
