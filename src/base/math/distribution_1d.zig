@@ -23,7 +23,7 @@ pub const Distribution1D = struct {
 
     const Self = @This();
 
-    pub fn configure(self: *Self, alloc: Allocator, data: []f32, lut_bucket_size: u32) !void {
+    pub fn configure(self: *Self, alloc: Allocator, data: []const f32, lut_bucket_size: u32) !void {
         try self.precompute1DPdfCdf(alloc, data);
 
         var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
@@ -79,7 +79,7 @@ pub const Distribution1D = struct {
         return self.cdf[o + 1] - self.cdf[o];
     }
 
-    fn precompute1DPdfCdf(self: *Self, alloc: Allocator, data: []f32) !void {
+    fn precompute1DPdfCdf(self: *Self, alloc: Allocator, data: []const f32) !void {
         var integral: f32 = 0.0;
         for (data) |d| {
             integral += d;
@@ -115,7 +115,7 @@ pub const Distribution1D = struct {
     }
 
     fn initLut(self: *Self, alloc: Allocator, lut_size: u32) !void {
-        const padded_lut_size = lut_size + 2;
+        const padded_lut_size = lut_size + 1;
 
         if (padded_lut_size != self.lut_size) {
             self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
@@ -143,23 +143,13 @@ pub const Distribution1D = struct {
                 border = mapped;
             }
         }
-
-        i = border + 1;
-        while (i < padded_lut_size) : (i += 1) {
-            self.lut[i] = last;
-        }
     }
 
     fn map(self: Self, s: f32) u32 {
         return @floatToInt(u32, s * self.lut_range);
     }
 
-    pub fn staticSampleDiscrete(comptime N: u32, data: [N]f32, n: u32, r: f32) Distribution1D.Discrete {
-        var integral: f32 = 0.0;
-        for (data[0..N]) |d| {
-            integral += d;
-        }
-
+    pub fn staticSampleDiscrete(comptime N: u32, data: [N]f32, integral: f32, n: u32, r: f32) Distribution1D.Discrete {
         const ii = 1.0 / integral;
 
         var cdf: [N + 1]f32 = undefined;
@@ -177,12 +167,7 @@ pub const Distribution1D = struct {
         return .{ .offset = offset, .pdf = cdf[offset + 1] - cdf[offset] };
     }
 
-    pub fn staticPdf(comptime N: u32, data: [N]f32, index: u32) f32 {
-        var integral: f32 = 0.0;
-        for (data[0..N]) |d| {
-            integral += d;
-        }
-
+    pub fn staticPdf(comptime N: u32, data: [N]f32, integral: f32, index: u32) f32 {
         const ii = 1.0 / integral;
 
         var cdf: [N + 1]f32 = undefined;

@@ -179,7 +179,7 @@ pub const Tree = struct {
 
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
-                        const tv = material.visibility(ray_dir, normal, uv, filter, worker.*) orelse return null;
+                        const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene.*) orelse return null;
 
                         vis *= tv;
 

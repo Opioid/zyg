@@ -1,4 +1,5 @@
-const Scene = @import("../scene.zig").Scene;
+const Graph = @import("scene_graph.zig").Graph;
+
 const math = @import("base").math;
 const Transformation = math.Transformation;
 
@@ -85,8 +86,8 @@ pub const Animation = struct {
         }
     }
 
-    pub fn update(self: Animation, scene: *Scene) void {
+    pub fn update(self: Animation, graph: *Graph) void {
         const interpolated = self.frames + self.num_frames;
-        scene.propSetFrames(self.entity, interpolated);
+        graph.propSetFrames(self.entity, interpolated);
     }
 };

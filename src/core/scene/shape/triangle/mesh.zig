@@ -91,7 +91,7 @@ pub const Part = struct {
         material: u32,
         tree: bvh.Tree,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
@@ -141,18 +141,18 @@ pub const Part = struct {
             self.cones = cones;
         }
 
-        const m = worker.scene.materialPtr(material);
+        const m = scene.materialPtr(material);
 
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
 
         for (self.variants.items) |v, i| {
-            if (v.matches(material, emission_map, two_sided, worker.scene.*)) {
+            if (v.matches(material, emission_map, two_sided, scene)) {
                 return @intCast(u32, i);
             }
         }
 
-        const dimensions = m.usefulTextureDescription(worker.scene.*).dimensions;
+        const dimensions = m.usefulTextureDescription(scene).dimensions;
 
         const context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
@@ -160,7 +160,7 @@ pub const Part = struct {
             .part = self,
             .m = m,
             .tree = &tree,
-            .worker = &worker,
+            .scene = &scene,
             .estimate_area = @intToFloat(f32, dimensions.v[0] * dimensions.v[1]) / 4.0,
         };
         defer {
@@ -242,7 +242,7 @@ pub const Part = struct {
         part: *const Part,
         m: *const Material,
         tree: *const bvh.Tree,
-        worker: *const Worker,
+        scene: *const Scene,
         estimate_area: f32,
 
         const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
@@ -278,7 +278,7 @@ pub const Part = struct {
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             1.0,
                             null,
-                            self.worker.*,
+                            self.scene.*,
                         );
                     }
 
@@ -641,7 +641,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
@@ -659,7 +659,7 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, builder, worker, threads);
+        return try self.parts[part].configure(alloc, part, material, self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {

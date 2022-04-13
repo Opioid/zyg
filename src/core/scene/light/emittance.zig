@@ -13,8 +13,8 @@ pub const Emittance = struct {
         Radiance,
     };
 
-    value: Vec4f,
-    quantity: Quantity,
+    value: Vec4f = @splat(4, @as(f32, 0.0)),
+    quantity: Quantity = .Radiance,
 
     // unit: lumen
     pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32) void {
@@ -38,6 +38,12 @@ pub const Emittance = struct {
 
         self.value = @splat(4, value / luminance) * color;
         self.quantity = .Radiance;
+    }
+
+    // unit: watt per unit solid angle (W / sr)
+    pub fn setRadiantIntensity(self: *Emittance, radi: Vec4f) void {
+        self.value = radi;
+        self.quantity = Quantity.Intensity;
     }
 
     // unit: watt per unit solid angle per unit projected area (W / sr / m^2)

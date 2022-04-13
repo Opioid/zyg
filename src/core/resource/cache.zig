@@ -15,9 +15,10 @@ const Key = struct {
     const Self = @This();
 
     pub fn clone(self: Self, alloc: Allocator) !Self {
-        var tmp_name = try alloc.alloc(u8, self.name.len);
-        std.mem.copy(u8, tmp_name, self.name);
-        return Self{ .name = tmp_name, .options = try self.options.clone(alloc) };
+        return Self{
+            .name = try alloc.dupe(u8, self.name),
+            .options = try self.options.clone(alloc),
+        };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -80,18 +81,19 @@ const Entry = struct {
     source_name: []u8 = &.{},
 };
 
+const ALU = std.ArrayListUnmanaged;
 const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 
 pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
-        resources: std.ArrayListUnmanaged(T) = .{},
+        resources: *ALU(T),
         entries: HashMap = .{},
 
         const Self = @This();
 
-        pub fn init(provider: P) Self {
-            return .{ .provider = provider };
+        pub fn init(provider: P, resources: *ALU(T)) Self {
+            return .{ .provider = provider, .resources = resources };
         }
 
         pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -102,12 +104,6 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             }
 
             self.entries.deinit(alloc);
-
-            for (self.resources.items) |*r| {
-                r.deinit(alloc);
-            }
-
-            self.resources.deinit(alloc);
 
             self.provider.deinit(alloc);
         }
@@ -153,7 +149,6 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             };
 
             try self.resources.append(alloc, item);
-
             const id = @intCast(u32, self.resources.items.len - 1);
 
             try self.entries.put(
@@ -168,36 +163,14 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         pub fn loadData(
             self: *Self,
             alloc: Allocator,
-            name: []const u8,
+            id: u32,
             data: usize,
             options: Variants,
             resources: *Resources,
         ) !u32 {
             const item = try self.provider.loadData(alloc, data, options, resources);
 
-            var id: u32 = Null;
-
-            const key = Key{ .name = name, .options = options };
-            if (0 != name.len) {
-                if (self.entries.get(key)) |entry| {
-                    id = entry.id;
-                }
-            }
-
-            if (Null == id) {
-                try self.resources.append(alloc, item);
-
-                id = @intCast(u32, self.resources.items.len - 1);
-            } else {
-                self.resources.items[id].deinit(alloc);
-                self.resources.items[id] = item;
-            }
-
-            if (0 != name.len) {
-                try self.entries.put(alloc, try key.clone(alloc), .{ .id = id });
-            }
-
-            return id;
+            return try self.store(alloc, id, item);
         }
 
         pub fn get(self: Self, id: u32) ?*T {
@@ -221,12 +194,22 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn store(self: *Self, alloc: Allocator, item: T) u32 {
-            self.resources.append(alloc, item) catch {
-                return Null;
-            };
+        pub fn store(self: *Self, alloc: Allocator, id: u32, item: T) !u32 {
+            if (id >= self.resources.items.len) {
+                try self.resources.append(alloc, item);
+                return @intCast(u32, self.resources.items.len - 1);
+            } else {
+                self.resources.items[id].deinit(alloc);
+                self.resources.items[id] = item;
+                return id;
+            }
+        }
 
-            return @intCast(u32, self.resources.items.len - 1);
+        pub fn associate(self: *Self, alloc: Allocator, id: u32, name: []const u8, options: Variants) !void {
+            if (0 != name.len) {
+                const key = Key{ .name = name, .options = options };
+                try self.entries.put(alloc, try key.clone(alloc), .{ .id = id });
+            }
         }
     };
 }

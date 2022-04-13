@@ -1,5 +1,5 @@
 const Intersection = @import("intersection.zig").Intersection;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
 const Material = @import("../material/material.zig").Material;
 
@@ -14,8 +14,8 @@ pub const Interface = struct {
     part: u32,
     uv: Vec2f,
 
-    pub fn material(self: Interface, worker: Worker) Material {
-        return worker.scene.propMaterial(self.prop, self.part);
+    pub fn material(self: Interface, scene: Scene) Material {
+        return scene.propMaterial(self.prop, self.part);
     }
 
     pub fn matches(self: Interface, isec: Intersection) bool {
@@ -64,25 +64,25 @@ pub const Stack = struct {
         return self.stack[self.index - 1];
     }
 
-    pub fn topIor(self: Stack, worker: Worker) f32 {
+    pub fn topIor(self: Stack, scene: Scene) f32 {
         const index = self.index;
         if (index > 0) {
-            return self.stack[index - 1].material(worker).ior();
+            return self.stack[index - 1].material(scene).ior();
         }
 
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: Stack, worker: Worker) f32 {
+    pub fn nextToBottomIor(self: Stack, scene: Scene) f32 {
         const index = self.index;
         if (index > 1) {
-            return self.stack[1].material(worker).ior();
+            return self.stack[1].material(scene).ior();
         }
 
         return 1.0;
     }
 
-    pub fn peekIor(self: Stack, isec: Intersection, worker: Worker) f32 {
+    pub fn peekIor(self: Stack, isec: Intersection, scene: Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -90,16 +90,16 @@ pub const Stack = struct {
 
         const back = index - 1;
         if (self.stack[back].matches(isec)) {
-            return self.stack[back - 1].material(worker).ior();
+            return self.stack[back - 1].material(scene).ior();
         } else {
-            return self.stack[back].material(worker).ior();
+            return self.stack[back].material(scene).ior();
         }
     }
 
-    pub fn straight(self: Stack, worker: Worker) bool {
+    pub fn straight(self: Stack, scene: Scene) bool {
         const index = self.index;
         if (index > 0) {
-            return 1.0 == self.stack[index - 1].material(worker).ior();
+            return 1.0 == self.stack[index - 1].material(scene).ior();
         }
 
         return true;

@@ -1,13 +1,14 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Worker = @import("../../worker.zig").Worker;
+const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -15,40 +16,33 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Material = struct {
-    super: Base,
+    super: Base = .{},
 
     normal_map: Texture = .{},
     roughness_map: Texture = .{},
 
     thickness: f32 = 0.0,
-    alpha: f32 = 0.0,
+    roughness: f32 = 0.0,
     abbe: f32 = 0.0,
-
-    pub fn init(sampler_key: ts.Key) Material {
-        return .{ .super = Base.init(sampler_key, false) };
-    }
 
     pub fn commit(self: *Material) void {
         self.super.properties.set(.TwoSided, self.thickness > 0.0);
-        self.super.properties.set(.Caustic, self.alpha <= ggx.Min_alpha);
+        self.super.properties.set(.Caustic, self.roughness <= ggx.Min_roughness);
     }
 
-    pub fn setRoughness(self: *Material, roughness: f32) void {
-        self.alpha = roughness * roughness;
+    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
+        self.roughness_map = roughness.texture;
+        const r = roughness.value;
+        self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
-        var alpha: f32 = undefined;
-
-        if (self.roughness_map.valid()) {
-            const roughness = ts.sample2D_1(key, self.roughness_map, rs.uv, worker.scene.*);
-            const r = ggx.mapRoughness(roughness);
-            alpha = r * r;
-        } else {
-            alpha = self.alpha;
-        }
+        const r = if (self.roughness_map.valid())
+            ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, scene))
+        else
+            self.roughness;
 
         var result = Sample.init(
             rs,
@@ -56,14 +50,14 @@ pub const Material = struct {
             self.super.cc.a,
             self.super.ior,
             rs.ior(),
-            alpha,
+            r * r,
             self.thickness,
             self.abbe,
             rs.wavelength(),
         );
 
         if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, scene);
             const tb = math.orthonormalBasis3(n);
 
             result.super.layer.setTangentFrame(tb[0], tb[1], n);
@@ -74,8 +68,8 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, worker: Worker) ?Vec4f {
-        const o = self.super.opacity(uv, filter, worker);
+    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) ?Vec4f {
+        const o = self.super.opacity(uv, filter, scene);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;

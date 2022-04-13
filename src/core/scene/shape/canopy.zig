@@ -32,12 +32,10 @@ pub const Canopy = struct {
             0.5 * disk[1] + 0.5,
         };
 
-        isec.p = ray.point(scn.Ray_max_t);
-
+        // This is nonsense
+        isec.p = @splat(4, @as(f32, scn.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
-
-        // This is nonsense
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;

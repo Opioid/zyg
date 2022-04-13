@@ -1,5 +1,5 @@
 const Photon = @import("photon.zig").Photon;
-const Worker = @import("../../../worker.zig").Worker;
+const Scene = @import("../../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const mat = @import("../../../../scene/material/sample_helper.zig");
@@ -530,9 +530,7 @@ pub const Grid = struct {
         self.num_paths = @intToFloat(f64, num_paths);
     }
 
-    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, worker: Worker) Vec4f {
-        _ = worker;
-
+    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -549,7 +547,7 @@ pub const Grid = struct {
         if (isec.subsurface) {} else {
             const inv_radius2 = 1.0 / radius2;
 
-            const two_sided = isec.material(worker.super).twoSided();
+            const two_sided = isec.material(scene).twoSided();
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
                 var i = cell[0];
@@ -588,9 +586,7 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
-    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, worker: Worker) Vec4f {
-        _ = worker;
-
+    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -638,11 +634,11 @@ pub const Grid = struct {
                 }
 
                 const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
-                const mu_s = scatteringCoefficient(isec, worker);
+                const mu_s = scatteringCoefficient(isec, scene);
 
                 result /= @splat(4, normalization) * mu_s;
             } else {
-                const two_sided = isec.material(worker.super).twoSided();
+                const two_sided = isec.material(scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
                 for (buffer.entries[0..used_entries]) |entry| {
@@ -681,22 +677,20 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, worker: Worker) Vec4f {
-        const material = isec.material(worker.super);
+    fn scatteringCoefficient(isec: Intersection, scene: Scene) Vec4f {
+        const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {
-            const scene = worker.super.scene;
-
             const trafo = scene.propTransformationAt(isec.prop, scene.current_time_start);
             const local_position = trafo.worldToObjectPoint(isec.geo.p);
 
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
-            return material.collisionCoefficients(uvw, null, worker.super).s;
+            return material.collisionCoefficients(uvw, null, scene).s;
         }
 
-        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, worker.super).s;
+        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, scene).s;
     }
 };
 

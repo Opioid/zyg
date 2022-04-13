@@ -31,12 +31,12 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn startPixel(self: *Integrator, seed: u32) void {
+    pub fn startPixel(self: *Integrator, sample: u32, seed: u32) void {
         switch (self.*) {
-            .AOV => |*i| i.startPixel(seed),
-            .PT => |*i| i.startPixel(seed),
-            .PTDL => |*i| i.startPixel(seed),
-            .PTMIS => |*i| i.startPixel(seed),
+            .AOV => |*i| i.startPixel(sample, seed),
+            .PT => |*i| i.startPixel(sample, seed),
+            .PTDL => |*i| i.startPixel(sample, seed),
+            .PTMIS => |*i| i.startPixel(sample, seed),
         }
     }
 

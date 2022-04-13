@@ -32,11 +32,7 @@ pub const DistantSphere = struct {
             return false;
         }
 
-        const hit_t = scn.Almost_ray_max_t;
-
-        ray.setMaxT(hit_t);
-
-        isec.p = ray.point(hit_t);
+        isec.p = @splat(4, @as(f32, scn.Almost_ray_max_t)) * ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
@@ -49,6 +45,9 @@ pub const DistantSphere = struct {
         isec.uv[1] = (math.dot3(isec.b, sk) + 1.0) * 0.5;
 
         isec.part = 0;
+        isec.primitive = 0;
+
+        ray.setMaxT(scn.Almost_ray_max_t);
 
         return true;
     }

@@ -1,6 +1,7 @@
 const exr = @import("exr.zig");
 const img = @import("../../image.zig");
 const Float4 = img.Float4;
+const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
 
 const base = @import("base");
 const math = base.math;
@@ -26,6 +27,7 @@ pub const Writer = struct {
         alloc: Allocator,
         writer_: anytype,
         image: Float4,
+        aov: ?AovClass,
         threads: *Threads,
     ) !void {
         var stream = std.io.countingWriter(writer_);
@@ -36,23 +38,48 @@ pub const Writer = struct {
         const version = [4]u8{ 2, 0, 0, 0 };
         try writer.writeAll(&version);
 
+        var format: exr.Channel.Format = if (self.half) .Half else .Float;
+
+        var num_channels: u32 = 3;
+
+        if (aov) |a| {
+            switch (a) {
+                .Depth => {
+                    num_channels = 1;
+                    format = .Float;
+                },
+                .MaterialId => {
+                    num_channels = 1;
+                    format = .Uint;
+                },
+                else => {},
+            }
+        } else if (self.alpha) {
+            num_channels = 4;
+        }
+
         {
             try writeString(writer, "channels");
             try writeString(writer, "chlist");
 
-            const num_channels: u32 = if (self.alpha) 4 else 3;
             const size = num_channels * (2 + 4 + 4 + 4 + 4) + 1;
             try writer.writeAll(std.mem.asBytes(&size));
 
-            const typef: exr.Channel.Type = if (self.half) .Half else .Float;
-
-            if (self.alpha) {
-                try writeChannel(writer, .{ .name = "A", .typef = typef });
+            if (num_channels == 4) {
+                try writeChannel(writer, .{ .name = "A", .format = format });
             }
 
-            try writeChannel(writer, .{ .name = "B", .typef = typef });
-            try writeChannel(writer, .{ .name = "G", .typef = typef });
-            try writeChannel(writer, .{ .name = "R", .typef = typef });
+            if (num_channels >= 3) {
+                try writeChannel(writer, .{ .name = "B", .format = format });
+                try writeChannel(writer, .{ .name = "G", .format = format });
+            }
+
+            if (num_channels == 1) {
+                try writeChannel(writer, .{ .name = "Y", .format = format });
+            } else {
+                try writeChannel(writer, .{ .name = "R", .format = format });
+            }
+
             try writer.writeByte(0x00);
         }
 
@@ -124,46 +151,62 @@ pub const Writer = struct {
         try writer.writeByte(0x00);
 
         if (.No == compression) {
-            try self.noCompression(writer, image);
+            try noCompression(writer, image, num_channels, format);
         } else if (.ZIP == compression) {
-            try self.zipCompression(alloc, writer, image, compression, threads);
+            try zipCompression(alloc, writer, image, num_channels, format, compression, threads);
         }
     }
 
-    fn noCompression(self: Writer, writer: anytype, image: Float4) !void {
+    fn noCompression(
+        writer: anytype,
+        image: Float4,
+        num_channels: u32,
+        format: exr.Channel.Format,
+    ) !void {
         const d = image.description.dimensions;
 
-        const scanline_offset: i64 = @intCast(i64, writer.context.bytes_written) + @intCast(i64, d.v[1]) * 8;
+        const scanline_offset = writer.context.bytes_written + @intCast(u64, d.v[1]) * 8;
 
-        const num_channels: i32 = if (self.alpha) 4 else 3;
-        const scalar_size: i32 = if (self.half) 2 else 4;
-        const bytes_per_row = d.v[0] * num_channels * scalar_size;
+        const scalar_size = format.byteSize();
+        const bytes_per_row = @intCast(u32, d.v[0]) * num_channels * scalar_size;
         const row_size = 4 + 4 + bytes_per_row;
 
-        var y: i32 = 0;
-        while (y < d.v[1]) : (y += 1) {
-            try writeScalar(i64, writer, scanline_offset + y * row_size);
+        const height = @intCast(u32, d.v[1]);
+
+        var y: u32 = 0;
+        while (y < height) : (y += 1) {
+            try writeScalar(u64, writer, scanline_offset + y * row_size);
         }
 
         y = 0;
-        while (y < d.v[1]) : (y += 1) {
-            try writeScalar(i32, writer, y);
-            try writeScalar(i32, writer, bytes_per_row);
+        while (y < height) : (y += 1) {
+            try writeScalar(u32, writer, y);
+            try writeScalar(u32, writer, bytes_per_row);
 
-            if (self.alpha) {
-                try writeScanline(writer, image, y, 3, self.half);
+            if (num_channels == 4) {
+                try writeScanline(writer, image, y, 3, format);
             }
 
-            try writeScanline(writer, image, y, 2, self.half);
-            try writeScanline(writer, image, y, 1, self.half);
-            try writeScanline(writer, image, y, 0, self.half);
+            if (num_channels >= 3) {
+                try writeScanline(writer, image, y, 2, format);
+                try writeScanline(writer, image, y, 1, format);
+            }
+
+            try writeScanline(writer, image, y, 0, format);
         }
     }
 
-    fn writeScanline(writer: anytype, image: Float4, y: i32, channel: u32, half: bool) !void {
+    fn writeScanline(writer: anytype, image: Float4, y: i32, channel: u32, format: exr.Channel.Format) !void {
         const width = image.description.dimensions.v[0];
 
-        if (half) {
+        if (.Uint == format) {
+            var x: i32 = 0;
+            while (x < width) : (x += 1) {
+                const s = image.get2D(x, y).v[channel];
+                const ui = @floatToInt(u32, s);
+                try writer.writeAll(std.mem.asBytes(&ui));
+            }
+        } else if (.Half == format) {
             var x: i32 = 0;
             while (x < width) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
@@ -180,10 +223,11 @@ pub const Writer = struct {
     }
 
     fn zipCompression(
-        self: Writer,
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        num_channels: u32,
+        format: exr.Channel.Format,
         compression: exr.Compression,
         threads: *Threads,
     ) !void {
@@ -192,8 +236,7 @@ pub const Writer = struct {
         const rows_per_block = compression.numScanlinesPerBlock();
         const row_blocks = compression.numScanlineBlocks(@intCast(u32, d.v[1]));
 
-        const num_channels: u32 = if (self.alpha) 4 else 3;
-        const scalar_size: u32 = if (self.half) 2 else 4;
+        const scalar_size = format.byteSize();
 
         const bytes_per_row = @intCast(u32, d.v[0]) * num_channels * scalar_size;
         const bytes_per_block = math.roundUp(u32, bytes_per_row * rows_per_block, 64);
@@ -204,7 +247,7 @@ pub const Writer = struct {
             .num_channels = num_channels,
             .bytes_per_row = bytes_per_row,
             .bytes_per_block = bytes_per_block,
-            .half = self.half,
+            .format = format,
             .image_buffer = try alloc.alloc(u8, @intCast(u32, d.v[1]) * bytes_per_row),
             .tmp_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
             .block_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
@@ -253,7 +296,7 @@ pub const Writer = struct {
         bytes_per_row: u32,
         bytes_per_block: u32,
 
-        half: bool,
+        format: exr.Channel.Format,
 
         image_buffer: []u8,
         tmp_buffer: []u8,
@@ -288,7 +331,9 @@ pub const Writer = struct {
 
                 const pixel = y * self.rows_per_block * width;
 
-                if (self.half) {
+                if (.Uint == self.format) {
+                    blockUint(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
+                } else if (.Half == self.format) {
                     blockHalf(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
                 } else {
                     blockFloat(block_buffer, self.image.*, self.num_channels, num_rows_here, pixel);
@@ -344,11 +389,33 @@ pub const Writer = struct {
                         halfs[o + width * 1 + x] = @floatCast(f16, c.v[2]);
                         halfs[o + width * 2 + x] = @floatCast(f16, c.v[1]);
                         halfs[o + width * 3 + x] = @floatCast(f16, c.v[0]);
-                    } else {
+                    } else if (3 == num_channels) {
                         halfs[o + width * 0 + x] = @floatCast(f16, c.v[2]);
                         halfs[o + width * 1 + x] = @floatCast(f16, c.v[1]);
                         halfs[o + width * 2 + x] = @floatCast(f16, c.v[0]);
+                    } else {
+                        halfs[o + width * 0 + x] = @floatCast(f16, c.v[0]);
                     }
+
+                    current += 1;
+                }
+            }
+        }
+
+        fn blockUint(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
+            const width = @intCast(u32, image.description.dimensions.v[0]);
+
+            var uints = std.mem.bytesAsSlice(u32, destination);
+
+            var current = pixel;
+            var row: u32 = 0;
+            while (row < num_rows) : (row += 1) {
+                const o = row * width * num_channels;
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const c = image.pixels[current];
+
+                    uints[o + width * 0 + x] = @floatToInt(u32, c.v[0]);
 
                     current += 1;
                 }
@@ -373,10 +440,12 @@ pub const Writer = struct {
                         floats[o + width * 1 + x] = c.v[2];
                         floats[o + width * 2 + x] = c.v[1];
                         floats[o + width * 3 + x] = c.v[0];
-                    } else {
+                    } else if (3 == num_channels) {
                         floats[o + width * 0 + x] = c.v[2];
                         floats[o + width * 1 + x] = c.v[1];
                         floats[o + width * 2 + x] = c.v[0];
+                    } else {
+                        floats[o + width * 0 + x] = c.v[0];
                     }
 
                     current += 1;
@@ -443,7 +512,7 @@ pub const Writer = struct {
     fn writeChannel(writer: anytype, channel: exr.Channel) !void {
         try writeString(writer, channel.name);
 
-        try writer.writeAll(std.mem.asBytes(&channel.typef));
+        try writer.writeAll(std.mem.asBytes(&channel.format));
 
         try writeScalar(u32, writer, 0);
 

@@ -4,7 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
@@ -93,7 +93,7 @@ pub const Rectangle = struct {
         trafo: Transformation,
         entity: usize,
         filter: ?Filter,
-        worker: Worker,
+        scene: Scene,
     ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
@@ -119,7 +119,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, worker);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
         }
 
         return @splat(4, @as(f32, 1.0));

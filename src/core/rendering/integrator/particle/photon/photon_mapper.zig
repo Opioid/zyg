@@ -11,7 +11,7 @@ const Filter = @import("../../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../../scene/constants.zig");
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
-const smp = @import("../../../../sampler/sampler.zig");
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -22,27 +22,24 @@ const Allocator = std.mem.Allocator;
 
 pub const Mapper = struct {
     pub const Settings = struct {
-        max_bounces: u32,
-        full_light_path: bool,
+        max_bounces: u32 = 0,
+        full_light_path: bool = false,
     };
 
-    settings: Settings,
-    sampler: smp.Sampler,
+    settings: Settings = .{},
+    sampler: Sampler = Sampler{ .Random = .{} },
 
-    photons: [*]Photon,
+    photons: []Photon = &.{},
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings) !Self {
-        return Self{
-            .settings = settings,
-            .sampler = .{ .Random = .{} },
-            .photons = (try alloc.alloc(Photon, settings.max_bounces)).ptr,
-        };
+    pub fn configure(self: *Self, alloc: Allocator, settings: Settings) !void {
+        self.settings = settings;
+        self.photons = try alloc.realloc(self.photons, settings.max_bounces);
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.photons[0..self.settings.max_bounces]);
+        alloc.free(self.photons);
     }
 
     pub fn bake(
@@ -135,7 +132,7 @@ pub const Mapper = struct {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
@@ -173,9 +170,9 @@ pub const Mapper = struct {
                         if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
-                            const material_ior = isec.material(worker.super).ior();
+                            const material_ior = isec.material(worker.super.scene.*).ior();
                             if (isec.subsurface and material_ior > 1.0) {
-                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
+                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
                             }
@@ -254,11 +251,15 @@ pub const Mapper = struct {
                 } else if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
                     break;
                 }
+
+                self.sampler.incrementPadding();
             }
 
             if (iteration > 0) {
                 return .{ .num_iterations = iteration, .num_photons = num_photons };
             }
+
+            self.sampler.incrementSample();
         }
 
         return .{ .num_iterations = 0, .num_photons = 0 };

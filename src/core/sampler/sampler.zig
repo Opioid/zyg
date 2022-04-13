@@ -14,10 +14,10 @@ pub const Sampler = union(enum) {
     Random,
     Sobol: Sobol,
 
-    pub fn startPixel(self: *Sampler, seed: u32) void {
+    pub fn startPixel(self: *Sampler, sample: u32, seed: u32) void {
         switch (self.*) {
             .Random => {},
-            .Sobol => |*s| s.startPixel(seed),
+            .Sobol => |*s| s.startPixel(sample, seed),
         }
     }
 
@@ -28,10 +28,10 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn incrementBounce(self: *Sampler) void {
+    pub fn incrementPadding(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
-            .Sobol => |*s| s.incrementBounce(),
+            .Sobol => |*s| s.incrementPadding(),
         }
     }
 
@@ -56,11 +56,25 @@ pub const Sampler = union(enum) {
         };
     }
 
+    pub fn sample4D(self: *Sampler, rng: *RNG) Vec4f {
+        return switch (self.*) {
+            .Random => .{
+                rng.randomFloat(),
+                rng.randomFloat(),
+                rng.randomFloat(),
+                rng.randomFloat(),
+            },
+            .Sobol => |*s| s.sample4D(),
+        };
+    }
+
     pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
+        const s4 = self.sample4D(rng);
+
         const sample = CameraSample{
             .pixel = pixel,
-            .pixel_uv = self.sample2D(rng),
-            .lens_uv = self.sample2D(rng),
+            .pixel_uv = .{ s4[0], s4[1] },
+            .lens_uv = .{ s4[2], s4[3] },
             .time = self.sample1D(rng),
         };
 

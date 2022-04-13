@@ -31,12 +31,15 @@ pub const PathtracerDL = struct {
 
     settings: Settings,
 
-    sampler: Sampler = .{ .Sobol = .{} },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, seed: u32) void {
-        self.sampler.startPixel(seed);
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        const os = sample *% self.settings.num_samples;
+        for (self.samplers) |*s| {
+            s.startPixel(os, seed);
+        }
     }
 
     pub fn li(
@@ -59,7 +62,9 @@ pub const PathtracerDL = struct {
 
             result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
 
-            self.sampler.incrementSample();
+            for (self.samplers) |*s| {
+                s.incrementSample();
+            }
         }
 
         return result;
@@ -93,6 +98,10 @@ pub const PathtracerDL = struct {
                 from_subsurface,
             );
 
+            if (worker.aov.active()) {
+                worker.commonAOV(throughput, ray.*, isec.*, mat_sample, primary_ray);
+            }
+
             wo1 = wo;
 
             if (mat_sample.super().sameHemisphere(wo)) {
@@ -102,13 +111,15 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
-            result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, worker);
+            var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+            result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, sampler, worker);
+
+            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -180,12 +191,12 @@ pub const PathtracerDL = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, self.sampler.sample1D(&worker.super.rng))) {
+                if (hlp.russianRoulette(&throughput, sampler.sample1D(&worker.super.rng))) {
                     break;
                 }
             }
 
-            self.sampler.incrementBounce();
+            sampler.incrementPadding();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
@@ -197,6 +208,7 @@ pub const PathtracerDL = struct {
         isec: Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
@@ -216,7 +228,7 @@ pub const PathtracerDL = struct {
         shadow_ray.time = ray.time;
         shadow_ray.wavelength = ray.wavelength;
 
-        const select = self.sampler.sample1D(&worker.super.rng);
+        const select = sampler.sample1D(&worker.super.rng);
         const split = self.splitting(ray.depth);
 
         const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
@@ -228,7 +240,7 @@ pub const PathtracerDL = struct {
                 n,
                 ray.time,
                 translucent,
-                &self.sampler,
+                sampler,
                 &worker.super,
             ) orelse continue;
 
@@ -238,7 +250,7 @@ pub const PathtracerDL = struct {
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super);
+            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
@@ -249,8 +261,15 @@ pub const PathtracerDL = struct {
     }
 
     fn splitting(self: Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and
-            bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
+    }
+
+    fn pickSampler(self: *Self, bounce: u32) *Sampler {
+        if (bounce < 4) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 };
 

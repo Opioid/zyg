@@ -79,12 +79,7 @@ pub const FFMPEG = struct {
     }
 
     pub fn write(self: *Self, alloc: Allocator, image: Float4, threads: *Threads) !void {
-        const d = image.description.dimensions;
-        const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
-
-        try self.srgb.resize(alloc, num_pixels);
-
-        self.srgb.toSrgb(image, threads);
+        _ = try self.srgb.toSrgb(alloc, image, null, threads);
 
         try self.stream.stdin.?.writer().writeAll(self.srgb.buffer);
     }

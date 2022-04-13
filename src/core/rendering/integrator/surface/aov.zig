@@ -38,12 +38,15 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    sampler: Sampler = .{ .Sobol = .{} },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
 
-    pub fn startPixel(self: *Self, seed: u32) void {
-        self.sampler.startPixel(seed);
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        const os = sample *% self.settings.num_samples;
+        for (self.samplers) |*s| {
+            s.startPixel(os, seed);
+        }
     }
 
     pub fn li(
@@ -68,7 +71,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -76,9 +79,11 @@ pub const AOV = struct {
         occlusion_ray.ray.setMaxT(self.settings.radius);
         occlusion_ray.time = ray.time;
 
+        var sampler = &self.samplers[0];
+
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = self.sampler.sample2D(&worker.super.rng);
+            const sample = sampler.sample2D(&worker.super.rng);
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -92,7 +97,7 @@ pub const AOV = struct {
                 result += num_samples_reciprocal;
             }
 
-            self.sampler.incrementSample();
+            sampler.incrementSample();
         }
 
         return .{ result, result, result, 1.0 };
@@ -100,7 +105,7 @@ pub const AOV = struct {
 
     fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var vec: Vec4f = undefined;
 
@@ -154,7 +159,9 @@ pub const AOV = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+            var sampler = self.pickSampler(ray.depth);
+
+            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -215,12 +222,22 @@ pub const AOV = struct {
                 break;
             }
 
-            self.sampler.incrementBounce();
+            sampler.incrementPadding();
         }
 
-        self.sampler.incrementSample();
+        for (self.samplers) |*s| {
+            s.incrementSample();
+        }
 
         return @splat(4, @as(f32, 0.0));
+    }
+
+    fn pickSampler(self: *Self, bounce: u32) *Sampler {
+        if (bounce < 4) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 };
 

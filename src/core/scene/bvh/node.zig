@@ -6,21 +6,21 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const Node = packed struct {
+pub const Node = struct {
     const Min = packed struct {
         v: [3]f32,
         children_or_data: u32,
     };
 
-    const Max = packed struct {
+    const Max = struct {
         v: [3]f32,
         axis: u8,
         num_indices: u8,
         pad: [2]u8,
     };
 
-    min: Min align(16) = undefined,
-    max: Max align(16) = undefined,
+    min: Min = undefined,
+    max: Max = undefined,
 
     pub fn initFrom(other: Node, o: u32) Node {
         return .{

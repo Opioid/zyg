@@ -58,7 +58,7 @@ pub fn build(b: *std.build.Builder) void {
     cli.linkLibC();
 
     // cli.sanitize_thread = true;
-    cli.strip = true;
+    // cli.strip = true;
 
     cli.install();
 
@@ -69,7 +69,7 @@ pub fn build(b: *std.build.Builder) void {
     capi.setBuildMode(mode);
     capi.linkLibC();
 
-    capi.strip = true;
+    // capi.strip = true;
 
     capi.install();
 
@@ -94,9 +94,9 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(&[_][]const u8{
             "-i",
             //"takes/bistro_day.take",
-            "takes/bistro_night.take",
+            //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/material_test.take",
@@ -125,10 +125,10 @@ pub fn build(b: *std.build.Builder) void {
     //     run_cmd.addArgs(args);
     // } else {
     //     run_cmd.addArgs(&[_][]const u8{
+    //         "-d",
     //         "-i",
-    //         "image_00000000.exr",
-    //         "-i",
-    //         "image_00000064.exr",
+    //         "image_00000001.exr",
+    //         "image_00000003.exr",
     //         //"san_miguel.exr",
     //         "-t",
     //         "-4",

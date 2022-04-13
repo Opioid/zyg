@@ -1,9 +1,15 @@
 from ctypes import *
 import platform
 
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
 LOG_FUNC = CFUNCTYPE(None, c_uint, c_char_p)
 
 PROGRESS_START_FUNC = CFUNCTYPE(None, c_uint)
+
 PROGRESS_TICK_FUNC = CFUNCTYPE(None)
 
 def py_log_callback(msg_type, msg):
@@ -14,33 +20,9 @@ def py_log_callback(msg_type, msg):
     else:
         print(str(msg, "utf-8"))
 
-class Progressor:
-    def start(self, resolution):
-        self.resolution = resolution
-        self.progress = 0
-        self.threshold = 1.0
-
-    def tick(self):
-        if self.progress >= self.resolution:
-            pass
-
-        self.progress += 1
-
-        p = float(self.progress) / float(self.resolution) * 100.0
-
-        if p >= self.threshold:
-            self.threshold += 1.0
-            print("{}%".format(int(p)), end = "\r")
-
-progress = Progressor()
-
-def py_progress_start(resolution):
-    global progress
-    progress.start(resolution)
-
 def py_progress_tick():
-    global progress
-    progress.tick()
+    print("Tick: ")
+
         
 if platform.system() == "Windows":
     zyg = CDLL("./zyg.dll")
@@ -49,80 +31,70 @@ else:
 
 logfunc = LOG_FUNC(py_log_callback)
 
-progstartfunc = PROGRESS_START_FUNC(py_progress_start)
-progtickfunc = PROGRESS_TICK_FUNC(py_progress_tick)
+print(zyg.su_register_log(logfunc))
 
-zyg.su_register_log(logfunc)
-
-zyg.su_init()
-
-zyg.su_register_progress(progstartfunc, progtickfunc)
+print(zyg.su_init())
 
 #print(zyg.su_mount(c_char_p(b"../../data/")))
-zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/"))
+print(zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/")))
 
-camera = zyg.su_perspective_camera_create(1280, 720)
-
-exporter_desc = """{
-"Image": {
-"format": "PNG",
-"_error_diffusion": true
-}
-}"""
-
-
-zyg.su_exporters_create(c_char_p(exporter_desc.encode('utf-8')));
-
-zyg.su_sampler_create(16)
+zyg.su_sampler_create(4096)
 
 integrators_desc = """{
 "surface": {
-"PTMIS": {}
+"PTMIS": {
+"caustics": false
+}
 }
 }"""
 
 zyg.su_integrators_create(c_char_p(integrators_desc.encode('utf-8')))
 
-material_a_desc = """{
-    "rendering": {
-    "Substitute": {
-        "color": [0, 1, 0.5],
-        "roughness": 0.2,
-        "metallic": 0
-    }
-    }
-    }"""
+Int2 = c_int32 * 2
+resolution = Int2()
+resolution[0] = 1280
+resolution[1] = 720
 
-material_a = c_uint(zyg.su_material_create(-1, c_char_p(material_a_desc.encode('utf-8'))));
+camera = zyg.su_perspective_camera_create(resolution[0], resolution[1])
 
-Buffer = c_float * 12
+#print(zyg.su_render_frame(0))
+#print(zyg.su_export_frame())
 
-image_buffer = Buffer(1.0, 0.0, 0.0,
-                      0.0, 1.0, 0.0,
-                      0.0, 0.0, 1.0,
-                      1.0, 1.0, 0.0)
+roughness = 0.2
 
-pixel_type = 4
-num_channels = 3
-width = 2
-height = 2
-depth = 1
-stride = 12
-
-image_a = zyg.su_image_create(-1, pixel_type, num_channels, width, height, depth,
-                              stride, image_buffer)
-
-material_b_desc = """{{
-"rendering": {{
+material_a_desc = """{{
+    "rendering": {{
     "Substitute": {{
-        "color": {{"usage": "Color", "id": {} }},
-        "roughness": 0.5,
+        "color": [0, 1, 0.5],
+        "roughness": {},
         "metallic": 0
     }}
-}}
-}}""".format(image_a)
+    }}
+    }}""".format(roughness)
 
-material_b = c_uint(zyg.su_material_create(-1, c_char_p(material_b_desc.encode('utf-8'))));
+material_a = c_uint(zyg.su_material_create(-1, c_char_p(material_a_desc.encode('utf-8'))))
+
+material_b_desc = """{
+"rendering": {
+    "Substitute": {
+        "checkers": {
+             "scale": 2,
+             "colors": [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
+        },
+        "roughness": 0.5,
+        "metallic": 0
+    }
+}
+}"""
+
+material_b = c_uint(zyg.su_material_create(-1, c_char_p(material_b_desc.encode('utf-8'))))
+
+def updateRoughness():
+    material_desc = """{{
+        "roughness": {}
+    }}""".format(roughness)
+    
+    print(zyg.su_material_update(material_a, c_char_p(material_desc.encode('utf-8'))))
 
 material_light_desc = """{
 "rendering": {
@@ -134,7 +106,7 @@ material_light_desc = """{
 }
 }"""
 
-material_light = c_uint(zyg.su_material_create(-1, c_char_p(material_light_desc.encode('utf-8'))));
+material_light = c_uint(zyg.su_material_create(-1, c_char_p(material_light_desc.encode('utf-8'))))
 
 sphere_a = zyg.su_prop_create(8, 1, byref(material_a))
 
@@ -195,16 +167,9 @@ Transformation = c_float * 16
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
-                                -0.5, 1.0, 0.0, 1.0)
+                                0.0, 1.0, 0.0, 1.0)
 
-zyg.su_prop_set_transformation_frame(camera, 0, transformation)
-
-transformation = Transformation(1.0, 0.0, 0.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0,
-                                0.0, 0.0, 1.0, 0.0,
-                                0.5, 1.0, 0.0, 1.0)
-
-zyg.su_prop_set_transformation_frame(camera, 1, transformation)
+zyg.su_prop_set_transformation(camera, transformation)
 
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
@@ -241,17 +206,98 @@ transformation = Transformation(1.0, 0.0, 0.0, 0.0,
 
 zyg.su_prop_set_transformation_frame(triangle_a, 1, transformation)
 
-zyg.su_render_frame(0)
-zyg.su_export_frame(0)
 
-image_buffer = Buffer(0.0, 1.0, 0.0,
-                      1.0, 0.0, 0.0,
-                      1.0, 1.0, 0.0,
-                      0.0, 0.0, 1.0)
 
-zyg.su_image_update(image_a, stride, image_buffer)
+Image = ((c_uint8 * 3) * resolution[0]) * resolution[1]
 
-zyg.su_render_frame(1)
-zyg.su_export_frame(1)
+image = Image()
 
-zyg.su_release()
+dpi = 100
+
+fig = plt.figure("sprout", figsize=(resolution[0]/dpi, resolution[1]/dpi), dpi=dpi)
+im = fig.figimage(image)
+
+label = plt.figtext(0.0, 1.0, "0", color=(1.0, 1.0, 0.0), verticalalignment="top")
+
+def restart():
+    global frame_iteration
+    global frame_next_display
+
+    frame_iteration = 0
+    frame_next_display = 1
+    zyg.su_start_frame(0)
+    #sprout.su_set_expected_iterations(1)
+
+restart()
+
+def update(frame_number):
+    global frame_iteration
+    global frame_next_display
+
+    step = 1
+    zyg.su_render_iterations(step)
+    frame_iteration += step
+
+  #  if frame_iteration >= frame_next_display:
+    zyg.su_resolve_frame()
+    zyg.su_copy_framebuffer(0, 3, resolution[0], resolution[1], image)
+
+    im.set_data(image)
+
+    label.set_text(str(frame_iteration))
+
+    frame_next_display = frame_iteration + step
+
+    #sprout.su_set_expected_iterations(frame_next_display - frame_iteration)
+
+
+
+animation = FuncAnimation(fig, update, interval=1)
+
+
+# zyg.su_render_iteration(frame_iteration)
+# zyg.su_resolve_frame()
+# zyg.su_copy_framebuffer(0, resolution[0], resolution[1], 3, image)
+
+#m.set_data(image)
+
+def press(event):
+    global roughness
+    # if "left" == event.key or "a" == event.key:
+    #     transformation[12] -= 0.1
+    #     sprout.su_entity_set_transformation(camera, transformation)
+    #     restart()
+
+    # if "right" == event.key or "d" == event.key:
+    #     transformation[12] += 0.1
+    #     sprout.su_entity_set_transformation(camera, transformation)
+    #     restart()
+
+    # if "up" == event.key or "w" == event.key:
+    #     transformation[14] += 0.1
+    #     sprout.su_entity_set_transformation(camera, transformation)
+    #     restart()
+
+    # if "down" == event.key or "s" == event.key:
+    #     transformation[14] -= 0.1
+    #     sprout.su_entity_set_transformation(camera, transformation)
+    #     restart()
+
+    if "o" == event.key:
+        roughness = max(0.0, roughness - 0.1)
+        updateRoughness()
+        restart()
+
+    if "p" == event.key:
+        roughness = min(1.0, roughness + 0.1)
+        updateRoughness()
+        restart()
+        
+    if "r" == event.key:
+        restart()
+
+fig.canvas.mpl_connect('key_press_event', press)
+
+plt.show()
+
+print(zyg.su_release())

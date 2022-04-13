@@ -164,6 +164,11 @@ pub const AABB = struct {
         self.bounds[1] += v;
     }
 
+    pub fn translate(self: *AABB, v: Vec4f) void {
+        self.bounds[0] += v;
+        self.bounds[1] += v;
+    }
+
     pub fn cachedRadius(self: AABB) f32 {
         return self.bounds[0][3];
     }

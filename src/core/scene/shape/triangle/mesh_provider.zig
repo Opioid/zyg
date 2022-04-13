@@ -64,6 +64,23 @@ const Error = error{
 };
 
 pub const Provider = struct {
+    pub const Description = struct {
+        num_parts: u32,
+        num_triangles: u32,
+        num_vertices: u32,
+        positions_stride: u32,
+        normals_stride: u32,
+        tangents_stride: u32,
+        uvs_stride: u32,
+
+        parts: ?[*]const u32,
+        indices: ?[*]const u32,
+        positions: [*]const f32,
+        normals: [*]const f32,
+        tangents: ?[*]const f32,
+        uvs: ?[*]const f32,
+    };
+
     num_indices: u32 = undefined,
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
@@ -72,6 +89,7 @@ pub const Provider = struct {
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
+    desc: Description = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
 
@@ -157,6 +175,41 @@ pub const Provider = struct {
         self.threads = resources.threads;
 
         resources.threads.runAsync(self, buildAsync);
+
+        return Shape{ .TriangleMesh = mesh };
+    }
+
+    pub fn loadData(
+        self: *Provider,
+        alloc: Allocator,
+        data: usize,
+        options: Variants,
+        resources: *Resources,
+    ) !Shape {
+        _ = options;
+
+        const desc = @intToPtr(*Description, data);
+
+        const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
+
+        var mesh = try Mesh.init(alloc, num_parts);
+
+        if (desc.num_parts > 0 and null != desc.parts) {
+            var i: u32 = 0;
+            while (i < num_parts) : (i += 1) {
+                mesh.setMaterialForPart(i, desc.parts.?[i * 3 + 2]);
+            }
+        } else {
+            mesh.setMaterialForPart(0, 0);
+        }
+
+        resources.commitAsync();
+
+        self.desc = desc.*;
+        self.alloc = alloc;
+        self.threads = resources.threads;
+
+        resources.threads.runAsync(self, buildDescAsync);
 
         return Shape{ .TriangleMesh = mesh };
     }
@@ -466,7 +519,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = try vs.Separate.init(
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.init(
                         positions,
                         normals,
                         tangents,
@@ -474,7 +527,7 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
+                    vertices = vs.VertexStream{ .Compact = vs.Compact.init(positions, normals) };
                 }
             }
         }
@@ -542,6 +595,74 @@ pub const Provider = struct {
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
         self.vertices.deinit(self.alloc);
+    }
+
+    fn buildDescAsync(context: ThreadContext) void {
+        const self = @intToPtr(*Provider, context);
+
+        const num_triangles = self.desc.num_triangles;
+        var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
+        defer self.alloc.free(triangles);
+
+        var desc = self.desc;
+
+        if (null == desc.tangents) {
+            desc.tangents_stride = 0;
+        }
+
+        if (null == desc.uvs) {
+            desc.uvs_stride = 0;
+        }
+
+        const empty_part = [3]u32{ 0, num_triangles * 3, 0 };
+        const parts = if (desc.num_parts > 0 and null != desc.parts) desc.parts.? else &empty_part;
+
+        const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
+        var p: u32 = 0;
+        while (p < num_parts) : (p += 1) {
+            const start_index = parts[p * 3 + 0];
+            const num_indices = parts[p * 3 + 1];
+
+            const triangles_start = start_index / 3;
+            const triangles_end = (start_index + num_indices) / 3;
+
+            var i = triangles_start;
+            if (desc.indices) |indices| {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = indices[t + 0];
+                    triangles[i].i[1] = indices[t + 1];
+                    triangles[i].i[2] = indices[t + 2];
+
+                    triangles[i].part = p;
+                }
+            } else {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = t + 0;
+                    triangles[i].i[1] = t + 1;
+                    triangles[i].i[2] = t + 2;
+
+                    triangles[i].part = p;
+                }
+            }
+        }
+
+        const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+
+        const vertices = vs.VertexStream{ .C = vs.CAPI.init(
+            desc.num_vertices,
+            desc.positions_stride,
+            desc.normals_stride,
+            desc.tangents_stride,
+            desc.uvs_stride,
+            desc.positions,
+            desc.normals,
+            if (desc.tangents_stride > 0) desc.tangents.? else &null_floats,
+            if (desc.uvs_stride > 0) desc.uvs.? else &null_floats,
+        ) };
+
+        buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};
     }
 
     fn buildBVH(
