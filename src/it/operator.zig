@@ -10,14 +10,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Operator = struct {
-    pub const Type = enum {
+    pub const Class = enum {
         Add,
         Diff,
         Over,
         Tonemap,
     };
 
-    typef: Type,
+    class: Class,
 
     textures: std.ArrayListUnmanaged(core.tx.Texture) = .{},
     input_ids: std.ArrayListUnmanaged(u32) = .{},
@@ -44,7 +44,7 @@ pub const Operator = struct {
     }
 
     pub fn iterations(self: Self) u32 {
-        return switch (self.typef) {
+        return switch (self.class) {
             .Add, .Over => 1,
             .Diff => @intCast(u32, self.textures.items.len - 1),
             .Tonemap => @intCast(u32, self.textures.items.len),
@@ -64,7 +64,7 @@ pub const Operator = struct {
 
         var self = @intToPtr(*Self, context);
 
-        if (.Diff == self.typef) {
+        if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];
 
@@ -78,7 +78,7 @@ pub const Operator = struct {
                     const ux = @intCast(i32, x);
                     const uy = @intCast(i32, y);
 
-                    switch (self.typef) {
+                    switch (self.class) {
                         .Diff => {
                             const color_a = texture_a.get2D_4(ux, uy, self.scene.*);
                             const color_b = texture_b.get2D_4(ux, uy, self.scene.*);
@@ -105,7 +105,7 @@ pub const Operator = struct {
                     const ux = @intCast(i32, x);
                     const uy = @intCast(i32, y);
 
-                    switch (self.typef) {
+                    switch (self.class) {
                         .Add => {
                             var color = texture.get2D_4(ux, uy, self.scene.*);
 

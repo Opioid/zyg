@@ -8,6 +8,7 @@ const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;

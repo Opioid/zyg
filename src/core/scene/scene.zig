@@ -682,12 +682,12 @@ pub const Scene = struct {
     fn allocateLight(
         self: *Scene,
         alloc: Allocator,
-        typef: Light.Type,
+        class: Light.Class,
         two_sided: bool,
         entity: u32,
         part: u32,
     ) !void {
-        try self.lights.append(alloc, .{ .typef = typef, .two_sided = two_sided, .prop = entity, .part = part });
+        try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }

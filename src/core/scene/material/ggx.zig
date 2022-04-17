@@ -122,7 +122,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }
@@ -185,7 +185,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wi_dot_h;
-        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }
@@ -227,7 +227,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
         result.h_dot_wi = wi_dot_h;
-        result.typef.clearWith(if (alpha <= Min_alpha) .SpecularTransmission else .GlossyTransmission);
+        result.class.clearWith(if (alpha <= Min_alpha) .SpecularTransmission else .GlossyTransmission);
 
         return n_dot_wi;
     }
@@ -353,7 +353,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.typef.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }
@@ -394,7 +394,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wi_dot_h;
-        result.typef.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
 
         return n_dot_wi;
     }

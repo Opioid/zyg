@@ -57,7 +57,7 @@ pub fn main() !void {
     try image_options.set(alloc, "usage", core.tx.Usage.ColorAndOpacity);
 
     var operator = Operator{
-        .typef = options.operator,
+        .class = options.operator,
         .tonemapper = core.Tonemapper.init(if (.Tonemap == options.operator) .ACES else .Linear, options.exposure),
         .scene = &scene,
     };
@@ -93,7 +93,7 @@ pub fn main() !void {
         operator.run(&threads);
 
         const name = options.inputs.items[operator.input_ids.items[i]];
-        try write(alloc, name, operator.typef, operator.target, &writer, &threads);
+        try write(alloc, name, operator.class, operator.target, &writer, &threads);
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
@@ -102,7 +102,7 @@ pub fn main() !void {
 fn write(
     alloc: Allocator,
     name: []const u8,
-    operator: Operator.Type,
+    operator: Operator.Class,
     target: core.image.Float4,
     writer: *core.ImageWriter,
     threads: *Threads,

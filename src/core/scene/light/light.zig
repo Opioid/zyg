@@ -23,14 +23,14 @@ const Allocator = std.mem.Allocator;
 pub const Light = struct {
     pub const Volume_mask: u32 = 0x10000000;
 
-    pub const Type = enum(u8) {
+    pub const Class = enum(u8) {
         Prop,
         PropImage,
         Volume,
         VolumeImage,
     };
 
-    typef: Type,
+    class: Class,
     two_sided: bool,
     variant: u16 = undefined,
     prop: u32,
@@ -54,7 +54,7 @@ pub const Light = struct {
     }
 
     pub fn volumetric(self: Light) bool {
-        return switch (self.typef) {
+        return switch (self.class) {
             .Volume, .VolumeImage => true,
             else => false,
         };
@@ -68,7 +68,7 @@ pub const Light = struct {
         scene: *Scene,
         threads: *Threads,
     ) void {
-        const volume = switch (self.typef) {
+        const volume = switch (self.class) {
             .Volume, .VolumeImage => true,
             else => false,
         };
@@ -99,7 +99,7 @@ pub const Light = struct {
     ) ?SampleTo {
         const trafo = worker.scene.propTransformationAt(self.prop, time);
 
-        return switch (self.typef) {
+        return switch (self.class) {
             .Prop => self.propSampleTo(
                 p,
                 n,
@@ -144,7 +144,7 @@ pub const Light = struct {
     ) ?SampleFrom {
         const trafo = worker.scene.propTransformationAt(self.prop, time);
 
-        return switch (self.typef) {
+        return switch (self.class) {
             .Prop => self.propSampleFrom(trafo, sampler, bounds, worker),
             .PropImage => self.propImageSampleFrom(trafo, sampler, bounds, worker),
             .VolumeImage => self.volumeImageSampleFrom(trafo, sampler, worker),
@@ -167,7 +167,7 @@ pub const Light = struct {
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
         const trafo = scene.propTransformationAt(self.prop, ray.time);
 
-        return switch (self.typef) {
+        return switch (self.class) {
             .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, scene),
             .PropImage => self.propImagePdf(ray, isec, trafo, scene),
             .Volume => self.volumePdf(ray, isec, trafo, scene),
@@ -399,8 +399,6 @@ pub const Light = struct {
         total_sphere: bool,
         scene: Scene,
     ) f32 {
-        const two_sided = isec.material(scene).twoSided();
-
         return isec.shape(scene).pdf(
             self.variant,
             ray,
@@ -408,20 +406,19 @@ pub const Light = struct {
             isec.geo,
             trafo,
             self.extent,
-            two_sided,
+            self.two_sided,
             total_sphere,
         );
     }
 
     fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Transformation, scene: Scene) f32 {
         const material = isec.material(scene);
-        const two_sided = material.twoSided();
 
         const uv = isec.geo.uv;
         const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, trafo, self.extent, two_sided);
+        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, trafo, self.extent, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
@@ -444,7 +441,6 @@ pub const Light = struct {
         scene: Scene,
     ) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
-
         const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
 
         return material_pdf * shape_pdf;

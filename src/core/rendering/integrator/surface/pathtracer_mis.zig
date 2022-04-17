@@ -158,13 +158,13 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {
+            if (sample_result.class.is(.Specular)) {
                 if (avoid_caustics) {
                     break;
                 }
 
                 state.set(.TreatAsSingular, true);
-            } else if (sample_result.typef.no(.Straight)) {
+            } else if (sample_result.class.no(.Straight)) {
                 state.unset(.TreatAsSingular);
 
                 effective_bxdf_pdf = sample_result.pdf;
@@ -179,11 +179,11 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            if (!sample_result.typef.equals(.StraightTransmission)) {
+            if (!sample_result.class.equals(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
-            if (sample_result.typef.is(.Straight)) {
+            if (sample_result.class.is(.Straight)) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -201,13 +201,13 @@ pub const PathtracerMIS = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.typef.is(.Transmission)) {
+            if (sample_result.class.is(.Transmission)) {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
             state.orSet(.FromSubsurface, isec.subsurface);
 
-            if (sample_result.typef.is(.Straight) and state.no(.TreatAsSingular)) {
+            if (sample_result.class.is(.Straight) and state.no(.TreatAsSingular)) {
                 sample_result.pdf = effective_bxdf_pdf;
             } else {
                 state.set(.IsTranslucent, mat_sample.isTranslucent());

@@ -1,4 +1,4 @@
-const OperatorType = @import("operator.zig").Operator.Type;
+const Operator = @import("operator.zig").Operator.Class;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -11,7 +11,7 @@ pub const Options = struct {
     };
 
     inputs: std.ArrayListUnmanaged([]u8) = .{},
-    operator: OperatorType = .Over,
+    operator: Operator = .Over,
     format: Format = .PNG,
     exposure: f32 = 0.0,
     threads: i32 = 0,

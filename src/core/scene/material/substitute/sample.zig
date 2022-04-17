@@ -546,7 +546,7 @@ pub const Sample = struct {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
-            result.typef.clearWith(.SpecularTransmission);
+            result.class.clearWith(.SpecularTransmission);
             return;
         }
 
@@ -663,7 +663,7 @@ pub const Sample = struct {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
-            result.typef.clearWith(.SpecularTransmission);
+            result.class.clearWith(.SpecularTransmission);
             return;
         }
 

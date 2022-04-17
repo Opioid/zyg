@@ -124,22 +124,22 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {
+            if (sample_result.class.is(.Specular)) {
                 if (avoid_caustics) {
                     break;
                 }
 
                 treat_as_singular = true;
-            } else if (sample_result.typef.no(.Straight)) {
+            } else if (sample_result.class.no(.Straight)) {
                 treat_as_singular = false;
                 primary_ray = false;
             }
 
-            if (!sample_result.typef.equals(.StraightTransmission)) {
+            if (!sample_result.class.equals(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
-            if (sample_result.typef.is(.Straight)) {
+            if (sample_result.class.is(.Straight)) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -157,7 +157,7 @@ pub const PathtracerDL = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.typef.is(.Transmission)) {
+            if (sample_result.class.is(.Transmission)) {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
