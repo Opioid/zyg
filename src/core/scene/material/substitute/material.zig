@@ -234,13 +234,12 @@ pub const Material = struct {
         self: Material,
         wi: Vec4f,
         n: Vec4f,
-        uvw: Vec4f,
+        uv: Vec2f,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
-        const uv = Vec2f{ uvw[0], uvw[1] };
 
         var rad = self.super.emittance.radiance(extent);
 

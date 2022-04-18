@@ -229,9 +229,9 @@ pub const Material = union(enum) {
         scene: Scene,
     ) Vec4f {
         return switch (self) {
-            .Light => |m| m.evaluateRadiance(uvw, extent, filter, scene),
-            .Sky => |m| m.evaluateRadiance(wi, uvw, filter, scene),
-            .Substitute => |m| m.evaluateRadiance(wi, n, uvw, extent, filter, scene),
+            .Light => |m| m.evaluateRadiance(.{ uvw[0], uvw[1] }, extent, filter, scene),
+            .Sky => |m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, filter, scene),
+            .Substitute => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, extent, filter, scene),
             .Volumetric => |m| m.evaluateRadiance(uvw, filter, scene),
             else => @splat(4, @as(f32, 0.0)),
         };
