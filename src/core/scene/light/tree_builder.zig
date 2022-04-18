@@ -14,6 +14,10 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Implements most of
+// Importance Sampling of Many Lights with Adaptive Tree Splitting
+// http://aconty.com/pdf/many-lights-hpg2018.pdf
+
 const Scene_sweep_threshold = 128;
 const Part_sweep_threshold = 32;
 const Num_slices = 16;
