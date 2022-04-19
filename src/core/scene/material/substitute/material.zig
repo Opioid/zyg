@@ -125,7 +125,8 @@ pub const Material = struct {
             worker.scene.*,
         ) else self.color;
 
-        var rad = self.super.emittance.radiance(math.dot3(rs.geo_n, wo), worker.scene.lightArea(rs.prop, rs.part));
+        const cos_l = @fabs(math.dot3(rs.geo_n, wo));
+        var rad = self.super.emittance.radiance(cos_l, worker.scene.lightArea(rs.prop, rs.part));
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
