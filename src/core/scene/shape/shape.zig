@@ -313,7 +313,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
             .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, uv, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, uv, importance_uv, bounds),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, uv, importance_uv, bounds),
             .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, sampler, rng, uv, importance_uv, bounds),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),

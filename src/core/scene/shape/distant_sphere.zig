@@ -91,15 +91,10 @@ pub const DistantSphere = struct {
     pub fn sampleFrom(
         trafo: Transformation,
         extent: f32,
-        sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) SampleFrom {
-        _ = rng;
-        _ = sampler;
-
         const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
