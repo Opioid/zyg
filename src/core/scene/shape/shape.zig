@@ -261,37 +261,6 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleFrom(
-        self: Shape,
-        part: u32,
-        variant: u32,
-        trafo: Transformation,
-        extent: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-        importance_uv: Vec2f,
-        bounds: AABB,
-    ) ?SampleFrom {
-        return switch (self) {
-            .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
-            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, importance_uv),
-            .TriangleMesh => |m| m.sampleFrom(
-                part,
-                variant,
-                trafo,
-                extent,
-                two_sided,
-                sampler,
-                rng,
-                importance_uv,
-            ),
-            else => null,
-        };
-    }
-
     pub fn sampleToUv(
         self: Shape,
         part: u32,
@@ -323,6 +292,38 @@ pub const Shape = union(enum) {
 
         return switch (self) {
             .Cube => Cube.sampleVolumeToUvw(p, uvw, trafo, extent),
+            else => null,
+        };
+    }
+
+    pub fn sampleFrom(
+        self: Shape,
+        part: u32,
+        variant: u32,
+        trafo: Transformation,
+        extent: f32,
+        cos_a: f32,
+        two_sided: bool,
+        sampler: *Sampler,
+        rng: *RNG,
+        importance_uv: Vec2f,
+        bounds: AABB,
+    ) ?SampleFrom {
+        return switch (self) {
+            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, importance_uv, bounds),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, importance_uv),
+            .TriangleMesh => |m| m.sampleFrom(
+                part,
+                variant,
+                trafo,
+                extent,
+                two_sided,
+                sampler,
+                rng,
+                importance_uv,
+            ),
             else => null,
         };
     }

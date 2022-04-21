@@ -216,12 +216,15 @@ pub const Light = struct {
 
         const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
 
+        const cos_a = worker.scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
+
         const shape = worker.scene.propShape(self.prop);
         return shape.sampleFrom(
             self.part,
             self.variant,
             trafo,
             extent,
+            cos_a,
             self.two_sided,
             sampler,
             &worker.rng,

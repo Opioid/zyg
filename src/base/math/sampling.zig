@@ -103,8 +103,8 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
 }
 
-pub const Delta: f32 = 1.0e-20;
+pub const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
-    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Delta));
+    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Eps));
 }
