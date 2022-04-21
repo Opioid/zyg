@@ -156,10 +156,10 @@ pub const Disk = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng);
-        const xy = math.smpl.diskConcentric(r0);
+        const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);

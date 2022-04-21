@@ -95,9 +95,9 @@ pub const Canopy = struct {
         return 1.0;
     }
 
-    pub fn sampleFromUv(
-        uv: Vec2f,
+    pub fn sampleFrom(
         trafo: Transformation,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {

@@ -205,34 +205,6 @@ pub const Light = struct {
         return null;
     }
 
-    fn propSampleFrom(
-        self: Light,
-        trafo: Transformation,
-        sampler: *Sampler,
-        bounds: AABB,
-        worker: *Worker,
-    ) ?SampleFrom {
-        const importance_uv = sampler.sample2D(&worker.rng);
-
-        const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
-
-        const cos_a = worker.scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
-
-        const shape = worker.scene.propShape(self.prop);
-        return shape.sampleFrom(
-            self.part,
-            self.variant,
-            trafo,
-            extent,
-            cos_a,
-            self.two_sided,
-            sampler,
-            &worker.rng,
-            importance_uv,
-            bounds,
-        );
-    }
-
     fn propImageSampleTo(
         self: Light,
         p: Vec4f,
@@ -270,6 +242,38 @@ pub const Light = struct {
         return null;
     }
 
+    fn propSampleFrom(
+        self: Light,
+        trafo: Transformation,
+        sampler: *Sampler,
+        bounds: AABB,
+        worker: *Worker,
+    ) ?SampleFrom {
+        const s4 = sampler.sample4D(&worker.rng);
+
+        const uv = Vec2f{ s4[0], s4[1] };
+        const importance_uv = Vec2f{ s4[2], s4[3] };
+
+        const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
+
+        const cos_a = worker.scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
+
+        const shape = worker.scene.propShape(self.prop);
+        return shape.sampleFrom(
+            self.part,
+            self.variant,
+            trafo,
+            extent,
+            cos_a,
+            self.two_sided,
+            sampler,
+            &worker.rng,
+            uv,
+            importance_uv,
+            bounds,
+        );
+    }
+
     fn propImageSampleFrom(
         self: Light,
         trafo: Transformation,
@@ -287,16 +291,22 @@ pub const Light = struct {
 
         const importance_uv = Vec2f{ s4[2], s4[3] };
 
+        const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
+
+        const cos_a = worker.scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
+
         const shape = worker.scene.propShape(self.prop);
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        var result = shape.sampleFromUv(
+        var result = shape.sampleFrom(
             self.part,
-            .{ rs.uvw[0], rs.uvw[1] },
+            self.variant,
             trafo,
-            self.extent,
+            extent,
+            cos_a,
             self.two_sided,
             sampler,
             &worker.rng,
+            .{ rs.uvw[0], rs.uvw[1] },
             importance_uv,
             bounds,
         ) orelse return null;

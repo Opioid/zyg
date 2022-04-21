@@ -40,6 +40,27 @@ pub const Mat4x4 = struct {
         } };
     }
 
+    pub fn initMat3x3(basis: Mat3x3) Mat4x4 {
+        return init16(
+            basis.r[0][0],
+            basis.r[0][1],
+            basis.r[0][2],
+            0.0,
+            basis.r[1][0],
+            basis.r[1][1],
+            basis.r[1][2],
+            0.0,
+            basis.r[2][0],
+            basis.r[2][1],
+            basis.r[2][2],
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        );
+    }
+
     pub fn compose(basis: Mat3x3, scale: Vec4f, origin: Vec4f) Mat4x4 {
         return init16(
             basis.r[0][0] * scale[0],

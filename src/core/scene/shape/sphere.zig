@@ -188,12 +188,10 @@ pub const Sphere = struct {
     pub fn sampleFrom(
         trafo: Transformation,
         area: f32,
-        sampler: *Sampler,
-        rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng);
-        const ls = math.smpl.sphereUniform(r0);
+        const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
 
         const wn = math.normalize3(ws - trafo.position);

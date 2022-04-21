@@ -172,19 +172,7 @@ pub const Rectangle = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        importance_uv: Vec2f,
-    ) SampleFrom {
-        const uv = sampler.sample2D(rng);
-        return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, importance_uv);
-    }
-
-    pub fn sampleFromUv(
         uv: Vec2f,
-        trafo: Transformation,
-        area: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
         importance_uv: Vec2f,
     ) SampleFrom {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));

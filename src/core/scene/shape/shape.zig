@@ -306,14 +306,17 @@ pub const Shape = union(enum) {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
         return switch (self) {
-            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, importance_uv),
-            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, importance_uv),
+            .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
+            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, uv, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, uv, importance_uv, bounds),
+            .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, sampler, rng, uv, importance_uv, bounds),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(
                 part,
                 variant,
@@ -322,29 +325,9 @@ pub const Shape = union(enum) {
                 two_sided,
                 sampler,
                 rng,
+                uv,
                 importance_uv,
             ),
-            else => null,
-        };
-    }
-
-    pub fn sampleFromUv(
-        self: Shape,
-        part: u32,
-        uv: Vec2f,
-        trafo: Transformation,
-        extent: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-        importance_uv: Vec2f,
-        bounds: AABB,
-    ) ?SampleFrom {
-        _ = part;
-
-        return switch (self) {
-            .Canopy => Canopy.sampleFromUv(uv, trafo, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, importance_uv),
             else => null,
         };
     }

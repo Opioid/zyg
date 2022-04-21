@@ -573,16 +573,15 @@ pub const Mesh = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
         const r = sampler.sample1D(rng);
         const s = self.parts[part].sampleRandom(variant, r);
 
-        const r0 = sampler.sample2D(rng);
-
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, r0, &sv, &tc);
+        self.tree.data.sample(s.global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
         var wn = trafo.rotation.transformVector(sn);

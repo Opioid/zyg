@@ -93,11 +93,14 @@ pub const DistantSphere = struct {
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) SampleFrom {
-        const r2 = sampler.sample2D(rng);
-        const xy = math.smpl.diskConcentric(r2);
+        _ = rng;
+        _ = sampler;
+
+        const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const radius = trafo.scaleX();

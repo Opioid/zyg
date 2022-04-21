@@ -1,13 +1,19 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
+const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
+const Mat4x4 = math.Mat4x4;
 const Ray = math.Ray;
 
 const std = @import("std");
@@ -90,6 +96,57 @@ pub const InfiniteSphere = struct {
             .{ uv[0], uv[1], 0.0, 0.0 },
             1.0 / ((4.0 * std.math.pi) * sin_theta),
             scn.Ray_max_t,
+        );
+    }
+
+    pub fn sampleFrom(
+        trafo: Transformation,
+        sampler: *Sampler,
+        rng: *RNG,
+        uv: Vec2f,
+        importance_uv: Vec2f,
+        bounds: AABB,
+    ) ?SampleFrom {
+        const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
+        const theta = uv[1] * std.math.pi;
+
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+
+        const sin_theta = @sin(theta);
+        const cos_theta = @cos(theta);
+
+        const ls = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const ws = -trafo.rotation.transformVector(ls);
+        const tb = math.orthonormalBasis3(ws);
+
+        const r0 = sampler.sample2D(rng);
+        const dir = math.smpl.orientedHemisphereCosine(r0, tb[0], tb[1], ws);
+
+        const bounds_radius = math.length3(bounds.halfsize());
+
+        const tb2 = math.orthonormalBasis3(dir);
+
+        //   const rotation = Mat3x3.init3(tb[0], tb[1], ws);
+        const rotation = Mat3x3.init3(tb2[0], tb2[1], dir);
+
+        const ls_bounds = bounds.transform(Mat4x4.initMat3x3(rotation).affineInverted());
+
+        const pe = ls_bounds.extent();
+
+        const shuv = importance_uv - @splat(2, @as(f32, 0.5));
+        const receiver_rect = Vec4f{ shuv[0], shuv[1], 0.0, 0.0 } * pe;
+        const photon_rect = rotation.transformVector(receiver_rect);
+        const pli = (bounds.position() + photon_rect) - @splat(4, bounds_radius) * dir;
+
+        return SampleFrom.init(
+            pli,
+            ws,
+            dir,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            importance_uv,
+            //    1.0 / ((4.0 * std.math.pi) * (sin_theta * pe[0] * pe[1])),
+            1.0 / ((4.0 * std.math.pi * sin_theta * pe[0] * pe[1])),
         );
     }
 
