@@ -101,11 +101,10 @@ pub const InfiniteSphere = struct {
 
     pub fn sampleFrom(
         trafo: Transformation,
-        sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
+        from_image: bool,
     ) ?SampleFrom {
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
@@ -117,36 +116,32 @@ pub const InfiniteSphere = struct {
         const cos_theta = @cos(theta);
 
         const ls = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
-        const ws = -trafo.rotation.transformVector(ls);
-        const tb = math.orthonormalBasis3(ws);
+        const dir = -trafo.rotation.transformVector(ls);
+        const tb = math.orthonormalBasis3(dir);
 
-        const r0 = sampler.sample2D(rng);
-        const dir = math.smpl.orientedHemisphereCosine(r0, tb[0], tb[1], ws);
+        const rotation = Mat3x3.init3(tb[0], tb[1], dir);
 
-        const bounds_radius = math.length3(bounds.halfsize());
+        const ls_bounds = bounds.transformTransposed(rotation);
+        const ls_extent = ls_bounds.extent();
+        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
+        const bounds_radius = 0.5 * ls_extent[2];
 
-        const tb2 = math.orthonormalBasis3(dir);
+        const offset = @splat(4, bounds_radius) * dir;
+        const p = ls_bounds.position() - offset + photon_rect;
 
-        //   const rotation = Mat3x3.init3(tb[0], tb[1], ws);
-        const rotation = Mat3x3.init3(tb2[0], tb2[1], dir);
-
-        const ls_bounds = bounds.transform(Mat4x4.initMat3x3(rotation).affineInverted());
-
-        const pe = ls_bounds.extent();
-
-        const shuv = importance_uv - @splat(2, @as(f32, 0.5));
-        const receiver_rect = Vec4f{ shuv[0], shuv[1], 0.0, 0.0 } * pe;
-        const photon_rect = rotation.transformVector(receiver_rect);
-        const pli = (bounds.position() + photon_rect) - @splat(4, bounds_radius) * dir;
+        var ipdf = (4.0 * std.math.pi) * ls_extent[0] * ls_extent[1];
+        if (from_image) {
+            ipdf *= sin_theta;
+        }
 
         return SampleFrom.init(
-            pli,
-            ws,
+            p,
+            dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
-            //    1.0 / ((4.0 * std.math.pi) * (sin_theta * pe[0] * pe[1])),
-            1.0 / ((4.0 * std.math.pi * sin_theta * pe[0] * pe[1])),
+            1.0 / ipdf,
         );
     }
 

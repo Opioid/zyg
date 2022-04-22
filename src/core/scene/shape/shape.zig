@@ -309,12 +309,13 @@ pub const Shape = union(enum) {
         uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
+        from_image: bool,
     ) ?SampleFrom {
         return switch (self) {
             .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
             .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, uv, importance_uv),
             .DistantSphere => DistantSphere.sampleFrom(trafo, extent, uv, importance_uv, bounds),
-            .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, sampler, rng, uv, importance_uv, bounds),
+            .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(

@@ -271,6 +271,7 @@ pub const Light = struct {
             uv,
             importance_uv,
             bounds,
+            false,
         );
     }
 
@@ -309,6 +310,7 @@ pub const Light = struct {
             .{ rs.uvw[0], rs.uvw[1] },
             importance_uv,
             bounds,
+            true,
         ) orelse return null;
 
         result.mulAssignPdf(rs.pdf());
