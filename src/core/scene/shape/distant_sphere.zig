@@ -116,7 +116,7 @@ pub const DistantSphere = struct {
             p,
             trafo.rotation.r[2],
             dir,
-            .{ 0.0, 0.0 },
+            .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             1.0 / (extent * ls_extent[0] * ls_extent[1]),
         );
