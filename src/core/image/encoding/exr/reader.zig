@@ -122,7 +122,7 @@ pub const Reader = struct {
     ) !Image {
         var num_channels: u32 = switch (swizzle) {
             .X, .W => 1,
-            .XY, .YX => 2,
+            .XY, .YX, .YZ => 2,
             .XYZ => 3,
             .XYZW => 4,
         };

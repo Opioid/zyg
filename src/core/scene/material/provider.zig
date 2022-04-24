@@ -448,6 +448,8 @@ const TextureDescription = struct {
                             desc.swizzle = .W;
                         } else if (std.mem.eql(u8, "YX", swizzle)) {
                             desc.swizzle = .YX;
+                        } else if (std.mem.eql(u8, "YZ", swizzle)) {
+                            desc.swizzle = .YZ;
                         }
                     } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
                         desc.scale = switch (entry.value_ptr.*) {
