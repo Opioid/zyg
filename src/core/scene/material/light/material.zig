@@ -20,6 +20,9 @@ const spectrum = base.spectrum;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Uses "MIS Compensation: Optimizing Sampling Techniques in Multiple Importance Sampling"
+// https://twitter.com/VrKomarov/status/1297454856177954816
+
 pub const Material = struct {
     super: Base = .{ .emittance = .{ .value = @splat(4, @as(f32, 1.0)) } },
 
@@ -212,7 +215,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, 0.0);
+                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 
