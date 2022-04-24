@@ -210,7 +210,7 @@ pub const Pool = struct {
                 const signal = u.signal.load(.Acquire);
                 if (signal == SIGNAL_DONE) break;
 
-                std.Thread.Futex.wait(&u.signal, signal, null) catch unreachable;
+                std.Thread.Futex.wait(&u.signal, signal);
             }
         }
 
@@ -222,7 +222,7 @@ pub const Pool = struct {
             const signal = self.asyncp.signal.load(.Acquire);
             if (signal == SIGNAL_DONE) break;
 
-            std.Thread.Futex.wait(&self.asyncp.signal, signal, null) catch unreachable;
+            std.Thread.Futex.wait(&self.asyncp.signal, signal);
         }
     }
 
@@ -236,7 +236,7 @@ pub const Pool = struct {
 
                 if (SIGNAL_WAKE == signal) break;
 
-                std.Thread.Futex.wait(&u.signal, signal, null) catch unreachable;
+                std.Thread.Futex.wait(&u.signal, signal);
             }
 
             switch (self.program) {
@@ -257,7 +257,7 @@ pub const Pool = struct {
 
                 if (SIGNAL_WAKE == signal) break;
 
-                std.Thread.Futex.wait(&self.signal, signal, null) catch unreachable;
+                std.Thread.Futex.wait(&self.signal, signal);
             }
 
             self.program(self.context);
