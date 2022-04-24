@@ -34,7 +34,7 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    light_sampler: Sampler = .{ .Sobol = .{} },
+    light_sampler: Sampler = Sampler{ .Sobol = .{} },
     samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
@@ -288,8 +288,10 @@ pub const Lighttracer = struct {
 
         const bxdf = mat_sample.evaluate(wi);
 
-        const n = mat_sample.super().interpolatedNormal();
-        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
+        // const n = mat_sample.super().interpolatedNormal();
+        // var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
+
+        var nsc: f32 = 1.0;
 
         const material_ior = isec.material(worker.super.scene.*).ior();
         if (isec.subsurface and material_ior > 1.0) {

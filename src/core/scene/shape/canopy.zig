@@ -118,9 +118,8 @@ pub const Canopy = struct {
         const ls_extent = ls_bounds.extent();
         const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
-        const bounds_radius = 0.5 * ls_extent[2];
 
-        const offset = @splat(4, bounds_radius) * dir;
+        const offset = @splat(4, ls_extent[2]) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         return SampleFrom.init(
