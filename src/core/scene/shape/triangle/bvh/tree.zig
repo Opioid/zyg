@@ -40,37 +40,15 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Tree, ray: *Ray, stack: *NodeStack) ?Intersection {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
-
         stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
         var isec: Intersection = .{};
 
-        while (0xFFFFFFFF != n) {
+        while (true) {
             const node = self.nodes[n];
 
-            if (node.intersect(ray.*)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
-
-                    if (0 == ray_signs[node.axis()]) {
-                        stack.push(b);
-                        n = a;
-                    } else {
-                        stack.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
@@ -80,44 +58,50 @@ pub const Tree = struct {
                         isec.index = i;
                     }
                 }
+
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+
+                continue;
             }
 
-            n = stack.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = self.nodes[a].intersectP(ray.*);
+            var distb = self.nodes[b].intersectP(ray.*);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
         return if (0xFFFFFFFF != isec.index) isec else null;
     }
 
-    pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
-
-        nodes.push(0xFFFFFFFF);
+    pub fn intersectP(self: Tree, ray: Ray, stack: *NodeStack) bool {
+        stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
-        while (0xFFFFFFFF != n) {
+        while (true) {
             const node = self.nodes[n];
 
-            if (node.intersect(ray)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
-
-                    if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
-                        n = a;
-                    } else {
-                        nodes.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
@@ -125,24 +109,45 @@ pub const Tree = struct {
                         return true;
                     }
                 }
+
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+
+                continue;
             }
 
-            n = nodes.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = self.nodes[a].intersectP(ray);
+            var distb = self.nodes[b].intersectP(ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
         return false;
     }
 
     pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
-
-        var nodes = worker.node_stack;
-        nodes.push(0xFFFFFFFF);
+        var stack = worker.node_stack;
+        stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
@@ -151,25 +156,10 @@ pub const Tree = struct {
 
         const max_t = ray.maxT();
 
-        while (0xFFFFFFFF != n) {
+        while (true) {
             const node = self.nodes[n];
 
-            if (node.intersect(ray.*)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
-
-                    if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
-                        n = a;
-                    } else {
-                        nodes.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
@@ -187,9 +177,37 @@ pub const Tree = struct {
                         ray.setMaxT(max_t);
                     }
                 }
+
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+
+                continue;
             }
 
-            n = nodes.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = self.nodes[a].intersectP(ray.*);
+            var distb = self.nodes[b].intersectP(ray.*);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+                if (0xFFFFFFFF == n) {
+                    break;
+                }
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
         return vis;
