@@ -82,7 +82,7 @@ pub const Node = struct {
     }
 
     // Raytracing Gems 2 - chapter 2
-    pub fn intersectP(self: Node, ray: Ray) bool {
+    pub fn intersect(self: Node, ray: Ray) bool {
         const lower = (Vec4f{ self.min.v[0], self.min.v[1], self.min.v[2], 0.0 } - ray.origin) * ray.inv_direction;
         const upper = (Vec4f{ self.max.v[0], self.max.v[1], self.max.v[2], 0.0 } - ray.origin) * ray.inv_direction;
 

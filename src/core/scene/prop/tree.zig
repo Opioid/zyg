@@ -80,7 +80,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = &nodes[n];
 
-            if (node.intersectP(ray.ray)) {
+            if (node.intersect(ray.ray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
@@ -144,7 +144,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = &nodes[n];
 
-            if (node.intersectP(ray.ray)) {
+            if (node.intersect(ray.ray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
@@ -206,7 +206,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = &nodes[n];
 
-            if (node.intersectP(ray.ray)) {
+            if (node.intersect(ray.ray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
@@ -265,7 +265,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = &nodes[n];
 
-            if (node.intersectP(ray.ray)) {
+            if (node.intersect(ray.ray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
