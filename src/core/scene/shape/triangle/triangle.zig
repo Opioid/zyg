@@ -5,6 +5,12 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
+pub const Intersection = struct {
+    t: f32,
+    u: f32,
+    v: f32,
+};
+
 pub const IndexTriangle = struct {
     i: [3]u32,
     part: u32,
@@ -18,7 +24,7 @@ pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
     return @maximum(a, @maximum(b, c));
 }
 
-pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f32) bool {
+pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
     const e1 = b - a;
     const e2 = c - a;
 
@@ -40,13 +46,10 @@ pub fn intersect(ray: *Ray, a: Vec4f, b: Vec4f, c: Vec4f, u_out: *f32, v_out: *f
     const uv = u + v;
 
     if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
-        ray.setMaxT(hit_t);
-        u_out.* = u;
-        v_out.* = v;
-        return true;
+        return Intersection{ .t = hit_t, .u = u, .v = v };
     }
 
-    return false;
+    return null;
 }
 
 pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {

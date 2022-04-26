@@ -14,6 +14,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
     pub const Intersection = struct {
+        t: f32 = undefined,
         u: f32 = undefined,
         v: f32 = undefined,
         index: u32 = 0xFFFFFFFF,
@@ -39,12 +40,14 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: *Ray, stack: *NodeStack) ?Intersection {
+    pub fn intersect(self: Tree, ray: Ray, stack: *NodeStack) ?Intersection {
+        var tray = ray;
+
         const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
+            @boolToInt(tray.inv_direction[0] < 0.0),
+            @boolToInt(tray.inv_direction[1] < 0.0),
+            @boolToInt(tray.inv_direction[2] < 0.0),
+            @boolToInt(tray.inv_direction[3] < 0.0),
         };
 
         stack.push(0xFFFFFFFF);
@@ -55,7 +58,7 @@ pub const Tree = struct {
         while (0xFFFFFFFF != n) {
             const node = self.nodes[n];
 
-            if (node.intersect(ray.*)) {
+            if (node.intersect(tray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
@@ -74,7 +77,8 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(ray, i)) |hit| {
+                    if (self.data.intersect(tray, i)) |hit| {
+                        tray.setMaxT(hit.t);
                         isec.u = hit.u;
                         isec.v = hit.v;
                         isec.index = i;
@@ -85,7 +89,12 @@ pub const Tree = struct {
             n = stack.pop();
         }
 
-        return if (0xFFFFFFFF != isec.index) isec else null;
+        if (0xFFFFFFFF != isec.index) {
+            isec.t = tray.maxT();
+            return isec;
+        } else {
+            return null;
+        }
     }
 
     pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
@@ -133,7 +142,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
         const ray_signs = [4]u32{
             @boolToInt(ray.inv_direction[0] < 0.0),
             @boolToInt(ray.inv_direction[1] < 0.0),
@@ -149,12 +158,10 @@ pub const Tree = struct {
 
         var vis = @splat(4, @as(f32, 1.0));
 
-        const max_t = ray.maxT();
-
         while (0xFFFFFFFF != n) {
             const node = self.nodes[n];
 
-            if (node.intersect(ray.*)) {
+            if (node.intersect(ray)) {
                 if (0 == node.numIndices()) {
                     const a = node.children();
                     const b = a + 1;
@@ -182,9 +189,6 @@ pub const Tree = struct {
                         const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene.*) orelse return null;
 
                         vis *= tv;
-
-                        // ray_max_t has changed if intersect() returns true!
-                        ray.setMaxT(max_t);
                     }
                 }
             }
