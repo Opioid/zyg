@@ -163,8 +163,6 @@ pub const Tree = struct {
 
         var vis = @splat(4, @as(f32, 1.0));
 
-        const max_t = ray.maxT();
-
         while (true) {
             const node = self.nodes[n];
 
@@ -195,8 +193,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = self.nodes[a].intersectP(ray.*);
-            var distb = self.nodes[b].intersectP(ray.*);
+            var dista = self.nodes[a].intersectP(ray);
+            var distb = self.nodes[b].intersectP(ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
