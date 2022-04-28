@@ -97,7 +97,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
+    pub fn intersectP(self: Tree, ray: Ray, stack: *NodeStack) bool {
         const ray_signs = [4]u32{
             @boolToInt(ray.inv_direction[0] < 0.0),
             @boolToInt(ray.inv_direction[1] < 0.0),
@@ -105,7 +105,7 @@ pub const Tree = struct {
             @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
-        nodes.push(0xFFFFFFFF);
+        stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
         while (0xFFFFFFFF != n) {
@@ -117,10 +117,10 @@ pub const Tree = struct {
                     const b = a + 1;
 
                     if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
+                        stack.push(b);
                         n = a;
                     } else {
-                        nodes.push(a);
+                        stack.push(a);
                         n = b;
                     }
 
@@ -136,7 +136,7 @@ pub const Tree = struct {
                 }
             }
 
-            n = nodes.pop();
+            n = stack.pop();
         }
 
         return false;
@@ -150,8 +150,8 @@ pub const Tree = struct {
             @boolToInt(ray.inv_direction[3] < 0.0),
         };
 
-        var nodes = worker.node_stack;
-        nodes.push(0xFFFFFFFF);
+        var stack = worker.node_stack;
+        stack.push(0xFFFFFFFF);
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
@@ -167,10 +167,10 @@ pub const Tree = struct {
                     const b = a + 1;
 
                     if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
+                        stack.push(b);
                         n = a;
                     } else {
-                        nodes.push(a);
+                        stack.push(a);
                         n = b;
                     }
 
@@ -193,7 +193,7 @@ pub const Tree = struct {
                 }
             }
 
-            n = nodes.pop();
+            n = stack.pop();
         }
 
         return vis;
