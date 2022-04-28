@@ -1,8 +1,8 @@
 const Num_elements = 127;
 
 pub const NodeStack = struct {
-    end: u32,
-    stack: [Num_elements]u32,
+    end: u32 = 0,
+    stack: [Num_elements]u32 = undefined,
 
     pub fn empty(self: NodeStack) bool {
         return 0 == self.end;

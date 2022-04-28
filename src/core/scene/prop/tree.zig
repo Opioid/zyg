@@ -1,6 +1,7 @@
 const Prop = @import("prop.zig").Prop;
 const Intersection = @import("intersection.zig").Intersection;
 const Interpolation = @import("../shape/intersection.zig").Interpolation;
+const NodeStack = @import("../shape/node_stack.zig").NodeStack;
 const Node = @import("../bvh/node.zig").Node;
 const Ray = @import("../ray.zig").Ray;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
@@ -56,8 +57,7 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Tree, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
-        var stack = &worker.node_stack;
-        stack.clear();
+        var stack = NodeStack{};
         if (0 != self.num_nodes) {
             stack.push(0);
         }
@@ -120,8 +120,7 @@ pub const Tree = struct {
     }
 
     pub fn intersectShadow(self: Tree, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
-        var stack = &worker.node_stack;
-        stack.clear();
+        var stack = NodeStack{};
         if (0 != self.num_nodes) {
             stack.push(0);
         }
@@ -184,8 +183,7 @@ pub const Tree = struct {
     }
 
     pub fn intersectP(self: Tree, ray: Ray, worker: *Worker) bool {
-        var stack = &worker.node_stack;
-        stack.clear();
+        var stack = NodeStack{};
         if (0 != self.num_nodes) {
             stack.push(0);
         }
@@ -242,8 +240,7 @@ pub const Tree = struct {
     }
 
     pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        var stack = &worker.node_stack;
-        stack.clear();
+        var stack = NodeStack{};
         if (0 != self.num_nodes) {
             stack.push(0);
         }

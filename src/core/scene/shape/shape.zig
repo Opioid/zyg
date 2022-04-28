@@ -156,7 +156,6 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: *Ray,
         trafo: Transformation,
-        worker: *Worker,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
@@ -170,11 +169,11 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
             .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
-            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, &worker.node_stack, ipo, isec),
+            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, ipo, isec),
         };
     }
 
-    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
+    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation) bool {
         return switch (self) {
             .Null, .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray.ray, trafo),
@@ -183,7 +182,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
-            .TriangleMesh => |m| m.intersectP(ray.ray, trafo, &worker.node_stack),
+            .TriangleMesh => |m| m.intersectP(ray.ray, trafo),
         };
     }
 

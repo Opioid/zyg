@@ -41,8 +41,6 @@ pub const Worker = struct {
     interface_stack: InterfaceStack,
     interface_stack_temp: InterfaceStack,
 
-    node_stack: NodeStack = undefined,
-
     lights: Lights = undefined,
 
     pub fn init(alloc: Allocator) !Worker {

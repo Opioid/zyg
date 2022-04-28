@@ -40,10 +40,10 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray, stack: *NodeStack) ?Intersection {
+    pub fn intersect(self: Tree, ray: Ray) ?Intersection {
         var tray = ray;
 
-        stack.push(0xFFFFFFFF);
+        var stack = NodeStack{};
         var n: u32 = 0;
 
         var isec: Intersection = .{};
@@ -63,11 +63,11 @@ pub const Tree = struct {
                     }
                 }
 
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
 
+                n = stack.pop();
                 continue;
             }
 
@@ -83,10 +83,11 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
+
+                n = stack.pop();
             } else {
                 n = a;
                 if (std.math.f32_max != distb) {
@@ -103,8 +104,8 @@ pub const Tree = struct {
         }
     }
 
-    pub fn intersectP(self: Tree, ray: Ray, stack: *NodeStack) bool {
-        stack.push(0xFFFFFFFF);
+    pub fn intersectP(self: Tree, ray: Ray) bool {
+        var stack = NodeStack{};
         var n: u32 = 0;
 
         while (true) {
@@ -119,11 +120,11 @@ pub const Tree = struct {
                     }
                 }
 
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
 
+                n = stack.pop();
                 continue;
             }
 
@@ -139,10 +140,11 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
+
+                n = stack.pop();
             } else {
                 n = a;
                 if (std.math.f32_max != distb) {
@@ -155,8 +157,7 @@ pub const Tree = struct {
     }
 
     pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
-        var stack = worker.node_stack;
-        stack.push(0xFFFFFFFF);
+        var stack = NodeStack{};
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
@@ -182,11 +183,11 @@ pub const Tree = struct {
                     }
                 }
 
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
 
+                n = stack.pop();
                 continue;
             }
 
@@ -202,10 +203,11 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                n = stack.pop();
-                if (0xFFFFFFFF == n) {
+                if (stack.empty()) {
                     break;
                 }
+
+                n = stack.pop();
             } else {
                 n = a;
                 if (std.math.f32_max != distb) {
