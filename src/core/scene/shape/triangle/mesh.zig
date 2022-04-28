@@ -432,15 +432,15 @@ pub const Mesh = struct {
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        if (self.tree.intersect(&tray, nodes)) |hit| {
-            ray.setMaxT(tray.maxT());
+        if (self.tree.intersect(tray, nodes)) |hit| {
+            ray.setMaxT(hit.t);
 
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
             isec.p = trafo.objectToWorldPoint(p);
@@ -499,14 +499,14 @@ pub const Mesh = struct {
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        return self.tree.visibility(&tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, worker);
     }
 
     pub fn sampleTo(

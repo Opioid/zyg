@@ -11,11 +11,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Indexed_data = struct {
-    pub const Intersection = struct {
-        u: f32,
-        v: f32,
-    };
-
     const Triangle = packed struct {
         a: u32,
         b: u32,
@@ -84,21 +79,14 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn intersect(self: Self, ray: *Ray, index: usize) ?Intersection {
+    pub fn intersect(self: Self, ray: Ray, index: usize) ?triangle.Intersection {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
         const bp = self.positions[tri.b];
         const cp = self.positions[tri.c];
 
-        var u: f32 = undefined;
-        var v: f32 = undefined;
-
-        if (triangle.intersect(ray, ap, bp, cp, &u, &v)) {
-            return Intersection{ .u = u, .v = v };
-        }
-
-        return null;
+        return triangle.intersect(ray, ap, bp, cp);
     }
 
     pub fn intersectP(self: Self, ray: Ray, index: usize) bool {

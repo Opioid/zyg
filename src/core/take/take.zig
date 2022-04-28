@@ -267,9 +267,13 @@ pub const Take = struct {
     }
 
     pub fn deinit(self: *Take, alloc: Allocator) void {
-        self.clearExporters(alloc);
+        self.clear(alloc);
         self.exporters.deinit(alloc);
         self.view.deinit(alloc);
+    }
+
+    pub fn clear(self: *Take, alloc: Allocator) void {
+        self.clearExporters(alloc);
         alloc.free(self.scene_filename);
     }
 

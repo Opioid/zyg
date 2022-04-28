@@ -6,7 +6,8 @@ const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
 
-const Allocator = @import("std").mem.Allocator;
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Opaque = struct {
     base: Base = .{},

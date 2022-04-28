@@ -14,6 +14,7 @@ pub const Options = struct {
     no_tex: bool = false,
     no_tex_dwim: bool = false,
     debug_material: bool = false,
+    iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
@@ -92,6 +93,8 @@ pub const Options = struct {
             self.no_tex_dwim = true;
         } else if (std.mem.eql(u8, "debug-mat", command)) {
             self.debug_material = true;
+        } else if (std.mem.eql(u8, "iter", command)) {
+            self.iter = true;
         }
     }
 
@@ -112,8 +115,6 @@ pub const Options = struct {
     }
 
     fn help() void {
-        const stdout = std.io.getStdOut().writer();
-
         const text =
             \\zyg is a global illumination renderer experiment
             \\Usage:
@@ -135,8 +136,10 @@ pub const Options = struct {
             \\                                 The default value is 0.
             \\      --no-tex                   Disables loading of all textures.
             \\      --debug-mat                Force all materials to debug material type.
+            \\      --iter                     Prompt to render again, retaining loaded assets.
         ;
 
+        const stdout = std.io.getStdOut().writer();
         stdout.print(text, .{}) catch return;
     }
 };

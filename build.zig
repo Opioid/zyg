@@ -16,6 +16,7 @@ pub fn build(b: *std.build.Builder) void {
     const it = b.addExecutable("it", "src/it/main.zig");
 
     cli.addIncludePath("thirdparty/include");
+    cli.addIncludePath("src/cli");
     capi.addIncludePath("thirdparty/include");
     it.addIncludePath("thirdparty/include");
 
@@ -34,6 +35,8 @@ pub fn build(b: *std.build.Builder) void {
         cli.addCSourceFile(source, &cflags);
         capi.addCSourceFile(source, &cflags);
     }
+
+    cli.addCSourceFile("src/cli/any_key.c", &cflags);
 
     it.addCSourceFile(csources[0], &cflags);
 
@@ -105,6 +108,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/disney_cloud.take",
             //"takes/rene.take",
             //"takes/embergen.take",
+            //"takes/intel_sponza.take",
             "-t",
             "-4",
             //"--no-tex",
@@ -126,11 +130,12 @@ pub fn build(b: *std.build.Builder) void {
     //     run_cmd.addArgs(&[_][]const u8{
     //         "-d",
     //         "-i",
-    //         "image_00000001.exr",
+    //         //"image_00000001.exr",
     //         "image_00000003.exr",
     //         //"san_miguel.exr",
     //         "-t",
     //         "-4",
+    //         "--tone",
     //         "-e",
     //         "0.0",
     //     });
