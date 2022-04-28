@@ -105,19 +105,12 @@ pub const Node = struct {
         const t0 = @minimum(lower, upper);
         const t1 = @maximum(lower, upper);
 
-        // const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        // const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const imin = std.math.max(t0[0], std.math.max(t0[1], t0[2]));
-        const imax = std.math.min(t1[0], std.math.min(t1[1], t1[2]));
+        const tboxmin = std.math.max(tmins[0], std.math.max(tmins[1], std.math.max(tmins[2], tmins[3])));
+        const tboxmax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], std.math.min(tmaxs[2], tmaxs[3])));
 
-        const tboxmin = std.math.max(imin, ray.minT());
-        const tboxmax = std.math.min(imax, ray.maxT());
-
-        if (tboxmin <= tboxmax) {
-            return if (imin < ray.minT()) imax else imin;
-        }
-
-        return std.math.f32_max;
+        return if (tboxmin <= tboxmax) tboxmin else std.math.f32_max;
     }
 };
