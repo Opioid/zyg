@@ -153,7 +153,7 @@ pub const Worker = struct {
             const n = isec.geo.n;
 
             const vbh = material.super().border(wi, n);
-            const nsc = mat.nonSymmetryCompensation(wi, wo1, geo_n, n);
+            const nsc = mat.nonSymmetryCompensation(wo1, wi, geo_n, n);
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };

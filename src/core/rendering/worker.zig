@@ -318,7 +318,7 @@ pub const Worker = struct {
                     if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wi, wo, nisec.geo.geo_n, nisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
