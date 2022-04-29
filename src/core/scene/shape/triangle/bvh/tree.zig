@@ -1,8 +1,9 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Worker = @import("../../../worker.zig").Worker;
 const Filter = @import("../../../../image/texture/sampler.zig").Filter;
-const NodeStack = @import("../../node_stack.zig").NodeStack;
 const Node = @import("../../../bvh/node.zig").Node;
+const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -48,8 +49,10 @@ pub const Tree = struct {
 
         var isec: Intersection = .{};
 
-        while (true) {
-            const node = self.nodes[n];
+        const nodes = self.nodes;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
             if (0 != node.numIndices()) {
                 var i = node.indicesStart();
@@ -63,10 +66,6 @@ pub const Tree = struct {
                     }
                 }
 
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
                 continue;
             }
@@ -74,8 +73,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = self.nodes[a].intersectP(tray);
-            var distb = self.nodes[b].intersectP(tray);
+            var dista = nodes[a].intersect(tray);
+            var distb = nodes[b].intersect(tray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -83,10 +82,6 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
             } else {
                 n = a;
@@ -108,8 +103,10 @@ pub const Tree = struct {
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        while (true) {
-            const node = self.nodes[n];
+        const nodes = self.nodes;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
             if (0 != node.numIndices()) {
                 var i = node.indicesStart();
@@ -120,10 +117,6 @@ pub const Tree = struct {
                     }
                 }
 
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
                 continue;
             }
@@ -131,8 +124,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = self.nodes[a].intersectP(ray);
-            var distb = self.nodes[b].intersectP(ray);
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -140,10 +133,6 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
             } else {
                 n = a;
@@ -162,10 +151,12 @@ pub const Tree = struct {
 
         const ray_dir = ray.direction;
 
+        const nodes = self.nodes;
+
         var vis = @splat(4, @as(f32, 1.0));
 
-        while (true) {
-            const node = self.nodes[n];
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
             if (0 != node.numIndices()) {
                 var i = node.indicesStart();
@@ -183,10 +174,6 @@ pub const Tree = struct {
                     }
                 }
 
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
                 continue;
             }
@@ -194,8 +181,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = self.nodes[a].intersectP(ray);
-            var distb = self.nodes[b].intersectP(ray);
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -203,10 +190,6 @@ pub const Tree = struct {
             }
 
             if (std.math.f32_max == dista) {
-                if (stack.empty()) {
-                    break;
-                }
-
                 n = stack.pop();
             } else {
                 n = a;

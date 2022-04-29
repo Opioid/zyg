@@ -11,7 +11,6 @@ const IoR = @import("material/sample_base.zig").IoR;
 const NullSample = @import("material/null/sample.zig").Sample;
 const mat = @import("material/material_helper.zig");
 const InterfaceStack = @import("prop/interface.zig").Stack;
-const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
 const LightTree = @import("light/tree.zig").Tree;

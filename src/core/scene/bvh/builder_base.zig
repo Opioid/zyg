@@ -113,7 +113,7 @@ const Kernel = struct {
                     } else {
                         const child0 = @intCast(u32, self.build_nodes.items.len);
 
-                        node.setSplitNode(child0, sp.axis);
+                        node.setSplitNode(child0);
 
                         try self.build_nodes.append(alloc, .{});
                         try self.build_nodes.append(alloc, .{});
@@ -239,7 +239,7 @@ const Kernel = struct {
     }
 
     pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
-        const num_references = @intCast(u8, references.len);
+        const num_references = @intCast(u32, references.len);
 
         node.setLeafNode(@intCast(u32, self.reference_ids.items.len), num_references);
 
