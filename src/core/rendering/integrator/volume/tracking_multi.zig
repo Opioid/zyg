@@ -8,6 +8,7 @@ const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -15,12 +16,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(
-        ray: *Ray,
-        isec: *Intersection,
-        filter: ?Filter,
-        worker: *Worker,
-    ) Result {
+    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, worker: *Worker) Result {
         if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
@@ -51,11 +47,11 @@ pub const Multi = struct {
             };
         }
 
-        const material = interface.material(worker.*);
+        const material = interface.material(worker.scene.*);
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.*).a;
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene.*).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -121,7 +117,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.*);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene.*);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {
@@ -153,10 +149,8 @@ pub const Multi = struct {
 };
 
 pub const Factory = struct {
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !Multi {
+    pub fn create(self: Factory) Multi {
         _ = self;
-        _ = alloc;
-        _ = max_samples_per_pixel;
-        return Multi{};
+        return .{};
     }
 };

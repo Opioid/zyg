@@ -11,7 +11,7 @@ const Filter = @import("../../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../../scene/constants.zig");
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
-const smp = @import("../../../../sampler/sampler.zig");
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -22,27 +22,24 @@ const Allocator = std.mem.Allocator;
 
 pub const Mapper = struct {
     pub const Settings = struct {
-        max_bounces: u32,
-        full_light_path: bool,
+        max_bounces: u32 = 0,
+        full_light_path: bool = false,
     };
 
-    settings: Settings,
-    sampler: smp.Sampler,
+    settings: Settings = .{},
+    sampler: Sampler = Sampler{ .Random = .{} },
 
-    photons: [*]Photon,
+    photons: []Photon = &.{},
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings) !Self {
-        return Self{
-            .settings = settings,
-            .sampler = .{ .Random = .{} },
-            .photons = (try alloc.alloc(Photon, settings.max_bounces)).ptr,
-        };
+    pub fn configure(self: *Self, alloc: Allocator, settings: Settings) !void {
+        self.settings = settings;
+        self.photons = try alloc.realloc(self.photons, settings.max_bounces);
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.photons[0..self.settings.max_bounces]);
+        alloc.free(self.photons);
     }
 
     pub fn bake(
@@ -135,7 +132,7 @@ pub const Mapper = struct {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
@@ -165,17 +162,17 @@ pub const Mapper = struct {
                     break;
                 }
 
-                if (sample_result.typef.no(.Straight)) {
-                    if (sample_result.typef.no(.Specular) and
+                if (sample_result.class.no(.Straight)) {
+                    if (sample_result.class.no(.Specular) and
                         (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
                         if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
-                            const material_ior = isec.material(worker.super).ior();
+                            const material_ior = isec.material(worker.super.scene.*).ior();
                             if (isec.subsurface and material_ior > 1.0) {
-                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super);
+                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
                             }
@@ -196,7 +193,7 @@ pub const Mapper = struct {
                         }
                     }
 
-                    if (sample_result.typef.is(.Specular)) {
+                    if (sample_result.class.is(.Specular)) {
                         caustic_path = true;
                     } else {
                         filter = .Nearest;
@@ -207,17 +204,17 @@ pub const Mapper = struct {
 
                     const continue_prob = std.math.min(1.0, avg);
 
-                    if (self.sampler.sample1D(&worker.super.rng, 0) > continue_prob) {
+                    if (self.sampler.sample1D(&worker.super.rng) > continue_prob) {
                         break;
                     }
 
                     radiance = nr / @splat(4, continue_prob);
                 }
 
-                if (sample_result.typef.is(.Straight)) {
+                if (sample_result.class.is(.Straight)) {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
 
-                    if (sample_result.typef.no(.Transmission)) {
+                    if (sample_result.class.no(.Transmission)) {
                         ray.depth += 1;
                     }
                 } else {
@@ -234,7 +231,7 @@ pub const Mapper = struct {
                     ray.wavelength = sample_result.wavelength;
                 }
 
-                if (sample_result.typef.is(.Transmission)) {
+                if (sample_result.class.is(.Transmission)) {
                     const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
@@ -254,11 +251,15 @@ pub const Mapper = struct {
                 } else if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
                     break;
                 }
+
+                self.sampler.incrementPadding();
             }
 
             if (iteration > 0) {
                 return .{ .num_iterations = iteration, .num_photons = num_photons };
             }
+
+            self.sampler.incrementSample();
         }
 
         return .{ .num_iterations = 0, .num_photons = 0 };
@@ -273,13 +274,13 @@ pub const Mapper = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var rng = &worker.super.rng;
-        const select = self.sampler.sample1D(rng, 0);
+        const select = self.sampler.sample1D(rng);
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng, 2));
+        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
 
         const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, 1, bounds, &worker.super) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;

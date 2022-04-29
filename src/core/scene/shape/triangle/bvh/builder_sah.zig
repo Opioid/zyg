@@ -40,7 +40,7 @@ pub const BuilderSAH = struct {
             .vertices = &vertices,
         };
 
-        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len));
+        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len), @sizeOf(Reference));
 
         var bounds = math.aabb.empty;
         for (context.aabbs[0..num]) |b| {
@@ -105,7 +105,7 @@ pub const BuilderSAH = struct {
 
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
-            n.setSplitNode(child0, node.axis());
+            n.setSplitNode(child0);
 
             self.super.newNode();
             self.super.newNode();

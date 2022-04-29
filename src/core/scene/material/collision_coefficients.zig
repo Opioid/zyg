@@ -40,11 +40,15 @@ pub const CM = struct {
 };
 
 pub fn attenuation(ac: Vec4f, ssc: Vec4f, distance: f32, g: f32) CC {
-    const mu_t = attenutionCoefficient(ac, distance);
+    const mu_t = attenuationCoefficient(ac, distance);
     return scattering(mu_t, ssc, g);
 }
 
-pub fn attenutionCoefficient(color: Vec4f, distance: f32) Vec4f {
+pub fn attenuationCoefficient(color: Vec4f, distance: f32) Vec4f {
+    if (0.0 == distance) {
+        return @splat(4, @as(f32, 0.0));
+    }
+
     const ca = math.clamp(color, 0.01, 0.991102);
     const a = @log(ca);
 

@@ -1,11 +1,13 @@
 const Options = @import("options.zig").Options;
+const Graph = @import("scene_graph.zig").Graph;
+const SceneLoader = @import("scene_loader.zig").Loader;
+const TakeLoader = @import("take_loader.zig");
 
 const core = @import("core");
 const log = core.log;
 const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
-const thread = base.thread;
 const tk = core.tk;
 
 const base = @import("base");
@@ -15,8 +17,12 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const c = @cImport({
+    @cInclude("any_key.h");
+});
+
 pub fn main() !void {
-    // try core.ggx_integrate.integrate();
+    // core.size_test.testSize();
 
     log.info("Welcome to zyg!", .{});
 
@@ -34,7 +40,7 @@ pub fn main() !void {
     var options = try Options.parse(alloc, std.process.args());
     defer options.deinit(alloc);
 
-    if (options.take == null) {
+    if (0 == options.take.len) {
         log.err("No take specified", .{});
         return;
     }
@@ -47,7 +53,12 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &threads);
+    // try core.ggx_integrate.integrate(alloc, &threads);
+
+    var graph = try Graph.init(alloc);
+    defer graph.deinit(alloc);
+
+    var resources = try resource.Manager.init(alloc, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
@@ -62,80 +73,113 @@ pub fn main() !void {
         }
     }
 
-    var scene_loader = scn.Loader.init(alloc, &resources, scn.mat.Provider.createFallbackMaterial());
+    var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
     defer scene_loader.deinit(alloc);
 
-    var scene = try scn.Scene.init(
-        alloc,
-        &resources.images.resources,
-        &resources.materials.resources,
-        &resources.shapes.resources,
-        scene_loader.null_shape,
-    );
-    defer scene.deinit(alloc);
-
-    log.info("Loading...", .{});
-
-    const loading_start = std.time.milliTimestamp();
-
-    var stream = resources.fs.readStream(alloc, options.take.?) catch |err| {
-        log.err("Open stream \"{s}\": {}", .{ options.take.?, err });
-        return;
-    };
-
-    var take = tk.load(alloc, stream, &scene, &resources) catch |err| {
-        log.err("Loading take: {}", .{err});
-        return;
-    };
+    var take = tk.Take{};
     defer take.deinit(alloc);
+
+    var driver = try rendering.Driver.init(alloc, &threads, .{ .StdOut = .{} });
+    defer driver.deinit(alloc);
+
+    while (true) {
+        take.clear(alloc);
+        graph.clear(alloc);
+
+        log.info("Loading...", .{});
+
+        const loading_start = std.time.milliTimestamp();
+
+        if (loadTakeAndScene(
+            alloc,
+            options.take,
+            options.start_frame,
+            &take,
+            &graph,
+            &scene_loader,
+            &resources,
+        )) {
+            log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+            log.info("Rendering...", .{});
+
+            const rendering_start = std.time.milliTimestamp();
+
+            try driver.configure(alloc, &take.view, &graph.scene);
+
+            var i = options.start_frame;
+            const end = i + options.num_frames;
+            while (i < end) : (i += 1) {
+                reloadFrameDependant(
+                    alloc,
+                    i,
+                    options.take,
+                    &take,
+                    &graph,
+                    &scene_loader,
+                    &resources,
+                ) catch continue;
+
+                const camera = take.view.camera;
+                const start = @as(u64, i) * camera.frame_step;
+                graph.simulate(start, start + camera.frame_duration);
+
+                try driver.render(alloc, i);
+                try driver.exportFrame(alloc, i, take.exporters.items);
+            }
+
+            log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
+        }
+
+        if (options.iter) {
+            std.debug.print("Press 'q' to quit, or any other key to render again.\n", .{});
+            const key = c.read_key();
+            if ('q' != key) {
+                continue;
+            }
+        }
+
+        break;
+    }
+}
+
+fn loadTakeAndScene(
+    alloc: Allocator,
+    take_text: []const u8,
+    frame: u32,
+    take: *tk.Take,
+    graph: *Graph,
+    scene_loader: *SceneLoader,
+    resources: *resource.Manager,
+) bool {
+    resources.fs.frame = frame;
+
+    var stream = resources.fs.readStream(alloc, take_text) catch |err| {
+        log.err("Open stream \"{s}\": {}", .{ take_text, err });
+        return false;
+    };
+
+    TakeLoader.load(alloc, stream, take, &graph.scene) catch |err| {
+        log.err("Loading take: {}", .{err});
+        return false;
+    };
 
     stream.deinit();
 
-    resources.fs.frame = options.start_frame;
-
-    scene_loader.load(alloc, take.scene_filename, take, &scene) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take.*, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
-        return;
+        return false;
     };
 
-    log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
-
-    log.info("Rendering...", .{});
-
-    const rendering_start = std.time.milliTimestamp();
-
-    var driver = try rendering.Driver.init(alloc, &threads);
-    defer driver.deinit(alloc);
-
-    try driver.configure(alloc, &take.view, &scene);
-
-    var i = options.start_frame;
-    const end = i + options.num_frames;
-    while (i < end) : (i += 1) {
-        reloadFrameDependant(
-            alloc,
-            i,
-            &take,
-            options.take.?,
-            &scene,
-            &scene_loader,
-            &resources,
-        ) catch continue;
-
-        try driver.render(alloc, i);
-        try driver.exportFrame(alloc, i, take.exporters.items);
-    }
-
-    log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
+    return true;
 }
 
 fn reloadFrameDependant(
     alloc: Allocator,
     frame: u32,
-    take: *tk.Take,
     take_text: []const u8,
-    scene: *scn.Scene,
-    scene_loader: *scn.Loader,
+    take: *tk.Take,
+    graph: *Graph,
+    scene_loader: *SceneLoader,
     resources: *resource.Manager,
 ) !void {
     var fs = &resources.fs;
@@ -154,22 +198,22 @@ fn reloadFrameDependant(
 
     const loading_start = std.time.milliTimestamp();
 
-    try scene.commitMaterials(alloc, resources.threads);
-    scene.clear(alloc);
+    try graph.scene.commitMaterials(alloc, resources.threads);
+    graph.clear(alloc);
 
     var stream = resources.fs.readStream(alloc, take_text) catch |err| {
         log.err("Open stream \"{s}\": {}", .{ take_text, err });
         return err;
     };
 
-    tk.loadCameraTransformation(alloc, stream, &take.view.camera, scene) catch |err| {
+    TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, &graph.scene) catch |err| {
         log.err("Loading take: {}", .{err});
         return err;
     };
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take.*, scene) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take.*, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return err;
     };

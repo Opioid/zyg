@@ -2,6 +2,7 @@ const Srgb = @import("../srgb.zig").Srgb;
 const img = @import("../../image.zig");
 const Float3 = img.Float3;
 const Float4 = img.Float4;
+const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
 
 const base = @import("base");
 const encoding = base.encoding;
@@ -32,21 +33,19 @@ pub const Writer = struct {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        aov: ?AovClass,
         threads: *Threads,
     ) !void {
         const d = image.description.dimensions;
-        const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
 
-        try self.srgb.resize(alloc, num_pixels);
-
-        self.srgb.toSrgb(image, threads);
+        const num_channels = try self.srgb.toSrgb(alloc, image, aov, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
             @ptrCast(*const anyopaque, self.srgb.buffer.ptr),
             d.v[0],
             d.v[1],
-            if (self.srgb.alpha) 4 else 3,
+            @intCast(c_int, num_channels),
             &buffer_len,
         );
 
@@ -81,6 +80,48 @@ pub const Writer = struct {
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
+        defer file.close();
+
+        const writer = file.writer();
+
+        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+
+        c.mz_free(png);
+    }
+
+    pub fn writeHeatmap(
+        alloc: Allocator,
+        width: i32,
+        height: i32,
+        data: []const f32,
+        min: f32,
+        max: f32,
+        name: []const u8,
+    ) !void {
+        const num_pixels = @intCast(u32, width * height);
+        const buffer = try alloc.alloc(u8, 3 * num_pixels);
+        defer alloc.free(buffer);
+
+        const range = max - min;
+
+        for (data) |p, i| {
+            const turbo = spectrum.turbo((p - min) / range);
+
+            buffer[i * 3 + 0] = turbo[0];
+            buffer[i * 3 + 1] = turbo[1];
+            buffer[i * 3 + 2] = turbo[2];
+        }
+
+        var buffer_len: usize = 0;
+        const png = c.tdefl_write_image_to_png_file_in_memory(
+            @ptrCast(*const anyopaque, buffer.ptr),
+            width,
+            height,
+            3,
+            &buffer_len,
+        );
+
+        var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
         const writer = file.writer();

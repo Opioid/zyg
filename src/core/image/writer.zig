@@ -1,9 +1,10 @@
 const EXR = @import("encoding/exr/writer.zig").Writer;
-const PNG = @import("encoding/png/writer.zig").Writer;
+pub const PNG = @import("encoding/png/writer.zig").Writer;
 const RGBE = @import("encoding/rgbe/writer.zig").Writer;
 
 const img = @import("image.zig");
 const Float4 = img.Float4;
+const AovClass = @import("../rendering/sensor/aov/value.zig").Value.Class;
 
 const base = @import("base");
 const Threads = base.thread.Pool;
@@ -12,6 +13,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = union(enum) {
+    pub const ExrWriter = EXR;
+    pub const PngWriter = PNG;
+    pub const RgbeWriter = RGBE;
+
     EXR: EXR,
     PNG: PNG,
     RGBE: RGBE,
@@ -30,11 +35,12 @@ pub const Writer = union(enum) {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        aov: ?AovClass,
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .EXR => |w| try w.write(alloc, writer, image, threads),
-            .PNG => |*w| try w.write(alloc, writer, image, threads),
+            .EXR => |w| try w.write(alloc, writer, image, aov, threads),
+            .PNG => |*w| try w.write(alloc, writer, image, aov, threads),
             .RGBE => try RGBE.write(alloc, writer, image),
         }
     }

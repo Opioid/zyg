@@ -31,21 +31,12 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn deinit(self: *Integrator, alloc: Allocator) void {
+    pub fn startPixel(self: *Integrator, sample: u32, seed: u32) void {
         switch (self.*) {
-            .AOV => |*i| i.deinit(alloc),
-            .PT => |*i| i.deinit(alloc),
-            .PTDL => |*i| i.deinit(alloc),
-            .PTMIS => |*i| i.deinit(alloc),
-        }
-    }
-
-    pub fn startPixel(self: *Integrator) void {
-        switch (self.*) {
-            .AOV => |*i| i.startPixel(),
-            .PT => |*i| i.startPixel(),
-            .PTDL => |*i| i.startPixel(),
-            .PTMIS => |*i| i.startPixel(),
+            .AOV => |*i| i.startPixel(sample, seed),
+            .PT => |*i| i.startPixel(sample, seed),
+            .PTDL => |*i| i.startPixel(sample, seed),
+            .PTMIS => |*i| i.startPixel(sample, seed),
         }
     }
 
@@ -72,12 +63,12 @@ pub const Factory = union(enum) {
     PTDL: PathtracerDLFactory,
     PTMIS: PathtracerMISFactory,
 
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !Integrator {
+    pub fn create(self: Factory) Integrator {
         return switch (self) {
-            .AOV => |i| Integrator{ .AOV = try i.create(alloc, max_samples_per_pixel) },
-            .PT => |i| Integrator{ .PT = try i.create(alloc, max_samples_per_pixel) },
-            .PTDL => |i| Integrator{ .PTDL = try i.create(alloc, max_samples_per_pixel) },
-            .PTMIS => |i| Integrator{ .PTMIS = try i.create(alloc, max_samples_per_pixel) },
+            .AOV => |i| Integrator{ .AOV = i.create() },
+            .PT => |i| Integrator{ .PT = i.create() },
+            .PTDL => |i| Integrator{ .PTDL = i.create() },
+            .PTMIS => |i| Integrator{ .PTMIS = i.create() },
         };
     }
 };

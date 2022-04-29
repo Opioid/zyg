@@ -32,9 +32,21 @@ pub fn orientedDiskConcentric(uv: Vec2f, x: Vec4f, y: Vec4f) Vec4f {
     return @splat(4, d[0]) * x + @splat(4, d[1]) * y;
 }
 
+// pub fn triangleUniform(uv: Vec2f) Vec2f {
+//     const su = @sqrt(uv[0]);
+//     return .{ 1.0 - su, uv[1] * su };
+// }
+
+// Eric Heitz: A Low-Distortion Map Between Triangle and Square
+// https://drive.google.com/file/d/1J-183vt4BrN9wmqItECIjjLIKwm29qSg/view
 pub fn triangleUniform(uv: Vec2f) Vec2f {
-    const su = @sqrt(uv[0]);
-    return .{ 1.0 - su, uv[1] * su };
+    if (uv[1] > uv[0]) {
+        const x = 0.5 * uv[0];
+        return .{ x, uv[1] - x };
+    }
+
+    const y = 0.5 * uv[1];
+    return .{ uv[0] - y, y };
 }
 
 pub fn hemisphereCosine(uv: Vec2f) Vec4f {
@@ -91,8 +103,8 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
 }
 
-pub const Delta: f32 = 1.0e-20;
+pub const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
-    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Delta));
+    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Eps));
 }

@@ -1,4 +1,5 @@
-const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
+const snsr = @import("../rendering/sensor/sensor.zig");
+const Sensor = snsr.Sensor;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -41,7 +42,13 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(4, @as(i32, 0)),
 
-    sensor: Sensor = undefined,
+    sensor: Sensor = .{
+        .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(
+            std.math.f32_max,
+            2.0,
+            snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+        ),
+    },
 
     left_top: Vec4f = @splat(4, @as(f32, 0.0)),
     d_x: Vec4f = @splat(4, @as(f32, 0.0)),
@@ -136,7 +143,6 @@ pub const Perspective = struct {
         p: Vec4f,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: u32,
         scene: Scene,
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
@@ -148,7 +154,7 @@ pub const Perspective = struct {
         var out_dir: Vec4f = undefined;
 
         if (self.lens_radius > 0.0) {
-            const uv = sampler.sample2D(rng, sampler_d);
+            const uv = sampler.sample2D(rng);
             const lens = math.smpl.diskConcentric(uv) * @splat(2, self.lens_radius);
             const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
             const axis = po - origin;

@@ -11,15 +11,14 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    // const base = b.addStaticLibrary("base", "src/base/index.zig");
-    // base.setTarget(target);
-    // base.setBuildMode(mode);
-
     const cli = b.addExecutable("zyg", "src/cli/main.zig");
     const capi = b.addSharedLibrary("zyg", "src/capi/capi.zig", .{ .unversioned = {} });
+    const it = b.addExecutable("it", "src/it/main.zig");
 
-    cli.addIncludeDir("thirdparty/include");
-    capi.addIncludeDir("thirdparty/include");
+    cli.addIncludePath("thirdparty/include");
+    cli.addIncludePath("src/cli");
+    capi.addIncludePath("thirdparty/include");
+    it.addIncludePath("thirdparty/include");
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -36,6 +35,10 @@ pub fn build(b: *std.build.Builder) void {
         cli.addCSourceFile(source, &cflags);
         capi.addCSourceFile(source, &cflags);
     }
+
+    cli.addCSourceFile("src/cli/any_key.c", &cflags);
+
+    it.addCSourceFile(csources[0], &cflags);
 
     const base = std.build.Pkg{
         .name = "base",
@@ -69,9 +72,21 @@ pub fn build(b: *std.build.Builder) void {
     capi.setBuildMode(mode);
     capi.linkLibC();
 
-    capi.strip = true;
+    // capi.strip = true;
 
     capi.install();
+
+    it.addPackage(base);
+    it.addPackage(core);
+
+    it.setTarget(target);
+    it.setBuildMode(mode);
+    it.linkLibC();
+
+    // cli.sanitize_thread = true;
+    it.strip = true;
+
+    it.install();
 
     const run_cmd = cli.run();
     run_cmd.step.dependOn(b.getInstallStep());
@@ -91,7 +106,9 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
+            //"takes/rene.take",
             //"takes/embergen.take",
+            //"takes/intel_sponza.take",
             "-t",
             "-4",
             //"--no-tex",
@@ -103,6 +120,26 @@ pub fn build(b: *std.build.Builder) void {
             "1",
         });
     }
+
+    // const run_cmd = it.run();
+    // run_cmd.step.dependOn(b.getInstallStep());
+    // run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    // if (b.args) |args| {
+    //     run_cmd.addArgs(args);
+    // } else {
+    //     run_cmd.addArgs(&[_][]const u8{
+    //         "-d",
+    //         "-i",
+    //         //"image_00000001.exr",
+    //         "image_00000003.exr",
+    //         //"san_miguel.exr",
+    //         "-t",
+    //         "-4",
+    //         "--tone",
+    //         "-e",
+    //         "0.0",
+    //     });
+    // }
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);

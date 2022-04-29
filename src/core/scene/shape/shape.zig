@@ -9,6 +9,7 @@ pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
@@ -68,7 +69,7 @@ pub const Shape = union(enum) {
 
     pub fn partIdToMaterialId(self: Shape, part: u32) u32 {
         return switch (self) {
-            .TriangleMesh => |m| m.partIdToMaterialId(part),
+            .TriangleMesh => |m| m.partMaterialId(part),
             else => part,
         };
     }
@@ -155,7 +156,6 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: *Ray,
         trafo: Transformation,
-        worker: *Worker,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
@@ -169,11 +169,11 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
             .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
-            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, &worker.node_stack, ipo, isec),
+            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, ipo, isec),
         };
     }
 
-    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation, worker: *Worker) bool {
+    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation) bool {
         return switch (self) {
             .Null, .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray.ray, trafo),
@@ -182,7 +182,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
-            .TriangleMesh => |m| m.intersectP(ray.ray, trafo, &worker.node_stack),
+            .TriangleMesh => |m| m.intersectP(ray.ray, trafo),
         };
     }
 
@@ -198,11 +198,11 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.*),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.*),
+            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
             .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
         };
     }
@@ -219,15 +219,14 @@ pub const Shape = union(enum) {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         return switch (self) {
-            .Canopy => Canopy.sampleTo(trafo, sampler, rng, sampler_d),
-            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
-            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng, sampler_d),
-            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng, sampler_d),
-            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng, sampler_d),
-            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng, sampler_d),
+            .Canopy => Canopy.sampleTo(trafo, sampler, rng),
+            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng),
+            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng),
+            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng),
+            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng),
+            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng),
             .TriangleMesh => |m| m.sampleTo(
                 part,
                 variant,
@@ -239,7 +238,6 @@ pub const Shape = union(enum) {
                 total_sphere,
                 sampler,
                 rng,
-                sampler_d,
             ),
             else => null,
         };
@@ -253,45 +251,11 @@ pub const Shape = union(enum) {
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng, sampler_d),
-            else => null,
-        };
-    }
-
-    pub fn sampleFrom(
-        self: Shape,
-        part: u32,
-        variant: u32,
-        trafo: Transformation,
-        extent: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-        sampler_d: usize,
-        importance_uv: Vec2f,
-        bounds: AABB,
-    ) ?SampleFrom {
-        return switch (self) {
-            .Disk => Disk.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
-            .Sphere => Sphere.sampleFrom(trafo, extent, sampler, rng, sampler_d, importance_uv),
-            .TriangleMesh => |m| m.sampleFrom(
-                part,
-                variant,
-                trafo,
-                extent,
-                two_sided,
-                sampler,
-                rng,
-                sampler_d,
-                importance_uv,
-            ),
+            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng),
             else => null,
         };
     }
@@ -331,24 +295,39 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleFromUv(
+    pub fn sampleFrom(
         self: Shape,
         part: u32,
-        uv: Vec2f,
+        variant: u32,
         trafo: Transformation,
         extent: f32,
+        cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
+        from_image: bool,
     ) ?SampleFrom {
-        _ = part;
-
         return switch (self) {
-            .Canopy => Canopy.sampleFromUv(uv, trafo, importance_uv, bounds),
-            .Rectangle => Rectangle.sampleFromUv(uv, trafo, extent, two_sided, sampler, rng, sampler_d, importance_uv),
+            .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
+            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, uv, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, uv, importance_uv, bounds),
+            .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
+            .TriangleMesh => |m| m.sampleFrom(
+                part,
+                variant,
+                trafo,
+                extent,
+                two_sided,
+                sampler,
+                rng,
+                uv,
+                importance_uv,
+            ),
             else => null,
         };
     }
@@ -439,11 +418,11 @@ pub const Shape = union(enum) {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, worker, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
             else => 0,
         };
     }

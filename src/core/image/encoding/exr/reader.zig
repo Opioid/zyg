@@ -1,6 +1,7 @@
 const exr = @import("exr.zig");
 const img = @import("../../image.zig");
 const Image = img.Image;
+const Swizzle = img.Swizzle;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
@@ -9,7 +10,9 @@ const Vec2i = math.Vec2i;
 const Pack3h = math.Pack3h;
 const Pack3f = math.Pack3f;
 const Pack4i = math.Pack4i;
+const Pack4h = math.Pack4h;
 const Vec4f = math.Vec4f;
+const Pack4f = math.Pack4f;
 const spectrum = base.spectrum;
 
 const std = @import("std");
@@ -25,7 +28,7 @@ pub const Reader = struct {
         DisplayWindowNotEqlDataWindow,
         NoChannels,
         Exactly3ChannelsSupported,
-        MixedChannelTypes,
+        MixedChannelFormats,
         NotZipCompression,
         MZUncompressFailed,
         IncompatibleContent,
@@ -36,7 +39,7 @@ pub const Reader = struct {
         height: u32,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream, color: bool) !Image {
+    pub fn read(alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, color: bool) !Image {
         var signature: [exr.Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -96,12 +99,8 @@ pub const Reader = struct {
             return Error.NoChannels;
         }
 
-        if (3 != channels.channels.items.len) {
-            return Error.Exactly3ChannelsSupported;
-        }
-
-        if (!channels.singleType()) {
-            return Error.MixedChannelTypes;
+        if (!channels.singleFormat()) {
+            return Error.MixedChannelFormats;
         }
 
         if (.ZIP != compression) {
@@ -110,10 +109,27 @@ pub const Reader = struct {
 
         const dimensions = Vec2i{ display_window.v[2] + 1, display_window.v[3] + 1 };
 
-        return try readZip(alloc, stream, dimensions, channels, color);
+        return try readZip(alloc, stream, dimensions, channels, swizzle, color);
     }
 
-    fn readZip(alloc: Allocator, stream: *ReadStream, dimensions: Vec2i, channels: Channels, color: bool) !Image {
+    fn readZip(
+        alloc: Allocator,
+        stream: *ReadStream,
+        dimensions: Vec2i,
+        channels: Channels,
+        swizzle: Swizzle,
+        color: bool,
+    ) !Image {
+        var num_channels: u32 = switch (swizzle) {
+            .X, .W => 1,
+            .XY, .YX, .YZ => 2,
+            .XYZ => 3,
+            .XYZW => 4,
+        };
+
+        const file_num_channels = @intCast(u32, channels.channels.items.len);
+        num_channels = @minimum(num_channels, file_num_channels);
+
         const width = @intCast(u32, dimensions[0]);
         const height = @intCast(u32, dimensions[1]);
 
@@ -132,10 +148,19 @@ pub const Reader = struct {
         var uncompressed = try alloc.alloc(u8, bytes_per_row_block);
         defer alloc.free(uncompressed);
 
-        var image = if (.Half == channels.channels.items[0].typef)
-            Image{ .Half3 = try img.Half3.init(alloc, img.Description.init2D(dimensions)) }
-        else
-            Image{ .Float3 = try img.Float3.init(alloc, img.Description.init2D(dimensions)) };
+        const half = .Half == channels.channels.items[0].format;
+        const desc = img.Description.init2D(dimensions);
+
+        var image = switch (num_channels) {
+            4 => if (half)
+                Image{ .Half4 = try img.Half4.init(alloc, desc) }
+            else
+                Image{ .Float4 = try img.Float4.init(alloc, desc) },
+            else => if (half)
+                Image{ .Half3 = try img.Half3.init(alloc, desc) }
+            else
+                Image{ .Float3 = try img.Float3.init(alloc, desc) },
+        };
 
         errdefer image.deinit(alloc);
 
@@ -167,16 +192,16 @@ pub const Reader = struct {
 
             switch (image) {
                 .Half3 => |half3| {
-                    const shorts = @ptrCast([*]const f16, buffer.ptr);
+                    const halfs = @ptrCast([*]const f16, buffer.ptr);
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
-                        const o = 3 * y * width;
+                        const o = file_num_channels * y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const r = shorts[o + 2 * width + x];
-                            const g = shorts[o + 1 * width + x];
-                            const b = shorts[o + 0 * width + x];
+                            const r = halfs[o + 2 * width + x];
+                            const g = halfs[o + 1 * width + x];
+                            const b = halfs[o + 0 * width + x];
 
                             if (color) {
                                 const rgbf = math.vec3hTo4f(Pack3h.init3(r, g, b));
@@ -194,7 +219,7 @@ pub const Reader = struct {
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
-                        const o = 3 * y * width;
+                        const o = file_num_channels * y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = floats[o + 2 * width + x];
@@ -205,6 +230,56 @@ pub const Reader = struct {
                                 float3.pixels[p] = math.vec4fTo3f(spectrum.sRGBtoAP1(.{ r, g, b, 0.0 }));
                             } else {
                                 float3.pixels[p] = Pack3f.init3(r, g, b);
+                            }
+
+                            p += 1;
+                        }
+                    }
+                },
+                .Half4 => |half4| {
+                    const halfs = @ptrCast([*]const f16, buffer.ptr);
+
+                    var y: u32 = 0;
+                    while (y < num_rows_here) : (y += 1) {
+                        const o = file_num_channels * y * width;
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            const r = halfs[o + 3 * width + x];
+                            const g = halfs[o + 2 * width + x];
+                            const b = halfs[o + 1 * width + x];
+                            const a = halfs[o + 0 * width + x];
+
+                            if (color) {
+                                const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
+                                const rgbf = Vec4f{ ap[0], ap[1], ap[2], a };
+                                half4.pixels[p] = math.vec4fTo4h(rgbf);
+                            } else {
+                                const rgbf = Vec4f{ r, g, b, a };
+                                half4.pixels[p] = math.vec4fTo4h(rgbf);
+                            }
+
+                            p += 1;
+                        }
+                    }
+                },
+                .Float4 => |float4| {
+                    const floats = @ptrCast([*]const f32, buffer.ptr);
+
+                    var y: u32 = 0;
+                    while (y < num_rows_here) : (y += 1) {
+                        const o = file_num_channels * y * width;
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            const a = floats[o + 3 * width + x];
+                            const r = floats[o + 2 * width + x];
+                            const g = floats[o + 1 * width + x];
+                            const b = floats[o + 0 * width + x];
+
+                            if (color) {
+                                const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
+                                float4.pixels[p] = Pack4f.init4(ap[0], ap[1], ap[2], a);
+                            } else {
+                                float4.pixels[p] = Pack4f.init4(r, g, b, a);
                             }
 
                             p += 1;
@@ -269,15 +344,15 @@ const Channels = struct {
         self.channels.deinit(alloc);
     }
 
-    pub fn singleType(self: Channels) bool {
+    pub fn singleFormat(self: Channels) bool {
         if (0 == self.channels.items.len) {
             return true;
         }
 
-        const typef = self.channels.items[0].typef;
+        const format = self.channels.items[0].format;
 
         for (self.channels.items[1..]) |c| {
-            if (typef != c.typef) {
+            if (format != c.format) {
                 return false;
             }
         }
@@ -288,7 +363,7 @@ const Channels = struct {
     pub fn bytesPerPixel(self: Channels) u32 {
         var size: u32 = 0;
         for (self.channels.items) |c| {
-            size += c.byteSize();
+            size += c.format.byteSize();
         }
 
         return size;
@@ -303,7 +378,7 @@ const Channels = struct {
                 break;
             }
 
-            _ = try stream.read(std.mem.asBytes(&channel.typef));
+            _ = try stream.read(std.mem.asBytes(&channel.format));
 
             // pLinear
             try stream.seekBy(1);

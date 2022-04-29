@@ -5,7 +5,7 @@ const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const smp = @import("../../../sampler/sampler.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -38,31 +38,14 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [Num_dedicated_samplers + 1]smp.Sampler,
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, settings: Settings, max_samples_per_pixel: u32) !Self {
-        const total_samples_per_pixel = settings.num_samples * max_samples_per_pixel;
-
-        return Self{
-            .settings = settings,
-            .samplers = .{
-                .{ .GoldenRatio = try smp.GoldenRatio.init(alloc, 1, 2, total_samples_per_pixel) },
-                .{ .Random = .{} },
-            },
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
+    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
+        const os = sample *% self.settings.num_samples;
         for (self.samplers) |*s| {
-            s.deinit(alloc);
-        }
-    }
-
-    pub fn startPixel(self: *Self) void {
-        for (self.samplers) |*s| {
-            s.startPixel();
+            s.startPixel(os, seed);
         }
     }
 
@@ -88,7 +71,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -96,9 +79,11 @@ pub const AOV = struct {
         occlusion_ray.ray.setMaxT(self.settings.radius);
         occlusion_ray.time = ray.time;
 
+        var sampler = &self.samplers[0];
+
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = self.materialSampler(ray.depth).sample2D(&worker.super.rng, 0);
+            const sample = sampler.sample2D(&worker.super.rng);
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -111,6 +96,8 @@ pub const AOV = struct {
             if (worker.super.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
+
+            sampler.incrementSample();
         }
 
         return .{ result, result, result, 1.0 };
@@ -118,7 +105,7 @@ pub const AOV = struct {
 
     fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
 
         var vec: Vec4f = undefined;
 
@@ -172,12 +159,14 @@ pub const AOV = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(self.materialSampler(ray.depth), &worker.super.rng);
+            var sampler = self.pickSampler(ray.depth);
+
+            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no2(.Straight, .Transmission)) {
+            if (sample_result.class.is(.Specular)) {} else if (sample_result.class.no2(.Straight, .Transmission)) {
                 if (primary_ray) {
                     primary_ray = false;
 
@@ -189,7 +178,7 @@ pub const AOV = struct {
                 }
             }
 
-            if (!sample_result.typef.equals(.StraightTransmission)) {
+            if (!sample_result.class.equals(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
@@ -197,7 +186,7 @@ pub const AOV = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Straight)) {
+            if (sample_result.class.is(.Straight)) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -215,7 +204,7 @@ pub const AOV = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.typef.is(.Transmission)) {
+            if (sample_result.class.is(.Transmission)) {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
@@ -232,24 +221,30 @@ pub const AOV = struct {
             } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            sampler.incrementPadding();
+        }
+
+        for (self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return @splat(4, @as(f32, 0.0));
     }
 
-    fn materialSampler(self: *Self, bounce: u32) *smp.Sampler {
-        if (Num_dedicated_samplers > bounce) {
-            return &self.samplers[bounce];
+    fn pickSampler(self: *Self, bounce: u32) *Sampler {
+        if (bounce < 4) {
+            return &self.samplers[0];
         }
 
-        return &self.samplers[Num_dedicated_samplers];
+        return &self.samplers[1];
     }
 };
 
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory, alloc: Allocator, max_samples_per_pixel: u32) !AOV {
-        return try AOV.init(alloc, self.settings, max_samples_per_pixel);
+    pub fn create(self: Factory) AOV {
+        return .{ .settings = self.settings };
     }
 };

@@ -1,13 +1,19 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const SampleTo = @import("sample.zig").To;
+const smpl = @import("sample.zig");
+const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
+const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
+const Mat4x4 = math.Mat4x4;
 const Ray = math.Ray;
 
 const std = @import("std");
@@ -25,12 +31,10 @@ pub const InfiniteSphere = struct {
             std.math.acos(xyz[1]) * math.pi_inv,
         };
 
-        isec.p = ray.point(scn.Ray_max_t);
-
+        // This is nonsense
+        isec.p = @splat(4, @as(f32, scn.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
-
-        // This is nonsense
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;
@@ -48,9 +52,8 @@ pub const InfiniteSphere = struct {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) SampleTo {
-        const uv = sampler.sample2D(rng, sampler_d);
+        const uv = sampler.sample2D(rng);
 
         var dir: Vec4f = undefined;
         var pdf_: f32 = undefined;
@@ -93,6 +96,51 @@ pub const InfiniteSphere = struct {
             .{ uv[0], uv[1], 0.0, 0.0 },
             1.0 / ((4.0 * std.math.pi) * sin_theta),
             scn.Ray_max_t,
+        );
+    }
+
+    pub fn sampleFrom(
+        trafo: Transformation,
+        uv: Vec2f,
+        importance_uv: Vec2f,
+        bounds: AABB,
+        from_image: bool,
+    ) ?SampleFrom {
+        const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
+        const theta = uv[1] * std.math.pi;
+
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+
+        const sin_theta = @sin(theta);
+        const cos_theta = @cos(theta);
+
+        const ls = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const dir = -trafo.rotation.transformVector(ls);
+        const tb = math.orthonormalBasis3(dir);
+
+        const rotation = Mat3x3.init3(tb[0], tb[1], dir);
+
+        const ls_bounds = bounds.transformTransposed(rotation);
+        const ls_extent = ls_bounds.extent();
+        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
+
+        const offset = @splat(4, ls_extent[2]) * dir;
+        const p = ls_bounds.position() - offset + photon_rect;
+
+        var ipdf = (4.0 * std.math.pi) * ls_extent[0] * ls_extent[1];
+        if (from_image) {
+            ipdf *= sin_theta;
+        }
+
+        return SampleFrom.init(
+            p,
+            dir,
+            dir,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            importance_uv,
+            1.0 / ipdf,
         );
     }
 

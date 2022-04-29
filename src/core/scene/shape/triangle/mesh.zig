@@ -3,7 +3,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const NodeStack = @import("../node_stack.zig").NodeStack;
+const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
@@ -62,7 +62,7 @@ pub const Part = struct {
         }
     };
 
-    material: u32 = undefined,
+    material: u32 = 0,
     num_triangles: u32 = 0,
     area: f32 = undefined,
 
@@ -91,7 +91,7 @@ pub const Part = struct {
         material: u32,
         tree: bvh.Tree,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
@@ -141,18 +141,18 @@ pub const Part = struct {
             self.cones = cones;
         }
 
-        const m = worker.scene.materialPtr(material);
+        const m = scene.materialPtr(material);
 
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
 
         for (self.variants.items) |v, i| {
-            if (v.matches(material, emission_map, two_sided, worker.scene.*)) {
+            if (v.matches(material, emission_map, two_sided, scene)) {
                 return @intCast(u32, i);
             }
         }
 
-        const dimensions = m.usefulTextureDescription(worker.scene.*).dimensions;
+        const dimensions = m.usefulTextureDescription(scene).dimensions;
 
         const context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
@@ -160,7 +160,7 @@ pub const Part = struct {
             .part = self,
             .m = m,
             .tree = &tree,
-            .worker = &worker,
+            .scene = &scene,
             .estimate_area = @intToFloat(f32, dimensions.v[0] * dimensions.v[1]) / 4.0,
         };
         defer {
@@ -168,7 +168,7 @@ pub const Part = struct {
             alloc.free(context.temps);
         }
 
-        const num_tasks = threads.runRange(&context, Context.run, 0, num);
+        const num_tasks = threads.runRange(&context, Context.run, 0, num, 0);
 
         var temp: Temp = .{};
         for (context.temps[0..num_tasks]) |t| {
@@ -242,7 +242,7 @@ pub const Part = struct {
         part: *const Part,
         m: *const Material,
         tree: *const bvh.Tree,
-        worker: *const Worker,
+        scene: *const Scene,
         estimate_area: f32,
 
         const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
@@ -278,7 +278,7 @@ pub const Part = struct {
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             1.0,
                             null,
-                            self.worker.*,
+                            self.scene.*,
                         );
                     }
 
@@ -403,7 +403,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partIdToMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 
@@ -428,19 +428,18 @@ pub const Mesh = struct {
         self: Mesh,
         ray: *Ray,
         trafo: Transformation,
-        nodes: *NodeStack,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        if (self.tree.intersect(&tray, nodes)) |hit| {
-            ray.setMaxT(tray.maxT());
+        if (self.tree.intersect(tray)) |hit| {
+            ray.setMaxT(hit.t);
 
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
             isec.p = trafo.objectToWorldPoint(p);
@@ -480,7 +479,7 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation, nodes: *NodeStack) bool {
+    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation) bool {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -488,7 +487,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.intersectP(tray, nodes);
+        return self.tree.intersectP(tray);
     }
 
     pub fn visibility(
@@ -499,14 +498,14 @@ pub const Mesh = struct {
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        return self.tree.visibility(&tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, worker);
     }
 
     pub fn sampleTo(
@@ -521,14 +520,12 @@ pub const Mesh = struct {
         total_sphere: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
-        const r = sampler.sample1D(rng, sampler_d);
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r = sampler.sample3D(rng);
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
-        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r);
+        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r[0]);
 
         if (0.0 == s.pdf) {
             return null;
@@ -536,7 +533,7 @@ pub const Mesh = struct {
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, r2, &sv, &tc);
+        self.tree.data.sample(s.global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
         var wn = trafo.rotation.transformVector(sn);
@@ -575,17 +572,15 @@ pub const Mesh = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r = sampler.sample1D(rng, sampler_d);
+        const r = sampler.sample1D(rng);
         const s = self.parts[part].sampleRandom(variant, r);
-
-        const r0 = sampler.sample2D(rng, sampler_d);
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, r0, &sv, &tc);
+        self.tree.data.sample(s.global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
         var wn = trafo.rotation.transformVector(sn);
@@ -644,7 +639,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        worker: Worker,
+        scene: Scene,
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
@@ -662,7 +657,7 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, builder, worker, threads);
+        return try self.parts[part].configure(alloc, part, material, self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {

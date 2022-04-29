@@ -31,7 +31,7 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const s2d = sampler.sample2D(rng, 0);
+        const s2d = sampler.sample2D(rng);
 
         const is = math.smpl.hemisphereCosine(s2d);
         const wi = math.normalize3(self.super.layer.tangentToWorld(is));
@@ -48,7 +48,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
+            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
         };
     }
 };

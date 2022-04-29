@@ -2,7 +2,6 @@ const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
-const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
 const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
@@ -21,19 +20,16 @@ const spectrum = base.spectrum;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Uses "MIS Compensation: Optimizing Sampling Techniques in Multiple Importance Sampling"
+// https://twitter.com/VrKomarov/status/1297454856177954816
+
 pub const Material = struct {
-    super: Base,
+    super: Base = .{ .emittance = .{ .value = @splat(4, @as(f32, 1.0)) } },
 
-    emission_map: Texture = undefined,
+    emission_map: Texture = .{},
     distribution: Distribution2D = .{},
-    emittance: Emittance = undefined,
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
-    emission_factor: f32 = undefined,
-    total_weight: f32 = undefined,
-
-    pub fn init(sampler_key: ts.Key, two_sided: bool) Material {
-        return .{ .super = Base.init(sampler_key, two_sided) };
-    }
+    total_weight: f32 = 0.0,
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
         self.distribution.deinit(alloc);
@@ -57,8 +53,10 @@ pub const Material = struct {
             return self.average_emission;
         }
 
+        const rad = self.super.emittance.radiance(1.0, area);
+
         if (!self.emission_map.valid()) {
-            self.average_emission = self.emittance.radiance(area);
+            self.average_emission = rad;
             return self.average_emission;
         }
 
@@ -80,16 +78,14 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            _ = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[1]));
-
-            for (context.averages) |a| {
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[1]), 0);
+            for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }
 
         const average_emission = avg / @splat(4, avg[3]);
-
-        self.average_emission = @splat(4, self.emission_factor) * average_emission;
+        self.average_emission = rad * average_emission;
 
         self.total_weight = avg[3];
 
@@ -103,7 +99,7 @@ pub const Material = struct {
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[1]));
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[1]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -112,31 +108,32 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
-        var radiance: Vec4f = undefined;
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+        const area = scene.lightArea(rs.prop, rs.part);
+        const rad = self.evaluateRadiance(wo, rs.geo_n, rs.uv, area, rs.filter, scene);
 
-        if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, rs.filter);
-
-            const ef = @splat(4, self.emission_factor);
-            radiance = ef * ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
-        } else {
-            radiance = self.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
-        }
-
-        var result = Sample.init(rs, wo, radiance);
+        var result = Sample.init(rs, wo, rad);
         result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(
+        self: Material,
+        wi: Vec4f,
+        n: Vec4f,
+        uv: Vec2f,
+        extent: f32,
+        filter: ?ts.Filter,
+        scene: Scene,
+    ) Vec4f {
+        const rad = self.super.emittance.radiance(@fabs(math.dot3(wi, n)), extent);
+
         if (self.emission_map.valid()) {
-            const ef = @splat(4, self.emission_factor);
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ef * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+            return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
         }
 
-        return self.emittance.radiance(extent);
+        return rad;
     }
 
     pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
@@ -218,7 +215,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, 0.0);
+                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 

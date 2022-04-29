@@ -6,7 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 
@@ -69,12 +69,12 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, worker: Worker) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         _ = ray;
         _ = trafo;
         _ = entity;
         _ = filter;
-        _ = worker;
+        _ = scene;
 
         return @splat(4, @as(f32, 1.0));
     }
@@ -85,12 +85,8 @@ pub const Cube = struct {
         volume: f32,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) SampleTo {
-        const r2 = sampler.sample2D(rng, sampler_d);
-        const r1 = sampler.sample1D(rng, sampler_d);
-
-        const r3 = Vec4f{ r2[0], r2[1], r1, 0.0 };
+        const r3 = sampler.sample3D(rng);
         const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;

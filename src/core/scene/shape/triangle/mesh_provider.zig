@@ -15,6 +15,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
+const Pack4f = math.Pack4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
@@ -64,6 +65,23 @@ const Error = error{
 };
 
 pub const Provider = struct {
+    pub const Description = struct {
+        num_parts: u32,
+        num_triangles: u32,
+        num_vertices: u32,
+        positions_stride: u32,
+        normals_stride: u32,
+        tangents_stride: u32,
+        uvs_stride: u32,
+
+        parts: ?[*]const u32,
+        indices: ?[*]const u32,
+        positions: [*]const f32,
+        normals: [*]const f32,
+        tangents: ?[*]const f32,
+        uvs: ?[*]const f32,
+    };
+
     num_indices: u32 = undefined,
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
@@ -72,6 +90,7 @@ pub const Provider = struct {
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
+    desc: Description = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
 
@@ -161,6 +180,41 @@ pub const Provider = struct {
         return Shape{ .TriangleMesh = mesh };
     }
 
+    pub fn loadData(
+        self: *Provider,
+        alloc: Allocator,
+        data: usize,
+        options: Variants,
+        resources: *Resources,
+    ) !Shape {
+        _ = options;
+
+        const desc = @intToPtr(*Description, data);
+
+        const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
+
+        var mesh = try Mesh.init(alloc, num_parts);
+
+        if (desc.num_parts > 0 and null != desc.parts) {
+            var i: u32 = 0;
+            while (i < num_parts) : (i += 1) {
+                mesh.setMaterialForPart(i, desc.parts.?[i * 3 + 2]);
+            }
+        } else {
+            mesh.setMaterialForPart(0, 0);
+        }
+
+        resources.commitAsync();
+
+        self.desc = desc.*;
+        self.alloc = alloc;
+        self.threads = resources.threads;
+
+        resources.threads.runAsync(self, buildDescAsync);
+
+        return Shape{ .TriangleMesh = mesh };
+    }
+
     fn buildAsync(context: ThreadContext) void {
         const self = @intToPtr(*Provider, context);
 
@@ -183,7 +237,7 @@ pub const Provider = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                const parts = entry.value_ptr.*.Array.items;
+                const parts = entry.value_ptr.Array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
 
@@ -201,7 +255,7 @@ pub const Provider = struct {
                 var viter = entry.value_ptr.Object.iterator();
                 while (viter.next()) |ventry| {
                     if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
-                        const positions = ventry.value_ptr.*.Array.items;
+                        const positions = ventry.value_ptr.Array.items;
                         const num_positions = positions.len / 3;
 
                         handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
@@ -215,7 +269,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
-                        const normals = ventry.value_ptr.*.Array.items;
+                        const normals = ventry.value_ptr.Array.items;
                         const num_normals = normals.len / 3;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
@@ -245,9 +299,10 @@ pub const Provider = struct {
                                 json.readFloat(f32, tangents[i * 4 + 2]),
                             );
 
-                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) > 0.0) 0 else 1;
+                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) >= 0.0) 0 else 1;
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
+                        log.warning("It is reading tangent space", .{});
                         const tangent_spaces = ventry.value_ptr.*.Array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
@@ -276,16 +331,14 @@ pub const Provider = struct {
                             }
 
                             const tbn = quaternion.toMat3x3(ts);
-
-                            n.* = Pack3f.init3(tbn.r[2][0], tbn.r[2][1], tbn.r[2][1]);
-
+                            n.* = math.vec4fTo3f(tbn.r[2]);
                             var t = &handler.tangents.items[i];
-                            t.* = Pack3f.init3(tbn.r[0][0], tbn.r[0][1], tbn.r[0][1]);
+                            t.* = math.vec4fTo3f(tbn.r[0]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
-                        const uvs = ventry.value_ptr.*.Array.items;
+                        const uvs = ventry.value_ptr.Array.items;
                         const num_uvs = uvs.len / 2;
 
                         handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
@@ -300,7 +353,7 @@ pub const Provider = struct {
                     }
                 }
             } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                const indices = entry.value_ptr.*.Array.items;
+                const indices = entry.value_ptr.Array.items;
                 const num_triangles = indices.len / 3;
 
                 handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
@@ -349,7 +402,7 @@ pub const Provider = struct {
             var parser = std.json.Parser.init(alloc, false);
             defer parser.deinit();
 
-            var document = try parser.parse(json_string);
+            var document = try parser.parse(std.mem.sliceTo(json_string, 0));
             defer document.deinit();
 
             const geometry_node = document.root.Object.get("geometry") orelse return Error.NoGeometryNode;
@@ -451,7 +504,19 @@ pub const Provider = struct {
             var positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
-            if (tangent_space_as_quaternion) {} else {
+            if (tangent_space_as_quaternion) {
+                var ts = try alloc.alloc(Pack4f, num_vertices);
+                _ = try stream.read(std.mem.sliceAsBytes(ts));
+
+                var uvs = try alloc.alloc(Vec2f, num_vertices);
+                _ = try stream.read(std.mem.sliceAsBytes(uvs));
+
+                vertices = vs.VertexStream{ .SeparateQuat = vs.SeparateQuat.init(
+                    positions,
+                    ts,
+                    uvs,
+                ) };
+            } else {
                 var normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
@@ -465,7 +530,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = try vs.Separate.init(
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.init(
                         positions,
                         normals,
                         tangents,
@@ -473,7 +538,7 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Compact = try vs.Compact.init(positions, normals) };
+                    vertices = vs.VertexStream{ .Compact = vs.Compact.init(positions, normals) };
                 }
             }
         }
@@ -541,6 +606,74 @@ pub const Provider = struct {
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
         self.vertices.deinit(self.alloc);
+    }
+
+    fn buildDescAsync(context: ThreadContext) void {
+        const self = @intToPtr(*Provider, context);
+
+        const num_triangles = self.desc.num_triangles;
+        var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
+        defer self.alloc.free(triangles);
+
+        var desc = self.desc;
+
+        if (null == desc.tangents) {
+            desc.tangents_stride = 0;
+        }
+
+        if (null == desc.uvs) {
+            desc.uvs_stride = 0;
+        }
+
+        const empty_part = [3]u32{ 0, num_triangles * 3, 0 };
+        const parts = if (desc.num_parts > 0 and null != desc.parts) desc.parts.? else &empty_part;
+
+        const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
+        var p: u32 = 0;
+        while (p < num_parts) : (p += 1) {
+            const start_index = parts[p * 3 + 0];
+            const num_indices = parts[p * 3 + 1];
+
+            const triangles_start = start_index / 3;
+            const triangles_end = (start_index + num_indices) / 3;
+
+            var i = triangles_start;
+            if (desc.indices) |indices| {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = indices[t + 0];
+                    triangles[i].i[1] = indices[t + 1];
+                    triangles[i].i[2] = indices[t + 2];
+
+                    triangles[i].part = p;
+                }
+            } else {
+                while (i < triangles_end) : (i += 1) {
+                    const t = i * 3;
+                    triangles[i].i[0] = t + 0;
+                    triangles[i].i[1] = t + 1;
+                    triangles[i].i[2] = t + 2;
+
+                    triangles[i].part = p;
+                }
+            }
+        }
+
+        const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+
+        const vertices = vs.VertexStream{ .C = vs.CAPI.init(
+            desc.num_vertices,
+            desc.positions_stride,
+            desc.normals_stride,
+            desc.tangents_stride,
+            desc.uvs_stride,
+            desc.positions,
+            desc.normals,
+            if (desc.tangents_stride > 0) desc.tangents.? else &null_floats,
+            if (desc.uvs_stride > 0) desc.uvs.? else &null_floats,
+        ) };
+
+        buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};
     }
 
     fn buildBVH(

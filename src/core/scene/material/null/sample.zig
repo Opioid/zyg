@@ -36,7 +36,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .typef = bxdf.TypeFlag.init1(.StraightTransmission),
+            .class = bxdf.ClassFlag.init1(.StraightTransmission),
         };
     }
 };

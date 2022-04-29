@@ -1,6 +1,6 @@
 const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 
 const math = @import("base").math;
@@ -52,7 +52,7 @@ pub const Plane = struct {
         trafo: Transformation,
         entity: usize,
         filter: ?Filter,
-        worker: Worker,
+        scene: Scene,
     ) ?Vec4f {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
@@ -63,7 +63,7 @@ pub const Plane = struct {
             const k = p - trafo.position;
             const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };
 
-            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
         }
 
         return @splat(4, @as(f32, 1.0));

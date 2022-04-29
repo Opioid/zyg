@@ -4,7 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
@@ -93,7 +93,7 @@ pub const Rectangle = struct {
         trafo: Transformation,
         entity: usize,
         filter: ?Filter,
-        worker: Worker,
+        scene: Scene,
     ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
@@ -119,7 +119,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, worker);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
         }
 
         return @splat(4, @as(f32, 1.0));
@@ -132,23 +132,9 @@ pub const Rectangle = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
-        const uv = sampler.sample2D(rng, sampler_d);
+        const uv = sampler.sample2D(rng);
         return sampleToUv(p, uv, trafo, area, two_sided);
-    }
-
-    pub fn sampleFrom(
-        trafo: Transformation,
-        area: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-        sampler_d: usize,
-        importance_uv: Vec2f,
-    ) SampleFrom {
-        const uv = sampler.sample2D(rng, sampler_d);
-        return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, sampler_d, importance_uv);
     }
 
     pub fn sampleToUv(
@@ -180,14 +166,13 @@ pub const Rectangle = struct {
         return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area), t);
     }
 
-    pub fn sampleFromUv(
-        uv: Vec2f,
+    pub fn sampleFrom(
         trafo: Transformation,
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) SampleFrom {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
@@ -202,7 +187,7 @@ pub const Rectangle = struct {
             wn,
         );
 
-        if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
+        if (two_sided and sampler.sample1D(rng) > 0.5) {
             wn = -wn;
             dir = -dir;
         }

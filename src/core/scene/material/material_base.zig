@@ -1,9 +1,11 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
+const Emittance = @import("../light/emittance.zig").Emittance;
 const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
@@ -13,6 +15,20 @@ const Flags = base.flags.Flags;
 const std = @import("std");
 
 pub const Base = struct {
+    pub fn MappedValue(comptime Value: type) type {
+        return struct {
+            texture: Texture = .{},
+
+            value: Value,
+
+            const Self = @This();
+
+            pub fn init(value: Value) Self {
+                return .{ .value = value };
+            }
+        };
+    }
+
     pub const RadianceSample = struct {
         uvw: Vec4f,
 
@@ -38,26 +54,23 @@ pub const Base = struct {
         HeterogeneousVolume = 1 << 4,
     };
 
-    properties: Flags(Property),
+    properties: Flags(Property) = .{},
 
-    sampler_key: ts.Key,
+    sampler_key: ts.Key = .{},
 
     mask: Texture = .{},
     color_map: Texture = .{},
 
     cc: CC = undefined,
 
-    emission: Vec4f = @splat(4, @as(f32, 0.0)),
+    emittance: Emittance = .{},
 
     ior: f32 = 1.5,
-    attenuation_distance: f32 = undefined,
-    volumetric_anisotropy: f32 = undefined,
+    attenuation_distance: f32 = 0.0,
+    volumetric_anisotropy: f32 = 0.0,
 
-    pub fn init(sampler_key: ts.Key, two_sided: bool) Base {
-        return .{
-            .properties = Flags(Property).init1(if (two_sided) .TwoSided else .None),
-            .sampler_key = sampler_key,
-        };
+    pub fn setTwoSided(self: *Base, two_sided: bool) void {
+        self.properties.set(.TwoSided, two_sided);
     }
 
     pub fn setVolumetric(
@@ -68,7 +81,7 @@ pub const Base = struct {
         anisotropy: f32,
     ) void {
         const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
-        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, anisotropy);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
 
         self.cc = cc;
         self.attenuation_distance = distance;
@@ -76,11 +89,11 @@ pub const Base = struct {
         self.properties.set(.ScatteringVolume, math.anyGreaterZero3(cc.s));
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, worker: Worker) f32 {
+    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
-            return ts.sample2D_1(key, mask, uv, worker.scene.*);
+            return ts.sample2D_1(key, mask, uv, scene);
         }
 
         return 1.0;

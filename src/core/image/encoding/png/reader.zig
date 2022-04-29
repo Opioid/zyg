@@ -1,6 +1,6 @@
 const img = @import("../../image.zig");
-const Swizzle = img.Swizzle;
 const Image = img.Image;
+const Swizzle = img.Swizzle;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
@@ -148,26 +148,24 @@ pub const Reader = struct {
 
     fn createImage(alloc: Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
-        var swap_xy = false;
         switch (swizzle) {
             .X, .W => {
                 num_channels = 1;
             },
-            .XY => {
+            .XY, .YX, .YZ => {
                 num_channels = 2;
-            },
-            .YX => {
-                num_channels = 2;
-                swap_xy = true;
             },
             .XYZ => {
                 num_channels = 3;
             },
+            .XYZW => {
+                num_channels = 3;
+            },
         }
 
-        const byte_compatible = num_channels == info.num_channels and !swap_xy;
+        const byte_compatible = num_channels == info.num_channels and .YX != swizzle;
 
-        num_channels = std.math.min(num_channels, info.num_channels);
+        num_channels = @minimum(num_channels, info.num_channels);
 
         const dimensions = Vec2i{ info.width, info.height };
 
@@ -212,10 +210,15 @@ pub const Reader = struct {
                 var i: u32 = 0;
                 const len = @intCast(u32, info.width * info.height);
 
-                if (swap_xy) {
+                if (.YX == swizzle) {
                     while (i < len) : (i += 1) {
                         const o = i * info.num_channels;
                         image.pixels[i] = Vec2b{ info.buffer[o + 1], info.buffer[o + 0] };
+                    }
+                } else if (.YZ == swizzle and info.num_channels >= 3) {
+                    while (i < len) : (i += 1) {
+                        const o = i * info.num_channels;
+                        image.pixels[i] = Vec2b{ info.buffer[o + 1], info.buffer[o + 2] };
                     }
                 } else {
                     while (i < len) : (i += 1) {
@@ -246,9 +249,9 @@ pub const Reader = struct {
                         color.v[c] = info.buffer[o + c];
                     }
 
-                    if (swap_xy) {
-                        std.mem.swap(u8, &color.v[0], &color.v[1]);
-                    }
+                    // if (swap_xy) {
+                    //     std.mem.swap(u8, &color.v[0], &color.v[1]);
+                    // }
 
                     image.pixels[i] = color;
                 }

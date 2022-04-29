@@ -100,7 +100,7 @@ pub const Reader = struct {
             return try readPixels(stream, scanline_width * num_scanlines, image, 0);
         }
 
-        var offset: i32 = 0;
+        var offset: u32 = 0;
 
         var rgbe: [4]u8 = undefined;
         var buf: [2]u8 = undefined;
@@ -170,17 +170,18 @@ pub const Reader = struct {
                 rgbe[3] = scanline_buffer[i + 3 * scanline_width];
 
                 const color = rgbeTofloat3(rgbe);
-                image.set1D(offset, Pack3h.init3(
+                image.pixels[offset] = Pack3h.init3(
                     @floatCast(f16, color.v[0]),
                     @floatCast(f16, color.v[1]),
                     @floatCast(f16, color.v[2]),
-                ));
+                );
+
                 offset += 1;
             }
         }
     }
 
-    fn readPixels(stream: *ReadStream, num_pixels: u32, image: *img.Half3, offset: i32) !void {
+    fn readPixels(stream: *ReadStream, num_pixels: u32, image: *img.Half3, offset: u32) !void {
         var rgbe: [4]u8 = undefined;
 
         var i = num_pixels;
@@ -189,11 +190,11 @@ pub const Reader = struct {
             _ = try stream.read(&rgbe);
 
             const color = rgbeTofloat3(rgbe);
-            image.set1D(o, Pack3h.init3(
+            image.pixels[o] = Pack3h.init3(
                 @floatCast(f16, color.v[0]),
                 @floatCast(f16, color.v[1]),
                 @floatCast(f16, color.v[2]),
-            ));
+            );
 
             o += 1;
         }

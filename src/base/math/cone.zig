@@ -41,3 +41,12 @@ pub fn merge(ap: Vec4f, bp: Vec4f) Vec4f {
 
     return .{ axis[0], axis[1], axis[2], @cos(o_angle) };
 }
+
+pub fn transform(m: Mat3x3, v: Vec4f) Vec4f {
+    return .{
+        v[0] * m.r[0][0] + v[1] * m.r[1][0] + v[2] * m.r[2][0],
+        v[0] * m.r[0][1] + v[1] * m.r[1][1] + v[2] * m.r[2][1],
+        v[0] * m.r[0][2] + v[1] * m.r[1][2] + v[2] * m.r[2][2],
+        v[3],
+    };
+}

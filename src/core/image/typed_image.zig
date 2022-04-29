@@ -40,6 +40,13 @@ pub fn TypedImage(comptime T: type) type {
             };
         }
 
+        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) TypedImage(T) {
+            return TypedImage(T){
+                .description = description,
+                .pixels = std.mem.bytesAsSlice(T, data),
+            };
+        }
+
         pub fn deinit(self: *Self, alloc: Allocator) void {
             alloc.free(self.pixels);
         }
@@ -51,14 +58,6 @@ pub fn TypedImage(comptime T: type) type {
             if (self.pixels.len < len) {
                 self.pixels = try alloc.realloc(self.pixels, len);
             }
-        }
-
-        pub fn get1D(self: Self, x: i32) T {
-            return self.pixels[@intCast(usize, x)];
-        }
-
-        pub fn set1D(self: *Self, x: i32, v: T) void {
-            self.pixels[@intCast(usize, x)] = v;
         }
 
         pub fn get2D(self: Self, x: i32, y: i32) T {

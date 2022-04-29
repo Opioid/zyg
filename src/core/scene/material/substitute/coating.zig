@@ -5,17 +5,18 @@ const fresnel = @import("../fresnel.zig");
 const ggx = @import("../ggx.zig");
 const hlp = @import("../sample_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
+
 const base = @import("base");
 const math = base.math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 pub const Coating = struct {
     layer: Layer = undefined,
 
     absorption_coef: Vec4f = undefined,
 
-    thickness: f32 = undefined,
+    thickness: f32 = 0.0,
     ior: f32 = undefined,
     f0: f32 = undefined,
     alpha: f32 = undefined,
@@ -40,18 +41,17 @@ pub const Coating = struct {
             return .{ .reflection = @splat(4, @as(f32, 0.0)), .attenuation = att, .f = 0.0, .pdf = 0.0 };
         }
 
-        const n_dot_h = math.saturate(self.layer.nDot(h));
-
         const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
         var fresnel_result: Vec4f = undefined;
         const gg = ggx.Iso.reflectionF(
+            h,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
-            n_dot_h,
             self.alpha,
             schlick,
+            self.layer,
             &fresnel_result,
         );
 
@@ -94,8 +94,7 @@ pub const Coating = struct {
         result.reflection *= @splat(4, ep * self.weight * n_dot_wi) * f;
     }
 
-    pub fn sample(self: Self, wo: Vec4f, sampler: *Sampler, rng: *RNG, n_dot_h: *f32, result: *bxdf.Sample) f32 {
-        const xi = sampler.sample2D(rng, 1);
+    pub fn sample(self: Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
         const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, self.layer, n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
@@ -118,7 +117,7 @@ pub const Coating = struct {
         return singleAttenuationStatic(self.absorption_coef, self.thickness, n_dot_wo);
     }
 
-    fn attenuation(self: Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
+    pub fn attenuation(self: Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
         const f = self.weight * fresnel.schlick1(@minimum(n_dot_wi, n_dot_wo), self.f0);
         const d = self.thickness * (1.0 / n_dot_wi + 1.0 / n_dot_wo);
 

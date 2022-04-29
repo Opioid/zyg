@@ -4,7 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 
@@ -105,7 +105,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, worker: Worker) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -125,7 +125,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
             }
 
             const t1 = b + dist;
@@ -137,7 +137,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
             }
         }
 
@@ -149,18 +149,17 @@ pub const Sphere = struct {
         trafo: Transformation,
         sampler: *Sampler,
         rng: *RNG,
-        sampler_d: usize,
     ) ?SampleTo {
         const v = trafo.position - p;
         const il = math.rlength3(v);
         const radius = trafo.scaleX();
         const sin_theta_max = std.math.min(il * radius, 1.0);
-        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Delta));
+        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Eps));
 
         const z = @splat(4, il) * v;
         const xy = math.orthonormalBasis3(z);
 
-        const r2 = sampler.sample2D(rng, sampler_d);
+        const r2 = sampler.sample2D(rng);
         const dir = math.smpl.orientedConeUniform(r2, cos_theta_max, xy[0], xy[1], z);
 
         const b = math.dot3(dir, v);
@@ -189,13 +188,10 @@ pub const Sphere = struct {
     pub fn sampleFrom(
         trafo: Transformation,
         area: f32,
-        sampler: *Sampler,
-        rng: *RNG,
-        sampler_d: usize,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng, sampler_d);
-        const ls = math.smpl.sphereUniform(r0);
+        const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
 
         const wn = math.normalize3(ws - trafo.position);
@@ -211,7 +207,7 @@ pub const Sphere = struct {
         const il = math.rlength3(axis);
         const radius = trafo.scaleX();
         const sin_theta_max = std.math.min(il * radius, 1.0);
-        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Delta));
+        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Eps));
 
         return math.smpl.conePdfUniform(cos_theta_max);
     }

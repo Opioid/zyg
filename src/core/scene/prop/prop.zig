@@ -11,20 +11,13 @@ const Flags = base.flags.Flags;
 pub const Prop = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
-    pub const Topology = struct {
-        next: u32 = Null,
-        child: u32 = Null,
-    };
-
     const Property = enum(u32) {
         VisibleInCamera = 1 << 0,
         VisibleInReflection = 1 << 1,
         VisibleInShadow = 1 << 2,
         TintedShadow = 1 << 3,
         TestAABB = 1 << 4,
-        HasParent = 1 << 5,
         Static = 1 << 6,
-        LocalAnimation = 1 << 7,
     };
 
     shape: u32 = Null,
@@ -37,14 +30,6 @@ pub const Prop = struct {
         }
 
         return self.properties.is(.VisibleInReflection);
-    }
-
-    pub fn hasLocalAnimation(self: Prop) bool {
-        return self.properties.is(.LocalAnimation);
-    }
-
-    pub fn noParent(self: Prop) bool {
-        return self.properties.no(.HasParent);
     }
 
     pub fn visibleInCamera(self: Prop) bool {
@@ -95,16 +80,11 @@ pub const Prop = struct {
         }
     }
 
-    pub fn configureAnimated(self: *Prop, local_animation: bool, scene: Scene) void {
+    pub fn configureAnimated(self: *Prop, scene: Scene) void {
         const shape_inst = scene.shape(self.shape);
 
         self.properties.set(.TestAABB, shape_inst.finite());
         self.properties.set(.Static, false);
-        self.properties.set(.LocalAnimation, local_animation);
-    }
-
-    pub fn setHasParent(self: *Prop) void {
-        self.properties.set(.HasParent, true);
     }
 
     pub fn intersect(
@@ -128,7 +108,7 @@ pub const Prop = struct {
         const static = self.properties.is(.Static);
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersect(ray, trafo, worker, ipo, isec);
+        return scene.propShape(entity).intersect(ray, trafo, ipo, isec);
     }
 
     pub fn intersectShadow(
@@ -151,7 +131,7 @@ pub const Prop = struct {
         const static = self.properties.is(.Static);
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersect(ray, trafo, worker, .Normal, isec);
+        return scene.propShape(entity).intersect(ray, trafo, .Normal, isec);
     }
 
     pub fn intersectP(
@@ -173,7 +153,7 @@ pub const Prop = struct {
         const static = self.properties.is(.Static);
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersectP(ray, trafo, worker);
+        return scene.propShape(entity).intersectP(ray, trafo);
     }
 
     pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {

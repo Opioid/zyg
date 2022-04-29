@@ -41,7 +41,7 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const r2 = sampler.sample2D(rng, 0);
+        const r2 = sampler.sample2D(rng);
 
         const g = self.anisotropy;
 
@@ -71,7 +71,7 @@ pub const Sample = struct {
             .pdf = phase,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
+            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
         };
     }
 

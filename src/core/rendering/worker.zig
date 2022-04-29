@@ -17,6 +17,7 @@ const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
+const aov = @import("sensor/aov/value.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -35,17 +36,16 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
-    photon_mapper: PhotonMapper = undefined,
+
+    aov: aov.Value = undefined,
+
+    photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
     photon: Vec4f = undefined,
 
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
-        self.lighttracer.deinit(alloc);
-        self.volume_integrator.deinit(alloc);
-        self.surface_integrator.deinit(alloc);
-        self.sampler.deinit(alloc);
     }
 
     pub fn configure(
@@ -58,19 +58,22 @@ pub const Worker = struct {
         surfaces: surface.Factory,
         volumes: vol.Factory,
         lighttracers: lt.Factory,
+        aovs: aov.Factory,
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = try samplers.create(alloc, 1, 2, num_samples_per_pixel);
+        self.sampler = samplers.create(alloc, 1, 2, num_samples_per_pixel);
 
-        self.surface_integrator = try surfaces.create(alloc, num_samples_per_pixel);
-        self.volume_integrator = try volumes.create(alloc, num_samples_per_pixel);
-        self.lighttracer = try lighttracers.create(alloc);
+        self.surface_integrator = surfaces.create();
+        self.volume_integrator = volumes.create();
+        self.lighttracer = lighttracers.create();
+
+        self.aov = aovs.create();
 
         const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
-        self.photon_mapper = try PhotonMapper.init(alloc, .{
+        try self.photon_mapper.configure(alloc, .{
             .max_bounces = max_bounces,
             .full_light_path = photon_settings.full_light_path,
         });
@@ -78,51 +81,62 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
-    pub fn render(self: *Worker, frame: u32, tile: Vec4i, num_samples: u32, num_photon_samples: u32) void {
+    pub fn render(
+        self: *Worker,
+        frame: u32,
+        tile: Vec4i,
+        iteration: u32,
+        num_samples: u32,
+        num_expected_samples: u32,
+        num_photon_samples: u32,
+    ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
-
-        const offset = @splat(2, @as(i32, 0));
+        var rng = &self.super.rng;
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
-        crop[0] += offset[0];
-        crop[1] += offset[1];
 
-        const xy = offset + Vec2i{ tile[0], tile[1] };
-        const zw = offset + Vec2i{ tile[2], tile[3] };
-        const view_tile = Vec4i{ xy[0], xy[1], zw[0], zw[1] };
-
-        var isolated_bounds = sensor.isolatedTile(view_tile);
+        var isolated_bounds = sensor.isolatedTile(tile);
         isolated_bounds[2] -= isolated_bounds[0];
         isolated_bounds[3] -= isolated_bounds[1];
 
         const fr = sensor.filterRadiusInt();
-
         const r = camera.resolution + @splat(2, 2 * fr);
-
-        const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
+        const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
+        const o = @as(u64, iteration) * a;
+        const so = iteration / num_expected_samples + a;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, (y + fr) * r[0]) + o0;
+            const pixel_n = @intCast(u32, (y + fr) * r[0]);
+
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                self.super.rng.start(0, o1 + @intCast(u64, x + fr));
+                const pixel_id = pixel_n + @intCast(u32, x + fr);
 
-                self.sampler.startPixel();
-                self.surface_integrator.startPixel();
+                rng.start(0, @as(u64, pixel_id) + o);
+
+                const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
+                const tsi = @truncate(u32, sample_index);
+                const rsi = @truncate(u32, sample_index >> 32);
+
+                self.sampler.startPixel(tsi, rsi + so);
+                self.surface_integrator.startPixel(tsi, rsi + so + a);
+
                 self.photon = @splat(4, @as(f32, 0.0));
 
                 const pixel = Vec2i{ x, y };
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.cameraSample(&self.super.rng, pixel);
+                    const sample = self.sampler.cameraSample(rng, pixel);
+
+                    self.aov.clear();
 
                     if (camera.generateRay(sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -130,11 +144,12 @@ pub const Worker = struct {
                         var photon = self.photon;
                         if (photon[3] > 0.0) {
                             photon /= @splat(4, photon[3]);
+                            photon[3] = 0.0;
                         }
 
-                        sensor.addSample(sample, color + photon, offset, crop, isolated_bounds);
+                        sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset, crop, isolated_bounds);
+                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov, crop, isolated_bounds);
                     }
                 }
             }
@@ -145,7 +160,7 @@ pub const Worker = struct {
         var camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel();
+        self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
@@ -158,11 +173,43 @@ pub const Worker = struct {
     }
 
     pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self);
+        return self.photon_map.li(isec, sample, self.super.scene.*);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    pub fn commonAOV(
+        self: *Worker,
+        throughput: Vec4f,
+        ray: Ray,
+        isec: Intersection,
+        mat_sample: MaterialSample,
+        primary_ray: bool,
+    ) void {
+        if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
+            self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
+        }
+
+        if (ray.depth > 0) {
+            return;
+        }
+
+        if (self.aov.activeClass(.ShadingNormal)) {
+            self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
+        }
+
+        if (self.aov.activeClass(.Depth)) {
+            self.aov.insert1(.Depth, ray.ray.maxT());
+        }
+
+        if (self.aov.activeClass(.MaterialId)) {
+            self.aov.insert1(
+                .MaterialId,
+                @intToFloat(f32, 1 + self.super.scene.propMaterialId(isec.prop, isec.geo.part)),
+            );
+        }
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
@@ -205,7 +252,7 @@ pub const Worker = struct {
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.super.interface_stack.straight(self.super)) {
+        if (!self.super.interface_stack.straight(self.super.scene.*)) {
             self.super.interface_stack.pop();
         }
 
@@ -257,7 +304,7 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        const material = isec.material(self.super);
+        const material = isec.material(self.super.scene.*);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
