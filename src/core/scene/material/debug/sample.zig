@@ -2,6 +2,7 @@ const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -22,7 +23,6 @@ pub const Sample = struct {
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
         const n_dot_wi = self.super.layer.clampNdot(wi);
-
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;
