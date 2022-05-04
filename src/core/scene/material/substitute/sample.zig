@@ -94,8 +94,8 @@ pub const Sample = struct {
 
         if (translucent) {
             if (!self.super.sameHemisphere(wi)) {
-                const n_dot_wi = self.super.layer.clampAbsNdot(wi);
-                const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+                const n_dot_wi = self.super.frame.clampAbsNdot(wi);
+                const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
@@ -142,8 +142,8 @@ pub const Sample = struct {
             const s3 = sampler.sample3D(rng);
             const p = s3[0];
             if (p < tr) {
-                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.layer, sampler, rng, &result);
-                const n_dot_wo = self.super.layer.clampAbsNdot(self.super.wo);
+                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.frame, sampler, rng, &result);
+                const n_dot_wo = self.super.frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
@@ -189,8 +189,8 @@ pub const Sample = struct {
     fn baseEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const alpha = self.super.alpha;
 
-        const n_dot_wi = self.super.layer.clampNdot(wi);
-        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+        const n_dot_wi = self.super.frame.clampNdot(wi);
+        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
         const d = diffuse.Micro.reflection(
             self.super.albedo,
@@ -215,7 +215,7 @@ pub const Sample = struct {
             wo_dot_h,
             alpha,
             schlick,
-            self.super.layer,
+            self.super.frame,
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
@@ -232,8 +232,8 @@ pub const Sample = struct {
             return bxdf.Result.empty();
         }
 
-        const n_dot_wi = self.super.layer.clampNdot(wi);
-        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+        const n_dot_wi = self.super.frame.clampNdot(wi);
+        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
@@ -246,7 +246,7 @@ pub const Sample = struct {
             wo_dot_h,
             alpha,
             schlick,
-            self.super.layer,
+            self.super.frame,
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
@@ -298,14 +298,14 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
         const n_dot_wi = diffuse.Micro.reflect(
             self.super.albedo,
             self.f0,
             wo,
             n_dot_wo,
-            self.super.layer,
+            self.super.frame,
             alpha[0],
             xi,
             result,
@@ -327,7 +327,7 @@ pub const Sample = struct {
             result.h_dot_wi,
             alpha,
             schlick,
-            self.super.layer,
+            self.super.frame,
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
@@ -340,7 +340,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
@@ -350,7 +350,7 @@ pub const Sample = struct {
             alpha,
             xi,
             schlick,
-            self.super.layer,
+            self.super.frame,
             result,
         );
 
@@ -372,7 +372,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
@@ -382,7 +382,7 @@ pub const Sample = struct {
             alpha,
             xi,
             schlick,
-            self.super.layer,
+            self.super.frame,
             result,
         );
 
@@ -392,7 +392,7 @@ pub const Sample = struct {
 
     fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
         const wo = self.super.wo;
-        const n_dot_wo = self.coating.layer.clampAbsNdot(self.super.wo);
+        const n_dot_wo = self.coating.frame.clampAbsNdot(self.super.wo);
 
         var coating_attenuation: Vec4f = undefined;
         self.coating.reflect(
@@ -450,7 +450,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const alpha = self.super.alpha;
-        const layer = self.super.layer;
+        const frame = self.super.frame;
 
         if (!self.super.sameHemisphere(wo)) {
             const ior = quo_ior.swapped(false);
@@ -471,9 +471,9 @@ pub const Sample = struct {
                 return bxdf.Result.empty();
             }
 
-            const n_dot_wi = layer.clampNdot(wi);
-            const n_dot_wo = layer.clampAbsNdot(wo);
-            const n_dot_h = math.saturate(layer.nDot(h));
+            const n_dot_wi = frame.clampNdot(wi);
+            const n_dot_wo = frame.clampAbsNdot(wo);
+            const n_dot_h = math.saturate(frame.nDot(h));
 
             const schlick = fresnel.Schlick1.init(self.f0[0]);
 
@@ -498,8 +498,8 @@ pub const Sample = struct {
 
         const h = math.normalize3(wo + wi);
         const wo_dot_h = hlp.clampDot(wo, h);
-        const n_dot_wi = layer.clampNdot(wi);
-        const n_dot_wo = layer.clampAbsNdot(wo);
+        const n_dot_wi = frame.clampNdot(wi);
+        const n_dot_wo = frame.clampAbsNdot(wo);
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.empty();
@@ -517,7 +517,7 @@ pub const Sample = struct {
             wo_dot_h,
             alpha,
             schlick,
-            layer,
+            frame,
             &fresnel_result,
         );
 
@@ -552,16 +552,16 @@ pub const Sample = struct {
 
         const alpha = self.super.alpha;
         const same_side = self.super.sameHemisphere(wo);
-        const layer = self.super.layer.swapped(same_side);
+        const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
         const s3 = sampler.sample3D(rng);
         const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
+        const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
-        const n_dot_wo = layer.clampAbsNdot(wo);
+        const n_dot_wo = frame.clampAbsNdot(wo);
         const wo_dot_h = hlp.clampDot(wo, h);
         const eta = ior.eta_i / ior.eta_t;
         const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
@@ -588,7 +588,7 @@ pub const Sample = struct {
                     wi_dot_h,
                     wo_dot_h,
                     alpha,
-                    layer,
+                    frame,
                     result,
                 );
 
@@ -608,7 +608,7 @@ pub const Sample = struct {
                     r_wo_dot_h,
                     alpha[0],
                     ior,
-                    layer,
+                    frame,
                     result,
                 );
 
@@ -626,7 +626,7 @@ pub const Sample = struct {
                     wi_dot_h,
                     wo_dot_h,
                     alpha,
-                    layer,
+                    frame,
                     result,
                 );
 
@@ -643,7 +643,7 @@ pub const Sample = struct {
                     r_wo_dot_h,
                     alpha[0],
                     ior,
-                    layer,
+                    frame,
                     result,
                 );
 
@@ -669,7 +669,7 @@ pub const Sample = struct {
 
         const alpha = self.super.alpha;
         const same_side = self.super.sameHemisphere(wo);
-        const layer = self.super.layer.swapped(same_side);
+        const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
         const s3 = sampler.sample3D(rng);
@@ -684,9 +684,9 @@ pub const Sample = struct {
                 self.coatingReflect(cf, coat_n_dot_h, result);
             } else {
                 var n_dot_h: f32 = undefined;
-                const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(rng), layer, &n_dot_h);
+                const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(rng), frame, &n_dot_h);
 
-                const n_dot_wo = layer.clampAbsNdot(wo);
+                const n_dot_wo = frame.clampAbsNdot(wo);
                 const wo_dot_h = hlp.clampDot(wo, h);
                 const eta = ior.eta_i / ior.eta_t;
                 const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
@@ -711,7 +711,7 @@ pub const Sample = struct {
                         wi_dot_h,
                         wo_dot_h,
                         alpha,
-                        layer,
+                        frame,
                         result,
                     );
 
@@ -731,13 +731,13 @@ pub const Sample = struct {
                         r_wo_dot_h,
                         alpha[0],
                         ior,
-                        layer,
+                        frame,
                         result,
                     );
 
                     const omf = 1.0 - f;
 
-                    const coat_n_dot_wo = self.coating.layer.clampAbsNdot(wo);
+                    const coat_n_dot_wo = self.coating.frame.clampAbsNdot(wo);
 
                     // Approximating the full coating attenuation at entrance, for the benefit of SSS,
                     // which will ignore the border later.
@@ -752,9 +752,9 @@ pub const Sample = struct {
             }
         } else {
             var n_dot_h: f32 = undefined;
-            const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
+            const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
-            const n_dot_wo = layer.clampAbsNdot(wo);
+            const n_dot_wo = frame.clampAbsNdot(wo);
             const wo_dot_h = hlp.clampDot(wo, h);
             const eta = ior.eta_i / ior.eta_t;
             const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
@@ -779,7 +779,7 @@ pub const Sample = struct {
                     wi_dot_h,
                     wo_dot_h,
                     alpha,
-                    layer,
+                    frame,
                     result,
                 );
 
@@ -796,13 +796,13 @@ pub const Sample = struct {
                     r_wo_dot_h,
                     alpha[0],
                     ior,
-                    layer,
+                    frame,
                     result,
                 );
 
                 const omf = 1.0 - f;
 
-                const coat_n_dot_wo = self.coating.layer.clampAbsNdot(wo);
+                const coat_n_dot_wo = self.coating.frame.clampAbsNdot(wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                 result.reflection *= @splat(4, omf * n_dot_wi) * attenuation;

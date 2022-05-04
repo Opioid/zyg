@@ -1,17 +1,18 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const hlp = @import("sample_helper.zig");
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Flags = base.flags.Flags;
 
-pub const Layer = struct {
+pub const Frame = struct {
     t: Vec4f,
     b: Vec4f,
     n: Vec4f,
 
-    pub fn swapped(self: Layer, same_side: bool) Layer {
+    pub fn swapped(self: Frame, same_side: bool) Frame {
         if (same_side) {
             return self;
         }
@@ -19,7 +20,7 @@ pub const Layer = struct {
         return .{ .t = self.t, .b = self.b, .n = -self.n };
     }
 
-    pub fn tangentToWorld(self: Layer, v: Vec4f) Vec4f {
+    pub fn tangentToWorld(self: Frame, v: Vec4f) Vec4f {
         // return .{
         //     v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
         //     v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
@@ -37,7 +38,7 @@ pub const Layer = struct {
         return result + temp;
     }
 
-    pub fn worldToTangent(self: Layer, v: Vec4f) Vec4f {
+    pub fn worldToTangent(self: Frame, v: Vec4f) Vec4f {
         const t = v * self.t;
         const b = v * self.b;
         const n = v * self.n;
@@ -50,32 +51,32 @@ pub const Layer = struct {
         };
     }
 
-    pub fn nDot(self: Layer, v: Vec4f) f32 {
+    pub fn nDot(self: Frame, v: Vec4f) f32 {
         return math.dot3(self.n, v);
     }
 
-    pub fn clampNdot(self: Layer, v: Vec4f) f32 {
+    pub fn clampNdot(self: Frame, v: Vec4f) f32 {
         return hlp.clampDot(self.n, v);
     }
 
-    pub fn clampAbsNdot(self: Layer, v: Vec4f) f32 {
+    pub fn clampAbsNdot(self: Frame, v: Vec4f) f32 {
         return hlp.clampAbsDot(self.n, v);
     }
 
-    pub fn setTangentFrame(self: *Layer, t: Vec4f, b: Vec4f, n: Vec4f) void {
+    pub fn setTangentFrame(self: *Frame, t: Vec4f, b: Vec4f, n: Vec4f) void {
         self.t = t;
         self.b = b;
         self.n = n;
     }
 
-    pub fn setNormal(self: *Layer, n: Vec4f) void {
+    pub fn setNormal(self: *Frame, n: Vec4f) void {
         const tb = math.orthonormalBasis3(n);
         self.t = tb[0];
         self.b = tb[1];
         self.n = n;
     }
 
-    pub fn rotateTangenFrame(self: *Layer, a: f32) void {
+    pub fn rotateTangenFrame(self: *Frame, a: f32) void {
         const t = self.t;
         const b = self.b;
 
@@ -96,7 +97,7 @@ pub const SampleBase = struct {
         AvoidCaustics = 1 << 3,
     };
 
-    layer: Layer = undefined,
+    frame: Frame = undefined,
 
     geo_n: Vec4f,
     n: Vec4f,
@@ -149,15 +150,15 @@ pub const SampleBase = struct {
     }
 
     pub fn shadingNormal(self: Self) Vec4f {
-        return self.layer.n;
+        return self.frame.n;
     }
 
     pub fn shadingTangent(self: Self) Vec4f {
-        return self.layer.t;
+        return self.frame.t;
     }
 
     pub fn shadingBitangent(self: Self) Vec4f {
-        return self.layer.b;
+        return self.frame.b;
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

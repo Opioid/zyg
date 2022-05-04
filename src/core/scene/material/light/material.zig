@@ -113,7 +113,7 @@ pub const Material = struct {
         const rad = self.evaluateRadiance(wo, rs.geo_n, rs.uv, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 

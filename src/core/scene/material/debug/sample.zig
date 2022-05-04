@@ -22,7 +22,7 @@ pub const Sample = struct {
     }
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
-        const n_dot_wi = self.super.layer.clampNdot(wi);
+        const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;
@@ -34,9 +34,9 @@ pub const Sample = struct {
         const s2d = sampler.sample2D(rng);
 
         const is = math.smpl.hemisphereCosine(s2d);
-        const wi = math.normalize3(self.super.layer.tangentToWorld(is));
+        const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
-        const n_dot_wi = self.super.layer.clampNdot(wi);
+        const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;
