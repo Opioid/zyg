@@ -13,7 +13,7 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     var r: f32 = undefined;
     var theta: f32 = undefined;
 
-    if (std.math.fabs(s[0]) > std.math.fabs(s[1])) {
+    if (@fabs(s[0]) > @fabs(s[1])) {
         r = s[0];
         theta = (std.math.pi / 4.0) * (s[1] / s[0]);
     } else {

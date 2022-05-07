@@ -3,8 +3,6 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 
-const std = @import("std");
-
 pub const Tonemapper = struct {
     pub const Class = enum {
         ACES,
@@ -15,7 +13,7 @@ pub const Tonemapper = struct {
     exposure_factor: f32,
 
     pub fn init(class: Class, exposure: f32) Tonemapper {
-        return .{ .class = class, .exposure_factor = std.math.exp2(exposure) };
+        return .{ .class = class, .exposure_factor = @exp2(exposure) };
     }
 
     pub fn tonemap(self: Tonemapper, color: Vec4f) Vec4f {

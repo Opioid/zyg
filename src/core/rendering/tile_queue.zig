@@ -101,8 +101,8 @@ pub const RangeQueue = struct {
         self.total0 = total0;
         self.total1 = total1;
         self.range_size = range_size;
-        self.num_ranges0 = @floatToInt(u32, std.math.ceil(@intToFloat(f32, total0) / @intToFloat(f32, range_size)));
-        self.num_ranges1 = @floatToInt(u32, std.math.ceil(@intToFloat(f32, total1) / @intToFloat(f32, range_size)));
+        self.num_ranges0 = @floatToInt(u32, @ceil(@intToFloat(f32, total0) / @intToFloat(f32, range_size)));
+        self.num_ranges1 = @floatToInt(u32, @ceil(@intToFloat(f32, total1) / @intToFloat(f32, range_size)));
     }
 
     pub fn head(self: Self) u64 {

@@ -32,13 +32,17 @@ pub fn sampleNormalUV(
     const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));
     const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 
-    // Normal mapping can lead to normals facing away from the view direction.
-    // I believe the following is the (imperfect) workaround referred to as "flipping" by
-    // "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing"
-    // https://drive.google.com/file/d/0BzvWIdpUpRx_ZHI1X2Z4czhqclk/view
-    if (math.dot3(n, wo) < 0.0) {
-        return math.reflect3(rs.geo_n, n);
-    }
+    // // Normal mapping can lead to normals facing away from the view direction.
+    // // I believe the following is the (imperfect) workaround referred to as "flipping" by
+    // // "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing"
+    // // https://drive.google.com/file/d/0BzvWIdpUpRx_ZHI1X2Z4czhqclk/view
+    // if (math.dot3(n, wo) < 0.0) {
+    //     return math.reflect3(rs.geo_n, n);
+    // }
+
+    // The above "flipping" is actually more complicated, and should also use wi instead of wo,
+    // although I don't understand where wi should come from.
+    _ = wo;
 
     return n;
 }

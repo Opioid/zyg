@@ -1,8 +1,6 @@
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 // The following block implements the ray offset technique described in
 // "A Fast and Robust Method for Avoiding Self-Intersection"
 
@@ -18,9 +16,9 @@ pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
     const p_i2 = @bitCast(f32, @bitCast(i32, p[2]) + (if (p[2] < 0.0) -of_i[2] else of_i[2]));
 
     return .{
-        if (@fabs(p[0]) < origin) std.math.fma(f32, float_scale, n[0], p[0]) else p_i0,
-        if (@fabs(p[1]) < origin) std.math.fma(f32, float_scale, n[1], p[1]) else p_i1,
-        if (@fabs(p[2]) < origin) std.math.fma(f32, float_scale, n[2], p[2]) else p_i2,
+        if (@fabs(p[0]) < origin) @mulAdd(f32, float_scale, n[0], p[0]) else p_i0,
+        if (@fabs(p[1]) < origin) @mulAdd(f32, float_scale, n[1], p[1]) else p_i1,
+        if (@fabs(p[2]) < origin) @mulAdd(f32, float_scale, n[2], p[2]) else p_i2,
         0.0,
     };
 }

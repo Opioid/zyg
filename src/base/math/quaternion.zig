@@ -43,7 +43,7 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     const threshold = 0.000001;
     const renormalization = comptime @sqrt(1.0 - threshold * threshold);
 
-    if (std.math.fabs(q[3]) < threshold) {
+    if (@fabs(q[3]) < threshold) {
         q[0] *= renormalization;
         q[1] *= renormalization;
         q[2] *= renormalization;

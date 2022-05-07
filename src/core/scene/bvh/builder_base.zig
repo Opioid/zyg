@@ -172,7 +172,7 @@ const Kernel = struct {
             const ax = [_]u8{ 0, 1, 2 };
             for (ax) |a| {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, std.math.ceil(extent_a / step));
+                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
                 const step_a = extent_a / @intToFloat(f32, num_steps);
 
                 var i: u32 = 1;

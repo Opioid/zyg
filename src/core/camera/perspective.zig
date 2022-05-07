@@ -91,7 +91,7 @@ pub const Perspective = struct {
         const fr = math.vec2iTo2f(self.resolution);
         const ratio = fr[1] / fr[0];
 
-        const z = 1.0 / std.math.tan(0.5 * self.fov);
+        const z = 1.0 / @tan(0.5 * self.fov);
 
         const left_top = Vec4f{ -1.0, ratio, z, 0.0 };
         const right_top = Vec4f{ 1.0, ratio, z, 0.0 };
@@ -181,8 +181,8 @@ pub const Perspective = struct {
         const x = offset[0] / self.d_x[0];
         const y = offset[1] / self.d_y[1];
 
-        const fx = std.math.floor(x);
-        const fy = std.math.floor(y);
+        const fx = @floor(x);
+        const fy = @floor(y);
 
         const pixel = Vec2i{ @floatToInt(i32, fx), @floatToInt(i32, fy) };
 
