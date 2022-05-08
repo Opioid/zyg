@@ -225,11 +225,11 @@ pub fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
 }
 
 pub fn minComponent3(v: Vec4f) f32 {
-    return @minimum(v[0], @minimum(v[1], v[2]));
+    return std.math.min(v[0], std.math.min(v[1], v[2]));
 }
 
 pub fn maxComponent3(v: Vec4f) f32 {
-    return @maximum(v[0], @maximum(v[1], v[2]));
+    return std.math.max(v[0], std.math.max(v[1], v[2]));
 }
 
 pub fn indexMinComponent3(v: Vec4f) u32 {
