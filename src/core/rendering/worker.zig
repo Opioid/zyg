@@ -107,7 +107,7 @@ pub const Worker = struct {
         const r = camera.resolution + @splat(2, 2 * fr);
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
         const o = @as(u64, iteration) * a;
-        const so = iteration / num_expected_samples + a;
+        const so = iteration / num_expected_samples;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
@@ -123,10 +123,10 @@ pub const Worker = struct {
 
                 const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
                 const tsi = @truncate(u32, sample_index);
-                const rsi = @truncate(u32, sample_index >> 32);
+                const seed = @truncate(u32, sample_index >> 32) + so;
 
-                self.sampler.startPixel(tsi, rsi + so);
-                self.surface_integrator.startPixel(tsi, rsi + so + a);
+                self.sampler.startPixel(tsi, seed);
+                self.surface_integrator.startPixel(tsi, seed + 1);
 
                 self.photon = @splat(4, @as(f32, 0.0));
 
