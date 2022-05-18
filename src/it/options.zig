@@ -74,6 +74,8 @@ pub const Options = struct {
     fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "add", command)) {
             self.operator = .Add;
+        } else if (std.mem.eql(u8, "avg", command)) {
+            self.operator = .Average;
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
