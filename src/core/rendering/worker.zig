@@ -53,7 +53,6 @@ pub const Worker = struct {
         alloc: Allocator,
         camera: *cam.Perspective,
         scene: *Scene,
-        num_samples_per_pixel: u32,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
         volumes: vol.Factory,
@@ -64,7 +63,7 @@ pub const Worker = struct {
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = samplers.create(alloc, 1, 2, num_samples_per_pixel);
+        self.sampler = samplers.create();
 
         self.surface_integrator = surfaces.create();
         self.volume_integrator = volumes.create();
@@ -157,7 +156,7 @@ pub const Worker = struct {
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
-        var camera = self.super.camera;
+        const camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
         self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));

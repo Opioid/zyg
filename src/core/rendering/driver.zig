@@ -110,7 +110,6 @@ pub const Driver = struct {
                 alloc,
                 camera,
                 scene,
-                view.num_samples_per_pixel,
                 view.samplers,
                 view.surfaces,
                 view.volumes,

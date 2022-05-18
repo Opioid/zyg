@@ -310,7 +310,7 @@ pub const PathtracerMIS = struct {
         const select = sampler.sample1D(&worker.super.rng);
         const split = self.splitting(ray.depth);
 
-        const lights = worker.super.scene.randomLightSpatial(p, n, translucent, select, split, &worker.super.lights);
+        const lights = worker.super.randomLightSpatial(p, n, translucent, select, split);
 
         for (lights) |l| {
             const light = worker.super.scene.light(l.offset);

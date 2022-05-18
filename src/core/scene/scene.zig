@@ -29,9 +29,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ALU = std.ArrayListUnmanaged;
 
-const LightPick = Distribution1D.Discrete;
-
 pub const Scene = struct {
+    pub const LightPick = Distribution1D.Discrete;
     pub const Tick_duration = cnst.Units_per_second / 60;
     const Num_steps = 4;
     const Interval = 1.0 / @intToFloat(f32, Num_steps);

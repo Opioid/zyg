@@ -163,6 +163,17 @@ pub const Worker = struct {
         return isec.sample(wo, ray, filter, avoid_caustics, self);
     }
 
+    pub fn randomLightSpatial(
+        self: *Worker,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        random: f32,
+        split: bool,
+    ) []Scene.LightPick {
+        return self.scene.randomLightSpatial(p, n, total_sphere, random, split, &self.lights);
+    }
+
     pub fn absoluteTime(self: Worker, frame: u32, frame_delta: f32) u64 {
         return self.camera.absoluteTime(frame, frame_delta);
     }
