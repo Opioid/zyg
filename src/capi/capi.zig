@@ -622,7 +622,7 @@ export fn su_start_frame(frame: u32) i32 {
 
         e.frame = frame;
         e.iteration = 0;
-        e.driver.startFrame(e.alloc, frame) catch {
+        e.driver.startFrame(e.alloc, frame, true) catch {
             return -1;
         };
 

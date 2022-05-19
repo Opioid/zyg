@@ -74,22 +74,18 @@ pub const Operator = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
+                const iy = @intCast(i32, y);
+
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const ux = @intCast(i32, x);
-                    const uy = @intCast(i32, y);
+                    const ix = @intCast(i32, x);
 
-                    switch (self.class) {
-                        .Diff => {
-                            const color_a = texture_a.get2D_4(ux, uy, self.scene.*);
-                            const color_b = texture_b.get2D_4(ux, uy, self.scene.*);
+                    const color_a = texture_a.get2D_4(ix, iy, self.scene.*);
+                    const color_b = texture_b.get2D_4(ix, iy, self.scene.*);
 
-                            const dif = @fabs(color_a - color_b);
+                    const dif = @fabs(color_a - color_b);
 
-                            self.target.set2D(ux, uy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
-                        },
-                        else => unreachable,
-                    }
+                    self.target.set2D(ix, iy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
                 }
             }
         } else {
