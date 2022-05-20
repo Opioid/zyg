@@ -41,7 +41,7 @@ pub const Cube = struct {
         const distance = @fabs(@splat(4, @as(f32, 1.0)) - @fabs(local_p));
 
         const i = math.indexMinComponent3(distance);
-        const s = std.math.copysign(f32, 1.0, local_p[i]);
+        const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
         const n = @splat(4, s) * trafo.rotation.r[i];
 
         isec.part = 0;

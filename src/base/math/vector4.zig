@@ -202,7 +202,7 @@ pub fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
     // Building an Orthonormal Basis, Revisited
     // http://jcgt.org/published/0006/01/01/
 
-    const sign = std.math.copysign(f32, 1.0, n[2]);
+    const sign = std.math.copysign(@as(f32, 1.0), n[2]);
     const c = -1.0 / (sign + n[2]);
     const d = n[0] * n[1] * c;
 
@@ -213,7 +213,7 @@ pub fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
 }
 
 pub fn tangent3(n: Vec4f) Vec4f {
-    const sign = std.math.copysign(f32, 1.0, n[2]);
+    const sign = std.math.copysign(@as(f32, 1.0), n[2]);
     const c = -1.0 / (sign + n[2]);
     const d = n[0] * n[1] * c;
 
