@@ -123,7 +123,7 @@ pub fn main() !void {
                 const start = @as(u64, i) * camera.frame_step;
                 graph.simulate(start, start + camera.frame_duration);
 
-                try driver.render(alloc, i);
+                try driver.render(alloc, i, options.sample, options.num_samples);
                 try driver.exportFrame(alloc, i, take.exporters.items);
             }
 

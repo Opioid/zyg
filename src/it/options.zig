@@ -127,12 +127,13 @@ pub const Options = struct {
             \\  it [OPTION..]
             \\
             \\  -h, --help           Print help.
-            \\  -i, --input    file  Specifies an input file
-            \\  -t, --threads  int   Specifies the number of threads used by sprout.
+            \\
+            \\  -i, --input    file  Specifies an input file.
+            \\
+            \\  -t, --threads  int   Specifies number of threads used by sprout.
             \\                       0 creates one thread for each logical CPU.
-            \\                       -x creates as many threads as the number of
-            \\                       logical CPUs minus x.
-            \\                       The default value is 0.
+            \\                       -x creates as many threads as number of
+            \\                       logical CPUs minus x. Default is 0.
         ;
 
         stdout.print(text, .{}) catch return;

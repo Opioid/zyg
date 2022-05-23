@@ -109,7 +109,7 @@ pub const Operator = struct {
 
                     const color = switch (self.class) {
                         .Add, .Average => blk: {
-                            var color = source;
+                            var color = factor * source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
                                 const other = t.get2D_4(ix, iy, self.scene.*);

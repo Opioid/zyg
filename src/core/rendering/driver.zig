@@ -128,12 +128,15 @@ pub const Driver = struct {
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
-    pub fn render(self: *Driver, alloc: Allocator, frame: u32) !void {
+    pub fn render(self: *Driver, alloc: Allocator, frame: u32, iteration: u32, num_samples: u32) !void {
         log.info("Frame {}", .{frame});
 
         const render_start = std.time.milliTimestamp();
 
         try self.startFrame(alloc, frame, false);
+
+        self.frame_iteration = iteration;
+        self.frame_iteration_samples = if (num_samples > 0) num_samples else self.view.num_samples_per_pixel;
 
         log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
@@ -147,8 +150,6 @@ pub const Driver = struct {
 
     pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32, progressive: bool) !void {
         self.frame = frame;
-        self.frame_iteration = 0;
-        self.frame_iteration_samples = self.view.num_samples_per_pixel;
 
         var camera = &self.view.camera;
 

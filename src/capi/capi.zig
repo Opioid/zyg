@@ -589,7 +589,7 @@ export fn su_render_frame(frame: u32) i32 {
 
         e.frame = frame;
 
-        e.driver.render(e.alloc, frame) catch {
+        e.driver.render(e.alloc, frame, 0, 0) catch {
             return -1;
         };
 
