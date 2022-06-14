@@ -42,12 +42,12 @@ pub fn build(b: *std.build.Builder) void {
 
     const base = std.build.Pkg{
         .name = "base",
-        .path = .{ .path = "src/base/base.zig" },
+        .source = .{ .path = "src/base/base.zig" },
     };
 
     const core = std.build.Pkg{
         .name = "core",
-        .path = .{ .path = "src/core/core.zig" },
+        .source = .{ .path = "src/core/core.zig" },
         .dependencies = &[_]std.build.Pkg{
             base,
         },
