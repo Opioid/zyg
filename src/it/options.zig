@@ -1,4 +1,4 @@
-const OperatorType = @import("operator.zig").Operator.Type;
+const Operator = @import("operator.zig").Operator.Class;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -11,7 +11,7 @@ pub const Options = struct {
     };
 
     inputs: std.ArrayListUnmanaged([]u8) = .{},
-    operator: OperatorType = .Over,
+    operator: Operator = .Over,
     format: Format = .PNG,
     exposure: f32 = 0.0,
     threads: i32 = 0,
@@ -74,6 +74,8 @@ pub const Options = struct {
     fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "add", command)) {
             self.operator = .Add;
+        } else if (std.mem.eql(u8, "avg", command)) {
+            self.operator = .Average;
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
@@ -125,12 +127,13 @@ pub const Options = struct {
             \\  it [OPTION..]
             \\
             \\  -h, --help           Print help.
-            \\  -i, --input    file  Specifies an input file
-            \\  -t, --threads  int   Specifies the number of threads used by sprout.
+            \\
+            \\  -i, --input    file  Specifies an input file.
+            \\
+            \\  -t, --threads  int   Specifies number of threads used by sprout.
             \\                       0 creates one thread for each logical CPU.
-            \\                       -x creates as many threads as the number of
-            \\                       logical CPUs minus x.
-            \\                       The default value is 0.
+            \\                       -x creates as many threads as number of
+            \\                       logical CPUs minus x. Default is 0.
         ;
 
         stdout.print(text, .{}) catch return;

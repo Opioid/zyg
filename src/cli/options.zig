@@ -10,10 +10,13 @@ pub const Options = struct {
 
     start_frame: u32 = 0,
     num_frames: u32 = 1,
+    sample: u32 = 0,
+    num_samples: u32 = 0,
 
     no_tex: bool = false,
     no_tex_dwim: bool = false,
     debug_material: bool = false,
+    iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
@@ -82,6 +85,10 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             alloc.free(self.take);
             self.take = try alloc.dupe(u8, parameter);
+        } else if (std.mem.eql(u8, "sample", command)) {
+            self.sample = std.fmt.parseUnsigned(u32, parameter, 0) catch 0;
+        } else if (std.mem.eql(u8, "num-samples", command)) {
+            self.num_samples = std.fmt.parseUnsigned(u32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "mount", command) or std.mem.eql(u8, "m", command)) {
             try self.mounts.append(alloc, try alloc.dupe(u8, parameter));
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
@@ -92,6 +99,8 @@ pub const Options = struct {
             self.no_tex_dwim = true;
         } else if (std.mem.eql(u8, "debug-mat", command)) {
             self.debug_material = true;
+        } else if (std.mem.eql(u8, "iter", command)) {
+            self.iter = true;
         }
     }
 
@@ -112,31 +121,42 @@ pub const Options = struct {
     }
 
     fn help() void {
-        const stdout = std.io.getStdOut().writer();
-
         const text =
             \\zyg is a global illumination renderer experiment
             \\Usage:
             \\  zyg [OPTION..]
             \\
-            \\  -h, --help                     Print help.
-            \\  -f, --frame       int          Index of the first frame to render.
-            \\                                 The default value is 0.
-            \\  -n, --num-frames  int          Number of frames to render.
-            \\                                 The default value is 1.
-            \\  -i, --input       file/string  Path of the take file to render,
-            \\                                 or json-string describing the take.
-            \\  -m, --mount       path         Specifies a mount point for the data directory.
-            \\                                 The default value is "../data/"
-            \\  -t, --threads     int          Specifies the number of threads used by sprout.
-            \\                                 0 creates one thread for each logical CPU.
-            \\                                 -x creates as many threads as the number of
-            \\                                 logical CPUs minus x.
-            \\                                 The default value is 0.
-            \\      --no-tex                   Disables loading of all textures.
-            \\      --debug-mat                Force all materials to debug material type.
+            \\  -h, --help                      Print help.
+            \\
+            \\  -f, --frame        int          Index of first frame to render. Default is 0.
+            \\
+            \\  -n, --num-frames   int          Number of frames to render. Default is 1.
+            \\
+            \\  -i, --input        file/string  Path of take file to render,
+            \\                                  or json-string describing take.
+            \\
+            \\      --sample       int          Index of first sample to render. Default is 0.
+            \\
+            \\      --num-samples  int          Number of samples to render.
+            \\                                  0 renders all samples specified in the take file.
+            \\                                  Default is 0.
+            \\
+            \\  -m, --mount        path         Specifies a mount point for data directory.
+            \\                                  Default is "../data/".
+            \\
+            \\  -t, --threads      int          Specifies number of threads used by sprout.
+            \\                                  0 creates one thread for each logical CPU.
+            \\                                  -x creates as many threads as number of
+            \\                                  logical CPUs minus x. Default is 0.
+            \\
+            \\      --no-tex                    Disables loading of all textures.
+            \\
+            \\      --debug-mat                 Force all materials to debug material type.
+            \\
+            \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
+        const stdout = std.io.getStdOut().writer();
         stdout.print(text, .{}) catch return;
     }
 };

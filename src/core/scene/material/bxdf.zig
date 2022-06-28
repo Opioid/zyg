@@ -34,7 +34,7 @@ const Glossy = 1 << 3;
 const Specular = 1 << 4;
 const Straight = 1 << 5;
 
-pub const Type = enum(u32) {
+pub const Class = enum(u32) {
     Reflection = Reflection,
     Transmission = Transmission,
     Diffuse = Diffuse,
@@ -51,7 +51,7 @@ pub const Type = enum(u32) {
     StraightTransmission = Transmission | Straight,
 };
 
-pub const TypeFlag = Flags(Type);
+pub const ClassFlag = Flags(Class);
 
 pub const Sample = struct {
     reflection: Vec4f = undefined,
@@ -60,5 +60,5 @@ pub const Sample = struct {
     pdf: f32 = 0.0,
     wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
-    typef: TypeFlag = undefined,
+    class: ClassFlag = undefined,
 };

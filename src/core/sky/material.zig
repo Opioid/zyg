@@ -151,25 +151,17 @@ pub const Material = struct {
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
-        var radiance: Vec4f = undefined;
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
 
-        if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, rs.filter);
-
-            radiance = ts.sample2D_3(key, self.emission_map, rs.uv, scene);
-        } else {
-            radiance = self.sun_radiance.eval(self.sky.sunV(-wo));
-        }
-
-        var result = Sample.init(rs, wo, radiance);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        var result = Sample.init(rs, wo, rad);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, scene);
+            return ts.sample2D_3(key, self.emission_map, uv, scene);
         }
 
         return self.sun_radiance.eval(self.sky.sunV(wi));

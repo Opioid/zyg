@@ -41,7 +41,7 @@ const Engine = struct {
     fallback_material: u32 = undefined,
     materials: std.ArrayListUnmanaged(u32) = .{},
 
-    take: Take = undefined,
+    take: Take = .{},
     driver: rendering.Driver = undefined,
 
     frame: u32 = 0,
@@ -84,11 +84,6 @@ export fn su_init() i32 {
             resource.Null,
             resource.MaterialProvider.createFallbackMaterial(),
         ) catch {
-            engine = null;
-            return -1;
-        };
-
-        e.take = Take.init(alloc) catch {
             engine = null;
             return -1;
         };
@@ -594,7 +589,7 @@ export fn su_render_frame(frame: u32) i32 {
 
         e.frame = frame;
 
-        e.driver.render(e.alloc, frame) catch {
+        e.driver.render(e.alloc, frame, 0, 0) catch {
             return -1;
         };
 
@@ -627,7 +622,7 @@ export fn su_start_frame(frame: u32) i32 {
 
         e.frame = frame;
         e.iteration = 0;
-        e.driver.startFrame(e.alloc, frame) catch {
+        e.driver.startFrame(e.alloc, frame, true) catch {
             return -1;
         };
 

@@ -15,6 +15,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
+const Pack4f = math.Pack4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
@@ -401,7 +402,7 @@ pub const Provider = struct {
             var parser = std.json.Parser.init(alloc, false);
             defer parser.deinit();
 
-            var document = try parser.parse(json_string);
+            var document = try parser.parse(std.mem.sliceTo(json_string, 0));
             defer document.deinit();
 
             const geometry_node = document.root.Object.get("geometry") orelse return Error.NoGeometryNode;
@@ -504,7 +505,17 @@ pub const Provider = struct {
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
             if (tangent_space_as_quaternion) {
-                log.err("tangent space as quaternion", .{});
+                var ts = try alloc.alloc(Pack4f, num_vertices);
+                _ = try stream.read(std.mem.sliceAsBytes(ts));
+
+                var uvs = try alloc.alloc(Vec2f, num_vertices);
+                _ = try stream.read(std.mem.sliceAsBytes(uvs));
+
+                vertices = vs.VertexStream{ .SeparateQuat = vs.SeparateQuat.init(
+                    positions,
+                    ts,
+                    uvs,
+                ) };
             } else {
                 var normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));

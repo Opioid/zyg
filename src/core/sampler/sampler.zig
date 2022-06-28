@@ -88,18 +88,7 @@ pub const Factory = union(enum) {
     Random,
     Sobol,
 
-    pub fn create(
-        self: Factory,
-        alloc: Allocator,
-        num_dimensions_1D: u32,
-        num_dimensions_2D: u32,
-        max_samples: u32,
-    ) Sampler {
-        _ = alloc;
-        _ = num_dimensions_1D;
-        _ = num_dimensions_2D;
-        _ = max_samples;
-
+    pub fn create(self: Factory) Sampler {
         return switch (self) {
             .Random => Sampler{ .Random = {} },
             .Sobol => Sampler{ .Sobol = .{} },

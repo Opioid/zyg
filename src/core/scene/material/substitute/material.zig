@@ -77,7 +77,7 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
-        const rad = self.super.emittance.radiance(area);
+        const rad = self.super.emittance.radiance(1.0, area);
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
         }
@@ -125,7 +125,8 @@ pub const Material = struct {
             worker.scene.*,
         ) else self.color;
 
-        var rad = self.super.emittance.radiance(worker.scene.lightArea(rs.prop, rs.part));
+        const cos_l = @fabs(math.dot3(rs.geo_n, wo));
+        var rad = self.super.emittance.radiance(cos_l, worker.scene.lightArea(rs.prop, rs.part));
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
@@ -181,9 +182,9 @@ pub const Material = struct {
 
         if (self.normal_map.valid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene.*);
-            result.super.layer.setNormal(n);
+            result.super.frame.setNormal(n);
         } else {
-            result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+            result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         }
 
         const thickness = self.thickness;
@@ -193,12 +194,12 @@ pub const Material = struct {
 
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating.normal_map)) {
-                result.coating.layer = result.super.layer;
+                result.coating.frame = result.super.frame;
             } else if (self.coating.normal_map.valid()) {
                 const n = hlp.sampleNormal(wo, rs, self.coating.normal_map, key, worker.scene.*);
-                result.coating.layer.setNormal(n);
+                result.coating.frame.setNormal(n);
             } else {
-                result.coating.layer.setTangentFrame(rs.t, rs.b, rs.n);
+                result.coating.frame.setTangentFrame(rs.t, rs.b, rs.n);
             }
 
             const r = if (self.coating.roughness_map.valid())
@@ -213,18 +214,18 @@ pub const Material = struct {
             result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
 
-            const n_dot_wo = result.coating.layer.clampAbsNdot(wo);
+            const n_dot_wo = result.coating.frame.clampAbsNdot(wo);
             result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
         }
 
-        // Apply rotation to base layer after coating is calculated, so that coating is not affected
+        // Apply rotation to base frame after coating is calculated, so that coating is not affected
         const rotation = if (self.rotation_map.valid())
             ts.sample2D_1(key, self.rotation_map, rs.uv, worker.scene.*) * (2.0 * std.math.pi)
         else
             self.rotation;
 
         if (rotation > 0.0) {
-            result.super.layer.rotateTangenFrame(rotation);
+            result.super.frame.rotateTangenFrame(rotation);
         }
 
         return Sample{ .Substitute = result };
@@ -234,15 +235,15 @@ pub const Material = struct {
         self: Material,
         wi: Vec4f,
         n: Vec4f,
-        uvw: Vec4f,
+        uv: Vec2f,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
-        const uv = Vec2f{ uvw[0], uvw[1] };
 
-        var rad = self.super.emittance.radiance(extent);
+        const n_dot_wi = hlp.clampAbsDot(wi, n);
+        var rad = self.super.emittance.radiance(n_dot_wi, extent);
 
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
@@ -260,7 +261,7 @@ pub const Material = struct {
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating.absorption_coef,
                 self.coating.thickness,
-                hlp.clampAbsDot(wi, n),
+                n_dot_wi,
             );
 
             return att * rad;

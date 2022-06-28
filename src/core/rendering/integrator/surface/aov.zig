@@ -166,7 +166,7 @@ pub const AOV = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Specular)) {} else if (sample_result.typef.no2(.Straight, .Transmission)) {
+            if (sample_result.class.is(.Specular)) {} else if (sample_result.class.no2(.Straight, .Transmission)) {
                 if (primary_ray) {
                     primary_ray = false;
 
@@ -178,7 +178,7 @@ pub const AOV = struct {
                 }
             }
 
-            if (!sample_result.typef.equals(.StraightTransmission)) {
+            if (!sample_result.class.equals(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
@@ -186,7 +186,7 @@ pub const AOV = struct {
                 break;
             }
 
-            if (sample_result.typef.is(.Straight)) {
+            if (sample_result.class.is(.Straight)) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -204,7 +204,7 @@ pub const AOV = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.typef.is(.Transmission)) {
+            if (sample_result.class.is(.Transmission)) {
                 worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 

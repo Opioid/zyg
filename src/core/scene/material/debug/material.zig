@@ -25,7 +25,7 @@ pub const Material = struct {
         const color = if (same_side) color_front else color_back;
 
         var result = Sample.init(rs, wo, color);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 };

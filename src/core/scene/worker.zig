@@ -11,7 +11,6 @@ const IoR = @import("material/sample_base.zig").IoR;
 const NullSample = @import("material/null/sample.zig").Sample;
 const mat = @import("material/material_helper.zig");
 const InterfaceStack = @import("prop/interface.zig").Stack;
-const NodeStack = @import("shape/node_stack.zig").NodeStack;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
 const LightTree = @import("light/tree.zig").Tree;
@@ -38,24 +37,9 @@ pub const Worker = struct {
 
     rng: RNG = undefined,
 
-    interface_stack: InterfaceStack,
-    interface_stack_temp: InterfaceStack,
-
-    node_stack: NodeStack = undefined,
+    interface_stack: InterfaceStack = undefined,
 
     lights: Lights = undefined,
-
-    pub fn init(alloc: Allocator) !Worker {
-        return Worker{
-            .interface_stack = try InterfaceStack.init(alloc),
-            .interface_stack_temp = try InterfaceStack.init(alloc),
-        };
-    }
-
-    pub fn deinit(self: *Worker, alloc: Allocator) void {
-        self.interface_stack_temp.deinit(alloc);
-        self.interface_stack.deinit(alloc);
-    }
 
     pub fn configure(self: *Worker, camera: *cam.Perspective, scene: *Scene) void {
         self.camera = camera;
@@ -169,7 +153,7 @@ pub const Worker = struct {
             const n = isec.geo.n;
 
             const vbh = material.super().border(wi, n);
-            const nsc = mat.nonSymmetryCompensation(wi, wo1, geo_n, n);
+            const nsc = mat.nonSymmetryCompensation(wo1, wi, geo_n, n);
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
@@ -177,6 +161,17 @@ pub const Worker = struct {
 
         _ = alpha;
         return isec.sample(wo, ray, filter, avoid_caustics, self);
+    }
+
+    pub fn randomLightSpatial(
+        self: *Worker,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        random: f32,
+        split: bool,
+    ) []Scene.LightPick {
+        return self.scene.randomLightSpatial(p, n, total_sphere, random, split, &self.lights);
     }
 
     pub fn absoluteTime(self: Worker, frame: u32, frame_delta: f32) u64 {

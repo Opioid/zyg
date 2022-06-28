@@ -54,7 +54,7 @@ pub const View = struct {
 
     aovs: aov.Factory = .{},
 
-    camera: cam.Perspective,
+    camera: cam.Perspective = .{},
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
@@ -258,18 +258,18 @@ pub const View = struct {
 pub const Take = struct {
     scene_filename: []u8 = &.{},
 
-    view: View,
+    view: View = .{},
 
     exporters: Exporters = .{},
 
-    pub fn init(alloc: Allocator) !Take {
-        return Take{ .view = .{ .camera = try cam.Perspective.init(alloc) } };
-    }
-
     pub fn deinit(self: *Take, alloc: Allocator) void {
-        self.clearExporters(alloc);
+        self.clear(alloc);
         self.exporters.deinit(alloc);
         self.view.deinit(alloc);
+    }
+
+    pub fn clear(self: *Take, alloc: Allocator) void {
+        self.clearExporters(alloc);
         alloc.free(self.scene_filename);
     }
 

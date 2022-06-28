@@ -143,8 +143,8 @@ const Linear2D = struct {
         const u = adr.u.f(uv[0]) * df[0] - 0.5;
         const v = adr.v.f(uv[1]) * df[1] - 0.5;
 
-        const fu = std.math.floor(u);
-        const fv = std.math.floor(v);
+        const fu = @floor(u);
+        const fv = @floor(v);
 
         const x = @floatToInt(i32, fu);
         const y = @floatToInt(i32, fv);
@@ -229,9 +229,9 @@ const Linear3D = struct {
         const v = adr.v.f(uvw[1]) * df[1] - 0.5;
         const w = adr.v.f(uvw[2]) * df[2] - 0.5;
 
-        const fu = std.math.floor(u);
-        const fv = std.math.floor(v);
-        const fw = std.math.floor(w);
+        const fu = @floor(u);
+        const fv = @floor(v);
+        const fw = @floor(w);
 
         const x = @floatToInt(i32, fu);
         const y = @floatToInt(i32, fv);

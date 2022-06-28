@@ -2,6 +2,7 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
+const Pack4f = math.Pack4f;
 const quaternion = math.quaternion;
 const Quaternion = math.Quaternion;
 
@@ -11,6 +12,7 @@ const Allocator = std.mem.Allocator;
 pub const VertexStream = union(enum) {
     Json: Json,
     Separate: Separate,
+    SeparateQuat: SeparateQuat,
     Compact: Compact,
     C: CAPI,
 
@@ -18,6 +20,7 @@ pub const VertexStream = union(enum) {
         return switch (self.*) {
             .Json, .C => {},
             .Separate => |*v| v.deinit(alloc),
+            .SeparateQuat => |*v| v.deinit(alloc),
             .Compact => |*v| v.deinit(alloc),
         };
     }
@@ -26,6 +29,7 @@ pub const VertexStream = union(enum) {
         return switch (self) {
             .Json => |v| @intCast(u32, v.positions.len),
             .Separate => |v| @intCast(u32, v.positions.len),
+            .SeparateQuat => |v| @intCast(u32, v.positions.len),
             .Compact => |v| @intCast(u32, v.positions.len),
             .C => |c| c.num_vertices,
         };
@@ -38,6 +42,10 @@ pub const VertexStream = union(enum) {
                 return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
             .Separate => |v| {
+                const p = v.positions[i];
+                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
+            },
+            .SeparateQuat => |v| {
                 const p = v.positions[i];
                 return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
@@ -56,6 +64,7 @@ pub const VertexStream = union(enum) {
         return switch (self) {
             .Json => |v| v.frame(i),
             .Separate => |v| v.frame(i),
+            .SeparateQuat => |v| v.frame(i),
             .Compact => |v| v.frame(i),
             .C => |v| v.frame(i),
         };
@@ -65,6 +74,7 @@ pub const VertexStream = union(enum) {
         return switch (self) {
             .Json => |v| v.uv(i),
             .Separate => |v| v.uvs[i],
+            .SeparateQuat => |v| v.uvs[i],
             .Compact => @splat(2, @as(f32, 0.0)),
             .C => |v| v.uv(i),
         };
@@ -74,6 +84,7 @@ pub const VertexStream = union(enum) {
         return switch (self) {
             .Json => |v| v.bitangentSign(i),
             .Separate => |v| v.bitangentSign(i),
+            .SeparateQuat => |v| v.bitangentSign(i),
             .Compact => false,
             .C => |v| v.bitangentSign(i),
         };
@@ -152,6 +163,38 @@ pub const Separate = struct {
 
     pub fn bitangentSign(self: Self, i: usize) bool {
         return self.bts[i] > 0;
+    }
+};
+
+pub const SeparateQuat = struct {
+    positions: []const Pack3f,
+    ts: []const Pack4f,
+    uvs: []const Vec2f,
+
+    const Self = @This();
+
+    pub fn init(positions: []Pack3f, ts: []Pack4f, uvs: []Vec2f) Self {
+        return Self{
+            .positions = positions,
+            .ts = ts,
+            .uvs = uvs,
+        };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        alloc.free(self.uvs);
+        alloc.free(self.ts);
+        alloc.free(self.positions);
+    }
+
+    pub fn frame(self: Self, i: usize) Quaternion {
+        const ts = self.ts[i];
+
+        return .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
+    }
+
+    pub fn bitangentSign(self: Self, i: usize) bool {
+        return self.ts[i].v[3] < 0.0;
     }
 };
 

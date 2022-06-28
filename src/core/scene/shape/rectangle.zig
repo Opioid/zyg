@@ -137,18 +137,6 @@ pub const Rectangle = struct {
         return sampleToUv(p, uv, trafo, area, two_sided);
     }
 
-    pub fn sampleFrom(
-        trafo: Transformation,
-        area: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-        importance_uv: Vec2f,
-    ) SampleFrom {
-        const uv = sampler.sample2D(rng);
-        return sampleFromUv(uv, trafo, area, two_sided, sampler, rng, importance_uv);
-    }
-
     pub fn sampleToUv(
         p: Vec4f,
         uv: Vec2f,
@@ -178,13 +166,13 @@ pub const Rectangle = struct {
         return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area), t);
     }
 
-    pub fn sampleFromUv(
-        uv: Vec2f,
+    pub fn sampleFrom(
         trafo: Transformation,
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) SampleFrom {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));

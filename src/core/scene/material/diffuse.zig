@@ -1,6 +1,6 @@
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Layer = @import("sample_base.zig").Layer;
+const Frame = @import("sample_base.zig").Frame;
 const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 
@@ -13,17 +13,17 @@ const RNG = base.rnd.Generator;
 const std = @import("std");
 
 pub const Lambert = struct {
-    pub fn reflect(color: Vec4f, layer: Layer, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) f32 {
+    pub fn reflect(color: Vec4f, frame: Frame, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) f32 {
         const s2d = sampler.sample2D(rng);
         const is = math.smpl.hemisphereCosine(s2d);
-        const wi = math.normalize3(layer.tangentToWorld(is));
+        const wi = math.normalize3(frame.tangentToWorld(is));
 
-        const n_dot_wi = layer.clampNdot(wi);
+        const n_dot_wi = frame.clampNdot(wi);
 
         result.reflection = @splat(4, @as(f32, math.pi_inv)) * color;
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.typef.clearWith(.DiffuseReflection);
+        result.class.clearWith(.DiffuseReflection);
 
         return n_dot_wi;
     }
@@ -60,24 +60,24 @@ pub const Micro = struct {
         f0: Vec4f,
         wo: Vec4f,
         n_dot_wo: f32,
-        layer: Layer,
+        frame: Frame,
         alpha: f32,
         xi: Vec2f,
         result: *bxdf.Sample,
     ) f32 {
         const is = math.smpl.hemisphereCosine(xi);
-        const wi = math.normalize3(layer.tangentToWorld(is));
+        const wi = math.normalize3(frame.tangentToWorld(is));
         const h = math.normalize3(wo + wi);
 
         const h_dot_wi = hlp.clampDot(h, wi);
-        const n_dot_wi = layer.clampNdot(wi);
+        const n_dot_wi = frame.clampNdot(wi);
 
         result.reflection = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
         result.wi = wi;
         result.h = h;
         result.pdf = n_dot_wi * math.pi_inv;
         result.h_dot_wi = h_dot_wi;
-        result.typef.clearWith(.DiffuseReflection);
+        result.class.clearWith(.DiffuseReflection);
 
         return n_dot_wi;
     }

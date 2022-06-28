@@ -13,7 +13,7 @@ const Allocator = std.mem.Allocator;
 pub const FFMPEG = struct {
     srgb: Srgb,
 
-    stream: *std.ChildProcess,
+    stream: std.ChildProcess,
 
     const Self = @This();
 
@@ -37,7 +37,7 @@ pub const FFMPEG = struct {
             .{ dimensions[0], dimensions[1] },
         );
 
-        var stream = try std.ChildProcess.init(
+        var stream = std.ChildProcess.init(
             &[_][]const u8{
                 "ffmpeg",
                 "-r",
@@ -72,9 +72,8 @@ pub const FFMPEG = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        _ = self.stream.kill() catch {};
+        _ = self.stream.kill() catch unreachable;
 
-        self.stream.deinit();
         self.srgb.deinit(alloc);
     }
 

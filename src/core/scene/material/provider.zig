@@ -402,18 +402,19 @@ fn loadEmittance(jvalue: std.json.Value, emittance: *Emittance) void {
     }
 
     const value = json.readFloatMember(jvalue, "value", 1.0);
+    const cos_a = @maximum(@cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", 180.0))), 0.0);
 
     if (std.mem.eql(u8, "Flux", quantity)) {
-        emittance.setLuminousFlux(color, value);
+        emittance.setLuminousFlux(color, value, cos_a);
     } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
-        emittance.setLuminousIntensity(color, value);
+        emittance.setLuminousIntensity(color, value, cos_a);
     } else if (std.mem.eql(u8, "Luminance", quantity)) {
-        emittance.setLuminance(color, value);
+        emittance.setLuminance(color, value, cos_a);
     } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
-        emittance.setRadiantIntensity(@splat(4, value) * color);
+        emittance.setRadiantIntensity(@splat(4, value) * color, cos_a);
     } else // if (std.mem.eql(u8, "Radiance", quantity))
     {
-        emittance.setRadiance(@splat(4, value) * color);
+        emittance.setRadiance(@splat(4, value) * color, cos_a);
     }
 }
 
@@ -447,6 +448,8 @@ const TextureDescription = struct {
                             desc.swizzle = .W;
                         } else if (std.mem.eql(u8, "YX", swizzle)) {
                             desc.swizzle = .YX;
+                        } else if (std.mem.eql(u8, "YZ", swizzle)) {
+                            desc.swizzle = .YZ;
                         }
                     } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
                         desc.scale = switch (entry.value_ptr.*) {

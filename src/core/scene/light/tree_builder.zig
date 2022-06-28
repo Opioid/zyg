@@ -14,6 +14,10 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Implements most of
+// Importance Sampling of Many Lights with Adaptive Tree Splitting
+// http://aconty.com/pdf/many-lights-hpg2018.pdf
+
 const Scene_sweep_threshold = 128;
 const Part_sweep_threshold = 32;
 const Num_slices = 16;
@@ -671,7 +675,7 @@ pub const Builder = struct {
             var a: u32 = 0;
             while (a < 3) : (a += 1) {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, std.math.ceil(extent_a / step));
+                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
                 const step_a = extent_a / @intToFloat(f32, num_steps);
 
                 var i: u32 = 1;

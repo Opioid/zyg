@@ -13,7 +13,7 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     var r: f32 = undefined;
     var theta: f32 = undefined;
 
-    if (std.math.fabs(s[0]) > std.math.fabs(s[1])) {
+    if (@fabs(s[0]) > @fabs(s[1])) {
         r = s[0];
         theta = (std.math.pi / 4.0) * (s[1] / s[0]);
     } else {
@@ -103,8 +103,8 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
 }
 
-pub const Delta: f32 = 1.0e-20;
+pub const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
-    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Delta));
+    return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Eps));
 }

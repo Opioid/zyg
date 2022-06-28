@@ -23,7 +23,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
+pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
@@ -32,8 +32,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
 
     var document = try parser.parse(buffer);
     defer document.deinit();
-
-    var take = try Take.init(alloc);
 
     const root = document.root;
 
@@ -79,8 +77,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, scene: *Scene) !Take {
     }
 
     take.view.configure();
-
-    return take;
 }
 
 pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *cam.Perspective, scene: *Scene) !void {
@@ -155,6 +151,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
         const crop = json.readVec4iMember(sensor_value.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
 
         camera.setResolution(resolution, crop);
+        camera.sensor.deinit(alloc);
         camera.sensor = loadSensor(sensor_value.*);
     } else {
         return;

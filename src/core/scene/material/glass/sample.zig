@@ -95,9 +95,9 @@ pub const Sample = struct {
                 return bxdf.Result.empty();
             }
 
-            const n_dot_wi = self.super.layer.clampNdot(wi);
-            const n_dot_wo = self.super.layer.clampAbsNdot(wo);
-            const n_dot_h = math.saturate(self.super.layer.nDot(h));
+            const n_dot_wi = self.super.frame.clampNdot(wi);
+            const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+            const n_dot_h = math.saturate(self.super.frame.nDot(h));
 
             const schlick = fresnel.Schlick1.init(self.f0);
 
@@ -119,8 +119,8 @@ pub const Sample = struct {
                 gg.pdf(),
             );
         } else {
-            const n_dot_wi = self.super.layer.clampNdot(wi);
-            const n_dot_wo = self.super.layer.clampAbsNdot(wo);
+            const n_dot_wi = self.super.frame.clampNdot(wi);
+            const n_dot_wo = self.super.frame.clampAbsNdot(wo);
 
             const h = math.normalize3(wo + wi);
 
@@ -129,7 +129,7 @@ pub const Sample = struct {
             const schlick = fresnel.Schlick1.init(self.f0);
 
             var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, self.super.layer, &fr);
+            const gg = ggx.Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, self.super.frame, &fr);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
 
             return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());
@@ -194,11 +194,11 @@ pub const Sample = struct {
                 .reflection = @splat(4, @as(f32, 1.0)),
                 .wi = -wo,
                 .pdf = 1.0,
-                .typef = bxdf.TypeFlag.init1(.SpecularTransmission),
+                .class = bxdf.ClassFlag.init1(.SpecularTransmission),
             };
         }
 
-        var n = self.super.layer.n;
+        var n = self.super.frame.n;
 
         if (!self.super.sameHemisphere(wo)) {
             n = -n;
@@ -232,7 +232,7 @@ pub const Sample = struct {
         const eta_t = ior;
 
         const wo = self.super.wo;
-        const n = self.super.layer.n;
+        const n = self.super.frame.n;
 
         const n_dot_wo = std.math.min(@fabs(math.dot3(n, wo)), 1.0);
         const eta = eta_i / eta_t;
@@ -269,7 +269,7 @@ pub const Sample = struct {
                 .reflection = @splat(4, @as(f32, 1.0)),
                 .wi = -wo,
                 .pdf = 1.0,
-                .typef = bxdf.TypeFlag.init1(.SpecularTransmission),
+                .class = bxdf.ClassFlag.init1(.SpecularTransmission),
             };
         }
 
@@ -277,16 +277,16 @@ pub const Sample = struct {
 
         const same_side = self.super.sameHemisphere(wo);
 
-        const layer = self.super.layer.swapped(same_side);
+        const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
         const s3 = sampler.sample3D(rng);
         const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, alpha, xi, layer, &n_dot_h);
+        const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
-        const n_dot_wo = layer.clampAbsNdot(wo);
+        const n_dot_wo = frame.clampAbsNdot(wo);
         const wo_dot_h = hlp.clampDot(wo, h);
 
         const eta = ior.eta_i / ior.eta_t;
@@ -315,7 +315,7 @@ pub const Sample = struct {
                 wi_dot_h,
                 wo_dot_h,
                 alpha[0],
-                layer,
+                frame,
                 &result,
             );
 
@@ -332,7 +332,7 @@ pub const Sample = struct {
                 r_wo_dot_h,
                 alpha[0],
                 ior,
-                layer,
+                frame,
                 &result,
             );
 
@@ -352,7 +352,7 @@ pub const Sample = struct {
             .reflection = @splat(4, @as(f32, 1.0)),
             .wi = math.normalize3(@splat(4, 2.0 * n_dot_wo) * n - wo),
             .pdf = 1.0,
-            .typef = bxdf.TypeFlag.init1(.SpecularReflection),
+            .class = bxdf.ClassFlag.init1(.SpecularReflection),
         };
     }
 
@@ -361,7 +361,7 @@ pub const Sample = struct {
             .reflection = @splat(4, @as(f32, 1.0)),
             .wi = math.normalize3(@splat(4, eta * n_dot_wo - n_dot_t) * n - @splat(4, eta) * wo),
             .pdf = 1.0,
-            .typef = bxdf.TypeFlag.init1(.SpecularTransmission),
+            .class = bxdf.ClassFlag.init1(.SpecularTransmission),
         };
     }
 
@@ -370,7 +370,7 @@ pub const Sample = struct {
             .reflection = color,
             .wi = -wo,
             .pdf = 1.0,
-            .typef = bxdf.TypeFlag.init1(.Straight),
+            .class = bxdf.ClassFlag.init1(.Straight),
         };
     }
 };

@@ -60,9 +60,9 @@ pub const Material = struct {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, scene);
             const tb = math.orthonormalBasis3(n);
 
-            result.super.layer.setTangentFrame(tb[0], tb[1], n);
+            result.super.frame.setTangentFrame(tb[0], tb[1], n);
         } else {
-            result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+            result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         }
 
         return result;

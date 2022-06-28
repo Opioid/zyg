@@ -44,13 +44,8 @@ pub const Worker = struct {
 
     photon: Vec4f = undefined,
 
-    pub fn init(alloc: Allocator) !Worker {
-        return Worker{ .super = try SceneWorker.init(alloc) };
-    }
-
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
-        self.super.deinit(alloc);
     }
 
     pub fn configure(
@@ -58,7 +53,6 @@ pub const Worker = struct {
         alloc: Allocator,
         camera: *cam.Perspective,
         scene: *Scene,
-        num_samples_per_pixel: u32,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
         volumes: vol.Factory,
@@ -69,7 +63,7 @@ pub const Worker = struct {
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = samplers.create(alloc, 1, 2, num_samples_per_pixel);
+        self.sampler = samplers.create();
 
         self.surface_integrator = surfaces.create();
         self.volume_integrator = volumes.create();
@@ -104,7 +98,7 @@ pub const Worker = struct {
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
         const o = @as(u64, iteration) * a;
-        const so = iteration / num_expected_samples + a;
+        const so = iteration / num_expected_samples;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
@@ -120,10 +114,10 @@ pub const Worker = struct {
 
                 const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
                 const tsi = @truncate(u32, sample_index);
-                const rsi = @truncate(u32, sample_index >> 32);
+                const seed = @truncate(u32, sample_index >> 32) + so;
 
-                self.sampler.startPixel(tsi, rsi + so);
-                self.surface_integrator.startPixel(tsi, rsi + so + a);
+                self.sampler.startPixel(tsi, seed);
+                self.surface_integrator.startPixel(tsi, seed + 1);
 
                 self.photon = @splat(4, @as(f32, 0.0));
 
@@ -154,7 +148,7 @@ pub const Worker = struct {
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
-        var camera = self.super.camera;
+        const camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
         self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));
@@ -243,7 +237,8 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        self.super.interface_stack_temp.copy(self.super.interface_stack);
+        var temp_stack: InterfaceStack = undefined;
+        temp_stack.copy(self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
@@ -288,7 +283,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.swap(&self.super.interface_stack_temp);
+        self.super.interface_stack.copy(temp_stack);
 
         return w;
     }
@@ -314,7 +309,7 @@ pub const Worker = struct {
                     if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wi, wo, nisec.geo.geo_n, nisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }

@@ -43,7 +43,7 @@ pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
     const threshold = 0.000001;
     const renormalization = comptime @sqrt(1.0 - threshold * threshold);
 
-    if (std.math.fabs(q[3]) < threshold) {
+    if (@fabs(q[3]) < threshold) {
         q[0] *= renormalization;
         q[1] *= renormalization;
         q[2] *= renormalization;
@@ -107,7 +107,7 @@ pub fn toMat3x3(q: Quaternion) Mat3x3 {
     );
 }
 
-pub fn initTN(q: Quaternion) [2]Vec4f {
+pub fn toTN(q: Quaternion) [2]Vec4f {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
@@ -143,7 +143,7 @@ pub fn initTN(q: Quaternion) [2]Vec4f {
     return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
 
-pub fn initNormal(q: Quaternion) Vec4f {
+pub fn toNormal(q: Quaternion) Vec4f {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;

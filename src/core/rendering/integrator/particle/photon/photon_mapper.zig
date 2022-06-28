@@ -162,8 +162,8 @@ pub const Mapper = struct {
                     break;
                 }
 
-                if (sample_result.typef.no(.Straight)) {
-                    if (sample_result.typef.no(.Specular) and
+                if (sample_result.class.no(.Straight)) {
+                    if (sample_result.class.no(.Specular) and
                         (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
@@ -193,7 +193,7 @@ pub const Mapper = struct {
                         }
                     }
 
-                    if (sample_result.typef.is(.Specular)) {
+                    if (sample_result.class.is(.Specular)) {
                         caustic_path = true;
                     } else {
                         filter = .Nearest;
@@ -211,10 +211,10 @@ pub const Mapper = struct {
                     radiance = nr / @splat(4, continue_prob);
                 }
 
-                if (sample_result.typef.is(.Straight)) {
+                if (sample_result.class.is(.Straight)) {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
 
-                    if (sample_result.typef.no(.Transmission)) {
+                    if (sample_result.class.no(.Transmission)) {
                         ray.depth += 1;
                     }
                 } else {
@@ -231,7 +231,7 @@ pub const Mapper = struct {
                     ray.wavelength = sample_result.wavelength;
                 }
 
-                if (sample_result.typef.is(.Transmission)) {
+                if (sample_result.class.is(.Transmission)) {
                     const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);

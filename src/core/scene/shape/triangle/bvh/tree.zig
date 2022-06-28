@@ -1,8 +1,9 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Worker = @import("../../../worker.zig").Worker;
 const Filter = @import("../../../../image/texture/sampler.zig").Filter;
-const NodeStack = @import("../../node_stack.zig").NodeStack;
 const Node = @import("../../../bvh/node.zig").Node;
+const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -14,6 +15,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
     pub const Intersection = struct {
+        t: f32 = undefined,
         u: f32 = undefined,
         v: f32 = undefined,
         index: u32 = 0xFFFFFFFF,
@@ -39,85 +41,74 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: *Ray, stack: *NodeStack) ?Intersection {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
+    pub fn intersect(self: Tree, ray: Ray) ?Intersection {
+        var tray = ray;
 
-        stack.push(0xFFFFFFFF);
+        var stack = NodeStack{};
         var n: u32 = 0;
 
         var isec: Intersection = .{};
 
-        while (0xFFFFFFFF != n) {
-            const node = self.nodes[n];
+        const nodes = self.nodes;
 
-            if (node.intersectP(ray.*)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
-                    if (0 == ray_signs[node.axis()]) {
-                        stack.push(b);
-                        n = a;
-                    } else {
-                        stack.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(ray, i)) |hit| {
+                    if (self.data.intersect(tray, i)) |hit| {
+                        tray.setMaxT(hit.t);
                         isec.u = hit.u;
                         isec.v = hit.v;
                         isec.index = i;
                     }
                 }
+
+                n = stack.pop();
+                continue;
             }
 
-            n = stack.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(tray);
+            var distb = nodes[b].intersect(tray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
-        return if (0xFFFFFFFF != isec.index) isec else null;
+        if (0xFFFFFFFF != isec.index) {
+            isec.t = tray.maxT();
+            return isec;
+        } else {
+            return null;
+        }
     }
 
-    pub fn intersectP(self: Tree, ray: Ray, nodes: *NodeStack) bool {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
-
-        nodes.push(0xFFFFFFFF);
+    pub fn intersectP(self: Tree, ray: Ray) bool {
+        var stack = NodeStack{};
         var n: u32 = 0;
 
-        while (0xFFFFFFFF != n) {
-            const node = self.nodes[n];
+        const nodes = self.nodes;
 
-            if (node.intersectP(ray)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
-                    if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
-                        n = a;
-                    } else {
-                        nodes.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
@@ -125,51 +116,49 @@ pub const Tree = struct {
                         return true;
                     }
                 }
+
+                n = stack.pop();
+                continue;
             }
 
-            n = nodes.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: *Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
-        const ray_signs = [4]u32{
-            @boolToInt(ray.inv_direction[0] < 0.0),
-            @boolToInt(ray.inv_direction[1] < 0.0),
-            @boolToInt(ray.inv_direction[2] < 0.0),
-            @boolToInt(ray.inv_direction[3] < 0.0),
-        };
-
-        var nodes = worker.node_stack;
-        nodes.push(0xFFFFFFFF);
+    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
+        var stack = NodeStack{};
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
 
+        const nodes = self.nodes;
+
         var vis = @splat(4, @as(f32, 1.0));
 
-        const max_t = ray.maxT();
+        while (NodeStack.End != n) {
+            const node = nodes[n];
 
-        while (0xFFFFFFFF != n) {
-            const node = self.nodes[n];
-
-            if (node.intersectP(ray.*)) {
-                if (0 == node.numIndices()) {
-                    const a = node.children();
-                    const b = a + 1;
-
-                    if (0 == ray_signs[node.axis()]) {
-                        nodes.push(b);
-                        n = a;
-                    } else {
-                        nodes.push(a);
-                        n = b;
-                    }
-
-                    continue;
-                }
-
+            if (0 != node.numIndices()) {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
@@ -182,14 +171,32 @@ pub const Tree = struct {
                         const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene.*) orelse return null;
 
                         vis *= tv;
-
-                        // ray_max_t has changed if intersect() returns true!
-                        ray.setMaxT(max_t);
                     }
                 }
+
+                n = stack.pop();
+                continue;
             }
 
-            n = nodes.pop();
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
         }
 
         return vis;

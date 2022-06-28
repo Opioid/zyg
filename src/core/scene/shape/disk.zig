@@ -8,6 +8,7 @@ const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
+
 const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
@@ -151,25 +152,39 @@ pub const Disk = struct {
     pub fn sampleFrom(
         trafo: Transformation,
         area: f32,
+        cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r0 = sampler.sample2D(rng);
-        const xy = math.smpl.diskConcentric(r0);
+        const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
         var wn = trafo.rotation.r[2];
 
-        var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+        if (cos_a < Dot_min) {
+            var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-        if (two_sided and sampler.sample1D(rng) > 0.5) {
-            wn = -wn;
-            dir = -dir;
+            if (two_sided and sampler.sample1D(rng) > 0.5) {
+                wn = -wn;
+                dir = -dir;
+            }
+
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
+        } else {
+            var dir = math.smpl.orientedConeUniform(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+
+            const pdf = math.smpl.conePdfUniform(cos_a);
+
+            if (two_sided and sampler.sample1D(rng) > 0.5) {
+                wn = -wn;
+                dir = -dir;
+            }
+
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, pdf / area);
         }
-
-        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
     }
 };

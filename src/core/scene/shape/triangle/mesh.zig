@@ -3,7 +3,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const NodeStack = @import("../node_stack.zig").NodeStack;
+const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
@@ -428,19 +428,18 @@ pub const Mesh = struct {
         self: Mesh,
         ray: *Ray,
         trafo: Transformation,
-        nodes: *NodeStack,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        if (self.tree.intersect(&tray, nodes)) |hit| {
-            ray.setMaxT(tray.maxT());
+        if (self.tree.intersect(tray)) |hit| {
+            ray.setMaxT(hit.t);
 
             const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
             isec.p = trafo.objectToWorldPoint(p);
@@ -480,7 +479,7 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation, nodes: *NodeStack) bool {
+    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation) bool {
         var tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
@@ -488,7 +487,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.intersectP(tray, nodes);
+        return self.tree.intersectP(tray);
     }
 
     pub fn visibility(
@@ -499,14 +498,14 @@ pub const Mesh = struct {
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
-        var tray = Ray.init(
+        const tray = Ray.init(
             trafo.world_to_object.transformPoint(ray.origin),
             trafo.world_to_object.transformVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
 
-        return self.tree.visibility(&tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, worker);
     }
 
     pub fn sampleTo(
@@ -573,16 +572,15 @@ pub const Mesh = struct {
         two_sided: bool,
         sampler: *Sampler,
         rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
         const r = sampler.sample1D(rng);
         const s = self.parts[part].sampleRandom(variant, r);
 
-        const r0 = sampler.sample2D(rng);
-
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, r0, &sv, &tc);
+        self.tree.data.sample(s.global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
         const sn = self.parts[part].lightCone(s.local);
         var wn = trafo.rotation.transformVector(sn);

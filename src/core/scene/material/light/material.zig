@@ -20,6 +20,9 @@ const spectrum = base.spectrum;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Uses "MIS Compensation: Optimizing Sampling Techniques in Multiple Importance Sampling"
+// https://twitter.com/VrKomarov/status/1297454856177954816
+
 pub const Material = struct {
     super: Base = .{ .emittance = .{ .value = @splat(4, @as(f32, 1.0)) } },
 
@@ -50,7 +53,7 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const rad = self.super.emittance.radiance(area);
+        const rad = self.super.emittance.radiance(1.0, area);
 
         if (!self.emission_map.valid()) {
             self.average_emission = rad;
@@ -106,24 +109,28 @@ pub const Material = struct {
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
-        var rad = self.super.emittance.radiance(scene.lightArea(rs.prop, rs.part));
-
-        if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, rs.filter);
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, scene);
-        }
+        const area = scene.lightArea(rs.prop, rs.part);
+        const rad = self.evaluateRadiance(wo, rs.geo_n, rs.uv, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, extent: f32, filter: ?ts.Filter, scene: Scene) Vec4f {
-        const rad = self.super.emittance.radiance(extent);
+    pub fn evaluateRadiance(
+        self: Material,
+        wi: Vec4f,
+        n: Vec4f,
+        uv: Vec2f,
+        extent: f32,
+        filter: ?ts.Filter,
+        scene: Scene,
+    ) Vec4f {
+        const rad = self.super.emittance.radiance(@fabs(math.dot3(wi, n)), extent);
 
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return rad * ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, scene);
+            return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
         }
 
         return rad;
@@ -208,7 +215,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, 0.0);
+                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 

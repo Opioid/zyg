@@ -45,7 +45,7 @@ pub const Sky = struct {
 
     implicit_rotation: bool = true,
 
-    const Radius = std.math.tan(@as(f32, Model.Angular_radius));
+    const Radius = @tan(@as(f32, Model.Angular_radius));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
 

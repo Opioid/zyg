@@ -2,6 +2,7 @@ const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -21,8 +22,7 @@ pub const Sample = struct {
     }
 
     pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
-        const n_dot_wi = self.super.layer.clampNdot(wi);
-
+        const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;
@@ -34,9 +34,9 @@ pub const Sample = struct {
         const s2d = sampler.sample2D(rng);
 
         const is = math.smpl.hemisphereCosine(s2d);
-        const wi = math.normalize3(self.super.layer.tangentToWorld(is));
+        const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
-        const n_dot_wi = self.super.layer.clampNdot(wi);
+        const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
         const reflection = @splat(4, pdf) * self.super.albedo;
@@ -48,7 +48,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
+            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
         };
     }
 };

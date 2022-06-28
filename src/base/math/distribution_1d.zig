@@ -108,7 +108,7 @@ pub const Distribution1D = struct {
         self.cdf[0] = 0.0;
         var i: usize = 1;
         while (i < data.len) : (i += 1) {
-            self.cdf[i] = std.math.fma(f32, data[i - 1], ii, self.cdf[i - 1]);
+            self.cdf[i] = @mulAdd(f32, data[i - 1], ii, self.cdf[i - 1]);
         }
         self.cdf[data.len] = 1.0;
         self.integral = integral;
@@ -157,7 +157,7 @@ pub const Distribution1D = struct {
         cdf[0] = 0.0;
         var i: u32 = 1;
         while (i < N) : (i += 1) {
-            cdf[i] = std.math.fma(f32, data[i - 1], ii, cdf[i - 1]);
+            cdf[i] = @mulAdd(f32, data[i - 1], ii, cdf[i - 1]);
         }
         cdf[N] = 1.0;
 
@@ -175,7 +175,7 @@ pub const Distribution1D = struct {
         cdf[0] = 0.0;
         var i: u32 = 1;
         while (i < N) : (i += 1) {
-            cdf[i] = std.math.fma(f32, data[i - 1], ii, cdf[i - 1]);
+            cdf[i] = @mulAdd(f32, data[i - 1], ii, cdf[i - 1]);
         }
         cdf[N] = 1.0;
 

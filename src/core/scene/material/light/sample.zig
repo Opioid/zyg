@@ -1,6 +1,7 @@
 const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 

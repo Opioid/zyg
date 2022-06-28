@@ -50,14 +50,13 @@ pub const Driver = struct {
     frame: u32 = undefined,
     frame_iteration: u32 = undefined,
     frame_iteration_samples: u32 = undefined,
-    progressive: bool = undefined,
 
     progressor: Progressor,
 
     pub fn init(alloc: Allocator, threads: *Threads, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
-            w.* = try Worker.init(alloc);
+            w.* = .{};
         }
 
         return Driver{
@@ -110,7 +109,6 @@ pub const Driver = struct {
                 alloc,
                 camera,
                 scene,
-                view.num_samples_per_pixel,
                 view.samplers,
                 view.surfaces,
                 view.volumes,
@@ -130,26 +128,19 @@ pub const Driver = struct {
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
-    pub fn render(self: *Driver, alloc: Allocator, frame: u32) !void {
+    pub fn render(self: *Driver, alloc: Allocator, frame: u32, iteration: u32, num_samples: u32) !void {
         log.info("Frame {}", .{frame});
 
         const render_start = std.time.milliTimestamp();
 
-        self.frame = frame;
-        self.progressive = false;
+        try self.startFrame(alloc, frame, false);
 
-        var camera = &self.view.camera;
-        const camera_pos = self.scene.propWorldPosition(camera.entity);
-
-        const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.compile(alloc, camera_pos, start, self.threads);
-
-        camera.update(start, &self.workers[0].super);
+        self.frame_iteration = iteration;
+        self.frame_iteration_samples = if (num_samples > 0) num_samples else self.view.num_samples_per_pixel;
 
         log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
         self.bakePhotons(alloc);
-        self.frame_iteration = 0;
 
         self.renderFrameBackward();
         self.renderFrameForward();
@@ -157,10 +148,8 @@ pub const Driver = struct {
         log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
-    pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32) !void {
+    pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32, progressive: bool) !void {
         self.frame = frame;
-        self.frame_iteration = 0;
-        self.progressive = true;
 
         var camera = &self.view.camera;
 
@@ -175,7 +164,9 @@ pub const Driver = struct {
 
         camera.update(start, &self.workers[0].super);
 
-        camera.sensor.clear(0.0);
+        if (progressive) {
+            camera.sensor.clear(0.0);
+        }
     }
 
     pub fn renderIterations(self: *Driver, iteration: u32, num_samples: u32) void {
@@ -278,8 +269,8 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         const iteration = self.frame_iteration;
+        const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
-        const num_samples = if (self.progressive) self.frame_iteration_samples else num_expected_samples;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {

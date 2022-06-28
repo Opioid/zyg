@@ -30,15 +30,19 @@ pub fn sampleNormalUV(
 ) Vec4f {
     const nm = ts.sample2D_2(key, map, uv, scene);
     const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));
-    const n = math.normalize3(rs.tangentToWorld3(.{ nm[0], nm[1], nmz, 0.0 }));
+    const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 
-    // Normal mapping can lead to normals facing away from the view direction.
-    // I believe the following is the (imperfect) workaround referred to as "flipping" by
-    // "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing"
-    // https://drive.google.com/file/d/0BzvWIdpUpRx_ZHI1X2Z4czhqclk/view
-    if (math.dot3(n, wo) < 0.0) {
-        return math.reflect3(rs.geo_n, n);
-    }
+    // // Normal mapping can lead to normals facing away from the view direction.
+    // // I believe the following is the (imperfect) workaround referred to as "flipping" by
+    // // "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing"
+    // // https://drive.google.com/file/d/0BzvWIdpUpRx_ZHI1X2Z4czhqclk/view
+    // if (math.dot3(n, wo) < 0.0) {
+    //     return math.reflect3(rs.geo_n, n);
+    // }
+
+    // The above "flipping" is actually more complicated, and should also use wi instead of wo,
+    // although I don't understand where wi should come from.
+    _ = wo;
 
     return n;
 }
@@ -48,8 +52,8 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
     // See e.g. CorrectShadingNormal() at:
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
 
-    const numer = @fabs(math.dot3(wo, geo_n) * math.dot3(wi, n));
-    const denom = std.math.max(@fabs(math.dot3(wo, n) * math.dot3(wi, geo_n)), hlp.Dot_min);
+    const numer = @fabs(math.dot3(wi, geo_n) * math.dot3(wo, n));
+    const denom = std.math.max(@fabs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
 
     return std.math.min(numer / denom, 8.0);
 }
