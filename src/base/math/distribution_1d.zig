@@ -204,7 +204,7 @@ pub fn Distribution1DN(comptime N: u32) type {
             self.cdf[0] = 0.0;
             var i: usize = 1;
             while (i < data.len) : (i += 1) {
-                self.cdf[i] = std.math.fma(f32, data[i - 1], ii, self.cdf[i - 1]);
+                self.cdf[i] = @mulAdd(f32, data[i - 1], ii, self.cdf[i - 1]);
             }
             self.cdf[data.len] = 1.0;
             self.integral = integral;
