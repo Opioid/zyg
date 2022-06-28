@@ -8,25 +8,25 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const progress = @import("../progress.zig");
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const Progressor = @import("../progress.zig").Progressor;
+pub const snsr = @import("sensor/sensor.zig");
 
 const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
 const math = base.math;
 const Vec4i = math.Vec4i;
+const Pack4f = math.Pack4f;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
-const Error = error{
-    InvalidSurfaceIntegrator,
-    InvalidVolumeIntegrator,
-    InvalidLighttracer,
-};
-
 const Num_particles_per_chunk = 1024;
+
+const Error = error{
+    NoCameraProp,
+};
 
 pub const Driver = struct {
     const PhotonInfo = struct {
@@ -49,22 +49,23 @@ pub const Driver = struct {
     photon_map: PhotonMap = .{},
 
     min_samples: u32 = 0,
-    max_samples: u32 = 0,
-    frame: u32 = 0,
-    frame_iteration: u32 = 0,
+    frame: u32 = undefined,
+    frame_iteration: u32 = undefined,
+    frame_iteration_samples: u32 = undefined,
 
-    progressor: progress.StdOut = undefined,
+    progressor: Progressor,
 
-    pub fn init(alloc: Allocator, threads: *Threads) !Driver {
+    pub fn init(alloc: Allocator, threads: *Threads, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
-            w.* = try Worker.init(alloc);
+            w.* = .{};
         }
 
         return Driver{
             .threads = threads,
             .workers = workers,
             .photon_infos = try alloc.alloc(PhotonInfo, threads.numThreads()),
+            .progressor = progressor,
         };
     }
 
@@ -83,20 +84,19 @@ pub const Driver = struct {
     }
 
     pub fn configure(self: *Driver, alloc: Allocator, view: *View, scene: *Scene) !void {
-        const surfaces = view.surfaces orelse return Error.InvalidSurfaceIntegrator;
-        const volumes = view.volumes orelse return Error.InvalidVolumeIntegrator;
-        const lighttracers = view.lighttracers orelse return Error.InvalidLighttracer;
-
         self.view = view;
         self.scene = scene;
 
-        const max_samples = view.num_samples_per_pixel;
-        self.min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * max_samples))));
-        self.max_samples = max_samples;
+        self.min_samples = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, 16 * view.num_samples_per_pixel))));
 
         const camera = &self.view.camera;
+
+        if (Scene.Null == camera.entity) {
+            return Error.NoCameraProp;
+        }
+
         const dim = camera.sensorDimensions();
-        try camera.sensor.resize(alloc, dim);
+        try camera.sensor.resize(alloc, dim, view.aovs);
 
         const num_photons = view.photon_settings.num_photons;
         if (num_photons > 0) {
@@ -113,11 +113,11 @@ pub const Driver = struct {
                 alloc,
                 camera,
                 scene,
-                max_samples,
                 view.samplers,
-                surfaces,
-                volumes,
-                lighttracers,
+                view.surfaces,
+                view.volumes,
+                view.lighttracers,
+                view.aovs,
                 view.photon_settings,
                 &self.photon_map,
             );
@@ -132,31 +132,56 @@ pub const Driver = struct {
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
-    pub fn render(self: *Driver, alloc: Allocator, frame: u32) !void {
+    pub fn render(self: *Driver, alloc: Allocator, frame: u32, iteration: u32, num_samples: u32) !void {
         log.info("Frame {}", .{frame});
 
         const render_start = std.time.milliTimestamp();
 
-        var camera = &self.view.camera;
-        const camera_pos = self.scene.propWorldPosition(camera.entity);
+        try self.startFrame(alloc, frame, false);
 
-        const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.simulate(
-            alloc,
-            camera_pos,
-            start,
-            start + camera.frame_duration,
-            self.workers[0].super,
-            self.threads,
-        );
-
-        camera.update(start, &self.workers[0].super);
+        self.frame_iteration = iteration;
+        self.frame_iteration_samples = if (num_samples > 0) num_samples else self.view.num_samples_per_pixel;
 
         log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
-        self.bakePhotons(alloc, frame);
-        self.renderFrameBackward(frame);
-        self.renderFrameForward(frame);
+        self.bakePhotons(alloc);
+
+        self.renderFrameBackward();
+        self.renderFrameForward();
+
+        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
+    }
+
+    pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32, progressive: bool) !void {
+        self.frame = frame;
+
+        var camera = &self.view.camera;
+
+        if (Scene.Null == camera.entity) {
+            return Error.NoCameraProp;
+        }
+
+        const camera_pos = self.scene.propWorldPosition(camera.entity);
+
+        const start = @as(u64, frame) * camera.frame_step;
+        try self.scene.compile(alloc, camera_pos, start, self.threads);
+
+        camera.update(start, &self.workers[0].super);
+
+        if (progressive) {
+            camera.sensor.clear(0.0);
+        }
+    }
+
+    pub fn renderIterations(self: *Driver, iteration: u32, num_samples: u32) void {
+        self.frame_iteration = iteration;
+        self.frame_iteration_samples = num_samples;
+
+        self.renderFrameIterationForward();
+    }
+
+    pub fn resolveToBuffer(self: *Driver, target: [*]Pack4f, num_pixels: u32) void {
+        const camera = &self.view.camera;
 
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
@@ -165,19 +190,52 @@ pub const Driver = struct {
         }
 
         if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolveAccumulateTonemap(&self.target, self.threads);
+            camera.sensor.resolveAccumulateTonemap(target, num_pixels, self.threads);
         } else {
-            camera.sensor.resolveTonemap(&self.target, self.threads);
+            camera.sensor.resolveTonemap(target, num_pixels, self.threads);
         }
-
-        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
-    pub fn exportFrame(self: Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
+    pub fn resolve(self: *Driver) void {
+        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        self.resolveToBuffer(self.target.pixels.ptr, num_pixels);
+    }
+
+    pub fn resolveAovToBuffer(self: *Driver, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
+        if (!self.view.aovs.activeClass(class)) {
+            return false;
+        }
+
+        self.view.camera.sensor.resolveAov(class, target, num_pixels, self.threads);
+
+        return true;
+    }
+
+    pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
+        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        return self.resolveAovToBuffer(class, self.target.pixels.ptr, num_pixels);
+    }
+
+    pub fn exportFrame(self: *Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
+        self.resolve();
+
         for (exporters) |*e| {
-            try e.write(alloc, self.target, frame, self.threads);
+            try e.write(alloc, self.target, null, frame, self.threads);
+        }
+
+        const len = View.AovValue.Num_classes;
+        var i: u32 = 0;
+        while (i < len) : (i += 1) {
+            const class = @intToEnum(View.AovValue.Class, i);
+            if (!self.resolveAov(class)) {
+                continue;
+            }
+
+            for (exporters) |*e| {
+                try e.write(alloc, self.target, class, frame, self.threads);
+            }
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
@@ -229,7 +287,7 @@ pub const Driver = struct {
         try PngWriter.writeHeatmap(alloc, d[0], d[1], dee, min, max, "info_diluted_error_estimate.png");
     }
 
-    fn renderFrameBackward(self: *Driver, frame: u32) void {
+    fn renderFrameBackward(self: *Driver) void {
         if (0 == self.ranges.size()) {
             return;
         }
@@ -245,13 +303,13 @@ pub const Driver = struct {
         self.progressor.start(self.ranges.size());
 
         self.ranges.restart(0);
-        self.frame = frame;
 
         self.threads.runParallel(self, renderRanges, 0);
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolve(&self.target, self.threads);
+            const num_pixels = @intCast(u32, self.target.description.numPixels());
+            camera.sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
         }
 
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
@@ -260,8 +318,13 @@ pub const Driver = struct {
     fn renderTilesTrackVariance(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
+        const iteration = self.frame_iteration;
+        const num_samples = self.frame_iteration_samples;
+        const num_expected_samples = self.view.num_samples_per_pixel;
+        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+
         while (self.tiles.pop()) |tile| {
-            self.workers[id].renderTrackVariance(self.frame, tile, self.min_samples);
+            self.workers[id].renderTrackVariance(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples);
 
             self.progressor.tick();
         }
@@ -270,16 +333,21 @@ pub const Driver = struct {
     fn renderTilesRemainder(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
+        //   const iteration = self.frame_iteration;
+        //  const num_samples = self.frame_iteration_samples;
+        //   const num_expected_samples = self.view.num_samples_per_pixel;
         const target_cv = self.view.cv;
+        const min_samples = self.min_samples;
+        const max_samples = self.view.num_samples_per_pixel;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].renderRemainder(self.frame, tile, self.min_samples, self.max_samples, target_cv);
+            self.workers[id].renderRemainder(self.frame, tile, min_samples, max_samples, target_cv);
 
             self.progressor.tick();
         }
     }
 
-    fn renderFrameForward(self: *Driver, frame: u32) void {
+    fn renderFrameForward(self: *Driver) void {
         if (0 == self.view.num_samples_per_pixel) {
             return;
         }
@@ -290,10 +358,11 @@ pub const Driver = struct {
         var camera = &self.view.camera;
 
         camera.sensor.clear(0.0);
+        camera.sensor.basePtr().aov.clear();
 
         self.progressor.start(self.tiles.size() * 2);
 
-        self.frame = frame;
+        self.tiles.restart();
 
         self.tiles.restart();
         self.threads.runParallel(self, renderTilesTrackVariance, 0);
@@ -306,6 +375,18 @@ pub const Driver = struct {
         log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
+    fn renderFrameIterationForward(self: *Driver) void {
+        if (0 == self.view.num_samples_per_pixel) {
+            return;
+        }
+
+        self.progressor.start(self.tiles.size());
+
+        self.tiles.restart();
+
+        self.threads.runParallel(self, renderTilesTrackVariance, 0);
+    }
+
     fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @intToPtr(*Driver, context);
 
@@ -316,7 +397,7 @@ pub const Driver = struct {
         }
     }
 
-    fn bakePhotons(self: *Driver, alloc: Allocator, frame: u32) void {
+    fn bakePhotons(self: *Driver, alloc: Allocator) void {
         const num_photons = self.view.photon_settings.num_photons;
 
         if (0 == num_photons) {
@@ -336,8 +417,6 @@ pub const Driver = struct {
         const iteration_threshold = self.view.photon_settings.iteration_threshold;
 
         self.photon_map.start();
-
-        self.frame = frame;
 
         var iteration: u32 = 0;
 

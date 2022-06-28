@@ -71,7 +71,7 @@ pub const Sample = struct {
             .pdf = phase,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .typef = bxdf.TypeFlag.init1(.DiffuseReflection),
+            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
         };
     }
 

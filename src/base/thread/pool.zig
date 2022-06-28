@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Atomic = std.atomic.Atomic;
 
 pub const Pool = struct {
     pub const Context = usize;
@@ -10,41 +11,35 @@ pub const Pool = struct {
 
     const Program = union(enum) { Parallel: ParallelProgram, Range: RangeProgram };
 
+    const SIGNAL_DONE = 0;
+    const SIGNAL_QUIT = 1;
+    const SIGNAL_WAKE = 2;
+
     const Unique = struct {
         begin: u32 = 0,
         end: u32 = 0,
 
-        wake_signal: std.Thread.Condition = .{},
-        done_signal: std.Thread.Condition = .{},
+        signal: Atomic(u32) = Atomic(u32).init(SIGNAL_DONE),
 
-        mutex: std.Thread.Mutex = .{},
-
-        wake: bool = false,
+        thread: std.Thread = undefined,
     };
 
     const Async = struct {
         context: Context = undefined,
         program: AsyncProgram = undefined,
 
-        wake_signal: std.Thread.Condition = .{},
-        done_signal: std.Thread.Condition = .{},
+        signal: Atomic(u32) = Atomic(u32).init(SIGNAL_DONE),
 
-        mutex: std.Thread.Mutex = .{},
-
-        wake: bool = false,
-        quit: bool = false,
+        thread: std.Thread = undefined,
     };
 
     uniques: []Unique = &.{},
-    threads: []std.Thread = &.{},
 
     asyncp: Async = .{},
-    async_thread: std.Thread = undefined,
 
     context: Context = undefined,
     program: Program = undefined,
 
-    quit: bool = false,
     running_parallel: bool = false,
 
     pub fn availableCores(request: i32) u32 {
@@ -62,38 +57,23 @@ pub const Pool = struct {
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
-        for (self.uniques) |*u| {
-            u.* = .{};
+        for (self.uniques) |*u, i| {
+            u.* = .{ .thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) }) };
         }
 
-        self.threads = try alloc.alloc(std.Thread, num_threads);
-
-        for (self.threads) |*thread, i| {
-            thread.* = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
-        }
-
-        self.async_thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
+        self.asyncp.thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
     }
 
     pub fn deinit(self: *Pool, alloc: Allocator) void {
-        self.quit = true;
+        self.quitAll();
 
-        _ = self.wakeAll(0);
+        self.quitAsync();
 
-        for (self.threads) |thread| {
-            thread.join();
-        }
-
-        self.asyncp.quit = true;
-        self.wakeAsync();
-        self.async_thread.join();
-
-        alloc.free(self.threads);
         alloc.free(self.uniques);
     }
 
     pub fn numThreads(self: Pool) u32 {
-        return @intCast(u32, self.threads.len);
+        return @intCast(u32, self.uniques.len);
     }
 
     pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram, num_tasks_hint: u32) void {
@@ -145,10 +125,15 @@ pub const Pool = struct {
     fn runAsyncInt(self: *Pool, context: Context, program: AsyncProgram) void {
         self.waitAsync();
 
-        self.asyncp.context = context;
-        self.asyncp.program = program;
+        self.wakeAsync(context, program);
+    }
 
-        self.wakeAsync();
+    fn quitAll(self: *Pool) void {
+        for (self.uniques) |*u| {
+            u.signal.store(SIGNAL_QUIT, .Monotonic);
+            std.Thread.Futex.wake(&u.signal, 1);
+            u.thread.join();
+        }
     }
 
     fn wakeAll(self: *Pool, num_tasks_hint: u32) usize {
@@ -160,10 +145,8 @@ pub const Pool = struct {
         );
 
         for (self.uniques[0..num_tasks]) |*u| {
-            u.mutex.lock();
-            u.wake = true;
-            u.mutex.unlock();
-            u.wake_signal.signal();
+            u.signal.store(SIGNAL_WAKE, .Monotonic);
+            std.Thread.Futex.wake(&u.signal, 1);
         }
 
         return num_tasks;
@@ -176,7 +159,7 @@ pub const Pool = struct {
 
         const range = end - begin;
         const rangef = @intToFloat(f32, range);
-        const num_threads = @intToFloat(f32, self.threads.len);
+        const num_threads = @intToFloat(f32, self.uniques.len);
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
             @floatToInt(u32, @ceil((rangef * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
@@ -184,7 +167,7 @@ pub const Pool = struct {
         else
             @floatToInt(u32, @floor(rangef / num_threads));
 
-        var r = range - std.math.min(step * @intCast(u32, self.threads.len), range);
+        var r = range - std.math.min(step * @intCast(u32, self.uniques.len), range);
         var e = begin;
 
         for (self.uniques) |*u, i| {
@@ -199,31 +182,35 @@ pub const Pool = struct {
                 e += 1;
             }
 
-            u.mutex.lock();
             u.begin = b;
             u.end = std.math.min(e, end);
-            u.wake = true;
-            u.mutex.unlock();
-            u.wake_signal.signal();
+            u.signal.store(SIGNAL_WAKE, .Release);
+            std.Thread.Futex.wake(&u.signal, 1);
         }
 
         return self.uniques.len;
     }
 
-    fn wakeAsync(self: *Pool) void {
-        self.asyncp.mutex.lock();
-        self.asyncp.wake = true;
-        self.asyncp.mutex.unlock();
-        self.asyncp.wake_signal.signal();
+    fn quitAsync(self: *Pool) void {
+        self.asyncp.signal.store(SIGNAL_QUIT, .Monotonic);
+        std.Thread.Futex.wake(&self.asyncp.signal, 1);
+        self.asyncp.thread.join();
+    }
+
+    fn wakeAsync(self: *Pool, context: Context, program: AsyncProgram) void {
+        self.asyncp.context = context;
+        self.asyncp.program = program;
+        self.asyncp.signal.store(SIGNAL_WAKE, .Release);
+        std.Thread.Futex.wake(&self.asyncp.signal, 1);
     }
 
     fn waitAll(self: *Pool, num: usize) void {
         for (self.uniques[0..num]) |*u| {
-            u.mutex.lock();
-            defer u.mutex.unlock();
+            while (true) {
+                const signal = u.signal.load(.Acquire);
+                if (signal == SIGNAL_DONE) break;
 
-            while (u.wake) {
-                u.done_signal.wait(&u.mutex);
+                std.Thread.Futex.wait(&u.signal, signal);
             }
         }
 
@@ -231,11 +218,11 @@ pub const Pool = struct {
     }
 
     pub fn waitAsync(self: *Pool) void {
-        self.asyncp.mutex.lock();
-        defer self.asyncp.mutex.unlock();
+        while (true) {
+            const signal = self.asyncp.signal.load(.Acquire);
+            if (signal == SIGNAL_DONE) break;
 
-        while (self.asyncp.wake) {
-            self.asyncp.done_signal.wait(&self.asyncp.mutex);
+            std.Thread.Futex.wait(&self.asyncp.signal, signal);
         }
     }
 
@@ -243,15 +230,13 @@ pub const Pool = struct {
         var u = &self.uniques[id];
 
         while (true) {
-            u.mutex.lock();
-            defer u.mutex.unlock();
+            while (true) {
+                const signal = u.signal.load(.Acquire);
+                if (SIGNAL_QUIT == signal) return;
 
-            while (!u.wake) {
-                u.wake_signal.wait(&u.mutex);
-            }
+                if (SIGNAL_WAKE == signal) break;
 
-            if (self.quit) {
-                break;
+                std.Thread.Futex.wait(&u.signal, signal);
             }
 
             switch (self.program) {
@@ -259,28 +244,26 @@ pub const Pool = struct {
                 .Range => |p| p(self.context, id, u.begin, u.end),
             }
 
-            u.wake = false;
-            u.done_signal.signal();
+            u.signal.store(SIGNAL_DONE, .Release);
+            std.Thread.Futex.wake(&u.signal, 1);
         }
     }
 
     fn asyncLoop(self: *Async) void {
         while (true) {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            while (true) {
+                const signal = self.signal.load(.Acquire);
+                if (SIGNAL_QUIT == signal) return;
 
-            while (!self.wake) {
-                self.wake_signal.wait(&self.mutex);
-            }
+                if (SIGNAL_WAKE == signal) break;
 
-            if (self.quit) {
-                break;
+                std.Thread.Futex.wait(&self.signal, signal);
             }
 
             self.program(self.context);
 
-            self.wake = false;
-            self.done_signal.signal();
+            self.signal.store(SIGNAL_DONE, .Release);
+            std.Thread.Futex.wake(&self.signal, 1);
         }
     }
 };

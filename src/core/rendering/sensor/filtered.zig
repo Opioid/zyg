@@ -2,6 +2,7 @@ const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Result = @import("base.zig").Base.Result;
+const AovValue = @import("aov/value.zig").Value;
 
 const base = @import("base");
 const math = base.math;
@@ -9,8 +10,6 @@ const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
-
-const std = @import("std");
 
 pub fn Filtered(comptime T: type, N: comptime_int) type {
     return struct {
@@ -27,6 +26,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
         const Self = @This();
 
         pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
+            @setEvalBranchQuota(7600);
+
             var result = Self{ .sensor = T.init(clamp_max), .radius = radius, .filter = Func.init(0.0, radius, f) };
 
             result.filter.scale(1.0 / result.integral(64, radius));
@@ -63,23 +64,49 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             return center + filter_uv;
         }
 
-        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, offset: Vec2i) Result {
+        pub fn addSample(
+            self: *Self,
+            sample: Sample,
+            color: Vec4f,
+            aov: AovValue,
+        ) Result {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
+            const x = sample.pixel[0];
+            const y = sample.pixel[1];
 
             const w = self.eval(sample.pixel_uv[0]) * self.eval(sample.pixel_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
+            if (aov.active()) {
+                const len = AovValue.Num_classes;
+                var i: u32 = 0;
+                while (i < len) : (i += 1) {
+                    const class = @intToEnum(AovValue.Class, i);
+                    if (aov.activeClass(class)) {
+                        const value = aov.values[i];
+
+                        if (.Depth == class) {
+                            self.sensor.base.lessAov(.{ x, y }, i, value[0]);
+                        } else if (.MaterialId == class) {
+                            self.sensor.base.overwriteAov(.{ x, y }, i, value[0], weight);
+                        } else if (.ShadingNormal == class) {
+                            self.sensor.base.addAov(.{ x, y }, i, value, 1.0);
+                        } else {
+                            self.sensor.base.addAov(.{ x, y }, i, value, weight);
+                        }
+                    }
+                }
+            }
+
             return self.sensor.addPixel(.{ x, y }, clamped, weight);
         }
 
-        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, offset: Vec2i, bounds: Vec4i) void {
+        pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = offset[0] + sample.pixel[0];
-            const y = offset[1] + sample.pixel[1];
+            const x = sample.pixel[0];
+            const y = sample.pixel[1];
 
             const ox = sample.pixel_uv[0] - 0.5;
             const oy = sample.pixel_uv[1] - 0.5;
@@ -172,7 +199,7 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
         }
 
         fn eval(self: Self, s: f32) f32 {
-            return self.filter.eval(std.math.fabs(s));
+            return self.filter.eval(@fabs(s));
         }
 
         fn integral(self: Self, num_samples: u32, radius: f32) f32 {

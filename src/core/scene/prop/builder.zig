@@ -76,7 +76,7 @@ pub const Builder = struct {
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
 
-            n.setSplitNode(child0, node.axis());
+            n.setSplitNode(child0);
 
             self.super.newNode();
             self.super.newNode();

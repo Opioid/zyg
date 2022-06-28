@@ -1,4 +1,5 @@
-const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
+const snsr = @import("../rendering/sensor/sensor.zig");
+const Sensor = snsr.Sensor;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -41,7 +42,13 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(4, @as(i32, 0)),
 
-    sensor: Sensor = undefined,
+    sensor: Sensor = .{
+        .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(
+            std.math.f32_max,
+            2.0,
+            snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+        ),
+    },
 
     left_top: Vec4f = @splat(4, @as(f32, 0.0)),
     d_x: Vec4f = @splat(4, @as(f32, 0.0)),
@@ -54,19 +61,14 @@ pub const Perspective = struct {
 
     focus: Focus = .{},
 
-    interface_stack: InterfaceStack,
+    interface_stack: InterfaceStack = undefined,
 
     frame_step: u64 = Default_frame_time,
     frame_duration: u64 = Default_frame_time,
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator) !Self {
-        return Perspective{ .interface_stack = try InterfaceStack.init(alloc) };
-    }
-
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        self.interface_stack.deinit(alloc);
         self.sensor.deinit(alloc);
     }
 
@@ -89,7 +91,7 @@ pub const Perspective = struct {
         const fr = math.vec2iTo2f(self.resolution);
         const ratio = fr[1] / fr[0];
 
-        const z = 1.0 / std.math.tan(0.5 * self.fov);
+        const z = 1.0 / @tan(0.5 * self.fov);
 
         const left_top = Vec4f{ -1.0, ratio, z, 0.0 };
         const right_top = Vec4f{ 1.0, ratio, z, 0.0 };
@@ -180,8 +182,8 @@ pub const Perspective = struct {
         const x = offset[0] / self.d_x[0];
         const y = offset[1] / self.d_y[1];
 
-        const fx = std.math.floor(x);
-        const fy = std.math.floor(y);
+        const fx = @floor(x);
+        const fy = @floor(y);
 
         const pixel = Vec2i{ @floatToInt(i32, fx), @floatToInt(i32, fy) };
 

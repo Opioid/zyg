@@ -40,6 +40,13 @@ pub fn TypedImage(comptime T: type) type {
             };
         }
 
+        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) TypedImage(T) {
+            return TypedImage(T){
+                .description = description,
+                .pixels = std.mem.bytesAsSlice(T, data),
+            };
+        }
+
         pub fn deinit(self: *Self, alloc: Allocator) void {
             alloc.free(self.pixels);
         }

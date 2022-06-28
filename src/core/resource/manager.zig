@@ -5,10 +5,11 @@ const Image = @import("../image/image.zig").Image;
 const ImageProvider = @import("../image/provider.zig").Provider;
 const Images = Cache(Image, ImageProvider);
 const Material = @import("../scene/material/material.zig").Material;
-const MaterialProvider = @import("../scene/material/provider.zig").Provider;
+pub const MaterialProvider = @import("../scene/material/provider.zig").Provider;
+const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
-const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
+pub const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
 const Shapes = Cache(Shape, TriangleMeshProvider);
 
 const base = @import("base");
@@ -25,6 +26,7 @@ const Error = error{
 };
 
 pub const Manager = struct {
+    scene: *Scene,
     threads: *Threads,
 
     fs: Filesystem,
@@ -33,13 +35,14 @@ pub const Manager = struct {
     materials: Materials,
     shapes: Shapes,
 
-    pub fn init(alloc: Allocator, threads: *Threads) !Manager {
+    pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Manager {
         return Manager{
+            .scene = scene,
             .threads = threads,
             .fs = try Filesystem.init(alloc),
-            .images = Images.init(try ImageProvider.init(alloc)),
-            .materials = Materials.init(MaterialProvider{}),
-            .shapes = Shapes.init(TriangleMeshProvider{}),
+            .images = Images.init(try ImageProvider.init(alloc), &scene.images),
+            .materials = Materials.init(MaterialProvider{}, &scene.materials),
+            .shapes = Shapes.init(TriangleMeshProvider{}, &scene.shapes),
         };
     }
 
@@ -59,13 +62,9 @@ pub const Manager = struct {
     ) !u32 {
         if (Image == T) {
             return try self.images.loadFile(alloc, name, options, self);
-        }
-
-        if (Material == T) {
+        } else if (Material == T) {
             return try self.materials.loadFile(alloc, name, options, self);
-        }
-
-        if (Shape == T) {
+        } else if (Shape == T) {
             return try self.shapes.loadFile(alloc, name, options, self);
         }
 
@@ -76,16 +75,14 @@ pub const Manager = struct {
         self: *Manager,
         comptime T: type,
         alloc: Allocator,
-        name: []const u8,
+        id: u32,
         data: usize,
         options: Variants,
     ) !u32 {
         if (Material == T) {
-            return try self.materials.loadData(alloc, name, data, options, self);
-        }
-
-        if (Shape == T) {
-            return try self.shapes.loadData(alloc, name, data, options, self);
+            return try self.materials.loadData(alloc, id, data, options, self);
+        } else if (Shape == T) {
+            return try self.shapes.loadData(alloc, id, data, options, self);
         }
 
         return Error.UnknownResource;
@@ -112,16 +109,31 @@ pub const Manager = struct {
     pub fn getByName(self: Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
             return self.images.getByName(name, options);
-        }
-
-        if (Material == T) {
+        } else if (Material == T) {
             return self.materials.getByName(name, options);
-        }
-
-        if (Shape == T) {
+        } else if (Shape == T) {
             return self.shapes.getByName(name, options);
         }
 
         return null;
+    }
+
+    pub fn associate(
+        self: *Manager,
+        comptime T: type,
+        alloc: Allocator,
+        id: u32,
+        name: []const u8,
+        options: Variants,
+    ) !void {
+        if (Image == T) {
+            try self.images.associate(alloc, id, name, options);
+        } else if (Material == T) {
+            try self.materials.associate(alloc, id, name, options);
+        } else if (Shape == T) {
+            try self.shapes.loadData(alloc, id, name, options);
+        }
+
+        return Error.UnknownResource;
     }
 };

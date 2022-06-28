@@ -4,7 +4,6 @@ const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Emittance = @import("../scene/light/emittance.zig").Emittance;
-const Worker = @import("../scene/worker.zig").Worker;
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
@@ -41,18 +40,18 @@ pub const Material = struct {
 
     sky: *const SkyThing,
 
-    pub fn initSky(sampler_key: ts.Key, emission_map: Texture, sky: *const SkyThing) Material {
+    pub fn initSky(emission_map: Texture, sky: *const SkyThing) Material {
         return Material{
-            .super = Base.init(sampler_key, false),
+            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = emission_map,
             .mode = .Sky,
             .sky = sky,
         };
     }
 
-    pub fn initSun(alloc: Allocator, sampler_key: ts.Key, sky: *const SkyThing) !Material {
+    pub fn initSun(alloc: Allocator, sky: *const SkyThing) !Material {
         return Material{
-            .super = Base.init(sampler_key, false),
+            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = .{},
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
             .mode = .Sun,
@@ -151,26 +150,18 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *Worker) Sample {
-        var radiance: Vec4f = undefined;
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
 
-        if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, rs.filter);
-
-            radiance = ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
-        } else {
-            radiance = self.sun_radiance.eval(self.sky.sunV(-wo));
-        }
-
-        var result = Sample.init(rs, wo, radiance);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        var result = Sample.init(rs, wo, rad);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample2D_3(key, self.emission_map, .{ uvw[0], uvw[1] }, worker.scene.*);
+            return ts.sample2D_3(key, self.emission_map, uv, scene);
         }
 
         return self.sun_radiance.eval(self.sky.sunV(wi));

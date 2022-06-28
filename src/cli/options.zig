@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Options = struct {
-    take: ?[]u8 = null,
+    take: []u8 = &.{},
 
     mounts: std.ArrayListUnmanaged([]u8) = .{},
 
@@ -10,10 +10,13 @@ pub const Options = struct {
 
     start_frame: u32 = 0,
     num_frames: u32 = 1,
+    sample: u32 = 0,
+    num_samples: u32 = 0,
 
     no_tex: bool = false,
     no_tex_dwim: bool = false,
     debug_material: bool = false,
+    iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
@@ -22,9 +25,7 @@ pub const Options = struct {
 
         self.mounts.deinit(alloc);
 
-        if (self.take) |take| {
-            alloc.free(take);
-        }
+        alloc.free(self.take);
     }
 
     pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
@@ -39,18 +40,15 @@ pub const Options = struct {
 
         var executed = false;
 
-        var i_i = try iter.next(alloc);
+        var i_i = iter.next();
         while (i_i) |arg_i| {
             const command = arg_i[1..];
 
-            var i_j = try iter.next(alloc);
+            var i_j = iter.next();
             if (i_j) |arg_j| {
                 if (isParameter(arg_j)) {
                     try options.handleAll(alloc, command, arg_j);
-                    alloc.free(arg_j);
-
                     executed = true;
-
                     continue;
                 }
             }
@@ -59,7 +57,6 @@ pub const Options = struct {
                 try options.handleAll(alloc, command, "");
             }
 
-            alloc.free(arg_i);
             i_i = i_j;
 
             executed = false;
@@ -68,7 +65,7 @@ pub const Options = struct {
         return options;
     }
 
-    fn handleAll(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handleAll(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if ('-' == command[0]) {
             try self.handle(alloc, command[1..], parameter);
         } else {
@@ -78,7 +75,7 @@ pub const Options = struct {
         }
     }
 
-    fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "frame", command) or std.mem.eql(u8, "f", command)) {
@@ -86,14 +83,14 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "num-frames", command) or std.mem.eql(u8, "n", command)) {
             self.num_frames = std.fmt.parseUnsigned(u32, parameter, 0) catch 1;
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
-            self.take = try alloc.alloc(u8, parameter.len);
-            if (self.take) |take| {
-                std.mem.copy(u8, take, parameter);
-            }
+            alloc.free(self.take);
+            self.take = try alloc.dupe(u8, parameter);
+        } else if (std.mem.eql(u8, "sample", command)) {
+            self.sample = std.fmt.parseUnsigned(u32, parameter, 0) catch 0;
+        } else if (std.mem.eql(u8, "num-samples", command)) {
+            self.num_samples = std.fmt.parseUnsigned(u32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "mount", command) or std.mem.eql(u8, "m", command)) {
-            const mount = try alloc.alloc(u8, parameter.len);
-            std.mem.copy(u8, mount, parameter);
-            try self.mounts.append(alloc, mount);
+            try self.mounts.append(alloc, try alloc.dupe(u8, parameter));
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "no-tex", command)) {
@@ -102,10 +99,12 @@ pub const Options = struct {
             self.no_tex_dwim = true;
         } else if (std.mem.eql(u8, "debug-mat", command)) {
             self.debug_material = true;
+        } else if (std.mem.eql(u8, "iter", command)) {
+            self.iter = true;
         }
     }
 
-    fn isParameter(text: []u8) bool {
+    fn isParameter(text: []const u8) bool {
         if (text.len <= 1) {
             return true;
         }
@@ -122,31 +121,42 @@ pub const Options = struct {
     }
 
     fn help() void {
-        const stdout = std.io.getStdOut().writer();
-
         const text =
             \\zyg is a global illumination renderer experiment
             \\Usage:
             \\  zyg [OPTION..]
             \\
-            \\  -h, --help                     Print help.
-            \\  -f, --frame       int          Index of the first frame to render.
-            \\                                 The default value is 0.
-            \\  -n, --num-frames  int          Number of frames to render.
-            \\                                 The default value is 1.
-            \\  -i, --input       file/string  Path of the take file to render,
-            \\                                 or json-string describing the take.
-            \\  -m, --mount       path         Specifies a mount point for the data directory.
-            \\                                 The default value is "../data/"
-            \\  -t, --threads     int          Specifies the number of threads used by sprout.
-            \\                                 0 creates one thread for each logical CPU.
-            \\                                 -x creates as many threads as the number of
-            \\                                 logical CPUs minus x.
-            \\                                 The default value is 0.
-            \\      --no-tex                   Disables loading of all textures.
-            \\      --debug-mat                Force all materials to debug material type.
+            \\  -h, --help                      Print help.
+            \\
+            \\  -f, --frame        int          Index of first frame to render. Default is 0.
+            \\
+            \\  -n, --num-frames   int          Number of frames to render. Default is 1.
+            \\
+            \\  -i, --input        file/string  Path of take file to render,
+            \\                                  or json-string describing take.
+            \\
+            \\      --sample       int          Index of first sample to render. Default is 0.
+            \\
+            \\      --num-samples  int          Number of samples to render.
+            \\                                  0 renders all samples specified in the take file.
+            \\                                  Default is 0.
+            \\
+            \\  -m, --mount        path         Specifies a mount point for data directory.
+            \\                                  Default is "../data/".
+            \\
+            \\  -t, --threads      int          Specifies number of threads used by sprout.
+            \\                                  0 creates one thread for each logical CPU.
+            \\                                  -x creates as many threads as number of
+            \\                                  logical CPUs minus x. Default is 0.
+            \\
+            \\      --no-tex                    Disables loading of all textures.
+            \\
+            \\      --debug-mat                 Force all materials to debug material type.
+            \\
+            \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
+        const stdout = std.io.getStdOut().writer();
         stdout.print(text, .{}) catch return;
     }
 };

@@ -32,11 +32,7 @@ pub const DistantSphere = struct {
             return false;
         }
 
-        const hit_t = scn.Almost_ray_max_t;
-
-        ray.setMaxT(hit_t);
-
-        isec.p = ray.point(hit_t);
+        isec.p = @splat(4, @as(f32, scn.Almost_ray_max_t)) * ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
@@ -49,6 +45,9 @@ pub const DistantSphere = struct {
         isec.uv[1] = (math.dot3(isec.b, sk) + 1.0) * 0.5;
 
         isec.part = 0;
+        isec.primitive = 0;
+
+        ray.setMaxT(scn.Almost_ray_max_t);
 
         return true;
     }
@@ -92,13 +91,11 @@ pub const DistantSphere = struct {
     pub fn sampleFrom(
         trafo: Transformation,
         extent: f32,
-        sampler: *Sampler,
-        rng: *RNG,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) SampleFrom {
-        const r2 = sampler.sample2D(rng);
-        const xy = math.smpl.diskConcentric(r2);
+        const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const radius = trafo.scaleX();
@@ -110,16 +107,15 @@ pub const DistantSphere = struct {
         const ls_extent = ls_bounds.extent();
         const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = trafo.rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
-        const bounds_radius = 0.5 * ls_extent[2];
 
-        const offset = @splat(4, bounds_radius) * dir;
+        const offset = @splat(4, ls_extent[2]) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         return SampleFrom.init(
             p,
             trafo.rotation.r[2],
             dir,
-            .{ 0.0, 0.0 },
+            .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             1.0 / (extent * ls_extent[0] * ls_extent[1]),
         );

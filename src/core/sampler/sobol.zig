@@ -14,41 +14,43 @@ pub const Sobol = struct {
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
         self.sample = sample;
         self.dimension = 0;
-        const hs = hash(seed);
-        self.start_seed = hs;
-        self.run_seed = hs;
+        const hashed = hash(seed);
+        self.start_seed = hashed;
+        self.run_seed = hashed;
     }
 
     pub fn incrementSample(self: *Self) void {
-        self.sample += 1;
+        self.sample +%= 1;
         self.dimension = 0;
         self.run_seed = self.start_seed;
     }
 
-    pub fn incrementBounce(self: *Self) void {
+    pub fn incrementPadding(self: *Self) void {
         self.dimension = 0;
-        self.run_seed += 1;
-        // self.run_seed = hash(self.run_seed +% 1);
+        //self.run_seed += 1;
+        self.run_seed = hash(self.run_seed +% 1);
     }
 
     pub fn sample1D(self: *Self) f32 {
         if (self.dimension >= 4) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
+        const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 1;
 
-        return sobolOwen(self.sample, self.run_seed, d);
+        return sobolOwen(i, s, d);
     }
 
     pub fn sample2D(self: *Self) Vec2f {
         if (self.dimension >= 3) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
-        const i = self.sample;
         const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 2;
 
@@ -57,34 +59,64 @@ pub const Sobol = struct {
 
     pub fn sample3D(self: *Self) Vec4f {
         if (self.dimension >= 2) {
-            self.incrementBounce();
+            self.incrementPadding();
         }
 
-        const i = self.sample;
         const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
         self.dimension += 3;
 
-        return .{ sobolOwen(i, s, d), sobolOwen(i, s, d + 1), sobolOwen(i, s, d + 2), 0.0 };
+        return .{
+            sobolOwen(i, s, d),
+            sobolOwen(i, s, d + 1),
+            sobolOwen(i, s, d + 2),
+            0.0,
+        };
+    }
+
+    pub fn sample4D(self: *Self) Vec4f {
+        if (self.dimension >= 1) {
+            self.incrementPadding();
+        }
+
+        const s = self.run_seed;
+        const i = nestedUniformScrambleBase2(self.sample, s);
+        const d = self.dimension;
+        self.dimension += 4;
+
+        return .{
+            sobolOwen(i, s, d),
+            sobolOwen(i, s, d + 1),
+            sobolOwen(i, s, d + 2),
+            sobolOwen(i, s, d + 3),
+        };
     }
 };
 
 fn hash(i: u32) u32 {
     // finalizer from murmurhash3
+    // var x = i ^ (i >> 16);
+    // x *%= 0x85ebca6b;
+    // x ^= x >> 13;
+    // x *%= 0xc2b2ae35;
+    // x ^= x >> 16;
+    // return x;
+
+    // https://github.com/skeeto/hash-prospector
+
     var x = i ^ (i >> 16);
-    x *%= 0x85ebca6b;
-    x ^= x >> 13;
-    x *%= 0xc2b2ae35;
+    x *%= 0x7feb352d;
+    x ^= x >> 15;
+    x *%= 0x846ca68b;
     x ^= x >> 16;
     return x;
 }
 
 const S: f32 = 1.0 / @intToFloat(f32, 1 << 32);
 
-fn sobolOwen(index: u32, seed: u32, dim: u32) f32 {
-    const si = nestedUniformScrambleBase2(index, seed);
-    const sob = sobol(si, dim);
-
+fn sobolOwen(scrambled_index: u32, seed: u32, dim: u32) f32 {
+    const sob = sobol(scrambled_index, dim);
     return @intToFloat(f32, nestedUniformScrambleBase2(sob, hashCombine(seed, dim))) * S;
 }
 
@@ -98,13 +130,22 @@ fn nestedUniformScrambleBase2(x: u32, seed: u32) u32 {
     return @bitReverse(u32, o);
 }
 
-fn laineKarrasPermutation(x: u32, seed: u32) u32 {
-    var o = x +% seed;
-    o ^= o *% 0x6c50b47c;
-    o ^= o *% 0xb82f1e52;
-    o ^= o *% 0xc7afe638;
-    o ^= o *% 0x8d22f6e6;
-    return o;
+fn laineKarrasPermutation(i: u32, seed: u32) u32 {
+    // var x = i +% seed;
+    // x ^= x *% 0x6c50b47c;
+    // x ^= x *% 0xb82f1e52;
+    // x ^= x *% 0xc7afe638;
+    // x ^= x *% 0x8d22f6e6;
+    // return x;
+
+    // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
+
+    var x = i ^ (i *% 0x3d20adea);
+    x +%= seed;
+    x *%= (seed >> 16) | 1;
+    x ^= x *% 0x05526c56;
+    x ^= x *% 0x53a22864;
+    return x;
 }
 
 fn sobol(index: u32, dim: u32) u32 {

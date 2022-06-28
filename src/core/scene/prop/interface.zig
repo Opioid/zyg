@@ -1,5 +1,5 @@
 const Intersection = @import("intersection.zig").Intersection;
-const Worker = @import("../worker.zig").Worker;
+const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
 const Material = @import("../material/material.zig").Material;
 
@@ -14,8 +14,8 @@ pub const Interface = struct {
     part: u32,
     uv: Vec2f,
 
-    pub fn material(self: Interface, worker: Worker) Material {
-        return worker.scene.propMaterial(self.prop, self.part);
+    pub fn material(self: Interface, scene: Scene) Material {
+        return scene.propMaterial(self.prop, self.part);
     }
 
     pub fn matches(self: Interface, isec: Intersection) bool {
@@ -26,30 +26,13 @@ pub const Interface = struct {
 pub const Stack = struct {
     const Num_entries = 16;
 
-    index: u32,
-    stack: [*]Interface,
-
-    pub fn init(alloc: Allocator) !Stack {
-        return Stack{
-            .index = 0,
-            .stack = (try alloc.alloc(Interface, Num_entries)).ptr,
-        };
-    }
-
-    pub fn deinit(self: *Stack, alloc: Allocator) void {
-        alloc.free(self.stack[0..Num_entries]);
-    }
+    index: u32 = 0,
+    stack: [Num_entries]Interface = undefined,
 
     pub fn copy(self: *Stack, other: Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
-    }
-
-    pub fn swap(self: *Stack, other: *Stack) void {
-        const temp = self.stack;
-        self.* = other.*;
-        other.stack = temp;
     }
 
     pub fn empty(self: Stack) bool {
@@ -64,25 +47,25 @@ pub const Stack = struct {
         return self.stack[self.index - 1];
     }
 
-    pub fn topIor(self: Stack, worker: Worker) f32 {
+    pub fn topIor(self: Stack, scene: Scene) f32 {
         const index = self.index;
         if (index > 0) {
-            return self.stack[index - 1].material(worker).ior();
+            return self.stack[index - 1].material(scene).ior();
         }
 
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: Stack, worker: Worker) f32 {
+    pub fn nextToBottomIor(self: Stack, scene: Scene) f32 {
         const index = self.index;
         if (index > 1) {
-            return self.stack[1].material(worker).ior();
+            return self.stack[1].material(scene).ior();
         }
 
         return 1.0;
     }
 
-    pub fn peekIor(self: Stack, isec: Intersection, worker: Worker) f32 {
+    pub fn peekIor(self: Stack, isec: Intersection, scene: Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -90,16 +73,16 @@ pub const Stack = struct {
 
         const back = index - 1;
         if (self.stack[back].matches(isec)) {
-            return self.stack[back - 1].material(worker).ior();
+            return self.stack[back - 1].material(scene).ior();
         } else {
-            return self.stack[back].material(worker).ior();
+            return self.stack[back].material(scene).ior();
         }
     }
 
-    pub fn straight(self: Stack, worker: Worker) bool {
+    pub fn straight(self: Stack, scene: Scene) bool {
         const index = self.index;
         if (index > 0) {
-            return 1.0 == self.stack[index - 1].material(worker).ior();
+            return 1.0 == self.stack[index - 1].material(scene).ior();
         }
 
         return true;

@@ -28,10 +28,10 @@ pub const Sampler = union(enum) {
         }
     }
 
-    pub fn incrementBounce(self: *Sampler) void {
+    pub fn incrementPadding(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
-            .Sobol => |*s| s.incrementBounce(),
+            .Sobol => |*s| s.incrementPadding(),
         }
     }
 
@@ -56,11 +56,25 @@ pub const Sampler = union(enum) {
         };
     }
 
+    pub fn sample4D(self: *Sampler, rng: *RNG) Vec4f {
+        return switch (self.*) {
+            .Random => .{
+                rng.randomFloat(),
+                rng.randomFloat(),
+                rng.randomFloat(),
+                rng.randomFloat(),
+            },
+            .Sobol => |*s| s.sample4D(),
+        };
+    }
+
     pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
+        const s4 = self.sample4D(rng);
+
         const sample = CameraSample{
             .pixel = pixel,
-            .pixel_uv = self.sample2D(rng),
-            .lens_uv = self.sample2D(rng),
+            .pixel_uv = .{ s4[0], s4[1] },
+            .lens_uv = .{ s4[2], s4[3] },
             .time = self.sample1D(rng),
         };
 
@@ -74,18 +88,7 @@ pub const Factory = union(enum) {
     Random,
     Sobol,
 
-    pub fn create(
-        self: Factory,
-        alloc: Allocator,
-        num_dimensions_1D: u32,
-        num_dimensions_2D: u32,
-        max_samples: u32,
-    ) Sampler {
-        _ = alloc;
-        _ = num_dimensions_1D;
-        _ = num_dimensions_2D;
-        _ = max_samples;
-
+    pub fn create(self: Factory) Sampler {
         return switch (self) {
             .Random => Sampler{ .Random = {} },
             .Sobol => Sampler{ .Sobol = .{} },

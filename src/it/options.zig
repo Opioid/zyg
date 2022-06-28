@@ -1,4 +1,4 @@
-const OperatorType = @import("operator.zig").Operator.Type;
+const Operator = @import("operator.zig").Operator.Class;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -11,7 +11,7 @@ pub const Options = struct {
     };
 
     inputs: std.ArrayListUnmanaged([]u8) = .{},
-    operator: OperatorType = .Over,
+    operator: Operator = .Over,
     format: Format = .PNG,
     exposure: f32 = 0.0,
     threads: i32 = 0,
@@ -36,18 +36,15 @@ pub const Options = struct {
 
         var executed = false;
 
-        var i_i = try iter.next(alloc);
+        var i_i = iter.next();
         while (i_i) |arg_i| {
             const command = arg_i[1..];
 
-            var i_j = try iter.next(alloc);
+            var i_j = iter.next();
             if (i_j) |arg_j| {
                 if (isParameter(arg_j)) {
                     try options.handleAll(alloc, command, arg_j);
-                    alloc.free(arg_j);
-
                     executed = true;
-
                     continue;
                 }
             }
@@ -56,7 +53,6 @@ pub const Options = struct {
                 try options.handleAll(alloc, command, "");
             }
 
-            alloc.free(arg_i);
             i_i = i_j;
 
             executed = false;
@@ -65,7 +61,7 @@ pub const Options = struct {
         return options;
     }
 
-    fn handleAll(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handleAll(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if ('-' == command[0]) {
             try self.handle(alloc, command[1..], parameter);
         } else {
@@ -75,15 +71,18 @@ pub const Options = struct {
         }
     }
 
-    fn handle(self: *Options, alloc: Allocator, command: []u8, parameter: []u8) !void {
+    fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "add", command)) {
             self.operator = .Add;
+        } else if (std.mem.eql(u8, "avg", command)) {
+            self.operator = .Average;
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
-            const input = try alloc.alloc(u8, parameter.len);
-            std.mem.copy(u8, input, parameter);
+            const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);
+        } else if (std.mem.eql(u8, "diff", command) or std.mem.eql(u8, "d", command)) {
+            self.operator = .Diff;
         } else if (std.mem.eql(u8, "exposure", command) or std.mem.eql(u8, "e", command)) {
             self.exposure = std.fmt.parseFloat(f32, parameter) catch 0.0;
         } else if (std.mem.eql(u8, "format", command) or std.mem.eql(u8, "f", command)) {
@@ -103,7 +102,7 @@ pub const Options = struct {
         }
     }
 
-    fn isParameter(text: []u8) bool {
+    fn isParameter(text: []const u8) bool {
         if (text.len <= 1) {
             return true;
         }
@@ -128,12 +127,13 @@ pub const Options = struct {
             \\  it [OPTION..]
             \\
             \\  -h, --help           Print help.
-            \\  -i, --input    file  Specifies an input file
-            \\  -t, --threads  int   Specifies the number of threads used by sprout.
+            \\
+            \\  -i, --input    file  Specifies an input file.
+            \\
+            \\  -t, --threads  int   Specifies number of threads used by sprout.
             \\                       0 creates one thread for each logical CPU.
-            \\                       -x creates as many threads as the number of
-            \\                       logical CPUs minus x.
-            \\                       The default value is 0.
+            \\                       -x creates as many threads as number of
+            \\                       logical CPUs minus x. Default is 0.
         ;
 
         stdout.print(text, .{}) catch return;

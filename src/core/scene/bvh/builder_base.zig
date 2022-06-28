@@ -113,7 +113,7 @@ const Kernel = struct {
                     } else {
                         const child0 = @intCast(u32, self.build_nodes.items.len);
 
-                        node.setSplitNode(child0, sp.axis);
+                        node.setSplitNode(child0);
 
                         try self.build_nodes.append(alloc, .{});
                         try self.build_nodes.append(alloc, .{});
@@ -172,7 +172,7 @@ const Kernel = struct {
             const ax = [_]u8{ 0, 1, 2 };
             for (ax) |a| {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, std.math.ceil(extent_a / step));
+                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
                 const step_a = extent_a / @intToFloat(f32, num_steps);
 
                 var i: u32 = 1;
@@ -239,7 +239,7 @@ const Kernel = struct {
     }
 
     pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
-        const num_references = @intCast(u8, references.len);
+        const num_references = @intCast(u32, references.len);
 
         node.setLeafNode(@intCast(u32, self.reference_ids.items.len), num_references);
 

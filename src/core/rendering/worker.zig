@@ -17,6 +17,7 @@ const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
+const aov = @import("sensor/aov/value.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -37,18 +38,16 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
-    photon_mapper: PhotonMapper = undefined,
+
+    aov: aov.Value = undefined,
+
+    photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
     photon: Vec4f = undefined,
 
-    pub fn init(alloc: Allocator) !Worker {
-        return Worker{ .super = try SceneWorker.init(alloc) };
-    }
-
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
-        self.super.deinit(alloc);
     }
 
     pub fn configure(
@@ -56,24 +55,26 @@ pub const Worker = struct {
         alloc: Allocator,
         camera: *cam.Perspective,
         scene: *Scene,
-        num_samples_per_pixel: u32,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
         volumes: vol.Factory,
         lighttracers: lt.Factory,
+        aovs: aov.Factory,
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = samplers.create(alloc, 1, 2, num_samples_per_pixel);
+        self.sampler = samplers.create();
 
         self.surface_integrator = surfaces.create();
         self.volume_integrator = volumes.create();
         self.lighttracer = lighttracers.create();
 
+        self.aov = aovs.create();
+
         const max_bounces = if (photon_settings.num_photons > 0) photon_settings.max_bounces else 0;
-        self.photon_mapper = try PhotonMapper.init(alloc, .{
+        try self.photon_mapper.configure(alloc, .{
             .max_bounces = max_bounces,
             .full_light_path = photon_settings.full_light_path,
         });
@@ -84,27 +85,44 @@ pub const Worker = struct {
     // Running variance calculation inspired by
     // https://www.johndcook.com/blog/standard_deviation/
 
-    pub fn renderTrackVariance(self: *Worker, frame: u32, tile: Vec4i, min_samples: u32) void {
+    pub fn renderTrackVariance(
+        self: *Worker,
+        frame: u32,
+        tile: Vec4i,
+        iteration: u32,
+        num_samples: u32,
+        num_expected_samples: u32,
+        num_photon_samples: u32,
+    ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
 
-        const offset = @splat(2, @as(i32, 0));
-        const r = camera.resolution;
+        var rng = &self.super.rng;
 
-        const o0 = 0; //uint64_t(iteration) * @intCast(u64, r.v[0] * r.v[1]);
+        const r = camera.resolution;
+        const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
+        const o = @as(u64, iteration) * a;
+        const so = iteration / num_expected_samples;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, y * r[0]) + o0;
+            const pixel_n = @intCast(u32, y * r[0]);
+
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                self.super.rng.start(0, o1 + @intCast(u64, x));
+                const pixel_id = pixel_n + @intCast(u32, x);
 
-                self.sampler.startPixel(0, @intCast(u32, y * r[0] + x));
-                self.surface_integrator.startPixel(0, @intCast(u32, y * r[0] + x + r[0] * r[1]));
+                rng.start(0, @as(u64, pixel_id) + o);
+
+                const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
+                const tsi = @truncate(u32, sample_index);
+                const seed = @truncate(u32, sample_index >> 32) + so;
+
+                self.sampler.startPixel(tsi, seed);
+                self.surface_integrator.startPixel(tsi, seed + 1);
 
                 self.photon = @splat(4, @as(f32, 0.0));
 
@@ -114,14 +132,16 @@ pub const Worker = struct {
                 var old_s: f32 = 0.0;
 
                 var s: u32 = 0;
-                while (s < min_samples) : (s += 1) {
-                    var sample = self.sampler.cameraSample(&self.super.rng, pixel);
+                while (s < num_samples) : (s += 1) {
+                    var sample = self.sampler.cameraSample(rng, pixel);
+
+                    self.aov.clear();
 
                     var value = @splat(4, @as(f32, 0.0));
                     var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, true, camera.interface_stack);
+                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
 
                         var photon = self.photon;
                         if (photon[3] > 0.0) {
@@ -129,11 +149,11 @@ pub const Worker = struct {
                             photon[3] = 0.0;
                         }
 
-                        const clamped = sensor.addSample(sample, color + photon, offset);
+                        const clamped = sensor.addSample(sample, color + photon, self.aov);
                         value = clamped.last;
                         new_m = clamped.mean;
                     } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
                     }
 
                     const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
@@ -160,7 +180,6 @@ pub const Worker = struct {
         const sensor = &camera.sensor;
         const scene = self.super.scene;
 
-        const offset = @splat(2, @as(i32, 0));
         const r = camera.resolution;
 
         const o0 = 1 * @intCast(u64, r[0] * r[1]);
@@ -193,11 +212,11 @@ pub const Worker = struct {
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, false, camera.interface_stack);
 
-                        const clamped = sensor.addSample(sample, color, offset);
+                        const clamped = sensor.addSample(sample, color, self.aov);
                         value = clamped.last;
                         new_m = clamped.mean;
                     } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), offset);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
                     }
 
                     const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
@@ -250,10 +269,10 @@ pub const Worker = struct {
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
-        var camera = self.super.camera;
+        const camera = self.super.camera;
 
         self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel(self.super.rng.randomUint());
+        self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
@@ -266,11 +285,43 @@ pub const Worker = struct {
     }
 
     pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self);
+        return self.photon_map.li(isec, sample, self.super.scene.*);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    pub fn commonAOV(
+        self: *Worker,
+        throughput: Vec4f,
+        ray: Ray,
+        isec: Intersection,
+        mat_sample: MaterialSample,
+        primary_ray: bool,
+    ) void {
+        if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
+            self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
+        }
+
+        if (ray.depth > 0) {
+            return;
+        }
+
+        if (self.aov.activeClass(.ShadingNormal)) {
+            self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
+        }
+
+        if (self.aov.activeClass(.Depth)) {
+            self.aov.insert1(.Depth, ray.ray.maxT());
+        }
+
+        if (self.aov.activeClass(.MaterialId)) {
+            self.aov.insert1(
+                .MaterialId,
+                @intToFloat(f32, 1 + self.super.scene.propMaterialId(isec.prop, isec.geo.part)),
+            );
+        }
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
@@ -307,12 +358,13 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        self.super.interface_stack_temp.copy(self.super.interface_stack);
+        var temp_stack: InterfaceStack = undefined;
+        temp_stack.copy(self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.super.interface_stack.straight(self.super)) {
+        if (!self.super.interface_stack.straight(self.super.scene.*)) {
             self.super.interface_stack.pop();
         }
 
@@ -352,7 +404,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.swap(&self.super.interface_stack_temp);
+        self.super.interface_stack.copy(temp_stack);
 
         return w;
     }
@@ -364,7 +416,7 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        const material = isec.material(self.super);
+        const material = isec.material(self.super.scene.*);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
@@ -378,7 +430,7 @@ pub const Worker = struct {
                     if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wi, wo, nisec.geo.geo_n, nisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }

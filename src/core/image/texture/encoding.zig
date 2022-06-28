@@ -27,16 +27,15 @@ pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
     return .{ SNORM_FLOAT[byte[0]], SNORM_FLOAT[byte[1]] };
 }
 
-const Num_samples: u32 = 256;
+const Num_samples = 256;
 
 fn calculateSrgbToFloat() [Num_samples]f32 {
-    @setEvalBranchQuota(11000);
+    @setEvalBranchQuota(11500);
 
     var buf: [Num_samples]f32 = undefined;
 
-    var i: u32 = 0;
-    while (i < Num_samples) : (i += 1) {
-        buf[i] = spectrum.gammaToLinear_sRGB(@intToFloat(f32, i) / 255.0);
+    for (buf) |*b, i| {
+        b.* = spectrum.gammaToLinear_sRGB(@intToFloat(f32, i) / 255.0);
     }
 
     return buf;
@@ -45,9 +44,8 @@ fn calculateSrgbToFloat() [Num_samples]f32 {
 fn calculateUnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
-    var i: u32 = 0;
-    while (i < Num_samples) : (i += 1) {
-        buf[i] = enc.unormToFloat(@intCast(u8, i));
+    for (buf) |*b, i| {
+        b.* = enc.unormToFloat(@intCast(u8, i));
     }
 
     return buf;
@@ -56,9 +54,8 @@ fn calculateUnormToFloat() [Num_samples]f32 {
 fn calculateSnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
-    var i: u32 = 0;
-    while (i < Num_samples) : (i += 1) {
-        buf[i] = enc.snormToFloat(@intCast(u8, i));
+    for (buf) |*b, i| {
+        b.* = enc.snormToFloat(@intCast(u8, i));
     }
 
     return buf;

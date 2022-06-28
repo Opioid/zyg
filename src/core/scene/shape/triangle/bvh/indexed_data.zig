@@ -11,11 +11,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Indexed_data = struct {
-    pub const Intersection = struct {
-        u: f32,
-        v: f32,
-    };
-
     const Triangle = packed struct {
         a: u32,
         b: u32,
@@ -84,21 +79,14 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn intersect(self: Self, ray: *Ray, index: usize) ?Intersection {
+    pub fn intersect(self: Self, ray: Ray, index: usize) ?triangle.Intersection {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
         const bp = self.positions[tri.b];
         const cp = self.positions[tri.c];
 
-        var u: f32 = undefined;
-        var v: f32 = undefined;
-
-        if (triangle.intersect(ray, ap, bp, cp, &u, &v)) {
-            return Intersection{ .u = u, .v = v };
-        }
-
-        return null;
+        return triangle.intersect(ray, ap, bp, cp);
     }
 
     pub fn intersectP(self: Self, ray: Ray, index: usize) bool {
@@ -124,9 +112,9 @@ pub const Indexed_data = struct {
     pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
         const tri = self.triangles[index];
 
-        const tna = quaternion.initTN(self.frames[tri.a]);
-        const tnb = quaternion.initTN(self.frames[tri.b]);
-        const tnc = quaternion.initTN(self.frames[tri.c]);
+        const tna = quaternion.toTN(self.frames[tri.a]);
+        const tnb = quaternion.toTN(self.frames[tri.b]);
+        const tnc = quaternion.toTN(self.frames[tri.c]);
 
         t.* = math.normalize3(triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v));
         n.* = math.normalize3(triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v));
@@ -167,9 +155,9 @@ pub const Indexed_data = struct {
     pub fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
         const tri = self.triangles[index];
 
-        const a = quaternion.initNormal(self.frames[tri.a]);
-        const b = quaternion.initNormal(self.frames[tri.b]);
-        const c = quaternion.initNormal(self.frames[tri.c]);
+        const a = quaternion.toNormal(self.frames[tri.a]);
+        const b = quaternion.toNormal(self.frames[tri.b]);
+        const c = quaternion.toNormal(self.frames[tri.c]);
 
         return math.normalize3(triangle.interpolate3(a, b, c, u, v));
     }

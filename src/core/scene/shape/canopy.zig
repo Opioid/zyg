@@ -12,6 +12,7 @@ const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
 const Ray = math.Ray;
 
 const std = @import("std");
@@ -32,12 +33,10 @@ pub const Canopy = struct {
             0.5 * disk[1] + 0.5,
         };
 
-        isec.p = ray.point(scn.Ray_max_t);
-
+        // This is nonsense
+        isec.p = @splat(4, @as(f32, scn.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
-
-        // This is nonsense
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;
@@ -97,9 +96,9 @@ pub const Canopy = struct {
         return 1.0;
     }
 
-    pub fn sampleFromUv(
-        uv: Vec2f,
+    pub fn sampleFrom(
         trafo: Transformation,
+        uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
     ) ?SampleFrom {
@@ -110,22 +109,26 @@ pub const Canopy = struct {
         }
 
         const ls = diskToHemisphereEquidistant(disk);
-        const ws = -trafo.rotation.transformVector(ls);
-        const tb = math.orthonormalBasis3(ws);
+        const dir = -trafo.rotation.transformVector(ls);
+        const tb = math.orthonormalBasis3(dir);
 
-        const bounds_radius2 = math.squaredLength3(bounds.halfsize());
-        const bounds_radius = @sqrt(bounds_radius2);
+        const rotation = Mat3x3.init3(tb[0], tb[1], dir);
 
-        const receiver_disk = math.smpl.orientedDiskConcentric(importance_uv, tb[0], tb[1]);
-        const p = bounds.position() + @splat(4, bounds_radius) * (receiver_disk - ws);
+        const ls_bounds = bounds.transformTransposed(rotation);
+        const ls_extent = ls_bounds.extent();
+        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
+
+        const offset = @splat(4, ls_extent[2]) * dir;
+        const p = ls_bounds.position() - offset + photon_rect;
 
         return SampleFrom.init(
             p,
-            @splat(4, @as(f32, 0.0)),
-            ws,
+            dir,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
-            1.0 / ((2.0 * std.math.pi) * (1.0 * std.math.pi) * bounds_radius2),
+            1.0 / ((2.0 * std.math.pi) * ls_extent[0] * ls_extent[1]),
         );
     }
 

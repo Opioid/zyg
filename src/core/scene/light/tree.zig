@@ -74,11 +74,14 @@ pub const Node = packed struct {
         }
 
         var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+        var sum: f32 = 0.0;
         for (weights[0..self.num_lights]) |*w, i| {
-            w.* = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+            const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+            w.* = lw;
+            sum += lw;
         }
 
-        const l = Distribution1D.staticSampleDiscrete(4, weights, num_lights, random);
+        const l = Distribution1D.staticSampleDiscrete(4, weights, sum, num_lights, random);
         return .{ .offset = light_mapping[light + l.offset], .pdf = l.pdf };
     }
 
@@ -99,11 +102,14 @@ pub const Node = packed struct {
         const light = self.children_or_light;
 
         var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+        var sum: f32 = 0.0;
         for (weights[0..self.num_lights]) |*w, i| {
-            w.* = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+            const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+            w.* = lw;
+            sum += lw;
         }
 
-        return Distribution1D.staticPdf(4, weights, id - light);
+        return Distribution1D.staticPdf(4, weights, sum, id - light);
     }
 };
 
@@ -322,7 +328,7 @@ pub const Tree = struct {
                     } else {
                         t.node = c1;
                         t.pdf *= p1;
-                        t.random = (t.random - p0) / p1;
+                        t.random = @minimum((t.random - p0) / p1, 1.0);
                     }
 
                     t.depth = Max_split_depth;
@@ -497,7 +503,7 @@ pub const PrimitiveTree = struct {
                 } else {
                     nid = c1;
                     pd *= p1;
-                    random = (random - p0) / p1;
+                    random = @minimum((random - p0) / p1, 1.0);
                 }
             } else {
                 if (node.num_lights <= 4) {

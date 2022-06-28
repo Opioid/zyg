@@ -9,7 +9,6 @@ const CCE = ccoef.CCE;
 const Null = @import("../null/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
-const Worker = @import("../../worker.zig").Worker;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const fresnel = @import("../fresnel.zig");
@@ -45,11 +44,11 @@ pub const Material = struct {
     a_norm: Vec4f = undefined,
     pdf_factor: f32 = undefined,
 
-    pub fn init(sampler_key: ts.Key) Material {
-        var super = Base.init(sampler_key, false);
-        super.ior = 1.0;
-
-        return .{ .super = super };
+    pub fn init() Material {
+        return .{ .super = .{
+            .sampler_key = .{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } },
+            .ior = 1.0,
+        } };
     }
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
@@ -62,7 +61,7 @@ pub const Material = struct {
         self.average_emission = @splat(4, @as(f32, -1.0));
 
         self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
-            math.anyGreaterZero3(self.super.emission));
+            math.anyGreaterZero3(self.super.emittance.value));
         self.super.properties.set(.EmissionMap, self.density_map.valid());
 
         if (self.density_map.valid()) {
@@ -90,7 +89,7 @@ pub const Material = struct {
 
                 const c = spectrum.blackbody(t);
 
-                self.blackbody.samples[i] = self.super.emission * c;
+                self.blackbody.samples[i] = self.super.emittance.value * c;
             }
         }
     }
@@ -108,7 +107,7 @@ pub const Material = struct {
         }
 
         if (!self.density_map.valid()) {
-            self.average_emission = self.super.cc.a * self.super.emission;
+            self.average_emission = self.super.cc.a * self.super.emittance.value;
             return self.average_emission;
         }
 
@@ -174,7 +173,7 @@ pub const Material = struct {
         return .{ .Null = Null.init(wo, rs) };
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) Vec4f {
+    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
@@ -182,15 +181,15 @@ pub const Material = struct {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
         const emission = if (self.temperature_map.valid())
-            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, worker.scene.*))
+            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, scene))
         else
-            self.super.emission;
+            self.super.emittance.value;
 
         if (2 == self.density_map.numChannels()) {
-            const d = ts.sample3D_2(key, self.density_map, uvw, worker.scene.*);
+            const d = ts.sample3D_2(key, self.density_map, uvw, scene);
             return @splat(4, d[0] * d[1]) * self.a_norm * emission;
         } else {
-            const d = ts.sample3D_1(key, self.density_map, uvw, worker.scene.*);
+            const d = ts.sample3D_1(key, self.density_map, uvw, scene);
             return @splat(4, d) * self.a_norm * emission;
         }
     }
@@ -212,33 +211,33 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) f32 {
+    pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) f32 {
         if (self.density_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample3D_1(key, self.density_map, uvw, worker.scene.*);
+            return ts.sample3D_1(key, self.density_map, uvw, scene);
         }
 
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, worker: Worker) CCE {
+    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
 
-            const t = ts.sample3D_1(key, self.temperature_map, uvw, worker.scene.*);
+            const t = ts.sample3D_1(key, self.temperature_map, uvw, scene);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
-                const d = ts.sample3D_2(key, self.density_map, uvw, worker.scene.*);
+                const d = ts.sample3D_2(key, self.density_map, uvw, scene);
                 const d0 = @splat(4, d[0]);
                 return .{
                     .cc = .{ .a = d0 * cc.a, .s = d0 * cc.s },
                     .e = @splat(4, d[1]) * e,
                 };
             } else {
-                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, worker.scene.*));
+                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, scene));
                 return .{
                     .cc = .{ .a = d * cc.a, .s = d * cc.s },
                     .e = d * e,
@@ -246,10 +245,10 @@ pub const Material = struct {
             }
         }
 
-        const d = @splat(4, self.density(uvw, filter, worker));
+        const d = @splat(4, self.density(uvw, filter, scene));
         return .{
             .cc = .{ .a = d * cc.a, .s = d * cc.s },
-            .e = self.super.emission,
+            .e = self.super.emittance.value,
         };
     }
 };

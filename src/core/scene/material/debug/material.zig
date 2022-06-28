@@ -1,6 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -11,12 +12,8 @@ pub const Material = struct {
     const color_back = Vec4f{ 0.9, 0.1, 0.4, 0.0 };
 
     pub fn init() Material {
-        var super = Base.init(.{}, true);
-        super.mask = .{};
-        super.color_map = .{};
-        super.emission = @splat(4, @as(f32, 1.0));
-        super.ior = 1.5;
-
+        var super = Base{};
+        super.setTwoSided(true);
         return .{ .super = super };
     }
 
@@ -28,7 +25,7 @@ pub const Material = struct {
         const color = if (same_side) color_front else color_back;
 
         var result = Sample.init(rs, wo, color);
-        result.super.layer.setTangentFrame(rs.t, rs.b, rs.n);
+        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 };
