@@ -85,7 +85,7 @@ pub const Worker = struct {
     // Running variance calculation inspired by
     // https://www.johndcook.com/blog/standard_deviation/
 
-    pub fn renderTrackVariance(
+    pub fn render(
         self: *Worker,
         frame: u32,
         tile: Vec4i,
@@ -93,12 +93,15 @@ pub const Worker = struct {
         num_samples: u32,
         num_expected_samples: u32,
         num_photon_samples: u32,
+        target_cv: f32,
     ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
 
         var rng = &self.super.rng;
+
+        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -131,6 +134,8 @@ pub const Worker = struct {
                 var old_m = @splat(4, @as(f32, 0.0));
                 var old_s: f32 = 0.0;
 
+                var next_check = step;
+
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(rng, pixel);
@@ -161,111 +166,21 @@ pub const Worker = struct {
                     // set up for next iteration
                     old_m = new_m;
                     old_s = new_s;
-                }
 
-                sensor.basePtr().setErrorEstimate(pixel, old_s);
-            }
-        }
-    }
+                    if (s == next_check) {
+                        const variance = new_s * new_m[3];
+                        const mam = math.maxComponent3(new_m);
+                        const coeff = @sqrt(variance) / @maximum(mam, 0.02);
 
-    pub fn renderRemainder(
-        self: *Worker,
-        frame: u32,
-        tile: Vec4i,
-        min_samples: u32,
-        max_samples: u32,
-        target_cv: f32,
-    ) void {
-        var camera = self.super.camera;
-        const sensor = &camera.sensor;
-        const scene = self.super.scene;
-
-        const r = camera.resolution;
-
-        const o0 = 1 * @intCast(u64, r[0] * r[1]);
-
-        const y_back = tile[3];
-        var y: i32 = tile[1];
-        while (y <= y_back) : (y += 1) {
-            const o1 = @intCast(u64, y * r[0]) + o0;
-            const x_back = tile[2];
-            var x: i32 = tile[0];
-            while (x <= x_back) : (x += 1) {
-                self.super.rng.start(0, o1 + @intCast(u64, x));
-
-                const pixel = Vec2i{ x, y };
-
-                var old_m = sensor.mean(pixel);
-                var old_s = sensor.basePtr().errorEstimate(pixel);
-
-                self.sampler.startPixel(min_samples, @intCast(u32, y * r[0] + x));
-                self.surface_integrator.startPixel(min_samples, @intCast(u32, y * r[0] + x + r[0] * r[1]));
-
-                var c: u32 = 0;
-                var s = min_samples;
-                while (s < max_samples) : (s += 1) {
-                    var sample = self.sampler.cameraSample(&self.super.rng, pixel);
-
-                    var value = @splat(4, @as(f32, 0.0));
-                    var new_m = @splat(4, @as(f32, 0.0));
-
-                    if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, false, camera.interface_stack);
-
-                        const clamped = sensor.addSample(sample, color, self.aov);
-                        value = clamped.last;
-                        new_m = clamped.mean;
-                    } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
-                    }
-
-                    const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
-
-                    // set up for next iteration
-                    old_m = new_m;
-                    old_s = new_s;
-
-                    const mim = math.minComponent3(new_m);
-                    const mam = math.maxComponent3(new_m);
-
-                    if (0 == c) {
-                        if (mim >= 0.0) {
-                            if (0.0 == mam) {
-                                break;
-                            }
-
-                            //const variance = new_s / @intToFloat(f32, s);
-                            const variance = new_s * new_m[3];
-                            const coeff = @sqrt(variance) / @maximum(mam, 0.02);
-
-                            // const variance = new_s * new_m[3];
-                            // const peak = tonemap(new_m + @splat(4, 0.5 * @sqrt(variance)));
-                            // const tm = tonemap(new_m);
-
-                            // const new_variance = 2.0 * math.maxComponent3(peak - tm);
-                            // const coeff = @sqrt(new_variance) / @maximum(math.maxComponent3(tm), 0.02);
-
-                            if (coeff <= target_cv) {
-                                break;
-                            }
-
-                            c = min_samples;
+                        if (coeff <= target_cv) {
+                            break;
                         }
-                    } else {
-                        c -= 1;
+
+                        next_check += next_check + step;
                     }
                 }
             }
         }
-    }
-
-    fn tonemap(color: Vec4f) Vec4f {
-        const factor = std.math.exp2(@as(f32, 1.5));
-
-        const scaled = @splat(4, factor) * color;
-        const rrt = spectrum.AP1toRRT_SAT(scaled);
-        const odt = spectrum.RRTandODT(rrt);
-        return spectrum.ODTSATtosRGB(odt);
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {

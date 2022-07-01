@@ -23,7 +23,7 @@ pub const Transparent = struct {
     pub fn deinit(self: *Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
         alloc.free(self.pixel_weights);
-        self.base.deinit(alloc);
+        self.base.aov.deinit(alloc);
     }
 
     pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
