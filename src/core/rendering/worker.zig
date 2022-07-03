@@ -161,22 +161,24 @@ pub const Worker = struct {
                         _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
                     }
 
-                    const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
+                    if (target_cv > 0.0) {
+                        const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
 
-                    // set up for next iteration
-                    old_m = new_m;
-                    old_s = new_s;
+                        // set up for next iteration
+                        old_m = new_m;
+                        old_s = new_s;
 
-                    if (s == next_check) {
-                        const variance = new_s * new_m[3];
-                        const mam = math.maxComponent3(new_m);
-                        const coeff = @sqrt(variance) / @maximum(mam, 0.02);
+                        if (s == next_check) {
+                            const variance = new_s * new_m[3];
+                            const mam = math.maxComponent3(new_m);
+                            const coeff = @sqrt(variance) / @maximum(mam, 0.02);
 
-                        if (coeff <= target_cv) {
-                            break;
+                            if (coeff <= target_cv) {
+                                break;
+                            }
+
+                            next_check += next_check + step;
                         }
-
-                        next_check += next_check + step;
                     }
                 }
             }
