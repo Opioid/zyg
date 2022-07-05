@@ -120,17 +120,6 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn mean(self: Sensor, pixel: Vec2i) Vec4f {
-        return switch (self) {
-            .Unfiltered_opaque => |s| s.sensor.mean(pixel),
-            .Unfiltered_transparent => |s| s.sensor.mean(pixel),
-            .Filtered_1p0_opaque => |s| s.sensor.mean(pixel),
-            .Filtered_2p0_opaque => |s| s.sensor.mean(pixel),
-            .Filtered_1p0_transparent => |s| s.sensor.mean(pixel),
-            .Filtered_2p0_transparent => |s| s.sensor.mean(pixel),
-        };
-    }
-
     pub fn addSample(
         self: *Sensor,
         sample: Sample,
