@@ -8,6 +8,7 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
+const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
 const Progressor = @import("../progress.zig").Progressor;
 pub const snsr = @import("sensor/sensor.zig");
 
@@ -235,6 +236,24 @@ pub const Driver = struct {
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
+
+        const d = self.view.camera.sensorDimensions();
+        var sensor = self.view.camera.sensor;
+
+        var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
+        defer alloc.free(weights);
+
+        sensor.copyWeights(weights);
+
+        var min: f32 = std.math.f32_max;
+        var max: f32 = 0.0;
+
+        for (weights) |w| {
+            min = @minimum(min, w);
+            max = @maximum(max, w);
+        }
+
+        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
     }
 
     fn renderFrameBackward(self: *Driver) void {
@@ -272,9 +291,10 @@ pub const Driver = struct {
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+        const target_cv = self.view.cv;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples);
+            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples, target_cv);
 
             self.progressor.tick();
         }
@@ -293,10 +313,11 @@ pub const Driver = struct {
         camera.sensor.clear(0.0);
         camera.sensor.basePtr().aov.clear();
 
-        self.progressor.start(self.tiles.size());
+        self.progressor.start(self.tiles.size() * 2);
 
         self.tiles.restart();
 
+        self.tiles.restart();
         self.threads.runParallel(self, renderTiles, 0);
 
         log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});

@@ -1,9 +1,13 @@
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
 const aov = @import("aov/buffer.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4f = math.Vec4f;
+const Threads = base.thread.Pool;
+
+const Allocator = @import("std").mem.Allocator;
 
 const std = @import("std");
 
@@ -15,6 +19,11 @@ pub const Base = struct {
     tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 
     aov: aov.Buffer = .{},
+
+    pub const Result = struct {
+        last: Vec4f,
+        mean: Vec4f,
+    };
 
     pub fn clamp(self: Base, color: Vec4f) Vec4f {
         const mc = math.maxComponent3(color);

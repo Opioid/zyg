@@ -1,6 +1,7 @@
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
+const Result = @import("base.zig").Base.Result;
 const AovValue = @import("aov/value.zig").Value;
 
 const base = @import("base");
@@ -68,7 +69,7 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             sample: Sample,
             color: Vec4f,
             aov: AovValue,
-        ) void {
+        ) Result {
             const clamped = self.sensor.base.clamp(color);
 
             const x = sample.pixel[0];
@@ -76,8 +77,6 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
 
             const w = self.eval(sample.pixel_uv[0]) * self.eval(sample.pixel_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
-
-            self.sensor.addPixel(.{ x, y }, clamped, weight);
 
             if (aov.active()) {
                 const len = AovValue.Num_classes;
@@ -99,6 +98,8 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                     }
                 }
             }
+
+            return self.sensor.addPixel(.{ x, y }, clamped, weight);
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {

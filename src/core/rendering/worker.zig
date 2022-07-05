@@ -19,11 +19,13 @@ const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Map
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const aov = @import("sensor/aov/value.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const spectrum = base.spectrum;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -80,6 +82,9 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
+    // Running variance calculation inspired by
+    // https://www.johndcook.com/blog/standard_deviation/
+
     pub fn render(
         self: *Worker,
         frame: u32,
@@ -88,12 +93,15 @@ pub const Worker = struct {
         num_samples: u32,
         num_expected_samples: u32,
         num_photon_samples: u32,
+        target_cv: f32,
     ) void {
         var camera = self.super.camera;
         const sensor = &camera.sensor;
         const scene = self.super.scene;
 
         var rng = &self.super.rng;
+
+        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -123,11 +131,19 @@ pub const Worker = struct {
 
                 const pixel = Vec2i{ x, y };
 
+                var old_m = @splat(4, @as(f32, 0.0));
+                var old_s: f32 = 0.0;
+
+                var next_check = step;
+
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
                     var sample = self.sampler.cameraSample(rng, pixel);
 
                     self.aov.clear();
+
+                    var value = @splat(4, @as(f32, 0.0));
+                    var new_m = @splat(4, @as(f32, 0.0));
 
                     if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
                         const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
@@ -138,9 +154,31 @@ pub const Worker = struct {
                             photon[3] = 0.0;
                         }
 
-                        sensor.addSample(sample, color + photon, self.aov);
+                        const clamped = sensor.addSample(sample, color + photon, self.aov);
+                        value = clamped.last;
+                        new_m = clamped.mean;
                     } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
+                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
+                    }
+
+                    if (target_cv > 0.0) {
+                        const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
+
+                        // set up for next iteration
+                        old_m = new_m;
+                        old_s = new_s;
+
+                        if (s == next_check) {
+                            const variance = new_s * new_m[3];
+                            const mam = math.maxComponent3(new_m);
+                            const coeff = @sqrt(variance) / @maximum(mam, 0.02);
+
+                            if (coeff <= target_cv) {
+                                break;
+                            }
+
+                            next_check += next_check + step;
+                        }
                     }
                 }
             }

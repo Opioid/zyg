@@ -50,12 +50,16 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
+    pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
         const d = self.base.dimensions;
 
         var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
         const wc = @splat(4, weight) * color;
+
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
+
+        const div = if (0.0 == value.v[3]) 1.0 else value.v[3];
+        return .{ .last = wc, .mean = Vec4f{ value.v[0], value.v[1], value.v[2], 1.0 } / @splat(4, div) };
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
@@ -103,6 +107,12 @@ pub const Opaque = struct {
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
             target[j] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+        }
+    }
+
+    pub fn copyWeights(self: Opaque, weights: []f32) void {
+        for (self.pixels) |p, i| {
+            weights[i] = p.v[3];
         }
     }
 };

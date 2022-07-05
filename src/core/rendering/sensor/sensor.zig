@@ -125,15 +125,15 @@ pub const Sensor = union(enum) {
         sample: Sample,
         color: Vec4f,
         aovs: aov.Value,
-    ) void {
-        switch (self.*) {
+    ) Base.Result {
+        return switch (self.*) {
             .Unfiltered_opaque => |*s| s.addSample(sample, color, aovs),
             .Unfiltered_transparent => |*s| s.addSample(sample, color, aovs),
             .Filtered_1p0_opaque => |*s| s.addSample(sample, color, aovs),
             .Filtered_2p0_opaque => |*s| s.addSample(sample, color, aovs),
             .Filtered_1p0_transparent => |*s| s.addSample(sample, color, aovs),
             .Filtered_2p0_transparent => |*s| s.addSample(sample, color, aovs),
-        }
+        };
     }
 
     pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
@@ -237,6 +237,17 @@ pub const Sensor = union(enum) {
             }
         }
     };
+
+    pub fn copyWeights(self: Sensor, weights: []f32) void {
+        switch (self) {
+            .Unfiltered_opaque => |s| s.sensor.copyWeights(weights),
+            .Unfiltered_transparent => |s| s.sensor.copyWeights(weights),
+            .Filtered_1p0_opaque => |s| s.sensor.copyWeights(weights),
+            .Filtered_2p0_opaque => |s| s.sensor.copyWeights(weights),
+            .Filtered_1p0_transparent => |s| s.sensor.copyWeights(weights),
+            .Filtered_2p0_transparent => |s| s.sensor.copyWeights(weights),
+        }
+    }
 
     pub fn filterRadiusInt(self: Sensor) i32 {
         return switch (self) {

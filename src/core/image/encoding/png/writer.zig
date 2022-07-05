@@ -56,9 +56,7 @@ pub const Writer = struct {
 
     pub fn writeFloat3Scaled(alloc: Allocator, image: Float3, factor: f32) !void {
         const d = image.description.dimensions;
-
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
-
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 

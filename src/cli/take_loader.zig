@@ -226,6 +226,7 @@ fn loadSampler(value: std.json.Value, view: *View) void {
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
         view.num_samples_per_pixel = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
+        view.cv = json.readFloatMember(entry.value_ptr.*, "cv", 0.0);
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
             view.samplers = .{ .Random = {} };

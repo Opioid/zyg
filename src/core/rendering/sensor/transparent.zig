@@ -1,4 +1,5 @@
 const Base = @import("base.zig").Base;
+const Float4 = @import("../../image/image.zig").Float4;
 const aov = @import("aov/value.zig");
 
 const math = @import("base").math;
@@ -56,7 +57,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
+    pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
         const d = self.base.dimensions;
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
@@ -64,6 +65,10 @@ pub const Transparent = struct {
 
         const wc = @splat(4, weight) * color;
         self.pixels[i].addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], wc[3]));
+
+        const nw = self.pixel_weights[i];
+        const nc = self.pixels[i];
+        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
     }
 
     pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
@@ -121,6 +126,12 @@ pub const Transparent = struct {
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
             target[j] = Pack4f.init4(tm[0], tm[1], tm[2], @maximum(combined[3], 0.0));
+        }
+    }
+
+    pub fn copyWeights(self: Transparent, weights: []f32) void {
+        for (self.pixel_weights) |w, i| {
+            weights[i] = w;
         }
     }
 };
