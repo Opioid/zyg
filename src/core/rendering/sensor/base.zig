@@ -5,9 +5,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec4f = math.Vec4f;
-const Threads = base.thread.Pool;
-
-const Allocator = @import("std").mem.Allocator;
 
 const std = @import("std");
 

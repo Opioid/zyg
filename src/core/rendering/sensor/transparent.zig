@@ -1,5 +1,4 @@
 const Base = @import("base.zig").Base;
-const Float4 = @import("../../image/image.zig").Float4;
 const aov = @import("aov/value.zig");
 
 const math = @import("base").math;

@@ -313,9 +313,7 @@ pub const Driver = struct {
         camera.sensor.clear(0.0);
         camera.sensor.basePtr().aov.clear();
 
-        self.progressor.start(self.tiles.size() * 2);
-
-        self.tiles.restart();
+        self.progressor.start(self.tiles.size());
 
         self.tiles.restart();
         self.threads.runParallel(self, renderTiles, 0);
