@@ -24,6 +24,7 @@ pub const Base = struct {
     dee: []f32 = &.{},
 
     pub fn deinit(self: *Base, alloc: Allocator) void {
+        self.aov.deinit(alloc);
         alloc.free(self.dee);
         alloc.free(self.ee);
     }
