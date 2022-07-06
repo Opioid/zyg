@@ -101,7 +101,7 @@ pub const Worker = struct {
 
         var rng = &self.super.rng;
 
-        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        const step = 2 * @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -177,7 +177,7 @@ pub const Worker = struct {
                                 break;
                             }
 
-                            next_check += next_check + step;
+                            next_check += step;
                         }
                     }
                 }
