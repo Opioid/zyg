@@ -75,7 +75,7 @@ pub const Node = packed struct {
 
         var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
         var sum: f32 = 0.0;
-        for (weights[0..self.num_lights]) |*w, i| {
+        for (weights[0..num_lights]) |*w, i| {
             const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
             w.* = lw;
             sum += lw;
