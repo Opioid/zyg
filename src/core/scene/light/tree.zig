@@ -73,36 +73,36 @@ pub const Node = packed struct {
             return .{ .offset = light_mapping[light], .pdf = 1.0 };
         }
 
-        // var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
-        // var sum: f32 = 0.0;
-        // for (weights[0..num_lights]) |*w, i| {
-        //     const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
-        //     w.* = lw;
-        //     sum += lw;
-        // }
-
-        // const l = Distribution1D.staticSampleDiscrete(4, weights, sum, num_lights, random);
-        // return .{ .offset = light_mapping[light + l.offset], .pdf = l.pdf };
+        // Bi-directional CDF idea from
+        // Single-pass stratified importance resampling
+        // https://www.iliyan.com/publications/StratifiedResampling
 
         var front = light;
         var back = light + num_lights - 1;
 
         var w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
+        var w_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
 
         var w_sum_front = w_front;
-        var w_sum_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
-        var w_sum: f32 = undefined; // = w_sum_front + w_sum_back;
+        var w_sum_back = w_back;
+        var w_sum: f32 = undefined;
 
         while (front != back) {
             w_sum = w_sum_front + w_sum_back;
-
             if (w_sum_front <= random * w_sum) {
                 front += 1;
-                w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
-                w_sum_front += w_front;
+                if (front != back) {
+                    w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
+                    w_sum_front += w_front;
+                } else {
+                    w_front = w_back;
+                }
             } else {
                 back -= 1;
-                w_sum_back += lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+                if (front != back) {
+                    w_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+                    w_sum_back += w_back;
+                }
             }
         }
 
