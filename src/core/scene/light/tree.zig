@@ -95,21 +95,29 @@ pub const Node = packed struct {
         set: anytype,
         variant: u32,
     ) f32 {
-        if (1 == self.num_lights) {
+        const num_lights = self.num_lights;
+
+        if (1 == num_lights) {
             return 1.0;
         }
 
         const light = self.children_or_light;
+        const end = light + num_lights;
 
-        var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+        var w_id: f32 = undefined;
         var sum: f32 = 0.0;
-        for (weights[0..self.num_lights]) |*w, i| {
-            const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
-            w.* = lw;
+
+        var i = light;
+        while (i < end) : (i += 1) {
+            const lw = lightWeight(p, n, total_sphere, light_mapping[i], set, variant);
             sum += lw;
+
+            if (id == i) {
+                w_id = lw;
+            }
         }
 
-        return Distribution1D.staticPdf(4, weights, sum, id - light);
+        return w_id / sum;
     }
 };
 
