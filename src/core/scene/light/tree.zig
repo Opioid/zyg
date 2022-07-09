@@ -73,16 +73,40 @@ pub const Node = packed struct {
             return .{ .offset = light_mapping[light], .pdf = 1.0 };
         }
 
-        var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
-        var sum: f32 = 0.0;
-        for (weights[0..num_lights]) |*w, i| {
-            const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
-            w.* = lw;
-            sum += lw;
+        // var weights: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+        // var sum: f32 = 0.0;
+        // for (weights[0..num_lights]) |*w, i| {
+        //     const lw = lightWeight(p, n, total_sphere, light_mapping[light + i], set, variant);
+        //     w.* = lw;
+        //     sum += lw;
+        // }
+
+        // const l = Distribution1D.staticSampleDiscrete(4, weights, sum, num_lights, random);
+        // return .{ .offset = light_mapping[light + l.offset], .pdf = l.pdf };
+
+        var front = light;
+        var back = light + num_lights - 1;
+
+        var w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
+
+        var w_sum_front = w_front;
+        var w_sum_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+        var w_sum: f32 = undefined; // = w_sum_front + w_sum_back;
+
+        while (front != back) {
+            w_sum = w_sum_front + w_sum_back;
+
+            if (w_sum_front <= random * w_sum) {
+                front += 1;
+                w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
+                w_sum_front += w_front;
+            } else {
+                back -= 1;
+                w_sum_back += lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+            }
         }
 
-        const l = Distribution1D.staticSampleDiscrete(4, weights, sum, num_lights, random);
-        return .{ .offset = light_mapping[light + l.offset], .pdf = l.pdf };
+        return .{ .offset = light_mapping[front], .pdf = w_front / w_sum };
     }
 
     pub fn pdf(
@@ -506,13 +530,13 @@ pub const PrimitiveTree = struct {
                     random = @minimum((random - p0) / p1, 1.0);
                 }
             } else {
-                if (node.num_lights <= 4) {
-                    const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
-                    return .{ .offset = pick.offset, .pdf = pick.pdf * pd };
-                }
+                //   if (node.num_lights <= 4) {
+                const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
+                return .{ .offset = pick.offset, .pdf = pick.pdf * pd };
+                //   }
 
-                const pick = self.distributions[nid].sampleDiscrete(random);
-                return .{ .offset = self.light_mapping[node.children_or_light + pick.offset], .pdf = pick.pdf * pd };
+                //   const pick = self.distributions[nid].sampleDiscrete(random);
+                //   return .{ .offset = self.light_mapping[node.children_or_light + pick.offset], .pdf = pick.pdf * pd };
             }
         }
     }
@@ -543,11 +567,11 @@ pub const PrimitiveTree = struct {
                     pd *= p1 / pt;
                 }
             } else {
-                if (node.num_lights <= 4) {
-                    return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
-                }
+                //   if (node.num_lights <= 4) {
+                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
+                //   }
 
-                return pd * self.distributions[nid].pdfI(lo - node.children_or_light);
+                //   return pd * self.distributions[nid].pdfI(lo - node.children_or_light);
             }
         }
     }

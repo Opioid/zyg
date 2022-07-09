@@ -371,7 +371,7 @@ pub const Builder = struct {
             0,
             0,
             num_finite_lights,
-            std.math.max(num_finite_lights / 64, 4),
+            4, //std.math.max(num_finite_lights / 64, 4),
             part.aabb(variant),
             part.cone(variant),
             total_power,
