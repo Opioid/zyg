@@ -158,22 +158,4 @@ pub const Distribution1D = struct {
 
         return end;
     }
-
-    pub fn staticSampleDiscrete(comptime N: u32, data: [N]f32, integral: f32, n: u32, r: f32) Distribution1D.Discrete {
-        const ii = 1.0 / integral;
-
-        var cdf: [N + 1]f32 = undefined;
-
-        cdf[0] = 0.0;
-        var i: u32 = 1;
-        while (i < N) : (i += 1) {
-            cdf[i] = @mulAdd(f32, data[i - 1], ii, cdf[i - 1]);
-        }
-        cdf[N] = 1.0;
-
-        const it = search(&cdf, 0, n, r);
-        const offset = if (0 != it) it - 1 else 0;
-
-        return .{ .offset = offset, .pdf = cdf[offset + 1] - cdf[offset] };
-    }
 };

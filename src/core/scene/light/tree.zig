@@ -458,7 +458,6 @@ pub const PrimitiveTree = struct {
 
     nodes: [*]Node = undefined,
     node_middles: [*]u32 = undefined,
-    distributions: [*]Distribution1D = undefined,
 
     light_orders: [*]u32 = undefined,
     light_mapping: [*]u32 = undefined,
@@ -471,7 +470,6 @@ pub const PrimitiveTree = struct {
         alloc.free(self.light_mapping[0..num_lights]);
 
         const num_nodes = self.num_nodes;
-        alloc.free(self.distributions[0..num_nodes]);
         alloc.free(self.node_middles[0..num_nodes]);
         alloc.free(self.nodes[0..num_nodes]);
     }
@@ -491,11 +489,6 @@ pub const PrimitiveTree = struct {
             const nn = self.num_nodes;
             self.nodes = (try alloc.realloc(self.nodes[0..nn], num_nodes)).ptr;
             self.node_middles = (try alloc.realloc(self.node_middles[0..nn], num_nodes)).ptr;
-
-            var distributions = try alloc.realloc(self.distributions[0..nn], num_nodes);
-            std.mem.set(Distribution1D, distributions, .{});
-            self.distributions = distributions.ptr;
-
             self.num_nodes = num_nodes;
         }
     }
@@ -538,13 +531,8 @@ pub const PrimitiveTree = struct {
                     random = @minimum((random - p0) / p1, 1.0);
                 }
             } else {
-                //   if (node.num_lights <= 4) {
                 const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
                 return .{ .offset = pick.offset, .pdf = pick.pdf * pd };
-                //   }
-
-                //   const pick = self.distributions[nid].sampleDiscrete(random);
-                //   return .{ .offset = self.light_mapping[node.children_or_light + pick.offset], .pdf = pick.pdf * pd };
             }
         }
     }
@@ -575,11 +563,7 @@ pub const PrimitiveTree = struct {
                     pd *= p1 / pt;
                 }
             } else {
-                //   if (node.num_lights <= 4) {
                 return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
-                //   }
-
-                //   return pd * self.distributions[nid].pdfI(lo - node.children_or_light);
             }
         }
     }
