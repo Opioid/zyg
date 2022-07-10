@@ -122,7 +122,7 @@ pub const Options = struct {
 
     fn help() void {
         const text =
-            \\zyg is a global illumination renderer experiment
+            \\zyg is a global illumination renderer
             \\Usage:
             \\  zyg [OPTION..]
             \\
@@ -138,7 +138,7 @@ pub const Options = struct {
             \\      --sample       int          Index of first sample to render. Default is 0.
             \\
             \\      --num-samples  int          Number of samples to render.
-            \\                                  0 renders all samples specified in the take file.
+            \\                                  0 renders the number specified in the take file.
             \\                                  Default is 0.
             \\
             \\  -m, --mount        path         Specifies a mount point for data directory.
