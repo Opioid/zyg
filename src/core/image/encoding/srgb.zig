@@ -92,19 +92,22 @@ pub const Srgb = struct {
         var i = begin * width;
 
         var asColor = true;
+        var alpha = self.alpha;
 
         if (self.aov) |a| {
             asColor = switch (a) {
                 .Albedo => true,
                 else => false,
             };
+
+            alpha = false;
         }
 
         const image = self.image;
         const buffer = self.buffer;
 
         if (asColor) {
-            if (self.alpha) {
+            if (alpha) {
                 if (self.error_diffusion) {
                     while (y < end) : (y += 1) {
                         var err = @splat(4, goldenRatio(y) - 0.5);
