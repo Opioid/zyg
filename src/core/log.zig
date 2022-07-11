@@ -33,7 +33,7 @@ pub const StdOut = struct {
 };
 
 pub const CFunc = struct {
-    pub const Func = fn (level: c_uint, text: [*:0]u8) callconv(.C) void;
+    pub const Func = *const fn (level: c_uint, text: [*:0]u8) callconv(.C) void;
 
     func: Func,
 
