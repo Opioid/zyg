@@ -16,6 +16,7 @@ const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
+const Filesystem = @import("../file/system.zig").System;
 
 const base = @import("base");
 const math = base.math;
@@ -197,7 +198,14 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads) !void {
+    pub fn compile(
+        self: *Scene,
+        alloc: Allocator,
+        camera_pos: Vec4f,
+        time: u64,
+        threads: *Threads,
+        fs: *Filesystem,
+    ) !void {
         self.camera_pos = camera_pos;
 
         const frames_start = time - (time % Tick_duration);
@@ -216,7 +224,7 @@ pub const Scene = struct {
         }
 
         if (self.sky) |*sky| {
-            sky.compile(alloc, time, self, threads);
+            sky.compile(alloc, time, self, threads, fs);
         }
 
         // rebuild prop BVH_builder

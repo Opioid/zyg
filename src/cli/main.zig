@@ -81,7 +81,7 @@ pub fn main() !void {
     var take = tk.Take{};
     defer take.deinit(alloc);
 
-    var driver = try rendering.Driver.init(alloc, &threads, .{ .StdOut = .{} });
+    var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = .{} });
     defer driver.deinit(alloc);
 
     while (true) {

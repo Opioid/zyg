@@ -115,7 +115,7 @@ void arpragueskymodelground_print_error_and_exit(const char * message)
 	exit(-1);
 }
 
-void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, FILE * handle)
+void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, void * handle, ReadFunc hread)
 {
 	// Read metadata
 
@@ -132,65 +132,65 @@ void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, F
 
 	int vals_read;
 
-	vals_read = fread(&state->visibilities, sizeof(int), 1, handle);
+	vals_read = hread(&state->visibilities, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->visibilities < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: visibilities");
 
 	state->visibility_vals = ALLOC_ARRAY(double, state->visibilities);
-	vals_read = fread(state->visibility_vals, sizeof(double), state->visibilities, handle);
+	vals_read = hread(state->visibility_vals, sizeof(double), state->visibilities, handle);
 	if (vals_read != state->visibilities) arpragueskymodelground_print_error_and_exit("Error reading sky model data: visibility_vals");
 
-	vals_read = fread(&state->albedos, sizeof(int), 1, handle);
+	vals_read = hread(&state->albedos, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->albedos < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: albedos");
 
 	state->albedo_vals = ALLOC_ARRAY(double, state->albedos);
-	vals_read = fread(state->albedo_vals, sizeof(double), state->albedos, handle);
+	vals_read = hread(state->albedo_vals, sizeof(double), state->albedos, handle);
 	if (vals_read != state->albedos) arpragueskymodelground_print_error_and_exit("Error reading sky model data: albedo_vals");
 
-	vals_read = fread(&state->altitudes, sizeof(int), 1, handle);
+	vals_read = hread(&state->altitudes, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->altitudes < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: altitudes");
 
 	state->altitude_vals = ALLOC_ARRAY(double, state->altitudes);
-	vals_read = fread(state->altitude_vals, sizeof(double), state->altitudes, handle);
+	vals_read = hread(state->altitude_vals, sizeof(double), state->altitudes, handle);
 	if (vals_read != state->altitudes) arpragueskymodelground_print_error_and_exit("Error reading sky model data: altitude_vals");
 
-	vals_read = fread(&state->elevations, sizeof(int), 1, handle);
+	vals_read = hread(&state->elevations, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->elevations < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: elevations");
 
 	state->elevation_vals = ALLOC_ARRAY(double, state->elevations);
-	vals_read = fread(state->elevation_vals, sizeof(double), state->elevations, handle);
+	vals_read = hread(state->elevation_vals, sizeof(double), state->elevations, handle);
 	if (vals_read != state->elevations) arpragueskymodelground_print_error_and_exit("Error reading sky model data: elevation_vals");
 
-	vals_read = fread(&state->channels, sizeof(int), 1, handle);
+	vals_read = hread(&state->channels, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->channels < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: channels");
 
-	vals_read = fread(&state->channel_start, sizeof(double), 1, handle);
+	vals_read = hread(&state->channel_start, sizeof(double), 1, handle);
 	if (vals_read != 1 || state->channel_start < 0) arpragueskymodelground_print_error_and_exit("Error reading sky model data: channel_start");
 
-	vals_read = fread(&state->channel_width, sizeof(double), 1, handle);
+	vals_read = hread(&state->channel_width, sizeof(double), 1, handle);
 	if (vals_read != 1 || state->channel_width <= 0) arpragueskymodelground_print_error_and_exit("Error reading sky model data: channel_width");
 
-	vals_read = fread(&state->tensor_components, sizeof(int), 1, handle);
+	vals_read = hread(&state->tensor_components, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->tensor_components < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: tensor_components");
 
-	vals_read = fread(&state->sun_nbreaks, sizeof(int), 1, handle);
+	vals_read = hread(&state->sun_nbreaks, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->sun_nbreaks < 2) arpragueskymodelground_print_error_and_exit("Error reading sky model data: sun_nbreaks");
 
 	state->sun_breaks = ALLOC_ARRAY(double, state->sun_nbreaks);
-	vals_read = fread(state->sun_breaks, sizeof(double), state->sun_nbreaks, handle);
+	vals_read = hread(state->sun_breaks, sizeof(double), state->sun_nbreaks, handle);
 	if (vals_read != state->sun_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: sun_breaks");
 
-	vals_read = fread(&state->zenith_nbreaks, sizeof(int), 1, handle);
+	vals_read = hread(&state->zenith_nbreaks, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->zenith_nbreaks < 2) arpragueskymodelground_print_error_and_exit("Error reading sky model data: zenith_nbreaks");
 
 	state->zenith_breaks = ALLOC_ARRAY(double, state->zenith_nbreaks);
-	vals_read = fread(state->zenith_breaks, sizeof(double), state->zenith_nbreaks, handle);
+	vals_read = hread(state->zenith_breaks, sizeof(double), state->zenith_nbreaks, handle);
 	if (vals_read != state->zenith_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: zenith_breaks");
 
-	vals_read = fread(&state->emph_nbreaks, sizeof(int), 1, handle);
+	vals_read = hread(&state->emph_nbreaks, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->emph_nbreaks < 2) arpragueskymodelground_print_error_and_exit("Error reading sky model data: emph_nbreaks");
 
 	state->emph_breaks = ALLOC_ARRAY(double, state->emph_nbreaks);
-	vals_read = fread(state->emph_breaks, sizeof(double), state->emph_nbreaks, handle);
+	vals_read = hread(state->emph_breaks, sizeof(double), state->emph_nbreaks, handle);
 	if (vals_read != state->emph_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: emph_breaks");
 
 	// Calculate offsets and strides
@@ -223,21 +223,21 @@ void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, F
 		for (int tc = 0; tc < state->tensor_components; ++tc)
 		{
 			const double sun_scale = 1.0;
-			vals_read = fread(radiance_temp, sizeof(unsigned short), state->sun_nbreaks, handle);
+			vals_read = hread(radiance_temp, sizeof(unsigned short), state->sun_nbreaks, handle);
 			if (vals_read != state->sun_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: sun_coefs");
 			offset += arpragueskymodelground_compute_pp_coefs_from_half(state->sun_nbreaks, state->sun_breaks, radiance_temp, state->radiance_dataset, offset, sun_scale);
 
 			double zenith_scale;
-			vals_read = fread(&zenith_scale, sizeof(double), 1, handle);
+			vals_read = hread(&zenith_scale, sizeof(double), 1, handle);
 			if (vals_read != 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: zenith_scale");
 
-			vals_read = fread(radiance_temp, sizeof(unsigned short), state->zenith_nbreaks, handle);
+			vals_read = hread(radiance_temp, sizeof(unsigned short), state->zenith_nbreaks, handle);
 			if (vals_read != state->zenith_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: zenith_coefs");
 			offset += arpragueskymodelground_compute_pp_coefs_from_half(state->zenith_nbreaks, state->zenith_breaks, radiance_temp, state->radiance_dataset, offset, zenith_scale);
 		}
 
 		const double emph_scale = 1.0;
-		vals_read = fread(radiance_temp, sizeof(unsigned short), state->emph_nbreaks, handle);
+		vals_read = hread(radiance_temp, sizeof(unsigned short), state->emph_nbreaks, handle);
 		if (vals_read != state->emph_nbreaks) arpragueskymodelground_print_error_and_exit("Error reading sky model data: emph_coefs");
 		offset += arpragueskymodelground_compute_pp_coefs_from_half(state->emph_nbreaks, state->emph_breaks, radiance_temp, state->radiance_dataset, offset, emph_scale);
 	}
@@ -245,33 +245,33 @@ void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, F
 	free(radiance_temp);
 }
 
-void arpragueskymodelground_read_transmittance(ArPragueSkyModelGroundState * state, FILE * handle)
+void arpragueskymodelground_read_transmittance(ArPragueSkyModelGroundState * state, void * handle, ReadFunc hread)
 {
 	// Read metadata
 
 	int vals_read;
 
-	vals_read = fread(&state->trans_n_d, sizeof(int), 1, handle);
+	vals_read = hread(&state->trans_n_d, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->trans_n_d < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: trans_n_d");
 
-	vals_read = fread(&state->trans_n_a, sizeof(int), 1, handle);
+	vals_read = hread(&state->trans_n_a, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->trans_n_a < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: trans_n_a");
 
-	vals_read = fread(&state->trans_visibilities, sizeof(int), 1, handle);
+	vals_read = hread(&state->trans_visibilities, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->trans_visibilities < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: trans_visibilities");
 
-	vals_read = fread(&state->trans_altitudes, sizeof(int), 1, handle);
+	vals_read = hread(&state->trans_altitudes, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->trans_altitudes < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: trans_altitudes");
 
-	vals_read = fread(&state->trans_rank, sizeof(int), 1, handle);
+	vals_read = hread(&state->trans_rank, sizeof(int), 1, handle);
 	if (vals_read != 1 || state->trans_rank < 1) arpragueskymodelground_print_error_and_exit("Error reading sky model data: trans_rank");
 
 	state->transmission_altitudes = ALLOC_ARRAY(float, state->trans_altitudes);
-	vals_read = fread(state->transmission_altitudes, sizeof(float), state->trans_altitudes, handle);
+	vals_read = hread(state->transmission_altitudes, sizeof(float), state->trans_altitudes, handle);
 	if (vals_read != state->trans_altitudes) arpragueskymodelground_print_error_and_exit("Error reading sky model data: transmission_altitudes");
 
 	state->transmission_visibilities = ALLOC_ARRAY(float, state->trans_visibilities);
-	vals_read = fread(state->transmission_visibilities, sizeof(float), state->trans_visibilities, handle);
+	vals_read = hread(state->transmission_visibilities, sizeof(float), state->trans_visibilities, handle);
 	if (vals_read != state->trans_visibilities) arpragueskymodelground_print_error_and_exit("Error reading sky model data: transmission_visibilities");
 
 	const int total_coefs_U = state->trans_n_d * state->trans_n_a * state->trans_rank * state->trans_altitudes;
@@ -280,12 +280,33 @@ void arpragueskymodelground_read_transmittance(ArPragueSkyModelGroundState * sta
 	// Read data
 
 	state->transmission_dataset_U = ALLOC_ARRAY(float, total_coefs_U);
-	vals_read = fread(state->transmission_dataset_U, sizeof(float), total_coefs_U, handle);
+	vals_read = hread(state->transmission_dataset_U, sizeof(float), total_coefs_U, handle);
 	if (vals_read != total_coefs_U) arpragueskymodelground_print_error_and_exit("Error reading sky model data: transmission_dataset_U");
 
 	state->transmission_dataset_V = ALLOC_ARRAY(float, total_coefs_V);
-	vals_read = fread(state->transmission_dataset_V, sizeof(float), total_coefs_V, handle);
+	vals_read = hread(state->transmission_dataset_V, sizeof(float), total_coefs_V, handle);
 	if (vals_read != total_coefs_V) arpragueskymodelground_print_error_and_exit("Error reading sky model data: transmission_dataset_V");
+}
+
+ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init_handle(
+	void                         * handle,
+    ReadFunc                       hread,
+	const double                   elevation,
+	const double                   visibility,
+	const double                   albedo
+	)
+{
+	ArPragueSkyModelGroundState * state = ALLOC(ArPragueSkyModelGroundState);
+
+	// Read data
+	arpragueskymodelground_read_radiance(state, handle, hread);
+	arpragueskymodelground_read_transmittance(state, handle, hread);
+
+	state->elevation  = elevation;
+	state->visibility = visibility;
+	state->albedo     = albedo;
+
+	return state;
 }
 
 ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init(
@@ -295,19 +316,11 @@ ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init(
 	const double                   albedo
 	)
 {
-	ArPragueSkyModelGroundState * state = ALLOC(ArPragueSkyModelGroundState);
-
 	FILE * handle = fopen(path_to_dataset, "rb");
 
-	// Read data
-	arpragueskymodelground_read_radiance(state, handle);
-	arpragueskymodelground_read_transmittance(state, handle);
+    ArPragueSkyModelGroundState * state = arpragueskymodelground_state_alloc_init_handle(handle, fread, elevation, visibility, albedo);
 
 	fclose(handle);
-	
-	state->elevation  = elevation;
-	state->visibility = visibility;
-	state->albedo     = albedo;
 
 	return state;
 }
