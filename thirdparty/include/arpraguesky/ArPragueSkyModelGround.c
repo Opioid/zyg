@@ -318,6 +318,10 @@ ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init(
 {
 	FILE * handle = fopen(path_to_dataset, "rb");
 
+    if (!handle) {
+        return NULL;
+    }
+
     ArPragueSkyModelGroundState * state = arpragueskymodelground_state_alloc_init_handle(handle, fread, elevation, visibility, albedo);
 
 	fclose(handle);

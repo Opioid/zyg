@@ -15,6 +15,10 @@ const c = @cImport({
     @cInclude("arpraguesky/ArPragueSkyModelGround.h");
 });
 
+const Error = error{
+    FailedToLoadSky,
+};
+
 pub const Model = struct {
     state: *c.ArPragueSkyModelGroundState,
 
@@ -40,7 +44,7 @@ pub const Model = struct {
             sun_elevation,
             visibility,
             0.2,
-        );
+        ) orelse return Error.FailedToLoadSky;
 
         return Model{
             .state = state,
