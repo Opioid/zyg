@@ -53,7 +53,7 @@ pub const Distribution1D = struct {
         return .{ .offset = offset, .pdf = self.cdf[offset + 1] - self.cdf[offset] };
     }
 
-    pub fn sampleContinous(self: Self, r: f32) Continuous {
+    pub fn sampleContinuous(self: Self, r: f32) Continuous {
         const offset = self.sample(r);
 
         const c = self.cdf[offset + 1];
