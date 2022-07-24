@@ -454,7 +454,7 @@ pub const PathtracerMIS = struct {
 };
 
 pub const Factory = struct {
-    settings: PathtracerMIS.Settings = .{ .num_samples = 1, .radius = 1.0 },
+    settings: PathtracerMIS.Settings,
 
     pub fn create(self: Factory) PathtracerMIS {
         return .{ .settings = self.settings };

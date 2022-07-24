@@ -37,7 +37,9 @@ pub fn main() !void {
     // const alloc = gpa.allocator();
     const alloc = std.heap.c_allocator;
 
-    var options = try Options.parse(alloc, std.process.args());
+    var args = try std.process.argsWithAllocator(alloc);
+    var options = try Options.parse(alloc, args);
+    args.deinit();
     defer options.deinit(alloc);
 
     if (0 == options.take.len) {
@@ -79,7 +81,7 @@ pub fn main() !void {
     var take = tk.Take{};
     defer take.deinit(alloc);
 
-    var driver = try rendering.Driver.init(alloc, &threads, .{ .StdOut = .{} });
+    var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = .{} });
     defer driver.deinit(alloc);
 
     while (true) {

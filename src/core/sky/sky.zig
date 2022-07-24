@@ -12,6 +12,7 @@ const ts = @import("../image/texture/sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const Filesystem = @import("../file/system.zig").System;
 
 // const SkyMaterial = @import("../sky/material.zig").Material;
 // const Texture = @import("../image/texture/texture.zig").Texture;
@@ -112,6 +113,7 @@ pub const Sky = struct {
         time: u64,
         scene: *Scene,
         threads: *Threads,
+        fs: *Filesystem,
     ) void {
         const e = scene.prop(self.prop);
 
@@ -123,7 +125,7 @@ pub const Sky = struct {
             self.privateUpadate(scene);
         }
 
-        var model = Model.init(alloc, self.sunDirection(), self.visibility) catch {
+        var model = Model.init(alloc, self.sunDirection(), self.visibility, fs) catch {
             log.err("Could not initialize sky model", .{});
             return;
         };

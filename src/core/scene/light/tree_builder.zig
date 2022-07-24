@@ -371,7 +371,6 @@ pub const Builder = struct {
             0,
             0,
             num_finite_lights,
-            std.math.max(num_finite_lights / 64, 4),
             part.aabb(variant),
             part.cone(variant),
             total_power,
@@ -381,8 +380,7 @@ pub const Builder = struct {
         );
 
         try tree.allocateNodes(alloc, self.current_node);
-
-        try self.serializePrimitive(alloc, tree, part, variant);
+        self.serialize(tree.nodes, tree.node_middles);
     }
 
     fn allocate(self: *Builder, alloc: Allocator, num_lights: u32, sweep_threshold: u32) !void {
@@ -470,7 +468,6 @@ pub const Builder = struct {
         node_id: u32,
         begin: u32,
         end: u32,
-        max_primitives: u32,
         bounds: AABB,
         cone: Vec4f,
         total_power: f32,
@@ -483,7 +480,7 @@ pub const Builder = struct {
 
         var node = &self.build_nodes[node_id];
 
-        if (len <= max_primitives) {
+        if (len <= 4) {
             return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, part, variant);
         }
 
@@ -501,13 +498,13 @@ pub const Builder = struct {
         const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Part).f));
 
         self.current_node += 2;
-        const c0_end = self.splitPrimitive(tree, child0, begin, split_node, max_primitives, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
-        const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, max_primitives, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
+        const c0_end = self.splitPrimitive(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
+        const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
 
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(lights, part, variant);
+        node.variance = 0.0;//variance(lights, part, variant);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -552,7 +549,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(lights, part, variant);
+        node.variance = 0.0;//variance(lights, part, variant);
         node.middle = 0;
         node.children_or_light = begin;
         node.num_lights = len;
@@ -577,44 +574,6 @@ pub const Builder = struct {
             dest.two_sided = source.two_sided;
 
             node_middles[i] = source.middle;
-        }
-    }
-
-    fn serializePrimitive(self: Builder, alloc: Allocator, tree: *PrimitiveTree, part: Part, variant: u32) !void {
-        var powers: std.ArrayListUnmanaged(f32) = .{};
-        defer powers.deinit(alloc);
-
-        for (self.build_nodes[0..self.current_node]) |source, i| {
-            var dest = &tree.nodes[i];
-            const bounds = source.bounds;
-            const p = bounds.position();
-
-            dest.center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
-            dest.cone = source.cone;
-            dest.power = source.power;
-            dest.variance = source.variance;
-            dest.has_children = source.hasChildren();
-
-            dest.children_or_light = @intCast(u30, source.children_or_light);
-            dest.num_lights = source.num_lights;
-            dest.two_sided = source.two_sided;
-
-            tree.node_middles[i] = source.middle;
-
-            if (!source.hasChildren()) {
-                const first = source.children_or_light;
-                const num = source.num_lights;
-
-                if (num > 4) {
-                    try powers.resize(alloc, num);
-
-                    for (powers.items) |*pow, t| {
-                        pow.* = part.lightPower(variant, tree.light_mapping[t + first]);
-                    }
-
-                    try tree.distributions[i].configure(alloc, powers.items, 0);
-                }
-            }
         }
     }
 
