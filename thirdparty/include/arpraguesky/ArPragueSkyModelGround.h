@@ -155,6 +155,16 @@ typedef struct ArPragueSkyModelGroundState
 }
 ArPragueSkyModelGroundState;
 
+typedef unsigned int (*ReadFunc)(void*, unsigned int, unsigned int, void*);
+
+ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init_handle(
+	void                         * handle,
+    ReadFunc                       hread,
+	const double                   elevation,
+	const double                   visibility,
+	const double                   albedo
+    );
+
 // Initializes state of the model and returns it. Must be called before calling other functions. Expects full path to the file with model dataset.
 ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init(
 	const char                   * path_to_dataset,

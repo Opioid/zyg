@@ -12,7 +12,7 @@ const Allocator = std.mem.Allocator;
 const Pick = Distribution1D.Discrete;
 
 // 0.08 ^ 4
-const Splitting_threshold = 0.00004096;
+pub var Splitting_threshold: f32 = 0.00004096;
 
 pub const Node = packed struct {
     center: Vec4f,

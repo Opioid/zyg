@@ -1,4 +1,5 @@
 const log = @import("../log.zig");
+const Filesystem = @import("../file/system.zig").System;
 const View = @import("../take/take.zig").View;
 const Sink = @import("../exporting/sink.zig").Sink;
 const Scene = @import("../scene/scene.zig").Scene;
@@ -34,6 +35,7 @@ pub const Driver = struct {
     };
 
     threads: *Threads,
+    fs: *Filesystem,
 
     view: *View = undefined,
     scene: *Scene = undefined,
@@ -54,7 +56,7 @@ pub const Driver = struct {
 
     progressor: Progressor,
 
-    pub fn init(alloc: Allocator, threads: *Threads, progressor: Progressor) !Driver {
+    pub fn init(alloc: Allocator, threads: *Threads, fs: *Filesystem, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         for (workers) |*w| {
             w.* = .{};
@@ -62,6 +64,7 @@ pub const Driver = struct {
 
         return Driver{
             .threads = threads,
+            .fs = fs,
             .workers = workers,
             .photon_infos = try alloc.alloc(PhotonInfo, threads.numThreads()),
             .progressor = progressor,
@@ -161,7 +164,7 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.entity);
 
         const start = @as(u64, frame) * camera.frame_step;
-        try self.scene.compile(alloc, camera_pos, start, self.threads);
+        try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
         camera.update(start, &self.workers[0].super);
 
