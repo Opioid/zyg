@@ -59,18 +59,6 @@ pub const Opaque = struct {
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
     }
 
-    pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
-        const d = self.base.dimensions;
-
-        const wc = @splat(4, weight) * color;
-
-        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
-        _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, wc[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[3], .Add, weight, .Monotonic);
-    }
-
     pub fn splatPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
