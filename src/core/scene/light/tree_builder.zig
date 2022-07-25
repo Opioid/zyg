@@ -327,7 +327,7 @@ pub const Builder = struct {
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
         const pt = p0 + p1;
-        const infinite_weight = if (0 == num_lights) 0.0 else p0 / pt;
+        const infinite_weight = if (0 == num_lights or 0.0 == pt) 0.0 else p0 / pt;
 
         tree.infinite_weight = infinite_weight;
 
@@ -504,7 +504,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = 0.0;//variance(lights, part, variant);
+        node.variance = 0.0; //variance(lights, part, variant);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -549,7 +549,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = 0.0;//variance(lights, part, variant);
+        node.variance = 0.0; //variance(lights, part, variant);
         node.middle = 0;
         node.children_or_light = begin;
         node.num_lights = len;

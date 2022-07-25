@@ -29,10 +29,10 @@ pub const Model = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, fs: *Filesystem) !Model {
+    pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, albedo: f32, fs: *Filesystem) !Model {
         try Spectrum.staticInit(alloc);
 
-        var stream = try fs.readStream(alloc, "/home/beni/Downloads/SkyModelDataset.dat.gz");
+        var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();
 
         const sun_elevation = elevation(sun_direction);
@@ -43,7 +43,7 @@ pub const Model = struct {
             readStream,
             sun_elevation,
             visibility,
-            0.2,
+            albedo,
         ) orelse return Error.FailedToLoadSky;
 
         return Model{
