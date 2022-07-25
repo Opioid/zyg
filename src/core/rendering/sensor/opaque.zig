@@ -53,30 +53,33 @@ pub const Opaque = struct {
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
-        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
         const wc = @splat(4, weight) * color;
+
+        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
         value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
-        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        const wc = @splat(4, weight) * color;
 
-        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
+        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[1], .Add, wc[1], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .Monotonic);
         _ = @atomicRmw(f32, &value.v[3], .Add, weight, .Monotonic);
     }
 
     pub fn splatPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
 
-        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        const wc = @splat(4, weight) * color;
 
-        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
+        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[1], .Add, wc[1], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .Monotonic);
     }
 
     pub fn resolve(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
