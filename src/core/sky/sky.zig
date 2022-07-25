@@ -44,6 +44,8 @@ pub const Sky = struct {
 
     visibility: f32 = 100.0,
 
+    albedo: f32 = 0.2,
+
     implicit_rotation: bool = true,
 
     const Radius = @tan(@as(f32, Model.Angular_radius));
@@ -97,6 +99,8 @@ pub const Sky = struct {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
                 self.visibility = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "albedo", entry.key_ptr.*)) {
+                self.albedo = json.readFloat(f32, entry.value_ptr.*);
             }
         }
 
@@ -125,7 +129,7 @@ pub const Sky = struct {
             self.privateUpadate(scene);
         }
 
-        var model = Model.init(alloc, self.sunDirection(), self.visibility, fs) catch {
+        var model = Model.init(alloc, self.sunDirection(), self.visibility, self.albedo, fs) catch {
             var image = scene.imagePtr(self.sky_image);
 
             var y: i32 = 0;
