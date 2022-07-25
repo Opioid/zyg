@@ -70,30 +70,17 @@ pub const Transparent = struct {
         return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
     }
 
-    pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
-        const d = self.base.dimensions;
-        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
-
-        _ = @atomicRmw(f32, &self.pixel_weights[i], .Add, weight, .Monotonic);
-
-        var value = &self.pixels[i];
-
-        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[3], .Add, weight * color[3], .Monotonic);
-    }
-
     pub fn splatPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
         const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
-        var value = &self.pixels[i];
+        const wc = @splat(4, weight) * color;
 
-        _ = @atomicRmw(f32, &value.v[0], .Add, weight * color[0], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[1], .Add, weight * color[1], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[2], .Add, weight * color[2], .Monotonic);
-        _ = @atomicRmw(f32, &value.v[3], .Add, weight * color[3], .Monotonic);
+        var value = &self.pixels[i];
+        _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[1], .Add, wc[1], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .Monotonic);
+        _ = @atomicRmw(f32, &value.v[3], .Add, wc[3], .Monotonic);
     }
 
     pub fn resolve(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
