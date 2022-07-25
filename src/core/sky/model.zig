@@ -32,7 +32,7 @@ pub const Model = struct {
     pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, fs: *Filesystem) !Model {
         try Spectrum.staticInit(alloc);
 
-        var stream = try fs.readStream(alloc, "/home/beni/Downloads/SkyModelDataset.dat.gz");
+        var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();
 
         const sun_elevation = elevation(sun_direction);
