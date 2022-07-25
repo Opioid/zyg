@@ -126,6 +126,18 @@ pub const Sky = struct {
         }
 
         var model = Model.init(alloc, self.sunDirection(), self.visibility, fs) catch {
+            var image = scene.imagePtr(self.sky_image);
+
+            var y: i32 = 0;
+            while (y < Sky.Bake_dimensions[1]) : (y += 1) {
+                var x: i32 = 0;
+                while (x < Sky.Bake_dimensions[0]) : (x += 1) {
+                    image.Float3.set2D(x, y, math.Pack3f.init1(0.0));
+                }
+            }
+
+            scene.propMaterialPtr(self.sun, 0).Sky.setSunRadianceZero();
+
             log.err("Could not initialize sky model", .{});
             return;
         };
