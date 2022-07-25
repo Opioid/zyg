@@ -109,7 +109,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/sky.take",
             "takes/rene.take",
             //"takes/embergen.take",
-            //"takes/intel_sponza.take",
+            "takes/intel_sponza.take",
             "-t",
             "-4",
             //"--no-tex",
