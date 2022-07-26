@@ -63,21 +63,13 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             return center + filter_uv;
         }
 
-        pub fn addSample(
-            self: *Self,
-            sample: Sample,
-            color: Vec4f,
-            aov: AovValue,
-        ) void {
-            const clamped = self.sensor.base.clamp(color);
-
-            const x = sample.pixel[0];
-            const y = sample.pixel[1];
-
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue) void {
             const w = self.eval(sample.pixel_uv[0]) * self.eval(sample.pixel_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
-            self.sensor.addPixel(.{ x, y }, clamped, weight);
+            const pixel = sample.pixel;
+
+            self.sensor.addPixel(pixel, self.sensor.base.clamp(color), weight);
 
             if (aov.active()) {
                 const len = AovValue.Num_classes;
@@ -88,13 +80,13 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
                         const value = aov.values[i];
 
                         if (.Depth == class) {
-                            self.sensor.base.lessAov(.{ x, y }, i, value[0]);
+                            self.sensor.base.lessAov(pixel, i, value[0]);
                         } else if (.MaterialId == class) {
-                            self.sensor.base.overwriteAov(.{ x, y }, i, value[0], weight);
+                            self.sensor.base.overwriteAov(pixel, i, value[0], weight);
                         } else if (.ShadingNormal == class) {
-                            self.sensor.base.addAov(.{ x, y }, i, value, 1.0);
+                            self.sensor.base.addAov(pixel, i, value, 1.0);
                         } else {
-                            self.sensor.base.addAov(.{ x, y }, i, value, weight);
+                            self.sensor.base.addAov(pixel, i, value, weight);
                         }
                     }
                 }
