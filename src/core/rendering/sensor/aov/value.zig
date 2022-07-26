@@ -17,6 +17,11 @@ pub const Value = struct {
                 else => @splat(4, @as(f32, 0.0)),
             };
         }
+
+        pub fn activeIn(class: Class, slots: u32) bool {
+            const bit = @as(u32, 1) << @enumToInt(class);
+            return 0 != (slots & bit);
+        }
     };
 
     pub const Num_classes = @typeInfo(Class).Enum.fields.len;
@@ -30,8 +35,7 @@ pub const Value = struct {
     }
 
     pub fn activeClass(self: Value, class: Class) bool {
-        const bit = @as(u32, 1) << @enumToInt(class);
-        return 0 != (self.slots & bit);
+        return class.activeIn(self.slots);
     }
 
     pub fn clear(self: *Value) void {
@@ -65,8 +69,7 @@ pub const Factory = struct {
     }
 
     pub fn activeClass(self: Factory, class: Value.Class) bool {
-        const bit = @as(u32, 1) << @enumToInt(class);
-        return 0 != (self.slots & bit);
+        return class.activeIn(self.slots);
     }
 
     pub fn set(self: *Factory, class: Value.Class, value: bool) void {
