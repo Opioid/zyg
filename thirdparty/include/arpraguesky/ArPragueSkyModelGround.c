@@ -449,14 +449,13 @@ double arpragueskymodelground_reconstruct(
 
 double arpragueskymodelground_map_parameter(const double param, const int value_count, const double * values)
 {
-	double mapped;
 	if (param < values[0])
 	{
-		mapped = 0.0;
+		return 0.0;
 	}
 	else if (param > values[value_count - 1])
 	{
-		mapped = (double)value_count - 1.0;
+		return (double)value_count - 1.0;
 	}
 	else
 	{
@@ -465,17 +464,16 @@ double arpragueskymodelground_map_parameter(const double param, const int value_
 			const double val = values[v];
 			if (fabs(val - param) < 1e-6)
 			{
-				mapped = v;
-				break;
+				return v;
 			}
 			else if (param < val)
 			{
-				mapped = v - ((val - param) / (val - values[v - 1]));
-				break;
+				return v - ((val - param) / (val - values[v - 1]));
 			}
 		}
 	}
-	return mapped;
+
+	return 0.0;
 }
 
 
@@ -869,15 +867,14 @@ void arpragueskymodelground_scaleAD(
 	double *d
 )
 {
-	double n;
-	n = sqrt((x_p * x_p) + (y_p * y_p));
-	*a = n - PSMG_PLANET_RADIUS;
-	*a = *a > 0 ? *a : 0;
-	*a = pow(*a / PSMG_ATMO_WIDTH, 1.0 / 3.0);
-	*d = acos(y_p / n) * PSMG_PLANET_RADIUS;
-	*d = *d / 1571524.413613; // Maximum distance to the edge of the atmosphere in the transmittance model
-	*d = pow(*d, 0.25);
-	*d = *d > 1.0 ? 1.0 : *d;
+	const double n = sqrt((x_p * x_p) + (y_p * y_p));
+	double ta = n - PSMG_PLANET_RADIUS;
+	ta = ta > 0.0 ? ta : 0.0;
+	*a = cbrt(ta / PSMG_ATMO_WIDTH);
+	double td = acos(y_p / n) * PSMG_PLANET_RADIUS;
+	td = td / 1571524.413613; // Maximum distance to the edge of the atmosphere in the transmittance model
+	td = sqrt(sqrt(td));
+	*d = td > 1.0 ? 1.0 : td;
 }
 
 void arpragueskymodelground_toAD(
