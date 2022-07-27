@@ -14,25 +14,15 @@ pub fn DiscreteSpectralPowerDistribution(
     return struct {
         values: [N]f32 = undefined,
 
-        var Cie: [N]Vec4f = undefined;
-        var Wavelengths: [N + 1]f32 = undefined;
-        var Step: f32 = 0.0;
+        var Cie = [_]Vec4f{@splat(4, @as(f32, -1.0))} ** N;
+        const Step = (WL_end - WL_start) / @intToFloat(f32, N);
 
         const Self = @This();
 
         pub fn staticInit(alloc: Allocator) !void {
-            if (Step > 0.0) {
+            if (Cie[0][0] >= 0.0) {
                 return;
             }
-
-            const step = (WL_end - WL_start) / @intToFloat(f32, N);
-
-            // initialize the wavelengths ranges of the bins
-            for (Wavelengths) |*wl, i| {
-                wl.* = WL_start + @intToFloat(f32, i) * step;
-            }
-
-            Step = step;
 
             var CIE_X = try Interpolated.init(alloc, &xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_X_360_830_1nm);
             defer CIE_X.deinit(alloc);
@@ -53,25 +43,17 @@ pub fn DiscreteSpectralPowerDistribution(
         }
 
         pub fn wavelengthCenter(bin: usize) f32 {
-            return (Wavelengths[bin] + Wavelengths[bin + 1]) * 0.5;
-        }
-
-        pub fn startWavelength() f32 {
-            return Wavelengths[0];
-        }
-
-        pub fn endWavelength() f32 {
-            return Wavelengths[N];
+            return WL_start + (@intToFloat(f32, bin) + 0.5) * Step;
         }
 
         pub fn initInterpolated(interpolated: Interpolated) Self {
             var result = Self{};
 
             for (result.values) |*v, i| {
-                const a = Wavelengths[i];
-                const b = Wavelengths[i + 1];
+                const a = WL_start + @intToFloat(f32, i) * Step;
+                const b = a + Step;
 
-                v.* = interpolated.integrate(a, b) / (b - a);
+                v.* = interpolated.integrate(a, b) / Step;
             }
 
             return result;
