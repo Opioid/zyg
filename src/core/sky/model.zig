@@ -30,7 +30,7 @@ pub const Model = struct {
     const Self = @This();
 
     pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, albedo: f32, fs: *Filesystem) !Model {
-        try Spectrum.staticInit(alloc);
+        Spectrum.staticInit();
 
         var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();

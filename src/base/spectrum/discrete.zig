@@ -3,9 +3,6 @@ const math = @import("../math/math.zig");
 const Vec4f = math.Vec4f;
 const xyz = @import("../spectrum/xyz.zig");
 
-const std = @import("std");
-const Allocator = std.mem.Allocator;
-
 pub fn DiscreteSpectralPowerDistribution(
     comptime N: comptime_int,
     comptime WL_start: f32,
@@ -19,19 +16,14 @@ pub fn DiscreteSpectralPowerDistribution(
 
         const Self = @This();
 
-        pub fn staticInit(alloc: Allocator) !void {
+        pub fn staticInit() void {
             if (Cie[0][0] >= 0.0) {
                 return;
             }
 
-            var CIE_X = try Interpolated.init(alloc, &xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_X_360_830_1nm);
-            defer CIE_X.deinit(alloc);
-
-            var CIE_Y = try Interpolated.init(alloc, &xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Y_360_830_1nm);
-            defer CIE_Y.deinit(alloc);
-
-            var CIE_Z = try Interpolated.init(alloc, &xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Z_360_830_1nm);
-            defer CIE_Z.deinit(alloc);
+            var CIE_X = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_X_360_830_1nm);
+            var CIE_Y = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Y_360_830_1nm);
+            var CIE_Z = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Z_360_830_1nm);
 
             const cie_x = Self.initInterpolated(CIE_X);
             const cie_y = Self.initInterpolated(CIE_Y);
