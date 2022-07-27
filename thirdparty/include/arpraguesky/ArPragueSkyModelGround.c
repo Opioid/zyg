@@ -44,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ArPragueSkyModelGround.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -79,15 +80,15 @@ do { \
 
 double arpragueskymodelground_double_from_half(const unsigned short value)
 {
-	unsigned long hi = (unsigned long)(value&0x8000) << 16;
-	unsigned int abs = value & 0x7FFF;
+	uint64_t hi = (uint64_t)(value&0x8000) << 16;
+	uint32_t abs = value & 0x7FFF;
 	if(abs)
 	{
-		hi |= 0x3F000000 << (unsigned)(abs>=0x7C00);
+		hi |= 0x3F000000 << (uint32_t)(abs>=0x7C00);
 		for(; abs<0x400; abs<<=1,hi-=0x100000) ;
-		hi += (unsigned long)(abs) << 10;
+		hi += (uint64_t)(abs) << 10;
 	}
-	unsigned long dbits = (unsigned long)(hi) << 32;
+	const uint64_t dbits = (uint64_t)(hi) << 32;
 	double out;
 	memcpy(&out, &dbits, sizeof(double));
 	return out;
