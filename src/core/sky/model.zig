@@ -53,14 +53,14 @@ pub const Model = struct {
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: c_uint, count: c_uint, stream: ?*anyopaque) callconv(.C) c_uint {
+    fn readStream(buffer: ?*anyopaque, size: c_ulonglong, count: c_ulonglong, stream: ?*anyopaque) callconv(.C) c_ulonglong {
         if (null == buffer or null == stream) {
             return 0;
         }
 
         var stream_ptr = @ptrCast(*ReadStream, @alignCast(@alignOf(ReadStream), stream));
         var dest = @ptrCast([*]u8, buffer)[0 .. size * count];
-        return @truncate(c_uint, (stream_ptr.read(dest) catch 0) / size);
+        return (stream_ptr.read(dest) catch 0) / size;
     }
 
     pub fn deinit(self: *Self) void {
