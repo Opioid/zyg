@@ -128,7 +128,7 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(args);
     } else {
         run_cmd.addArgs(&[_][]const u8{
-            "-d",
+            //"-d",
             "-i",
             "image_00000000.exr",
             //"image_00000001.exr",
