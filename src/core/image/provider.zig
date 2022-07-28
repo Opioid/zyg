@@ -72,10 +72,10 @@ pub const Provider = struct {
             const invert = options.queryOrDef("invert", false);
 
             if (same_file) {
-                return try self.png_reader.createFromBuffer(alloc, swizzle, invert);
+                return self.png_reader.createFromBuffer(alloc, swizzle, invert);
             }
 
-            return try self.png_reader.read(alloc, &stream, swizzle, invert);
+            return self.png_reader.read(alloc, &stream, swizzle, invert);
         }
 
         if (.RGBE == file_type) {
