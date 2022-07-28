@@ -130,10 +130,11 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(&[_][]const u8{
             //"-d",
             "-i",
-            "image_00000000.exr",
+            //"image_00000000.exr",
             //"image_00000001.exr",
             //"image_00000003.exr",
             //"san_miguel.exr",
+            "Round.IES",
             "-t",
             "-4",
             //"--tone",
