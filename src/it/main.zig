@@ -77,6 +77,11 @@ pub fn main() !void {
         try operator.input_ids.append(alloc, @intCast(u32, i));
     }
 
+    if (0 == operator.textures.items.len) {
+        log.err("No items to operate on", .{});
+        return;
+    }
+
     try operator.configure(alloc);
 
     const alpha = operator.textures.items[0].numChannels() > 3;
