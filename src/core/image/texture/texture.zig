@@ -152,12 +152,7 @@ pub const Texture = struct {
             },
             .Float3 => {
                 const value = image.Float3.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    0.0,
-                };
+                return .{ value.v[0], value.v[1], value.v[2], 0.0 };
             },
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -217,30 +212,10 @@ pub const Texture = struct {
             .Float3 => {
                 const values = image.Float3.gather2D(xy_xy1);
                 return .{
-                    .{
-                        @floatCast(f32, values[0].v[0]),
-                        @floatCast(f32, values[0].v[1]),
-                        @floatCast(f32, values[0].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[1].v[0]),
-                        @floatCast(f32, values[1].v[1]),
-                        @floatCast(f32, values[1].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[2].v[0]),
-                        @floatCast(f32, values[2].v[1]),
-                        @floatCast(f32, values[2].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[3].v[0]),
-                        @floatCast(f32, values[3].v[1]),
-                        @floatCast(f32, values[3].v[2]),
-                        0.0,
-                    },
+                    .{ values[0].v[0], values[0].v[1], values[0].v[2], 0.0 },
+                    .{ values[1].v[0], values[1].v[1], values[1].v[2], 0.0 },
+                    .{ values[2].v[0], values[2].v[1], values[2].v[2], 0.0 },
+                    .{ values[3].v[0], values[3].v[1], values[3].v[2], 0.0 },
                 };
             },
             else => .{
@@ -276,12 +251,7 @@ pub const Texture = struct {
             },
             .Float3 => {
                 const value = image.Float3.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    1.0,
-                };
+                return .{ value.v[0], value.v[1], value.v[2], 1.0 };
             },
             .Half4 => {
                 const value = image.Half4.get2D(x, y);
@@ -294,12 +264,7 @@ pub const Texture = struct {
             },
             .Float4 => {
                 const value = image.Float4.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    @floatCast(f32, value.v[3]),
-                };
+                return .{ value.v[0], value.v[1], value.v[2], value.v[3] };
             },
             else => .{ 0.0, 0.0, 0.0, 1.0 },
         };

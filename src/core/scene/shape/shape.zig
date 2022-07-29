@@ -273,6 +273,7 @@ pub const Shape = union(enum) {
 
         return switch (self) {
             .Canopy => Canopy.sampleToUv(uv, trafo),
+            .Disk => Disk.sampleToUv(p, uv, trafo, extent, two_sided),
             .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
             .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
             else => null,
@@ -381,6 +382,7 @@ pub const Shape = union(enum) {
     ) f32 {
         return switch (self) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
+            .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
             .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
             .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
