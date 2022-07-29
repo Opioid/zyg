@@ -243,6 +243,10 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.get2D(x, y);
+                return .{ enc.cachedUnormToFloat(value), 0.0, 0.0, 1.0 };
+            },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
                 const ap = spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
