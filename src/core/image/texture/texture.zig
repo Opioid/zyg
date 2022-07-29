@@ -133,6 +133,10 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.get2D(x, y);
+                return .{ enc.cachedUnormToFloat(value), 0.0, 0.0, 0.0 };
+            },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
@@ -163,6 +167,15 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const values = image.Byte1.gather2D(xy_xy1);
+                return .{
+                    .{ enc.cachedUnormToFloat(values[0]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[1]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[2]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[3]), 0.0, 0.0, 0.0 },
+                };
+            },
             .Byte3_sRGB => {
                 const values = image.Byte3.gather2D(xy_xy1);
                 return .{

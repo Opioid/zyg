@@ -5,6 +5,7 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec3b = math.Vec3b;
 const encoding = base.encoding;
 const memory = base.memory;
 
@@ -280,6 +281,8 @@ pub const Reader = struct {
                 const value = data.sample(phi, theta);
 
                 image.set2D(x, y, encoding.floatToUnorm(@minimum(value * imi, 1.0)));
+
+                // image.set2D(x, y, 255);
             }
         }
 
