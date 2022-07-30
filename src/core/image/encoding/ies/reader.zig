@@ -165,6 +165,26 @@ const Data = struct {
     }
 };
 
+const Tokenizer = struct {
+    it: std.mem.TokenIterator(u8) = .{ .index = 0, .buffer = &.{}, .delimiter_bytes = &.{} },
+    stream: *ReadStream,
+    buf: []u8,
+
+    pub fn next(self: *Tokenizer) ![]const u8 {
+        if (self.it.next()) |token| {
+            return token;
+        }
+
+        const line = try self.stream.readUntilDelimiter(self.buf, '\n');
+        self.it = std.mem.tokenize(u8, line, " \r");
+        return self.it.next().?;
+    }
+
+    pub fn skip(self: *Tokenizer) !void {
+        _ = try self.next();
+    }
+};
+
 pub const Reader = struct {
     const Error = error{
         BadInitialToken,
@@ -190,52 +210,43 @@ pub const Reader = struct {
             }
         }
 
-        // const line = try stream.readUntilDelimiter(&buf, '\n');
-
-        var it = std.mem.TokenIterator(u8){ .index = 0, .buffer = &.{}, .delimiter_bytes = &.{} };
-        // std.mem.tokenize(u8, line, " ");
-
-        // while (try nextToken(&it, stream, &buf)) |token| {
-        //     std.debug.print("{s}\n", .{token});
-        // }
+        var tokenizer = Tokenizer{ .stream = stream, .buf = &buf };
 
         // num lamps
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
         // lumens per lamp
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
         // candela multiplier
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
-        const num_vertical_angles = try std.fmt.parseInt(u32, (try nextToken(&it, stream, &buf)).?, 10);
-        const num_horizontal_angles = try std.fmt.parseInt(u32, (try nextToken(&it, stream, &buf)).?, 10);
+        const num_vertical_angles = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
+        const num_horizontal_angles = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
         std.debug.print("num_vertical_angles {} num_horizontal_angles {}\n", .{ num_vertical_angles, num_horizontal_angles });
 
-        const gonio_type = try std.fmt.parseInt(u32, (try nextToken(&it, stream, &buf)).?, 10);
+        const gonio_type = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
         std.debug.print("gonio_type {}\n", .{gonio_type});
 
         // unitsType
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
         // lumWidth
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
         // lumLength
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
         // lumHeight
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
-        const ballast_factor = try std.fmt.parseFloat(f32, (try nextToken(&it, stream, &buf)).?);
+        const ballast_factor = try std.fmt.parseFloat(f32, try tokenizer.next());
         std.debug.print("ballast_factor {}\n", .{ballast_factor});
 
         // balastLampPhotometricFactor
-        _ = try nextToken(&it, stream, &buf);
+        try tokenizer.skip();
 
-        //  std.debug.print("token \n\n{any}\n\n", .{(try nextToken(&it, stream, &buf)).?});
-
-        const input_watts = try std.fmt.parseFloat(f32, (try nextToken(&it, stream, &buf)).?);
+        const input_watts = try std.fmt.parseFloat(f32, try tokenizer.next());
         std.debug.print("input_watts {}\n", .{input_watts});
 
         _ = alloc;
@@ -248,16 +259,16 @@ pub const Reader = struct {
         try data.intensities.resize(alloc, num_vertical_angles * num_horizontal_angles);
 
         for (data.vertical_angles.items) |*a| {
-            a.* = try std.fmt.parseFloat(f32, (try nextToken(&it, stream, &buf)).?);
+            a.* = try std.fmt.parseFloat(f32, try tokenizer.next());
         }
 
         for (data.horizontal_angles.items) |*a| {
-            a.* = try std.fmt.parseFloat(f32, (try nextToken(&it, stream, &buf)).?);
+            a.* = try std.fmt.parseFloat(f32, try tokenizer.next());
         }
 
         var mi: f32 = 0.0;
         for (data.intensities.items) |*i| {
-            const v = try std.fmt.parseFloat(f32, (try nextToken(&it, stream, &buf)).?);
+            const v = try std.fmt.parseFloat(f32, try tokenizer.next());
             i.* = v;
             mi = @maximum(mi, v);
         }
@@ -316,14 +327,8 @@ pub const Reader = struct {
             return token;
         }
 
-        var line = try stream.readUntilDelimiter(buf, '\n');
-
-        // remove trailing carriage return
-        if (13 == line[line.len - 1]) {
-            line = line[0 .. line.len - 1];
-        }
-
-        it.* = std.mem.tokenize(u8, line, " ");
+        const line = try stream.readUntilDelimiter(buf, '\n');
+        it.* = std.mem.tokenize(u8, line, " \r");
         return it.next();
     }
 };
