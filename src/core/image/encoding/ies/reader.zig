@@ -5,7 +5,9 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec3b = math.Vec3b;
+const Vec4f = math.Vec4f;
 const encoding = base.encoding;
 const memory = base.memory;
 
@@ -29,7 +31,7 @@ const Data = struct {
 
     pub fn sample(self: Data, rad_phi: f32, rad_theta: f32) f32 {
         var phi = math.radiansToDegrees(rad_phi);
-        var theta = math.radiansToDegrees(std.math.pi - rad_theta);
+        var theta = math.radiansToDegrees(rad_theta);
 
         var vertical_symmetric = false;
         var non_symmetric = false;
@@ -271,22 +273,42 @@ pub const Reader = struct {
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
             const v = idf[1] * (@intToFloat(f32, y) + 0.5);
-            const theta = v * (2.0 * std.math.pi);
+            const theta = v * std.math.pi;
 
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
-                const phi = u * std.math.pi;
+                const phi = u * (2.0 * std.math.pi);
 
-                const value = data.sample(phi, theta);
+                const dir = latlongToDir(phi, theta);
+                const rotdir = Vec4f{ dir[0], -dir[2], dir[1], 0.0 };
+                const latlong = dirToLatlong(rotdir);
+
+                const value = data.sample(latlong[0], latlong[1]);
 
                 image.set2D(x, y, encoding.floatToUnorm(@minimum(value * imi, 1.0)));
-
-                // image.set2D(x, y, 255);
             }
         }
 
         return Image{ .Byte1 = image };
+    }
+
+    fn latlongToDir(phi: f32, theta: f32) Vec4f {
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+        const sin_theta = @sin(theta);
+        const cos_theta = @cos(theta);
+
+        return .{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+    }
+
+    fn dirToLatlong(v: Vec4f) Vec2f {
+        const lat = std.math.atan2(f32, v[0], v[2]);
+
+        return .{
+            if (lat < 0) lat + 2.0 * std.math.pi else lat,
+            std.math.acos(v[1]),
+        };
     }
 
     fn nextToken(it: *std.mem.TokenIterator(u8), stream: *ReadStream, buf: []u8) !?[]const u8 {
