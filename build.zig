@@ -88,63 +88,63 @@ pub fn build(b: *std.build.Builder) void {
 
     it.install();
 
-    const run_cmd = cli.run();
-    run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/sprout/system";
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    } else {
-        run_cmd.addArgs(&[_][]const u8{
-            "-i",
-            //"takes/bistro_day.take",
-            //"takes/bistro_night.take",
-            //"takes/san_miguel.take",
-            "takes/cornell.take",
-            //"takes/imrod.take",
-            //"takes/model_test.take",
-            //"takes/material_test.take",
-            //"takes/whirligig.take",
-            //"takes/candle.take",
-            //"takes/disney_cloud.take",
-            //"takes/rene.take",
-            //"takes/embergen.take",
-            //"takes/intel_sponza.take",
-            "-t",
-            "-4",
-            //"--no-tex",
-            //"--no-tex-dwim",
-            //"--debug-mat",
-            "-f",
-            "0",
-            "-n",
-            "1",
-        });
-    }
-
-    // const run_cmd = it.run();
+    // const run_cmd = cli.run();
     // run_cmd.step.dependOn(b.getInstallStep());
     // run_cmd.cwd = "/home/beni/workspace/sprout/system";
     // if (b.args) |args| {
     //     run_cmd.addArgs(args);
     // } else {
     //     run_cmd.addArgs(&[_][]const u8{
-    //         //"-d",
     //         "-i",
-    //         //"image_00000000.exr",
-    //         //"image_00000001.exr",
-    //         //"image_00000003.exr",
-    //         //"san_miguel.exr",
-    //         //"Round.IES",
-    //         "ScatterLight.IES",
+    //         //"takes/bistro_day.take",
+    //         //"takes/bistro_night.take",
+    //         //"takes/san_miguel.take",
+    //         "takes/cornell.take",
+    //         //"takes/imrod.take",
+    //         //"takes/model_test.take",
+    //         //"takes/material_test.take",
+    //         //"takes/whirligig.take",
+    //         //"takes/candle.take",
+    //         //"takes/disney_cloud.take",
+    //         //"takes/rene.take",
+    //         //"takes/embergen.take",
+    //         //"takes/intel_sponza.take",
     //         "-t",
     //         "-4",
-    //         //"--tone",
-    //         "-e",
-    //         "0.0",
+    //         //"--no-tex",
+    //         //"--no-tex-dwim",
+    //         //"--debug-mat",
     //         "-f",
-    //         "png",
+    //         "0",
+    //         "-n",
+    //         "1",
     //     });
     // }
+
+    const run_cmd = it.run();
+    run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    } else {
+        run_cmd.addArgs(&[_][]const u8{
+            //"-d",
+            "-i",
+            //"image_00000000.exr",
+            //"image_00000001.exr",
+            //"image_00000003.exr",
+            //"san_miguel.exr",
+            //"Round.IES",
+            "ScatterLight.IES",
+            "-t",
+            "-4",
+            //"--tone",
+            "-e",
+            "0.0",
+            "-f",
+            "png",
+        });
+    }
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
