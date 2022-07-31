@@ -146,8 +146,8 @@ pub const Disk = struct {
 
         return SampleTo.init(
             dir,
-            trafo.rotation.r[0],
-            trafo.rotation.r[1],
+            -trafo.rotation.r[0],
+            -trafo.rotation.r[1],
             wn,
             @splat(4, @as(f32, 0.0)),
             sl / (c * area),
@@ -190,8 +190,8 @@ pub const Disk = struct {
 
             return SampleTo.init(
                 dir,
-                trafo.rotation.r[0],
-                trafo.rotation.r[1],
+                -trafo.rotation.r[0],
+                -trafo.rotation.r[1],
                 wn,
                 .{ uv[0], uv[1], 0.0, 0.0 },
                 sl / (c * area),

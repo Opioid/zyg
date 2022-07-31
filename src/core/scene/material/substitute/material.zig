@@ -77,14 +77,7 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
-        const rad = self.super.emittance.radiance(
-            .{ 0.0, 0.0, 1.0, 0.0 },
-            .{ 1.0, 0.0, 0.0, 0.0 },
-            .{ 0.0, 1.0, 0.0, 0.0 },
-            .{ 0.0, 0.0, 1.0, 0.0 },
-            area,
-            scene,
-        );
+        const rad = self.super.emittance.averageRadiance(area);
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
         }
@@ -133,11 +126,12 @@ pub const Material = struct {
         ) else self.color;
 
         var rad = self.super.emittance.radiance(
-            wo,
+            -wo,
             rs.t,
             rs.b,
             rs.geo_n,
             worker.scene.lightArea(rs.prop, rs.part),
+            rs.filter,
             worker.scene.*,
         );
         if (self.emission_map.valid()) {
@@ -257,8 +251,7 @@ pub const Material = struct {
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
-        var rad = self.super.emittance.radiance(wi, t, b, n, extent, scene);
-
+        var rad = self.super.emittance.radiance(wi, t, b, n, extent, filter, scene);
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
         }

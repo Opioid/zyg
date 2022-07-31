@@ -64,17 +64,23 @@ pub const Emittance = struct {
         self.quantity = Quantity.Radiance;
     }
 
-    fn dirToLatlong(v: Vec4f) Vec2f {
-        const lat = std.math.atan2(f32, v[0], v[2]);
-
+    fn dirToLatlongUv(v: Vec4f) Vec2f {
         return .{
-            //    if (lat < 0) lat + 2.0 * std.math.pi else lat,
-            lat / (2.0 * std.math.pi) + 0.5,
+            std.math.atan2(f32, -v[0], -v[2]) / (2.0 * std.math.pi) + 0.5,
             std.math.acos(v[1]) / std.math.pi,
         };
     }
 
-    pub fn radiance(self: Emittance, wi: Vec4f, t: Vec4f, b: Vec4f, n: Vec4f, area: f32, scene: Scene) Vec4f {
+    pub fn radiance(
+        self: Emittance,
+        wi: Vec4f,
+        t: Vec4f,
+        b: Vec4f,
+        n: Vec4f,
+        area: f32,
+        filter: ?ts.Filter,
+        scene: Scene,
+    ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
             const wt = wi * t;
@@ -89,11 +95,11 @@ pub const Emittance = struct {
             };
 
             const key = ts.Key{
-                .filter = .Linear,
+                .filter = filter orelse .Linear,
                 .address = .{ .u = .Repeat, .v = .Clamp },
             };
 
-            pf = ts.sample2D_1(key, self.profile, dirToLatlong(-lwi), scene);
+            pf = ts.sample2D_1(key, self.profile, dirToLatlongUv(lwi), scene);
         }
 
         if (@fabs(math.dot3(wi, n)) < self.cos_a) {
@@ -105,5 +111,13 @@ pub const Emittance = struct {
         }
 
         return @splat(4, pf) * self.value;
+    }
+
+    pub fn averageRadiance(self: Emittance, area: f32) Vec4f {
+        if (self.quantity == .Intensity) {
+            return self.value / @splat(4, area);
+        }
+
+        return self.value;
     }
 };
