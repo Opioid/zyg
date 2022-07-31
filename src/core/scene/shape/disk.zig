@@ -98,14 +98,14 @@ pub const Disk = struct {
             const radius = trafo.scaleX();
 
             if (l <= radius * radius) {
-                const t = -trafo.rotation.r[0];
-                const b = -trafo.rotation.r[1];
+                const t = trafo.rotation.r[0];
+                const b = trafo.rotation.r[1];
 
                 const sk = k / @splat(4, radius);
 
                 const uv = Vec2f{
-                    0.5 * (math.dot3(t, sk) + 1.0),
-                    0.5 * (math.dot3(b, sk) + 1.0),
+                    0.5 * (1.0 - math.dot3(t, sk)),
+                    0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
                 return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
