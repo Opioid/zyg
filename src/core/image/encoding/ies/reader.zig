@@ -291,9 +291,7 @@ pub const Reader = struct {
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
                 const phi = u * (2.0 * std.math.pi);
 
-                const dir = latlongToDir(phi, theta);
-                const rotdir = Vec4f{ dir[0], -dir[2], dir[1], 0.0 };
-                const latlong = dirToLatlong(rotdir);
+                const latlong = rotateLatlong(phi, theta);
 
                 const value = data.sample(latlong[0], latlong[1]);
 
@@ -304,21 +302,17 @@ pub const Reader = struct {
         return Image{ .Byte1 = image };
     }
 
-    fn latlongToDir(phi: f32, theta: f32) Vec4f {
+    fn rotateLatlong(phi: f32, theta: f32) Vec2f {
         const sin_phi = @sin(phi);
         const cos_phi = @cos(phi);
         const sin_theta = @sin(theta);
         const cos_theta = @cos(theta);
 
-        return .{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
-    }
-
-    fn dirToLatlong(v: Vec4f) Vec2f {
-        const lat = std.math.atan2(f32, v[0], v[2]);
+        const lat = std.math.atan2(f32, sin_phi * sin_theta, cos_theta);
 
         return .{
             if (lat < 0) lat + 2.0 * std.math.pi else lat,
-            std.math.acos(v[1]),
+            std.math.acos(-cos_phi * sin_theta),
         };
     }
 
