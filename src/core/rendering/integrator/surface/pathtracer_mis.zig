@@ -346,7 +346,7 @@ pub const PathtracerMIS = struct {
             p,
             light_sample.wi,
             p[3],
-            light_sample.t(),
+            light_sample.offset(),
             history.depth,
             history.wavelength,
             history.time,

@@ -65,7 +65,15 @@ pub const Canopy = struct {
             0.0,
         };
 
-        return SampleTo.init(dir, @splat(4, @as(f32, 0.0)), uvw, 1.0 / (2.0 * std.math.pi), scn.Ray_max_t);
+        return SampleTo.init(
+            dir,
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            uvw,
+            1.0 / (2.0 * std.math.pi),
+            scn.Ray_max_t,
+        );
     }
 
     pub fn sampleToUv(uv: Vec2f, trafo: Transformation) ?SampleTo {
@@ -79,6 +87,8 @@ pub const Canopy = struct {
 
         return SampleTo.init(
             trafo.rotation.transformVector(dir),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
             @splat(4, @as(f32, 0.0)),
             .{ uv[0], uv[1], 0.0, 0.0 },
             1.0 / (2.0 * std.math.pi),

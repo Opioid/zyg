@@ -53,7 +53,14 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const rad = self.super.emittance.radiance(1.0, area);
+        const rad = self.super.emittance.radiance(
+            .{ 0.0, 0.0, 1.0, 0.0 },
+            .{ 1.0, 0.0, 0.0, 0.0 },
+            .{ 0.0, 1.0, 0.0, 0.0 },
+            .{ 0.0, 0.0, 1.0, 0.0 },
+            area,
+            scene,
+        );
 
         if (!self.emission_map.valid()) {
             self.average_emission = rad;
@@ -110,7 +117,7 @@ pub const Material = struct {
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(wo, rs.geo_n, rs.uv, area, rs.filter, scene);
+        const rad = self.evaluateRadiance(wo, rs.t, rs.b, rs.geo_n, rs.uv, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -120,13 +127,15 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
+        t: Vec4f,
+        b: Vec4f,
         n: Vec4f,
         uv: Vec2f,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(@fabs(math.dot3(wi, n)), extent);
+        const rad = self.super.emittance.radiance(wi, t, b, n, extent, scene);
 
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);

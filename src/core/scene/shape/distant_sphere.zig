@@ -83,6 +83,8 @@ pub const DistantSphere = struct {
             math.normalize3(ws - trafo.rotation.r[2]),
             @splat(4, @as(f32, 0.0)),
             @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
             1.0 / extent,
             scn.Almost_ray_max_t,
         );

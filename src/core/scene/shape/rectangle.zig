@@ -163,7 +163,15 @@ pub const Rectangle = struct {
             return null;
         }
 
-        return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area), t);
+        return SampleTo.init(
+            dir,
+            trafo.rotation.r[0],
+            trafo.rotation.r[1],
+            wn,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            sl / (c * area),
+            t,
+        );
     }
 
     pub fn sampleFrom(

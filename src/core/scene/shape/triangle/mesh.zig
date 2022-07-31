@@ -245,7 +245,9 @@ pub const Part = struct {
         scene: *const Scene,
         estimate_area: f32,
 
+        const Right = Vec4f{ 1.0, 0.0, 0.0, 0.0 };
         const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
+        const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @intToPtr(*Context, context);
@@ -273,8 +275,10 @@ pub const Part = struct {
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
                         radiance += self.m.evaluateRadiance(
+                            Dir,
+                            Right,
                             Up,
-                            Up,
+                            Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             1.0,
                             null,
@@ -556,6 +560,8 @@ pub const Mesh = struct {
 
         return SampleTo.init(
             dir,
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
             wn,
             .{ tc[0], tc[1], 0.0, 0.0 },
             angle_pdf * s.pdf,

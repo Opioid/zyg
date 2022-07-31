@@ -94,7 +94,15 @@ pub const Cube = struct {
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), r3, sl / volume, t);
+        return SampleTo.init(
+            axis / @splat(4, t),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            r3,
+            sl / volume,
+            t,
+        );
     }
 
     pub fn sampleVolumeToUvw(
@@ -110,7 +118,15 @@ pub const Cube = struct {
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        return SampleTo.init(axis / @splat(4, t), @splat(4, @as(f32, 0.0)), uvw, sl / volume, t);
+        return SampleTo.init(
+            axis / @splat(4, t),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            @splat(4, @as(f32, 0.0)),
+            uvw,
+            sl / volume,
+            t,
+        );
     }
 
     pub fn sampleVolumeFromUvw(

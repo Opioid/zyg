@@ -94,7 +94,16 @@ pub const Intersection = struct {
         const extent = scene.lightArea(self.prop, self.geo.part);
 
         const uv = self.geo.uv;
-        return m.evaluateRadiance(wo, self.geo.geo_n, .{ uv[0], uv[1], 0.0, 0.0 }, extent, filter, scene);
+        return m.evaluateRadiance(
+            wo,
+            self.geo.t,
+            self.geo.n,
+            self.geo.geo_n,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            extent,
+            filter,
+            scene,
+        );
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

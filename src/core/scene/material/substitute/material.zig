@@ -77,7 +77,14 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
-        const rad = self.super.emittance.radiance(1.0, area);
+        const rad = self.super.emittance.radiance(
+            .{ 0.0, 0.0, 1.0, 0.0 },
+            .{ 1.0, 0.0, 0.0, 0.0 },
+            .{ 0.0, 1.0, 0.0, 0.0 },
+            .{ 0.0, 0.0, 1.0, 0.0 },
+            area,
+            scene,
+        );
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
         }
@@ -125,8 +132,14 @@ pub const Material = struct {
             worker.scene.*,
         ) else self.color;
 
-        const cos_l = @fabs(math.dot3(rs.geo_n, wo));
-        var rad = self.super.emittance.radiance(cos_l, worker.scene.lightArea(rs.prop, rs.part));
+        var rad = self.super.emittance.radiance(
+            wo,
+            rs.t,
+            rs.b,
+            rs.geo_n,
+            worker.scene.lightArea(rs.prop, rs.part),
+            worker.scene.*,
+        );
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
@@ -234,6 +247,8 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
+        t: Vec4f,
+        b: Vec4f,
         n: Vec4f,
         uv: Vec2f,
         extent: f32,
@@ -242,8 +257,7 @@ pub const Material = struct {
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
-        const n_dot_wi = hlp.clampAbsDot(wi, n);
-        var rad = self.super.emittance.radiance(n_dot_wi, extent);
+        var rad = self.super.emittance.radiance(wi, t, b, n, extent, scene);
 
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
@@ -258,6 +272,7 @@ pub const Material = struct {
         }
 
         if (coating_thickness > 0.0) {
+            const n_dot_wi = hlp.clampAbsDot(wi, n);
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating.absorption_coef,
                 self.coating.thickness,

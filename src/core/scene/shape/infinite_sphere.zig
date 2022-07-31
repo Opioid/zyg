@@ -75,7 +75,15 @@ pub const InfiniteSphere = struct {
             0.0,
         };
 
-        return SampleTo.init(dir, @splat(4, @as(f32, 0.0)), uvw, pdf_, scn.Ray_max_t);
+        return SampleTo.init(
+            dir,
+            trafo.rotation.r[0],
+            trafo.rotation.r[1],
+            trafo.rotation.r[2],
+            uvw,
+            pdf_,
+            scn.Ray_max_t,
+        );
     }
 
     pub fn sampleToUv(uv: Vec2f, trafo: Transformation) SampleTo {
@@ -92,7 +100,9 @@ pub const InfiniteSphere = struct {
 
         return SampleTo.init(
             trafo.rotation.transformVector(dir),
-            @splat(4, @as(f32, 0.0)),
+            trafo.rotation.r[0],
+            trafo.rotation.r[1],
+            trafo.rotation.r[2],
             .{ uv[0], uv[1], 0.0, 0.0 },
             1.0 / ((4.0 * std.math.pi) * sin_theta),
             scn.Ray_max_t,

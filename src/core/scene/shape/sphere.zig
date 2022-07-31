@@ -170,12 +170,11 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t = b - dist;
 
-            const sp = p + @splat(4, t) * dir;
-            const sn = math.normalize3(sp - trafo.position);
-
             return SampleTo.init(
                 dir,
-                sn,
+                trafo.rotation.r[0],
+                trafo.rotation.r[1],
+                trafo.rotation.r[2],
                 @splat(4, @as(f32, 0.0)),
                 math.smpl.conePdfUniform(cos_theta_max),
                 ro.offsetB(t),

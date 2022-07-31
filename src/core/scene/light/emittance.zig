@@ -1,5 +1,10 @@
+const Texture = @import("../../image/texture/texture.zig").Texture;
+const ts = @import("../../image/texture/sampler.zig");
+const Scene = @import("../scene.zig").Scene;
+
 const base = @import("base");
 const math = base.math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 
@@ -14,6 +19,7 @@ pub const Emittance = struct {
     };
 
     value: Vec4f = @splat(4, @as(f32, 0.0)),
+    profile: Texture = .{},
     cos_a: f32 = 0.0,
     quantity: Quantity = .Radiance,
 
@@ -58,15 +64,46 @@ pub const Emittance = struct {
         self.quantity = Quantity.Radiance;
     }
 
-    pub fn radiance(self: Emittance, n_dot_wi: f32, area: f32) Vec4f {
-        if (n_dot_wi < self.cos_a) {
+    fn dirToLatlong(v: Vec4f) Vec2f {
+        const lat = std.math.atan2(f32, v[0], v[2]);
+
+        return .{
+            //    if (lat < 0) lat + 2.0 * std.math.pi else lat,
+            lat / (2.0 * std.math.pi) + 0.5,
+            std.math.acos(v[1]) / std.math.pi,
+        };
+    }
+
+    pub fn radiance(self: Emittance, wi: Vec4f, t: Vec4f, b: Vec4f, n: Vec4f, area: f32, scene: Scene) Vec4f {
+        var pf: f32 = 1.0;
+        if (self.profile.valid()) {
+            const wt = wi * t;
+            const wb = wi * b;
+            const wn = wi * n;
+
+            const lwi = Vec4f{
+                wt[0] + wt[1] + wt[2],
+                wb[0] + wb[1] + wb[2],
+                wn[0] + wn[1] + wn[2],
+                0.0,
+            };
+
+            const key = ts.Key{
+                .filter = .Linear,
+                .address = .{ .u = .Repeat, .v = .Clamp },
+            };
+
+            pf = ts.sample2D_1(key, self.profile, dirToLatlong(-lwi), scene);
+        }
+
+        if (@fabs(math.dot3(wi, n)) < self.cos_a) {
             return @splat(4, @as(f32, 0.0));
         }
 
         if (self.quantity == .Intensity) {
-            return self.value / @splat(4, area);
+            return @splat(4, pf / area) * self.value;
         }
 
-        return self.value;
+        return @splat(4, pf) * self.value;
     }
 };

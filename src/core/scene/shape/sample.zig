@@ -4,13 +4,17 @@ const Vec4f = math.Vec4f;
 
 pub const To = struct {
     wi: Vec4f,
+    t: Vec4f,
+    b: Vec4f,
     n: Vec4f,
     uvw: Vec4f,
 
-    pub fn init(wi: Vec4f, n: Vec4f, uvw: Vec4f, pdf_: f32, t_: f32) To {
+    pub fn init(wi: Vec4f, t: Vec4f, b: Vec4f, n: Vec4f, uvw: Vec4f, pdf_: f32, off: f32) To {
         return .{
             .wi = .{ wi[0], wi[1], wi[2], pdf_ },
-            .n = .{ n[0], n[1], n[2], t_ },
+            .t = t,
+            .b = b,
+            .n = .{ n[0], n[1], n[2], off },
             .uvw = uvw,
         };
     }
@@ -23,7 +27,7 @@ pub const To = struct {
         self.wi[3] *= s;
     }
 
-    pub fn t(self: To) f32 {
+    pub fn offset(self: To) f32 {
         return self.n[3];
     }
 };
