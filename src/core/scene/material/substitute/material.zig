@@ -9,6 +9,7 @@ const Volumetric = @import("../volumetric/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
@@ -241,17 +242,16 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
-        t: Vec4f,
-        b: Vec4f,
         n: Vec4f,
         uv: Vec2f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
-        var rad = self.super.emittance.radiance(wi, t, b, n, extent, filter, scene);
+        var rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
         }

@@ -13,7 +13,7 @@ const CCE = ccoef.CCE;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const ts = @import("../../image/texture/sampler.zig");
@@ -71,7 +71,7 @@ pub const Material = union(enum) {
         alloc: Allocator,
         shape: Shape,
         part: u32,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         scene: Scene,
         threads: *Threads,
@@ -222,18 +222,17 @@ pub const Material = union(enum) {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
-        t: Vec4f,
-        b: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         return switch (self) {
-            .Light => |m| m.evaluateRadiance(wi, t, b, n, .{ uvw[0], uvw[1] }, extent, filter, scene),
+            .Light => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
             .Sky => |m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, filter, scene),
-            .Substitute => |m| m.evaluateRadiance(wi, t, b, n, .{ uvw[0], uvw[1] }, extent, filter, scene),
+            .Substitute => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
             .Volumetric => |m| m.evaluateRadiance(uvw, filter, scene),
             else => @splat(4, @as(f32, 0.0)),
         };

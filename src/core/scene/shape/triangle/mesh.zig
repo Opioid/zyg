@@ -1,4 +1,4 @@
-const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
@@ -431,7 +431,7 @@ pub const Mesh = struct {
     pub fn intersect(
         self: Mesh,
         ray: *Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
@@ -497,7 +497,7 @@ pub const Mesh = struct {
     pub fn visibility(
         self: Mesh,
         ray: Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         entity: usize,
         filter: ?Filter,
         worker: *Worker,
@@ -518,7 +518,7 @@ pub const Mesh = struct {
         variant: u32,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -573,7 +573,7 @@ pub const Mesh = struct {
         self: Mesh,
         part: u32,
         variant: u32,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -616,7 +616,7 @@ pub const Mesh = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,

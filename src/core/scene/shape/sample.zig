@@ -1,21 +1,21 @@
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const To = struct {
     wi: Vec4f,
-    t: Vec4f,
-    b: Vec4f,
     n: Vec4f,
     uvw: Vec4f,
+    trafo: Trafo,
 
-    pub fn init(wi: Vec4f, t: Vec4f, b: Vec4f, n: Vec4f, uvw: Vec4f, pdf_: f32, off: f32) To {
+    pub fn init(wi: Vec4f, n: Vec4f, uvw: Vec4f, trafo: Trafo, pdf_: f32, off: f32) To {
         return .{
             .wi = .{ wi[0], wi[1], wi[2], pdf_ },
-            .t = t,
-            .b = b,
             .n = .{ n[0], n[1], n[2], off },
             .uvw = uvw,
+            .trafo = trafo,
         };
     }
 
@@ -38,14 +38,16 @@ pub const From = struct {
     dir: Vec4f,
     uvw: Vec4f,
     xy: Vec2f,
+    trafo: Trafo,
 
-    pub fn init(p: Vec4f, n: Vec4f, dir: Vec4f, uvw: Vec4f, xy: Vec2f, pdf_: f32) From {
+    pub fn init(p: Vec4f, dir: Vec4f, n: Vec4f, uvw: Vec4f, xy: Vec2f, trafo: Trafo, pdf_: f32) From {
         return .{
             .p = .{ p[0], p[1], p[2], pdf_ },
             .n = n,
             .dir = dir,
             .uvw = uvw,
             .xy = xy,
+            .trafo = trafo,
         };
     }
 
