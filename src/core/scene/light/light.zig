@@ -173,13 +173,11 @@ pub const Light = struct {
     }
 
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
-        const trafo = scene.propTransformationAt(self.prop, ray.time);
-
         return switch (self.class) {
-            .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, scene),
-            .PropImage => self.propImagePdf(ray, isec, trafo, scene),
-            .Volume => self.volumePdf(ray, isec, trafo, scene),
-            .VolumeImage => self.volumeImagePdf(ray, isec, trafo, scene),
+            .Prop => self.propPdf(ray, n, isec, total_sphere, scene),
+            .PropImage => self.propImagePdf(ray, isec, scene),
+            .Volume => self.volumePdf(ray, isec, scene),
+            .VolumeImage => self.volumeImagePdf(ray, isec, scene),
         };
     }
 
@@ -413,7 +411,6 @@ pub const Light = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Trafo,
         total_sphere: bool,
         scene: Scene,
     ) f32 {
@@ -422,44 +419,31 @@ pub const Light = struct {
             ray,
             n,
             isec.geo,
-            trafo,
             self.extent,
             self.two_sided,
             total_sphere,
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Trafo, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
         const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, trafo, self.extent, self.two_sided);
+        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, self.extent, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
-    fn volumePdf(
-        self: Light,
-        ray: Ray,
-        isec: Intersection,
-        trafo: Trafo,
-        scene: Scene,
-    ) f32 {
-        return isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
+    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+        return isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
     }
 
-    fn volumeImagePdf(
-        self: Light,
-        ray: Ray,
-        isec: Intersection,
-        trafo: Trafo,
-        scene: Scene,
-    ) f32 {
+    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
-        const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
+        const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
 
         return material_pdf * shape_pdf;
     }
