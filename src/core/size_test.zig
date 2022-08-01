@@ -2,6 +2,7 @@ const ComposedTransformation = @import("scene/composed_transformation.zig").Comp
 const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
 const Interface = @import("scene/prop/interface.zig").Interface;
+const smpl = @import("scene/shape/sample.zig");
 const Texture = @import("image/texture/texture.zig").Texture;
 
 const base = @import("base");
@@ -17,8 +18,10 @@ pub fn testSize() void {
     testType(math.Vec4f, "Vec4f", 16);
     testType(math.Pack4f, "Pack4f", 16);
     testType(math.Distribution1D, "Distribution1D", 32);
-    testType(ComposedTransformation, "ComposedTransformation", 128);
+    testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
+    testType(smpl.To, "SampleTo", 48);
+    testType(smpl.From, "SampleFrom", 80);
     testType(BvhNode, "BvhNode", 32);
     testType(Interface, "Interface", 16);
     testType(Texture, "Texture", 16);

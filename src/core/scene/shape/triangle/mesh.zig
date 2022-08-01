@@ -436,8 +436,8 @@ pub const Mesh = struct {
         isec: *Intersection,
     ) bool {
         const tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
@@ -485,8 +485,8 @@ pub const Mesh = struct {
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation) bool {
         var tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
@@ -503,8 +503,8 @@ pub const Mesh = struct {
         worker: *Worker,
     ) ?Vec4f {
         const tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
