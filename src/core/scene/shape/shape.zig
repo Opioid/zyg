@@ -19,7 +19,7 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
 const base = @import("base");
 const RNG = base.rnd.Generator;
@@ -155,7 +155,7 @@ pub const Shape = union(enum) {
     pub fn intersect(
         self: Shape,
         ray: *Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
@@ -173,7 +173,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersectP(self: Shape, ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(self: Shape, ray: Ray, trafo: Trafo) bool {
         return switch (self) {
             .Null, .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray.ray, trafo),
@@ -189,7 +189,7 @@ pub const Shape = union(enum) {
     pub fn visibility(
         self: Shape,
         ray: Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         entity: usize,
         filter: ?Filter,
         worker: *Worker,
@@ -213,7 +213,7 @@ pub const Shape = union(enum) {
         variant: u32,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -247,7 +247,7 @@ pub const Shape = union(enum) {
         self: Shape,
         part: u32,
         p: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         sampler: *Sampler,
         rng: *RNG,
@@ -265,7 +265,7 @@ pub const Shape = union(enum) {
         part: u32,
         p: Vec4f,
         uv: Vec2f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
     ) ?SampleTo {
@@ -285,7 +285,7 @@ pub const Shape = union(enum) {
         part: u32,
         p: Vec4f,
         uvw: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
     ) ?SampleTo {
         _ = part;
@@ -300,7 +300,7 @@ pub const Shape = union(enum) {
         self: Shape,
         part: u32,
         variant: u32,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         cos_a: f32,
         two_sided: bool,
@@ -337,7 +337,7 @@ pub const Shape = union(enum) {
         self: Shape,
         part: u32,
         uvw: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         importance_uv: Vec2f,
     ) ?SampleFrom {
@@ -355,7 +355,6 @@ pub const Shape = union(enum) {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Transformation,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -363,12 +362,12 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Cube, .Null, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .Disk => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
             .DistantSphere => 1.0 / extent,
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
-            .Sphere => Sphere.pdf(ray.ray, trafo),
-            .TriangleMesh => |m| m.pdf(variant, ray.ray, n, isec, trafo, extent, two_sided, total_sphere),
+            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
+            .Sphere => Sphere.pdf(ray.ray, isec.trafo),
+            .TriangleMesh => |m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
         };
     }
 
@@ -376,15 +375,14 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: Ray,
         isec: Intersection,
-        trafo: Transformation,
         extent: f32,
         two_sided: bool,
     ) f32 {
         return switch (self) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .Disk => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
-            .Rectangle => Rectangle.pdf(ray.ray, trafo, extent, two_sided),
+            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
             .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
             else => 0.0,
         };
@@ -394,11 +392,9 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: Ray,
         isec: Intersection,
-        trafo: Transformation,
         extent: f32,
     ) f32 {
         _ = isec;
-        _ = trafo;
 
         return switch (self) {
             .Cube => Cube.volumePdf(ray.ray, extent),

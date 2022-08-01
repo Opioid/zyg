@@ -619,7 +619,6 @@ pub const Mesh = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -633,8 +632,8 @@ pub const Mesh = struct {
         const sl = ray.maxT() * ray.maxT();
         const angle_pdf = sl / (c * extent);
 
-        const op = trafo.worldToObjectPoint(ray.origin);
-        const on = trafo.worldToObjectNormal(n);
+        const op = isec.trafo.worldToObjectPoint(ray.origin);
+        const on = isec.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[isec.primitive];
         const tri_pdf = self.parts[isec.part].pdfSpatial(variant, op, on, total_sphere, pm);
