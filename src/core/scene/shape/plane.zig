@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
@@ -9,7 +9,7 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Plane = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -35,7 +35,7 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -47,13 +47,7 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn visibility(
-        ray: Ray,
-        trafo: Transformation,
-        entity: usize,
-        filter: ?Filter,
-        scene: Scene,
-    ) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);

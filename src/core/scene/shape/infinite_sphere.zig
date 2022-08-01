@@ -77,10 +77,9 @@ pub const InfiniteSphere = struct {
 
         return SampleTo.init(
             dir,
-            trafo.rotation.r[0],
-            trafo.rotation.r[1],
             trafo.rotation.r[2],
             uvw,
+            trafo,
             pdf_,
             scn.Ray_max_t,
         );
@@ -100,10 +99,9 @@ pub const InfiniteSphere = struct {
 
         return SampleTo.init(
             trafo.rotation.transformVector(dir),
-            trafo.rotation.r[0],
-            trafo.rotation.r[1],
             trafo.rotation.r[2],
             .{ uv[0], uv[1], 0.0, 0.0 },
+            trafo,
             1.0 / ((4.0 * std.math.pi) * sin_theta),
             scn.Ray_max_t,
         );
@@ -150,6 +148,7 @@ pub const InfiniteSphere = struct {
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
+            trafo,
             1.0 / ipdf,
         );
     }

@@ -108,7 +108,12 @@ pub const Prop = struct {
         const static = self.properties.is(.Static);
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersect(ray, trafo, ipo, isec);
+        if (scene.propShape(entity).intersect(ray, trafo, ipo, isec)) {
+            isec.trafo = trafo;
+            return true;
+        }
+
+        return false;
     }
 
     pub fn intersectShadow(

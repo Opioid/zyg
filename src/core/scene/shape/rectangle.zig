@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -19,7 +19,7 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Rectangle = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -58,7 +58,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -88,13 +88,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(
-        ray: Ray,
-        trafo: Transformation,
-        entity: usize,
-        filter: ?Filter,
-        scene: Scene,
-    ) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -127,7 +121,7 @@ pub const Rectangle = struct {
 
     pub fn sampleTo(
         p: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -140,7 +134,7 @@ pub const Rectangle = struct {
     pub fn sampleToUv(
         p: Vec4f,
         uv: Vec2f,
-        trafo: Transformation,
+        trafo: Trafo,
         area: f32,
         two_sided: bool,
     ) ?SampleTo {
@@ -165,17 +159,16 @@ pub const Rectangle = struct {
 
         return SampleTo.init(
             dir,
-            -trafo.rotation.r[0],
-            -trafo.rotation.r[1],
             wn,
             .{ uv[0], uv[1], 0.0, 0.0 },
+            trafo,
             sl / (c * area),
             t,
         );
     }
 
     pub fn sampleFrom(
-        trafo: Transformation,
+        trafo: Trafo,
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -206,11 +199,12 @@ pub const Rectangle = struct {
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
+            trafo,
             1.0 / (std.math.pi * area),
         );
     }
 
-    pub fn pdf(ray: Ray, trafo: Transformation, area: f32, two_sided: bool) f32 {
+    pub fn pdf(ray: Ray, trafo: Trafo, area: f32, two_sided: bool) f32 {
         const n = trafo.rotation.r[2];
 
         var c = -math.dot3(n, ray.direction);

@@ -8,7 +8,7 @@ const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
 const math = base.math;
@@ -155,7 +155,7 @@ pub const Light = struct {
     pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, scene: Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
-        return material.evaluateRadiance(sample.wi, sample.uvw, sample.trafo, self.extent, filter, scene);
+        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
     }
 
     pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, scene: Scene) Vec4f {
@@ -187,7 +187,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -217,7 +217,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -252,7 +252,7 @@ pub const Light = struct {
 
     fn propSampleFrom(
         self: Light,
-        trafo: Transformation,
+        trafo: Trafo,
         sampler: *Sampler,
         bounds: AABB,
         worker: *Worker,
@@ -285,7 +285,7 @@ pub const Light = struct {
 
     fn propImageSampleFrom(
         self: Light,
-        trafo: Transformation,
+        trafo: Trafo,
         sampler: *Sampler,
         bounds: AABB,
         worker: *Worker,
@@ -330,7 +330,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -356,7 +356,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -384,12 +384,7 @@ pub const Light = struct {
         return null;
     }
 
-    fn volumeImageSampleFrom(
-        self: Light,
-        trafo: Transformation,
-        sampler: *Sampler,
-        worker: *Worker,
-    ) ?SampleFrom {
+    fn volumeImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, worker: *Worker) ?SampleFrom {
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(sampler.sample3D(&worker.rng));
         if (0.0 == rs.pdf()) {
@@ -418,7 +413,7 @@ pub const Light = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         scene: Scene,
     ) f32 {
@@ -434,7 +429,7 @@ pub const Light = struct {
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Transformation, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Trafo, scene: Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
@@ -450,7 +445,7 @@ pub const Light = struct {
         self: Light,
         ray: Ray,
         isec: Intersection,
-        trafo: Transformation,
+        trafo: Trafo,
         scene: Scene,
     ) f32 {
         return isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
@@ -460,7 +455,7 @@ pub const Light = struct {
         self: Light,
         ray: Ray,
         isec: Intersection,
-        trafo: Transformation,
+        trafo: Trafo,
         scene: Scene,
     ) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);

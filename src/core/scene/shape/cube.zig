@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
@@ -21,7 +21,7 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Cube = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, ipo: Interpolation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
 
@@ -58,7 +58,7 @@ pub const Cube = struct {
         return true;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
 
@@ -69,7 +69,7 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         _ = ray;
         _ = trafo;
         _ = entity;
@@ -79,13 +79,7 @@ pub const Cube = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleVolumeTo(
-        p: Vec4f,
-        trafo: Transformation,
-        volume: f32,
-        sampler: *Sampler,
-        rng: *RNG,
-    ) SampleTo {
+    pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, volume: f32, sampler: *Sampler, rng: *RNG) SampleTo {
         const r3 = sampler.sample3D(rng);
         const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
@@ -97,20 +91,14 @@ pub const Cube = struct {
         return SampleTo.init(
             axis / @splat(4, t),
             @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
             r3,
+            trafo,
             sl / volume,
             t,
         );
     }
 
-    pub fn sampleVolumeToUvw(
-        p: Vec4f,
-        uvw: Vec4f,
-        trafo: Transformation,
-        volume: f32,
-    ) SampleTo {
+    pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo, volume: f32) SampleTo {
         const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
@@ -121,20 +109,14 @@ pub const Cube = struct {
         return SampleTo.init(
             axis / @splat(4, t),
             @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
             uvw,
+            trafo,
             sl / volume,
             t,
         );
     }
 
-    pub fn sampleVolumeFromUvw(
-        uvw: Vec4f,
-        trafo: Transformation,
-        volume: f32,
-        importance_uv: Vec2f,
-    ) SampleFrom {
+    pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, volume: f32, importance_uv: Vec2f) SampleFrom {
         const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
 
@@ -142,10 +124,11 @@ pub const Cube = struct {
 
         return SampleFrom.init(
             wp,
-            @splat(4, @as(f32, 0.0)),
             dir,
+            @splat(4, @as(f32, 0.0)),
             uvw,
             importance_uv,
+            trafo,
             1.0 / (4.0 * std.math.pi * volume),
         );
     }

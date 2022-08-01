@@ -1,6 +1,7 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/sampler.zig");
 const Scene = @import("../scene.zig").Scene;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
 const math = base.math;
@@ -66,33 +67,22 @@ pub const Emittance = struct {
 
     fn dirToLatlongUv(v: Vec4f) Vec2f {
         return .{
-            std.math.atan2(f32, -v[0], -v[2]) / (2.0 * std.math.pi) + 0.5,
-            std.math.acos(v[1]) / std.math.pi,
+            std.math.atan2(f32, v[0], v[2]) / (2.0 * std.math.pi),
+            std.math.acos(-v[1]) / std.math.pi,
         };
     }
 
     pub fn radiance(
         self: Emittance,
         wi: Vec4f,
-        t: Vec4f,
-        b: Vec4f,
-        n: Vec4f,
+        trafo: Trafo,
         area: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
-            const wt = wi * t;
-            const wb = wi * b;
-            const wn = wi * n;
-
-            const lwi = Vec4f{
-                wt[0] + wt[1] + wt[2],
-                wb[0] + wb[1] + wb[2],
-                wn[0] + wn[1] + wn[2],
-                0.0,
-            };
+            const lwi = trafo.worldToObjectNormal(wi);
 
             const key = ts.Key{
                 .filter = filter orelse .Linear,
@@ -102,7 +92,7 @@ pub const Emittance = struct {
             pf = ts.sample2D_1(key, self.profile, dirToLatlongUv(lwi), scene);
         }
 
-        if (@fabs(math.dot3(wi, n)) < self.cos_a) {
+        if (@fabs(math.dot3(wi, trafo.rotation.r[2])) < self.cos_a) {
             return @splat(4, @as(f32, 0.0));
         }
 

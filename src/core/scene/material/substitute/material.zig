@@ -128,9 +128,7 @@ pub const Material = struct {
 
         var rad = self.super.emittance.radiance(
             -wo,
-            rs.t,
-            rs.b,
-            rs.geo_n,
+            rs.trafo,
             worker.scene.lightArea(rs.prop, rs.part),
             rs.filter,
             worker.scene.*,

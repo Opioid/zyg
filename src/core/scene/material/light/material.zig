@@ -4,7 +4,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
-const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 
@@ -109,7 +109,7 @@ pub const Material = struct {
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(-wo, rs.t, rs.b, rs.geo_n, rs.uv, area, rs.filter, scene);
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -119,15 +119,13 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
-        t: Vec4f,
-        b: Vec4f,
-        n: Vec4f,
         uv: Vec2f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(wi, t, b, n, extent, filter, scene);
+        const rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
