@@ -37,7 +37,7 @@ pub const Srgb = struct {
         var maxd: f32 = 0.0;
 
         switch (encoding) {
-            .Color, .Normal, .ID => num_channels = 3,
+            .Color, .Normal, .Id => num_channels = 3,
             .Color_alpha => num_channels = 4,
             .Depth => {
                 num_channels = 1;
@@ -208,7 +208,7 @@ pub const Srgb = struct {
                         i += 1;
                     }
                 }
-            } else if (.ID == self.encoding) {
+            } else if (.Id == self.encoding) {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {

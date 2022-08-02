@@ -48,7 +48,7 @@ pub const Writer = struct {
                 num_channels = 1;
                 format = .Float;
             },
-            .ID => {
+            .Id => {
                 num_channels = 1;
                 format = .Uint;
             },
