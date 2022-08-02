@@ -276,6 +276,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.sampleToUv(p, uv, trafo, extent, two_sided),
             .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
             .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
+            .Sphere => Sphere.sampleToUv(p, uv, trafo, extent),
             else => null,
         };
     }

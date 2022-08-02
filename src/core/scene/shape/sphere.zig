@@ -7,6 +7,7 @@ const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
+const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const RNG = base.rnd.Generator;
@@ -178,6 +179,40 @@ pub const Sphere = struct {
         return null;
     }
 
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32) ?SampleTo {
+        const phi = (uv[0] + 0.75) * (2.0 * std.math.pi);
+        const theta = uv[1] * std.math.pi;
+
+        // avoid singularity at poles
+        const sin_theta = std.math.max(@sin(theta), 0.00001);
+        const cos_theta = @cos(theta);
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+
+        const ls = Vec4f{ sin_theta * cos_phi, cos_theta, sin_theta * sin_phi, 0.0 };
+        const ws = trafo.objectToWorldPoint(ls);
+
+        const axis = ws - p;
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+        const dir = axis / @splat(4, @as(f32, t));
+        const wn = math.normalize3(ws - trafo.position);
+        const c = -math.dot3(wn, dir);
+
+        if (c < Dot_min) {
+            return null;
+        }
+
+        return SampleTo.init(
+            dir,
+            wn,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            trafo,
+            sl / (c * area * sin_theta),
+            ro.offsetB(t),
+        );
+    }
+
     pub fn sampleFrom(trafo: Trafo, area: f32, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
         const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
@@ -186,7 +221,15 @@ pub const Sphere = struct {
         const xy = math.orthonormalBasis3(ls);
         const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], ls);
 
-        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, trafo, 1.0 / (std.math.pi * area));
+        return SampleFrom.init(
+            ro.offsetRay(ws, wn),
+            wn,
+            dir,
+            .{ 0.0, 0.0 },
+            importance_uv,
+            trafo,
+            1.0 / (std.math.pi * area),
+        );
     }
 
     pub fn pdf(ray: Ray, trafo: Trafo) f32 {
@@ -201,7 +244,9 @@ pub const Sphere = struct {
     }
 
     pub fn pdfUv(ray: Ray, isec: Intersection, area: f32) f32 {
-        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+        // avoid singularity at poles
+        const sin_theta = std.math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
+
         const max_t = ray.maxT();
         const sl = max_t * max_t;
         const c = -math.dot3(isec.geo_n, ray.direction);
