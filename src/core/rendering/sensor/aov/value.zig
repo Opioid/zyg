@@ -29,7 +29,7 @@ pub const Value = struct {
             return switch (class) {
                 .Albedo => .Color,
                 .Depth => .Depth,
-                .MaterialId => .ID,
+                .MaterialId => .Id,
                 .ShadingNormal => .Normal,
             };
         }

@@ -18,7 +18,7 @@ pub const Writer = union(enum) {
         Color_alpha,
         Normal,
         Depth,
-        ID,
+        Id,
         Float,
     };
 
