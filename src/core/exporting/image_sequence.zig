@@ -11,6 +11,7 @@ const Allocator = std.mem.Allocator;
 
 pub const ImageSequence = struct {
     writer: Writer,
+    alpha: bool,
 
     const Self = @This();
 
@@ -36,8 +37,16 @@ pub const ImageSequence = struct {
         var file = try std.fs.cwd().createFile(filename, .{});
         defer file.close();
 
+        var encoding: Writer.Encoding = undefined;
+
+        if (aov) |a| {
+            encoding = a.encoding();
+        } else {
+            encoding = if (self.alpha) .Color_alpha else .Color;
+        }
+
         var buffered = std.io.bufferedWriter(file.writer());
-        try self.writer.write(alloc, buffered.writer(), image, aov, threads);
+        try self.writer.write(alloc, buffered.writer(), image, encoding, threads);
         try buffered.flush();
     }
 

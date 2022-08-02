@@ -1,11 +1,11 @@
 const Srgb = @import("../srgb.zig").Srgb;
 const img = @import("../../image.zig");
+const Encoding = @import("../../writer.zig").Writer.Encoding;
 const Float3 = img.Float3;
 const Float4 = img.Float4;
-const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
 
 const base = @import("base");
-const encoding = base.encoding;
+const enc = base.encoding;
 const spectrum = base.spectrum;
 const math = base.math;
 const Threads = base.thread.Pool;
@@ -20,8 +20,8 @@ const c = @cImport({
 pub const Writer = struct {
     srgb: Srgb,
 
-    pub fn init(error_diffusion: bool, alpha: bool) Writer {
-        return .{ .srgb = .{ .error_diffusion = error_diffusion, .alpha = alpha } };
+    pub fn init(error_diffusion: bool) Writer {
+        return .{ .srgb = .{ .error_diffusion = error_diffusion } };
     }
 
     pub fn deinit(self: *Writer, alloc: Allocator) void {
@@ -33,12 +33,12 @@ pub const Writer = struct {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
-        aov: ?AovClass,
+        encoding: Encoding,
         threads: *Threads,
     ) !void {
         const d = image.description.dimensions;
 
-        const num_channels = try self.srgb.toSrgb(alloc, image, aov, threads);
+        const num_channels = try self.srgb.toSrgb(alloc, image, encoding, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
@@ -65,9 +65,9 @@ pub const Writer = struct {
         for (image.pixels) |p, i| {
             const srgb = @splat(4, factor) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
 
-            buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
-            buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[1]));
-            buffer[i * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[2]));
+            buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
+            buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[1]));
+            buffer[i * 3 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[2]));
         }
 
         var buffer_len: usize = 0;
