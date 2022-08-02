@@ -1,5 +1,6 @@
 const exr = @import("exr.zig");
 const img = @import("../../image.zig");
+const Encoding = @import("../../writer.zig").Writer.Encoding;
 const Float4 = img.Float4;
 const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
 
@@ -18,7 +19,6 @@ const mz = @cImport({
 
 pub const Writer = struct {
     half: bool,
-    alpha: bool,
 
     const Self = @This();
 
@@ -27,7 +27,7 @@ pub const Writer = struct {
         alloc: Allocator,
         writer_: anytype,
         image: Float4,
-        aov: ?AovClass,
+        encoding: Encoding,
         threads: *Threads,
     ) !void {
         var stream = std.io.countingWriter(writer_);
@@ -42,20 +42,17 @@ pub const Writer = struct {
 
         var num_channels: u32 = 3;
 
-        if (aov) |a| {
-            switch (a) {
-                .Depth => {
-                    num_channels = 1;
-                    format = .Float;
-                },
-                .MaterialId => {
-                    num_channels = 1;
-                    format = .Uint;
-                },
-                else => {},
-            }
-        } else if (self.alpha) {
-            num_channels = 4;
+        switch (encoding) {
+            .Color_alpha => num_channels = 4,
+            .Depth => {
+                num_channels = 1;
+                format = .Float;
+            },
+            .ID => {
+                num_channels = 1;
+                format = .Uint;
+            },
+            else => {},
         }
 
         {

@@ -66,7 +66,7 @@ pub const FFMPEG = struct {
         try stream.spawn();
 
         return FFMPEG{
-            .srgb = .{ .error_diffusion = error_diffusion, .alpha = false },
+            .srgb = .{ .error_diffusion = error_diffusion },
             .stream = stream,
         };
     }
@@ -78,7 +78,7 @@ pub const FFMPEG = struct {
     }
 
     pub fn write(self: *Self, alloc: Allocator, image: Float4, threads: *Threads) !void {
-        _ = try self.srgb.toSrgb(alloc, image, null, threads);
+        _ = try self.srgb.toSrgb(alloc, image, .Color, threads);
 
         try self.stream.stdin.?.writer().writeAll(self.srgb.buffer);
     }
