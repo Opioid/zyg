@@ -112,16 +112,16 @@ const Data = struct {
             return 0.0;
         }
 
-        var hit = memory.lowerBound(f32, horizontal_angles, phi);
-        var vit = memory.lowerBound(f32, vertical_angles, theta);
+        const hit = memory.lowerBound(f32, horizontal_angles, phi) - 1;
+        const vit = memory.lowerBound(f32, vertical_angles, theta) - 1;
 
-        if (hit > 0) {
-            hit -= 1;
-        }
+        // if (hit > 0) {
+        //     hit -= 1;
+        // }
 
-        if (vit > 0) {
-            vit -= 1;
-        }
+        // if (vit > 0) {
+        //     vit -= 1;
+        // }
 
         const num_vangles = vertical_angles.len;
         const num_hangles = horizontal_angles.len;
@@ -153,15 +153,64 @@ const Data = struct {
         } else {
             const d_phi = (phi - horizontal_angles[hit]) / (next_phi - horizontal_angles[hit]);
 
-            const ins: [4]f32 = .{
-                intensities[vit + hit * num_vangles],
-                intensities[(vit + 1) % num_vangles + hit * num_vangles],
-                intensities[vit + ((hit + 1) % num_hangles) * num_vangles],
-                intensities[(vit + 1) % num_vangles + ((hit + 1) % num_hangles) * num_vangles],
+            // const ins: [4]f32 = .{
+            //     intensities[vit + hit * num_vangles],
+            //     intensities[(vit + 1) % num_vangles + hit * num_vangles],
+            //     intensities[vit + ((hit + 1) % num_hangles) * num_vangles],
+            //     intensities[(vit + 1) % num_vangles + ((hit + 1) % num_hangles) * num_vangles],
+            // };
+
+            // return math.bilinear1(ins, d_theta, d_phi);
+
+            const ivit = @intCast(i32, vit);
+            const ihit = @intCast(i32, hit);
+            const inv = @intCast(i32, num_vangles);
+            const inh = @intCast(i32, num_hangles);
+
+            const vm1 = offset(ivit, -1, inv);
+            const vp0 = offset(ivit, 0, inv);
+            const vp1 = offset(ivit, 1, inv);
+            const vp2 = offset(ivit, 2, inv);
+
+            const hm1 = offset(ihit, -1, inh) * num_vangles;
+            const hp0 = offset(ihit, 0, inh) * num_vangles;
+            const hp1 = offset(ihit, 1, inh) * num_vangles;
+            const hp2 = offset(ihit, 2, inh) * num_vangles;
+
+            const ins: [16]f32 = .{
+                intensities[vm1 + hm1],
+                intensities[vp0 + hm1],
+                intensities[vp1 + hm1],
+                intensities[vp2 + hm1],
+
+                intensities[vm1 + hp0],
+                intensities[vp0 + hp0],
+                intensities[vp1 + hp0],
+                intensities[vp2 + hp0],
+
+                intensities[vm1 + hp1],
+                intensities[vp0 + hp1],
+                intensities[vp1 + hp1],
+                intensities[vp2 + hp1],
+
+                intensities[vm1 + hp2],
+                intensities[vp0 + hp2],
+                intensities[vp1 + hp2],
+                intensities[vp2 + hp2],
             };
 
-            return math.bilinear1(ins, d_theta, d_phi);
+            return math.bicubic1(ins, d_theta, d_phi);
         }
+    }
+
+    fn offset(x: i32, i: i32, b: i32) u32 {
+        const y = x + i;
+
+        if (y < 0) {
+            return @intCast(u32, 1 - y);
+        }
+
+        return @intCast(u32, if (y >= b) (b - i) else y);
     }
 };
 
@@ -273,7 +322,7 @@ pub const Reader = struct {
             mi = @maximum(mi, v);
         }
 
-        const d = Vec2i{ 512, 256 };
+        const d = Vec2i{ 1024, 512 };
 
         var image = try img.Byte1.init(alloc, img.Description.init2D(d));
 
@@ -295,7 +344,7 @@ pub const Reader = struct {
 
                 const value = data.sample(latlong[0], latlong[1]);
 
-                image.set2D(x, y, encoding.floatToUnorm(@minimum(value * imi, 1.0)));
+                image.set2D(x, y, encoding.floatToUnorm(math.saturate(value * imi)));
             }
         }
 
