@@ -199,7 +199,7 @@ const Data = struct {
                 intensities[vp2 + hp2],
             };
 
-            return math.bicubic1(ins, d_theta, d_phi);
+            return bicatmullRom(ins, d_theta, d_phi);
         }
     }
 
@@ -211,6 +211,27 @@ const Data = struct {
         }
 
         return @intCast(u32, if (y >= b) (b - i) else y);
+    }
+
+    pub fn catmullRom(c: *const [4]f32, t: f32) f32 {
+        const t2 = t * t;
+        const a0 = -0.5 * c[0] + 1.5 * c[1] - 1.5 * c[2] + 0.5 * c[3];
+        const a1 = c[0] - 2.5 * c[1] + 2.0 * c[2] - 0.5 * c[3];
+        const a2 = -0.5 * c[0] + 0.5 * c[2];
+        const a3 = c[1];
+
+        return a0 * t * t2 + a1 * t2 + a2 * t + a3;
+    }
+
+    pub fn bicatmullRom(c: [16]f32, s: f32, t: f32) f32 {
+        const d: [4]f32 = .{
+            catmullRom(c[0..4], s),
+            catmullRom(c[4..8], s),
+            catmullRom(c[8..12], s),
+            catmullRom(c[12..16], s),
+        };
+
+        return catmullRom(&d, t);
     }
 };
 
