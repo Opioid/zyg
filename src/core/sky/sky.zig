@@ -55,6 +55,10 @@ pub const Sky = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
+        if (self.sky != Prop.Null) {
+            return;
+        }
+
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
         const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
 
