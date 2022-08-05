@@ -81,18 +81,18 @@ const Entry = struct {
     source_name: []u8 = &.{},
 };
 
-const ALU = std.ArrayListUnmanaged;
+const List = std.ArrayListUnmanaged;
 const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 
 pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
-        resources: *ALU(T),
+        resources: *List(T),
         entries: HashMap = .{},
 
         const Self = @This();
 
-        pub fn init(provider: P, resources: *ALU(T)) Self {
+        pub fn init(provider: P, resources: *List(T)) Self {
             return .{ .provider = provider, .resources = resources };
         }
 

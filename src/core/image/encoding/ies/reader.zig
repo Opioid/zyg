@@ -14,14 +14,14 @@ const memory = base.memory;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const AL = std.ArrayListUnmanaged;
+const List = std.ArrayListUnmanaged;
 
 const Data = struct {
     gonio_type: u32,
 
-    vertical_angles: AL(f32) = .{},
-    horizontal_angles: AL(f32) = .{},
-    intensities: AL(f32) = .{},
+    vertical_angles: List(f32) = .{},
+    horizontal_angles: List(f32) = .{},
+    intensities: List(f32) = .{},
 
     pub fn deinit(self: *Data, alloc: Allocator) void {
         self.intensities.deinit(alloc);

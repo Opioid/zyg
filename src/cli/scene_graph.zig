@@ -13,7 +13,7 @@ const Flags = base.flags.Flags;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ALU = std.ArrayListUnmanaged;
+const List = std.ArrayListUnmanaged;
 
 pub const Graph = struct {
     const Topology = struct {
@@ -30,23 +30,23 @@ pub const Graph = struct {
 
     scene: Scene,
 
-    prop_properties: ALU(Properties),
-    prop_frames: ALU(u32),
-    prop_topology: ALU(Topology),
+    prop_properties: List(Properties),
+    prop_frames: List(u32),
+    prop_topology: List(Topology),
 
-    keyframes: ALU(math.Transformation),
+    keyframes: List(math.Transformation),
 
-    animations: ALU(Animation) = .{},
+    animations: List(Animation) = .{},
 
     const Self = @This();
 
     pub fn init(alloc: Allocator) !Self {
         return Graph{
             .scene = try Scene.init(alloc),
-            .prop_properties = try ALU(Properties).initCapacity(alloc, Scene.Num_reserved_props),
-            .prop_frames = try ALU(u32).initCapacity(alloc, Scene.Num_reserved_props),
-            .prop_topology = try ALU(Topology).initCapacity(alloc, Scene.Num_reserved_props),
-            .keyframes = try ALU(math.Transformation).initCapacity(alloc, Scene.Num_reserved_props),
+            .prop_properties = try List(Properties).initCapacity(alloc, Scene.Num_reserved_props),
+            .prop_frames = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
+            .prop_topology = try List(Topology).initCapacity(alloc, Scene.Num_reserved_props),
+            .keyframes = try List(math.Transformation).initCapacity(alloc, Scene.Num_reserved_props),
         };
     }
 
