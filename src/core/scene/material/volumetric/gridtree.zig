@@ -4,15 +4,15 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Ray = math.Ray;
-const Vec3i = math.Vec3i;
-const Vec3u = math.Vec3u;
+const Vec4i = math.Vec4i;
+const Vec4u = math.Vec4u;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Box = struct {
-    bounds: [2]Vec3i,
+    bounds: [2]Vec4i,
 };
 
 pub const Node = packed struct {
@@ -54,8 +54,8 @@ pub const Gridtree = struct {
     nodes: [*]Node = undefined,
     data: [*]CM = undefined,
 
-    dimensions: Vec3i = undefined,
-    num_cells: Vec3u = undefined,
+    dimensions: Vec4i = undefined,
+    num_cells: Vec4u = undefined,
 
     inv_dimensions: Vec4f = undefined,
 
@@ -67,10 +67,10 @@ pub const Gridtree = struct {
         alloc.free(self.nodes[0..self.num_nodes]);
     }
 
-    pub fn setDimensions(self: *Gridtree, dimensions: Vec3i, num_cells: Vec3i) void {
+    pub fn setDimensions(self: *Gridtree, dimensions: Vec4i, num_cells: Vec4i) void {
         self.dimensions = dimensions;
-        self.num_cells = math.vec3iTo3u(num_cells);
-        self.inv_dimensions = @splat(4, @as(f32, 1.0)) / math.vec3iTo4f(dimensions);
+        self.num_cells = math.vec4iTo4u(num_cells);
+        self.inv_dimensions = @splat(4, @as(f32, 1.0)) / math.vec4iTo4f(dimensions);
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
@@ -97,19 +97,19 @@ pub const Gridtree = struct {
     pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.minT());
 
-        const c = math.vec4fTo3i(math.vec3iTo4f(self.dimensions) * p);
-        const v = c.shiftRight(Log2_cell_dim);
-        const uv = math.vec3iTo3u(v);
+        const c = math.vec4fTo4i(math.vec4iTo4f(self.dimensions) * p);
+        const v = c >> @splat(4, @as(u5, Log2_cell_dim));
+        const uv = math.vec4iTo4u(v);
 
-        if (uv.anyGreaterEqual3(self.num_cells)) {
+        if (math.anyGreaterEqual3u(uv, self.num_cells)) {
             return null;
         }
 
-        var index = (uv.v[2] * self.num_cells.v[1] + uv.v[1]) * self.num_cells.v[0] + uv.v[0];
+        var index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
 
-        const b0 = v.shiftLeft(Log2_cell_dim);
+        const b0 = v << @splat(4, @as(u5, Log2_cell_dim));
 
-        var box = Box{ .bounds = .{ b0, b0.addScalar(Cell_dim) } };
+        var box = Box{ .bounds = .{ b0, b0 + @splat(4, @as(i32, Cell_dim)) } };
 
         while (true) {
             const node = self.nodes[index];
@@ -120,34 +120,34 @@ pub const Gridtree = struct {
 
             index = node.index();
 
-            const half = box.bounds[1].sub(box.bounds[0]).shiftRight(1);
-            const center = box.bounds[0].add(half);
+            const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
+            const center = box.bounds[0] + half;
 
-            if (c.v[0] < center.v[0]) {
-                box.bounds[1].v[0] = center.v[0];
+            if (c[0] < center[0]) {
+                box.bounds[1][0] = center[0];
             } else {
-                box.bounds[0].v[0] = center.v[0];
+                box.bounds[0][0] = center[0];
                 index += 1;
             }
 
-            if (c.v[1] < center.v[1]) {
-                box.bounds[1].v[1] = center.v[1];
+            if (c[1] < center[1]) {
+                box.bounds[1][1] = center[1];
             } else {
-                box.bounds[0].v[1] = center.v[1];
+                box.bounds[0][1] = center[1];
                 index += 2;
             }
 
-            if (c.v[2] < center.v[2]) {
-                box.bounds[1].v[2] = center.v[2];
+            if (c[2] < center[2]) {
+                box.bounds[1][2] = center[2];
             } else {
-                box.bounds[0].v[2] = center.v[2];
+                box.bounds[0][2] = center[2];
                 index += 4;
             }
         }
 
         const boxf = AABB.init(
-            math.vec3iTo4f(box.bounds[0]) * self.inv_dimensions,
-            math.vec3iTo4f(box.bounds[1]) * self.inv_dimensions,
+            math.vec4iTo4f(box.bounds[0]) * self.inv_dimensions,
+            math.vec4iTo4f(box.bounds[1]) * self.inv_dimensions,
         );
 
         if (boxf.intersectP(ray.*)) |hit_t| {

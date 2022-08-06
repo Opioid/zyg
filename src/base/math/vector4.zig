@@ -139,6 +139,7 @@ pub const Vec4b = std.meta.Vector(4, u8);
 pub const Pack4h = Vec4(f16);
 pub const Pack4i = Vec4(i32);
 pub const Vec4i = std.meta.Vector(4, i32);
+pub const Vec4u = std.meta.Vector(4, u32);
 pub const Pack4f = Vec4(f32);
 pub const Vec4f = std.meta.Vector(4, f32);
 
@@ -272,6 +273,14 @@ pub fn anyLessZero3(v: Vec4f) bool {
     return false;
 }
 
+pub fn anyLess3i(a: Vec4i, b: Vec4i) bool {
+    if (a[0] < b[0]) return true;
+    if (a[1] < b[1]) return true;
+    if (a[2] < b[2]) return true;
+
+    return false;
+}
+
 pub fn anyGreaterZero3(v: Vec4f) bool {
     if (v[0] > 0.0) return true;
     if (v[1] > 0.0) return true;
@@ -301,6 +310,14 @@ pub fn anyGreaterEqual3(v: Vec4f, s: f32) bool {
     if (v[0] >= s) return true;
     if (v[1] >= s) return true;
     if (v[2] >= s) return true;
+
+    return false;
+}
+
+pub fn anyGreaterEqual3u(a: Vec4u, b: Vec4u) bool {
+    if (a[0] >= b[0]) return true;
+    if (a[1] >= b[1]) return true;
+    if (a[2] >= b[2]) return true;
 
     return false;
 }
@@ -345,6 +362,15 @@ pub fn vec4iTo4f(v: Vec4i) Vec4f {
         @intToFloat(f32, v[1]),
         @intToFloat(f32, v[2]),
         @intToFloat(f32, v[3]),
+    };
+}
+
+pub fn vec4iTo4u(v: Vec4i) Vec4u {
+    return .{
+        @bitCast(u32, v[0]),
+        @bitCast(u32, v[1]),
+        @bitCast(u32, v[2]),
+        @bitCast(u32, v[3]),
     };
 }
 
@@ -414,6 +440,15 @@ pub fn vec3iTo4f(v: Vec3i) Vec4f {
         @intToFloat(f32, v.v[1]),
         @intToFloat(f32, v.v[2]),
         0.0,
+    };
+}
+
+pub fn vec3iTo4i(v: Vec3i) Vec4i {
+    return .{
+        v.v[0],
+        v.v[1],
+        v.v[2],
+        0,
     };
 }
 
