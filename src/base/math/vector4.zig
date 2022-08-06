@@ -366,12 +366,7 @@ pub fn vec4iTo4f(v: Vec4i) Vec4f {
 }
 
 pub fn vec4iTo4u(v: Vec4i) Vec4u {
-    const c0 = @bitCast(u32, v[0]);
-    const c1 = @bitCast(u32, v[1]);
-    const c2 = @bitCast(u32, v[2]);
-    const c3 = @bitCast(u32, v[3]);
-
-    return .{ c0, c1, c2, c3 };
+    return @bitCast(Vec4u, v);
 }
 
 pub fn vec3fTo4f(v: Pack3f) Vec4f {
