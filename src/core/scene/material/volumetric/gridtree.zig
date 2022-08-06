@@ -71,6 +71,9 @@ pub const Gridtree = struct {
         self.dimensions = dimensions;
         self.num_cells = math.vec3iTo3u(num_cells);
         self.inv_dimensions = @splat(4, @as(f32, 1.0)) / math.vec3iTo4f(dimensions);
+
+        std.debug.print("setDimensions({}, {})\n", .{ dimensions, num_cells });
+        std.debug.print("{} {} {}\n", .{ self.dimensions, self.num_cells, self.inv_dimensions });
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
@@ -102,7 +105,7 @@ pub const Gridtree = struct {
         const uv = math.vec3iTo3u(v);
 
         if (uv.anyGreaterEqual3(self.num_cells)) {
-            std.debug.print("does it happen?? {} {}\n", .{ self.dimensions, self.num_cells });
+            // std.debug.print("does it happen?? {} {}\n", .{ self.dimensions, self.num_cells });
 
             return null;
         }
