@@ -46,6 +46,8 @@ pub const Builder = struct {
 
         const cell_len = @intCast(u32, num_cells[0] * num_cells[1] * num_cells[2]);
 
+        std.debug.print("num_cells {} cell_len {}\n", .{ num_cells, cell_len });
+
         var context = Context{
             .alloc = alloc,
             .grid = try alloc.alloc(BuildNode, cell_len),
