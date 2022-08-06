@@ -102,6 +102,8 @@ pub const Gridtree = struct {
         const uv = math.vec3iTo3u(v);
 
         if (uv.anyGreaterEqual3(self.num_cells)) {
+            std.debug.print("does it happen?? {} {}\n", .{ self.dimensions, self.num_cells });
+
             return null;
         }
 
