@@ -218,11 +218,11 @@ const Linear3D = struct {
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
         const df = math.vec4iTo4f(d);
 
-        const muvw = adr.u.f3(uvw) * df - @splat(4, @as(f32, 0.5));
+        const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
         const fuvw = @floor(muvw);
         const xyz = math.vec4fTo4i(fuvw);
 
-        const b = d - @splat(4, @as(i32, 1));
+        const b = d - Vec4i{ 1, 1, 1, 0 };
 
         return .{
             .w = muvw - fuvw,

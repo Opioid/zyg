@@ -311,7 +311,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             return .{
                 self.get3D(xyz[0], xyz[1], xyz[2]),
                 self.get3D(xyz1[0], xyz[1], xyz[2]),
-                self.get3D(xyz[0], xyz[1], xyz[2]),
+                self.get3D(xyz[0], xyz1[1], xyz[2]),
                 self.get3D(xyz1[0], xyz1[1], xyz[2]),
                 self.get3D(xyz[0], xyz[1], xyz1[2]),
                 self.get3D(xyz1[0], xyz[1], xyz1[2]),
