@@ -240,7 +240,8 @@ pub fn TypedSparseImage(comptime T: type) type {
             const cc1 = xyz1 >> @splat(4, @as(u5, Log2_cell_dim));
 
             if (math.equal4i(cc0, cc1)) {
-                const cell_index = (cc0[2] * self.num_cells[1] + cc0[1]) * self.num_cells[0] + cc0[0];
+                const num_cells = self.num_cells;
+                const cell_index = (cc0[2] * num_cells[1] + cc0[1]) * num_cells[0] + cc0[0];
 
                 const cell = self.cells[@intCast(usize, cell_index)];
 
@@ -321,8 +322,9 @@ pub fn TypedSparseImage(comptime T: type) type {
         }
 
         fn coordinates3(self: Self, index: i64) Vec4i {
-            const w = @as(i64, self.description.dimensions[0]);
-            const h = @as(i64, self.description.dimensions[1]);
+            const d = self.description.dimensions;
+            const w = @as(i64, d[0]);
+            const h = @as(i64, d[1]);
 
             const area = w * h;
             const c2 = @divTrunc(index, area);

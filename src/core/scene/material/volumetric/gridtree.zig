@@ -59,8 +59,9 @@ pub const Gridtree = struct {
 
     inv_dimensions: Vec4f = undefined,
 
-    pub const Log2_cell_dim = 5;
-    pub const Cell_dim = 1 << Log2_cell_dim;
+    pub const Log2_cell_dim: u5 = 5;
+    pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
+    pub const Cell_dim: i32 = 1 << Log2_cell_dim;
 
     pub fn deinit(self: *Gridtree, alloc: Allocator) void {
         alloc.free(self.data[0..self.num_data]);
@@ -102,7 +103,7 @@ pub const Gridtree = struct {
         const p = ray.point(ray.minT());
 
         const c = math.vec4fTo4i(math.vec4iTo4f(self.dimensions) * p);
-        const v = c >> @splat(4, @as(u5, Log2_cell_dim));
+        const v = c >> Log2_cell_dim4;
         const uv = math.vec4iTo4u(v);
 
         if (math.anyGreaterEqual4u(uv, self.num_cells)) {
@@ -111,9 +112,9 @@ pub const Gridtree = struct {
 
         var index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
 
-        const b0 = v << @splat(4, @as(u5, Log2_cell_dim));
+        const b0 = v << Log2_cell_dim4;
 
-        var box = Box{ .bounds = .{ b0, b0 + @splat(4, @as(i32, Cell_dim)) } };
+        var box = Box{ .bounds = .{ b0, b0 + @splat(4, Cell_dim) } };
 
         while (true) {
             const node = self.nodes[index];

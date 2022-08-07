@@ -40,9 +40,9 @@ pub const Builder = struct {
     ) !void {
         const d = texture.description(scene).dimensions;
 
-        var num_cells = d >> @splat(4, @as(u5, Gridtree.Log2_cell_dim));
+        var num_cells = d >> Gridtree.Log2_cell_dim4;
 
-        num_cells = num_cells + @minimum(d - (num_cells << @splat(4, @as(u5, Gridtree.Log2_cell_dim))), @splat(4, @as(i32, 1)));
+        num_cells = num_cells + @minimum(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
         const cell_len = @intCast(u32, num_cells[0] * num_cells[1] * num_cells[2]);
 
@@ -299,8 +299,8 @@ const Context = struct {
             c[0] = i - (t + c[1] * num_cells[0]);
             c[3] = 0;
 
-            const min = c << @splat(4, @as(u5, Gridtree.Log2_cell_dim));
-            const max = min + @splat(4, @as(i32, Gridtree.Cell_dim));
+            const min = c << Gridtree.Log2_cell_dim4;
+            const max = min + @splat(4, Gridtree.Cell_dim);
             const box = Box{ .bounds = .{ min, max } };
 
             splitter.split(
