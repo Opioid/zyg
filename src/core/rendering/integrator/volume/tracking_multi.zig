@@ -109,7 +109,7 @@ pub const Multi = struct {
                 }
             }
 
-            if (!math.anyGreaterEqual3(result.tr, tracking.Abort_epsilon)) {
+            if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
                 result.event = .Abort;
             }
 
