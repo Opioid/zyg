@@ -69,7 +69,9 @@ pub const Gridtree = struct {
 
     pub fn setDimensions(self: *Gridtree, dimensions: Vec4i, num_cells: Vec4i) void {
         self.dimensions = dimensions;
-        self.num_cells = math.vec4iTo4u(num_cells);
+
+        const nc = math.vec4iTo4u(num_cells);
+        self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
 
         const id = @splat(4, @as(f32, 1.0)) / math.vec4iTo4f(dimensions);
         self.inv_dimensions = .{ id[0], id[1], id[2], 0.0 };
@@ -103,7 +105,7 @@ pub const Gridtree = struct {
         const v = c >> @splat(4, @as(u5, Log2_cell_dim));
         const uv = math.vec4iTo4u(v);
 
-        if (math.anyGreaterEqual3u(uv, self.num_cells)) {
+        if (math.anyGreaterEqual4u(uv, self.num_cells)) {
             return null;
         }
 
@@ -125,21 +127,23 @@ pub const Gridtree = struct {
             const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
             const center = box.bounds[0] + half;
 
-            if (c[0] < center[0]) {
+            const l = c < center;
+
+            if (l[0]) {
                 box.bounds[1][0] = center[0];
             } else {
                 box.bounds[0][0] = center[0];
                 index += 1;
             }
 
-            if (c[1] < center[1]) {
+            if (l[1]) {
                 box.bounds[1][1] = center[1];
             } else {
                 box.bounds[0][1] = center[1];
                 index += 2;
             }
 
-            if (c[2] < center[2]) {
+            if (l[2]) {
                 box.bounds[1][2] = center[2];
             } else {
                 box.bounds[0][2] = center[2];

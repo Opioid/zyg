@@ -318,12 +318,8 @@ pub fn anyGreaterEqual3(v: Vec4f, s: f32) bool {
     return false;
 }
 
-pub fn anyGreaterEqual3u(a: Vec4u, b: Vec4u) bool {
-    if (a[0] >= b[0]) return true;
-    if (a[1] >= b[1]) return true;
-    if (a[2] >= b[2]) return true;
-
-    return false;
+pub fn anyGreaterEqual4u(a: Vec4u, b: Vec4u) bool {
+    return @reduce(.Or, a >= b);
 }
 
 pub fn anyNaN3(v: Vec4f) bool {
