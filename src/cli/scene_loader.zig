@@ -189,8 +189,8 @@ pub const Loader = struct {
                 if (material.heterogeneousVolume()) {
                     const desc = material.usefulTextureDescription(scene.*);
                     const voxel_scale = @splat(4, trafo.scale[0]);
-                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec3iTo4f(desc.dimensions);
-                    trafo.position += trafo.scale + voxel_scale * math.vec3iTo4f(desc.offset);
+                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(desc.dimensions);
+                    trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(desc.offset);
                 }
             }
 

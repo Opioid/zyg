@@ -257,6 +257,10 @@ pub fn equal(a: Vec4f, b: Vec4f) bool {
     return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
 }
 
+pub fn equal3i(a: Vec4i, b: Vec4i) bool {
+    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
+}
+
 pub fn allLess3(v: Vec4f, s: f32) bool {
     if (v[0] >= s) return false;
     if (v[1] >= s) return false;

@@ -90,7 +90,7 @@ pub const Writer = struct {
         }
 
         const d = image.description.dimensions;
-        const dw = Vec2i{ d.v[0] - 1, d.v[1] - 1 };
+        const dw = Vec2i{ d[0] - 1, d[1] - 1 };
 
         {
             try writeString(writer, "dataWindow");
@@ -231,11 +231,11 @@ pub const Writer = struct {
         const d = image.description.dimensions;
 
         const rows_per_block = compression.numScanlinesPerBlock();
-        const row_blocks = compression.numScanlineBlocks(@intCast(u32, d.v[1]));
+        const row_blocks = compression.numScanlineBlocks(@intCast(u32, d[1]));
 
         const scalar_size = format.byteSize();
 
-        const bytes_per_row = @intCast(u32, d.v[0]) * num_channels * scalar_size;
+        const bytes_per_row = @intCast(u32, d[0]) * num_channels * scalar_size;
         const bytes_per_block = math.roundUp(u32, bytes_per_row * rows_per_block, 64);
 
         var context = Context{
@@ -245,7 +245,7 @@ pub const Writer = struct {
             .bytes_per_row = bytes_per_row,
             .bytes_per_block = bytes_per_block,
             .format = format,
-            .image_buffer = try alloc.alloc(u8, @intCast(u32, d.v[1]) * bytes_per_row),
+            .image_buffer = try alloc.alloc(u8, @intCast(u32, d[1]) * bytes_per_row),
             .tmp_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
             .block_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
             .cb = try alloc.alloc(CompressedBlock, row_blocks),
@@ -314,8 +314,8 @@ pub const Writer = struct {
                 return;
             }
 
-            const width = @intCast(u32, self.image.description.dimensions.v[0]);
-            const height = @intCast(u32, self.image.description.dimensions.v[1]);
+            const width = @intCast(u32, self.image.description.dimensions[0]);
+            const height = @intCast(u32, self.image.description.dimensions[1]);
             const bpb = self.bytes_per_block;
             const offset = id * bpb;
 
@@ -369,7 +369,7 @@ pub const Writer = struct {
         }
 
         fn blockHalf(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
-            const width = @intCast(u32, image.description.dimensions.v[0]);
+            const width = @intCast(u32, image.description.dimensions[0]);
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
 
@@ -400,7 +400,7 @@ pub const Writer = struct {
         }
 
         fn blockUint(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
-            const width = @intCast(u32, image.description.dimensions.v[0]);
+            const width = @intCast(u32, image.description.dimensions[0]);
 
             var uints = std.mem.bytesAsSlice(u32, destination);
 
@@ -420,7 +420,7 @@ pub const Writer = struct {
         }
 
         fn blockFloat(destination: []u8, image: Float4, num_channels: u32, num_rows: u32, pixel: u32) void {
-            const width = @intCast(u32, image.description.dimensions.v[0]);
+            const width = @intCast(u32, image.description.dimensions[0]);
 
             var floats = std.mem.bytesAsSlice(f32, destination);
 

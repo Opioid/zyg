@@ -57,7 +57,7 @@ pub const Operator = struct {
 
         const dim = texture.description(self.scene.*).dimensions;
 
-        _ = threads.runRange(&self, runRange, 0, @intCast(u32, dim.v[1]), 0);
+        _ = threads.runRange(&self, runRange, 0, @intCast(u32, dim[1]), 0);
     }
 
     fn runRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -70,7 +70,7 @@ pub const Operator = struct {
             const texture_b = self.textures.items[self.current + 1];
 
             const dim = texture_a.description(self.scene.*).dimensions;
-            const width = dim.v[0];
+            const width = dim[0];
 
             var y = begin;
             while (y < end) : (y += 1) {
@@ -93,7 +93,7 @@ pub const Operator = struct {
             const texture = self.textures.items[current];
 
             const dim = texture.description(self.scene.*).dimensions;
-            const width = dim.v[0];
+            const width = dim[0];
 
             const factor = @splat(4, if (.Average == self.class) 1.0 / @intToFloat(f32, self.textures.items.len) else 1.0);
 

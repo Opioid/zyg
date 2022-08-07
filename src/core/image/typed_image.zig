@@ -60,7 +60,7 @@ pub fn TypedImage(comptime T: type) type {
         }
 
         pub fn get2D(self: Self, x: i32, y: i32) T {
-            const i = y * self.description.dimensions.v[0] + x;
+            const i = y * self.description.dimensions[0] + x;
 
             return self.pixels[@intCast(usize, i)];
         }
@@ -191,9 +191,9 @@ pub fn TypedSparseImage(comptime T: type) type {
             }
 
             if (cell.data) |data| {
-                const cs = c << @splat(4, @as(u5, Log2_cell_dim));
+                const cs = cc << @splat(4, @as(u5, Log2_cell_dim));
                 const cxyz = c - cs;
-                const ci = (((cxyz.v[2] << Log2_cell_dim) + cxyz.v[1]) << Log2_cell_dim) + cxyz.v[0];
+                const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
 
                 data[@intCast(usize, ci)] = v;
 
@@ -221,12 +221,12 @@ pub fn TypedSparseImage(comptime T: type) type {
             const c = Vec4i{ x, y, z, 0 };
             const cc = c >> @splat(4, @as(u5, Log2_cell_dim));
 
-            const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells.v[0] + cc[0];
+            const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells[0] + cc[0];
 
             var cell = &self.cells[@intCast(usize, cell_index)];
 
             if (cell.data) |data| {
-                const cs = c << @splat(4, @as(u5, Log2_cell_dim));
+                const cs = cc << @splat(4, @as(u5, Log2_cell_dim));
                 const cxyz = c - cs;
                 const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
                 return data[@intCast(usize, ci)];
@@ -239,18 +239,18 @@ pub fn TypedSparseImage(comptime T: type) type {
             const cc0 = xyz >> @splat(4, @as(u5, Log2_cell_dim));
             const cc1 = xyz1 >> @splat(4, @as(u5, Log2_cell_dim));
 
-            if (cc0.equal(cc1)) {
+            if (math.equal3i(cc0, cc1)) {
                 const cell_index = (cc0[2] * self.num_cells[1] + cc0[1]) * self.num_cells[0] + cc0[0];
 
                 const cell = self.cells[@intCast(usize, cell_index)];
 
                 if (cell.data) |data| {
-                    const cs = cc0.shiftLeft(Log2_cell_dim);
+                    const cs = cc0 << @splat(4, @as(u5, Log2_cell_dim));
 
-                    const d0 = (xyz.v[2] - cs.v[2]) << Log2_cell_dim;
-                    const d1 = (xyz1.v[2] - cs.v[2]) << Log2_cell_dim;
+                    const d0 = (xyz[2] - cs[2]) << Log2_cell_dim;
+                    const d1 = (xyz1[2] - cs[2]) << Log2_cell_dim;
 
-                    const csxy = Vec2i{ cs.v[0], cs.v[1] };
+                    const csxy = Vec2i{ cs[0], cs[1] };
 
                     var result: [8]T = undefined;
                     {
