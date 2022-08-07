@@ -167,7 +167,7 @@ const Splitter = struct {
 
         const diff = max_density - min_density;
 
-        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or math.anyLess3i((maxb - minb), @splat(4, W))) {
+        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or math.anyLess4i((maxb - minb), .{ W, W, W, std.math.minInt(i32) })) {
             node.children = &.{};
 
             var data = &node.data;

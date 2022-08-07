@@ -254,68 +254,27 @@ pub fn average3(v: Vec4f) f32 {
 }
 
 pub fn equal(a: Vec4f, b: Vec4f) bool {
-    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
+    return @reduce(.And, a == b);
 }
 
-pub fn equal3i(a: Vec4i, b: Vec4i) bool {
-    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
+pub fn equal4i(a: Vec4i, b: Vec4i) bool {
+    return @reduce(.And, a == b);
 }
 
-pub fn allLess3(v: Vec4f, s: f32) bool {
-    if (v[0] >= s) return false;
-    if (v[1] >= s) return false;
-    if (v[2] >= s) return false;
-
-    return true;
+pub fn allLess4(a: Vec4f, b: Vec4f) bool {
+    return @reduce(.And, a < b);
 }
 
-pub fn anyLessZero3(v: Vec4f) bool {
-    if (v[0] < 0.0) return true;
-    if (v[1] < 0.0) return true;
-    if (v[2] < 0.0) return true;
-
-    return false;
-}
-
-pub fn anyLess3i(a: Vec4i, b: Vec4i) bool {
-    if (a[0] < b[0]) return true;
-    if (a[1] < b[1]) return true;
-    if (a[2] < b[2]) return true;
-
-    return false;
+pub fn anyLess4i(a: Vec4i, b: Vec4i) bool {
+    return @reduce(.Or, a < b);
 }
 
 pub fn anyGreaterZero3(v: Vec4f) bool {
-    if (v[0] > 0.0) return true;
-    if (v[1] > 0.0) return true;
-    if (v[2] > 0.0) return true;
-
-    return false;
+    return @reduce(.Or, v > Vec4f{ 0.0, 0.0, 0.0, std.math.f32_max });
 }
 
-pub fn anyGreaterZero(v: Vec4f) bool {
-    if (v[0] > 0.0) return true;
-    if (v[1] > 0.0) return true;
-    if (v[2] > 0.0) return true;
-    if (v[3] > 0.0) return true;
-
-    return false;
-}
-
-pub fn anyGreater3(v: Vec4f, s: f32) bool {
-    if (v[0] > s) return true;
-    if (v[1] > s) return true;
-    if (v[2] > s) return true;
-
-    return false;
-}
-
-pub fn anyGreaterEqual3(v: Vec4f, s: f32) bool {
-    if (v[0] >= s) return true;
-    if (v[1] >= s) return true;
-    if (v[2] >= s) return true;
-
-    return false;
+pub fn anyGreaterZero4(v: Vec4f) bool {
+    return @reduce(.Or, v > @splat(4, @as(f32, 0.0)));
 }
 
 pub fn anyGreaterEqual4u(a: Vec4u, b: Vec4u) bool {

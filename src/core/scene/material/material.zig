@@ -116,9 +116,9 @@ pub const Material = union(enum) {
     pub fn emissive(self: Material) bool {
         return switch (self) {
             .Sky => true,
-            .Light => |m| math.anyGreaterZero(m.super.emittance.value),
-            .Substitute => |m| math.anyGreaterZero(m.super.emittance.value),
-            .Volumetric => |m| math.anyGreaterZero(m.super.emittance.value),
+            .Light => |m| math.anyGreaterZero3(m.super.emittance.value),
+            .Substitute => |m| math.anyGreaterZero3(m.super.emittance.value),
+            .Volumetric => |m| math.anyGreaterZero3(m.super.emittance.value),
             else => false,
         };
     }

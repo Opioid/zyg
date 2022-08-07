@@ -179,7 +179,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            if (!sample_result.class.equals(.StraightTransmission)) {
+            if (!sample_result.class.equal(.StraightTransmission)) {
                 ray.depth += 1;
             }
 

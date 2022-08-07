@@ -239,7 +239,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             const cc0 = xyz >> @splat(4, @as(u5, Log2_cell_dim));
             const cc1 = xyz1 >> @splat(4, @as(u5, Log2_cell_dim));
 
-            if (math.equal3i(cc0, cc1)) {
+            if (math.equal4i(cc0, cc1)) {
                 const cell_index = (cc0[2] * self.num_cells[1] + cc0[1]) * self.num_cells[0] + cc0[0];
 
                 const cell = self.cells[@intCast(usize, cell_index)];
