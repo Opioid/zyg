@@ -253,7 +253,7 @@ pub fn average3(v: Vec4f) f32 {
 }
 
 pub fn equal(a: Vec4f, b: Vec4f) bool {
-    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2] and a[3] == b[3];
+    return @reduce(.And, a == b);
 }
 
 pub fn allLess3(v: Vec4f, s: f32) bool {
