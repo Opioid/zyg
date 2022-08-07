@@ -135,16 +135,17 @@ pub fn TypedSparseImage(comptime T: type) type {
 
         cells: []Cell,
 
-        const Log2_cell_dim = 4;
-        const Cell_dim = 1 << Log2_cell_dim;
+        const Log2_cell_dim: u5 = 4;
+        const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
+        const Cell_dim: u32 = 1 << Log2_cell_dim;
 
         const Self = @This();
 
         pub fn init(alloc: Allocator, description: Description) !Self {
             const d = description.dimensions;
 
-            var num_cells = d >> @splat(4, @as(u5, Log2_cell_dim));
-            num_cells += @minimum(d - (num_cells << @splat(4, @as(u5, Log2_cell_dim))), @splat(4, @as(i32, 1)));
+            var num_cells = d >> Log2_cell_dim4;
+            num_cells += @minimum(d - (num_cells << Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
             const cells_len = @intCast(usize, num_cells[0] * num_cells[1] * num_cells[2]);
 
@@ -176,7 +177,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
         pub fn storeSequentially(self: *Self, alloc: Allocator, index: i64, v: T) !void {
             const c = self.coordinates3(index);
-            const cc = c >> @splat(4, @as(u5, Log2_cell_dim));
+            const cc = c >> Log2_cell_dim4;
 
             const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells[0] + cc[0];
 
@@ -191,7 +192,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             }
 
             if (cell.data) |data| {
-                const cs = cc << @splat(4, @as(u5, Log2_cell_dim));
+                const cs = cc << Log2_cell_dim4;
                 const cxyz = c - cs;
                 const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
 
@@ -219,14 +220,14 @@ pub fn TypedSparseImage(comptime T: type) type {
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
             const c = Vec4i{ x, y, z, 0 };
-            const cc = c >> @splat(4, @as(u5, Log2_cell_dim));
+            const cc = c >> Log2_cell_dim4;
 
             const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells[0] + cc[0];
 
             var cell = &self.cells[@intCast(usize, cell_index)];
 
             if (cell.data) |data| {
-                const cs = cc << @splat(4, @as(u5, Log2_cell_dim));
+                const cs = cc << Log2_cell_dim4;
                 const cxyz = c - cs;
                 const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
                 return data[@intCast(usize, ci)];
@@ -236,8 +237,8 @@ pub fn TypedSparseImage(comptime T: type) type {
         }
 
         pub fn gather3D(self: Self, xyz: Vec4i, xyz1: Vec4i) [8]T {
-            const cc0 = xyz >> @splat(4, @as(u5, Log2_cell_dim));
-            const cc1 = xyz1 >> @splat(4, @as(u5, Log2_cell_dim));
+            const cc0 = xyz >> Log2_cell_dim4;
+            const cc1 = xyz1 >> Log2_cell_dim4;
 
             if (math.equal4i(cc0, cc1)) {
                 const num_cells = self.num_cells;
@@ -246,7 +247,7 @@ pub fn TypedSparseImage(comptime T: type) type {
                 const cell = self.cells[@intCast(usize, cell_index)];
 
                 if (cell.data) |data| {
-                    const cs = cc0 << @splat(4, @as(u5, Log2_cell_dim));
+                    const cs = cc0 << Log2_cell_dim4;
 
                     const d0 = (xyz[2] - cs[2]) << Log2_cell_dim;
                     const d1 = (xyz1[2] - cs[2]) << Log2_cell_dim;
