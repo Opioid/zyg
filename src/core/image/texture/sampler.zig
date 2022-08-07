@@ -19,7 +19,7 @@ const Address = struct {
     }
 
     pub fn address3(self: Address, uvw: Vec4f) Vec4f {
-        return .{ self.u.f(uvw[0]), self.u.f(uvw[1]), self.u.f(uvw[2]), 0.0 };
+        return self.u.f3(uvw);
     }
 };
 
@@ -178,18 +178,11 @@ const Nearest3D = struct {
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
         const df = math.vec4iTo4f(d);
 
-        const u = adr.u.f(uvw[0]);
-        const v = adr.u.f(uvw[1]);
-        const w = adr.u.f(uvw[2]);
+        const muvw = adr.u.f3(uvw);
 
         const b = d - @splat(4, @as(i32, 1));
 
-        return .{
-            std.math.min(@floatToInt(i32, u * df[0]), b[0]),
-            std.math.min(@floatToInt(i32, v * df[1]), b[1]),
-            std.math.min(@floatToInt(i32, w * df[2]), b[2]),
-            0,
-        };
+        return @minimum(math.vec4fTo4i(muvw * df), b);
     }
 };
 
@@ -225,34 +218,16 @@ const Linear3D = struct {
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
         const df = math.vec4iTo4f(d);
 
-        const u = adr.u.f(uvw[0]) * df[0] - 0.5;
-        const v = adr.v.f(uvw[1]) * df[1] - 0.5;
-        const w = adr.v.f(uvw[2]) * df[2] - 0.5;
-
-        const fu = @floor(u);
-        const fv = @floor(v);
-        const fw = @floor(w);
-
-        const x = @floatToInt(i32, fu);
-        const y = @floatToInt(i32, fv);
-        const z = @floatToInt(i32, fw);
+        const muvw = adr.u.f3(uvw) * df - @splat(4, @as(f32, 0.5));
+        const fuvw = @floor(muvw);
+        const xyz = math.vec4fTo4i(fuvw);
 
         const b = d - @splat(4, @as(i32, 1));
 
         return .{
-            .w = .{ u - fu, v - fv, w - fw, 0.0 },
-            .xyz = .{
-                adr.u.lowerBound(x, b[0]),
-                adr.u.lowerBound(y, b[1]),
-                adr.u.lowerBound(z, b[2]),
-                0,
-            },
-            .xyz1 = .{
-                adr.u.increment(x, b[0]),
-                adr.u.increment(y, b[1]),
-                adr.u.increment(z, b[2]),
-                0,
-            },
+            .w = muvw - fuvw,
+            .xyz = adr.u.lowerBound3(xyz, b),
+            .xyz1 = adr.u.increment3(xyz, b),
         };
     }
 };
