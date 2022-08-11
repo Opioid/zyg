@@ -48,16 +48,15 @@ pub const Node = packed struct {
 };
 
 pub const Gridtree = struct {
-    num_nodes: u32 = 0,
-    num_data: u32 = 0,
+    dimensions: Vec4f = undefined,
+    num_cells: Vec3u = undefined,
+    inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
     data: [*]CM = undefined,
 
-    dimensions: Vec3i = undefined,
-    num_cells: Vec3u = undefined,
-
-    inv_dimensions: Vec4f = undefined,
+    num_nodes: u32 = 0,
+    num_data: u32 = 0,
 
     pub const Log2_cell_dim = 5;
     pub const Cell_dim = 1 << Log2_cell_dim;
@@ -68,9 +67,10 @@ pub const Gridtree = struct {
     }
 
     pub fn setDimensions(self: *Gridtree, dimensions: Vec3i, num_cells: Vec3i) void {
-        self.dimensions = dimensions;
+        const df = math.vec3iTo4f(dimensions);
+        self.dimensions = df;
         self.num_cells = math.vec3iTo3u(num_cells);
-        self.inv_dimensions = @splat(4, @as(f32, 1.0)) / math.vec3iTo4f(dimensions);
+        self.inv_dimensions = @splat(4, @as(f32, 1.0)) / df;
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
@@ -97,7 +97,7 @@ pub const Gridtree = struct {
     pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.minT());
 
-        const c = math.vec4fTo3i(math.vec3iTo4f(self.dimensions) * p);
+        const c = math.vec4fTo3i(self.dimensions * p);
         const v = c.shiftRight(Log2_cell_dim);
         const uv = math.vec3iTo3u(v);
 
