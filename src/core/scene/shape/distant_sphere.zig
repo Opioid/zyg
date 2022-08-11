@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Worker = @import("../worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -17,7 +17,7 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const DistantSphere = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
@@ -52,7 +52,7 @@ pub const DistantSphere = struct {
         return true;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
@@ -66,12 +66,7 @@ pub const DistantSphere = struct {
         return det > 0.0;
     }
 
-    pub fn sampleTo(
-        trafo: Transformation,
-        extent: f32,
-        sampler: *Sampler,
-        rng: *RNG,
-    ) SampleTo {
+    pub fn sampleTo(trafo: Trafo, extent: f32, sampler: *Sampler, rng: *RNG) SampleTo {
         const r2 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r2);
 
@@ -83,18 +78,13 @@ pub const DistantSphere = struct {
             math.normalize3(ws - trafo.rotation.r[2]),
             @splat(4, @as(f32, 0.0)),
             @splat(4, @as(f32, 0.0)),
+            trafo,
             1.0 / extent,
             scn.Almost_ray_max_t,
         );
     }
 
-    pub fn sampleFrom(
-        trafo: Transformation,
-        extent: f32,
-        uv: Vec2f,
-        importance_uv: Vec2f,
-        bounds: AABB,
-    ) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, extent: f32, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {
         const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -117,6 +107,7 @@ pub const DistantSphere = struct {
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
+            trafo,
             1.0 / (extent * ls_extent[0] * ls_extent[1]),
         );
     }

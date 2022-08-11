@@ -1,12 +1,12 @@
 const Float4 = @import("../../image/image.zig").Float4;
-const AovClass = @import("../../rendering/sensor/aov/value.zig").Value.Class;
+const Encoding = @import("../../image/writer.zig").Writer.Encoding;
 const scn = @import("../../scene/constants.zig");
 
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
-const encoding = base.encoding;
+const enc = base.encoding;
 const spectrum = base.spectrum;
 
 const std = @import("std");
@@ -16,10 +16,9 @@ pub const Srgb = struct {
     buffer: []u8 = &.{},
 
     error_diffusion: bool,
-    alpha: bool,
 
     image: Float4 = undefined,
-    aov: ?AovClass = null,
+    encoding: Encoding = undefined,
 
     min_depth: f32 = undefined,
     max_depth: f32 = undefined,
@@ -28,7 +27,7 @@ pub const Srgb = struct {
         alloc.free(self.buffer);
     }
 
-    pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, aov: ?AovClass, threads: *Threads) !u32 {
+    pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, encoding: Encoding, threads: *Threads) !u32 {
         const d = image.description.dimensions;
         const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
 
@@ -37,25 +36,23 @@ pub const Srgb = struct {
         var mind: f32 = std.math.f32_max;
         var maxd: f32 = 0.0;
 
-        if (aov) |a| {
-            switch (a) {
-                .Depth => {
-                    num_channels = 1;
+        switch (encoding) {
+            .Color, .Normal, .Id => num_channels = 3,
+            .Color_alpha => num_channels = 4,
+            .Depth => {
+                num_channels = 1;
 
-                    for (image.pixels) |p| {
-                        const depth = p.v[0];
+                for (image.pixels) |p| {
+                    const depth = p.v[0];
 
-                        mind = @minimum(mind, depth);
+                    mind = @minimum(mind, depth);
 
-                        if (depth < scn.Almost_ray_max_t) {
-                            maxd = @maximum(maxd, depth);
-                        }
+                    if (depth < scn.Almost_ray_max_t) {
+                        maxd = @maximum(maxd, depth);
                     }
-                },
-                else => {},
-            }
-        } else if (self.alpha) {
-            num_channels = 4;
+                }
+            },
+            .Float => num_channels = 1,
         }
 
         const num_bytes = num_pixels * num_channels;
@@ -67,7 +64,7 @@ pub const Srgb = struct {
         }
 
         self.image = image;
-        self.aov = aov;
+        self.encoding = encoding;
         self.min_depth = mind;
         self.max_depth = maxd;
 
@@ -91,17 +88,8 @@ pub const Srgb = struct {
         var y = begin;
         var i = begin * width;
 
-        var asColor = true;
-        var alpha = self.alpha;
-
-        if (self.aov) |a| {
-            asColor = switch (a) {
-                .Albedo => true,
-                else => false,
-            };
-
-            alpha = false;
-        }
+        const asColor = .Color == self.encoding or .Color_alpha == self.encoding;
+        const alpha = .Color_alpha == self.encoding;
 
         const image = self.image;
         const buffer = self.buffer;
@@ -142,10 +130,10 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 4 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 4 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 4 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                            buffer[i * 4 + 3] = encoding.floatToUnorm(std.math.min(p.v[3], 1.0));
+                            buffer[i * 4 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 4 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 4 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 4 + 3] = enc.floatToUnorm(std.math.min(p.v[3], 1.0));
 
                             i += 1;
                         }
@@ -185,9 +173,9 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 3 + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 3 + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 3 + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 3 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
 
                             i += 1;
                         }
@@ -195,7 +183,7 @@ pub const Srgb = struct {
                 }
             }
         } else {
-            if (.Depth == self.aov.?) {
+            if (.Depth == self.encoding) {
                 const mind = self.min_depth;
                 const range = self.max_depth - mind;
 
@@ -204,12 +192,23 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const depth = image.pixels[i].v[0];
 
-                        buffer[i] = encoding.floatToUnorm(math.saturate(1.0 - (depth - mind) / range));
+                        buffer[i] = enc.floatToUnorm(math.saturate(1.0 - (depth - mind) / range));
 
                         i += 1;
                     }
                 }
-            } else if (.MaterialId == self.aov.?) {
+            } else if (.Float == self.encoding) {
+                while (y < end) : (y += 1) {
+                    var x: u32 = 0;
+                    while (x < width) : (x += 1) {
+                        const f = image.pixels[i].v[0];
+
+                        buffer[i] = enc.floatToUnorm(math.saturate(f));
+
+                        i += 1;
+                    }
+                }
+            } else if (.Id == self.encoding) {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
@@ -223,15 +222,15 @@ pub const Srgb = struct {
                         i += 1;
                     }
                 }
-            } else {
+            } else if (.Normal == self.encoding) {
                 while (y < end) : (y += 1) {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const p = image.pixels[i];
 
-                        buffer[i * 3 + 0] = encoding.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
-                        buffer[i * 3 + 1] = encoding.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
-                        buffer[i * 3 + 2] = encoding.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
+                        buffer[i * 3 + 0] = enc.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
+                        buffer[i * 3 + 1] = enc.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
+                        buffer[i * 3 + 2] = enc.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
 
                         i += 1;
                     }

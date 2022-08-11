@@ -13,6 +13,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = union(enum) {
+    pub const Encoding = enum {
+        Color,
+        Color_alpha,
+        Normal,
+        Depth,
+        Id,
+        Float,
+    };
+
     pub const ExrWriter = EXR;
     pub const PngWriter = PNG;
     pub const RgbeWriter = RGBE;
@@ -35,12 +44,12 @@ pub const Writer = union(enum) {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
-        aov: ?AovClass,
+        encoding: Encoding,
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .EXR => |w| try w.write(alloc, writer, image, aov, threads),
-            .PNG => |*w| try w.write(alloc, writer, image, aov, threads),
+            .EXR => |w| try w.write(alloc, writer, image, encoding, threads),
+            .PNG => |*w| try w.write(alloc, writer, image, encoding, threads),
             .RGBE => try RGBE.write(alloc, writer, image),
         }
     }

@@ -9,6 +9,7 @@ const Volumetric = @import("../volumetric/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
@@ -77,7 +78,7 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
-        const rad = self.super.emittance.radiance(1.0, area);
+        const rad = self.super.emittance.averageRadiance(area);
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
         }
@@ -125,8 +126,13 @@ pub const Material = struct {
             worker.scene.*,
         ) else self.color;
 
-        const cos_l = @fabs(math.dot3(rs.geo_n, wo));
-        var rad = self.super.emittance.radiance(cos_l, worker.scene.lightArea(rs.prop, rs.part));
+        var rad = self.super.emittance.radiance(
+            -wo,
+            rs.trafo,
+            worker.scene.lightArea(rs.prop, rs.part),
+            rs.filter,
+            worker.scene.*,
+        );
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene.*);
         }
@@ -236,15 +242,14 @@ pub const Material = struct {
         wi: Vec4f,
         n: Vec4f,
         uv: Vec2f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
-        const n_dot_wi = hlp.clampAbsDot(wi, n);
-        var rad = self.super.emittance.radiance(n_dot_wi, extent);
-
+        var rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
         }
@@ -258,6 +263,7 @@ pub const Material = struct {
         }
 
         if (coating_thickness > 0.0) {
+            const n_dot_wi = hlp.clampAbsDot(wi, n);
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating.absorption_coef,
                 self.coating.thickness,

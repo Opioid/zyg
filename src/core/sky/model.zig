@@ -1,9 +1,12 @@
+const Filesystem = @import("../file/system.zig").System;
+const ReadStream = @import("../file/read_stream.zig").ReadStream;
+
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
-const Spectrum = spectrum.DiscreteSpectralPowerDistribution(17, 380.0, 720.0);
+const Spectrum = spectrum.DiscreteSpectralPowerDistribution(20, 380.0, 740.0);
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -11,6 +14,10 @@ const Allocator = std.mem.Allocator;
 const c = @cImport({
     @cInclude("arpraguesky/ArPragueSkyModelGround.h");
 });
+
+const Error = error{
+    FailedToLoadSky,
+};
 
 pub const Model = struct {
     state: *c.ArPragueSkyModelGroundState,
@@ -22,24 +29,38 @@ pub const Model = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32) !Model {
-        try Spectrum.staticInit(alloc);
+    pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, albedo: f32, fs: *Filesystem) !Model {
+        Spectrum.staticInit();
+
+        var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
+        defer stream.deinit();
 
         const sun_elevation = elevation(sun_direction);
         const sun_azimuth = azimuth(sun_direction);
 
-        const state = c.arpragueskymodelground_state_alloc_init(
-            "/home/beni/Downloads/SkyModelDataset.dat",
+        const state = c.arpragueskymodelground_state_alloc_init_handle(
+            &stream,
+            readStream,
             sun_elevation,
             visibility,
-            0.2,
-        );
+            albedo,
+        ) orelse return Error.FailedToLoadSky;
 
         return Model{
             .state = state,
             .sun_elevation = sun_elevation,
             .sun_azimuth = sun_azimuth,
         };
+    }
+
+    fn readStream(buffer: ?*anyopaque, size: c_ulonglong, count: c_ulonglong, stream: ?*anyopaque) callconv(.C) c_ulonglong {
+        if (null == buffer or null == stream) {
+            return 0;
+        }
+
+        var stream_ptr = @ptrCast(*ReadStream, @alignCast(@alignOf(ReadStream), stream));
+        var dest = @ptrCast([*]u8, buffer)[0 .. size * count];
+        return (stream_ptr.read(dest) catch 0) / size;
     }
 
     pub fn deinit(self: *Self) void {

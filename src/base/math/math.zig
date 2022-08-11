@@ -82,6 +82,27 @@ pub fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
     return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
 }
 
+pub fn cubic1(c: *const [4]f32, t: f32) f32 {
+    const t2 = t * t;
+    const a0 = c[3] - c[2] - c[0] + c[1];
+    const a1 = c[0] - c[1] - a0;
+    const a2 = c[2] - c[0];
+    const a3 = c[1];
+
+    return a0 * t * t2 + a1 * t2 + a2 * t + a3;
+}
+
+pub fn bicubic1(c: [16]f32, s: f32, t: f32) f32 {
+    const d: [4]f32 = .{
+        cubic1(c[0..4], s),
+        cubic1(c[4..8], s),
+        cubic1(c[8..12], s),
+        cubic1(c[12..16], s),
+    };
+
+    return cubic1(&d, t);
+}
+
 pub fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
 }

@@ -1,5 +1,11 @@
+const Texture = @import("../../image/texture/texture.zig").Texture;
+const ts = @import("../../image/texture/sampler.zig");
+const Scene = @import("../scene.zig").Scene;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+
 const base = @import("base");
 const math = base.math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 
@@ -14,6 +20,7 @@ pub const Emittance = struct {
     };
 
     value: Vec4f = @splat(4, @as(f32, 0.0)),
+    profile: Texture = .{},
     cos_a: f32 = 0.0,
     quantity: Quantity = .Radiance,
 
@@ -58,11 +65,45 @@ pub const Emittance = struct {
         self.quantity = Quantity.Radiance;
     }
 
-    pub fn radiance(self: Emittance, n_dot_wi: f32, area: f32) Vec4f {
-        if (n_dot_wi < self.cos_a) {
+    fn dirToLatlongUv(v: Vec4f) Vec2f {
+        return .{
+            std.math.atan2(f32, v[0], v[2]) / (2.0 * std.math.pi),
+            std.math.acos(-v[1]) / std.math.pi,
+        };
+    }
+
+    pub fn radiance(
+        self: Emittance,
+        wi: Vec4f,
+        trafo: Trafo,
+        area: f32,
+        filter: ?ts.Filter,
+        scene: Scene,
+    ) Vec4f {
+        var pf: f32 = 1.0;
+        if (self.profile.valid()) {
+            const lwi = trafo.worldToObjectNormal(wi);
+
+            const key = ts.Key{
+                .filter = filter orelse .Linear,
+                .address = .{ .u = .Repeat, .v = .Clamp },
+            };
+
+            pf = ts.sample2D_1(key, self.profile, dirToLatlongUv(lwi), scene);
+        }
+
+        if (@fabs(math.dot3(wi, trafo.rotation.r[2])) < self.cos_a) {
             return @splat(4, @as(f32, 0.0));
         }
 
+        if (self.quantity == .Intensity) {
+            return @splat(4, pf / area) * self.value;
+        }
+
+        return @splat(4, pf) * self.value;
+    }
+
+    pub fn averageRadiance(self: Emittance, area: f32) Vec4f {
         if (self.quantity == .Intensity) {
             return self.value / @splat(4, area);
         }

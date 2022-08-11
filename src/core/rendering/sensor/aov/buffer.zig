@@ -32,10 +32,10 @@ pub const Buffer = struct {
 
     pub fn clear(self: *Self) void {
         for (self.buffers) |*b, i| {
-            const bit = @as(u32, 1) << @truncate(u5, i);
-            if (0 != (self.slots & bit)) {
+            const class = @intToEnum(aov.Value.Class, i);
+            if (class.activeIn(self.slots)) {
                 for (b.*) |*p| {
-                    const default = @intToEnum(aov.Value.Class, i).default();
+                    const default = class.default();
                     p.* = Pack4f.init4(default[0], default[1], default[2], 0.0);
                 }
             }
@@ -43,8 +43,7 @@ pub const Buffer = struct {
     }
 
     pub fn resolve(self: Self, class: aov.Value.Class, target: [*]Pack4f, begin: u32, end: u32) void {
-        const bit = @as(u32, 1) << @enumToInt(class);
-        if (0 == (self.slots & bit)) {
+        if (!class.activeIn(self.slots)) {
             return;
         }
 

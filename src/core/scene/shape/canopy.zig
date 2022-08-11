@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -20,7 +20,7 @@ const std = @import("std");
 pub const Canopy = struct {
     const Eps = -0.0005;
 
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         if (ray.maxT() < scn.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
             return false;
         }
@@ -48,11 +48,7 @@ pub const Canopy = struct {
         return true;
     }
 
-    pub fn sampleTo(
-        trafo: Transformation,
-        sampler: *Sampler,
-        rng: *RNG,
-    ) SampleTo {
+    pub fn sampleTo(trafo: Trafo, sampler: *Sampler, rng: *RNG) SampleTo {
         const uv = sampler.sample2D(rng);
         const dir = math.smpl.orientedHemisphereUniform(uv, trafo.rotation.r[0], trafo.rotation.r[1], trafo.rotation.r[2]);
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
@@ -65,10 +61,17 @@ pub const Canopy = struct {
             0.0,
         };
 
-        return SampleTo.init(dir, @splat(4, @as(f32, 0.0)), uvw, 1.0 / (2.0 * std.math.pi), scn.Ray_max_t);
+        return SampleTo.init(
+            dir,
+            @splat(4, @as(f32, 0.0)),
+            uvw,
+            trafo,
+            1.0 / (2.0 * std.math.pi),
+            scn.Ray_max_t,
+        );
     }
 
-    pub fn sampleToUv(uv: Vec2f, trafo: Transformation) ?SampleTo {
+    pub fn sampleToUv(uv: Vec2f, trafo: Trafo) ?SampleTo {
         const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
         const z = math.dot2(disk, disk);
         if (z > 1.0) {
@@ -81,6 +84,7 @@ pub const Canopy = struct {
             trafo.rotation.transformVector(dir),
             @splat(4, @as(f32, 0.0)),
             .{ uv[0], uv[1], 0.0, 0.0 },
+            trafo,
             1.0 / (2.0 * std.math.pi),
             scn.Ray_max_t,
         );
@@ -96,12 +100,7 @@ pub const Canopy = struct {
         return 1.0;
     }
 
-    pub fn sampleFrom(
-        trafo: Transformation,
-        uv: Vec2f,
-        importance_uv: Vec2f,
-        bounds: AABB,
-    ) ?SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) ?SampleFrom {
         const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
         const z = math.dot2(disk, disk);
         if (z > 1.0) {
@@ -128,6 +127,7 @@ pub const Canopy = struct {
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
+            trafo,
             1.0 / ((2.0 * std.math.pi) * ls_extent[0] * ls_extent[1]),
         );
     }

@@ -54,13 +54,13 @@ pub const Distribution2D = struct {
         return self.marginal.integral;
     }
 
-    pub fn sampleContinous(self: Self, r2: Vec2f) Continuous {
-        const v = self.marginal.sampleContinous(r2[1]);
+    pub fn sampleContinuous(self: Self, r2: Vec2f) Continuous {
+        const v = self.marginal.sampleContinuous(r2[1]);
 
         const i = @floatToInt(u32, v.offset * @intToFloat(f32, self.conditional.len));
         const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
 
-        const u = self.conditional[c].sampleContinous(r2[0]);
+        const u = self.conditional[c].sampleContinuous(r2[0]);
 
         return .{ .uv = .{ u.offset, v.offset }, .pdf = u.pdf * v.pdf };
     }

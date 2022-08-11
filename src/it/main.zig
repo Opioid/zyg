@@ -33,7 +33,9 @@ pub fn main() !void {
     // const alloc = gpa.allocator();
     const alloc = std.heap.c_allocator;
 
-    var options = try Options.parse(alloc, std.process.args());
+    var args = try std.process.argsWithAllocator(alloc);
+    var options = try Options.parse(alloc, args);
+    args.deinit();
     defer options.deinit(alloc);
 
     const num_workers = Threads.availableCores(options.threads);
@@ -75,13 +77,22 @@ pub fn main() !void {
         try operator.input_ids.append(alloc, @intCast(u32, i));
     }
 
+    if (0 == operator.textures.items.len) {
+        log.err("No items to operate on", .{});
+        return;
+    }
+
     try operator.configure(alloc);
 
-    const alpha = operator.textures.items[0].numChannels() > 3;
+    const encoding: core.ImageWriter.Encoding = switch (operator.textures.items[0].numChannels()) {
+        0, 1 => .Float,
+        2, 3 => .Color,
+        else => .Color_alpha,
+    };
 
     var writer = switch (options.format) {
-        .EXR => core.ImageWriter{ .EXR = .{ .half = true, .alpha = alpha } },
-        .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false, alpha) },
+        .EXR => core.ImageWriter{ .EXR = .{ .half = true } },
+        .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false) },
         .RGBE => core.ImageWriter{ .RGBE = .{} },
     };
     defer writer.deinit(alloc);
@@ -93,7 +104,7 @@ pub fn main() !void {
         operator.run(&threads);
 
         const name = options.inputs.items[operator.input_ids.items[i]];
-        try write(alloc, name, operator.class, operator.target, &writer, &threads);
+        try write(alloc, name, operator.class, operator.target, &writer, encoding, &threads);
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
@@ -105,6 +116,7 @@ fn write(
     operator: Operator.Class,
     target: core.image.Float4,
     writer: *core.ImageWriter,
+    encoding: core.ImageWriter.Encoding,
     threads: *Threads,
 ) !void {
     var output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
@@ -142,7 +154,7 @@ fn write(
         defer file.close();
 
         var buffered = std.io.bufferedWriter(file.writer());
-        try writer.write(alloc, buffered.writer(), target, null, threads);
+        try writer.write(alloc, buffered.writer(), target, encoding, threads);
         try buffered.flush();
     }
 }

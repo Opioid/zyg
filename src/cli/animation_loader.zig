@@ -21,16 +21,13 @@ pub fn load(
     graph: *Graph,
 ) !bool {
     var start_time: u64 = 0;
-    var frame_step: u64 = 0;
+
+    const fps = json.readFloatMember(value, "frames_per_second", 0.0);
+    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, scn.cnst.Units_per_second) / fps)) else 0;
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
-            const fps = json.readFloat(f64, entry.value_ptr.*);
-            if (fps > 0.0) {
-                frame_step = @floatToInt(u64, @round(@intToFloat(f64, scn.cnst.Units_per_second) / fps));
-            }
-        } else if (std.mem.eql(u8, "keyframes", entry.key_ptr.*)) {
+        if (std.mem.eql(u8, "keyframes", entry.key_ptr.*)) {
             return loadKeyframes(
                 alloc,
                 entry.value_ptr.*,

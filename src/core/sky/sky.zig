@@ -12,6 +12,7 @@ const ts = @import("../image/texture/sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
 const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const Filesystem = @import("../file/system.zig").System;
 
 // const SkyMaterial = @import("../sky/material.zig").Material;
 // const Texture = @import("../image/texture/texture.zig").Texture;
@@ -43,6 +44,8 @@ pub const Sky = struct {
 
     visibility: f32 = 100.0,
 
+    albedo: f32 = 0.2,
+
     implicit_rotation: bool = true,
 
     const Radius = @tan(@as(f32, Model.Angular_radius));
@@ -52,6 +55,10 @@ pub const Sky = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
+        if (self.sky != Prop.Null) {
+            return;
+        }
+
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
         const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
 
@@ -96,6 +103,8 @@ pub const Sky = struct {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
                 self.visibility = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "albedo", entry.key_ptr.*)) {
+                self.albedo = json.readFloat(f32, entry.value_ptr.*);
             }
         }
 
@@ -112,6 +121,7 @@ pub const Sky = struct {
         time: u64,
         scene: *Scene,
         threads: *Threads,
+        fs: *Filesystem,
     ) void {
         const e = scene.prop(self.prop);
 
@@ -123,7 +133,19 @@ pub const Sky = struct {
             self.privateUpadate(scene);
         }
 
-        var model = Model.init(alloc, self.sunDirection(), self.visibility) catch {
+        var model = Model.init(alloc, self.sunDirection(), self.visibility, self.albedo, fs) catch {
+            var image = scene.imagePtr(self.sky_image);
+
+            var y: i32 = 0;
+            while (y < Sky.Bake_dimensions[1]) : (y += 1) {
+                var x: i32 = 0;
+                while (x < Sky.Bake_dimensions[0]) : (x += 1) {
+                    image.Float3.set2D(x, y, math.Pack3f.init1(0.0));
+                }
+            }
+
+            scene.propMaterialPtr(self.sun, 0).Sky.setSunRadianceZero();
+
             log.err("Could not initialize sky model", .{});
             return;
         };

@@ -1,5 +1,5 @@
 const Model = @import("model.zig").Model;
-const SkyThing = @import("sky.zig").Sky;
+const Sky = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
@@ -26,8 +26,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Material = struct {
-    pub const Mode = enum { Sky, Sun };
-
     super: Base,
 
     emission_map: Texture,
@@ -36,25 +34,21 @@ pub const Material = struct {
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
     total_weight: f32 = undefined,
 
-    mode: Mode,
+    sky: *const Sky,
 
-    sky: *const SkyThing,
-
-    pub fn initSky(emission_map: Texture, sky: *const SkyThing) Material {
+    pub fn initSky(emission_map: Texture, sky: *const Sky) Material {
         return Material{
             .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = emission_map,
-            .mode = .Sky,
             .sky = sky,
         };
     }
 
-    pub fn initSun(alloc: Allocator, sky: *const SkyThing) !Material {
+    pub fn initSun(alloc: Allocator, sky: *const Sky) !Material {
         return Material{
             .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = .{},
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
-            .mode = .Sun,
             .sky = sky,
         };
     }
@@ -98,6 +92,14 @@ pub const Material = struct {
         }
 
         self.average_emission = total / @splat(4, tw);
+    }
+
+    pub fn setSunRadianceZero(self: *Material) void {
+        for (self.sun_radiance.samples) |*s| {
+            s.* = @splat(4, @as(f32, 0.0));
+        }
+
+        self.average_emission = @splat(4, @as(f32, 0.0));
     }
 
     pub fn prepareSampling(
@@ -168,7 +170,7 @@ pub const Material = struct {
     }
 
     pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
-        const result = self.distribution.sampleContinous(.{ r3[0], r3[1] });
+        const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
 
         return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
     }

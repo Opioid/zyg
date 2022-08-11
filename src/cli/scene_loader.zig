@@ -370,19 +370,11 @@ pub const Loader = struct {
     fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
         const scene = &graph.scene;
 
-        if (scene.sky) |*sky| {
-            if (value.Object.get("parameters")) |parameters| {
-                sky.setParameters(parameters, scene);
-            }
-
-            return sky.prop;
-        }
-
         const sky = try scene.createSky(alloc);
 
-        try graph.bumpProps(alloc);
-
         try sky.configure(alloc, scene);
+
+        try graph.bumpProps(alloc);
 
         if (value.Object.get("parameters")) |parameters| {
             sky.setParameters(parameters, scene);

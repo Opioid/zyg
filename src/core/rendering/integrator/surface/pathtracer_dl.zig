@@ -135,7 +135,7 @@ pub const PathtracerDL = struct {
                 primary_ray = false;
             }
 
-            if (!sample_result.class.equals(.StraightTransmission)) {
+            if (!sample_result.class.equal(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
@@ -245,7 +245,7 @@ pub const PathtracerDL = struct {
             ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi);
-            shadow_ray.ray.setMaxT(light_sample.t());
+            shadow_ray.ray.setMaxT(light_sample.offset());
             const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);

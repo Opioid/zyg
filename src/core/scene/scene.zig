@@ -16,6 +16,7 @@ const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
+const Filesystem = @import("../file/system.zig").System;
 
 const base = @import("base");
 const math = base.math;
@@ -27,7 +28,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ALU = std.ArrayListUnmanaged;
+const List = std.ArrayListUnmanaged;
 
 pub const Scene = struct {
     pub const LightPick = Distribution1D.Discrete;
@@ -51,9 +52,9 @@ pub const Scene = struct {
         Sphere,
     };
 
-    images: ALU(Image) = .{},
-    materials: ALU(Material) = .{},
-    shapes: ALU(Shape),
+    images: List(Image) = .{},
+    materials: List(Material) = .{},
+    shapes: List(Shape),
 
     num_interpolation_frames: u32 = 0,
 
@@ -68,29 +69,29 @@ pub const Scene = struct {
     camera_pos: Vec4f = undefined,
     caustic_aabb: AABB = undefined,
 
-    props: ALU(Prop),
-    prop_world_transformations: ALU(Transformation),
-    prop_parts: ALU(u32),
-    prop_frames: ALU(u32),
-    prop_aabbs: ALU(AABB),
+    props: List(Prop),
+    prop_world_transformations: List(Transformation),
+    prop_parts: List(u32),
+    prop_frames: List(u32),
+    prop_aabbs: List(AABB),
 
-    lights: ALU(Light),
-    light_aabbs: ALU(AABB),
-    light_cones: ALU(Vec4f),
+    lights: List(Light),
+    light_aabbs: List(AABB),
+    light_cones: List(Vec4f),
 
-    material_ids: ALU(u32),
-    light_ids: ALU(u32),
+    material_ids: List(u32),
+    light_ids: List(u32),
 
-    keyframes: ALU(math.Transformation),
+    keyframes: List(math.Transformation),
 
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
     light_tree: LightTree = .{},
 
-    finite_props: ALU(u32),
-    infinite_props: ALU(u32),
+    finite_props: List(u32),
+    infinite_props: List(u32),
 
-    volumes: ALU(u32),
+    volumes: List(u32),
 
     sky: ?Sky = null,
 
@@ -98,7 +99,7 @@ pub const Scene = struct {
     has_volumes: bool = undefined,
 
     pub fn init(alloc: Allocator) !Scene {
-        var shapes = try ALU(Shape).initCapacity(alloc, 16);
+        var shapes = try List(Shape).initCapacity(alloc, 16);
         try shapes.append(alloc, Shape{ .Null = {} });
         try shapes.append(alloc, Shape{ .Canopy = .{} });
         try shapes.append(alloc, Shape{ .Cube = .{} });
@@ -112,24 +113,24 @@ pub const Scene = struct {
         return Scene{
             .shapes = shapes,
             .bvh_builder = try PropBvhBuilder.init(alloc),
-            .props = try ALU(Prop).initCapacity(alloc, Num_reserved_props),
-            .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
-            .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_frames = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
-            .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
-            .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
-            .light_cones = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
-            .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
-            .finite_props = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .infinite_props = try ALU(u32).initCapacity(alloc, 3),
-            .volumes = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .props = try List(Prop).initCapacity(alloc, Num_reserved_props),
+            .prop_world_transformations = try List(Transformation).initCapacity(alloc, Num_reserved_props),
+            .prop_parts = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_frames = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
+            .lights = try List(Light).initCapacity(alloc, Num_reserved_props),
+            .light_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
+            .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
+            .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
+            .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .infinite_props = try List(u32).initCapacity(alloc, 3),
+            .volumes = try List(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
-    fn deinitResources(comptime T: type, alloc: Allocator, resources: *ALU(T)) void {
+    fn deinitResources(comptime T: type, alloc: Allocator, resources: *List(T)) void {
         for (resources.items) |*r| {
             r.deinit(alloc);
         }
@@ -197,7 +198,14 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads) !void {
+    pub fn compile(
+        self: *Scene,
+        alloc: Allocator,
+        camera_pos: Vec4f,
+        time: u64,
+        threads: *Threads,
+        fs: *Filesystem,
+    ) !void {
         self.camera_pos = camera_pos;
 
         const frames_start = time - (time % Tick_duration);
@@ -216,7 +224,7 @@ pub const Scene = struct {
         }
 
         if (self.sky) |*sky| {
-            sky.compile(alloc, time, self, threads);
+            sky.compile(alloc, time, self, threads, fs);
         }
 
         // rebuild prop BVH_builder

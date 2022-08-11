@@ -121,9 +121,6 @@ pub const System = struct {
     }
 
     pub fn cloneLastResolvedName(self: System, alloc: Allocator) ![]u8 {
-        const len = self.resolved_name_len;
-        var buffer = try alloc.alloc(u8, len);
-        std.mem.copy(u8, buffer, self.name_buffer[0..len]);
-        return buffer;
+        return try alloc.dupe(u8, self.name_buffer[0..self.resolved_name_len]);
     }
 };

@@ -47,13 +47,13 @@ pub const Distribution3D = struct {
         try self.marginal.configure(alloc, integrals, 0);
     }
 
-    pub fn sampleContinous(self: Self, r3: Vec4f) Vec4f {
-        const w = self.marginal.sampleContinous(r3[2]);
+    pub fn sampleContinuous(self: Self, r3: Vec4f) Vec4f {
+        const w = self.marginal.sampleContinuous(r3[2]);
 
         const i = @floatToInt(u32, w.offset * @intToFloat(f32, self.conditional.len));
         const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
 
-        const uv = self.conditional[c].sampleContinous(.{ r3[0], r3[1] });
+        const uv = self.conditional[c].sampleContinuous(.{ r3[0], r3[1] });
 
         return .{ uv.uv[0], uv.uv[1], w.offset, uv.pdf * w.pdf };
     }

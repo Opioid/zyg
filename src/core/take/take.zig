@@ -3,6 +3,7 @@ const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
+const LightTree = @import("../scene/light/tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
@@ -250,7 +251,11 @@ pub const View = struct {
                 } else if (std.mem.eql(u8, "Adaptive", strategy)) {
                     sampling.* = .Adaptive;
                 }
-            } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {}
+            } else if (std.mem.eql(u8, "splitting_threshold", entry.key_ptr.*)) {
+                const st = json.readFloat(f32, entry.value_ptr.*);
+                const st2 = st * st;
+                LightTree.Splitting_threshold = st2 * st2;
+            }
         }
     }
 };
@@ -294,17 +299,20 @@ pub const Take = struct {
                 if (std.mem.eql(u8, "EXR", format)) {
                     const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
-                        .writer = .{ .EXR = .{ .half = 16 == bitdepth, .alpha = alpha } },
+                        .writer = .{ .EXR = .{ .half = 16 == bitdepth } },
+                        .alpha = alpha,
                     } });
                 } else if (std.mem.eql(u8, "RGBE", format)) {
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
                         .writer = .{ .RGBE = .{} },
+                        .alpha = false,
                     } });
                 } else {
                     const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
 
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
-                        .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
+                        .writer = .{ .PNG = PngWriter.init(error_diffusion) },
+                        .alpha = alpha,
                     } });
                 }
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {

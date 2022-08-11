@@ -1,4 +1,4 @@
-const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
@@ -22,6 +22,7 @@ const base = @import("base");
 const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
+const Mat3x3 = math.Mat3x3;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -245,7 +246,12 @@ pub const Part = struct {
         scene: *const Scene,
         estimate_area: f32,
 
-        const Up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
+        const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
+
+        const IdTrafo = Trafo{
+            .rotation = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+            .position = @splat(4, @as(f32, 0.0)),
+        };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @intToPtr(*Context, context);
@@ -273,9 +279,10 @@ pub const Part = struct {
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
                         radiance += self.m.evaluateRadiance(
-                            Up,
-                            Up,
+                            Dir,
+                            Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },
+                            IdTrafo,
                             1.0,
                             null,
                             self.scene.*,
@@ -427,13 +434,13 @@ pub const Mesh = struct {
     pub fn intersect(
         self: Mesh,
         ray: *Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
         const tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
@@ -479,10 +486,10 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
         var tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
@@ -493,14 +500,14 @@ pub const Mesh = struct {
     pub fn visibility(
         self: Mesh,
         ray: Ray,
-        trafo: Transformation,
+        trafo: Trafo,
         entity: usize,
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
         const tray = Ray.init(
-            trafo.world_to_object.transformPoint(ray.origin),
-            trafo.world_to_object.transformVector(ray.direction),
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
             ray.minT(),
             ray.maxT(),
         );
@@ -514,7 +521,7 @@ pub const Mesh = struct {
         variant: u32,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -558,6 +565,7 @@ pub const Mesh = struct {
             dir,
             wn,
             .{ tc[0], tc[1], 0.0, 0.0 },
+            trafo,
             angle_pdf * s.pdf,
             d,
         );
@@ -567,7 +575,7 @@ pub const Mesh = struct {
         self: Mesh,
         part: u32,
         variant: u32,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -600,6 +608,7 @@ pub const Mesh = struct {
             dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
             importance_uv,
+            trafo,
             s.pdf / (std.math.pi * extent),
         );
     }
@@ -610,7 +619,6 @@ pub const Mesh = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Transformation,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -624,8 +632,8 @@ pub const Mesh = struct {
         const sl = ray.maxT() * ray.maxT();
         const angle_pdf = sl / (c * extent);
 
-        const op = trafo.worldToObjectPoint(ray.origin);
-        const on = trafo.worldToObjectNormal(n);
+        const op = isec.trafo.worldToObjectPoint(ray.origin);
+        const on = isec.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[isec.primitive];
         const tri_pdf = self.parts[isec.part].pdfSpatial(variant, op, on, total_sphere, pm);

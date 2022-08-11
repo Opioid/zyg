@@ -196,7 +196,7 @@ pub const Material = struct {
 
     pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
         if (self.density_map.valid()) {
-            const result = self.distribution.sampleContinous(r3);
+            const result = self.distribution.sampleContinuous(r3);
             return Base.RadianceSample.init3(result, result[3] * self.pdf_factor);
         }
 

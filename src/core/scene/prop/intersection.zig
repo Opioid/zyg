@@ -51,6 +51,7 @@ pub const Intersection = struct {
         const b = self.geo.b;
 
         var rs: Renderstate = undefined;
+        rs.trafo = self.geo.trafo;
         rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
         rs.t = self.geo.t;
         rs.b = .{ b[0], b[1], b[2], ray.wavelength };
@@ -94,7 +95,15 @@ pub const Intersection = struct {
         const extent = scene.lightArea(self.prop, self.geo.part);
 
         const uv = self.geo.uv;
-        return m.evaluateRadiance(wo, self.geo.geo_n, .{ uv[0], uv[1], 0.0, 0.0 }, extent, filter, scene);
+        return m.evaluateRadiance(
+            wo,
+            self.geo.geo_n,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            self.geo.trafo,
+            extent,
+            filter,
+            scene,
+        );
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {
