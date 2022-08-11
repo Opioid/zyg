@@ -48,16 +48,15 @@ pub const Node = packed struct {
 };
 
 pub const Gridtree = struct {
-    num_nodes: u32 = 0,
-    num_data: u32 = 0,
+    dimensions: Vec4f = undefined,
+    num_cells: Vec3u = undefined,
+    inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
     data: [*]CM = undefined,
 
-    dimensions: Vec4f = undefined,
-    inv_dimensions: Vec4f = undefined,
-
-    num_cells: Vec4u = undefined,
+    num_nodes: u32 = 0,
+    num_data: u32 = 0,
 
     pub const Log2_cell_dim: u5 = 5;
     pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
@@ -73,11 +72,11 @@ pub const Gridtree = struct {
         const df = math.vec4iTo4f(dimensions);
         self.dimensions = df / @splat(4, @intToFloat(f32, Cell_dim));
 
-        const id = @splat(4, @as(f32, 1.0)) / df;
-        self.inv_dimensions = .{ id[0], id[1], id[2], 0.0 };
-
         const nc = math.vec4iTo4u(num_cells);
         self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
+
+        const id = @splat(4, @as(f32, 1.0)) / df;
+        self.inv_dimensions = .{ id[0], id[1], id[2], 0.0 };
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
