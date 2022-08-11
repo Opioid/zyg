@@ -7,7 +7,7 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Node = struct {
-    const Vec = packed struct {
+    const Vec = struct {
         v: [3]f32,
         data: u32,
     };

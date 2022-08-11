@@ -27,7 +27,7 @@ pub const Mapper = struct {
     };
 
     settings: Settings = .{},
-    sampler: Sampler = Sampler{ .Random = .{} },
+    sampler: Sampler = Sampler{ .Random = {} },
 
     photons: []Photon = &.{},
 
