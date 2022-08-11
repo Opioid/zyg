@@ -102,6 +102,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
+            "takes/animation_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
             //"takes/candle.take",
