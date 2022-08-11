@@ -35,7 +35,7 @@ pub const Lighttracer = struct {
     settings: Settings,
 
     light_sampler: Sampler = Sampler{ .Sobol = .{} },
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
 
     const Self = @This();
 

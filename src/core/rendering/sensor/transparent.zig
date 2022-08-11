@@ -9,7 +9,7 @@ const Vec4f = math.Vec4f;
 const Allocator = @import("std").mem.Allocator;
 
 pub const Transparent = struct {
-    base: Base,
+    base: Base = .{},
 
     pixel_weights: []f32 = &.{},
 
