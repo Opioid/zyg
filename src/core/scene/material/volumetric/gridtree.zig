@@ -70,7 +70,7 @@ pub const Gridtree = struct {
 
     pub fn setDimensions(self: *Gridtree, dimensions: Vec4i, num_cells: Vec4i) void {
         const df = math.vec4iTo4f(dimensions);
-        self.dimensions = df / @splat(4, @intToFloat(f32, Cell_dim));
+        self.dimensions = df;
 
         const nc = math.vec4iTo4u(num_cells);
         self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
