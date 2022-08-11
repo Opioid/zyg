@@ -62,6 +62,7 @@ pub const Gridtree = struct {
     pub const Log2_cell_dim: u5 = 5;
     pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
     pub const Cell_dim: i32 = 1 << Log2_cell_dim;
+    pub const Cell_dim4 = @splat(4, Cell_dim);
 
     pub fn deinit(self: *Gridtree, alloc: Allocator) void {
         alloc.free(self.data[0..self.num_data]);
@@ -114,7 +115,7 @@ pub const Gridtree = struct {
 
         const b0 = v << Log2_cell_dim4;
 
-        var box = Box{ .bounds = .{ b0, b0 + @splat(4, Cell_dim) } };
+        var box = Box{ .bounds = .{ b0, b0 + Cell_dim4 } };
 
         while (true) {
             const node = self.nodes[index];
