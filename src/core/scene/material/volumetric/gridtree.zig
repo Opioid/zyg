@@ -49,7 +49,7 @@ pub const Node = packed struct {
 
 pub const Gridtree = struct {
     dimensions: Vec4f = undefined,
-    num_cells: Vec3u = undefined,
+    num_cells: Vec4u = undefined,
     inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
