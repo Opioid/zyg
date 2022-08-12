@@ -131,26 +131,32 @@ pub const Gridtree = struct {
 
             const l = c < center;
 
-            if (l[0]) {
-                box.bounds[1][0] = center[0];
-            } else {
-                box.bounds[0][0] = center[0];
-                index += 1;
-            }
+            box.bounds[@boolToInt(l[0])][0] = center[0];
+            box.bounds[@boolToInt(l[1])][1] = center[1];
+            box.bounds[@boolToInt(l[2])][2] = center[2];
 
-            if (l[1]) {
-                box.bounds[1][1] = center[1];
-            } else {
-                box.bounds[0][1] = center[1];
-                index += 2;
-            }
+            index += @intCast(u32, @boolToInt(!l[0])) + (@intCast(u32, @boolToInt(!l[1])) << 1) + (@intCast(u32, @boolToInt(!l[2])) << 2);
 
-            if (l[2]) {
-                box.bounds[1][2] = center[2];
-            } else {
-                box.bounds[0][2] = center[2];
-                index += 4;
-            }
+            // if (l[0]) {
+            //     box.bounds[1][0] = center[0];
+            // } else {
+            //     box.bounds[0][0] = center[0];
+            //     index += 1;
+            // }
+
+            // if (l[1]) {
+            //     box.bounds[1][1] = center[1];
+            // } else {
+            //     box.bounds[0][1] = center[1];
+            //     index += 2;
+            // }
+
+            // if (l[2]) {
+            //     box.bounds[1][2] = center[2];
+            // } else {
+            //     box.bounds[0][2] = center[2];
+            //     index += 4;
+            // }
         }
 
         const boxf = AABB.init(
