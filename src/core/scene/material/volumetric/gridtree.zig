@@ -124,39 +124,17 @@ pub const Gridtree = struct {
                 break;
             }
 
-            index = node.index();
-
             const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
             const center = box.bounds[0] + half;
 
             const l = c < center;
 
-            box.bounds[@boolToInt(l[0])][0] = center[0];
-            box.bounds[@boolToInt(l[1])][1] = center[1];
-            box.bounds[@boolToInt(l[2])][2] = center[2];
+            box.bounds[0] = @select(i32, l, box.bounds[0], center);
+            box.bounds[1] = @select(i32, l, center, box.bounds[1]);
 
-            index += @intCast(u32, @boolToInt(!l[0])) + (@intCast(u32, @boolToInt(!l[1])) << 1) + (@intCast(u32, @boolToInt(!l[2])) << 2);
-
-            // if (l[0]) {
-            //     box.bounds[1][0] = center[0];
-            // } else {
-            //     box.bounds[0][0] = center[0];
-            //     index += 1;
-            // }
-
-            // if (l[1]) {
-            //     box.bounds[1][1] = center[1];
-            // } else {
-            //     box.bounds[0][1] = center[1];
-            //     index += 2;
-            // }
-
-            // if (l[2]) {
-            //     box.bounds[1][2] = center[2];
-            // } else {
-            //     box.bounds[0][2] = center[2];
-            //     index += 4;
-            // }
+            const ii = @select(u32, l, @Vector(4, u32){ 0, 0, 0, 0 }, @Vector(4, u32){ 1, 2, 4, 0 });
+            const o = @reduce(.Add, ii);
+            index = node.index() + o;
         }
 
         const boxf = AABB.init(
