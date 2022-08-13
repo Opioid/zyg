@@ -7,12 +7,10 @@ const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
-pub const Infinity = @splat(4, @bitCast(f32, @as(u32, 0x7F800000)));
-pub const Neg_infinity = @splat(4, @bitCast(f32, @as(u32, 0xFF800000)));
 pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
 
 pub fn Vec4(comptime T: type) type {
-    return struct {
+    return extern struct {
         v: [4]T = undefined,
 
         pub fn init1(s: T) Vec4(T) {
@@ -54,12 +52,13 @@ pub fn Vec4(comptime T: type) type {
     };
 }
 
-pub const Vec4b = @Vector(4, u8);
 pub const Pack4h = Vec4(f16);
 pub const Pack4i = Vec4(i32);
+pub const Pack4f = Vec4(f32);
+
+pub const Vec4b = @Vector(4, u8);
 pub const Vec4i = @Vector(4, i32);
 pub const Vec4u = @Vector(4, u32);
-pub const Pack4f = Vec4(f32);
 pub const Vec4f = @Vector(4, f32);
 
 pub fn dot3(a: Vec4f, b: Vec4f) f32 {
