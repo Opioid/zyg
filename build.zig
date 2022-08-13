@@ -99,7 +99,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",

@@ -12,7 +12,7 @@ pub const Node = struct {
         data: u32,
     };
 
-    min: Vec = undefined,
+    min: Vec align(16) = undefined,
     max: Vec = undefined,
 
     pub fn initFrom(other: Node, o: u32) Node {
