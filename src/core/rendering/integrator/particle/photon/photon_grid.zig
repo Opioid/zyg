@@ -10,7 +10,7 @@ const AABB = math.AABB;
 const Vec2i = math.Vec2i;
 const Vec2u = math.Vec2u;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
@@ -40,7 +40,7 @@ pub const Grid = struct {
 
     cell_bound: Vec2f = undefined,
 
-    dimensions: Vec3i = undefined,
+    dimensions: Vec4i = @splat(4, @as(i32, 0)),
 
     local_to_texture: Vec4f = undefined,
 
@@ -64,54 +64,54 @@ pub const Grid = struct {
         self.aabb = aabb;
 
         const diameter = 2.0 * self.search_radius;
-        const dimensions = math.vec4fTo3i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))).addScalar(2);
+        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))) + @splat(4, @as(i32, 2));
 
-        if (!self.dimensions.equal(dimensions)) {
+        if (!math.equal4i(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;
 
-            self.local_to_texture = @splat(4, @as(f32, 1.0)) / aabb.extent() * math.vec3iTo4f(dimensions.subScalar(2));
+            self.local_to_texture = @splat(4, @as(f32, 1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @splat(4, @as(i32, 2)));
 
-            const num_cells = @intCast(usize, dimensions.v[0]) * @intCast(usize, dimensions.v[1]) * @intCast(usize, dimensions.v[2]) + 1;
+            const num_cells = @intCast(usize, dimensions[0]) * @intCast(usize, dimensions[1]) * @intCast(usize, dimensions[2]) + 1;
 
             self.grid = try alloc.realloc(self.grid, num_cells);
 
-            const area = dimensions.v[0] * dimensions.v[1];
+            const area = dimensions[0] * dimensions[1];
 
             const o_m1__0__0 = -1;
             const o_p1__0__0 = 1;
 
-            const o__0_m1__0 = -dimensions.v[0];
-            const o__0_p1__0 = dimensions.v[0];
+            const o__0_m1__0 = -dimensions[0];
+            const o__0_p1__0 = dimensions[0];
 
             const o__0__0_m1 = -area;
             const o__0__0_p1 = area;
 
-            const o_m1_m1__0 = -1 - dimensions.v[0];
-            const o_m1_p1__0 = -1 + dimensions.v[0];
-            const o_p1_m1__0 = 1 - dimensions.v[0];
-            const o_p1_p1__0 = 1 + dimensions.v[0];
+            const o_m1_m1__0 = -1 - dimensions[0];
+            const o_m1_p1__0 = -1 + dimensions[0];
+            const o_p1_m1__0 = 1 - dimensions[0];
+            const o_p1_p1__0 = 1 + dimensions[0];
 
-            const o_m1_m1_m1 = -1 - dimensions.v[0] - area;
-            const o_m1_m1_p1 = -1 - dimensions.v[0] + area;
-            const o_m1_p1_m1 = -1 + dimensions.v[0] - area;
-            const o_m1_p1_p1 = -1 + dimensions.v[0] + area;
+            const o_m1_m1_m1 = -1 - dimensions[0] - area;
+            const o_m1_m1_p1 = -1 - dimensions[0] + area;
+            const o_m1_p1_m1 = -1 + dimensions[0] - area;
+            const o_m1_p1_p1 = -1 + dimensions[0] + area;
 
-            const o_p1_m1_m1 = 1 - dimensions.v[0] - area;
-            const o_p1_m1_p1 = 1 - dimensions.v[0] + area;
-            const o_p1_p1_m1 = 1 + dimensions.v[0] - area;
-            const o_p1_p1_p1 = 1 + dimensions.v[0] + area;
+            const o_p1_m1_m1 = 1 - dimensions[0] - area;
+            const o_p1_m1_p1 = 1 - dimensions[0] + area;
+            const o_p1_p1_m1 = 1 + dimensions[0] - area;
+            const o_p1_p1_p1 = 1 + dimensions[0] + area;
 
             const o_m1__0_m1 = -1 - area;
             const o_m1__0_p1 = -1 + area;
             const o_p1__0_m1 = 1 - area;
             const o_p1__0_p1 = 1 + area;
 
-            const o__0_m1_m1 = -dimensions.v[0] - area;
-            const o__0_m1_p1 = -dimensions.v[0] + area;
-            const o__0_p1_m1 = dimensions.v[0] - area;
-            const o__0_p1_p1 = dimensions.v[0] + area;
+            const o__0_m1_m1 = -dimensions[0] - area;
+            const o__0_m1_p1 = -dimensions[0] + area;
+            const o__0_p1_m1 = dimensions[0] - area;
+            const o__0_p1_p1 = dimensions[0] + area;
 
             // 00, 00, 00
             self.adjacencies[0] = .{
@@ -461,22 +461,24 @@ pub const Grid = struct {
     }
 
     fn map1(self: Self, v: Vec4f) u64 {
-        const c = math.vec4fTo3i((v - self.aabb.bounds[0]) * self.local_to_texture).addScalar(1);
-        return @intCast(u64, (@as(i64, c.v[2]) * @as(i64, self.dimensions.v[1]) + @as(i64, c.v[1])) *
-            @as(i64, self.dimensions.v[0]) +
-            @as(i64, c.v[0]));
+        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @splat(4, @as(i32, 1));
+        return @intCast(u64, (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
+            @as(i64, self.dimensions[0]) +
+            @as(i64, c[0]));
     }
 
-    fn map3(self: Self, v: Vec4f, cell_bound: Vec2f, adjacents: *u8) Vec3i {
+    fn map3(self: Self, v: Vec4f, cell_bound: Vec2f, adjacents: *u8) Vec4i {
         const r = (v - self.aabb.bounds[0]) * self.local_to_texture;
-        const c = math.vec4fTo3i(r);
-        const d = r - math.vec3iTo4f(c);
+        const c = math.vec4fTo4i(r);
+        const d = r - math.vec4iTo4f(c);
 
-        adjacents.* = adjacent(d[0], cell_bound) << 4;
-        adjacents.* |= adjacent(d[1], cell_bound) << 2;
-        adjacents.* |= adjacent(d[2], cell_bound);
+        var adj = adjacent(d[0], cell_bound) << 4;
+        adj |= adjacent(d[1], cell_bound) << 2;
+        adj |= adjacent(d[2], cell_bound);
 
-        return c.addScalar(1);
+        adjacents.* = adj;
+
+        return c + @splat(4, @as(i32, 1));
     }
 
     const Adjacent = enum(u8) {
@@ -500,9 +502,9 @@ pub const Grid = struct {
     fn adjacentCells(self: Self, v: Vec4f, cell_bound: Vec2f) Adjacency {
         var adjacents: u8 = undefined;
         const c = self.map3(v, cell_bound, &adjacents);
-        const ic = (@as(i64, c.v[2]) * @as(i64, self.dimensions.v[1]) + @as(i64, c.v[1])) *
-            @as(i64, self.dimensions.v[0]) +
-            @as(i64, c.v[0]);
+        const ic = (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
+            @as(i64, self.dimensions[0]) +
+            @as(i64, c[0]);
 
         const adjacency = self.adjacencies[adjacents];
 

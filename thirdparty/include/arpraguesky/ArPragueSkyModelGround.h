@@ -130,7 +130,7 @@ typedef struct ArPragueSkyModelGroundState
 
 	// Radiance data
 
-	double * radiance_dataset;
+	float * radiance_dataset;
 
     // Tranmittance metadata
 

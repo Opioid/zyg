@@ -55,6 +55,10 @@ pub fn frac(x: f32) f32 {
     return x - @floor(x);
 }
 
+pub fn frac4(x: vec4.Vec4f) vec4.Vec4f {
+    return x - @floor(x);
+}
+
 pub fn pow2(x: f32) f32 {
     return x * x;
 }

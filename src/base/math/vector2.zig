@@ -1,10 +1,8 @@
-const std = @import("std");
-
-pub const Vec2b = std.meta.Vector(2, u8);
-pub const Vec2i = std.meta.Vector(2, i32);
-pub const Vec2u = std.meta.Vector(2, u32);
-pub const Vec2f = std.meta.Vector(2, f32);
-pub const Vec2ul = std.meta.Vector(2, u64);
+pub const Vec2b = @Vector(2, u8);
+pub const Vec2i = @Vector(2, i32);
+pub const Vec2u = @Vector(2, u32);
+pub const Vec2f = @Vector(2, f32);
+pub const Vec2ul = @Vector(2, u64);
 
 pub fn dot2(a: Vec2f, b: Vec2f) f32 {
     return a[0] * b[0] + a[1] * b[1];

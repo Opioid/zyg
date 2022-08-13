@@ -18,7 +18,7 @@ const inthlp = @import("../../../rendering/integrator/helper.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Distribution2D = math.Distribution2D;
 const Distribution3D = math.Distribution3D;
@@ -113,7 +113,7 @@ pub const Material = struct {
 
         const d = self.density_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @intCast(usize, d.v[0] * d.v[1] * d.v[2])) catch return @splat(4, @as(f32, 0.0));
+        var luminance = alloc.alloc(f32, @intCast(usize, d[0] * d[1] * d[2])) catch return @splat(4, @as(f32, 0.0));
         defer alloc.free(luminance);
 
         var avg = @splat(4, @as(f32, 0.0));
@@ -128,13 +128,13 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[2]), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d[2]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }
 
-        const num_pixels = @intToFloat(f32, d.v[0] * d.v[1] * d.v[2]);
+        const num_pixels = @intToFloat(f32, d[0] * d[1] * d[2]);
 
         const average_emission = avg / @splat(4, num_pixels);
 
@@ -142,13 +142,13 @@ pub const Material = struct {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
                 .d = d,
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, d.v[2])) catch
+                .conditional = self.distribution.allocate(alloc, @intCast(u32, d[2])) catch
                     return @splat(4, @as(f32, 0.0)),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[2]), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d[2]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -264,8 +264,8 @@ const LuminanceContext = struct {
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene.*).dimensions;
-        const width = @intCast(u32, d.v[0]);
-        const height = @intCast(u32, d.v[1]);
+        const width = @intCast(u32, d[0]);
+        const height = @intCast(u32, d[1]);
 
         var avg = @splat(4, @as(f32, 0.0));
 
@@ -307,7 +307,7 @@ const LuminanceContext = struct {
 
 const DistributionContext = struct {
     al: f32,
-    d: Vec3i,
+    d: Vec4i,
     conditional: []Distribution2D,
     luminance: [*]f32,
     alloc: Allocator,
@@ -316,8 +316,8 @@ const DistributionContext = struct {
         _ = id;
         const self = @intToPtr(*DistributionContext, context);
         const d = self.d;
-        const width = @intCast(u32, d.v[0]);
-        const height = @intCast(u32, d.v[1]);
+        const width = @intCast(u32, d[0]);
+        const height = @intCast(u32, d[1]);
 
         var z = begin;
         while (z < end) : (z += 1) {

@@ -29,7 +29,7 @@ pub const Srgb = struct {
 
     pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, encoding: Encoding, threads: *Threads) !u32 {
         const d = image.description.dimensions;
-        const num_pixels = @intCast(u32, d.v[0] * d.v[1]);
+        const num_pixels = @intCast(u32, d[0] * d[1]);
 
         var num_channels: u32 = 3;
 
@@ -68,7 +68,7 @@ pub const Srgb = struct {
         self.min_depth = mind;
         self.max_depth = maxd;
 
-        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, d.v[1]), 0);
+        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, d[1]), 0);
 
         return num_channels;
     }
@@ -83,7 +83,7 @@ pub const Srgb = struct {
 
     fn toSrgbBuffer(self: *Srgb, begin: u32, end: u32) void {
         const d = self.image.description.dimensions;
-        const width = @intCast(u32, d.v[0]);
+        const width = @intCast(u32, d[0]);
 
         var y = begin;
         var i = begin * width;

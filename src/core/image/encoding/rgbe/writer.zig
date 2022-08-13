@@ -22,15 +22,15 @@ pub const Writer = struct {
         try writer.writeAll("FORMAT=32-bit_rle_rgbe\n\n");
 
         var buf: [32]u8 = undefined;
-        const printed = try std.fmt.bufPrint(&buf, "-Y {d} +X {d}\n", .{ d.v[1], d.v[0] });
+        const printed = try std.fmt.bufPrint(&buf, "-Y {d} +X {d}\n", .{ d[1], d[0] });
         try writer.writeAll(printed);
     }
 
     fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4) !void {
         const d = image.description.dimensions;
 
-        const scanline_width = @intCast(u32, d.v[0]);
-        var num_scanlines = d.v[1];
+        const scanline_width = @intCast(u32, d[0]);
+        var num_scanlines = d[1];
 
         if (scanline_width < 8 or scanline_width > 0x7fff) {
             // run length encoding is not allowed so write flat

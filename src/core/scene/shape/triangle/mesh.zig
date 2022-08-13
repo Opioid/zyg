@@ -162,7 +162,7 @@ pub const Part = struct {
             .m = m,
             .tree = &tree,
             .scene = &scene,
-            .estimate_area = @intToFloat(f32, dimensions.v[0] * dimensions.v[1]) / 4.0,
+            .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
             alloc.free(context.powers);
