@@ -103,15 +103,15 @@ pub fn cross3(a: Vec4f, b: Vec4f) Vec4f {
     //     0.0,
     // };
 
-    var tmp0 = @shuffle(f32, b, b, [_]i32{ 1, 2, 0, 3 });
-    var tmp1 = @shuffle(f32, a, a, [_]i32{ 1, 2, 0, 3 });
+    var tmp0 = @shuffle(f32, b, undefined, [_]i32{ 1, 2, 0, 3 });
+    var tmp1 = @shuffle(f32, a, undefined, [_]i32{ 1, 2, 0, 3 });
 
     tmp0 = tmp0 * a;
     tmp1 = tmp1 * b;
 
     const tmp2 = tmp0 - tmp1;
 
-    return @shuffle(f32, tmp2, tmp2, [_]i32{ 1, 2, 0, 3 });
+    return @shuffle(f32, tmp2, undefined, [_]i32{ 1, 2, 0, 3 });
 }
 
 pub fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
