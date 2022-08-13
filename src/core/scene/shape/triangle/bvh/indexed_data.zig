@@ -113,43 +113,29 @@ pub const Indexed_data = struct {
         const tri = self.triangles[index];
 
         const tna = quaternion.toTN(self.frames[tri.a]);
-        const tnb = quaternion.toTN(self.frames[tri.b]);
-        const tnc = quaternion.toTN(self.frames[tri.c]);
-
-        t.* = math.normalize3(triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v));
-        n.* = math.normalize3(triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v));
-
         const uva = self.uvs[tri.a];
+
+        const tua = @shuffle(f32, tna[0], @splat(4, uva[0]), [_]i32{ 0, 1, 2, -1 });
+        const nva = @shuffle(f32, tna[1], @splat(4, uva[1]), [_]i32{ 0, 1, 2, -1 });
+
+        const tnb = quaternion.toTN(self.frames[tri.b]);
         const uvb = self.uvs[tri.b];
+
+        const tub = @shuffle(f32, tnb[0], @splat(4, uvb[0]), [_]i32{ 0, 1, 2, -1 });
+        const nvb = @shuffle(f32, tnb[1], @splat(4, uvb[1]), [_]i32{ 0, 1, 2, -1 });
+
+        const tnc = quaternion.toTN(self.frames[tri.c]);
         const uvc = self.uvs[tri.c];
 
-        uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
+        const tuc = @shuffle(f32, tnc[0], @splat(4, uvc[0]), [_]i32{ 0, 1, 2, -1 });
+        const nvc = @shuffle(f32, tnc[1], @splat(4, uvc[1]), [_]i32{ 0, 1, 2, -1 });
 
-        // const tri = self.triangles[index];
+        const tu = triangle.interpolate3(tua, tub, tuc, u, v);
+        const nv = triangle.interpolate3(nva, nvb, nvc, u, v);
 
-        // const tna = quaternion.initTN(self.frames[tri.a]);
-        // const tnb = quaternion.initTN(self.frames[tri.b]);
-        // const tnc = quaternion.initTN(self.frames[tri.c]);
-
-        // const uva = self.uvs[tri.a];
-        // const uvb = self.uvs[tri.b];
-        // const uvc = self.uvs[tri.c];
-
-        // const tua = Vec4f{ tna[0][0], tna[0][1], tna[0][2], uva.v[0] };
-        // const tub = Vec4f{ tnb[0][0], tnb[0][1], tnb[0][2], uvb.v[0] };
-        // const tuc = Vec4f{ tnc[0][0], tnc[0][1], tnc[0][2], uvc.v[0] };
-
-        // const nva = Vec4f{ tna[1][0], tna[1][1], tna[1][2], uva.v[1] };
-        // const nvb = Vec4f{ tnb[1][0], tnb[1][1], tnb[1][2], uvb.v[1] };
-        // const nvc = Vec4f{ tnc[1][0], tnc[1][1], tnc[1][2], uvc.v[1] };
-
-        // const tu = triangle.interpolate3(tua, tub, tuc, u, v);
-        // const nv = triangle.interpolate3(nva, nvb, nvc, u, v);
-
-        // t.* = math.normalize3(tu);
-        // n.* = math.normalize3(nv);
-
-        // uv.* = Vec2f.init2(tu[3], nv[3]);
+        t.* = math.normalize3(tu);
+        n.* = math.normalize3(nv);
+        uv.* = Vec2f{ tu[3], nv[3] };
     }
 
     pub fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
