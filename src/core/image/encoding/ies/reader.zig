@@ -293,10 +293,7 @@ pub const Reader = struct {
 
         const num_vertical_angles = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
         const num_horizontal_angles = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
-        std.debug.print("num_vertical_angles {} num_horizontal_angles {}\n", .{ num_vertical_angles, num_horizontal_angles });
-
         const gonio_type = try std.fmt.parseInt(u32, try tokenizer.next(), 10);
-        std.debug.print("gonio_type {}\n", .{gonio_type});
 
         // unitsType
         try tokenizer.skip();
@@ -310,16 +307,14 @@ pub const Reader = struct {
         // lumHeight
         try tokenizer.skip();
 
-        const ballast_factor = try std.fmt.parseFloat(f32, try tokenizer.next());
-        std.debug.print("ballast_factor {}\n", .{ballast_factor});
+        // ballastFactor
+        try tokenizer.skip();
 
         // balastLampPhotometricFactor
         try tokenizer.skip();
 
-        const input_watts = try std.fmt.parseFloat(f32, try tokenizer.next());
-        std.debug.print("input_watts {}\n", .{input_watts});
-
-        _ = alloc;
+        // inputWatts
+        try tokenizer.skip();
 
         var data = Data{ .gonio_type = gonio_type };
         defer data.deinit(alloc);
