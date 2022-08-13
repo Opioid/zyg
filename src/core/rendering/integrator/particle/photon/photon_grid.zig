@@ -472,9 +472,11 @@ pub const Grid = struct {
         const c = math.vec4fTo4i(r);
         const d = r - math.vec4iTo4f(c);
 
-        adjacents.* = adjacent(d[0], cell_bound) << 4;
-        adjacents.* |= adjacent(d[1], cell_bound) << 2;
-        adjacents.* |= adjacent(d[2], cell_bound);
+        var adj = adjacent(d[0], cell_bound) << 4;
+        adj |= adjacent(d[1], cell_bound) << 2;
+        adj |= adjacent(d[2], cell_bound);
+
+        adjacents.* = adj;
 
         return c + @splat(4, @as(i32, 1));
     }
