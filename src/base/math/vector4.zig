@@ -23,26 +23,14 @@ pub fn Vec4(comptime T: type) type {
             return .{ .v = [4]T{ x, y, z, 0.0 } };
         }
 
-        pub fn init3_1(v: Vec4(T), s: T) Vec4(T) {
-            return .{ .v = [4]T{ v.v[0], v.v[1], v.v[2], s } };
-        }
-
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
-        }
-
-        pub fn add3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2]);
         }
 
         pub fn addAssign3(self: *Vec4(T), other: Vec4(T)) void {
             self.v[0] += other.v[0];
             self.v[1] += other.v[1];
             self.v[2] += other.v[2];
-        }
-
-        pub fn add4(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init4(a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2], a.v[3] + b.v[3]);
         }
 
         pub fn addAssign4(self: *Vec4(T), other: Vec4(T)) void {
@@ -52,76 +40,8 @@ pub fn Vec4(comptime T: type) type {
             self.v[3] += other.v[3];
         }
 
-        pub fn sub3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2]);
-        }
-
-        pub fn neg3(v: Vec4(T)) Vec4(T) {
-            return init3(-v.v[0], -v.v[1], -v.v[2]);
-        }
-
-        pub fn neg4(v: Vec4(T)) Vec4(T) {
-            return init4(-v.v[0], -v.v[1], -v.v[2], -v.v[3]);
-        }
-
-        pub fn mul3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(a.v[0] * b.v[0], a.v[1] * b.v[1], a.v[2] * b.v[2]);
-        }
-
-        pub fn mulAssign3(self: *Vec4(T), other: Vec4(T)) void {
-            self.v[0] *= other.v[0];
-            self.v[1] *= other.v[1];
-            self.v[2] *= other.v[2];
-        }
-
-        pub fn div3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(a.v[0] / b.v[0], a.v[1] / b.v[1], a.v[2] / b.v[2]);
-        }
-
-        pub fn addScalar3(v: Vec4(T), s: T) Vec4(T) {
-            return init3(v.v[0] + s, v.v[1] + s, v.v[2] + s);
-        }
-
-        pub fn subScalar3(v: Vec4(T), s: T) Vec4(T) {
-            return init3(v.v[0] - s, v.v[1] - s, v.v[2] - s);
-        }
-
-        pub fn mulScalar3(v: Vec4(T), s: T) Vec4(T) {
-            return init3(v.v[0] * s, v.v[1] * s, v.v[2] * s);
-        }
-
-        pub fn mulScalar4(v: Vec4(T), s: T) Vec4(T) {
-            return init4(v.v[0] * s, v.v[1] * s, v.v[2] * s, v.v[3] * s);
-        }
-
-        pub fn divScalar3(v: Vec4(T), s: T) Vec4(T) {
-            const is = 1.0 / s;
-            return init3(v.v[0] * is, v.v[1] * is, v.v[2] * is);
-        }
-
-        pub fn divScalar4(v: Vec4(T), s: T) Vec4(T) {
-            const is = 1.0 / s;
-            return init4(v.v[0] * is, v.v[1] * is, v.v[2] * is, v.v[3] * is);
-        }
-
         pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
             return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
-        }
-
-        pub fn min3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(
-                std.math.min(a.v[0], b.v[0]),
-                std.math.min(a.v[1], b.v[1]),
-                std.math.min(a.v[2], b.v[2]),
-            );
-        }
-
-        pub fn max3(a: Vec4(T), b: Vec4(T)) Vec4(T) {
-            return init3(
-                std.math.max(a.v[0], b.v[0]),
-                std.math.max(a.v[1], b.v[1]),
-                std.math.max(a.v[2], b.v[2]),
-            );
         }
 
         pub fn maxScalar(a: Vec4(T), s: T) Vec4(T) {
@@ -134,13 +54,13 @@ pub fn Vec4(comptime T: type) type {
     };
 }
 
-pub const Vec4b = std.meta.Vector(4, u8);
+pub const Vec4b = @Vector(4, u8);
 pub const Pack4h = Vec4(f16);
 pub const Pack4i = Vec4(i32);
-pub const Vec4i = std.meta.Vector(4, i32);
-pub const Vec4u = std.meta.Vector(4, u32);
+pub const Vec4i = @Vector(4, i32);
+pub const Vec4u = @Vector(4, u32);
 pub const Pack4f = Vec4(f32);
-pub const Vec4f = std.meta.Vector(4, f32);
+pub const Vec4f = @Vector(4, f32);
 
 pub fn dot3(a: Vec4f, b: Vec4f) f32 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

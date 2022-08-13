@@ -1,15 +1,11 @@
 const std = @import("std");
 
 pub fn Vec3(comptime T: type) type {
-    return struct {
+    return extern struct {
         v: [3]T,
 
         pub fn init1(s: T) Vec3(T) {
             return .{ .v = [3]T{ s, s, s } };
-        }
-
-        pub fn init2(x: T, y: T) Vec3(T) {
-            return .{ .v = [3]T{ x, y, 0 } };
         }
 
         pub fn init3(x: T, y: T, z: T) Vec3(T) {
