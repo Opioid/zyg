@@ -5,7 +5,6 @@ pub const AddressMode = @import("address_mode.zig").Mode;
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -20,7 +19,7 @@ const Address = struct {
     }
 
     pub fn address3(self: Address, uvw: Vec4f) Vec4f {
-        return .{ self.u.f(uvw[0]), self.u.f(uvw[1]), self.u.f(uvw[2]), 0.0 };
+        return self.u.f3(uvw);
     }
 };
 
@@ -79,19 +78,19 @@ pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) Vec2f {
 const Nearest2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         return texture.get2D_1(xy[0], xy[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         return texture.get2D_2(xy[0], xy[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         return texture.get2D_3(xy[0], xy[1], scene);
     }
 
@@ -118,21 +117,21 @@ const Linear2D = struct {
 
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
         return math.bilinear1(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
         return bilinear2(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d.v[0], d.v[1] }, texture.scale * uv, adr);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
         return math.bilinear3(c, m.w[0], m.w[1]);
     }
@@ -167,37 +166,31 @@ const Nearest3D = struct {
     pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
         const xyz = map(d, uvw, adr);
-        return texture.get3D_1(xyz.v[0], xyz.v[1], xyz.v[2], scene);
+        return texture.get3D_1(xyz[0], xyz[1], xyz[2], scene);
     }
 
     pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
         const xyz = map(d, uvw, adr);
-        return texture.get3D_2(xyz.v[0], xyz.v[1], xyz.v[2], scene);
+        return texture.get3D_2(xyz[0], xyz[1], xyz[2], scene);
     }
 
-    fn map(d: Vec3i, uvw: Vec4f, adr: Address) Vec3i {
-        const df = math.vec3iTo4f(d);
+    fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
+        const df = math.vec4iTo4f(d);
 
-        const u = adr.u.f(uvw[0]);
-        const v = adr.u.f(uvw[1]);
-        const w = adr.u.f(uvw[2]);
+        const muvw = adr.u.f3(uvw);
 
-        const b = d.subScalar(1);
+        const b = d - @splat(4, @as(i32, 1));
 
-        return Vec3i.init3(
-            std.math.min(@floatToInt(i32, u * df[0]), b.v[0]),
-            std.math.min(@floatToInt(i32, v * df[1]), b.v[1]),
-            std.math.min(@floatToInt(i32, w * df[2]), b.v[2]),
-        );
+        return @minimum(math.vec4fTo4i(muvw * df), b);
     }
 };
 
 const Linear3D = struct {
     pub const Map = struct {
         w: Vec4f,
-        xyz: Vec3i,
-        xyz1: Vec3i,
+        xyz: Vec4i,
+        xyz1: Vec4i,
     };
 
     pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) f32 {
@@ -222,35 +215,19 @@ const Linear3D = struct {
         return math.lerp2(c0, c1, m.w[2]);
     }
 
-    fn map(d: Vec3i, uvw: Vec4f, adr: Address) Map {
-        const df = math.vec3iTo4f(d);
+    fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
+        const df = math.vec4iTo4f(d);
 
-        const u = adr.u.f(uvw[0]) * df[0] - 0.5;
-        const v = adr.v.f(uvw[1]) * df[1] - 0.5;
-        const w = adr.v.f(uvw[2]) * df[2] - 0.5;
+        const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
+        const fuvw = @floor(muvw);
+        const xyz = math.vec4fTo4i(fuvw);
 
-        const fu = @floor(u);
-        const fv = @floor(v);
-        const fw = @floor(w);
-
-        const x = @floatToInt(i32, fu);
-        const y = @floatToInt(i32, fv);
-        const z = @floatToInt(i32, fw);
-
-        const b = d.subScalar(1);
+        const b = d - Vec4i{ 1, 1, 1, 0 };
 
         return .{
-            .w = .{ u - fu, v - fv, w - fw, 0.0 },
-            .xyz = Vec3i.init3(
-                adr.u.lowerBound(x, b.v[0]),
-                adr.u.lowerBound(y, b.v[1]),
-                adr.u.lowerBound(z, b.v[2]),
-            ),
-            .xyz1 = Vec3i.init3(
-                adr.u.increment(x, b.v[0]),
-                adr.u.increment(y, b.v[1]),
-                adr.u.increment(z, b.v[2]),
-            ),
+            .w = muvw - fuvw,
+            .xyz = adr.u.lowerBound3(xyz, b),
+            .xyz1 = adr.u.increment3(xyz, b),
         };
     }
 };

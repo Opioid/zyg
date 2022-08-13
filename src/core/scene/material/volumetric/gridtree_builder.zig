@@ -10,7 +10,7 @@ const Scene = @import("../../scene.zig").Scene;
 
 const base = @import("base");
 const math = base.math;
-const Vec3i = math.Vec3i;
+const Vec4i = math.Vec4i;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -40,11 +40,11 @@ pub const Builder = struct {
     ) !void {
         const d = texture.description(scene).dimensions;
 
-        var num_cells = d.shiftRight(Gridtree.Log2_cell_dim);
+        var num_cells = d >> Gridtree.Log2_cell_dim4;
 
-        num_cells = num_cells.add(d.sub(num_cells.shiftLeft(Gridtree.Log2_cell_dim)).min1(1));
+        num_cells = num_cells + @minimum(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
-        const cell_len = @intCast(u32, num_cells.v[0] * num_cells.v[1] * num_cells.v[2]);
+        const cell_len = @intCast(u32, num_cells[0] * num_cells[1] * num_cells[2]);
 
         var context = Context{
             .alloc = alloc,
@@ -133,18 +133,18 @@ const Splitter = struct {
         const d = texture.description(scene).dimensions;
 
         // Include 1 additional voxel on each border to account for filtering
-        const minb = box.bounds[0].subScalar(1).max1(0);
-        const maxb = box.bounds[1].addScalar(1).min3(d);
+        const minb = @maximum(box.bounds[0] - @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0)));
+        const maxb = @minimum(box.bounds[1] + @splat(4, @as(i32, 1)), d);
 
         var min_density: f32 = 1.0;
         var max_density: f32 = 0.0;
 
-        var z = minb.v[2];
-        while (z < maxb.v[2]) : (z += 1) {
-            var y = minb.v[1];
-            while (y < maxb.v[1]) : (y += 1) {
-                var x = minb.v[0];
-                while (x < maxb.v[0]) : (x += 1) {
+        var z = minb[2];
+        while (z < maxb[2]) : (z += 1) {
+            var y = minb[1];
+            while (y < maxb[1]) : (y += 1) {
+                var x = minb[0];
+                while (x < maxb[0]) : (x += 1) {
                     const density = texture.get3D_1(x, y, z, scene);
 
                     min_density = std.math.min(density, min_density);
@@ -167,7 +167,7 @@ const Splitter = struct {
 
         const diff = max_density - min_density;
 
-        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or maxb.sub(minb).anyLess1(W)) {
+        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or math.anyLess4i((maxb - minb), .{ W, W, W, std.math.minInt(i32) })) {
             node.children = &.{};
 
             var data = &node.data;
@@ -193,8 +193,8 @@ const Splitter = struct {
 
         const depthp = depth + 1;
 
-        const half = box.bounds[1].sub(box.bounds[0]).shiftRight(1);
-        const center = box.bounds[0].add(half);
+        const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
+        const center = box.bounds[0] + half;
 
         node.children = try alloc.alloc(BuildNode, 8);
 
@@ -205,48 +205,48 @@ const Splitter = struct {
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(center.v[0], box.bounds[0].v[1], box.bounds[0].v[2]),
-                Vec3i.init3(box.bounds[1].v[0], center.v[1], center.v[2]),
+                .{ center[0], box.bounds[0][1], box.bounds[0][2], 0 },
+                .{ box.bounds[1][0], center[1], center[2], 0 },
             } };
             try self.split(alloc, &node.children[1], sub, texture, cc, depthp, scene);
         }
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(box.bounds[0].v[0], center.v[1], box.bounds[0].v[2]),
-                Vec3i.init3(center.v[0], box.bounds[1].v[1], center.v[2]),
+                .{ box.bounds[0][0], center[1], box.bounds[0][2], 0 },
+                .{ center[0], box.bounds[1][1], center[2], 0 },
             } };
             try self.split(alloc, &node.children[2], sub, texture, cc, depthp, scene);
         }
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(center.v[0], center.v[1], box.bounds[0].v[2]),
-                Vec3i.init3(box.bounds[1].v[0], box.bounds[1].v[1], center.v[2]),
+                .{ center[0], center[1], box.bounds[0][2], 0 },
+                .{ box.bounds[1][0], box.bounds[1][1], center[2], 0 },
             } };
             try self.split(alloc, &node.children[3], sub, texture, cc, depthp, scene);
         }
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(box.bounds[0].v[0], box.bounds[0].v[1], center.v[2]),
-                Vec3i.init3(center.v[0], center.v[1], box.bounds[1].v[2]),
+                .{ box.bounds[0][0], box.bounds[0][1], center[2], 0 },
+                .{ center[0], center[1], box.bounds[1][2], 0 },
             } };
             try self.split(alloc, &node.children[4], sub, texture, cc, depthp, scene);
         }
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(center.v[0], box.bounds[0].v[1], center.v[2]),
-                Vec3i.init3(box.bounds[1].v[0], center.v[1], box.bounds[1].v[2]),
+                .{ center[0], box.bounds[0][1], center[2], 0 },
+                .{ box.bounds[1][0], center[1], box.bounds[1][2], 0 },
             } };
             try self.split(alloc, &node.children[5], sub, texture, cc, depthp, scene);
         }
 
         {
             const sub = Box{ .bounds = .{
-                Vec3i.init3(box.bounds[0].v[0], center.v[1], center.v[2]),
-                Vec3i.init3(center.v[0], box.bounds[1].v[1], box.bounds[1].v[2]),
+                .{ box.bounds[0][0], center[1], center[2], 0 },
+                .{ center[0], box.bounds[1][1], box.bounds[1][2], 0 },
             } };
             try self.split(alloc, &node.children[6], sub, texture, cc, depthp, scene);
         }
@@ -266,7 +266,7 @@ const Context = struct {
     grid: []BuildNode,
     splitters: []Splitter,
 
-    num_cells: Vec3i,
+    num_cells: Vec4i,
 
     texture: Texture,
     cc: CC,
@@ -282,8 +282,8 @@ const Context = struct {
         splitter.num_data = 0;
 
         const num_cells = self.num_cells;
-        const area = num_cells.v[0] * num_cells.v[1];
-        const cell_len = area * num_cells.v[2];
+        const area = num_cells[0] * num_cells[1];
+        const cell_len = area * num_cells[2];
 
         while (true) {
             const i = @atomicRmw(i32, &self.current_task, .Add, 1, .Monotonic);
@@ -292,14 +292,15 @@ const Context = struct {
                 return;
             }
 
-            var c: Vec3i = undefined;
-            c.v[2] = @divTrunc(i, area);
-            const t = c.v[2] * area;
-            c.v[1] = @divTrunc(i - t, num_cells.v[0]);
-            c.v[0] = i - (t + c.v[1] * num_cells.v[0]);
+            var c: Vec4i = undefined;
+            c[2] = @divTrunc(i, area);
+            const t = c[2] * area;
+            c[1] = @divTrunc(i - t, num_cells[0]);
+            c[0] = i - (t + c[1] * num_cells[0]);
+            c[3] = 0;
 
-            const min = c.shiftLeft(Gridtree.Log2_cell_dim);
-            const max = min.add(Vec3i.init1(Gridtree.Cell_dim));
+            const min = c << Gridtree.Log2_cell_dim4;
+            const max = min + @splat(4, Gridtree.Cell_dim);
             const box = Box{ .bounds = .{ min, max } };
 
             splitter.split(

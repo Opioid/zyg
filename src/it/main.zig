@@ -142,8 +142,8 @@ fn write(
 
         try core.ImageWriter.PngWriter.writeHeatmap(
             alloc,
-            desc.dimensions.v[0],
-            desc.dimensions.v[1],
+            desc.dimensions[0],
+            desc.dimensions[1],
             buffer,
             min,
             max,

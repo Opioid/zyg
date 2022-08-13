@@ -61,7 +61,7 @@ pub const Material = struct {
 
         const d = self.emission_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @intCast(usize, d.v[0] * d.v[1])) catch return @splat(4, @as(f32, 0.0));
+        var luminance = alloc.alloc(f32, @intCast(usize, d[0] * d[1])) catch return @splat(4, @as(f32, 0.0));
         defer alloc.free(luminance);
 
         var avg = @splat(4, @as(f32, 0.0));
@@ -77,7 +77,7 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[1]), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d[1]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -91,14 +91,14 @@ pub const Material = struct {
         {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
-                .width = @intCast(u32, d.v[0]),
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, d.v[1])) catch
+                .width = @intCast(u32, d[0]),
+                .conditional = self.distribution.allocate(alloc, @intCast(u32, d[1])) catch
                     return @splat(4, @as(f32, 0.0)),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[1]), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d[1]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -160,11 +160,11 @@ const LuminanceContext = struct {
         const self = @intToPtr(*LuminanceContext, context);
 
         const d = self.texture.description(self.scene.*).dimensions;
-        const width = @intCast(u32, d.v[0]);
+        const width = @intCast(u32, d[0]);
 
         const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
-            @intToFloat(f32, d.v[0]),
-            @intToFloat(f32, d.v[1]),
+            @intToFloat(f32, d[0]),
+            @intToFloat(f32, d[1]),
         };
 
         var avg = @splat(4, @as(f32, 0.0));

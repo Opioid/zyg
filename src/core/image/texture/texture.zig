@@ -7,7 +7,6 @@ const base = @import("base");
 const math = base.math;
 const spectrum = base.spectrum;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
@@ -285,7 +284,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_1(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]f32 {
+    pub fn gather3D_1(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -330,7 +329,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_2(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]Vec2f {
+    pub fn gather3D_2(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -348,14 +347,14 @@ pub const Texture = struct {
 
         const d = self.description(scene).dimensions;
         var y: i32 = 0;
-        while (y < d.v[1]) : (y += 1) {
+        while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
-            while (x < d.v[0]) : (x += 1) {
+            while (x < d[0]) : (x += 1) {
                 average += self.get2D_3(x, y, scene);
             }
         }
 
-        const area = @intToFloat(f32, d.v[0]) * @intToFloat(f32, d.v[1]);
+        const area = @intToFloat(f32, d[0]) * @intToFloat(f32, d[1]);
         return average / @splat(4, area);
     }
 };
