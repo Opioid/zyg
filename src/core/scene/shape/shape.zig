@@ -111,10 +111,10 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn cone(self: Shape, part: u32) Vec4f {
+    pub fn partCone(self: Shape, part: u32, variant: u32) Vec4f {
         return switch (self) {
             .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
-            .TriangleMesh => |m| m.cone(part),
+            .TriangleMesh => |m| m.cone(part, variant),
             else => .{ 0.0, 0.0, 1.0, 0.0 },
         };
     }

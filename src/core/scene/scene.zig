@@ -485,7 +485,7 @@ pub const Scene = struct {
 
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
-        const part_cone = shape_inst.cone(part);
+        const part_cone = shape_inst.partCone(part, variant);
 
         if (Null == f) {
             var bb = part_aabb.transform(trafo.objectToWorld());
