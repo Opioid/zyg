@@ -97,7 +97,7 @@ pub const Animation = struct {
     }
 };
 
-fn getT(t: f32, alpha: f32, p0: Vec4f, p1: Vec4f) f32 {
+fn getT(p0: Vec4f, p1: Vec4f, t: f32, alpha: f32) f32 {
     const d = p1 - p0;
     const a = math.dot3(d, d);
     const b = std.math.pow(f32, a, alpha * 0.5);
@@ -107,10 +107,14 @@ fn getT(t: f32, alpha: f32, p0: Vec4f, p1: Vec4f) f32 {
 // Centripetal Catmull–Rom spline
 fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Vec4f {
     const t0 = @as(f32, 0.0);
-    const t1 = getT(t0, alpha, p0, p1);
-    const t2 = getT(t1, alpha, p1, p2);
-    const t3 = getT(t2, alpha, p2, p3);
+    const t1 = getT(p0, p1, t0, alpha);
+    const t2 = getT(p1, p2, t1, alpha);
+    const t3 = getT(p2, p3, t2, alpha);
     const tt = math.lerp(t1, t2, t);
+
+    if (0.0 == t1) {
+        return p1;
+    }
 
     const A1 = @splat(4, (t1 - tt) / (t1 - t0)) * p0 + @splat(4, (tt - t0) / (t1 - t0)) * p1;
     const A2 = @splat(4, (t2 - tt) / (t2 - t1)) * p1 + @splat(4, (tt - t1) / (t2 - t1)) * p2;
