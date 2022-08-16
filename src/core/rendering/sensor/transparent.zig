@@ -101,7 +101,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
+            const color = @as(Vec4f, p.v) / @splat(4, weight);
 
             target[j].v = color;
         }
@@ -111,7 +111,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
+            const color = @as(Vec4f, p.v) / @splat(4, weight);
             const tm = self.base.tonemapper.tonemap(color);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(color[3], 0.0) };
         }
@@ -121,9 +121,9 @@ pub const Transparent = struct {
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
+            const color = @as(Vec4f, p.v) / @splat(4, weight);
             const old = target[j];
-            const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
+            const combined = color + @as(Vec4f, old.v);
             const tm = self.base.tonemapper.tonemap(combined);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(combined[3], 0.0) };
         }

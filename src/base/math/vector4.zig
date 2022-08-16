@@ -17,37 +17,12 @@ pub fn Vec4(comptime T: type) type {
             return .{ .v = [4]T{ s, s, s, s } };
         }
 
-        pub fn init3(x: T, y: T, z: T) Vec4(T) {
-            return .{ .v = [4]T{ x, y, z, 0.0 } };
-        }
-
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
         }
 
-        pub fn addAssign3(self: *Vec4(T), other: Vec4(T)) void {
-            self.v[0] += other.v[0];
-            self.v[1] += other.v[1];
-            self.v[2] += other.v[2];
-        }
-
-        pub fn addAssign4(self: *Vec4(T), other: Vec4(T)) void {
-            self.v[0] += other.v[0];
-            self.v[1] += other.v[1];
-            self.v[2] += other.v[2];
-            self.v[3] += other.v[3];
-        }
-
         pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
             return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
-        }
-
-        pub fn maxScalar(a: Vec4(T), s: T) Vec4(T) {
-            return init3(
-                std.math.max(a.v[0], s),
-                std.math.max(a.v[1], s),
-                std.math.max(a.v[2], s),
-            );
         }
     };
 }
