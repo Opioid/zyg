@@ -110,12 +110,12 @@ pub fn TypedImage(comptime T: type) type {
 
             return .{
                 self.pixels[@intCast(usize, (d + y) * w + x)],
-                self.pixels[@intCast(usize, (d + y) * w + x1)],
-                self.pixels[@intCast(usize, (d + y1) * w + x)],
-                self.pixels[@intCast(usize, (d + y1) * w + x1)],
                 self.pixels[@intCast(usize, (d1 + y) * w + x)],
+                self.pixels[@intCast(usize, (d + y) * w + x1)],
                 self.pixels[@intCast(usize, (d1 + y) * w + x1)],
+                self.pixels[@intCast(usize, (d + y1) * w + x)],
                 self.pixels[@intCast(usize, (d1 + y1) * w + x)],
+                self.pixels[@intCast(usize, (d + y1) * w + x1)],
                 self.pixels[@intCast(usize, (d1 + y1) * w + x1)],
             };
         }
@@ -262,38 +262,38 @@ pub fn TypedSparseImage(comptime T: type) type {
                     }
 
                     {
-                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
+                        const cxy = Vec2i{ xyz[0], xyz[1] } - csxy;
+                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
                         result[1] = data[@intCast(usize, ci)];
                     }
 
                     {
-                        const cxy = Vec2i{ xyz[0], xyz1[1] } - csxy;
+                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
                         const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
                         result[2] = data[@intCast(usize, ci)];
                     }
 
                     {
-                        const cxy = Vec2i{ xyz1[0], xyz1[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
+                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
+                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
                         result[3] = data[@intCast(usize, ci)];
                     }
 
                     {
-                        const cxy = Vec2i{ xyz[0], xyz[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
+                        const cxy = Vec2i{ xyz[0], xyz1[1] } - csxy;
+                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
                         result[4] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[5] = data[@intCast(usize, ci)];
                     }
 
                     {
                         const cxy = Vec2i{ xyz[0], xyz1[1] } - csxy;
                         const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
+                        result[5] = data[@intCast(usize, ci)];
+                    }
+
+                    {
+                        const cxy = Vec2i{ xyz1[0], xyz1[1] } - csxy;
+                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
                         result[6] = data[@intCast(usize, ci)];
                     }
 
@@ -312,12 +312,12 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             return .{
                 self.get3D(xyz[0], xyz[1], xyz[2]),
-                self.get3D(xyz1[0], xyz[1], xyz[2]),
-                self.get3D(xyz[0], xyz1[1], xyz[2]),
-                self.get3D(xyz1[0], xyz1[1], xyz[2]),
                 self.get3D(xyz[0], xyz[1], xyz1[2]),
+                self.get3D(xyz1[0], xyz[1], xyz[2]),
                 self.get3D(xyz1[0], xyz[1], xyz1[2]),
+                self.get3D(xyz[0], xyz1[1], xyz[2]),
                 self.get3D(xyz[0], xyz1[1], xyz1[2]),
+                self.get3D(xyz1[0], xyz1[1], xyz[2]),
                 self.get3D(xyz1[0], xyz1[1], xyz1[2]),
             };
         }

@@ -38,7 +38,7 @@ pub const Opaque = struct {
 
     pub fn clear(self: *Opaque, weight: f32) void {
         for (self.pixels) |*p| {
-            p.* = Pack4f.init4(0.0, 0.0, 0.0, weight);
+            p.v = Vec4f{ 0.0, 0.0, 0.0, weight };
         }
     }
 
@@ -52,11 +52,13 @@ pub const Opaque = struct {
 
     pub fn addPixel(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
         const d = self.base.dimensions;
+        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
 
         const wc = @splat(4, weight) * color;
+        var value: Vec4f = self.pixels[i].v;
+        value += Vec4f{ wc[0], wc[1], wc[2], weight };
 
-        var value = &self.pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
-        value.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
+        self.pixels[i].v = value;
     }
 
     pub fn addPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {
@@ -85,8 +87,7 @@ pub const Opaque = struct {
     pub fn resolve(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
-
-            target[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
+            target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
         }
     }
 
@@ -94,7 +95,7 @@ pub const Opaque = struct {
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
             const tm = self.base.tonemapper.tonemap(color);
-            target[i + begin] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+            target[i + begin].v = Vec4f{ tm[0], tm[1], tm[2], 1.0 };
         }
     }
 
@@ -105,7 +106,7 @@ pub const Opaque = struct {
             const old = target[j];
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
-            target[j] = Pack4f.init4(tm[0], tm[1], tm[2], 1.0);
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], 1.0 };
         }
     }
 };

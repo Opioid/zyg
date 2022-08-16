@@ -63,7 +63,10 @@ pub const Transparent = struct {
         self.pixel_weights[i] += weight;
 
         const wc = @splat(4, weight) * color;
-        self.pixels[i].addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], wc[3]));
+        var value: Vec4f = self.pixels[i].v;
+        value += wc;
+
+        self.pixels[i].v = value;
     }
 
     pub fn addPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
@@ -100,7 +103,7 @@ pub const Transparent = struct {
             const weight = self.pixel_weights[j];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
 
-            target[j] = Pack4f.init4(color[0], color[1], color[2], color[3]);
+            target[j].v = color;
         }
     }
 
@@ -110,7 +113,7 @@ pub const Transparent = struct {
             const weight = self.pixel_weights[j];
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], p.v[3] } / @splat(4, weight);
             const tm = self.base.tonemapper.tonemap(color);
-            target[j] = Pack4f.init4(tm[0], tm[1], tm[2], @maximum(color[3], 0.0));
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(color[3], 0.0) };
         }
     }
 
@@ -122,7 +125,7 @@ pub const Transparent = struct {
             const old = target[j];
             const combined = color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] };
             const tm = self.base.tonemapper.tonemap(combined);
-            target[j] = Pack4f.init4(tm[0], tm[1], tm[2], @maximum(combined[3], 0.0));
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(combined[3], 0.0) };
         }
     }
 };
