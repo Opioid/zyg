@@ -160,7 +160,7 @@ fn loadTakeAndScene(
         return false;
     };
 
-    TakeLoader.load(alloc, stream, take, &graph.scene) catch |err| {
+    TakeLoader.load(alloc, stream, take, &graph.scene, resources) catch |err| {
         log.err("Loading take: {}", .{err});
         return false;
     };
