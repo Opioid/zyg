@@ -427,8 +427,8 @@ pub const Mesh = struct {
         return self.parts[part].aabb(variant);
     }
 
-    pub fn cone(self: Mesh, part: u32) Vec4f {
-        return self.parts[part].variants.items[0].cone;
+    pub fn cone(self: Mesh, part: u32, variant: u32) Vec4f {
+        return self.parts[part].cone(variant);
     }
 
     pub fn intersect(

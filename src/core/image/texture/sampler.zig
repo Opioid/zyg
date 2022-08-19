@@ -126,7 +126,7 @@ const Linear2D = struct {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
-        return bilinear2(c, m.w[0], m.w[1]);
+        return math.bilinear2(c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
@@ -198,10 +198,14 @@ const Linear3D = struct {
         const m = map(d, uvw, adr);
         const c = texture.gather3D_1(m.xyz, m.xyz1, scene);
 
-        const c0 = math.bilinear1(.{ c[0], c[1], c[2], c[3] }, m.w[0], m.w[1]);
-        const c1 = math.bilinear1(.{ c[4], c[5], c[6], c[7] }, m.w[0], m.w[1]);
+        const ci = math.bilinear2(.{
+            c[0..2].*,
+            c[2..4].*,
+            c[4..6].*,
+            c[6..8].*,
+        }, m.w[0], m.w[1]);
 
-        return math.lerp(c0, c1, m.w[2]);
+        return math.lerp(ci[0], ci[1], m.w[2]);
     }
 
     pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) Vec2f {
@@ -209,10 +213,14 @@ const Linear3D = struct {
         const m = map(d, uvw, adr);
         const c = texture.gather3D_2(m.xyz, m.xyz1, scene);
 
-        const c0 = bilinear2(.{ c[0], c[1], c[2], c[3] }, m.w[0], m.w[1]);
-        const c1 = bilinear2(.{ c[4], c[5], c[6], c[7] }, m.w[0], m.w[1]);
+        const cl = math.bilinear3(.{
+            .{ c[0][0], c[0][1], c[1][0], c[1][1] },
+            .{ c[2][0], c[2][1], c[3][0], c[3][1] },
+            .{ c[4][0], c[4][1], c[5][0], c[5][1] },
+            .{ c[6][0], c[6][1], c[7][0], c[7][1] },
+        }, m.w[0], m.w[1]);
 
-        return math.lerp2(c0, c1, m.w[2]);
+        return math.lerp2(@as([4]f32, cl)[0..2].*, @as([4]f32, cl)[2..4].*, m.w[2]);
     }
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
@@ -231,13 +239,3 @@ const Linear3D = struct {
         };
     }
 };
-
-fn bilinear2(c: [4]Vec2f, s: f32, t: f32) Vec2f {
-    const vs = @splat(2, s);
-    const vt = @splat(2, t);
-
-    const _s = @splat(2, @as(f32, 1.0)) - vs;
-    const _t = @splat(2, @as(f32, 1.0)) - vt;
-
-    return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
-}

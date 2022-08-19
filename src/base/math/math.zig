@@ -76,6 +76,16 @@ pub fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
     return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
 }
 
+pub fn bilinear2(c: [4]vec2.Vec2f, s: f32, t: f32) vec2.Vec2f {
+    const vs = @splat(2, s);
+    const vt = @splat(2, t);
+
+    const _s = @splat(2, @as(f32, 1.0)) - vs;
+    const _t = @splat(2, @as(f32, 1.0)) - vt;
+
+    return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
+}
+
 pub fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
     const vs = @splat(4, s);
     const vt = @splat(4, t);

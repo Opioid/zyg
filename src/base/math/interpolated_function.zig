@@ -226,11 +226,10 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
         }
 
         pub fn eval(self: Self, x: f32, y: f32, z: f32) f32 {
-            const mx = std.math.min(x, 1.0);
-            const my = std.math.min(y, 1.0);
-            const mz = std.math.min(z, 1.0);
+            const v = Vec4f{ x, y, z, 0.0 };
+            const mv = @minimum(v, @splat(4, @as(f32, 1.0)));
 
-            const o = Vec4f{ mx, my, mz, 0.0 } * Vec4f{
+            const o = mv * Vec4f{
                 @intToFloat(f32, X - 1),
                 @intToFloat(f32, Y - 1),
                 @intToFloat(f32, Z - 1),

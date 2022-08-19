@@ -7,59 +7,33 @@ const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
-pub const Infinity = @splat(4, @bitCast(f32, @as(u32, 0x7F800000)));
-pub const Neg_infinity = @splat(4, @bitCast(f32, @as(u32, 0xFF800000)));
 pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
 
 pub fn Vec4(comptime T: type) type {
-    return struct {
+    return extern struct {
         v: [4]T = undefined,
 
         pub fn init1(s: T) Vec4(T) {
             return .{ .v = [4]T{ s, s, s, s } };
         }
 
-        pub fn init3(x: T, y: T, z: T) Vec4(T) {
-            return .{ .v = [4]T{ x, y, z, 0.0 } };
-        }
-
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
-        }
-
-        pub fn addAssign3(self: *Vec4(T), other: Vec4(T)) void {
-            self.v[0] += other.v[0];
-            self.v[1] += other.v[1];
-            self.v[2] += other.v[2];
-        }
-
-        pub fn addAssign4(self: *Vec4(T), other: Vec4(T)) void {
-            self.v[0] += other.v[0];
-            self.v[1] += other.v[1];
-            self.v[2] += other.v[2];
-            self.v[3] += other.v[3];
         }
 
         pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
             return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
         }
-
-        pub fn maxScalar(a: Vec4(T), s: T) Vec4(T) {
-            return init3(
-                std.math.max(a.v[0], s),
-                std.math.max(a.v[1], s),
-                std.math.max(a.v[2], s),
-            );
-        }
     };
 }
 
-pub const Vec4b = @Vector(4, u8);
 pub const Pack4h = Vec4(f16);
 pub const Pack4i = Vec4(i32);
+pub const Pack4f = Vec4(f32);
+
+pub const Vec4b = @Vector(4, u8);
 pub const Vec4i = @Vector(4, i32);
 pub const Vec4u = @Vector(4, u32);
-pub const Pack4f = Vec4(f32);
 pub const Vec4f = @Vector(4, f32);
 
 pub fn dot3(a: Vec4f, b: Vec4f) f32 {

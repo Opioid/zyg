@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub fn Vec3(comptime T: type) type {
     return extern struct {
         v: [3]T,
