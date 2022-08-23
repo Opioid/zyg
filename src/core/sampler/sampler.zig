@@ -14,49 +14,49 @@ pub const Sampler = union(enum) {
     Random,
     Sobol: Sobol,
 
-    pub fn startPixel(self: *Sampler, sample: u32, seed: u32) void {
+    pub inline fn startPixel(self: *Sampler, sample: u32, seed: u32) void {
         switch (self.*) {
             .Random => {},
             .Sobol => |*s| s.startPixel(sample, seed),
         }
     }
 
-    pub fn incrementSample(self: *Sampler) void {
+    pub inline fn incrementSample(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
             .Sobol => |*s| s.incrementSample(),
         }
     }
 
-    pub fn incrementPadding(self: *Sampler) void {
+    pub inline fn incrementPadding(self: *Sampler) void {
         switch (self.*) {
             .Random => {},
             .Sobol => |*s| s.incrementPadding(),
         }
     }
 
-    pub fn sample1D(self: *Sampler, rng: *RNG) f32 {
+    pub inline fn sample1D(self: *Sampler, rng: *RNG) f32 {
         return switch (self.*) {
             .Random => rng.randomFloat(),
             .Sobol => |*s| s.sample1D(),
         };
     }
 
-    pub fn sample2D(self: *Sampler, rng: *RNG) Vec2f {
+    pub inline fn sample2D(self: *Sampler, rng: *RNG) Vec2f {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat() },
             .Sobol => |*s| s.sample2D(),
         };
     }
 
-    pub fn sample3D(self: *Sampler, rng: *RNG) Vec4f {
+    pub inline fn sample3D(self: *Sampler, rng: *RNG) Vec4f {
         return switch (self.*) {
             .Random => .{ rng.randomFloat(), rng.randomFloat(), rng.randomFloat(), 0.0 },
             .Sobol => |*s| s.sample3D(),
         };
     }
 
-    pub fn sample4D(self: *Sampler, rng: *RNG) Vec4f {
+    pub inline fn sample4D(self: *Sampler, rng: *RNG) Vec4f {
         return switch (self.*) {
             .Random => .{
                 rng.randomFloat(),
@@ -68,7 +68,7 @@ pub const Sampler = union(enum) {
         };
     }
 
-    pub fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
+    pub inline fn cameraSample(self: *Sampler, rng: *RNG, pixel: Vec2i) CameraSample {
         const s4 = self.sample4D(rng);
 
         const sample = CameraSample{

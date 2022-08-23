@@ -11,19 +11,19 @@ const SRGB_FLOAT = calculateSrgbToFloat();
 const UNORM_FLOAT = calculateUnormToFloat();
 const SNORM_FLOAT = calculateSnormToFloat();
 
-pub fn cachedSrgbToFloat3(byte: Pack3b) Vec4f {
+pub inline fn cachedSrgbToFloat3(byte: Pack3b) Vec4f {
     return .{ SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]], 0.0 };
 }
 
-pub fn cachedUnormToFloat(byte: u8) f32 {
+pub inline fn cachedUnormToFloat(byte: u8) f32 {
     return UNORM_FLOAT[byte];
 }
 
-pub fn cachedUnormToFloat2(byte: Vec2b) Vec2f {
+pub inline fn cachedUnormToFloat2(byte: Vec2b) Vec2f {
     return .{ UNORM_FLOAT[byte[0]], UNORM_FLOAT[byte[1]] };
 }
 
-pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
+pub inline fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
     return .{ SNORM_FLOAT[byte[0]], SNORM_FLOAT[byte[1]] };
 }
 

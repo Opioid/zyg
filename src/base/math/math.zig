@@ -24,59 +24,59 @@ const std = @import("std");
 
 pub const pi_inv = 1.0 / std.math.pi;
 
-pub fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
+pub inline fn degreesToRadians(degrees: anytype) @TypeOf(degrees) {
     return degrees * (std.math.pi / 180.0);
 }
 
-pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
+pub inline fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
     return radians * (180.0 / std.math.pi);
 }
 
-pub fn saturate(x: f32) f32 {
+pub inline fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }
 
-pub fn lerp(a: f32, b: f32, t: f32) f32 {
+pub inline fn lerp(a: f32, b: f32, t: f32) f32 {
     const u = 1.0 - t;
     return u * a + t * b;
 }
 
-pub fn lerp2(a: vec2.Vec2f, b: vec2.Vec2f, t: f32) vec2.Vec2f {
+pub inline fn lerp2(a: vec2.Vec2f, b: vec2.Vec2f, t: f32) vec2.Vec2f {
     const u = @splat(2, 1.0 - t);
     return u * a + @splat(2, t) * b;
 }
 
-pub fn lerp3(a: vec4.Vec4f, b: vec4.Vec4f, t: f32) vec4.Vec4f {
+pub inline fn lerp3(a: vec4.Vec4f, b: vec4.Vec4f, t: f32) vec4.Vec4f {
     const u = @splat(4, 1.0 - t);
     return u * a + @splat(4, t) * b;
 }
 
-pub fn frac(x: f32) f32 {
+pub inline fn frac(x: f32) f32 {
     return x - @floor(x);
 }
 
-pub fn frac4(x: vec4.Vec4f) vec4.Vec4f {
+pub inline fn frac4(x: vec4.Vec4f) vec4.Vec4f {
     return x - @floor(x);
 }
 
-pub fn pow2(x: f32) f32 {
+pub inline fn pow2(x: f32) f32 {
     return x * x;
 }
 
-pub fn pow5(x: f32) f32 {
+pub inline fn pow5(x: f32) f32 {
     const x2 = x * x;
     const x4 = x2 * x2;
     return x4 * x;
 }
 
-pub fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
+pub inline fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
     const _s = 1.0 - s;
     const _t = 1.0 - t;
 
     return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
 }
 
-pub fn bilinear2(c: [4]vec2.Vec2f, s: f32, t: f32) vec2.Vec2f {
+pub inline fn bilinear2(c: [4]vec2.Vec2f, s: f32, t: f32) vec2.Vec2f {
     const vs = @splat(2, s);
     const vt = @splat(2, t);
 
@@ -86,7 +86,7 @@ pub fn bilinear2(c: [4]vec2.Vec2f, s: f32, t: f32) vec2.Vec2f {
     return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
 }
 
-pub fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
+pub inline fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
     const vs = @splat(4, s);
     const vt = @splat(4, t);
 
@@ -117,6 +117,6 @@ pub fn bicubic1(c: [16]f32, s: f32, t: f32) f32 {
     return cubic1(&d, t);
 }
 
-pub fn roundUp(comptime T: type, x: T, m: T) T {
+pub inline fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
 }

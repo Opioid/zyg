@@ -4,13 +4,14 @@ const Texture = @import("../../image/texture/texture.zig").Texture;
 const Scene = @import("../scene.zig").Scene;
 const hlp = @import("sample_helper.zig");
 pub usingnamespace hlp;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub fn sampleNormal(
+pub inline fn sampleNormal(
     wo: Vec4f,
     rs: Renderstate,
     map: Texture,
@@ -20,7 +21,7 @@ pub fn sampleNormal(
     return sampleNormalUV(wo, rs, rs.uv, map, key, scene);
 }
 
-pub fn sampleNormalUV(
+pub inline fn sampleNormalUV(
     wo: Vec4f,
     rs: Renderstate,
     uv: Vec2f,
@@ -47,7 +48,7 @@ pub fn sampleNormalUV(
     return n;
 }
 
-pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+pub inline fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
     // Veach's compensation for "Non-symmetry due to shading normals".
     // See e.g. CorrectShadingNormal() at:
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55

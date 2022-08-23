@@ -8,7 +8,7 @@ pub const Ray = struct {
     wavelength: f32,
     time: u64,
 
-    pub fn init(
+    pub inline fn init(
         origin: Vec4f,
         direction: Vec4f,
         min_t: f32,
@@ -17,7 +17,7 @@ pub const Ray = struct {
         wavelength: f32,
         time: u64,
     ) Ray {
-        return Ray{
+        return .{
             .ray = math.Ray.init(origin, direction, min_t, max_t),
             .depth = depth,
             .wavelength = wavelength,
