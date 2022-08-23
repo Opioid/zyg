@@ -1,5 +1,6 @@
 const snsr = @import("../rendering/sensor/sensor.zig");
 const Sensor = snsr.Sensor;
+const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -13,6 +14,8 @@ const Ray = sr.Ray;
 const RayDif = sr.RayDif;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const Resources = @import("../resource/manager.zig").Manager;
+const tx = @import("../image/texture/provider.zig");
 
 const base = @import("base");
 const json = base.json;
@@ -22,6 +25,7 @@ const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
+const Variants = base.memory.VariantMap;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -55,7 +59,7 @@ pub const Perspective = struct {
     d_y: Vec4f = @splat(4, @as(f32, 0.0)),
 
     fov: f32 = 0.0,
-    lens_radius: f32 = 0.0,
+    aperture: Aperture = .{},
     focus_distance: f32 = 0.0,
     a: f32 = undefined,
 
@@ -69,6 +73,7 @@ pub const Perspective = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.aperture.deinit(alloc);
         self.sensor.deinit(alloc);
     }
 
@@ -115,8 +120,8 @@ pub const Perspective = struct {
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
         var origin: Vec4f = undefined;
 
-        if (self.lens_radius > 0.0) {
-            const lens = math.smpl.diskConcentric(sample.lens_uv) * @splat(2, self.lens_radius);
+        if (self.aperture.radius > 0.0) {
+            const lens = self.aperture.sample(sample.lens_uv);
 
             origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
 
@@ -153,9 +158,9 @@ pub const Perspective = struct {
         var dir: Vec4f = undefined;
         var out_dir: Vec4f = undefined;
 
-        if (self.lens_radius > 0.0) {
+        if (self.aperture.radius > 0.0) {
             const uv = sampler.sample2D(rng);
-            const lens = math.smpl.diskConcentric(uv) * @splat(2, self.lens_radius);
+            const lens = self.aperture.sample(uv);
             const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
             const axis = po - origin;
             const d = self.focus_distance / axis[2];
@@ -237,7 +242,7 @@ pub const Perspective = struct {
         return @as(u64, frame) * self.frame_step + fdi;
     }
 
-    pub fn setParameters(self: *Self, value: std.json.Value) void {
+    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: Scene, resources: *Resources) !void {
         var motion_blur = true;
 
         var iter = value.Object.iterator();
@@ -257,9 +262,23 @@ pub const Perspective = struct {
                 const fov = json.readFloat(f32, entry.value_ptr.*);
                 self.fov = math.degreesToRadians(fov);
             } else if (std.mem.eql(u8, "lens", entry.key_ptr.*)) {
-                self.lens_radius = json.readFloatMember(entry.value_ptr.*, "radius", 0.0);
+                self.aperture.radius = json.readFloatMember(entry.value_ptr.*, "radius", self.aperture.radius);
             } else if (std.mem.eql(u8, "focus", entry.key_ptr.*)) {
                 self.setFocus(loadFocus(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "aperture", entry.key_ptr.*)) {
+                self.aperture.radius = json.readFloatMember(entry.value_ptr.*, "radius", self.aperture.radius);
+
+                const shape = json.readStringMember(entry.value_ptr.*, "shape", "");
+
+                if (shape.len > 0) {
+                    var options: Variants = .{};
+                    defer options.deinit(alloc);
+                    options.set(alloc, "usage", .Roughness) catch {};
+
+                    const texture = try tx.Provider.loadFile(alloc, shape, options, @splat(2, @as(f32, 1.0)), resources);
+
+                    try self.aperture.setShape(alloc, texture, scene);
+                }
             }
         }
 
@@ -274,7 +293,7 @@ pub const Perspective = struct {
     }
 
     fn updateFocus(self: *Self, time: u64, worker: *Worker) void {
-        if (self.focus.use_point and self.lens_radius > 0.0) {
+        if (self.focus.use_point and self.aperture.radius > 0.0) {
             const direction = math.normalize3(
                 self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
             );
