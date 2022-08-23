@@ -36,7 +36,7 @@ pub const Material = struct {
         self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, scene: *const Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
         const r = if (self.roughness_map.valid())

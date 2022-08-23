@@ -107,7 +107,7 @@ pub const Material = struct {
         self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, worker: *const Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, worker: *const Worker) Sample {
         if (rs.subsurface) {
             const g = self.super.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
@@ -287,7 +287,7 @@ pub const Material = struct {
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    fn analyticCheckers(self: *const Material, rs: Renderstate, sampler_key: ts.Key, worker: *const Worker) Vec4f {
+    fn analyticCheckers(self: *const Material, rs: *const Renderstate, sampler_key: ts.Key, worker: *const Worker) Vec4f {
         const checkers_scale = self.checkers[3];
 
         const dd = @splat(4, checkers_scale) * worker.screenspaceDifferential(rs);

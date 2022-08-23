@@ -74,7 +74,7 @@ pub const Intersection = struct {
         rs.subsurface = self.subsurface;
         rs.avoid_caustics = avoid_caustics;
 
-        return m.sample(wo, rs, worker);
+        return m.sample(wo, &rs, worker);
     }
 
     pub fn evaluateRadiance(

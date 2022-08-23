@@ -13,7 +13,7 @@ const std = @import("std");
 
 pub inline fn sampleNormal(
     wo: Vec4f,
-    rs: Renderstate,
+    rs: *const Renderstate,
     map: Texture,
     key: ts.Key,
     scene: *const Scene,
@@ -23,7 +23,7 @@ pub inline fn sampleNormal(
 
 pub inline fn sampleNormalUV(
     wo: Vec4f,
-    rs: Renderstate,
+    rs: *const Renderstate,
     uv: Vec2f,
     map: Texture,
     key: ts.Key,

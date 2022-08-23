@@ -30,7 +30,7 @@ pub const Sample = struct {
     wavelength: f32,
 
     pub fn init(
-        rs: Renderstate,
+        rs: *const Renderstate,
         wo: Vec4f,
         absorption_coef: Vec4f,
         ior: f32,
@@ -65,7 +65,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
@@ -136,7 +136,7 @@ pub const Sample = struct {
         }
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
@@ -183,7 +183,7 @@ pub const Sample = struct {
         }
     }
 
-    fn thickSample(self: Sample, ior: f32, p: f32) bxdf.Sample {
+    fn thickSample(self: *const Sample, ior: f32, p: f32) bxdf.Sample {
         var eta_i = self.ior_outside;
         var eta_t = ior;
 
@@ -226,7 +226,7 @@ pub const Sample = struct {
         }
     }
 
-    fn thinSample(self: Sample, ior: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         // Thin material is always double sided, so no need to check hemisphere.
         const eta_i = self.ior_outside;
         const eta_t = ior;
@@ -259,7 +259,7 @@ pub const Sample = struct {
         }
     }
 
-    fn roughSample(self: Sample, ior_t: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    fn roughSample(self: *const Sample, ior_t: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const quo_ior = IoR{ .eta_i = self.ior_outside, .eta_t = ior_t };
 
         const wo = self.super.wo;

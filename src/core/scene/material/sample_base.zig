@@ -112,7 +112,7 @@ pub const SampleBase = struct {
     const Self = @This();
 
     pub fn init(
-        rs: Renderstate,
+        rs: *const Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
         radiance: Vec4f,
@@ -141,31 +141,31 @@ pub const SampleBase = struct {
         };
     }
 
-    pub fn geometricNormal(self: Self) Vec4f {
+    pub fn geometricNormal(self: *const Self) Vec4f {
         return self.geo_n;
     }
 
-    pub fn interpolatedNormal(self: Self) Vec4f {
+    pub fn interpolatedNormal(self: *const Self) Vec4f {
         return self.n;
     }
 
-    pub fn shadingNormal(self: Self) Vec4f {
+    pub fn shadingNormal(self: *const Self) Vec4f {
         return self.frame.n;
     }
 
-    pub fn shadingTangent(self: Self) Vec4f {
+    pub fn shadingTangent(self: *const Self) Vec4f {
         return self.frame.t;
     }
 
-    pub fn shadingBitangent(self: Self) Vec4f {
+    pub fn shadingBitangent(self: *const Self) Vec4f {
         return self.frame.b;
     }
 
-    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
+    pub fn sameHemisphere(self: *const Self, v: Vec4f) bool {
         return math.dot3(self.geo_n, v) > 0.0;
     }
 
-    pub fn avoidCaustics(self: Self) bool {
+    pub fn avoidCaustics(self: *const Self) bool {
         return self.properties.is(.AvoidCaustics);
     }
 };

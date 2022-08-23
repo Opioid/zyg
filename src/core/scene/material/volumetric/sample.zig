@@ -14,7 +14,7 @@ pub const Sample = struct {
 
     anisotropy: f32,
 
-    pub fn init(wo: Vec4f, rs: Renderstate, anisotropy: f32) Sample {
+    pub fn init(wo: Vec4f, rs: *const Renderstate, anisotropy: f32) Sample {
         var super = Base.init(
             rs,
             wo,
@@ -31,7 +31,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const wo_dot_wi = math.dot3(self.super.wo, wi);
         const g = self.anisotropy;
 
@@ -40,7 +40,7 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, phase), phase);
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         const r2 = sampler.sample2D(rng);
 
         const g = self.anisotropy;

@@ -208,7 +208,7 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, worker: *const Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, worker: *const Worker) Sample {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, worker.scene) },

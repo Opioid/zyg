@@ -38,7 +38,7 @@ pub const Sample = struct {
     volumetric: bool,
 
     pub fn init(
-        rs: Renderstate,
+        rs: *const Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
         radiance: Vec4f,
