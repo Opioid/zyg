@@ -24,7 +24,7 @@ pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, s
 
 pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
     const interface = worker.interface_stack.top();
-    const material = interface.material(worker.scene.*);
+    const material = interface.material(worker.scene);
 
     const d = ray.ray.maxT();
 
@@ -106,7 +106,7 @@ fn trackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -162,7 +162,7 @@ fn residualRatioTrackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
@@ -319,7 +319,7 @@ pub fn trackingHetero(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -379,7 +379,7 @@ pub fn trackingHeteroEmission(
 
         const uvw = ray.point(t);
 
-        const cce = material.collisionCoefficientsEmission(uvw, filter, worker.scene.*);
+        const cce = material.collisionCoefficientsEmission(uvw, filter, worker.scene);
         var mu = cce.cc;
         mu.s *= @splat(4, srs);
 

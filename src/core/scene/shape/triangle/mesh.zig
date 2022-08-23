@@ -49,7 +49,7 @@ pub const Part = struct {
             self.distribution.deinit(alloc);
         }
 
-        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: Scene) bool {
+        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: *const Scene) bool {
             if (self.material == m) {
                 return true;
             }
@@ -92,7 +92,7 @@ pub const Part = struct {
         material: u32,
         tree: bvh.Tree,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
@@ -161,7 +161,7 @@ pub const Part = struct {
             .part = self,
             .m = m,
             .tree = &tree,
-            .scene = &scene,
+            .scene = scene,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
@@ -285,7 +285,7 @@ pub const Part = struct {
                             IdTrafo,
                             1.0,
                             null,
-                            self.scene.*,
+                            self.scene,
                         );
                     }
 
@@ -647,7 +647,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization

@@ -47,7 +47,7 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);

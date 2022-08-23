@@ -16,7 +16,7 @@ pub inline fn sampleNormal(
     rs: Renderstate,
     map: Texture,
     key: ts.Key,
-    scene: Scene,
+    scene: *const Scene,
 ) Vec4f {
     return sampleNormalUV(wo, rs, rs.uv, map, key, scene);
 }
@@ -27,7 +27,7 @@ pub inline fn sampleNormalUV(
     uv: Vec2f,
     map: Texture,
     key: ts.Key,
-    scene: Scene,
+    scene: *const Scene,
 ) Vec4f {
     const nm = ts.sample2D_2(key, map, uv, scene);
     const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));

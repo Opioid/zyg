@@ -49,7 +49,7 @@ pub const Light = struct {
         return ~Volume_mask & id;
     }
 
-    pub fn finite(self: Light, scene: Scene) bool {
+    pub fn finite(self: Light, scene: *const Scene) bool {
         return scene.propShape(self.prop).finite();
     }
 
@@ -76,7 +76,7 @@ pub const Light = struct {
         scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, volume, threads);
     }
 
-    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
+    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: *const Scene) Vec4f {
         const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
 
         const radiance = @splat(4, extent) * average_radiance;
@@ -152,13 +152,13 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, scene: Scene) Vec4f {
+    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
     }
 
-    pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, scene: Scene) Vec4f {
+    pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(
@@ -172,7 +172,7 @@ pub const Light = struct {
         );
     }
 
-    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
+    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: *const Scene) f32 {
         return switch (self.class) {
             .Prop => self.propPdf(ray, n, isec, total_sphere, scene),
             .PropImage => self.propImagePdf(ray, isec, scene),
@@ -412,7 +412,7 @@ pub const Light = struct {
         n: Vec4f,
         isec: Intersection,
         total_sphere: bool,
-        scene: Scene,
+        scene: *const Scene,
     ) f32 {
         return isec.shape(scene).pdf(
             self.variant,
@@ -425,7 +425,7 @@ pub const Light = struct {
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
@@ -437,11 +437,11 @@ pub const Light = struct {
         return material_pdf * shape_pdf;
     }
 
-    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         return isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
         const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
 

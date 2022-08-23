@@ -88,7 +88,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);

@@ -86,7 +86,7 @@ pub const Emittance = struct {
         trafo: Trafo,
         area: f32,
         filter: ?ts.Filter,
-        scene: Scene,
+        scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {

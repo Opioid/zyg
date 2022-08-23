@@ -106,7 +106,7 @@ pub const Material = struct {
         self: *Material,
         alloc: Allocator,
         shape: Shape,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
         if (self.average_emission[0] >= 0.0) {
@@ -152,7 +152,7 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
         const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
@@ -160,7 +160,7 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample2D_3(key, self.emission_map, uv, scene);

@@ -69,7 +69,7 @@ pub const Worker = struct {
     fn resolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
         const start_min_t = ray.ray.minT();
 
-        var o = isec.opacity(filter, self.scene.*);
+        var o = isec.opacity(filter, self.scene);
 
         while (o < 1.0) // : (o = isec.opacity(self.*))
         {
@@ -86,7 +86,7 @@ pub const Worker = struct {
                 return false;
             }
 
-            o = isec.opacity(filter, self.scene.*);
+            o = isec.opacity(filter, self.scene);
         }
 
         ray.ray.setMinT(start_min_t);
@@ -97,36 +97,36 @@ pub const Worker = struct {
         self.interface_stack.copy(stack);
     }
 
-    pub fn iorOutside(self: Worker, wo: Vec4f, isec: Intersection) f32 {
+    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: Intersection) f32 {
         if (isec.sameHemisphere(wo)) {
-            return self.interface_stack.topIor(self.scene.*);
+            return self.interface_stack.topIor(self.scene);
         }
 
-        return self.interface_stack.peekIor(isec, self.scene.*);
+        return self.interface_stack.peekIor(isec, self.scene);
     }
 
     pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             _ = self.interface_stack.remove(isec);
-        } else if (self.interface_stack.straight(self.scene.*) or isec.material(self.scene.*).ior() > 1.0) {
+        } else if (self.interface_stack.straight(self.scene) or isec.material(self.scene).ior() > 1.0) {
             self.interface_stack.push(isec);
         }
     }
 
     pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
-        const inter_ior = isec.material(self.scene.*).ior();
+        const inter_ior = isec.material(self.scene).ior();
 
         const leave = isec.sameHemisphere(dir);
         if (leave) {
-            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.scene.*), .eta_i = inter_ior };
+            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.scene), .eta_i = inter_ior };
             _ = self.interface_stack.remove(isec);
             return ior;
         }
 
-        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene.*) };
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
-        if (self.interface_stack.straight(self.scene.*) or inter_ior > 1.0) {
+        if (self.interface_stack.straight(self.scene) or inter_ior > 1.0) {
             self.interface_stack.push(isec);
         }
 
@@ -134,7 +134,7 @@ pub const Worker = struct {
     }
 
     pub fn sampleMaterial(
-        self: Worker,
+        self: *const Worker,
         ray: Ray,
         wo: Vec4f,
         wo1: Vec4f,
@@ -144,7 +144,7 @@ pub const Worker = struct {
         avoid_caustics: bool,
         straight_border: bool,
     ) MaterialSample {
-        const material = isec.material(self.scene.*);
+        const material = isec.material(self.scene);
 
         const wi = ray.ray.direction;
 
@@ -174,12 +174,12 @@ pub const Worker = struct {
         return self.scene.randomLightSpatial(p, n, total_sphere, random, split, &self.lights);
     }
 
-    pub fn absoluteTime(self: Worker, frame: u32, frame_delta: f32) u64 {
+    pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
         return self.camera.absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: Worker, rs: Renderstate) Vec4f {
-        const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene.*);
+    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
+        const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene);
 
         const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
 

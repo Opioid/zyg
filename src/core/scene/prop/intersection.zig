@@ -18,23 +18,23 @@ pub const Intersection = struct {
 
     const Self = @This();
 
-    pub fn material(self: Self, scene: Scene) mat.Material {
+    pub fn material(self: Self, scene: *const Scene) mat.Material {
         return scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn shape(self: Self, scene: Scene) Shape {
+    pub fn shape(self: Self, scene: *const Scene) Shape {
         return scene.propShape(self.prop);
     }
 
-    pub fn lightId(self: Self, scene: Scene) u32 {
+    pub fn lightId(self: Self, scene: *const Scene) u32 {
         return scene.propLightId(self.prop, self.geo.part);
     }
 
-    pub fn visibleInCamera(self: Self, scene: Scene) bool {
+    pub fn visibleInCamera(self: Self, scene: *const Scene) bool {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, filter: ?Filter, scene: Scene) f32 {
+    pub fn opacity(self: Self, filter: ?Filter, scene: *const Scene) f32 {
         return self.material(scene).opacity(self.geo.uv, filter, scene);
     }
 
@@ -44,9 +44,9 @@ pub const Intersection = struct {
         ray: Ray,
         filter: ?Filter,
         avoid_caustics: bool,
-        worker: Worker,
+        worker: *const Worker,
     ) mat.Sample {
-        const m = self.material(worker.scene.*);
+        const m = self.material(worker.scene);
         const p = self.geo.p;
         const b = self.geo.b;
 
@@ -81,7 +81,7 @@ pub const Intersection = struct {
         self: Self,
         wo: Vec4f,
         filter: ?Filter,
-        scene: Scene,
+        scene: *const Scene,
         pure_emissive: *bool,
     ) ?Vec4f {
         const m = self.material(scene);

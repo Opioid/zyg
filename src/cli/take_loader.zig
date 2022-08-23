@@ -160,7 +160,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     }
 
     if (param_value_ptr) |param_value| {
-        try camera.setParameters(alloc, param_value.*, scene.*, resources);
+        try camera.setParameters(alloc, param_value.*, scene, resources);
     }
 
     const prop_id = try scene.createEntity(alloc);

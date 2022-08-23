@@ -47,11 +47,11 @@ pub const Multi = struct {
             };
         }
 
-        const material = interface.material(worker.scene.*);
+        const material = interface.material(worker.scene);
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene.*).a;
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -117,7 +117,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene.*);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {

@@ -14,7 +14,7 @@ pub const Interface = struct {
     part: u32,
     uv: Vec2f,
 
-    pub fn material(self: Interface, scene: Scene) Material {
+    pub fn material(self: Interface, scene: *const Scene) Material {
         return scene.propMaterial(self.prop, self.part);
     }
 
@@ -47,7 +47,7 @@ pub const Stack = struct {
         return self.stack[self.index - 1];
     }
 
-    pub fn topIor(self: Stack, scene: Scene) f32 {
+    pub fn topIor(self: Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
             return self.stack[index - 1].material(scene).ior();
@@ -56,7 +56,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: Stack, scene: Scene) f32 {
+    pub fn nextToBottomIor(self: Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
             return self.stack[1].material(scene).ior();
@@ -65,7 +65,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn peekIor(self: Stack, isec: Intersection, scene: Scene) f32 {
+    pub fn peekIor(self: Stack, isec: Intersection, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -79,7 +79,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn straight(self: Stack, scene: Scene) bool {
+    pub fn straight(self: Stack, scene: *const Scene) bool {
         const index = self.index;
         if (index > 0) {
             return 1.0 == self.stack[index - 1].material(scene).ior();

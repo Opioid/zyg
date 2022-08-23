@@ -111,7 +111,7 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
@@ -250,7 +250,7 @@ pub const PathtracerDL = struct {
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
+            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 

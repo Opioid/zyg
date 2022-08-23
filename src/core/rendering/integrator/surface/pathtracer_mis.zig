@@ -228,7 +228,7 @@ pub const PathtracerMIS = struct {
                             isec.*,
                             effective_bxdf_pdf,
                             state,
-                            worker.super.scene.*,
+                            worker.super.scene,
                         );
 
                         result += @splat(4, w) * (throughput * vr.li);
@@ -260,14 +260,14 @@ pub const PathtracerMIS = struct {
                 sample_result,
                 state,
                 filter,
-                worker.super.scene.*,
+                worker.super.scene,
                 &pure_emissive,
             );
 
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.andSet(.Direct, !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t);
+                state.andSet(.Direct, !isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t);
                 break;
             }
 
@@ -361,7 +361,7 @@ pub const PathtracerMIS = struct {
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
+        const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
@@ -377,7 +377,7 @@ pub const PathtracerMIS = struct {
         sample_result: BxdfSample,
         state: PathState,
         filter: ?Filter,
-        scene: Scene,
+        scene: *const Scene,
         pure_emissive: *bool,
     ) Vec4f {
         const light_id = isec.lightId(scene);
@@ -418,7 +418,7 @@ pub const PathtracerMIS = struct {
         isec: Intersection,
         bxdf_pdf: f32,
         state: PathState,
-        scene: Scene,
+        scene: *const Scene,
     ) f32 {
         const light_id = isec.lightId(scene);
         if (!Light.isLight(light_id)) {

@@ -236,7 +236,7 @@ pub const Builder = struct {
         self: *Builder,
         alloc: Allocator,
         tree: *Tree,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !void {
         const num_lights = scene.numLights();
@@ -406,7 +406,7 @@ pub const Builder = struct {
         cone: Vec4f,
         two_sided: bool,
         total_power: f32,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) u32 {
         const lights = tree.light_mapping[begin..end];
@@ -441,7 +441,7 @@ pub const Builder = struct {
 
         const sc = evaluateSplits(lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
-        const predicate = Predicate(Scene){ .sc = &sc, .set = &scene };
+        const predicate = Predicate(Scene){ .sc = &sc, .set = scene };
         const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Scene).f));
 
         self.current_node += 2;

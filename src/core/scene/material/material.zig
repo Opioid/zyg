@@ -55,7 +55,7 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) !void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         switch (self.*) {
             .Glass => |*m| m.commit(),
             .Light => |*m| m.commit(),
@@ -73,7 +73,7 @@ pub const Material = union(enum) {
         part: u32,
         trafo: Trafo,
         extent: f32,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
         _ = part;
@@ -160,7 +160,7 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) CC {
+    pub fn collisionCoefficients(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CC {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -182,7 +182,7 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) CCE {
+    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CCE {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -208,12 +208,12 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: Worker) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: *const Worker) Sample {
         return switch (self) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
-            .Glass => |g| .{ .Glass = g.sample(wo, rs, worker.scene.*) },
-            .Light => |l| .{ .Light = l.sample(wo, rs, worker.scene.*) },
-            .Sky => |s| .{ .Light = s.sample(wo, rs, worker.scene.*) },
+            .Glass => |g| .{ .Glass = g.sample(wo, rs, worker.scene) },
+            .Light => |l| .{ .Light = l.sample(wo, rs, worker.scene) },
+            .Sky => |s| .{ .Light = s.sample(wo, rs, worker.scene) },
             .Substitute => |s| s.sample(wo, rs, worker),
             .Volumetric => |v| v.sample(wo, rs),
         };
@@ -227,7 +227,7 @@ pub const Material = union(enum) {
         trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
-        scene: Scene,
+        scene: *const Scene,
     ) Vec4f {
         return switch (self) {
             .Light => |m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
@@ -256,11 +256,11 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, scene: Scene) f32 {
+    pub fn opacity(self: Material, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {
         return self.super().opacity(uv, filter, scene);
     }
 
-    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) ?Vec4f {
         switch (self) {
             .Glass => |m| {
                 return m.visibility(wi, n, uv, filter, scene);
@@ -272,7 +272,7 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn usefulTextureDescription(self: Material, scene: Scene) image.Description {
+    pub fn usefulTextureDescription(self: Material, scene: *const Scene) image.Description {
         switch (self) {
             .Light => |m| {
                 if (m.emission_map.valid()) {

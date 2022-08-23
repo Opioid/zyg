@@ -78,7 +78,7 @@ pub const Provider = struct {
         const root = document.root;
 
         var material = try self.loadMaterial(alloc, root, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
         return material;
     }
 
@@ -94,7 +94,7 @@ pub const Provider = struct {
         const value = @intToPtr(*std.json.Value, data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
         return material;
     }
 
@@ -113,7 +113,7 @@ pub const Provider = struct {
             else => {},
         }
 
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
     }
 
     pub fn createFallbackMaterial() Material {

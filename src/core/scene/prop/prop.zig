@@ -58,7 +58,7 @@ pub const Prop = struct {
         self.properties.set(.VisibleInShadow, in_shadow);
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
         self.shape = shape;
 
         self.properties.clear();
@@ -80,7 +80,7 @@ pub const Prop = struct {
         }
     }
 
-    pub fn configureAnimated(self: *Prop, scene: Scene) void {
+    pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
         const shape_inst = scene.shape(self.shape);
 
         self.properties.set(.TestAABB, shape_inst.finite());

@@ -57,7 +57,7 @@ pub const Material = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) !void {
+    pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         self.average_emission = @splat(4, @as(f32, -1.0));
 
         self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
@@ -97,7 +97,7 @@ pub const Material = struct {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
         if (self.average_emission[0] >= 0.0) {
@@ -121,7 +121,7 @@ pub const Material = struct {
         {
             var context = LuminanceContext{
                 .material = self,
-                .scene = &scene,
+                .scene = scene,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
                     return @splat(4, @as(f32, 0.0)),
@@ -173,7 +173,7 @@ pub const Material = struct {
         return .{ .Null = Null.init(wo, rs) };
     }
 
-    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) Vec4f {
+    pub fn evaluateRadiance(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
@@ -211,7 +211,7 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) f32 {
+    pub fn density(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) f32 {
         if (self.density_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample3D_1(key, self.density_map, uvw, scene);
@@ -220,7 +220,7 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: Scene) CCE {
+    pub fn collisionCoefficientsEmission(self: Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {
@@ -263,7 +263,7 @@ const LuminanceContext = struct {
         const self = @intToPtr(*LuminanceContext, context);
         const mat = self.material;
 
-        const d = self.material.density_map.description(self.scene.*).dimensions;
+        const d = self.material.density_map.description(self.scene).dimensions;
         const width = @intCast(u32, d[0]);
         const height = @intCast(u32, d[1]);
 
@@ -282,13 +282,13 @@ const LuminanceContext = struct {
                             @intCast(i32, x),
                             @intCast(i32, y),
                             @intCast(i32, z),
-                            self.scene.*,
+                            self.scene,
                         );
                         const t = mat.temperature_map.get3D_1(
                             @intCast(i32, x),
                             @intCast(i32, y),
                             @intCast(i32, z),
-                            self.scene.*,
+                            self.scene,
                         );
                         const c = mat.blackbody.eval(t);
                         const radiance = @splat(4, density[0] * density[1]) * c;

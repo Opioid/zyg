@@ -89,7 +89,7 @@ pub const Base = struct {
         self.properties.set(.ScatteringVolume, math.anyGreaterZero3(cc.s));
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: Scene) f32 {
+    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);

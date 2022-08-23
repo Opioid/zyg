@@ -114,7 +114,7 @@ pub const Perspective = struct {
         self.updateFocus(time, worker);
     }
 
-    pub fn generateRay(self: Self, sample: Sample, frame: u32, scene: Scene) Ray {
+    pub fn generateRay(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Ray {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -142,13 +142,13 @@ pub const Perspective = struct {
     }
 
     pub fn sampleTo(
-        self: Self,
+        self: *const Self,
         bounds: Vec4i,
         time: u64,
         p: Vec4f,
         sampler: *Sampler,
         rng: *RNG,
-        scene: Scene,
+        scene: *const Scene,
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
 
@@ -210,7 +210,7 @@ pub const Perspective = struct {
         };
     }
 
-    pub fn calculateRayDifferential(self: Self, p: Vec4f, time: u64, scene: Scene) RayDif {
+    pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
         const trafo = scene.propTransformationAt(self.entity, time);
 
         const p_w = trafo.position;
@@ -242,7 +242,7 @@ pub const Perspective = struct {
         return @as(u64, frame) * self.frame_step + fdi;
     }
 
-    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: Scene, resources: *Resources) !void {
+    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
         var motion_blur = true;
 
         var iter = value.Object.iterator();

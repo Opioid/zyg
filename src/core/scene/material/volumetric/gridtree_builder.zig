@@ -35,7 +35,7 @@ pub const Builder = struct {
         tree: *Gridtree,
         texture: Texture,
         cc: CC,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !void {
         const d = texture.description(scene).dimensions;
@@ -53,7 +53,7 @@ pub const Builder = struct {
             .num_cells = num_cells,
             .texture = texture,
             .cc = cc,
-            .scene = &scene,
+            .scene = scene,
         };
 
         defer {
@@ -128,7 +128,7 @@ const Splitter = struct {
         texture: Texture,
         cc: CC,
         depth: u32,
-        scene: Scene,
+        scene: *const Scene,
     ) SplitError!void {
         const d = texture.description(scene).dimensions;
 
@@ -310,7 +310,7 @@ const Context = struct {
                 self.texture,
                 self.cc,
                 0,
-                self.scene.*,
+                self.scene,
             ) catch {};
         }
     }

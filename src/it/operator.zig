@@ -34,7 +34,7 @@ pub const Operator = struct {
             return;
         }
 
-        const desc = self.textures.items[0].description(self.scene.*);
+        const desc = self.textures.items[0].description(self.scene);
 
         try self.target.resize(alloc, desc);
     }
@@ -55,7 +55,7 @@ pub const Operator = struct {
     pub fn run(self: Self, threads: *Threads) void {
         const texture = self.textures.items[self.current];
 
-        const dim = texture.description(self.scene.*).dimensions;
+        const dim = texture.description(self.scene).dimensions;
 
         _ = threads.runRange(&self, runRange, 0, @intCast(u32, dim[1]), 0);
     }
@@ -69,7 +69,7 @@ pub const Operator = struct {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];
 
-            const dim = texture_a.description(self.scene.*).dimensions;
+            const dim = texture_a.description(self.scene).dimensions;
             const width = dim[0];
 
             var y = begin;
@@ -80,8 +80,8 @@ pub const Operator = struct {
                 while (x < width) : (x += 1) {
                     const ix = @intCast(i32, x);
 
-                    const color_a = texture_a.get2D_4(ix, iy, self.scene.*);
-                    const color_b = texture_b.get2D_4(ix, iy, self.scene.*);
+                    const color_a = texture_a.get2D_4(ix, iy, self.scene);
+                    const color_b = texture_b.get2D_4(ix, iy, self.scene);
 
                     const dif = @fabs(color_a - color_b);
 
@@ -92,7 +92,7 @@ pub const Operator = struct {
             const current = self.current;
             const texture = self.textures.items[current];
 
-            const dim = texture.description(self.scene.*).dimensions;
+            const dim = texture.description(self.scene).dimensions;
             const width = dim[0];
 
             const factor = @splat(4, if (.Average == self.class) 1.0 / @intToFloat(f32, self.textures.items.len) else 1.0);
@@ -105,14 +105,14 @@ pub const Operator = struct {
                 while (x < width) : (x += 1) {
                     const ix = @intCast(i32, x);
 
-                    const source = texture.get2D_4(ix, iy, self.scene.*);
+                    const source = texture.get2D_4(ix, iy, self.scene);
 
                     const color = switch (self.class) {
                         .Add, .Average => blk: {
                             var color = factor * source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
-                                const other = t.get2D_4(ix, iy, self.scene.*);
+                                const other = t.get2D_4(ix, iy, self.scene);
                                 color += factor * other;
                             }
 
@@ -122,7 +122,7 @@ pub const Operator = struct {
                             var color = source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
-                                const other = t.get2D_4(ix, iy, self.scene.*);
+                                const other = t.get2D_4(ix, iy, self.scene);
                                 color += other * @splat(4, 1.0 - color[3]);
                             }
 

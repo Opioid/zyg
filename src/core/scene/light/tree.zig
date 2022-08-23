@@ -288,7 +288,7 @@ pub const Tree = struct {
         total_sphere: bool,
         random: f32,
         split: bool,
-        scene: Scene,
+        scene: *const Scene,
         buffer: *Lights,
     ) []Pick {
         var current_light: u32 = 0;
@@ -385,7 +385,7 @@ pub const Tree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: Scene) f32 {
+    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
         const lo = self.light_orders[id];
         const num_infinite_lights = self.num_infinite_lights;
 

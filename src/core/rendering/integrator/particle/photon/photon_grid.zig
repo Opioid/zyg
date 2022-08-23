@@ -532,7 +532,7 @@ pub const Grid = struct {
         self.num_paths = @intToFloat(f64, num_paths);
     }
 
-    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -588,7 +588,7 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
-    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -679,7 +679,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, scene: Scene) Vec4f {
+    fn scatteringCoefficient(isec: Intersection, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {

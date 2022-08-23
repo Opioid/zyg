@@ -198,11 +198,11 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene.*),
+            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.scene),
+            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.scene),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene),
             .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
         };
     }
@@ -417,7 +417,7 @@ pub const Shape = union(enum) {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         return switch (self.*) {
