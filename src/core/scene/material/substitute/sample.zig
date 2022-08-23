@@ -81,7 +81,7 @@ pub const Sample = struct {
         self.volumetric = false;
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         if (self.volumetric) {
             return self.volumetricEvaluate(wi);
         }
@@ -132,7 +132,7 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
         var result = bxdf.Sample{ .wavelength = 0.0 };
 
         const th = self.thickness;
@@ -186,7 +186,7 @@ pub const Sample = struct {
         return result;
     }
 
-    fn baseEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+    fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const alpha = self.super.alpha;
 
         const n_dot_wi = self.super.frame.clampNdot(wi);
@@ -225,7 +225,7 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms), pdf);
     }
 
-    fn pureGlossEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+    fn pureGlossEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const alpha = self.super.alpha;
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
@@ -254,7 +254,7 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
 
-    fn baseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn baseSample(self: *const Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
         if (1.0 == self.metallic) {
             const xi = sampler.sample2D(rng);
             self.pureGlossSample(xi, result);
@@ -270,7 +270,7 @@ pub const Sample = struct {
         }
     }
 
-    fn coatingSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn coatingSample(self: *const Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
         var n_dot_h: f32 = undefined;
         const f = self.coating.sample(self.super.wo, sampler.sample2D(rng), &n_dot_h, result);
 
@@ -294,7 +294,7 @@ pub const Sample = struct {
         }
     }
 
-    fn diffuseSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
+    fn diffuseSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
@@ -336,7 +336,7 @@ pub const Sample = struct {
         result.pdf = 0.5 * (result.pdf + gg.pdf());
     }
 
-    fn glossSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
+    fn glossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
@@ -368,7 +368,7 @@ pub const Sample = struct {
         result.pdf = 0.5 * (result.pdf + d.pdf());
     }
 
-    fn pureGlossSample(self: Sample, xi: Vec2f, result: *bxdf.Sample) void {
+    fn pureGlossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
 
@@ -390,7 +390,7 @@ pub const Sample = struct {
         result.reflection *= @splat(4, n_dot_wi);
     }
 
-    fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
+    fn coatingReflect(self: *const Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const n_dot_wo = self.coating.frame.clampAbsNdot(self.super.wo);
 
@@ -415,10 +415,10 @@ pub const Sample = struct {
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
     }
 
-    const SampleFunc = *const fn (self: Sample, xi: Vec2f, result: *bxdf.Sample) void;
+    const SampleFunc = *const fn (self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void;
 
     fn coatingBaseSample(
-        self: Sample,
+        self: *const Sample,
         sampleFunc: SampleFunc,
         xi: Vec2f,
         f: f32,
@@ -442,7 +442,7 @@ pub const Sample = struct {
         return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
     }
 
-    fn volumetricEvaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    fn volumetricEvaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return bxdf.Result.empty();
