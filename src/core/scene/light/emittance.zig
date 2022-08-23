@@ -65,11 +65,19 @@ pub const Emittance = struct {
         self.quantity = Quantity.Radiance;
     }
 
-    fn dirToLatlongUv(v: Vec4f) Vec2f {
-        return .{
-            std.math.atan2(f32, v[0], v[2]) / (2.0 * std.math.pi),
-            std.math.acos(-v[1]) / std.math.pi,
-        };
+    fn signNotZero(v: Vec2f) Vec2f {
+        return .{ std.math.copysign(@as(f32, 1.0), v[0]), std.math.copysign(@as(f32, 1.0), v[1]) };
+    }
+
+    fn octEncode(v: Vec4f) Vec2f {
+        const linorm = @fabs(v[0]) + @fabs(v[1]) + @fabs(v[2]);
+        var o = Vec2f{ v[0], v[1] } * @splat(2, 1.0 / linorm);
+
+        if (v[2] >= 0.0) {
+            return (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(Vec2f{ o[0], o[1] });
+        }
+
+        return o;
     }
 
     pub fn radiance(
@@ -86,10 +94,13 @@ pub const Emittance = struct {
 
             const key = ts.Key{
                 .filter = filter orelse .Linear,
-                .address = .{ .u = .Repeat, .v = .Clamp },
+                .address = .{ .u = .Repeat, .v = .Repeat },
             };
 
-            pf = ts.sample2D_1(key, self.profile, dirToLatlongUv(lwi), scene);
+            const o = octEncode(lwi);
+            const ouv = (o + @splat(2, @as(f32, 1.0))) * @splat(2, @as(f32, 0.5));
+
+            pf = ts.sample2D_1(key, self.profile, ouv, scene);
         }
 
         if (@fabs(math.dot3(wi, trafo.rotation.r[2])) < self.cos_a) {

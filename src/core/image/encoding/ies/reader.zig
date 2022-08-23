@@ -338,7 +338,7 @@ pub const Reader = struct {
             mi = @maximum(mi, v);
         }
 
-        const d = Vec2i{ 1024, 512 };
+        const d = Vec2i{ 512, 512 };
 
         var image = try img.Byte1.init(alloc, img.Description.init2D(d));
 
@@ -349,16 +349,16 @@ pub const Reader = struct {
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
             const v = idf[1] * (@intToFloat(f32, y) + 0.5);
-            const theta = v * std.math.pi;
 
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
-                const phi = u * (2.0 * std.math.pi);
 
-                const latlong = rotateLatlong(phi, theta);
+                const dir = octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
 
-                const value = data.sample(latlong[0], latlong[1]);
+                const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });
+
+                const value = data.sample(ll[0], ll[1]);
 
                 image.set2D(x, y, encoding.floatToUnorm(math.saturate(value * imi)));
             }
@@ -367,18 +367,28 @@ pub const Reader = struct {
         return Image{ .Byte1 = image };
     }
 
-    fn rotateLatlong(phi: f32, theta: f32) Vec2f {
-        const sin_phi = @sin(phi);
-        const cos_phi = @cos(phi);
-        const sin_theta = @sin(theta);
-        const cos_theta = @cos(theta);
-
-        const lat = std.math.atan2(f32, sin_phi * sin_theta, cos_theta);
+    fn dirToLatlong(v: Vec4f) Vec2f {
+        const phi = std.math.atan2(f32, v[0], v[2]);
 
         return .{
-            if (lat < 0) lat + 2.0 * std.math.pi else lat,
-            std.math.acos(-cos_phi * sin_theta),
+            if (phi < 0) (2.0 * std.math.pi) + phi else phi,
+            std.math.acos(v[1]),
         };
+    }
+
+    fn signNotZero(v: Vec2f) Vec2f {
+        return .{ std.math.copysign(@as(f32, 1.0), v[0]), std.math.copysign(@as(f32, 1.0), v[1]) };
+    }
+
+    fn octDecode(o: Vec2f) Vec4f {
+        var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]) };
+        if (v[2] >= 0.0) {
+            const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ v[1], v[0] })) * signNotZero(Vec2f{ v[0], v[1] });
+            v[0] = xy[0];
+            v[1] = xy[1];
+        }
+
+        return math.normalize3(v);
     }
 
     fn nextToken(it: *std.mem.TokenIterator(u8), stream: *ReadStream, buf: []u8) !?[]const u8 {
