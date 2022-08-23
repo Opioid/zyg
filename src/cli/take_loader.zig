@@ -93,7 +93,8 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
     const root = document.root;
 
     if (root.Object.get("camera")) |camera_node| {
-        if (camera_node.Object.iterator().next()) |type_value| {
+        var iter = camera_node.Object.iterator();
+        if (iter.next()) |type_value| {
             var trafo = Transformation{
                 .position = @splat(4, @as(f32, 0.0)),
                 .scale = @splat(4, @as(f32, 1.0)),
@@ -239,7 +240,8 @@ fn loadSampler(value: std.json.Value, view: *View) void {
 
 fn loadPostProcessors(value: std.json.Value, view: *View) void {
     for (value.Array.items) |pp| {
-        if (pp.Object.iterator().next()) |entry| {
+        var iter = pp.Object.iterator();
+        if (iter.next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
                 view.camera.sensor.basePtr().tonemapper = loadTonemapper(entry.value_ptr.*);
             }

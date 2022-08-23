@@ -55,8 +55,8 @@ pub const StdOut = struct {
 };
 
 pub const CFunc = struct {
-    pub const Start = fn (resolution: u32) callconv(.C) void;
-    pub const Tick = fn () callconv(.C) void;
+    pub const Start = *const fn (resolution: u32) callconv(.C) void;
+    pub const Tick = *const fn () callconv(.C) void;
 
     start_func: Start,
     tick_func: Tick,

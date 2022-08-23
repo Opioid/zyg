@@ -225,7 +225,7 @@ pub const Sphere = struct {
             ro.offsetRay(ws, wn),
             wn,
             dir,
-            .{ 0.0, 0.0 },
+            .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             trafo,
             1.0 / (std.math.pi * area),

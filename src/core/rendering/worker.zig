@@ -137,19 +137,16 @@ pub const Worker = struct {
 
                     self.aov.clear();
 
-                    if (camera.generateRay(sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+                    var ray = camera.generateRay(sample, frame, scene.*);
+                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
 
-                        var photon = self.photon;
-                        if (photon[3] > 0.0) {
-                            photon /= @splat(4, photon[3]);
-                            photon[3] = 0.0;
-                        }
-
-                        sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
-                    } else {
-                        sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov, crop, isolated_bounds);
+                    var photon = self.photon;
+                    if (photon[3] > 0.0) {
+                        photon /= @splat(4, photon[3]);
+                        photon[3] = 0.0;
                     }
+
+                    sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
                 }
             }
         }

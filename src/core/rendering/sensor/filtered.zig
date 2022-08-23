@@ -9,7 +9,7 @@ const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-pub fn Filtered(comptime T: type, N: comptime_int) type {
+pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 

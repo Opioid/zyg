@@ -381,7 +381,7 @@ pub const Reader = struct {
     }
 
     fn octDecode(o: Vec2f) Vec4f {
-        var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]) };
+        var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
         if (v[2] >= 0.0) {
             const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ v[1], v[0] })) * signNotZero(Vec2f{ v[0], v[1] });
             v[0] = xy[0];

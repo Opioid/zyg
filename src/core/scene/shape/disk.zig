@@ -205,7 +205,7 @@ pub const Disk = struct {
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, trafo, 1.0 / (std.math.pi * area));
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, 1.0 / (std.math.pi * area));
         } else {
             var dir = math.smpl.orientedConeUniform(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
@@ -216,7 +216,7 @@ pub const Disk = struct {
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, trafo, pdf / area);
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, pdf / area);
         }
     }
 };

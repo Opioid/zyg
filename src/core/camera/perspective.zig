@@ -114,7 +114,7 @@ pub const Perspective = struct {
         self.updateFocus(time, worker);
     }
 
-    pub fn generateRay(self: Self, sample: Sample, frame: u32, scene: Scene) ?Ray {
+    pub fn generateRay(self: Self, sample: Sample, frame: u32, scene: Scene) Ray {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);

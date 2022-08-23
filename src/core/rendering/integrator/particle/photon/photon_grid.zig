@@ -632,7 +632,7 @@ pub const Grid = struct {
 
                     const bxdf = sample.evaluate(p.wi);
 
-                    result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                    result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
 
                 const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
@@ -653,7 +653,7 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                         const k = coneFilter(entry.d2, inv_max_radius2);
 
@@ -661,7 +661,7 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }
                 }
 
