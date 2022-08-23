@@ -15,7 +15,7 @@ pub const Interface = struct {
     uv: Vec2f,
 
     pub fn material(self: Interface, scene: Scene) Material {
-        return scene.propMaterial(self.prop, self.part);
+        return scene.propMaterial(self.prop, self.part).*;
     }
 
     pub fn matches(self: Interface, isec: Intersection) bool {

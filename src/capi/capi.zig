@@ -366,7 +366,7 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
             return -3;
         }
 
-        var material = e.scene.materialPtr(id);
+        var material = e.scene.material(id);
 
         e.resources.materials.provider.updateMaterial(
             e.alloc,

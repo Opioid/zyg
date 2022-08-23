@@ -462,7 +462,7 @@ pub const Scene = struct {
         volume: bool,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShapePtr(entity);
+        var shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -548,11 +548,7 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
-    pub fn propShape(self: Scene, entity: usize) Shape {
-        return self.shapes.items[self.props.items[entity].shape];
-    }
-
-    pub fn propShapePtr(self: Scene, entity: usize) *Shape {
+    pub fn propShape(self: Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
@@ -561,12 +557,7 @@ pub const Scene = struct {
         return self.material_ids.items[p];
     }
 
-    pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
-        const p = self.prop_parts.items[entity] + part;
-        return self.materials.items[self.material_ids.items[p]];
-    }
-
-    pub fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
+    pub fn propMaterial(self: Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
@@ -584,11 +575,7 @@ pub const Scene = struct {
         return &self.images.items[image_id];
     }
 
-    pub fn material(self: Scene, material_id: u32) Material {
-        return self.materials.items[material_id];
-    }
-
-    pub fn materialPtr(self: Scene, material_id: u32) *Material {
+    pub fn material(self: Scene, material_id: u32) *Material {
         return &self.materials.items[material_id];
     }
 

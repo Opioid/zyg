@@ -142,7 +142,7 @@ pub const Part = struct {
             self.cones = cones;
         }
 
-        const m = scene.materialPtr(material);
+        const m = scene.material(material);
 
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
