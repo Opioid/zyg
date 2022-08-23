@@ -462,7 +462,7 @@ pub const Scene = struct {
         volume: bool,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShapePtr(entity);
+        var shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -548,11 +548,7 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
-    pub inline fn propShape(self: *const Scene, entity: usize) Shape {
-        return self.shapes.items[self.props.items[entity].shape];
-    }
-
-    pub inline fn propShapePtr(self: *const Scene, entity: usize) *Shape {
+    pub inline fn propShape(self: *const Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
@@ -561,12 +557,7 @@ pub const Scene = struct {
         return self.material_ids.items[p];
     }
 
-    pub inline fn propMaterial(self: *const Scene, entity: usize, part: u32) Material {
-        const p = self.prop_parts.items[entity] + part;
-        return self.materials.items[self.material_ids.items[p]];
-    }
-
-    pub inline fn propMaterialPtr(self: *const Scene, entity: usize, part: u32) *Material {
+    pub inline fn propMaterial(self: *const Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
@@ -584,16 +575,12 @@ pub const Scene = struct {
         return &self.images.items[image_id];
     }
 
-    pub inline fn material(self: *const Scene, material_id: u32) Material {
-        return self.materials.items[material_id];
-    }
-
-    pub inline fn materialPtr(self: *const Scene, material_id: u32) *Material {
+    pub inline fn material(self: *const Scene, material_id: u32) *Material {
         return &self.materials.items[material_id];
     }
 
-    pub inline fn shape(self: *const Scene, shape_id: u32) Shape {
-        return self.shapes.items[shape_id];
+    pub inline fn shape(self: *const Scene, shape_id: u32) *Shape {
+        return &self.shapes.items[shape_id];
     }
 
     pub inline fn prop(self: *const Scene, index: u32) Prop {

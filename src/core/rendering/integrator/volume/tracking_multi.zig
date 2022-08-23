@@ -60,7 +60,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker.*);
+            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 

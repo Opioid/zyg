@@ -144,18 +144,18 @@ pub const Sky = struct {
                 }
             }
 
-            scene.propMaterialPtr(self.sun, 0).Sky.setSunRadianceZero();
+            scene.propMaterial(self.sun, 0).Sky.setSunRadianceZero();
 
             log.err("Could not initialize sky model", .{});
             return;
         };
         defer model.deinit();
 
-        scene.propMaterialPtr(self.sun, 0).Sky.setSunRadiance(model);
+        scene.propMaterial(self.sun, 0).Sky.setSunRadiance(model);
 
         var context = SkyContext{
             .model = &model,
-            .shape = scene.propShapePtr(self.sky),
+            .shape = scene.propShape(self.sky),
             .image = scene.imagePtr(self.sky_image),
             .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
         };

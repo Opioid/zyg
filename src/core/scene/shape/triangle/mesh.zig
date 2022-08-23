@@ -90,7 +90,7 @@ pub const Part = struct {
         alloc: Allocator,
         part: u32,
         material: u32,
-        tree: bvh.Tree,
+        tree: *const bvh.Tree,
         builder: *LightTreeBuilder,
         scene: *const Scene,
         threads: *Threads,
@@ -142,7 +142,7 @@ pub const Part = struct {
             self.cones = cones;
         }
 
-        const m = scene.materialPtr(material);
+        const m = scene.material(material);
 
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
@@ -160,7 +160,7 @@ pub const Part = struct {
             .powers = try alloc.alloc(f32, num),
             .part = self,
             .m = m,
-            .tree = &tree,
+            .tree = tree,
             .scene = scene,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
@@ -396,11 +396,11 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn numParts(self: Mesh) u32 {
+    pub fn numParts(self: *const Mesh) u32 {
         return @intCast(u32, self.parts.len);
     }
 
-    pub fn numMaterials(self: Mesh) u32 {
+    pub fn numMaterials(self: *const Mesh) u32 {
         var id: u32 = 0;
 
         for (self.parts) |p| {
@@ -410,7 +410,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: *const Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 
@@ -418,21 +418,21 @@ pub const Mesh = struct {
         self.parts[part].material = material;
     }
 
-    pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
+    pub fn area(self: *const Mesh, part: u32, scale: Vec4f) f32 {
         // HACK: This only really works for uniform scales!
         return self.parts[part].area * (scale[0] * scale[1]);
     }
 
-    pub fn partAabb(self: Mesh, part: u32, variant: u32) AABB {
+    pub fn partAabb(self: *const Mesh, part: u32, variant: u32) AABB {
         return self.parts[part].aabb(variant);
     }
 
-    pub fn cone(self: Mesh, part: u32, variant: u32) Vec4f {
+    pub fn cone(self: *const Mesh, part: u32, variant: u32) Vec4f {
         return self.parts[part].cone(variant);
     }
 
     pub fn intersect(
-        self: Mesh,
+        self: *const Mesh,
         ray: *Ray,
         trafo: Trafo,
         ipo: Interpolation,
@@ -486,7 +486,7 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         var tray = Ray.init(
             trafo.worldToObjectPoint(ray.origin),
             trafo.worldToObjectVector(ray.direction),
@@ -498,7 +498,7 @@ pub const Mesh = struct {
     }
 
     pub fn visibility(
-        self: Mesh,
+        self: *const Mesh,
         ray: Ray,
         trafo: Trafo,
         entity: usize,
@@ -516,7 +516,7 @@ pub const Mesh = struct {
     }
 
     pub fn sampleTo(
-        self: Mesh,
+        self: *const Mesh,
         part: u32,
         variant: u32,
         p: Vec4f,
@@ -572,7 +572,7 @@ pub const Mesh = struct {
     }
 
     pub fn sampleFrom(
-        self: Mesh,
+        self: *const Mesh,
         part: u32,
         variant: u32,
         trafo: Trafo,
@@ -614,7 +614,7 @@ pub const Mesh = struct {
     }
 
     pub fn pdf(
-        self: Mesh,
+        self: *const Mesh,
         variant: u32,
         ray: Ray,
         n: Vec4f,
@@ -665,10 +665,10 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {
+    pub fn differentialSurface(self: *const Mesh, primitive: u32) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(primitive);
 
         const duv02 = puv.uv[0] - puv.uv[2];

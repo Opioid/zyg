@@ -33,15 +33,15 @@ pub const Tree = struct {
         alloc.free(self.nodes);
     }
 
-    pub fn numTriangles(self: Tree) u32 {
+    pub fn numTriangles(self: *const Tree) u32 {
         return self.data.num_triangles;
     }
 
-    pub fn aabb(self: Tree) AABB {
+    pub fn aabb(self: *const Tree) AABB {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) ?Intersection {
+    pub fn intersect(self: *const Tree, ray: Ray) ?Intersection {
         var tray = ray;
 
         var stack = NodeStack{};
@@ -99,7 +99,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn intersectP(self: Tree, ray: Ray) bool {
+    pub fn intersectP(self: *const Tree, ray: Ray) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -145,7 +145,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 

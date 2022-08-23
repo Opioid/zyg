@@ -33,7 +33,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
     }
 
     if (material.volumetricTree()) |tree| {
-        var local_ray = texturespaceRay(ray, interface.prop, worker.*);
+        var local_ray = texturespaceRay(ray, interface.prop, worker);
 
         const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -66,7 +66,7 @@ fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
     cm: CM,
-    material: Material,
+    material: *const Material,
     srs: f32,
     filter: ?Filter,
     worker: *Worker,
@@ -128,7 +128,7 @@ fn residualRatioTrackingTransmitted(
     ray: Ray,
     minorant_mu_t: f32,
     majorant_mu_t: f32,
-    material: Material,
+    material: *const Material,
     srs: f32,
     filter: ?Filter,
     worker: *Worker,
@@ -291,7 +291,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
 pub fn trackingHetero(
     ray: Ray,
     cm: CM,
-    material: Material,
+    material: *const Material,
     srs: f32,
     w: Vec4f,
     filter: ?Filter,
@@ -351,7 +351,7 @@ pub fn trackingHetero(
 pub fn trackingHeteroEmission(
     ray: Ray,
     cm: CM,
-    material: Material,
+    material: *const Material,
     srs: f32,
     w: Vec4f,
     filter: ?Filter,
@@ -421,7 +421,7 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: Worker) Ray {
+pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: *const Worker) Ray {
     const trafo = worker.scene.propTransformationAt(entity, ray.time);
 
     const local_origin = trafo.worldToObjectPoint(ray.ray.origin);

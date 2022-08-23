@@ -18,11 +18,11 @@ pub const Intersection = struct {
 
     const Self = @This();
 
-    pub fn material(self: Self, scene: *const Scene) mat.Material {
+    pub fn material(self: Self, scene: *const Scene) *const mat.Material {
         return scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn shape(self: Self, scene: *const Scene) Shape {
+    pub fn shape(self: Self, scene: *const Scene) *Shape {
         return scene.propShape(self.prop);
     }
 

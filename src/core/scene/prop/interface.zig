@@ -14,7 +14,7 @@ pub const Interface = struct {
     part: u32,
     uv: Vec2f,
 
-    pub fn material(self: Interface, scene: *const Scene) Material {
+    pub fn material(self: Interface, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
     }
 
