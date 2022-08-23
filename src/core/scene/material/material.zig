@@ -88,11 +88,11 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn masked(self: Material) bool {
+    pub inline fn masked(self: Material) bool {
         return self.super().mask.valid();
     }
 
-    pub fn twoSided(self: Material) bool {
+    pub inline fn twoSided(self: Material) bool {
         return switch (self) {
             .Debug => true,
             .Glass => |m| m.thickness > 0.0,
@@ -102,18 +102,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn caustic(self: Material) bool {
+    pub inline fn caustic(self: Material) bool {
         return self.super().properties.is(.Caustic);
     }
 
-    pub fn tintedShadow(self: Material) bool {
+    pub inline fn tintedShadow(self: Material) bool {
         return switch (self) {
             .Glass => |m| m.thickness > 0.0,
             else => false,
         };
     }
 
-    pub fn emissive(self: Material) bool {
+    pub inline fn emissive(self: Material) bool {
         return switch (self) {
             .Sky => true,
             .Light => |m| math.anyGreaterZero3(m.super.emittance.value),
@@ -123,18 +123,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn emissionMapped(self: Material) bool {
+    pub inline fn emissionMapped(self: Material) bool {
         return self.super().properties.is(.EmissionMap);
     }
 
-    pub fn pureEmissive(self: Material) bool {
+    pub inline fn pureEmissive(self: Material) bool {
         return switch (self) {
             .Light, .Sky => true,
             else => false,
         };
     }
 
-    pub fn scatteringVolume(self: Material) bool {
+    pub inline fn scatteringVolume(self: Material) bool {
         return switch (self) {
             .Substitute => |m| m.super.properties.is(.ScatteringVolume),
             .Volumetric => |m| m.super.properties.is(.ScatteringVolume),
@@ -142,21 +142,21 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn heterogeneousVolume(self: Material) bool {
+    pub inline fn heterogeneousVolume(self: Material) bool {
         return switch (self) {
             .Volumetric => |m| m.density_map.valid(),
             else => false,
         };
     }
 
-    pub fn volumetricTree(self: Material) ?Gridtree {
+    pub inline fn volumetricTree(self: Material) ?Gridtree {
         return switch (self) {
             .Volumetric => |m| if (m.density_map.valid()) m.tree else null,
             else => null,
         };
     }
 
-    pub fn ior(self: Material) f32 {
+    pub inline fn ior(self: Material) f32 {
         return self.super().ior;
     }
 

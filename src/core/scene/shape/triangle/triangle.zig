@@ -24,7 +24,7 @@ pub inline fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
     return @maximum(a, @maximum(b, c));
 }
 
-pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
+pub inline fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
     const e1 = b - a;
     const e2 = c - a;
 
@@ -52,7 +52,7 @@ pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
     return null;
 }
 
-pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
+pub inline fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
     const e1 = b - a;
     const e2 = c - a;
 

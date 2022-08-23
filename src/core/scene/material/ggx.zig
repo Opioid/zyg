@@ -28,7 +28,7 @@ const E_s_tex = math.InterpolatedFunction3D_N(
     integral.E_s_size,
 ).fromArray(&integral.E_s);
 
-pub fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, ior: f32) f32 {
+pub inline fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, ior: f32) f32 {
     return 1.0 / E_s_tex.eval(n_dot_wo, alpha, ior - 1.0);
 }
 
@@ -46,11 +46,11 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
     return @splat(4, m) * f;
 }
 
-pub fn clampRoughness(roughness: f32) f32 {
+pub inline fn clampRoughness(roughness: f32) f32 {
     return std.math.max(roughness, Min_roughness);
 }
 
-pub fn mapRoughness(roughness: f32) f32 {
+pub inline fn mapRoughness(roughness: f32) f32 {
     return roughness * (1.0 - Min_roughness) + Min_roughness;
 }
 
@@ -232,12 +232,12 @@ pub const Iso = struct {
         return n_dot_wi;
     }
 
-    fn distribution(n_dot_h: f32, a2: f32) f32 {
+    inline fn distribution(n_dot_h: f32, a2: f32) f32 {
         const d = (n_dot_h * n_dot_h) * (a2 - 1.0) + 1.0;
         return a2 / (std.math.pi * d * d);
     }
 
-    fn visibilityAndG1Wo(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) Vec2f {
+    inline fn visibilityAndG1Wo(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) Vec2f {
         const n_dot = Vec4f{ n_dot_wi, n_dot_wo, 0.0, 0.0 };
         const a2 = @splat(4, alpha2);
 
@@ -249,7 +249,7 @@ pub const Iso = struct {
         return .{ 0.5 / (n_dot_wi * t_wo + n_dot_wo * t_wi), t_wo + n_dot_wo };
     }
 
-    fn gSmithCorrelated(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) f32 {
+    inline fn gSmithCorrelated(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) f32 {
         const a = n_dot_wo * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wi * n_dot_wi));
         const b = n_dot_wi * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wo * n_dot_wo));
 
@@ -435,7 +435,7 @@ pub const Aniso = struct {
         return h;
     }
 
-    fn distribution(n_dot_h: f32, x_dot_h: f32, y_dot_h: f32, a: Vec2f) f32 {
+    inline fn distribution(n_dot_h: f32, x_dot_h: f32, y_dot_h: f32, a: Vec2f) f32 {
         const a2 = a * a;
 
         const x = (x_dot_h * x_dot_h) / a2[0];
@@ -445,7 +445,7 @@ pub const Aniso = struct {
         return 1.0 / (std.math.pi * (a[0] * a[1]) * (d * d));
     }
 
-    fn visibilityAndG1Wo(
+    inline fn visibilityAndG1Wo(
         t_dot_wi: f32,
         t_dot_wo: f32,
         b_dot_wi: f32,
@@ -461,16 +461,16 @@ pub const Aniso = struct {
     }
 };
 
-fn pdfVisible(d: f32, g1_wo: f32) f32 {
+inline fn pdfVisible(d: f32, g1_wo: f32) f32 {
     return (0.5 * d) / g1_wo;
 }
 
-fn pdfVisibleRefract(n_dot_wo: f32, wo_dot_h: f32, d: f32, alpha2: f32) f32 {
+inline fn pdfVisibleRefract(n_dot_wo: f32, wo_dot_h: f32, d: f32, alpha2: f32) f32 {
     const g1 = G_ggx(n_dot_wo, alpha2);
 
     return (g1 * wo_dot_h * d / n_dot_wo);
 }
 
-fn G_ggx(n_dot_v: f32, alpha2: f32) f32 {
+inline fn G_ggx(n_dot_v: f32, alpha2: f32) f32 {
     return (2.0 * n_dot_v) / (n_dot_v + @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_v * n_dot_v)));
 }

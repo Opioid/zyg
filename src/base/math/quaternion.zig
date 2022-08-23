@@ -61,7 +61,7 @@ pub fn initRotationX(a: f32) Quaternion {
     return .{ @sin(a * 0.5), 0.0, 0.0, @cos(a * 0.5) };
 }
 
-pub fn toMat3x3(q: Quaternion) Mat3x3 {
+pub inline fn toMat3x3(q: Quaternion) Mat3x3 {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
@@ -107,7 +107,7 @@ pub fn toMat3x3(q: Quaternion) Mat3x3 {
     );
 }
 
-pub fn toTN(q: Quaternion) [2]Vec4f {
+pub inline fn toTN(q: Quaternion) [2]Vec4f {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
@@ -143,7 +143,7 @@ pub fn toTN(q: Quaternion) [2]Vec4f {
     return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
 
-pub fn toNormal(q: Quaternion) Vec4f {
+pub inline fn toNormal(q: Quaternion) Vec4f {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {
     //   float x  = q->x, y  = q->y, z  = q->z, w  = q->w;
@@ -178,7 +178,7 @@ pub fn toNormal(q: Quaternion) Vec4f {
     return .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 };
 }
 
-pub fn mul(a: Quaternion, b: Quaternion) Quaternion {
+pub inline fn mul(a: Quaternion, b: Quaternion) Quaternion {
     return .{
         (a[3] * b[0] + a[0] * b[3]) + (a[1] * b[2] - a[2] * b[1]),
         (a[3] * b[1] + a[1] * b[3]) + (a[2] * b[0] - a[0] * b[2]),
@@ -187,7 +187,7 @@ pub fn mul(a: Quaternion, b: Quaternion) Quaternion {
     };
 }
 
-pub fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
+pub inline fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
     // calc cosine theta
     var cosom = (a[0] * b[0] + a[1] * b[1]) + (a[2] * b[2] + a[3] * b[3]);
 

@@ -79,7 +79,7 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn intersect(self: Self, ray: Ray, index: usize) ?triangle.Intersection {
+    pub inline fn intersect(self: Self, ray: Ray, index: usize) ?triangle.Intersection {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
@@ -89,7 +89,7 @@ pub const Indexed_data = struct {
         return triangle.intersect(ray, ap, bp, cp);
     }
 
-    pub fn intersectP(self: Self, ray: Ray, index: usize) bool {
+    pub inline fn intersectP(self: Self, ray: Ray, index: usize) bool {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
@@ -99,7 +99,7 @@ pub const Indexed_data = struct {
         return triangle.intersectP(ray, ap, bp, cp);
     }
 
-    pub fn interpolateP(self: Self, u: f32, v: f32, index: u32) Vec4f {
+    pub inline fn interpolateP(self: Self, u: f32, v: f32, index: u32) Vec4f {
         const tri = self.triangles[index];
 
         const a = self.positions[tri.a];
@@ -109,7 +109,7 @@ pub const Indexed_data = struct {
         return triangle.interpolate3(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
+    pub inline fn interpolateData(self: Self, u: f32, v: f32, index: u32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
         const tri = self.triangles[index];
 
         const tna = quaternion.toTN(self.frames[tri.a]);
@@ -138,7 +138,7 @@ pub const Indexed_data = struct {
         uv.* = Vec2f{ tu[3], nv[3] };
     }
 
-    pub fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
+    pub inline fn interpolateShadingNormal(self: Self, u: f32, v: f32, index: u32) Vec4f {
         const tri = self.triangles[index];
 
         const a = quaternion.toNormal(self.frames[tri.a]);
@@ -148,7 +148,7 @@ pub const Indexed_data = struct {
         return math.normalize3(triangle.interpolate3(a, b, c, u, v));
     }
 
-    pub fn interpolateUv(self: Self, u: f32, v: f32, index: u32) Vec2f {
+    pub inline fn interpolateUv(self: Self, u: f32, v: f32, index: u32) Vec2f {
         const tri = self.triangles[index];
 
         const uva = self.uvs[tri.a];
@@ -158,11 +158,11 @@ pub const Indexed_data = struct {
         return triangle.interpolate2(uva, uvb, uvc, u, v);
     }
 
-    pub fn part(self: Self, index: u32) u32 {
+    pub inline fn part(self: Self, index: u32) u32 {
         return self.triangles[index].part;
     }
 
-    pub fn normal(self: Self, index: u32) Vec4f {
+    pub inline fn normal(self: Self, index: u32) Vec4f {
         const tri = self.triangles[index];
 
         const a = self.positions[tri.a];
@@ -175,7 +175,7 @@ pub const Indexed_data = struct {
         return math.normalize3(math.cross3(e1, e2));
     }
 
-    pub fn bitangentSign(self: Self, index: u32) f32 {
+    pub inline fn bitangentSign(self: Self, index: u32) f32 {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
 
@@ -209,7 +209,7 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn sample(self: Self, index: u32, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
+    pub inline fn sample(self: Self, index: u32, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
         const uv = math.smpl.triangleUniform(r2);
 
         const tri = self.triangles[index];
