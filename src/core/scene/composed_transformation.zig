@@ -11,7 +11,7 @@ pub const ComposedTransformation = struct {
 
     const Self = @This();
 
-    pub inline fn init(t: Transformation) Self {
+    pub fn init(t: Transformation) Self {
         var self = Self{};
 
         self.rotation = quaternion.toMat3x3(t.rotation);
@@ -25,31 +25,31 @@ pub const ComposedTransformation = struct {
         return self;
     }
 
-    pub inline fn translate(self: *Self, v: Vec4f) void {
+    pub fn translate(self: *Self, v: Vec4f) void {
         self.position += v;
     }
 
-    pub inline fn scaleX(self: Self) f32 {
+    pub fn scaleX(self: Self) f32 {
         return self.rotation.r[0][3];
     }
 
-    pub inline fn scaleY(self: Self) f32 {
+    pub fn scaleY(self: Self) f32 {
         return self.rotation.r[1][3];
     }
 
-    pub inline fn scaleZ(self: Self) f32 {
+    pub fn scaleZ(self: Self) f32 {
         return self.rotation.r[2][3];
     }
 
-    pub inline fn scale(self: Self) Vec4f {
+    pub fn scale(self: Self) Vec4f {
         return .{ self.rotation.r[0][3], self.rotation.r[1][3], self.rotation.r[2][3], 0.0 };
     }
 
-    pub inline fn objectToWorld(self: Self) Mat4x4 {
+    pub fn objectToWorld(self: Self) Mat4x4 {
         return Mat4x4.compose(self.rotation, self.scale(), self.position);
     }
 
-    pub inline fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
+    pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
         const s = Vec4f{
             self.rotation.r[0][3],
             self.rotation.r[1][3],
@@ -78,15 +78,15 @@ pub const ComposedTransformation = struct {
         return result + temp;
     }
 
-    pub inline fn objectToWorldPoint(self: Self, p: Vec4f) Vec4f {
+    pub fn objectToWorldPoint(self: Self, p: Vec4f) Vec4f {
         return self.objectToWorldVector(p) + self.position;
     }
 
-    pub inline fn objectToWorldNormal(self: Self, n: Vec4f) Vec4f {
+    pub fn objectToWorldNormal(self: Self, n: Vec4f) Vec4f {
         return self.rotation.transformVector(n);
     }
 
-    pub inline fn worldToObjectVector(self: Self, v: Vec4f) Vec4f {
+    pub fn worldToObjectVector(self: Self, v: Vec4f) Vec4f {
         const x = v * self.rotation.r[0];
         const y = v * self.rotation.r[1];
         const z = v * self.rotation.r[2];
@@ -108,11 +108,11 @@ pub const ComposedTransformation = struct {
         return o / s;
     }
 
-    pub inline fn worldToObjectPoint(self: Self, p: Vec4f) Vec4f {
+    pub fn worldToObjectPoint(self: Self, p: Vec4f) Vec4f {
         return self.worldToObjectVector(p - self.position);
     }
 
-    pub inline fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {
+    pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {
         return self.rotation.transformVectorTransposed(n);
     }
 

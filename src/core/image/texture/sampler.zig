@@ -14,11 +14,11 @@ const Address = struct {
     u: AddressMode,
     v: AddressMode,
 
-    pub inline fn address2(self: Address, uv: Vec2f) Vec2f {
+    pub fn address2(self: Address, uv: Vec2f) Vec2f {
         return .{ self.u.f(uv[0]), self.v.f(uv[1]) };
     }
 
-    pub inline fn address3(self: Address, uvw: Vec4f) Vec4f {
+    pub fn address3(self: Address, uvw: Vec4f) Vec4f {
         return self.u.f3(uvw);
     }
 };
@@ -33,42 +33,42 @@ pub const Key = struct {
     address: Address = .{ .u = .Repeat, .v = .Repeat },
 };
 
-pub inline fn resolveKey(key: Key, filter: ?Filter) Key {
+pub fn resolveKey(key: Key, filter: ?Filter) Key {
     return .{
         .filter = filter orelse key.filter,
         .address = key.address,
     };
 }
 
-pub inline fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, scene: Scene) f32 {
+pub fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, scene: Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),
         .Linear => Linear2D.sample_1(texture, uv, key.address, scene),
     };
 }
 
-pub inline fn sample2D_2(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec2f {
+pub fn sample2D_2(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec2f {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_2(texture, uv, key.address, scene),
         .Linear => Linear2D.sample_2(texture, uv, key.address, scene),
     };
 }
 
-pub inline fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec4f {
+pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, scene: Scene) Vec4f {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
         .Linear => Linear2D.sample_3(texture, uv, key.address, scene),
     };
 }
 
-pub inline fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) f32 {
+pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_1(texture, uvw, key.address, scene),
         .Linear => Linear3D.sample_1(texture, uvw, key.address, scene),
     };
 }
 
-pub inline fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) Vec2f {
+pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) Vec2f {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_2(texture, uvw, key.address, scene),
         .Linear => Linear3D.sample_2(texture, uvw, key.address, scene),
@@ -94,7 +94,7 @@ const Nearest2D = struct {
         return texture.get2D_3(xy[0], xy[1], scene);
     }
 
-    inline fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
+    fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
         const df = math.vec2iTo2f(d);
 
         const u = adr.u.f(uv[0]);
@@ -136,7 +136,7 @@ const Linear2D = struct {
         return math.bilinear3(c, m.w[0], m.w[1]);
     }
 
-    inline fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
+    fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
         const df = math.vec2iTo2f(d);
 
         const u = adr.u.f(uv[0]) * df[0] - 0.5;
@@ -175,7 +175,7 @@ const Nearest3D = struct {
         return texture.get3D_2(xyz[0], xyz[1], xyz[2], scene);
     }
 
-    inline fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
+    fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
         const df = math.vec4iTo4f(d);
 
         const muvw = adr.u.f3(uvw);
@@ -223,7 +223,7 @@ const Linear3D = struct {
         return math.lerp2(@as([4]f32, cl)[0..2].*, @as([4]f32, cl)[2..4].*, m.w[2]);
     }
 
-    inline fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
+    fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
         const df = math.vec4iTo4f(d);
 
         const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };

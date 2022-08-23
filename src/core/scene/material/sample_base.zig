@@ -12,7 +12,7 @@ pub const Frame = struct {
     b: Vec4f,
     n: Vec4f,
 
-    pub inline fn swapped(self: Frame, same_side: bool) Frame {
+    pub fn swapped(self: Frame, same_side: bool) Frame {
         if (same_side) {
             return self;
         }
@@ -20,7 +20,7 @@ pub const Frame = struct {
         return .{ .t = self.t, .b = self.b, .n = -self.n };
     }
 
-    pub inline fn tangentToWorld(self: Frame, v: Vec4f) Vec4f {
+    pub fn tangentToWorld(self: Frame, v: Vec4f) Vec4f {
         // return .{
         //     v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
         //     v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
@@ -38,7 +38,7 @@ pub const Frame = struct {
         return result + temp;
     }
 
-    pub inline fn worldToTangent(self: Frame, v: Vec4f) Vec4f {
+    pub fn worldToTangent(self: Frame, v: Vec4f) Vec4f {
         const t = v * self.t;
         const b = v * self.b;
         const n = v * self.n;
@@ -51,32 +51,32 @@ pub const Frame = struct {
         };
     }
 
-    pub inline fn nDot(self: Frame, v: Vec4f) f32 {
+    pub fn nDot(self: Frame, v: Vec4f) f32 {
         return math.dot3(self.n, v);
     }
 
-    pub inline fn clampNdot(self: Frame, v: Vec4f) f32 {
+    pub fn clampNdot(self: Frame, v: Vec4f) f32 {
         return hlp.clampDot(self.n, v);
     }
 
-    pub inline fn clampAbsNdot(self: Frame, v: Vec4f) f32 {
+    pub fn clampAbsNdot(self: Frame, v: Vec4f) f32 {
         return hlp.clampAbsDot(self.n, v);
     }
 
-    pub inline fn setTangentFrame(self: *Frame, t: Vec4f, b: Vec4f, n: Vec4f) void {
+    pub fn setTangentFrame(self: *Frame, t: Vec4f, b: Vec4f, n: Vec4f) void {
         self.t = t;
         self.b = b;
         self.n = n;
     }
 
-    pub inline fn setNormal(self: *Frame, n: Vec4f) void {
+    pub fn setNormal(self: *Frame, n: Vec4f) void {
         const tb = math.orthonormalBasis3(n);
         self.t = tb[0];
         self.b = tb[1];
         self.n = n;
     }
 
-    pub inline fn rotateTangenFrame(self: *Frame, a: f32) void {
+    pub fn rotateTangenFrame(self: *Frame, a: f32) void {
         const t = self.t;
         const b = self.b;
 

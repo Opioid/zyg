@@ -11,7 +11,7 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub inline fn sampleNormal(
+pub fn sampleNormal(
     wo: Vec4f,
     rs: Renderstate,
     map: Texture,
@@ -21,7 +21,7 @@ pub inline fn sampleNormal(
     return sampleNormalUV(wo, rs, rs.uv, map, key, scene);
 }
 
-pub inline fn sampleNormalUV(
+pub fn sampleNormalUV(
     wo: Vec4f,
     rs: Renderstate,
     uv: Vec2f,
@@ -48,7 +48,7 @@ pub inline fn sampleNormalUV(
     return n;
 }
 
-pub inline fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
     // Veach's compensation for "Non-symmetry due to shading normals".
     // See e.g. CorrectShadingNormal() at:
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55

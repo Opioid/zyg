@@ -106,11 +106,11 @@ pub const Intersection = struct {
         );
     }
 
-    pub inline fn sameHemisphere(self: Self, v: Vec4f) bool {
+    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
         return math.dot3(self.geo.geo_n, v) > 0.0;
     }
 
-    pub inline fn offsetP(self: Self, v: Vec4f) Vec4f {
+    pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
 
         return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n);

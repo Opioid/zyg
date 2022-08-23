@@ -389,7 +389,7 @@ pub const Scene = struct {
         return .{ .f = @intCast(u32, i), .w = t };
     }
 
-    pub inline fn propWorldPosition(self: Scene, entity: u32) Vec4f {
+    pub fn propWorldPosition(self: Scene, entity: u32) Vec4f {
         const f = self.prop_frames.items[entity];
         if (Null == f) {
             return self.prop_world_transformations.items[entity].position;
@@ -398,12 +398,12 @@ pub const Scene = struct {
         return self.keyframes.items[f].position;
     }
 
-    pub inline fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
+    pub fn propTransformationAt(self: Scene, entity: usize, time: u64) Transformation {
         const f = self.prop_frames.items[entity];
         return self.propTransformationAtMaybeStatic(entity, time, Null == f);
     }
 
-    pub inline fn propTransformationAtMaybeStatic(self: Scene, entity: usize, time: u64, static: bool) Transformation {
+    pub fn propTransformationAtMaybeStatic(self: Scene, entity: usize, time: u64, static: bool) Transformation {
         if (static) {
             var trafo = self.prop_world_transformations.items[entity];
             trafo.translate(-self.camera_pos);
@@ -430,7 +430,7 @@ pub const Scene = struct {
         self.props.items[entity].configureAnimated(self.*);
     }
 
-    pub inline fn propHasAnimatedFrames(self: Scene, entity: u32) bool {
+    pub fn propHasAnimatedFrames(self: Scene, entity: u32) bool {
         return Null != self.prop_frames.items[entity];
     }
 
@@ -544,75 +544,75 @@ pub const Scene = struct {
         );
     }
 
-    pub inline fn propAabbIntersect(self: Scene, entity: usize, ray: Ray) bool {
+    pub fn propAabbIntersect(self: Scene, entity: usize, ray: Ray) bool {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
-    pub inline fn propShape(self: Scene, entity: usize) Shape {
+    pub fn propShape(self: Scene, entity: usize) Shape {
         return self.shapes.items[self.props.items[entity].shape];
     }
 
-    pub inline fn propShapePtr(self: Scene, entity: usize) *Shape {
+    pub fn propShapePtr(self: Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
-    pub inline fn propMaterialId(self: Scene, entity: usize, part: u32) u32 {
+    pub fn propMaterialId(self: Scene, entity: usize, part: u32) u32 {
         const p = self.prop_parts.items[entity] + part;
         return self.material_ids.items[p];
     }
 
-    pub inline fn propMaterial(self: Scene, entity: usize, part: u32) Material {
+    pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
         const p = self.prop_parts.items[entity] + part;
         return self.materials.items[self.material_ids.items[p]];
     }
 
-    pub inline fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
+    pub fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
 
-    pub inline fn propLightId(self: Scene, entity: u32, part: u32) u32 {
+    pub fn propLightId(self: Scene, entity: u32, part: u32) u32 {
         const p = self.prop_parts.items[entity] + part;
         return self.light_ids.items[p];
     }
 
-    pub inline fn image(self: Scene, image_id: u32) Image {
+    pub fn image(self: Scene, image_id: u32) Image {
         return self.images.items[image_id];
     }
 
-    pub inline fn imagePtr(self: Scene, image_id: u32) *Image {
+    pub fn imagePtr(self: Scene, image_id: u32) *Image {
         return &self.images.items[image_id];
     }
 
-    pub inline fn material(self: Scene, material_id: u32) Material {
+    pub fn material(self: Scene, material_id: u32) Material {
         return self.materials.items[material_id];
     }
 
-    pub inline fn materialPtr(self: Scene, material_id: u32) *Material {
+    pub fn materialPtr(self: Scene, material_id: u32) *Material {
         return &self.materials.items[material_id];
     }
 
-    pub inline fn shape(self: Scene, shape_id: u32) Shape {
+    pub fn shape(self: Scene, shape_id: u32) Shape {
         return self.shapes.items[shape_id];
     }
 
-    pub inline fn prop(self: Scene, index: u32) Prop {
+    pub fn prop(self: Scene, index: u32) Prop {
         return self.props.items[index];
     }
 
-    pub inline fn numLights(self: Scene) u32 {
+    pub fn numLights(self: Scene) u32 {
         return @intCast(u32, self.lights.items.len);
     }
 
-    pub inline fn light(self: Scene, id: u32) Light {
+    pub fn light(self: Scene, id: u32) Light {
         return self.lights.items[id];
     }
 
-    pub inline fn randomLight(self: Scene, random: f32) LightPick {
+    pub fn randomLight(self: Scene, random: f32) LightPick {
         return self.light_distribution.sampleDiscrete(random);
     }
 
-    pub inline fn randomLightSpatial(
+    pub fn randomLightSpatial(
         self: Scene,
         p: Vec4f,
         n: Vec4f,
@@ -632,7 +632,8 @@ pub const Scene = struct {
         return self.light_tree.randomLight(p, n, total_sphere, random, split, self, buffer);
     }
 
-    pub inline fn lightPdfSpatial(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+    pub fn lightPdfSpatial(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -647,7 +648,7 @@ pub const Scene = struct {
         return .{ .offset = light_id, .pdf = pdf };
     }
 
-    pub inline fn lightArea(self: Scene, entity: u32, part: u32) f32 {
+    pub fn lightArea(self: Scene, entity: u32, part: u32) f32 {
         const p = self.prop_parts.items[entity] + part;
         const light_id = self.light_ids.items[p];
 
@@ -658,21 +659,21 @@ pub const Scene = struct {
         return self.lights.items[light_id].extent;
     }
 
-    pub inline fn lightTwoSided(self: Scene, variant: u32, light_id: usize) bool {
+    pub fn lightTwoSided(self: Scene, variant: u32, light_id: usize) bool {
         _ = variant;
         return self.lights.items[light_id].two_sided;
     }
 
-    pub inline fn lightPower(self: Scene, variant: u32, light_id: usize) f32 {
+    pub fn lightPower(self: Scene, variant: u32, light_id: usize) f32 {
         _ = variant;
         return self.light_aabbs.items[light_id].bounds[1][3];
     }
 
-    pub inline fn lightAabb(self: Scene, light_id: usize) AABB {
+    pub fn lightAabb(self: Scene, light_id: usize) AABB {
         return self.light_aabbs.items[light_id];
     }
 
-    pub inline fn lightCone(self: Scene, light_id: usize) Vec4f {
+    pub fn lightCone(self: Scene, light_id: usize) Vec4f {
         return self.light_cones.items[light_id];
     }
 
