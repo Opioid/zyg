@@ -93,7 +93,7 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
+    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
         self.interface_stack.copy(stack);
     }
 

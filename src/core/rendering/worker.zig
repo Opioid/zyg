@@ -138,7 +138,7 @@ pub const Worker = struct {
                     self.aov.clear();
 
                     var ray = camera.generateRay(sample, frame, scene);
-                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
+                    const color = self.li(&ray, s < num_photon_samples, &camera.interface_stack);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -208,7 +208,7 @@ pub const Worker = struct {
         }
     }
 
-    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
+    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: *const InterfaceStack) Vec4f {
         var isec = Intersection{};
         if (self.super.intersectAndResolveMask(ray, null, &isec)) {
             return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
@@ -243,7 +243,7 @@ pub const Worker = struct {
         }
 
         var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(self.super.interface_stack);
+        temp_stack.copy(&self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
@@ -288,7 +288,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.copy(temp_stack);
+        self.super.interface_stack.copy(&temp_stack);
 
         return w;
     }

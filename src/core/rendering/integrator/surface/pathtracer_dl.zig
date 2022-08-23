@@ -47,7 +47,7 @@ pub const PathtracerDL = struct {
         ray: *Ray,
         isec: *Intersection,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
