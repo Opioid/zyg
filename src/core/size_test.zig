@@ -15,7 +15,7 @@ pub fn testSize() void {
     std.debug.print("Name: measured size (expected size); align\n", .{});
 
     testType(math.Vec2f, "Vec2f", 8);
-    testType(math.Vec3i, "Vec3i", 12);
+    testType(math.Pack3f, "Pack3f", 12);
     testType(math.Vec4f, "Vec4f", 16);
     testType(math.Pack4f, "Pack4f", 16);
     testType(math.Distribution1D, "Distribution1D", 32);
