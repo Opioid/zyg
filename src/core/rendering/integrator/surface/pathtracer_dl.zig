@@ -88,10 +88,10 @@ pub const PathtracerDL = struct {
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
             const mat_sample = worker.super.sampleMaterial(
-                ray.*,
+                ray,
                 wo,
                 wo1,
-                isec.*,
+                isec,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -117,7 +117,7 @@ pub const PathtracerDL = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray, isec, mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler, &worker.super.rng);
             if (0.0 == sample_result.pdf) {
@@ -158,7 +158,7 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.is(.Transmission)) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.super.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
@@ -204,8 +204,8 @@ pub const PathtracerDL = struct {
 
     fn directLight(
         self: *Self,
-        ray: Ray,
-        isec: Intersection,
+        ray: *const Ray,
+        isec: *const Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
         sampler: *Sampler,

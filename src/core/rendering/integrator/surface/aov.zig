@@ -59,13 +59,13 @@ pub const AOV = struct {
         worker.super.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec.*, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
+            .AO => self.ao(ray, isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray, isec, worker),
             .Photons => self.photons(ray, isec, worker),
         };
     }
 
-    fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result: f32 = 0.0;
@@ -93,7 +93,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.visibility(occlusion_ray, null)) |_| {
+            if (worker.super.visibility(&occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -103,7 +103,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
         const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
@@ -143,10 +143,10 @@ pub const AOV = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
 
             const mat_sample = worker.super.sampleMaterial(
-                ray.*,
+                ray,
                 wo,
                 wo1,
-                isec.*,
+                isec,
                 filter,
                 0.0,
                 true,
@@ -205,7 +205,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.is(.Transmission)) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.super.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;

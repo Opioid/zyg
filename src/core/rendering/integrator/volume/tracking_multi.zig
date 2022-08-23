@@ -35,7 +35,7 @@ pub const Multi = struct {
 
         if (scn.Almost_ray_max_t <= d) {
             missed = true;
-        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {}
+        } else if (!interface.matches(isec) or !isec.sameHemisphere(ray.ray.direction)) {}
 
         if (missed) {
             worker.interface_stack.pop();

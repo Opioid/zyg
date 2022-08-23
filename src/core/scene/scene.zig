@@ -272,11 +272,11 @@ pub const Scene = struct {
         return self.volume_bvh.intersect(ray, worker, .NoTangentSpace, isec);
     }
 
-    pub fn intersectP(self: *const Scene, ray: Ray, worker: *Worker) bool {
+    pub fn intersectP(self: *const Scene, ray: *const Ray, worker: *Worker) bool {
         return self.prop_bvh.intersectP(ray, worker);
     }
 
-    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, ray: *const Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.tinted_shadow) {
             return self.prop_bvh.visibility(ray, filter, worker);
         }
@@ -544,7 +544,7 @@ pub const Scene = struct {
         );
     }
 
-    pub inline fn propAabbIntersect(self: *const Scene, entity: usize, ray: Ray) bool {
+    pub inline fn propAabbIntersect(self: *const Scene, entity: usize, ray: *const Ray) bool {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
