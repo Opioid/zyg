@@ -21,9 +21,9 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(PropIntersection, "PropIntersection", 176);
-    testType(smpl.To, "SampleTo", 112);
-    testType(smpl.From, "SampleFrom", 144);
+    //testType(PropIntersection, "PropIntersection", 176);
+    //testType(smpl.To, "SampleTo", 112);
+    // testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(Interface, "Interface", 16);
     testType(Texture, "Texture", 16);
@@ -31,6 +31,7 @@ pub fn testSize() void {
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
     const measured = @sizeOf(T);
+    const ao = @alignOf(T);
 
-    std.debug.print("{s}: {} ({}); {}\n", .{ name, measured, expected, @alignOf(T) });
+    std.debug.print("{s}: {} ({}); {}\n", .{ name, measured, expected, ao });
 }
