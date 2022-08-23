@@ -29,25 +29,25 @@ pub const Stack = struct {
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
 
-    pub inline fn copy(self: *Stack, other: *const Stack) void {
+    pub fn copy(self: *Stack, other: *const Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
     }
 
-    pub inline fn empty(self: *const Stack) bool {
+    pub fn empty(self: *const Stack) bool {
         return 0 == self.index;
     }
 
-    pub inline fn clear(self: *Stack) void {
+    pub fn clear(self: *Stack) void {
         self.index = 0;
     }
 
-    pub inline fn top(self: *const Stack) Interface {
+    pub fn top(self: *const Stack) Interface {
         return self.stack[self.index - 1];
     }
 
-    pub inline fn topIor(self: *const Stack, scene: *const Scene) f32 {
+    pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
             return self.stack[index - 1].material(scene).ior();
@@ -56,7 +56,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub inline fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
+    pub fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
             return self.stack[1].material(scene).ior();
@@ -65,7 +65,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub inline fn peekIor(self: *const Stack, isec: *const Intersection, scene: *const Scene) f32 {
+    pub fn peekIor(self: *const Stack, isec: *const Intersection, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -79,7 +79,7 @@ pub const Stack = struct {
         }
     }
 
-    pub inline fn straight(self: *const Stack, scene: *const Scene) bool {
+    pub fn straight(self: *const Stack, scene: *const Scene) bool {
         const index = self.index;
         if (index > 0) {
             return 1.0 == self.stack[index - 1].material(scene).ior();
@@ -88,27 +88,27 @@ pub const Stack = struct {
         return true;
     }
 
-    pub inline fn push(self: *Stack, isec: *const Intersection) void {
+    pub fn push(self: *Stack, isec: *const Intersection) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
             self.index += 1;
         }
     }
 
-    pub inline fn pushVolumeLight(self: *Stack, light: Light) void {
+    pub fn pushVolumeLight(self: *Stack, light: Light) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .uv = .{ 0.0, 0.0 } };
             self.index += 1;
         }
     }
 
-    pub inline fn pop(self: *Stack) void {
+    pub fn pop(self: *Stack) void {
         if (self.index > 0) {
             self.index -= 1;
         }
     }
 
-    pub inline fn remove(self: *Stack, isec: *const Intersection) bool {
+    pub fn remove(self: *Stack, isec: *const Intersection) bool {
         const back = @intCast(i32, self.index) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {

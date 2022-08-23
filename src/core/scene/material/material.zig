@@ -88,11 +88,11 @@ pub const Material = union(enum) {
         };
     }
 
-    pub inline fn masked(self: *const Material) bool {
+    pub fn masked(self: *const Material) bool {
         return self.super().mask.valid();
     }
 
-    pub inline fn twoSided(self: *const Material) bool {
+    pub fn twoSided(self: *const Material) bool {
         return switch (self.*) {
             .Debug => true,
             .Glass => |*m| m.thickness > 0.0,
@@ -102,18 +102,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub inline fn caustic(self: *const Material) bool {
+    pub fn caustic(self: *const Material) bool {
         return self.super().properties.is(.Caustic);
     }
 
-    pub inline fn tintedShadow(self: *const Material) bool {
+    pub fn tintedShadow(self: *const Material) bool {
         return switch (self.*) {
             .Glass => |*m| m.thickness > 0.0,
             else => false,
         };
     }
 
-    pub inline fn emissive(self: *const Material) bool {
+    pub fn emissive(self: *const Material) bool {
         return switch (self.*) {
             .Sky => true,
             .Light => |*m| math.anyGreaterZero3(m.super.emittance.value),
@@ -123,18 +123,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub inline fn emissionMapped(self: *const Material) bool {
+    pub fn emissionMapped(self: *const Material) bool {
         return self.super().properties.is(.EmissionMap);
     }
 
-    pub inline fn pureEmissive(self: *const Material) bool {
+    pub fn pureEmissive(self: *const Material) bool {
         return switch (self.*) {
             .Light, .Sky => true,
             else => false,
         };
     }
 
-    pub inline fn scatteringVolume(self: *const Material) bool {
+    pub fn scatteringVolume(self: *const Material) bool {
         return switch (self.*) {
             .Substitute => |*m| m.super.properties.is(.ScatteringVolume),
             .Volumetric => |*m| m.super.properties.is(.ScatteringVolume),
@@ -142,21 +142,21 @@ pub const Material = union(enum) {
         };
     }
 
-    pub inline fn heterogeneousVolume(self: *const Material) bool {
+    pub fn heterogeneousVolume(self: *const Material) bool {
         return switch (self.*) {
             .Volumetric => |*m| m.density_map.valid(),
             else => false,
         };
     }
 
-    pub inline fn volumetricTree(self: *const Material) ?Gridtree {
+    pub fn volumetricTree(self: *const Material) ?Gridtree {
         return switch (self.*) {
             .Volumetric => |*m| if (m.density_map.valid()) m.tree else null,
             else => null,
         };
     }
 
-    pub inline fn ior(self: *const Material) f32 {
+    pub fn ior(self: *const Material) f32 {
         return self.super().ior;
     }
 

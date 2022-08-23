@@ -40,18 +40,18 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub inline fn isPureEmissive(self: *const Sample) bool {
+    pub fn isPureEmissive(self: *const Sample) bool {
         return switch (self.*) {
             .Light => true,
             else => false,
         };
     }
 
-    pub inline fn isTranslucent(self: *const Sample) bool {
+    pub fn isTranslucent(self: *const Sample) bool {
         return self.super().properties.is(.Translucent);
     }
 
-    pub inline fn canEvaluate(self: *const Sample) bool {
+    pub fn canEvaluate(self: *const Sample) bool {
         return self.super().properties.is(.CanEvaluate);
     }
 

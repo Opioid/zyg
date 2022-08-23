@@ -8,7 +8,7 @@ pub const Ray = struct {
     wavelength: f32,
     time: u64,
 
-    pub inline fn init(
+    pub fn init(
         origin: Vec4f,
         direction: Vec4f,
         min_t: f32,
