@@ -168,7 +168,7 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: Intersection, sample: MaterialSample) Vec4f {
+    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: MaterialSample) Vec4f {
         return self.photon_map.li(isec, sample, self.super.scene);
     }
 
@@ -179,8 +179,8 @@ pub const Worker = struct {
     pub fn commonAOV(
         self: *Worker,
         throughput: Vec4f,
-        ray: Ray,
-        isec: Intersection,
+        ray: *const Ray,
+        isec: *const Intersection,
         mat_sample: MaterialSample,
         primary_ray: bool,
     ) void {

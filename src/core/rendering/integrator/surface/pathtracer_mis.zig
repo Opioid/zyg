@@ -131,7 +131,7 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, mat_sample, pr);
+                worker.commonAOV(throughput, ray, isec, mat_sample, pr);
             }
 
             wo1 = wo;
@@ -174,7 +174,7 @@ pub const PathtracerMIS = struct {
 
                     const indirect = state.no(.Direct) and 0 != ray.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec, mat_sample));
                     }
                 }
             }

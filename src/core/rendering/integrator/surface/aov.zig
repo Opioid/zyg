@@ -172,7 +172,7 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec, mat_sample));
                         break;
                     }
                 }
