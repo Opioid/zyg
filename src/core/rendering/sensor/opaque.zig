@@ -60,8 +60,8 @@ pub const Opaque = struct {
 
         self.pixels[i].v = value;
 
-        const div = if (0.0 == value.v[3]) 1.0 else value.v[3];
-        return .{ .last = wc, .mean = Vec4f{ value.v[0], value.v[1], value.v[2], 1.0 } / @splat(4, div) };
+        const div = if (0.0 == value[3]) 1.0 else value[3];
+        return .{ .last = wc, .mean = Vec4f{ value[0], value[1], value[2], 1.0 } / @splat(4, div) };
     }
 
     pub fn splatPixelAtomic(self: *Opaque, pixel: Vec2i, color: Vec4f, weight: f32) void {

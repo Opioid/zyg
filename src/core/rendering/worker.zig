@@ -142,8 +142,8 @@ pub const Worker = struct {
 
                     self.aov.clear();
 
-                    var ray = (camera.generateRay(&sample, frame, scene.*));
-                    const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
+                    var ray = camera.generateRay(&sample, frame, scene.*);
+                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -175,8 +175,6 @@ pub const Worker = struct {
                             next_check += step;
                         }
                     }
-
-                    sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
                 }
             }
         }
