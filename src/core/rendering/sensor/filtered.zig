@@ -11,7 +11,7 @@ const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-pub fn Filtered(comptime T: type, N: comptime_int) type {
+pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
@@ -190,7 +190,7 @@ pub fn Filtered(comptime T: type, N: comptime_int) type {
             }
         }
 
-        fn eval(self: Self, s: f32) f32 {
+        inline fn eval(self: Self, s: f32) f32 {
             return self.filter.eval(@fabs(s));
         }
 

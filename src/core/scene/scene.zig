@@ -28,7 +28,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ALU = std.ArrayListUnmanaged;
+const List = std.ArrayListUnmanaged;
 
 pub const Scene = struct {
     pub const LightPick = Distribution1D.Discrete;
@@ -52,9 +52,9 @@ pub const Scene = struct {
         Sphere,
     };
 
-    images: ALU(Image) = .{},
-    materials: ALU(Material) = .{},
-    shapes: ALU(Shape),
+    images: List(Image) = .{},
+    materials: List(Material) = .{},
+    shapes: List(Shape),
 
     num_interpolation_frames: u32 = 0,
 
@@ -69,29 +69,29 @@ pub const Scene = struct {
     camera_pos: Vec4f = undefined,
     caustic_aabb: AABB = undefined,
 
-    props: ALU(Prop),
-    prop_world_transformations: ALU(Transformation),
-    prop_parts: ALU(u32),
-    prop_frames: ALU(u32),
-    prop_aabbs: ALU(AABB),
+    props: List(Prop),
+    prop_world_transformations: List(Transformation),
+    prop_parts: List(u32),
+    prop_frames: List(u32),
+    prop_aabbs: List(AABB),
 
-    lights: ALU(Light),
-    light_aabbs: ALU(AABB),
-    light_cones: ALU(Vec4f),
+    lights: List(Light),
+    light_aabbs: List(AABB),
+    light_cones: List(Vec4f),
 
-    material_ids: ALU(u32),
-    light_ids: ALU(u32),
+    material_ids: List(u32),
+    light_ids: List(u32),
 
-    keyframes: ALU(math.Transformation),
+    keyframes: List(math.Transformation),
 
     light_temp_powers: []f32 = &.{},
     light_distribution: Distribution1D = .{},
     light_tree: LightTree = .{},
 
-    finite_props: ALU(u32),
-    infinite_props: ALU(u32),
+    finite_props: List(u32),
+    infinite_props: List(u32),
 
-    volumes: ALU(u32),
+    volumes: List(u32),
 
     sky: ?Sky = null,
 
@@ -99,7 +99,7 @@ pub const Scene = struct {
     has_volumes: bool = undefined,
 
     pub fn init(alloc: Allocator) !Scene {
-        var shapes = try ALU(Shape).initCapacity(alloc, 16);
+        var shapes = try List(Shape).initCapacity(alloc, 16);
         try shapes.append(alloc, Shape{ .Null = {} });
         try shapes.append(alloc, Shape{ .Canopy = .{} });
         try shapes.append(alloc, Shape{ .Cube = .{} });
@@ -113,24 +113,24 @@ pub const Scene = struct {
         return Scene{
             .shapes = shapes,
             .bvh_builder = try PropBvhBuilder.init(alloc),
-            .props = try ALU(Prop).initCapacity(alloc, Num_reserved_props),
-            .prop_world_transformations = try ALU(Transformation).initCapacity(alloc, Num_reserved_props),
-            .prop_parts = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_frames = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
-            .lights = try ALU(Light).initCapacity(alloc, Num_reserved_props),
-            .light_aabbs = try ALU(AABB).initCapacity(alloc, Num_reserved_props),
-            .light_cones = try ALU(Vec4f).initCapacity(alloc, Num_reserved_props),
-            .material_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .light_ids = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .keyframes = try ALU(math.Transformation).initCapacity(alloc, Num_reserved_props),
-            .finite_props = try ALU(u32).initCapacity(alloc, Num_reserved_props),
-            .infinite_props = try ALU(u32).initCapacity(alloc, 3),
-            .volumes = try ALU(u32).initCapacity(alloc, Num_reserved_props),
+            .props = try List(Prop).initCapacity(alloc, Num_reserved_props),
+            .prop_world_transformations = try List(Transformation).initCapacity(alloc, Num_reserved_props),
+            .prop_parts = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_frames = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .prop_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
+            .lights = try List(Light).initCapacity(alloc, Num_reserved_props),
+            .light_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
+            .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
+            .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
+            .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .infinite_props = try List(u32).initCapacity(alloc, 3),
+            .volumes = try List(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
-    fn deinitResources(comptime T: type, alloc: Allocator, resources: *ALU(T)) void {
+    fn deinitResources(comptime T: type, alloc: Allocator, resources: *List(T)) void {
         for (resources.items) |*r| {
             r.deinit(alloc);
         }
@@ -462,7 +462,7 @@ pub const Scene = struct {
         volume: bool,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShapePtr(entity);
+        var shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -485,7 +485,7 @@ pub const Scene = struct {
 
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
-        const part_cone = shape_inst.cone(part);
+        const part_cone = shape_inst.partCone(part, variant);
 
         if (Null == f) {
             var bb = part_aabb.transform(trafo.objectToWorld());
@@ -548,11 +548,7 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
-    pub fn propShape(self: Scene, entity: usize) Shape {
-        return self.shapes.items[self.props.items[entity].shape];
-    }
-
-    pub fn propShapePtr(self: Scene, entity: usize) *Shape {
+    pub fn propShape(self: Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
@@ -561,12 +557,7 @@ pub const Scene = struct {
         return self.material_ids.items[p];
     }
 
-    pub fn propMaterial(self: Scene, entity: usize, part: u32) Material {
-        const p = self.prop_parts.items[entity] + part;
-        return self.materials.items[self.material_ids.items[p]];
-    }
-
-    pub fn propMaterialPtr(self: Scene, entity: usize, part: u32) *Material {
+    pub fn propMaterial(self: Scene, entity: usize, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
@@ -584,11 +575,7 @@ pub const Scene = struct {
         return &self.images.items[image_id];
     }
 
-    pub fn material(self: Scene, material_id: u32) Material {
-        return self.materials.items[material_id];
-    }
-
-    pub fn materialPtr(self: Scene, material_id: u32) *Material {
+    pub fn material(self: Scene, material_id: u32) *Material {
         return &self.materials.items[material_id];
     }
 
@@ -633,6 +620,7 @@ pub const Scene = struct {
     }
 
     pub fn lightPdfSpatial(self: Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+
         // _ = p;
         // _ = n;
         // _ = total_sphere;

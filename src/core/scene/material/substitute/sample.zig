@@ -415,7 +415,7 @@ pub const Sample = struct {
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
     }
 
-    const SampleFunc = fn (self: Sample, xi: Vec2f, result: *bxdf.Sample) void;
+    const SampleFunc = *const fn (self: Sample, xi: Vec2f, result: *bxdf.Sample) void;
 
     fn coatingBaseSample(
         self: Sample,

@@ -69,7 +69,7 @@ pub const AABB = struct {
 
         return null;
     }
-    
+
     pub fn pointInside(self: AABB, p: Vec4f) bool {
         if (p[0] >= self.bounds[0][0] and p[0] <= self.bounds[1][0] and p[1] >= self.bounds[0][1] and
             p[1] <= self.bounds[1][1] and p[2] >= self.bounds[0][2] and p[2] <= self.bounds[1][2])
@@ -136,11 +136,11 @@ pub const AABB = struct {
         const xa = @splat(4, self.bounds[0][0]) * mx;
         const xb = @splat(4, self.bounds[1][0]) * mx;
 
-        const my = Vec4f{ m.r[0][1], m.r[1][1], m.r[2][1] };
+        const my = Vec4f{ m.r[0][1], m.r[1][1], m.r[2][1], 0.0 };
         const ya = @splat(4, self.bounds[0][1]) * my;
         const yb = @splat(4, self.bounds[1][1]) * my;
 
-        const mz = Vec4f{ m.r[0][2], m.r[1][2], m.r[2][2] };
+        const mz = Vec4f{ m.r[0][2], m.r[1][2], m.r[2][2], 0.0 };
         const za = @splat(4, self.bounds[0][2]) * mz;
         const zb = @splat(4, self.bounds[1][2]) * mz;
 

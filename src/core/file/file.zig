@@ -2,7 +2,16 @@ const ReadStream = @import("read_stream.zig").ReadStream;
 
 const std = @import("std");
 
-pub const Type = enum { Undefined, EXR, GZIP, PNG, RGBE, SUB, ZSTD };
+pub const Type = enum {
+    Undefined,
+    EXR,
+    GZIP,
+    IES,
+    PNG,
+    RGBE,
+    SUB,
+    ZSTD,
+};
 
 pub fn queryType(stream: *ReadStream) Type {
     var header: [4]u8 = undefined;
@@ -18,6 +27,10 @@ pub fn queryType(stream: *ReadStream) Type {
 
     if (std.mem.startsWith(u8, &header, "\x1f\x8b")) {
         return .GZIP;
+    }
+
+    if (std.mem.startsWith(u8, &header, "IES")) {
+        return .IES;
     }
 
     if (std.mem.startsWith(u8, &header, "\x89PNG")) {

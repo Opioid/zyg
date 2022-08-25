@@ -84,7 +84,7 @@ pub fn build(b: *std.build.Builder) void {
     it.linkLibC();
 
     // cli.sanitize_thread = true;
-    it.strip = true;
+    // it.strip = true;
 
     it.install();
 
@@ -102,6 +102,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
+            //"takes/animation_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
             //"takes/candle.take",
@@ -129,16 +130,21 @@ pub fn build(b: *std.build.Builder) void {
     //     run_cmd.addArgs(args);
     // } else {
     //     run_cmd.addArgs(&[_][]const u8{
-    //         "-d",
+    //         //"-d",
     //         "-i",
+    //         //"image_00000000.exr",
     //         //"image_00000001.exr",
-    //         "image_00000003.exr",
+    //         //"image_00000003.exr",
     //         //"san_miguel.exr",
+    //         //"Round.IES",
+    //         "ScatterLight.IES",
     //         "-t",
     //         "-4",
-    //         "--tone",
+    //         //"--tone",
     //         "-e",
     //         "0.0",
+    //         "-f",
+    //         "png",
     //     });
     // }
 

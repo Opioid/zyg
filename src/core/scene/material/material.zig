@@ -13,7 +13,7 @@ const CCE = ccoef.CCE;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const ts = @import("../../image/texture/sampler.zig");
@@ -71,7 +71,7 @@ pub const Material = union(enum) {
         alloc: Allocator,
         shape: Shape,
         part: u32,
-        trafo: Transformation,
+        trafo: Trafo,
         extent: f32,
         scene: Scene,
         threads: *Threads,
@@ -109,6 +109,7 @@ pub const Material = union(enum) {
     pub fn tintedShadow(self: Material) bool {
         return switch (self) {
             .Glass => |m| m.thickness > 0.0,
+
             else => false,
         };
     }
@@ -116,9 +117,9 @@ pub const Material = union(enum) {
     pub fn emissive(self: Material) bool {
         return switch (self) {
             .Sky => true,
-            .Light => |m| math.anyGreaterZero(m.super.emittance.value),
-            .Substitute => |m| math.anyGreaterZero(m.super.emittance.value),
-            .Volumetric => |m| math.anyGreaterZero(m.super.emittance.value),
+            .Light => |m| math.anyGreaterZero3(m.super.emittance.value),
+            .Substitute => |m| math.anyGreaterZero3(m.super.emittance.value),
+            .Volumetric => |m| math.anyGreaterZero3(m.super.emittance.value),
             else => false,
         };
     }
@@ -138,6 +139,7 @@ pub const Material = union(enum) {
         return switch (self) {
             .Substitute => |m| m.super.properties.is(.ScatteringVolume),
             .Volumetric => |m| m.super.properties.is(.ScatteringVolume),
+
             else => false,
         };
     }
@@ -145,6 +147,7 @@ pub const Material = union(enum) {
     pub fn heterogeneousVolume(self: Material) bool {
         return switch (self) {
             .Volumetric => |m| m.density_map.valid(),
+
             else => false,
         };
     }
@@ -152,6 +155,7 @@ pub const Material = union(enum) {
     pub fn volumetricTree(self: Material) ?Gridtree {
         return switch (self) {
             .Volumetric => |m| if (m.density_map.valid()) m.tree else null,
+
             else => null,
         };
     }
@@ -224,14 +228,15 @@ pub const Material = union(enum) {
         wi: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
         return switch (self) {
-            .Light => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, extent, filter, scene),
+            .Light => |m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
             .Sky => |m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, filter, scene),
-            .Substitute => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, extent, filter, scene),
+            .Substitute => |m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
             .Volumetric => |m| m.evaluateRadiance(uvw, filter, scene),
             else => @splat(4, @as(f32, 0.0)),
         };

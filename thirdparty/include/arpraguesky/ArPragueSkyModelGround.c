@@ -44,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ArPragueSkyModelGround.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -79,29 +80,29 @@ do { \
 
 double arpragueskymodelground_double_from_half(const unsigned short value)
 {
-	unsigned long hi = (unsigned long)(value&0x8000) << 16;
-	unsigned int abs = value & 0x7FFF;
+	uint64_t hi = (uint64_t)(value&0x8000) << 16;
+	uint32_t abs = value & 0x7FFF;
 	if(abs)
 	{
-		hi |= 0x3F000000 << (unsigned)(abs>=0x7C00);
+		hi |= 0x3F000000 << (uint32_t)(abs>=0x7C00);
 		for(; abs<0x400; abs<<=1,hi-=0x100000) ;
-		hi += (unsigned long)(abs) << 10;
+		hi += (uint64_t)(abs) << 10;
 	}
-	unsigned long dbits = (unsigned long)(hi) << 32;
+	const uint64_t dbits = (uint64_t)(hi) << 32;
 	double out;
 	memcpy(&out, &dbits, sizeof(double));
 	return out;
 }
 
-int arpragueskymodelground_compute_pp_coefs_from_half(const int nbreaks, const double * breaks, const unsigned short * values, double * coefs, const int offset, const double scale)
+int arpragueskymodelground_compute_pp_coefs_from_half(const int nbreaks, const double * breaks, const unsigned short * values, float * coefs, const int offset, const double scale)
 {
 	for (int i = 0; i < nbreaks - 1; ++i)
 	{
-		const double val1 = arpragueskymodelground_double_from_half(values[i+1]) / scale;
-		const double val2 = arpragueskymodelground_double_from_half(values[i]) / scale;
-		const double diff = val1 - val2;
+		const float val1 = (float)(arpragueskymodelground_double_from_half(values[i+1]) / scale);
+		const float val2 = (float)(arpragueskymodelground_double_from_half(values[i]) / scale);
+		const float diff = val1 - val2;
 
-		coefs[offset + 2 * i] = diff / (breaks[i+1] - breaks[i]);
+		coefs[offset + 2 * i] = diff / (float)(breaks[i+1] - breaks[i]);
 		coefs[offset + 2 * i + 1]  = val2;
 	}
 	return 2 * nbreaks - 2;
@@ -214,7 +215,7 @@ void arpragueskymodelground_read_radiance(ArPragueSkyModelGroundState * state, v
 	//   * channels ] * elevations ] * altitudes ] * albedos ] * visibilities
 
 	int offset = 0;
-	state->radiance_dataset = ALLOC_ARRAY(double, state->total_coefs_all_configs);
+	state->radiance_dataset = ALLOC_ARRAY(float, state->total_coefs_all_configs);
 
 	unsigned short * radiance_temp = ALLOC_ARRAY(unsigned short, MATH_MAX(state->sun_nbreaks, MATH_MAX(state->zenith_nbreaks, state->emph_nbreaks)));
 
@@ -396,16 +397,16 @@ int arpragueskymodelground_find_segment(const double x, const int nbreaks, const
 	return segment;
 }
 
-double arpragueskymodelground_eval_pp(const double x, const int segment, const double * breaks, const double * coefs)
+double arpragueskymodelground_eval_pp(const double x, const int segment, const double * breaks, const float * coefs)
 {
 	const double x0 = x - breaks[segment];
-	const double * sc = coefs + 2 * segment; // segment coefs
-	return sc[0] * x0 + sc[1];
+	const float * sc = coefs + 2 * segment; // segment coefs
+	return (double)sc[0] * x0 + (double)sc[1];
 }
 
-const double * arpragueskymodelground_control_params_single_config(
+const float * arpragueskymodelground_control_params_single_config(
 	const ArPragueSkyModelGroundState * state,
-	const double                * dataset,
+	const float                 * dataset,
 	const int                     total_coefs_single_config,
 	const int                     elevation,
 	const int                     altitude,
@@ -431,7 +432,7 @@ double arpragueskymodelground_reconstruct(
 	const int                      gamma_segment,
 	const int                      alpha_segment,
 	const int                      theta_segment,
-	const double                 * control_params
+	const float                  * control_params
 )
 {
   double res = 0.0;
@@ -448,14 +449,13 @@ double arpragueskymodelground_reconstruct(
 
 double arpragueskymodelground_map_parameter(const double param, const int value_count, const double * values)
 {
-	double mapped;
 	if (param < values[0])
 	{
-		mapped = 0.0;
+		return 0.0;
 	}
 	else if (param > values[value_count - 1])
 	{
-		mapped = (double)value_count - 1.0;
+		return (double)value_count - 1.0;
 	}
 	else
 	{
@@ -464,17 +464,16 @@ double arpragueskymodelground_map_parameter(const double param, const int value_
 			const double val = values[v];
 			if (fabs(val - param) < 1e-6)
 			{
-				mapped = v;
-				break;
+				return v;
 			}
 			else if (param < val)
 			{
-				mapped = v - ((val - param) / (val - values[v - 1]));
-				break;
+				return v - ((val - param) / (val - values[v - 1]));
 			}
 		}
 	}
-	return mapped;
+
+	return 0.0;
 }
 
 
@@ -501,7 +500,7 @@ double arpragueskymodelground_interpolate_elevation(
   const int elevation_low = (int)elevation;
   const double factor = elevation - (double)elevation_low;
 
-  const double * control_params_low = arpragueskymodelground_control_params_single_config(
+  const float * control_params_low = arpragueskymodelground_control_params_single_config(
     state,
     state->radiance_dataset,
     state->total_coefs_single_config,
@@ -526,7 +525,7 @@ double arpragueskymodelground_interpolate_elevation(
     return res_low;
   }
 
-  const double * control_params_high = arpragueskymodelground_control_params_single_config(
+  const float * control_params_high = arpragueskymodelground_control_params_single_config(
     state,
     state->radiance_dataset,
     state->total_coefs_single_config,
@@ -868,15 +867,14 @@ void arpragueskymodelground_scaleAD(
 	double *d
 )
 {
-	double n;
-	n = sqrt((x_p * x_p) + (y_p * y_p));
-	*a = n - PSMG_PLANET_RADIUS;
-	*a = *a > 0 ? *a : 0;
-	*a = pow(*a / PSMG_ATMO_WIDTH, 1.0 / 3.0);
-	*d = acos(y_p / n) * PSMG_PLANET_RADIUS;
-	*d = *d / 1571524.413613; // Maximum distance to the edge of the atmosphere in the transmittance model
-	*d = pow(*d, 0.25);
-	*d = *d > 1.0 ? 1.0 : *d;
+	const double n = sqrt((x_p * x_p) + (y_p * y_p));
+	double ta = n - PSMG_PLANET_RADIUS;
+	ta = ta > 0.0 ? ta : 0.0;
+	*a = cbrt(ta / PSMG_ATMO_WIDTH);
+	double td = acos(y_p / n) * PSMG_PLANET_RADIUS;
+	td = td / 1571524.413613; // Maximum distance to the edge of the atmosphere in the transmittance model
+	td = sqrt(sqrt(td));
+	*d = td > 1.0 ? 1.0 : td;
 }
 
 void arpragueskymodelground_toAD(

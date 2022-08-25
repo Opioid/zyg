@@ -26,7 +26,7 @@ pub fn Flags(comptime T: type) type {
             return 0 == (self.values & (@enumToInt(flag0) | @enumToInt(flag1)));
         }
 
-        pub fn equals(self: Self, flag: T) bool {
+        pub fn equal(self: Self, flag: T) bool {
             return self.values == @enumToInt(flag);
         }
 

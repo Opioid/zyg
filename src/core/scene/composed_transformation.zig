@@ -5,10 +5,7 @@ const Mat4x4 = math.Mat4x4;
 const quaternion = math.quaternion;
 const Transformation = math.Transformation;
 
-const std = @import("std");
-
 pub const ComposedTransformation = struct {
-    world_to_object: Mat4x4 = undefined,
     rotation: Mat3x3 = undefined,
     position: Vec4f = undefined,
 
@@ -25,16 +22,11 @@ pub const ComposedTransformation = struct {
 
         self.position = t.position;
 
-        self.world_to_object = self.objectToWorld().affineInverted();
-
         return self;
     }
 
     pub fn translate(self: *Self, v: Vec4f) void {
         self.position += v;
-
-        const t = self.worldToObjectVector(v);
-        self.world_to_object.r[3] -= t;
     }
 
     pub fn scaleX(self: Self) f32 {
@@ -95,11 +87,29 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn worldToObjectVector(self: Self, v: Vec4f) Vec4f {
-        return self.world_to_object.transformVector(v);
+        const x = v * self.rotation.r[0];
+        const y = v * self.rotation.r[1];
+        const z = v * self.rotation.r[2];
+
+        const o = Vec4f{
+            x[0] + x[1] + x[2],
+            y[0] + y[1] + y[2],
+            z[0] + z[1] + z[2],
+            0.0,
+        };
+
+        const s = Vec4f{
+            self.rotation.r[0][3],
+            self.rotation.r[1][3],
+            self.rotation.r[2][3],
+            1.0,
+        };
+
+        return o / s;
     }
 
     pub fn worldToObjectPoint(self: Self, p: Vec4f) Vec4f {
-        return self.world_to_object.transformPoint(p);
+        return self.worldToObjectVector(p - self.position);
     }
 
     pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {

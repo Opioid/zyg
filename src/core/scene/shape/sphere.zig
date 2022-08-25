@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -7,6 +7,7 @@ const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
+const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const RNG = base.rnd.Generator;
@@ -18,7 +19,7 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Sphere = struct {
-    fn intersectDetail(hit_t: f32, ray: Ray, trafo: Transformation, isec: *Intersection) void {
+    fn intersectDetail(hit_t: f32, ray: Ray, trafo: Trafo, isec: *Intersection) void {
         const p = ray.point(hit_t);
         const n = math.normalize3(p - trafo.position);
 
@@ -48,7 +49,7 @@ pub const Sphere = struct {
         isec.uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
     }
 
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -79,7 +80,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -105,7 +106,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Transformation, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -144,12 +145,7 @@ pub const Sphere = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(
-        p: Vec4f,
-        trafo: Transformation,
-        sampler: *Sampler,
-        rng: *RNG,
-    ) ?SampleTo {
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler, rng: *RNG) ?SampleTo {
         const v = trafo.position - p;
         const il = math.rlength3(v);
         const radius = trafo.scaleX();
@@ -170,13 +166,11 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t = b - dist;
 
-            const sp = p + @splat(4, t) * dir;
-            const sn = math.normalize3(sp - trafo.position);
-
             return SampleTo.init(
                 dir,
-                sn,
+                trafo.rotation.r[2],
                 @splat(4, @as(f32, 0.0)),
+                trafo,
                 math.smpl.conePdfUniform(cos_theta_max),
                 ro.offsetB(t),
             );
@@ -185,12 +179,41 @@ pub const Sphere = struct {
         return null;
     }
 
-    pub fn sampleFrom(
-        trafo: Transformation,
-        area: f32,
-        uv: Vec2f,
-        importance_uv: Vec2f,
-    ) ?SampleFrom {
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32) ?SampleTo {
+        const phi = (uv[0] + 0.75) * (2.0 * std.math.pi);
+        const theta = uv[1] * std.math.pi;
+
+        // avoid singularity at poles
+        const sin_theta = std.math.max(@sin(theta), 0.00001);
+        const cos_theta = @cos(theta);
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+
+        const ls = Vec4f{ sin_theta * cos_phi, cos_theta, sin_theta * sin_phi, 0.0 };
+        const ws = trafo.objectToWorldPoint(ls);
+
+        const axis = ws - p;
+        const sl = math.squaredLength3(axis);
+        const t = @sqrt(sl);
+        const dir = axis / @splat(4, @as(f32, t));
+        const wn = math.normalize3(ws - trafo.position);
+        const c = -math.dot3(wn, dir);
+
+        if (c < Dot_min) {
+            return null;
+        }
+
+        return SampleTo.init(
+            dir,
+            wn,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            trafo,
+            sl / (c * area * sin_theta),
+            ro.offsetB(t),
+        );
+    }
+
+    pub fn sampleFrom(trafo: Trafo, area: f32, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
         const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
 
@@ -198,10 +221,18 @@ pub const Sphere = struct {
         const xy = math.orthonormalBasis3(ls);
         const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], ls);
 
-        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
+        return SampleFrom.init(
+            ro.offsetRay(ws, wn),
+            wn,
+            dir,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            importance_uv,
+            trafo,
+            1.0 / (std.math.pi * area),
+        );
     }
 
-    pub fn pdf(ray: Ray, trafo: Transformation) f32 {
+    pub fn pdf(ray: Ray, trafo: Trafo) f32 {
         const axis = trafo.position - ray.origin;
 
         const il = math.rlength3(axis);
@@ -213,7 +244,9 @@ pub const Sphere = struct {
     }
 
     pub fn pdfUv(ray: Ray, isec: Intersection, area: f32) f32 {
-        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+        // avoid singularity at poles
+        const sin_theta = std.math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
+
         const max_t = ray.maxT();
         const sl = max_t * max_t;
         const c = -math.dot3(isec.geo_n, ray.direction);

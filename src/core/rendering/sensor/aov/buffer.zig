@@ -32,19 +32,18 @@ pub const Buffer = struct {
 
     pub fn clear(self: *Self) void {
         for (self.buffers) |*b, i| {
-            const bit = @as(u32, 1) << @truncate(u5, i);
-            if (0 != (self.slots & bit)) {
+            const class = @intToEnum(aov.Value.Class, i);
+            if (class.activeIn(self.slots)) {
                 for (b.*) |*p| {
-                    const default = @intToEnum(aov.Value.Class, i).default();
-                    p.* = Pack4f.init4(default[0], default[1], default[2], 0.0);
+                    const default = class.default();
+                    p.v = Vec4f{ default[0], default[1], default[2], 0.0 };
                 }
             }
         }
     }
 
     pub fn resolve(self: Self, class: aov.Value.Class, target: [*]Pack4f, begin: u32, end: u32) void {
-        const bit = @as(u32, 1) << @enumToInt(class);
-        if (0 == (self.slots & bit)) {
+        if (!class.activeIn(self.slots)) {
             return;
         }
 
@@ -53,11 +52,11 @@ pub const Buffer = struct {
         if (.Albedo == class or .ShadingNormal == class) {
             for (pixels[begin..end]) |p, i| {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
-                target[i + begin] = Pack4f.init4(color[0], color[1], color[2], 1.0);
+                target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
             }
         } else {
             for (pixels[begin..end]) |p, i| {
-                target[i + begin] = Pack4f.init4(p.v[0], 0.0, 0.0, 1.0);
+                target[i + begin].v = Vec4f{ p.v[0], 0.0, 0.0, 1.0 };
             }
         }
     }
@@ -71,11 +70,14 @@ pub const Buffer = struct {
         weight: f32,
     ) void {
         const d = dimensions;
+        const id = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+        const wc = @splat(4, weight) * value;
 
         const pixels = self.buffers[slot];
-        var dest = &pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
-        const wc = @splat(4, weight) * value;
-        dest.addAssign4(Pack4f.init4(wc[0], wc[1], wc[2], weight));
+        var dest: Vec4f = pixels[id].v;
+        dest += Vec4f{ wc[0], wc[1], wc[2], weight };
+        pixels[id].v = dest;
     }
 
     pub fn addPixelAtomic(

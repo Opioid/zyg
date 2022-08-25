@@ -336,8 +336,6 @@ pub const Builder = struct {
             @as(f32, (if (0 == num_infinite_lights) 0.0 else 1.1))
         else
             infinite_weight;
-
-        _ = threads;
     }
 
     pub fn buildPrimitive(

@@ -89,7 +89,7 @@ pub const Mat3x3 = struct {
         );
     }
 
-    pub fn transformVector(self: Mat3x3, v: Vec4f) Vec4f {
+    pub inline fn transformVector(self: Mat3x3, v: Vec4f) Vec4f {
         // return .{
         //     v[0] * self.m(0, 0) + v[1] * self.m(1, 0) + v[2] * self.m(2, 0),
         //     v[0] * self.m(0, 1) + v[1] * self.m(1, 1) + v[2] * self.m(2, 1),
@@ -107,7 +107,7 @@ pub const Mat3x3 = struct {
         return result + temp;
     }
 
-    pub fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
+    pub inline fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {
         const x = v * self.r[0];
         const y = v * self.r[1];
         const z = v * self.r[2];

@@ -189,8 +189,8 @@ pub const Loader = struct {
                 if (material.heterogeneousVolume()) {
                     const desc = material.usefulTextureDescription(scene.*);
                     const voxel_scale = @splat(4, trafo.scale[0]);
-                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec3iTo4f(desc.dimensions);
-                    trafo.position += trafo.scale + voxel_scale * math.vec3iTo4f(desc.offset);
+                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(desc.dimensions);
+                    trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(desc.offset);
                 }
             }
 
@@ -370,19 +370,11 @@ pub const Loader = struct {
     fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
         const scene = &graph.scene;
 
-        if (scene.sky) |*sky| {
-            if (value.Object.get("parameters")) |parameters| {
-                sky.setParameters(parameters, scene);
-            }
-
-            return sky.prop;
-        }
-
         const sky = try scene.createSky(alloc);
 
-        try graph.bumpProps(alloc);
-
         try sky.configure(alloc, scene);
+
+        try graph.bumpProps(alloc);
 
         if (value.Object.get("parameters")) |parameters| {
             sky.setParameters(parameters, scene);

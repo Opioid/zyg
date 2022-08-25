@@ -1,34 +1,20 @@
 const math = @import("../math/math.zig");
 const memory = @import("../memory/bound.zig");
 
-const std = @import("std");
-const Allocator = std.mem.Allocator;
-
 pub const Interpolated = struct {
     num_elements: u32,
 
-    wavelengths: [*]f32,
-    intensities: [*]f32,
+    wavelengths: [*]const f32,
+    intensities: [*]const f32,
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, wavelengths: []const f32, intensities: []const f32) !Self {
-        const wls = try alloc.alloc(f32, wavelengths.len);
-        const ints = try alloc.alloc(f32, intensities.len);
-
-        std.mem.copy(f32, wls, wavelengths);
-        std.mem.copy(f32, ints, intensities);
-
+    pub fn init(wavelengths: []const f32, intensities: []const f32) Self {
         return Self{
             .num_elements = @intCast(u32, wavelengths.len),
-            .wavelengths = wls.ptr,
-            .intensities = ints.ptr,
+            .wavelengths = wavelengths.ptr,
+            .intensities = intensities.ptr,
         };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.intensities[0..self.num_elements]);
-        alloc.free(self.wavelengths[0..self.num_elements]);
     }
 
     pub fn startWavelength(self: Self) f32 {
@@ -62,8 +48,8 @@ pub const Interpolated = struct {
             return 0.0;
         }
 
-        const start = std.math.max(a, self.startWavelength());
-        const end = std.math.min(b, self.endWavelength());
+        const start = @maximum(a, self.startWavelength());
+        const end = @minimum(b, self.endWavelength());
         if (end <= start) {
             return 0.0;
         }
@@ -73,15 +59,15 @@ pub const Interpolated = struct {
 
         const it = memory.lowerBound(f32, self.wavelengths[0..len], start);
 
-        var index = std.math.max(it, 1) - 1;
+        var index = @maximum(it, 1) - 1;
 
         var integral: f32 = 0.0;
         while (index + 1 < len and end >= self.wavelengths[index]) : (index += 1) {
             const wl0 = self.wavelengths[index];
             const wl1 = self.wavelengths[index + 1];
 
-            const c0 = std.math.max(wl0, start);
-            const c1 = std.math.min(wl1, end);
+            const c0 = @maximum(wl0, start);
+            const c1 = @minimum(wl1, end);
 
             if (c1 <= c0) {
                 continue;

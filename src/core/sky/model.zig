@@ -6,7 +6,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
-const Spectrum = spectrum.DiscreteSpectralPowerDistribution(17, 380.0, 720.0);
+const Spectrum = spectrum.DiscreteSpectralPowerDistribution(20, 380.0, 740.0);
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -30,7 +30,7 @@ pub const Model = struct {
     const Self = @This();
 
     pub fn init(alloc: Allocator, sun_direction: Vec4f, visibility: f32, albedo: f32, fs: *Filesystem) !Model {
-        try Spectrum.staticInit(alloc);
+        Spectrum.staticInit();
 
         var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();
@@ -53,14 +53,14 @@ pub const Model = struct {
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: c_uint, count: c_uint, stream: ?*anyopaque) callconv(.C) c_uint {
+    fn readStream(buffer: ?*anyopaque, size: c_ulonglong, count: c_ulonglong, stream: ?*anyopaque) callconv(.C) c_ulonglong {
         if (null == buffer or null == stream) {
             return 0;
         }
 
         var stream_ptr = @ptrCast(*ReadStream, @alignCast(@alignOf(ReadStream), stream));
         var dest = @ptrCast([*]u8, buffer)[0 .. size * count];
-        return @truncate(c_uint, (stream_ptr.read(dest) catch 0) / size);
+        return (stream_ptr.read(dest) catch 0) / size;
     }
 
     pub fn deinit(self: *Self) void {

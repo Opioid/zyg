@@ -2,7 +2,7 @@ pub const Generator = struct {
     state: u64 = undefined,
     inc: u64 = undefined,
 
-    pub fn init(state: u64, sequence: u64) Generator {
+    pub inline fn init(state: u64, sequence: u64) Generator {
         var g = Generator{};
 
         g.start(state, sequence);
@@ -10,7 +10,7 @@ pub const Generator = struct {
         return g;
     }
 
-    pub fn start(self: *Generator, state: u64, sequence: u64) void {
+    pub inline fn start(self: *Generator, state: u64, sequence: u64) void {
         self.state = 0;
         self.inc = (sequence << 1) | 1;
 
@@ -19,11 +19,11 @@ pub const Generator = struct {
         _ = self.randomUint();
     }
 
-    pub fn randomUint(self: *Generator) u32 {
+    pub inline fn randomUint(self: *Generator) u32 {
         return self.advancePCG32();
     }
 
-    pub fn randomFloat(self: *Generator) f32 {
+    pub inline fn randomFloat(self: *Generator) f32 {
         var bits = self.advancePCG32();
 
         bits &= 0x007FFFFF;
@@ -32,7 +32,7 @@ pub const Generator = struct {
         return @bitCast(f32, bits) - 1.0;
     }
 
-    fn advancePCG32(self: *Generator) u32 {
+    inline fn advancePCG32(self: *Generator) u32 {
         const old = self.state;
 
         // Advance internal state

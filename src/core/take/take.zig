@@ -300,17 +300,20 @@ pub const Take = struct {
                 if (std.mem.eql(u8, "EXR", format)) {
                     const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
-                        .writer = .{ .EXR = .{ .half = 16 == bitdepth, .alpha = alpha } },
+                        .writer = .{ .EXR = .{ .half = 16 == bitdepth } },
+                        .alpha = alpha,
                     } });
                 } else if (std.mem.eql(u8, "RGBE", format)) {
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
                         .writer = .{ .RGBE = .{} },
+                        .alpha = false,
                     } });
                 } else {
                     const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
 
                     try self.exporters.append(alloc, .{ .ImageSequence = .{
-                        .writer = .{ .PNG = PngWriter.init(error_diffusion, alpha) },
+                        .writer = .{ .PNG = PngWriter.init(error_diffusion) },
+                        .alpha = alpha,
                     } });
                 }
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {

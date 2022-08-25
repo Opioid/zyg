@@ -7,7 +7,6 @@ const base = @import("base");
 const math = base.math;
 const spectrum = base.spectrum;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
@@ -133,6 +132,10 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.get2D(x, y);
+                return .{ enc.cachedUnormToFloat(value), 0.0, 0.0, 0.0 };
+            },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
@@ -148,12 +151,7 @@ pub const Texture = struct {
             },
             .Float3 => {
                 const value = image.Float3.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    0.0,
-                };
+                return .{ value.v[0], value.v[1], value.v[2], 0.0 };
             },
             else => @splat(4, @as(f32, 0.0)),
         };
@@ -163,6 +161,15 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const values = image.Byte1.gather2D(xy_xy1);
+                return .{
+                    .{ enc.cachedUnormToFloat(values[0]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[1]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[2]), 0.0, 0.0, 0.0 },
+                    .{ enc.cachedUnormToFloat(values[3]), 0.0, 0.0, 0.0 },
+                };
+            },
             .Byte3_sRGB => {
                 const values = image.Byte3.gather2D(xy_xy1);
                 return .{
@@ -204,30 +211,10 @@ pub const Texture = struct {
             .Float3 => {
                 const values = image.Float3.gather2D(xy_xy1);
                 return .{
-                    .{
-                        @floatCast(f32, values[0].v[0]),
-                        @floatCast(f32, values[0].v[1]),
-                        @floatCast(f32, values[0].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[1].v[0]),
-                        @floatCast(f32, values[1].v[1]),
-                        @floatCast(f32, values[1].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[2].v[0]),
-                        @floatCast(f32, values[2].v[1]),
-                        @floatCast(f32, values[2].v[2]),
-                        0.0,
-                    },
-                    .{
-                        @floatCast(f32, values[3].v[0]),
-                        @floatCast(f32, values[3].v[1]),
-                        @floatCast(f32, values[3].v[2]),
-                        0.0,
-                    },
+                    .{ values[0].v[0], values[0].v[1], values[0].v[2], 0.0 },
+                    .{ values[1].v[0], values[1].v[1], values[1].v[2], 0.0 },
+                    .{ values[2].v[0], values[2].v[1], values[2].v[2], 0.0 },
+                    .{ values[3].v[0], values[3].v[1], values[3].v[2], 0.0 },
                 };
             },
             else => .{
@@ -243,6 +230,10 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
+            .Byte1_unorm => {
+                const value = image.Byte1.get2D(x, y);
+                return .{ enc.cachedUnormToFloat(value), 0.0, 0.0, 1.0 };
+            },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
                 const ap = spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
@@ -259,12 +250,7 @@ pub const Texture = struct {
             },
             .Float3 => {
                 const value = image.Float3.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    1.0,
-                };
+                return .{ value.v[0], value.v[1], value.v[2], 1.0 };
             },
             .Half4 => {
                 const value = image.Half4.get2D(x, y);
@@ -277,12 +263,7 @@ pub const Texture = struct {
             },
             .Float4 => {
                 const value = image.Float4.get2D(x, y);
-                return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    @floatCast(f32, value.v[3]),
-                };
+                return .{ value.v[0], value.v[1], value.v[2], value.v[3] };
             },
             else => .{ 0.0, 0.0, 0.0, 1.0 },
         };
@@ -303,7 +284,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_1(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]f32 {
+    pub fn gather3D_1(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -348,7 +329,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_2(self: Texture, xyz: Vec3i, xyz1: Vec3i, scene: Scene) [8]Vec2f {
+    pub fn gather3D_2(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -366,14 +347,14 @@ pub const Texture = struct {
 
         const d = self.description(scene).dimensions;
         var y: i32 = 0;
-        while (y < d.v[1]) : (y += 1) {
+        while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
-            while (x < d.v[0]) : (x += 1) {
+            while (x < d[0]) : (x += 1) {
                 average += self.get2D_3(x, y, scene);
             }
         }
 
-        const area = @intToFloat(f32, d.v[0]) * @intToFloat(f32, d.v[1]);
+        const area = @intToFloat(f32, d[0]) * @intToFloat(f32, d[1]);
         return average / @splat(4, area);
     }
 };

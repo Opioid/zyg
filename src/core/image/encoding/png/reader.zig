@@ -2,6 +2,7 @@ const img = @import("../../image.zig");
 const Image = img.Image;
 const Swizzle = img.Swizzle;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+
 const math = @import("base").math;
 const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;

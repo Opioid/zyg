@@ -10,7 +10,6 @@ const prg = core.progress;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
-const Vec3i = math.Vec3i;
 const Vec4i = math.Vec4i;
 const Pack4f = math.Pack4f;
 const Mat3x3 = math.Mat3x3;
@@ -249,8 +248,8 @@ export fn su_image_create(
         };
 
         const desc = img.Description.init3D(
-            Vec3i.init3(@intCast(i32, width), @intCast(i32, height), @intCast(i32, depth)),
-            Vec3i.init1(0),
+            .{ @intCast(i32, width), @intCast(i32, height), @intCast(i32, depth), 0 },
+            @splat(4, @as(i32, 0)),
         );
 
         var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
@@ -367,7 +366,7 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
             return -3;
         }
 
-        var material = e.scene.materialPtr(id);
+        var material = e.scene.material(id);
 
         e.resources.materials.provider.updateMaterial(
             e.alloc,
@@ -697,7 +696,7 @@ export fn su_copy_framebuffer(
 
         const buffer = e.driver.target;
         const d = buffer.description.dimensions;
-        const used_height = @minimum(height, @intCast(u32, d.v[1]));
+        const used_height = @minimum(height, @intCast(u32, d[1]));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
 
@@ -722,7 +721,7 @@ const CopyFramebufferContext = struct {
         const d = self.source.description.dimensions;
 
         const width = self.width;
-        const used_width = @minimum(self.width, @intCast(u32, d.v[0]));
+        const used_width = @minimum(self.width, @intCast(u32, d[0]));
 
         if (3 == self.num_channels) {
             const destination = self.destination;

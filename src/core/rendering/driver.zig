@@ -21,7 +21,7 @@ const Vec4i = math.Vec4i;
 const Pack4f = math.Pack4f;
 
 const std = @import("std");
-const Allocator = @import("std").mem.Allocator;
+const Allocator = std.mem.Allocator;
 
 const Num_particles_per_chunk = 1024;
 

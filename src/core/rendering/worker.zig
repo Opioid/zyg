@@ -142,26 +142,21 @@ pub const Worker = struct {
 
                     self.aov.clear();
 
-                    var value = @splat(4, @as(f32, 0.0));
-                    var new_m = @splat(4, @as(f32, 0.0));
+                    var ray = (camera.generateRay(&sample, frame, scene.*));
+                    const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
 
-                    if (camera.generateRay(&sample, frame, scene.*)) |*ray| {
-                        const color = self.li(ray, s < num_photon_samples, camera.interface_stack);
-
-                        var photon = self.photon;
-                        if (photon[3] > 0.0) {
-                            photon /= @splat(4, photon[3]);
-                            photon[3] = 0.0;
-                        }
-
-                        const clamped = sensor.addSample(sample, color + photon, self.aov);
-                        value = clamped.last;
-                        new_m = clamped.mean;
-                    } else {
-                        _ = sensor.addSample(sample, @splat(4, @as(f32, 0.0)), self.aov);
+                    var photon = self.photon;
+                    if (photon[3] > 0.0) {
+                        photon /= @splat(4, photon[3]);
+                        photon[3] = 0.0;
                     }
 
+                    const clamped = sensor.addSample(sample, color + photon, self.aov);
+
                     if (target_cv > 0.0) {
+                        const value = clamped.last;
+                        const new_m = clamped.mean;
+
                         const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
 
                         // set up for next iteration
@@ -180,6 +175,8 @@ pub const Worker = struct {
                             next_check += step;
                         }
                     }
+
+                    sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
                 }
             }
         }

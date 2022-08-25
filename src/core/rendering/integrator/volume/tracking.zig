@@ -19,7 +19,8 @@ const RNG = base.rnd.Generator;
 const std = @import("std");
 
 const Min_mt = 1.0e-10;
-pub const Abort_epsilon = 7.5e-4;
+const Abort_epsilon = 7.5e-4;
+pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
 pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
     const interface = worker.interface_stack.top();
@@ -113,7 +114,7 @@ fn trackingTransmitted(
 
         transmitted.* *= @splat(4, imt) * mu_n;
 
-        if (math.allLess3(transmitted.*, Abort_epsilon)) {
+        if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
         }
     }
@@ -135,7 +136,7 @@ fn residualRatioTrackingTransmitted(
     // Transmittance of the control medium
     transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
 
-    if (math.allLess3(transmitted.*, Abort_epsilon)) {
+    if (math.allLess4(transmitted.*, Abort_epsilon4)) {
         return false;
     }
 
@@ -169,7 +170,7 @@ fn residualRatioTrackingTransmitted(
 
         transmitted.* *= @splat(4, imt) * mu_n;
 
-        if (math.allLess3(transmitted.*, Abort_epsilon)) {
+        if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
         }
     }

@@ -130,7 +130,7 @@ typedef struct ArPragueSkyModelGroundState
 
 	// Radiance data
 
-	double * radiance_dataset;
+	float * radiance_dataset;
 
     // Tranmittance metadata
 
@@ -155,7 +155,7 @@ typedef struct ArPragueSkyModelGroundState
 }
 ArPragueSkyModelGroundState;
 
-typedef unsigned int (*ReadFunc)(void*, unsigned int, unsigned int, void*);
+typedef unsigned long long (*ReadFunc)(void*, unsigned long long, unsigned long long, void*);
 
 ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init_handle(
 	void                         * handle,

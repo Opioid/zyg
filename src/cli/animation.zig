@@ -2,6 +2,7 @@ const Graph = @import("scene_graph.zig").Graph;
 
 const math = @import("base").math;
 const Transformation = math.Transformation;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -45,7 +46,7 @@ pub const Animation = struct {
     }
 
     pub fn resample(self: *Animation, start: u64, end: u64, frame_length: u64) void {
-        const keyframes_back = self.num_frames - 1;
+        const frames_back = self.num_frames - 1;
 
         const interpolated_frames = self.frames + self.num_frames;
 
@@ -56,26 +57,30 @@ pub const Animation = struct {
 
         while (time <= end) : (time += frame_length) {
             var j = last_frame;
-            while (j < keyframes_back) : (j += 1) {
+            while (j < frames_back) : (j += 1) {
                 const a_time = self.times[j];
                 const b_time = self.times[j + 1];
 
-                const a_frame = self.frames[j];
-                const b_frame = self.frames[j + 1];
+                const f1 = self.frames[j];
+                const f2 = self.frames[j + 1];
 
                 if (time >= a_time and time < b_time) {
+                    const f0 = if (j > 0) self.frames[j - 1] else extrapolate(f2, f1);
+                    const f3 = if (j < frames_back - 1) self.frames[j + 2] else extrapolate(f1, f2);
+
                     const range = b_time - a_time;
                     const delta = time - a_time;
 
                     const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, range));
 
-                    interpolated_frames[i] = a_frame.lerp(b_frame, t);
+                    // interpolated_frames[i] = f1.lerp(f2, t);
+                    interpolated_frames[i] = interpolate(f0, f1, f2, f3, t);
 
                     break;
                 }
 
-                if (j + 1 == keyframes_back) {
-                    interpolated_frames[i] = b_frame;
+                if (j + 1 == frames_back) {
+                    interpolated_frames[i] = f2;
                     break;
                 }
 
@@ -91,3 +96,48 @@ pub const Animation = struct {
         graph.propSetFrames(self.entity, interpolated);
     }
 };
+
+fn getT(p0: Vec4f, p1: Vec4f, t: f32, alpha: f32) f32 {
+    const d = p1 - p0;
+    const a = math.dot3(d, d);
+    const b = std.math.pow(f32, a, alpha * 0.5);
+    return b + t;
+}
+
+// Centripetal Catmull–Rom spline
+fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Vec4f {
+    const t0 = @as(f32, 0.0);
+    const t1 = getT(p0, p1, t0, alpha);
+    const t2 = getT(p1, p2, t1, alpha);
+    const t3 = getT(p2, p3, t2, alpha);
+    const tt = math.lerp(t1, t2, t);
+
+    if (0.0 == t1) {
+        return p1;
+    }
+
+    const A1 = @splat(4, (t1 - tt) / (t1 - t0)) * p0 + @splat(4, (tt - t0) / (t1 - t0)) * p1;
+    const A2 = @splat(4, (t2 - tt) / (t2 - t1)) * p1 + @splat(4, (tt - t1) / (t2 - t1)) * p2;
+    const A3 = @splat(4, (t3 - tt) / (t3 - t2)) * p2 + @splat(4, (tt - t2) / (t3 - t2)) * p3;
+    const B1 = @splat(4, (t2 - tt) / (t2 - t0)) * A1 + @splat(4, (tt - t0) / (t2 - t0)) * A2;
+    const B2 = @splat(4, (t3 - tt) / (t3 - t1)) * A2 + @splat(4, (tt - t1) / (t3 - t1)) * A3;
+    const C = @splat(4, (t2 - tt) / (t2 - t1)) * B1 + @splat(4, (tt - t1) / (t2 - t1)) * B2;
+
+    return C;
+}
+
+fn interpolate(f0: Transformation, f1: Transformation, f2: Transformation, f3: Transformation, t: f32) Transformation {
+    return .{
+        .position = catmullRom(f0.position, f1.position, f2.position, f3.position, t, 0.5),
+        .scale = math.lerp3(f1.scale, f2.scale, t),
+        .rotation = math.quaternion.slerp(f1.rotation, f2.rotation, t),
+    };
+}
+
+fn extrapolate(f1: Transformation, f2: Transformation) Transformation {
+    return .{
+        .position = f2.position + (f2.position - f1.position),
+        .scale = f2.scale + (f2.scale - f1.scale),
+        .rotation = f1.rotation,
+    };
+}

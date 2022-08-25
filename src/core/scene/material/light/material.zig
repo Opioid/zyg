@@ -4,7 +4,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
-const Transformation = @import("../../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 
@@ -53,8 +53,7 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const rad = self.super.emittance.radiance(1.0, area);
-
+        const rad = self.super.emittance.averageRadiance(area);
         if (!self.emission_map.valid()) {
             self.average_emission = rad;
             return self.average_emission;
@@ -62,7 +61,7 @@ pub const Material = struct {
 
         const d = self.emission_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @intCast(usize, d.v[0] * d.v[1])) catch return @splat(4, @as(f32, 0.0));
+        var luminance = alloc.alloc(f32, @intCast(usize, d[0] * d[1])) catch return @splat(4, @as(f32, 0.0));
         defer alloc.free(luminance);
 
         var avg = @splat(4, @as(f32, 0.0));
@@ -78,7 +77,7 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d.v[1]), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d[1]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -92,14 +91,14 @@ pub const Material = struct {
         {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
-                .width = @intCast(u32, d.v[0]),
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, d.v[1])) catch
+                .width = @intCast(u32, d[0]),
+                .conditional = self.distribution.allocate(alloc, @intCast(u32, d[1])) catch
                     return @splat(4, @as(f32, 0.0)),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d.v[1]), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d[1]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -110,7 +109,7 @@ pub const Material = struct {
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(wo, rs.geo_n, rs.uv, area, rs.filter, scene);
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -120,14 +119,13 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: Material,
         wi: Vec4f,
-        n: Vec4f,
         uv: Vec2f,
+        trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         scene: Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(@fabs(math.dot3(wi, n)), extent);
-
+        const rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
@@ -162,11 +160,11 @@ const LuminanceContext = struct {
         const self = @intToPtr(*LuminanceContext, context);
 
         const d = self.texture.description(self.scene.*).dimensions;
-        const width = @intCast(u32, d.v[0]);
+        const width = @intCast(u32, d[0]);
 
         const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
-            @intToFloat(f32, d.v[0]),
-            @intToFloat(f32, d.v[1]),
+            @intToFloat(f32, d[0]),
+            @intToFloat(f32, d[1]),
         };
 
         var avg = @splat(4, @as(f32, 0.0));

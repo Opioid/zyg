@@ -119,12 +119,12 @@ pub const Material = struct {
 
         {
             const d = self.emission_map.description(scene).dimensions;
-            const height = @intCast(u32, d.v[1]);
+            const height = @intCast(u32, d[1]);
 
             var context = Context{
                 .shape = &shape,
                 .image = scene.imagePtr(self.emission_map.image),
-                .dimensions = .{ d.v[0], d.v[1] },
+                .dimensions = .{ d[0], d[1] },
                 .conditional = self.distribution.allocate(alloc, height) catch
                     return @splat(4, @as(f32, 0.0)),
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch

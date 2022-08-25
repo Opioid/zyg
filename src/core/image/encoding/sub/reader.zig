@@ -5,7 +5,6 @@ const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
-const Vec3i = math.Vec3i;
 const json = base.json;
 const Bitfield = base.memory.Bitfield;
 
@@ -43,13 +42,13 @@ pub const Reader = struct {
 
         const description_node = image_node.Object.get("description") orelse return Error.NoImageDescription;
 
-        const dimensions = json.readVec3iMember(description_node, "dimensions", Vec3i.init1(-1));
+        const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(4, @as(i32, -1)));
 
-        if (-1 == dimensions.v[0]) {
+        if (-1 == dimensions[0]) {
             return Error.InvalidDimensions;
         }
 
-        const offset = json.readVec3iMember(description_node, "offset", Vec3i.init1(0));
+        const offset = json.readVec4i3Member(description_node, "offset", @splat(4, @as(i32, 0)));
 
         const image_type = try readImageType(description_node);
         //   const topology_node =

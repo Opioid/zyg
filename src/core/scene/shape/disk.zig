@@ -1,4 +1,4 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -19,7 +19,7 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Disk = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
+    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -37,7 +37,6 @@ pub const Disk = struct {
                 const b = -trafo.rotation.r[1];
 
                 const sk = k / @splat(4, radius);
-                const uv_scale = 0.5 * trafo.scaleZ();
 
                 isec.p = p;
                 isec.t = t;
@@ -45,8 +44,8 @@ pub const Disk = struct {
                 isec.n = normal;
                 isec.geo_n = normal;
                 isec.uv = .{
-                    (math.dot3(t, sk) + 1.0) * uv_scale,
-                    (math.dot3(b, sk) + 1.0) * uv_scale,
+                    0.5 * (math.dot3(t, sk) + 1.0),
+                    0.5 * (math.dot3(b, sk) + 1.0),
                 };
                 isec.part = 0;
 
@@ -58,7 +57,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Transformation) bool {
+    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -79,13 +78,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(
-        ray: Ray,
-        trafo: Transformation,
-        entity: usize,
-        filter: ?Filter,
-        scene: Scene,
-    ) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -99,15 +92,14 @@ pub const Disk = struct {
             const radius = trafo.scaleX();
 
             if (l <= radius * radius) {
-                const t = -trafo.rotation.r[0];
-                const b = -trafo.rotation.r[1];
+                const t = trafo.rotation.r[0];
+                const b = trafo.rotation.r[1];
 
                 const sk = k / @splat(4, radius);
-                const uv_scale = 0.5 * trafo.scaleZ();
 
                 const uv = Vec2f{
-                    (math.dot3(t, sk) + 1.0) * uv_scale,
-                    (math.dot3(b, sk) + 1.0) * uv_scale,
+                    0.5 * (1.0 - math.dot3(t, sk)),
+                    0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
                 return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
@@ -117,14 +109,7 @@ pub const Disk = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(
-        p: Vec4f,
-        trafo: Transformation,
-        area: f32,
-        two_sided: bool,
-        sampler: *Sampler,
-        rng: *RNG,
-    ) ?SampleTo {
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler, rng: *RNG) ?SampleTo {
         const r2 = sampler.sample2D(rng);
         const xy = math.smpl.diskConcentric(r2);
 
@@ -146,11 +131,58 @@ pub const Disk = struct {
             return null;
         }
 
-        return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), sl / (c * area), t);
+        return SampleTo.init(
+            dir,
+            wn,
+            @splat(4, @as(f32, 0.0)),
+            trafo,
+            sl / (c * area),
+            t,
+        );
+    }
+
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32, two_sided: bool) ?SampleTo {
+        const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
+        const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+
+        const radius = trafo.scaleX();
+        const k = @splat(4, radius) * trafo.rotation.transformVector(ls);
+
+        const l = math.dot3(k, k);
+
+        if (l <= radius * radius) {
+            const ws = trafo.position + k;
+            var wn = trafo.rotation.r[2];
+
+            if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+                wn = -wn;
+            }
+
+            const axis = ro.offsetRay(ws, wn) - p;
+            const sl = math.squaredLength3(axis);
+            const t = @sqrt(sl);
+            const dir = axis / @splat(4, t);
+            const c = -math.dot3(wn, dir);
+
+            if (c < Dot_min) {
+                return null;
+            }
+
+            return SampleTo.init(
+                dir,
+                wn,
+                .{ uv[0], uv[1], 0.0, 0.0 },
+                trafo,
+                sl / (c * area),
+                t,
+            );
+        }
+
+        return null;
     }
 
     pub fn sampleFrom(
-        trafo: Transformation,
+        trafo: Trafo,
         area: f32,
         cos_a: f32,
         two_sided: bool,
@@ -173,7 +205,7 @@ pub const Disk = struct {
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, 1.0 / (std.math.pi * area));
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, 1.0 / (std.math.pi * area));
         } else {
             var dir = math.smpl.orientedConeUniform(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
@@ -184,7 +216,7 @@ pub const Disk = struct {
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ 0.0, 0.0 }, importance_uv, pdf / area);
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, pdf / area);
         }
     }
 };

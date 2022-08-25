@@ -48,7 +48,7 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = .{} } },
+    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
 
     const Self = @This();
 
@@ -179,7 +179,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            if (!sample_result.class.equals(.StraightTransmission)) {
+            if (!sample_result.class.equal(.StraightTransmission)) {
                 ray.depth += 1;
             }
 
@@ -346,7 +346,7 @@ pub const PathtracerMIS = struct {
             p,
             light_sample.wi,
             p[3],
-            light_sample.t(),
+            light_sample.offset(),
             history.depth,
             history.wavelength,
             history.time,

@@ -7,6 +7,7 @@ const snsr = core.rendering.snsr;
 const Tonemapper = snsr.Tonemapper;
 const Scene = core.scn.Scene;
 const ReadStream = core.file.ReadStream;
+const Resources = core.resource.Manager;
 
 const base = @import("base");
 const json = base.json;
@@ -23,7 +24,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene) !void {
+pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene, resources: *Resources) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
@@ -52,7 +53,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene) !v
         if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
             take.view.loadAOV(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene);
+            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene, resources);
         } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
             exporter_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
@@ -92,7 +93,8 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
     const root = document.root;
 
     if (root.Object.get("camera")) |camera_node| {
-        if (camera_node.Object.iterator().next()) |type_value| {
+        var iter = camera_node.Object.iterator();
+        if (iter.next()) |type_value| {
             var trafo = Transformation{
                 .position = @splat(4, @as(f32, 0.0)),
                 .scale = @splat(4, @as(f32, 1.0)),
@@ -110,7 +112,7 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
     }
 }
 
-fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene) !void {
+fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene, resources: *Resources) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -158,7 +160,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     }
 
     if (param_value_ptr) |param_value| {
-        camera.setParameters(param_value.*);
+        try camera.setParameters(alloc, param_value.*, scene.*, resources);
     }
 
     const prop_id = try scene.createEntity(alloc);
@@ -239,7 +241,8 @@ fn loadSampler(value: std.json.Value, view: *View) void {
 
 fn loadPostProcessors(value: std.json.Value, view: *View) void {
     for (value.Array.items) |pp| {
-        if (pp.Object.iterator().next()) |entry| {
+        var iter = pp.Object.iterator();
+        if (iter.next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
                 view.camera.sensor.basePtr().tonemapper = loadTonemapper(entry.value_ptr.*);
             }

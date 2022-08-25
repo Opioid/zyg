@@ -4,6 +4,7 @@ const Float4 = img.Float4;
 const base = @import("base");
 const math = base.math;
 const Pack4f = math.Pack4f;
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -22,15 +23,15 @@ pub const Writer = struct {
         try writer.writeAll("FORMAT=32-bit_rle_rgbe\n\n");
 
         var buf: [32]u8 = undefined;
-        const printed = try std.fmt.bufPrint(&buf, "-Y {d} +X {d}\n", .{ d.v[1], d.v[0] });
+        const printed = try std.fmt.bufPrint(&buf, "-Y {d} +X {d}\n", .{ d[1], d[0] });
         try writer.writeAll(printed);
     }
 
     fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4) !void {
         const d = image.description.dimensions;
 
-        const scanline_width = @intCast(u32, d.v[0]);
-        var num_scanlines = d.v[1];
+        const scanline_width = @intCast(u32, d[0]);
+        var num_scanlines = d[1];
 
         if (scanline_width < 8 or scanline_width > 0x7fff) {
             // run length encoding is not allowed so write flat
@@ -53,7 +54,7 @@ pub const Writer = struct {
 
             var i: u32 = 0;
             while (i < scanline_width) : (i += 1) {
-                const rgbe = floatToRgbe(image.pixels[current_pixel].maxScalar(0.0));
+                const rgbe = floatToRgbe(@maximum(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
 
                 buffer[i] = rgbe[0];
                 buffer[i + scanline_width] = rgbe[1];
@@ -76,7 +77,7 @@ pub const Writer = struct {
 
     fn writePixels(writer: anytype, image: Float4) !void {
         for (image.pixels) |p| {
-            const rgbe = floatToRgbe(p.maxScalar(0.0));
+            const rgbe = floatToRgbe(@maximum(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
 
             try writer.writeAll(&rgbe);
         }
@@ -145,15 +146,15 @@ pub const Writer = struct {
         }
     }
 
-    fn floatToRgbe(c: Pack4f) [4]u8 {
-        var v = c.v[0];
+    fn floatToRgbe(c: Vec4f) [4]u8 {
+        var v = c[0];
 
-        if (c.v[1] > v) {
-            v = c.v[1];
+        if (c[1] > v) {
+            v = c[1];
         }
 
-        if (c.v[2] > v) {
-            v = c.v[2];
+        if (c[2] > v) {
+            v = c[2];
         }
 
         if (v < 1.0e-32) {
@@ -165,9 +166,9 @@ pub const Writer = struct {
         v = f.significand * 256.0 / v;
 
         return .{
-            @floatToInt(u8, c.v[0] * v),
-            @floatToInt(u8, c.v[1] * v),
-            @floatToInt(u8, c.v[2] * v),
+            @floatToInt(u8, c[0] * v),
+            @floatToInt(u8, c[1] * v),
+            @floatToInt(u8, c[2] * v),
             @intCast(u8, f.exponent + 128),
         };
     }

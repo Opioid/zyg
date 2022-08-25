@@ -3,6 +3,7 @@ const img = @import("image.zig");
 const Swizzle = img.Swizzle;
 const Image = img.Image;
 const ExrReader = @import("encoding/exr/reader.zig").Reader;
+const IesReader = @import("encoding/ies/reader.zig").Reader;
 const PngReader = @import("encoding/png/reader.zig").Reader;
 const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
 const SubReader = @import("encoding/sub/reader.zig").Reader;
@@ -63,14 +64,18 @@ pub const Provider = struct {
             return ExrReader.read(alloc, &stream, swizzle, color);
         }
 
+        if (.IES == file_type) {
+            return IesReader.read(alloc, &stream);
+        }
+
         if (.PNG == file_type) {
             const invert = options.queryOrDef("invert", false);
 
             if (same_file) {
-                return try self.png_reader.createFromBuffer(alloc, swizzle, invert);
+                return self.png_reader.createFromBuffer(alloc, swizzle, invert);
             }
 
-            return try self.png_reader.read(alloc, &stream, swizzle, invert);
+            return self.png_reader.read(alloc, &stream, swizzle, invert);
         }
 
         if (.RGBE == file_type) {

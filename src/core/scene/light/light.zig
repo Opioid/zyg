@@ -8,7 +8,7 @@ const Filter = @import("../../image/texture/sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
 const math = base.math;
@@ -155,23 +155,29 @@ pub const Light = struct {
     pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, scene: Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
-        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, self.extent, filter, scene);
+        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
     }
 
     pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, scene: Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
-        return material.evaluateRadiance(-sample.dir, sample.n, sample.uvw, self.extent, filter, scene);
+        return material.evaluateRadiance(
+            -sample.dir,
+            sample.n,
+            sample.uvw,
+            sample.trafo,
+            self.extent,
+            filter,
+            scene,
+        );
     }
 
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
-        const trafo = scene.propTransformationAt(self.prop, ray.time);
-
         return switch (self.class) {
-            .Prop => self.propPdf(ray, n, isec, trafo, total_sphere, scene),
-            .PropImage => self.propImagePdf(ray, isec, trafo, scene),
-            .Volume => self.volumePdf(ray, isec, trafo, scene),
-            .VolumeImage => self.volumeImagePdf(ray, isec, trafo, scene),
+            .Prop => self.propPdf(ray, n, isec, total_sphere, scene),
+            .PropImage => self.propImagePdf(ray, isec, scene),
+            .Volume => self.volumePdf(ray, isec, scene),
+            .VolumeImage => self.volumeImagePdf(ray, isec, scene),
         };
     }
 
@@ -179,7 +185,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -209,7 +215,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -244,7 +250,7 @@ pub const Light = struct {
 
     fn propSampleFrom(
         self: Light,
-        trafo: Transformation,
+        trafo: Trafo,
         sampler: *Sampler,
         bounds: AABB,
         worker: *Worker,
@@ -277,7 +283,7 @@ pub const Light = struct {
 
     fn propImageSampleFrom(
         self: Light,
-        trafo: Transformation,
+        trafo: Trafo,
         sampler: *Sampler,
         bounds: AABB,
         worker: *Worker,
@@ -322,7 +328,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -348,7 +354,7 @@ pub const Light = struct {
         self: Light,
         p: Vec4f,
         n: Vec4f,
-        trafo: Transformation,
+        trafo: Trafo,
         total_sphere: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -376,12 +382,7 @@ pub const Light = struct {
         return null;
     }
 
-    fn volumeImageSampleFrom(
-        self: Light,
-        trafo: Transformation,
-        sampler: *Sampler,
-        worker: *Worker,
-    ) ?SampleFrom {
+    fn volumeImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, worker: *Worker) ?SampleFrom {
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(sampler.sample3D(&worker.rng));
         if (0.0 == rs.pdf()) {
@@ -410,7 +411,6 @@ pub const Light = struct {
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        trafo: Transformation,
         total_sphere: bool,
         scene: Scene,
     ) f32 {
@@ -419,44 +419,31 @@ pub const Light = struct {
             ray,
             n,
             isec.geo,
-            trafo,
             self.extent,
             self.two_sided,
             total_sphere,
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, trafo: Transformation, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
         const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, trafo, self.extent, self.two_sided);
+        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, self.extent, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
-    fn volumePdf(
-        self: Light,
-        ray: Ray,
-        isec: Intersection,
-        trafo: Transformation,
-        scene: Scene,
-    ) f32 {
-        return isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
+    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+        return isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
     }
 
-    fn volumeImagePdf(
-        self: Light,
-        ray: Ray,
-        isec: Intersection,
-        trafo: Transformation,
-        scene: Scene,
-    ) f32 {
+    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
-        const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, trafo, self.extent);
+        const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
 
         return material_pdf * shape_pdf;
     }

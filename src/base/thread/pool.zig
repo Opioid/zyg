@@ -5,9 +5,9 @@ const Atomic = std.atomic.Atomic;
 pub const Pool = struct {
     pub const Context = usize;
 
-    const ParallelProgram = fn (context: Context, id: u32) void;
-    const RangeProgram = fn (context: Context, id: u32, begin: u32, end: u32) void;
-    const AsyncProgram = fn (context: Context) void;
+    const ParallelProgram = *const fn (context: Context, id: u32) void;
+    const RangeProgram = *const fn (context: Context, id: u32, begin: u32, end: u32) void;
+    const AsyncProgram = *const fn (context: Context) void;
 
     const Program = union(enum) { Parallel: ParallelProgram, Range: RangeProgram };
 

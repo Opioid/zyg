@@ -27,7 +27,7 @@ pub const Mapper = struct {
     };
 
     settings: Settings = .{},
-    sampler: Sampler = Sampler{ .Random = .{} },
+    sampler: Sampler = Sampler{ .Random = {} },
 
     photons: []Photon = &.{},
 
@@ -200,11 +200,11 @@ pub const Mapper = struct {
                     }
 
                     const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
-                    const avg = math.average3(nr) / math.average3(radiance);
 
+                    const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
                     const continue_prob = std.math.min(1.0, avg);
 
-                    if (self.sampler.sample1D(&worker.super.rng) > continue_prob) {
+                    if (self.sampler.sample1D(&worker.super.rng) >= continue_prob) {
                         break;
                     }
 
