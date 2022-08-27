@@ -189,25 +189,23 @@ pub inline fn mul(a: Quaternion, b: Quaternion) Quaternion {
 
 pub inline fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
     // calc cosine theta
-    var cosom = (a[0] * b[0] + a[1] * b[1]) + (a[2] * b[2] + a[3] * b[3]);
+    const ab = a * b;
+    var cosom = ab[0] + ab[1] + ab[2] + ab[3];
 
     // adjust signs (if necessary)
     var end = b;
 
     if (cosom < 0.0) {
         cosom = -cosom;
-        end[0] = -end[0]; // Reverse all signs
-        end[1] = -end[1];
-        end[2] = -end[2];
-        end[3] = -end[3];
+        end = -end;
     }
 
     // Calculate coefficients
     var sclp: f32 = undefined;
     var sclq: f32 = undefined;
 
-    // 0.0001 -> some epsillon
-    if (1.0 - cosom > 0.0001) {
+    // 0.000025 -> some epsillon
+    if (1.0 - cosom > 0.000025) {
         // Standard case (slerp)
         const omega = std.math.acos(cosom); // extract theta from dot product's cos theta
         const sinom = @sin(omega);
@@ -220,8 +218,5 @@ pub inline fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
         sclq = t;
     }
 
-    return .{
-        sclp * a[0] + sclq * end[0], sclp * a[1] + sclq * end[1],
-        sclp * a[2] + sclq * end[2], sclp * a[3] + sclq * end[3],
-    };
+    return @splat(4, sclp) * a + @splat(4, sclq) * end;
 }
