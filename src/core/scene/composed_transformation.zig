@@ -42,7 +42,7 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn scale(self: Self) Vec4f {
-        return .{ self.rotation.r[0][3], self.rotation.r[1][3], self.rotation.r[2][3], 0.0 };
+        return .{ self.rotation.r[0][3], self.rotation.r[1][3], self.rotation.r[2][3], 1.0 };
     }
 
     pub fn objectToWorld(self: Self) Mat4x4 {
@@ -50,12 +50,7 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
-        const s = Vec4f{
-            self.rotation.r[0][3],
-            self.rotation.r[1][3],
-            self.rotation.r[2][3],
-            0.0,
-        };
+        const s = self.scale();
 
         const a = self.rotation.r[0] * @splat(4, s[0]);
         const b = self.rotation.r[1] * @splat(4, s[1]);
@@ -87,23 +82,8 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn worldToObjectVector(self: Self, v: Vec4f) Vec4f {
-        const x = v * self.rotation.r[0];
-        const y = v * self.rotation.r[1];
-        const z = v * self.rotation.r[2];
-
-        const o = Vec4f{
-            x[0] + x[1] + x[2],
-            y[0] + y[1] + y[2],
-            z[0] + z[1] + z[2],
-            0.0,
-        };
-
-        const s = Vec4f{
-            self.rotation.r[0][3],
-            self.rotation.r[1][3],
-            self.rotation.r[2][3],
-            1.0,
-        };
+        const o = self.rotation.transformVectorTransposed(v);
+        const s = self.scale();
 
         return o / s;
     }
