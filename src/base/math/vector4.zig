@@ -37,7 +37,8 @@ pub const Vec4u = @Vector(4, u32);
 pub const Vec4f = @Vector(4, f32);
 
 pub inline fn dot3(a: Vec4f, b: Vec4f) f32 {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const ab = a * b;
+    return ab[0] + ab[1] + ab[2];
 }
 
 pub inline fn squaredLength3(v: Vec4f) f32 {

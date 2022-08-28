@@ -214,7 +214,7 @@ pub const Scene = struct {
         self.tinted_shadow = false;
 
         for (self.props.items) |p, i| {
-            self.propCalculateWorldTransformation(i, camera_pos);
+            self.propCalculateWorldBounds(i, camera_pos);
 
             self.tinted_shadow = self.tinted_shadow or p.tintedShadow();
         }
@@ -746,7 +746,7 @@ pub const Scene = struct {
         return @intCast(u32, self.materials.items.len - 1);
     }
 
-    fn propCalculateWorldTransformation(self: *Scene, entity: usize, camera_pos: Vec4f) void {
+    fn propCalculateWorldBounds(self: *Scene, entity: usize, camera_pos: Vec4f) void {
         const f = self.prop_frames.items[entity];
 
         const shape_aabb = self.propShape(entity).aabb();

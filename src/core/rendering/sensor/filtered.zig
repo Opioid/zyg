@@ -372,7 +372,7 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
             }
         }
 
-        inline fn eval(self: Self, s: f32) f32 {
+        fn eval(self: Self, s: f32) f32 {
             return self.filter.eval(@fabs(s));
         }
 
