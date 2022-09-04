@@ -268,7 +268,7 @@ pub const Reader = struct {
         var length: u32 = 0;
         _ = stream.read(std.mem.asBytes(&length)) catch return false;
 
-        length = @byteSwap(u32, length);
+        length = @byteSwap(length);
 
         // Max chunk length according to spec
         if (length > 0x7FFFFFFF) {

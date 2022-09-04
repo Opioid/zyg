@@ -125,9 +125,9 @@ fn hashCombine(seed: u32, v: u32) u32 {
 }
 
 fn nestedUniformScrambleBase2(x: u32, seed: u32) u32 {
-    var o = @bitReverse(u32, x);
+    var o = @bitReverse(x);
     o = laineKarrasPermutation(o, seed);
-    return @bitReverse(u32, o);
+    return @bitReverse(o);
 }
 
 fn laineKarrasPermutation(i: u32, seed: u32) u32 {
