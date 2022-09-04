@@ -96,14 +96,14 @@ pub const Material = union(enum) {
         return switch (self) {
             .Debug => true,
             .Glass => |m| m.thickness > 0.0,
-            .Light => |m| m.super.properties.is(.TwoSided),
-            .Substitute => |m| m.super.properties.is(.TwoSided),
+            .Light => |m| m.super.properties.two_sided,
+            .Substitute => |m| m.super.properties.two_sided,
             else => false,
         };
     }
 
     pub fn caustic(self: Material) bool {
-        return self.super().properties.is(.Caustic);
+        return self.super().properties.caustic;
     }
 
     pub fn tintedShadow(self: Material) bool {
@@ -125,7 +125,7 @@ pub const Material = union(enum) {
     }
 
     pub fn emissionMapped(self: Material) bool {
-        return self.super().properties.is(.EmissionMap);
+        return self.super().properties.emission_map;
     }
 
     pub fn pureEmissive(self: Material) bool {
@@ -137,8 +137,8 @@ pub const Material = union(enum) {
 
     pub fn scatteringVolume(self: Material) bool {
         return switch (self) {
-            .Substitute => |m| m.super.properties.is(.ScatteringVolume),
-            .Volumetric => |m| m.super.properties.is(.ScatteringVolume),
+            .Substitute => |m| m.super.properties.scattering_volume,
+            .Volumetric => |m| m.super.properties.scattering_volume,
 
             else => false,
         };

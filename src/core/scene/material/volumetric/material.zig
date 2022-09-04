@@ -60,9 +60,9 @@ pub const Material = struct {
     pub fn commit(self: *Material, alloc: Allocator, scene: Scene, threads: *Threads) !void {
         self.average_emission = @splat(4, @as(f32, -1.0));
 
-        self.super.properties.set(.ScatteringVolume, math.anyGreaterZero3(self.super.cc.s) or
-            math.anyGreaterZero3(self.super.emittance.value));
-        self.super.properties.set(.EmissionMap, self.density_map.valid());
+        self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
+            math.anyGreaterZero3(self.super.emittance.value);
+        self.super.properties.emission_map = self.density_map.valid();
 
         if (self.density_map.valid()) {
             try Builder.build(

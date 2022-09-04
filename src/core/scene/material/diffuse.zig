@@ -23,7 +23,7 @@ pub const Lambert = struct {
         result.reflection = @splat(4, @as(f32, math.pi_inv)) * color;
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.class.clearWith(.DiffuseReflection);
+        result.class = .{ .diffuse = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -77,7 +77,7 @@ pub const Micro = struct {
         result.h = h;
         result.pdf = n_dot_wi * math.pi_inv;
         result.h_dot_wi = h_dot_wi;
-        result.class.clearWith(.DiffuseReflection);
+        result.class = .{ .diffuse = true, .reflection = true };
 
         return n_dot_wi;
     }
