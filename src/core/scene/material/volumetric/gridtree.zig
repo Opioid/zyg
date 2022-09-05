@@ -102,7 +102,6 @@ pub const Gridtree = struct {
 
     pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.minT());
-
         const c = math.vec4fTo4i(self.dimensions * p);
         const v = c >> Log2_cell_dim4;
         const uv = math.vec4iTo4u(v);
@@ -137,9 +136,7 @@ pub const Gridtree = struct {
         );
 
         if (boxf.intersectP(ray.*)) |hit_t| {
-            if (ray.maxT() > hit_t) {
-                ray.setMaxT(hit_t);
-            }
+            ray.clipMaxT(hit_t);
         } else {
             ray.setMaxT(ray.minT());
             return null;
