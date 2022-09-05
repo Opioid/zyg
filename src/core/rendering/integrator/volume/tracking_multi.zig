@@ -60,7 +60,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker.*);
+            var local_ray = tracking.texturespaceRay(ray.*, isec.geo.trafo, interface.prop, worker.*);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -81,7 +81,7 @@ pub const Multi = struct {
 
                         if (.Absorb == result.event) {
                             ray.ray.setMaxT(result.t);
-                            // This is in local space on purpose! Alas, the purpose was not commented...
+                            // This is in local space on purpose!
                             isec.geo.p = local_ray.point(result.t);
                             return result;
                         }
