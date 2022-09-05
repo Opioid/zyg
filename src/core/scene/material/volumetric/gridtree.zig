@@ -111,19 +111,13 @@ pub const Gridtree = struct {
             return null;
         }
 
-        var index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
-
         const b0 = v << Log2_cell_dim4;
-
         var box = Box{ .bounds = .{ b0, b0 + Cell_dim4 } };
 
-        while (true) {
-            const node = self.nodes[index];
+        const index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
+        var node = self.nodes[index];
 
-            if (!node.isParent()) {
-                break;
-            }
-
+        while (node.isParent()) {
             const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
             const center = box.bounds[0] + half;
 
@@ -134,7 +128,7 @@ pub const Gridtree = struct {
 
             const ii = @select(u32, l, @Vector(4, u32){ 0, 0, 0, 0 }, @Vector(4, u32){ 1, 2, 4, 0 });
             const o = @reduce(.Add, ii);
-            index = node.index() + o;
+            node = self.nodes[node.index() + o];
         }
 
         const boxf = AABB.init(
@@ -150,8 +144,6 @@ pub const Gridtree = struct {
             ray.setMaxT(ray.minT());
             return null;
         }
-
-        const node = self.nodes[index];
 
         if (node.isEmpty()) {
             return null;
