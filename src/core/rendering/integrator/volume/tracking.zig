@@ -4,7 +4,6 @@ const Worker = @import("../../../scene/worker.zig").Worker;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../../../rendering/integrator/helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const Transformation = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
 const ccoef = @import("../../../scene/material/collision_coefficients.zig");
 const CC = ccoef.CC;
@@ -34,8 +33,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
     }
 
     if (material.volumetricTree()) |tree| {
-        const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
-        var local_ray = texturespaceRay(ray, trafo, interface.prop, worker.*);
+        var local_ray = texturespaceRay(ray, interface.prop, worker.*);
 
         const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -423,7 +421,9 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(ray: scn.Ray, trafo: Transformation, entity: u32, worker: Worker) Ray {
+pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: Worker) Ray {
+    const trafo = worker.scene.propTransformationAt(entity, ray.time);
+
     const local_origin = trafo.worldToObjectPoint(ray.ray.origin);
     const local_dir = trafo.worldToObjectVector(ray.ray.direction);
 
