@@ -10,7 +10,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const Flags = base.flags.Flags;
 
 const std = @import("std");
 
@@ -45,16 +44,15 @@ pub const Base = struct {
         }
     };
 
-    pub const Property = enum(u32) {
-        None = 0,
-        TwoSided = 1 << 0,
-        Caustic = 1 << 1,
-        EmissionMap = 1 << 2,
-        ScatteringVolume = 1 << 3,
-        HeterogeneousVolume = 1 << 4,
+    pub const Properties = packed struct {
+        two_sided: bool = false,
+        caustic: bool = false,
+        emission_map: bool = false,
+        scattering_volume: bool = false,
+        heterogeneous_volume: bool = false,
     };
 
-    properties: Flags(Property) = .{},
+    properties: Properties = .{},
 
     sampler_key: ts.Key = .{},
 
@@ -70,7 +68,7 @@ pub const Base = struct {
     volumetric_anisotropy: f32 = 0.0,
 
     pub fn setTwoSided(self: *Base, two_sided: bool) void {
-        self.properties.set(.TwoSided, two_sided);
+        self.properties.two_sided = two_sided;
     }
 
     pub fn setVolumetric(
@@ -86,7 +84,7 @@ pub const Base = struct {
         self.cc = cc;
         self.attenuation_distance = distance;
         self.volumetric_anisotropy = aniso;
-        self.properties.set(.ScatteringVolume, math.anyGreaterZero3(cc.s));
+        self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
     pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {

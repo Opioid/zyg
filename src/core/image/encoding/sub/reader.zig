@@ -102,6 +102,19 @@ pub const Reader = struct {
 
             if (.Byte1 == image_type) {
                 var image = try img.Byte1.init(alloc, description);
+
+                var i: u64 = 0;
+                const len = description.numPixels();
+                while (i < len) : (i += 1) {
+                    if (field.get(i)) {
+                        var val: u8 = undefined;
+                        _ = try stream.read(std.mem.asBytes(&val));
+                        image.pixels[i] = val;
+                    } else {
+                        image.pixels[i] = 0;
+                    }
+                }
+
                 return Image{ .Byte1 = image };
             }
 

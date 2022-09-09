@@ -52,7 +52,7 @@ pub const Sample = struct {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
         var super = Base.init(rs, wo, color, radiance, alpha);
-        super.properties.set(.CanEvaluate, ior != ior_medium);
+        super.properties.can_evaluate = ior != ior_medium;
 
         const f0 = fresnel.Schlick.F0(ior, ior_outer);
 
@@ -72,7 +72,7 @@ pub const Sample = struct {
         attenuation_distance: f32,
         transparency: f32,
     ) void {
-        self.super.properties.set(.Translucent, true);
+        self.super.properties.translucent = true;
         self.super.albedo = @splat(4, 1.0 - transparency) * color;
         self.translucent_color = color;
         self.attenuation = ccoef.attenuationCoefficient(color, attenuation_distance);
@@ -546,7 +546,7 @@ pub const Sample = struct {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
-            result.class.clearWith(.SpecularTransmission);
+            result.class = .{ .specular = true, .transmission = true };
             return;
         }
 
@@ -663,7 +663,7 @@ pub const Sample = struct {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
-            result.class.clearWith(.SpecularTransmission);
+            result.class = .{ .specular = true, .transmission = true };
             return;
         }
 

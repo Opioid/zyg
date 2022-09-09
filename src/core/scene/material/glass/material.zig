@@ -26,8 +26,8 @@ pub const Material = struct {
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.TwoSided, self.thickness > 0.0);
-        self.super.properties.set(.Caustic, self.roughness <= ggx.Min_roughness);
+        self.super.properties.two_sided = self.thickness > 0.0;
+        self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {

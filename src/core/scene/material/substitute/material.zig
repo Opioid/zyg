@@ -67,13 +67,13 @@ pub const Material = struct {
     coating: Coating = .{},
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.EmissionMap, self.emission_map.valid());
-        self.super.properties.set(.Caustic, self.roughness <= ggx.Min_roughness);
+        self.super.properties.emission_map = self.emission_map.valid();
+        self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
         const attenuation_distance = self.super.attenuation_distance;
-        self.super.properties.orSet(.TwoSided, transparent);
+        self.super.properties.two_sided = self.super.properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 

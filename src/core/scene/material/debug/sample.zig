@@ -48,7 +48,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
+            .class = .{ .diffuse = true, .reflection = true },
         };
     }
 };

@@ -2,6 +2,7 @@ const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
@@ -23,7 +24,7 @@ pub const Sample = struct {
             @splat(2, @as(f32, 1.0)),
         );
 
-        super.properties.set(.Translucent, true);
+        super.properties.translucent = true;
 
         return .{
             .super = super,
@@ -71,7 +72,7 @@ pub const Sample = struct {
             .pdf = phase,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
+            .class = .{ .diffuse = true, .reflection = true },
         };
     }
 

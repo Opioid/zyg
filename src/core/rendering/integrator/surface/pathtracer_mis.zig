@@ -16,7 +16,6 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const Flags = base.flags.Flags;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -35,16 +34,14 @@ pub const PathtracerMIS = struct {
         photons_not_only_through_specular: bool,
     };
 
-    pub const State = enum(u32) {
-        PrimaryRay = 1 << 0,
-        TreatAsSingular = 1 << 1,
-        IsTranslucent = 1 << 2,
-        SplitPhoton = 1 << 3,
-        Direct = 1 << 4,
-        FromSubsurface = 1 << 5,
+    const PathState = packed struct {
+        primary_ray: bool = true,
+        treat_as_singular: bool = true,
+        is_translucent: bool = false,
+        split_photon: bool = false,
+        direct: bool = true,
+        from_subsurface: bool = false,
     };
-
-    const PathState = Flags(State);
 
     settings: Settings,
 
@@ -100,9 +97,6 @@ pub const PathtracerMIS = struct {
         var sample_result = BxdfSample{};
 
         var state = PathState{};
-        state.set(.PrimaryRay, true);
-        state.set(.TreatAsSingular, true);
-        state.set(.Direct, true);
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -113,11 +107,11 @@ pub const PathtracerMIS = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const pr = state.is(.PrimaryRay);
+            const pr = state.primary_ray;
 
             const filter: ?Filter = if (ray.depth <= 1 or pr) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and !pr;
-            const straight_border = state.is(.FromSubsurface);
+            const straight_border = state.from_subsurface;
 
             const mat_sample = worker.super.sampleMaterial(
                 ray,
@@ -143,7 +137,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                state.unset(.Direct);
+                state.direct = false;
                 break;
             }
 
@@ -158,39 +152,39 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            if (sample_result.class.is(.Specular)) {
+            if (sample_result.class.specular) {
                 if (avoid_caustics) {
                     break;
                 }
 
-                state.set(.TreatAsSingular, true);
-            } else if (sample_result.class.no(.Straight)) {
-                state.unset(.TreatAsSingular);
+                state.treat_as_singular = true;
+            } else if (!sample_result.class.straight) {
+                state.treat_as_singular = false;
 
                 effective_bxdf_pdf = sample_result.pdf;
 
                 if (pr) {
-                    state.unset(.PrimaryRay);
+                    state.primary_ray = false;
 
-                    const indirect = state.no(.Direct) and 0 != ray.depth;
+                    const indirect = !state.direct and 0 != ray.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
                         worker.addPhoton(throughput * worker.photonLi(isec, mat_sample));
                     }
                 }
             }
 
-            if (!sample_result.class.equal(.StraightTransmission)) {
+            if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 ray.depth += 1;
             }
 
-            if (sample_result.class.is(.Straight)) {
+            if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi);
 
-                state.unset(.Direct);
-                state.unset(.FromSubsurface);
+                state.direct = false;
+                state.from_subsurface = false;
             }
 
             ray.ray.setMaxT(scn.Ray_max_t);
@@ -201,16 +195,16 @@ pub const PathtracerMIS = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.class.is(.Transmission)) {
+            if (sample_result.class.transmission) {
                 worker.super.interfaceChange(sample_result.wi, isec);
             }
 
-            state.orSet(.FromSubsurface, isec.subsurface);
+            state.from_subsurface = state.from_subsurface or isec.subsurface;
 
-            if (sample_result.class.is(.Straight) and state.no(.TreatAsSingular)) {
+            if (sample_result.class.straight and !state.treat_as_singular) {
                 sample_result.pdf = effective_bxdf_pdf;
             } else {
-                state.set(.IsTranslucent, mat_sample.isTranslucent());
+                state.is_translucent = mat_sample.isTranslucent();
                 geo_n = mat_sample.super().geometricNormal();
             }
 
@@ -267,7 +261,7 @@ pub const PathtracerMIS = struct {
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.andSet(.Direct, !isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t);
+                state.direct = state.direct and (!isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t);
                 break;
             }
 
@@ -284,7 +278,7 @@ pub const PathtracerMIS = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, state.is(.Direct));
+        return hlp.composeAlpha(result, throughput, state.direct);
     }
 
     fn sampleLights(
@@ -395,11 +389,11 @@ pub const PathtracerMIS = struct {
             pure_emissive,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        if (state.is(.TreatAsSingular)) {
+        if (state.treat_as_singular) {
             return ls_energy;
         }
 
-        const translucent = state.is(.IsTranslucent);
+        const translucent = state.is_translucent;
         const split = self.splitting(ray.depth);
 
         const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
@@ -425,11 +419,11 @@ pub const PathtracerMIS = struct {
             return 0.0;
         }
 
-        if (state.is(.TreatAsSingular)) {
+        if (state.treat_as_singular) {
             return 1.0;
         }
 
-        const translucent = state.is(.IsTranslucent);
+        const translucent = state.is_translucent;
         const split = self.splitting(ray.depth);
 
         const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);

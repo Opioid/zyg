@@ -5,7 +5,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const Flags = base.flags.Flags;
 
 pub const Frame = struct {
     t: Vec4f,
@@ -89,12 +88,11 @@ pub const Frame = struct {
 };
 
 pub const SampleBase = struct {
-    pub const Property = enum(u32) {
-        None = 0,
-        Pure_emissive = 1 << 0,
-        Translucent = 1 << 1,
-        CanEvaluate = 1 << 2,
-        AvoidCaustics = 1 << 3,
+    pub const Properties = packed struct {
+        pure_emissive: bool = false,
+        translucent: bool = false,
+        can_evaluate: bool = false,
+        avoid_caustics: bool = false,
     };
 
     frame: Frame = undefined,
@@ -107,7 +105,7 @@ pub const SampleBase = struct {
 
     alpha: Vec2f,
 
-    properties: Flags(Property),
+    properties: Properties,
 
     const Self = @This();
 
@@ -125,7 +123,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .radiance = radiance,
             .alpha = alpha,
-            .properties = Flags(Property).init2(.CanEvaluate, .AvoidCaustics, rs.avoid_caustics),
+            .properties = Properties{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
         };
     }
 
@@ -166,7 +164,7 @@ pub const SampleBase = struct {
     }
 
     pub fn avoidCaustics(self: *const Self) bool {
-        return self.properties.is(.AvoidCaustics);
+        return self.properties.avoid_caustics;
     }
 };
 

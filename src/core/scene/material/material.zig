@@ -95,15 +95,15 @@ pub const Material = union(enum) {
     pub fn twoSided(self: *const Material) bool {
         return switch (self.*) {
             .Debug => true,
-            .Glass => |*m| m.thickness > 0.0,
-            .Light => |*m| m.super.properties.is(.TwoSided),
-            .Substitute => |*m| m.super.properties.is(.TwoSided),
+            .Glass => |m| m.thickness > 0.0,
+            .Light => |m| m.super.properties.two_sided,
+            .Substitute => |m| m.super.properties.two_sided,
             else => false,
         };
     }
 
     pub fn caustic(self: *const Material) bool {
-        return self.super().properties.is(.Caustic);
+        return self.super().properties.caustic;
     }
 
     pub fn tintedShadow(self: *const Material) bool {
@@ -124,7 +124,7 @@ pub const Material = union(enum) {
     }
 
     pub fn emissionMapped(self: *const Material) bool {
-        return self.super().properties.is(.EmissionMap);
+        return self.super().properties.emission_map;
     }
 
     pub fn pureEmissive(self: *const Material) bool {
@@ -136,8 +136,8 @@ pub const Material = union(enum) {
 
     pub fn scatteringVolume(self: *const Material) bool {
         return switch (self.*) {
-            .Substitute => |*m| m.super.properties.is(.ScatteringVolume),
-            .Volumetric => |*m| m.super.properties.is(.ScatteringVolume),
+            .Substitute => |m| m.super.properties.scattering_volume,
+            .Volumetric => |m| m.super.properties.scattering_volume,
             else => false,
         };
     }

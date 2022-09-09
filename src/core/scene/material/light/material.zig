@@ -36,7 +36,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.EmissionMap, self.emission_map.valid());
+        self.super.properties.emission_map = self.emission_map.valid();
     }
 
     pub fn prepareSampling(

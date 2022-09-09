@@ -48,11 +48,11 @@ pub const Sample = union(enum) {
     }
 
     pub fn isTranslucent(self: *const Sample) bool {
-        return self.super().properties.is(.Translucent);
+        return self.super().properties.translucent;
     }
 
     pub fn canEvaluate(self: *const Sample) bool {
-        return self.super().properties.is(.CanEvaluate);
+        return self.super().properties.can_evaluate;
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {

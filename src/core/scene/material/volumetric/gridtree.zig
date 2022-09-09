@@ -58,7 +58,7 @@ pub const Gridtree = struct {
     num_nodes: u32 = 0,
     num_data: u32 = 0,
 
-    pub const Log2_cell_dim: u5 = 5;
+    pub const Log2_cell_dim: u5 = 6;
     pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
     pub const Cell_dim: i32 = 1 << Log2_cell_dim;
     pub const Cell_dim4 = @splat(4, Cell_dim);
@@ -102,7 +102,6 @@ pub const Gridtree = struct {
 
     pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.minT());
-
         const c = math.vec4fTo4i(self.dimensions * p);
         const v = c >> Log2_cell_dim4;
         const uv = math.vec4iTo4u(v);
@@ -111,19 +110,13 @@ pub const Gridtree = struct {
             return null;
         }
 
-        var index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
-
         const b0 = v << Log2_cell_dim4;
-
         var box = Box{ .bounds = .{ b0, b0 + Cell_dim4 } };
 
-        while (true) {
-            const node = self.nodes[index];
+        const index = (uv[2] * self.num_cells[1] + uv[1]) * self.num_cells[0] + uv[0];
+        var node = self.nodes[index];
 
-            if (!node.isParent()) {
-                break;
-            }
-
+        while (node.isParent()) {
             const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
             const center = box.bounds[0] + half;
 
@@ -134,7 +127,7 @@ pub const Gridtree = struct {
 
             const ii = @select(u32, l, @Vector(4, u32){ 0, 0, 0, 0 }, @Vector(4, u32){ 1, 2, 4, 0 });
             const o = @reduce(.Add, ii);
-            index = node.index() + o;
+            node = self.nodes[node.index() + o];
         }
 
         const boxf = AABB.init(
@@ -143,15 +136,11 @@ pub const Gridtree = struct {
         );
 
         if (boxf.intersectP(ray.*)) |hit_t| {
-            if (ray.maxT() > hit_t) {
-                ray.setMaxT(hit_t);
-            }
+            ray.clipMaxT(hit_t);
         } else {
             ray.setMaxT(ray.minT());
             return null;
         }
-
-        const node = self.nodes[index];
 
         if (node.isEmpty()) {
             return null;
