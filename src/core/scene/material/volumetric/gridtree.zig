@@ -58,7 +58,7 @@ pub const Gridtree = struct {
     num_nodes: u32 = 0,
     num_data: u32 = 0,
 
-    pub const Log2_cell_dim: u5 = 5;
+    pub const Log2_cell_dim: u5 = 6;
     pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
     pub const Cell_dim: i32 = 1 << Log2_cell_dim;
     pub const Cell_dim4 = @splat(4, Cell_dim);
