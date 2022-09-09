@@ -3,6 +3,7 @@ const tracking = @import("tracking.zig");
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../../scene/worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const shp = @import("../../../scene/shape/intersection.zig");
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
 const hlp = @import("../helper.zig");
@@ -35,7 +36,17 @@ pub const Multi = struct {
 
         if (scn.Almost_ray_max_t <= d) {
             missed = true;
-        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {}
+        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
+            const v = -ray.ray.direction;
+
+            var tray = Ray.init(isec.offsetP(v), v, 0.0, scn.Ray_max_t, 0, 0.0, ray.time);
+            var nisec = shp.Intersection{};
+            if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
+                missed = math.dot3(nisec.geo_n, v) <= 0.0;
+            } else {
+                missed = true;
+            }
+        }
 
         if (missed) {
             worker.interface_stack.pop();

@@ -12,7 +12,8 @@ const NullSample = @import("material/null/sample.zig").Sample;
 const mat = @import("material/material_helper.zig");
 const InterfaceStack = @import("prop/interface.zig").Stack;
 const Intersection = @import("prop/intersection.zig").Intersection;
-const Interpolation = @import("shape/intersection.zig").Interpolation;
+const shp = @import("shape/intersection.zig");
+const Interpolation = shp.Interpolation;
 const LightTree = @import("light/tree.zig").Tree;
 const Filter = @import("../image/texture/sampler.zig").Filter;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -48,6 +49,10 @@ pub const Worker = struct {
 
     pub fn intersect(self: *Worker, ray: *Ray, ipo: Interpolation, isec: *Intersection) bool {
         return self.scene.intersect(ray, self, ipo, isec);
+    }
+
+    pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
+        return self.scene.prop(entity).intersect(entity, ray, self, ipo, isec);
     }
 
     pub fn intersectShadow(self: *Worker, ray: *Ray, isec: *Intersection) bool {
