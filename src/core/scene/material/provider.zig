@@ -12,6 +12,7 @@ const TexUsage = tx.Usage;
 const ts = @import("../../image/texture/sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
+const Result = @import("../../resource/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -59,7 +60,7 @@ pub const Provider = struct {
         name: []const u8,
         options: Variants,
         resources: *Resources,
-    ) !Material {
+    ) !Result(Material) {
         _ = options;
 
         var stream = try resources.fs.readStream(alloc, name);
@@ -79,7 +80,7 @@ pub const Provider = struct {
 
         var material = try self.loadMaterial(alloc, root, resources);
         try material.commit(alloc, resources.scene.*, resources.threads);
-        return material;
+        return .{ .data = material };
     }
 
     pub fn loadData(

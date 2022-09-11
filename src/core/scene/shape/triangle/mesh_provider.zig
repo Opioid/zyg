@@ -2,6 +2,7 @@ const log = @import("../../../log.zig");
 const Mesh = @import("mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
+const Result = @import("../../../resource/result.zig").Result;
 const vs = @import("vertex_stream.zig");
 const IndexTriangle = @import("triangle.zig").IndexTriangle;
 const bvh = @import("bvh/tree.zig");
@@ -112,7 +113,7 @@ pub const Provider = struct {
         }
     }
 
-    pub fn loadFile(self: *Provider, alloc: Allocator, name: []const u8, options: Variants, resources: *Resources) !Shape {
+    pub fn loadFile(self: *Provider, alloc: Allocator, name: []const u8, options: Variants, resources: *Resources) !Result(Shape) {
         _ = options;
 
         var handler = Handler{};
@@ -122,10 +123,12 @@ pub const Provider = struct {
             defer stream.deinit();
 
             if (file.Type.SUB == file.queryType(&stream)) {
-                return self.loadBinary(alloc, &stream, resources) catch |e| {
+                const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
                 };
+
+                return .{ .data = .{ .TriangleMesh = mesh } };
             }
 
             const buffer = try stream.readAll(alloc);
@@ -177,7 +180,7 @@ pub const Provider = struct {
 
         resources.threads.runAsync(self, buildAsync);
 
-        return Shape{ .TriangleMesh = mesh };
+        return .{ .data = .{ .TriangleMesh = mesh } };
     }
 
     pub fn loadData(
@@ -369,7 +372,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Shape {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Mesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -577,7 +580,7 @@ pub const Provider = struct {
 
         resources.threads.runAsync(self, buildBinaryAsync);
 
-        return Shape{ .TriangleMesh = mesh };
+        return mesh;
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {

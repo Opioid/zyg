@@ -187,10 +187,18 @@ pub const Loader = struct {
             if (trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2 and 1 == scene.propShape(entity_id).numParts()) {
                 const material = scene.propMaterial(entity_id, 0);
                 if (material.heterogeneousVolume()) {
-                    const desc = material.usefulTextureDescription(scene.*);
-                    const voxel_scale = @splat(4, trafo.scale[0]);
-                    trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(desc.dimensions);
-                    trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(desc.offset);
+                    if (material.usefulTexture()) |t| {
+                        const voxel_scale = @splat(4, trafo.scale[0]);
+                        const dimensions = t.description(scene.*).dimensions;
+                        var offset = @splat(4, @as(i32, 0));
+
+                        if (self.resources.images.meta(t.image)) |meta| {
+                            offset = meta.queryOrDef("offset", @splat(4, @as(i32, 0)));
+                        }
+
+                        trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
+                        trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(offset);
+                    }
                 }
             }
 
