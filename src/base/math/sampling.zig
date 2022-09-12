@@ -1,5 +1,6 @@
 const Vec2f = @import("vector2.zig").Vec2f;
-const Vec4f = @import("vector4.zig").Vec4f;
+const math = @import("vector4.zig");
+const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
@@ -107,4 +108,30 @@ pub const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
     return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Eps));
+}
+
+fn signNotZero(v: Vec2f) Vec2f {
+    return .{ std.math.copysign(@as(f32, 1.0), v[0]), std.math.copysign(@as(f32, 1.0), v[1]) };
+}
+
+pub fn octEncode(v: Vec4f) Vec2f {
+    const linorm = @fabs(v[0]) + @fabs(v[1]) + @fabs(v[2]);
+    var o = Vec2f{ v[0], v[1] } * @splat(2, 1.0 / linorm);
+
+    if (v[2] >= 0.0) {
+        return (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(Vec2f{ o[0], o[1] });
+    }
+
+    return o;
+}
+
+pub fn octDecode(o: Vec2f) Vec4f {
+    var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
+    if (v[2] >= 0.0) {
+        const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ v[1], v[0] })) * signNotZero(Vec2f{ v[0], v[1] });
+        v[0] = xy[0];
+        v[1] = xy[1];
+    }
+
+    return math.normalize3(v);
 }

@@ -354,7 +354,7 @@ pub const Reader = struct {
             while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
 
-                const dir = octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
+                const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
 
                 const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });
 
@@ -374,21 +374,6 @@ pub const Reader = struct {
             if (phi < 0) (2.0 * std.math.pi) + phi else phi,
             std.math.acos(v[1]),
         };
-    }
-
-    fn signNotZero(v: Vec2f) Vec2f {
-        return .{ std.math.copysign(@as(f32, 1.0), v[0]), std.math.copysign(@as(f32, 1.0), v[1]) };
-    }
-
-    fn octDecode(o: Vec2f) Vec4f {
-        var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
-        if (v[2] >= 0.0) {
-            const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ v[1], v[0] })) * signNotZero(Vec2f{ v[0], v[1] });
-            v[0] = xy[0];
-            v[1] = xy[1];
-        }
-
-        return math.normalize3(v);
     }
 
     fn nextToken(it: *std.mem.TokenIterator(u8), stream: *ReadStream, buf: []u8) !?[]const u8 {

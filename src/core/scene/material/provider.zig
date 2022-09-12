@@ -402,8 +402,14 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         color = readColor(s);
     }
 
+    if (jvalue.Object.get("profile")) |p| {
+        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
+    }
+
+    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene.*));
+
     const value = json.readFloatMember(jvalue, "value", 1.0);
-    const cos_a = @maximum(@cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", 180.0))), 0.0);
+    const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
 
     if (std.mem.eql(u8, "Flux", quantity)) {
         emittance.setLuminousFlux(color, value, cos_a);
@@ -416,10 +422,6 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     } else // if (std.mem.eql(u8, "Radiance", quantity))
     {
         emittance.setRadiance(@splat(4, value) * color, cos_a);
-    }
-
-    if (jvalue.Object.get("profile")) |p| {
-        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 }
 
