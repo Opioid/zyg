@@ -67,8 +67,8 @@ pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
 pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const za = 1.0 - uv[0];
     const r = @sqrt(std.math.max(0.0, 1.0 - za * za));
-    const phi = uv[1] * (2.0 * std.math.pi);
 
+    const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
