@@ -78,8 +78,8 @@ pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f 
 pub fn sphereUniform(uv: Vec2f) Vec4f {
     const z = 1.0 - 2.0 * uv[0];
     const r = @sqrt(std.math.max(0.0, 1.0 - z * z));
-    const phi = uv[1] * (2.0 * std.math.pi);
 
+    const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
@@ -96,8 +96,8 @@ pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Ve
 pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const cos_theta = (1.0 - uv[0]) + (uv[0] * cos_theta_max);
     const sin_theta = @sqrt(1.0 - cos_theta * cos_theta);
-    const phi = uv[1] * (2.0 * std.math.pi);
 
+    const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
