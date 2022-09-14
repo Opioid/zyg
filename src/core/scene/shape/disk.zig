@@ -131,14 +131,7 @@ pub const Disk = struct {
             return null;
         }
 
-        return SampleTo.init(
-            dir,
-            wn,
-            @splat(4, @as(f32, 0.0)),
-            trafo,
-            sl / (c * area),
-            t,
-        );
+        return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), trafo, sl / (c * area), t);
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32, two_sided: bool) ?SampleTo {
@@ -168,14 +161,7 @@ pub const Disk = struct {
                 return null;
             }
 
-            return SampleTo.init(
-                dir,
-                wn,
-                .{ uv[0], uv[1], 0.0, 0.0 },
-                trafo,
-                sl / (c * area),
-                t,
-            );
+            return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area), t);
         }
 
         return null;
