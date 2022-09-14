@@ -119,7 +119,7 @@ pub fn octEncode(v: Vec4f) Vec2f {
     var o = Vec2f{ v[0], v[1] } * @splat(2, 1.0 / linorm);
 
     if (v[2] >= 0.0) {
-        return (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(Vec2f{ o[0], o[1] });
+        return (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
     }
 
     return o;
@@ -128,7 +128,7 @@ pub fn octEncode(v: Vec4f) Vec2f {
 pub fn octDecode(o: Vec2f) Vec4f {
     var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
     if (v[2] >= 0.0) {
-        const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ v[1], v[0] })) * signNotZero(Vec2f{ v[0], v[1] });
+        const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
         v[0] = xy[0];
         v[1] = xy[1];
     }
