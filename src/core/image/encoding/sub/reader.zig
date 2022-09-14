@@ -71,7 +71,6 @@ pub const Reader = struct {
         }
 
         const binary_start = json_size + 4 + @sizeOf(u64);
-        _ = binary_start;
 
         const description = img.Description.init3D(dimensions);
 

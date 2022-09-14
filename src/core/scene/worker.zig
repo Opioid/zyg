@@ -164,7 +164,6 @@ pub const Worker = struct {
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
         }
 
-        _ = alpha;
         return isec.sample(wo, ray, filter, avoid_caustics, self);
     }
 
