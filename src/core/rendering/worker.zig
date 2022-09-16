@@ -155,8 +155,10 @@ pub const Worker = struct {
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
         const camera = self.super.camera;
 
-        self.super.rng.start(0, offset + range[0]);
-        self.lighttracer.startPixel(@truncate(u32, range[0]), @truncate(u32, range[0] >> 32));
+        var rng = &self.super.rng;
+        rng.start(0, offset);
+        const seed = rng.randomUint();
+        self.lighttracer.startPixel(@truncate(u32, range[0]), seed);
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
