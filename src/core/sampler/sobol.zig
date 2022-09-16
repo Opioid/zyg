@@ -39,7 +39,7 @@ pub const Sobol = struct {
         const s = self.run_seed;
         const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
-        self.dimension += 1;
+        self.dimension = d + 1;
 
         return sobolOwen(i, s, d);
     }
@@ -52,7 +52,7 @@ pub const Sobol = struct {
         const s = self.run_seed;
         const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
-        self.dimension += 2;
+        self.dimension = d + 2;
 
         return .{ sobolOwen(i, s, d), sobolOwen(i, s, d + 1) };
     }
@@ -65,7 +65,7 @@ pub const Sobol = struct {
         const s = self.run_seed;
         const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
-        self.dimension += 3;
+        self.dimension = d + 3;
 
         return .{
             sobolOwen(i, s, d),
@@ -83,7 +83,7 @@ pub const Sobol = struct {
         const s = self.run_seed;
         const i = nestedUniformScrambleBase2(self.sample, s);
         const d = self.dimension;
-        self.dimension += 4;
+        self.dimension = d + 4;
 
         return .{
             sobolOwen(i, s, d),
