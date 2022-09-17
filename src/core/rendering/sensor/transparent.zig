@@ -6,7 +6,8 @@ const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
 
-const Allocator = @import("std").mem.Allocator;
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Transparent = struct {
     base: Base = .{},
@@ -113,7 +114,7 @@ pub const Transparent = struct {
             const weight = self.pixel_weights[j];
             const color = @as(Vec4f, p.v) / @splat(4, weight);
             const tm = self.base.tonemapper.tonemap(color);
-            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(color[3], 0.0) };
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], std.math.max(color[3], 0.0) };
         }
     }
 
@@ -125,7 +126,7 @@ pub const Transparent = struct {
             const old = target[j];
             const combined = color + @as(Vec4f, old.v);
             const tm = self.base.tonemapper.tonemap(combined);
-            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(combined[3], 0.0) };
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], std.math.max(combined[3], 0.0) };
         }
     }
 };

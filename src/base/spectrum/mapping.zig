@@ -23,7 +23,7 @@ pub fn blackbody(temperature: f32) Vec4f {
     }
 
     // normalize the result
-    xyz /= @splat(4, @maximum(xyz[0], @maximum(xyz[1], xyz[2])));
+    xyz /= @splat(4, std.math.max(xyz[0], std.math.max(xyz[1], xyz[2])));
 
     return @maximum(spectrum.XYZ_to_sRGB(xyz), @splat(4, @as(f32, 0.0)));
 }
