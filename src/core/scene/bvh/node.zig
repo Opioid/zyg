@@ -74,8 +74,8 @@ pub const Node = struct {
         const lower = (Vec4f{ self.min.v[0], self.min.v[1], self.min.v[2], 0.0 } - ray.origin) * ray.inv_direction;
         const upper = (Vec4f{ self.max.v[0], self.max.v[1], self.max.v[2], 0.0 } - ray.origin) * ray.inv_direction;
 
-        const t0 = @minimum(lower, upper);
-        const t1 = @maximum(lower, upper);
+        const t0 = math.min4(lower, upper);
+        const t1 = math.max4(lower, upper);
 
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };

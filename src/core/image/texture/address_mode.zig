@@ -67,7 +67,7 @@ pub const Clamp = struct {
     }
 
     pub fn f3(x: Vec4f) Vec4f {
-        return @minimum(@maximum(x, @splat(4, @as(f32, 0.0))), @splat(4, @as(f32, 1.0)));
+        return math.clamp(x, 0.0, 1.0);
     }
 
     pub fn increment(v: i32, max: i32) i32 {
