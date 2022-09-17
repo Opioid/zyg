@@ -26,7 +26,7 @@ const E_m_avg_func = math.InterpolatedFunction1D_N(E_m_samples);
 const E_func = math.InterpolatedFunction3D_N(E_samples, E_samples, E_samples);
 
 fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
-    const calpha = @maximum(alpha, ggx.Min_alpha);
+    const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
     const schlick = fresnel.Schlick1.init(1.0);
@@ -86,7 +86,7 @@ fn dspbrMicroEc(f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, e_m: E_m_func
 }
 
 fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_m_avg_func, num_samples: u32) f32 {
-    const calpha = @maximum(alpha, ggx.Min_alpha);
+    const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
     const schlick = fresnel.Schlick1.init(f0);

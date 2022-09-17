@@ -1,3 +1,6 @@
+const math = @import("../math/vector4.zig");
+const Vec4i = math.Vec4i;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -5,6 +8,7 @@ pub const VariantMap = struct {
     const Variant = union(enum) {
         Bool: bool,
         UInt: u32,
+        Vec4i: Vec4i,
 
         pub fn eql(self: Variant, other: Variant) bool {
             return switch (self) {
@@ -14,6 +18,10 @@ pub const VariantMap = struct {
                 },
                 .UInt => |s| switch (other) {
                     .UInt => |o| s == o,
+                    else => false,
+                },
+                .Vec4i => |s| switch (other) {
+                    .Vec4i => |o| math.equal4i(s, o),
                     else => false,
                 },
             };
@@ -26,6 +34,7 @@ pub const VariantMap = struct {
             switch (self) {
                 .Bool => |b| hasher.update(std.mem.asBytes(&b)),
                 .UInt => |i| hasher.update(std.mem.asBytes(&i)),
+                .Vec4i => |v| hasher.update(std.mem.asBytes(&v)),
             }
         }
     };
@@ -74,6 +83,9 @@ pub const VariantMap = struct {
                         else => null,
                     };
                 },
+                .Vec4i => |v| {
+                    return if (T == Vec4i) v else null;
+                },
             }
         }
 
@@ -88,6 +100,7 @@ pub const VariantMap = struct {
         switch (@typeInfo(@TypeOf(val))) {
             .Bool => try self.map.put(alloc, key, .{ .Bool = val }),
             .Enum => try self.map.put(alloc, key, .{ .UInt = @as(u32, @enumToInt(val)) }),
+            .Vector => try self.map.put(alloc, key, .{ .Vec4i = val }),
             else => {},
         }
     }

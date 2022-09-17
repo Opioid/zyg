@@ -85,6 +85,11 @@ pub const TileQueue = struct {
 };
 
 pub const RangeQueue = struct {
+    pub const Result = struct {
+        it: u32,
+        range: Vec2ul,
+    };
+
     total0: u64,
     total1: u64,
 
@@ -122,21 +127,22 @@ pub const RangeQueue = struct {
         self.current_consume = 0;
     }
 
-    pub fn pop(self: *Self) ?Vec2ul {
+    pub fn pop(self: *Self) ?Result {
         const current = @atomicRmw(u32, &self.current_consume, .Add, 1, .Monotonic);
 
         const seg0 = 0 == self.current_segment;
 
-        const start = @as(u64, current) * @as(u64, self.range_size) + (if (seg0) 0 else self.total0);
+        const cl = @as(u64, current);
+        const start = cl * @as(u64, self.range_size) + (if (seg0) 0 else self.total0);
 
         const num_ranges = if (seg0) self.num_ranges0 else self.num_ranges1;
 
         if (current < num_ranges - 1) {
-            return Vec2ul{ start, start + self.range_size };
+            return Result{ .it = current, .range = .{ start, start + self.range_size } };
         }
 
         if (current < num_ranges) {
-            return Vec2ul{ start, if (seg0) self.total0 else self.total1 };
+            return Result{ .it = current, .range = .{ start, if (seg0) self.total0 else self.total1 } };
         }
 
         return null;

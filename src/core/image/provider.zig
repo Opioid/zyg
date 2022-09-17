@@ -8,6 +8,8 @@ const PngReader = @import("encoding/png/reader.zig").Reader;
 const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
 const SubReader = @import("encoding/sub/reader.zig").Reader;
 const Resources = @import("../resource/manager.zig").Manager;
+const Result = @import("../resource/result.zig").Result;
+
 const Variants = @import("base").memory.VariantMap;
 
 const std = @import("std");
@@ -40,7 +42,7 @@ pub const Provider = struct {
         name: []const u8,
         options: Variants,
         resources: *Resources,
-    ) !Image {
+    ) !Result(Image) {
         var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
 
@@ -61,25 +63,25 @@ pub const Provider = struct {
         if (.EXR == file_type) {
             const color = options.queryOrDef("color", false);
 
-            return ExrReader.read(alloc, &stream, swizzle, color);
+            return .{ .data = try ExrReader.read(alloc, &stream, swizzle, color) };
         }
 
         if (.IES == file_type) {
-            return IesReader.read(alloc, &stream);
+            return .{ .data = try IesReader.read(alloc, &stream) };
         }
 
         if (.PNG == file_type) {
             const invert = options.queryOrDef("invert", false);
 
             if (same_file) {
-                return self.png_reader.createFromBuffer(alloc, swizzle, invert);
+                return .{ .data = try self.png_reader.createFromBuffer(alloc, swizzle, invert) };
             }
 
-            return self.png_reader.read(alloc, &stream, swizzle, invert);
+            return .{ .data = try self.png_reader.read(alloc, &stream, swizzle, invert) };
         }
 
         if (.RGBE == file_type) {
-            return RgbeReader.read(alloc, &stream);
+            return .{ .data = try RgbeReader.read(alloc, &stream) };
         }
 
         if (.SUB == file_type) {

@@ -153,8 +153,7 @@ pub const Part = struct {
             }
         }
 
-        const dimensions = m.usefulTextureDescription(scene).dimensions;
-
+        const dimensions = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(4, @as(i32, 0));
         const context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),

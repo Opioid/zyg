@@ -23,8 +23,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
         num_samples: u32,
         min_bounces: u32,

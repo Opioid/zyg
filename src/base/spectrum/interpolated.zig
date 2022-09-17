@@ -1,6 +1,8 @@
 const math = @import("../math/math.zig");
 const memory = @import("../memory/bound.zig");
 
+const std = @import("std");
+
 pub const Interpolated = struct {
     num_elements: u32,
 
@@ -48,8 +50,8 @@ pub const Interpolated = struct {
             return 0.0;
         }
 
-        const start = @maximum(a, self.startWavelength());
-        const end = @minimum(b, self.endWavelength());
+        const start = std.math.max(a, self.startWavelength());
+        const end = std.math.min(b, self.endWavelength());
         if (end <= start) {
             return 0.0;
         }
@@ -66,8 +68,8 @@ pub const Interpolated = struct {
             const wl0 = self.wavelengths[index];
             const wl1 = self.wavelengths[index + 1];
 
-            const c0 = @maximum(wl0, start);
-            const c1 = @minimum(wl1, end);
+            const c0 = std.math.max(wl0, start);
+            const c1 = std.math.min(wl1, end);
 
             if (c1 <= c0) {
                 continue;

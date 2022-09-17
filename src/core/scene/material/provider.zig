@@ -12,6 +12,7 @@ const TexUsage = tx.Usage;
 const ts = @import("../../image/texture/sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
+const Result = @import("../../resource/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -59,7 +60,7 @@ pub const Provider = struct {
         name: []const u8,
         options: Variants,
         resources: *Resources,
-    ) !Material {
+    ) !Result(Material) {
         _ = options;
 
         var stream = try resources.fs.readStream(alloc, name);
@@ -78,8 +79,9 @@ pub const Provider = struct {
         const root = document.root;
 
         var material = try self.loadMaterial(alloc, root, resources);
+
         try material.commit(alloc, resources.scene, resources.threads);
-        return material;
+        return .{ .data = material };
     }
 
     pub fn loadData(
@@ -401,8 +403,14 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         color = readColor(s);
     }
 
+    if (jvalue.Object.get("profile")) |p| {
+        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
+    }
+
+    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
+
     const value = json.readFloatMember(jvalue, "value", 1.0);
-    const cos_a = @maximum(@cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", 180.0))), 0.0);
+    const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
 
     if (std.mem.eql(u8, "Flux", quantity)) {
         emittance.setLuminousFlux(color, value, cos_a);
@@ -415,10 +423,6 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     } else // if (std.mem.eql(u8, "Radiance", quantity))
     {
         emittance.setRadiance(@splat(4, value) * color, cos_a);
-    }
-
-    if (jvalue.Object.get("profile")) |p| {
-        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 }
 
@@ -543,7 +547,7 @@ fn readColor(value: std.json.Value) Vec4f {
                     rgb = readColor(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = json.readFloat(f32, entry.value_ptr.*);
-                    rgb = spectrum.blackbody(@maximum(800.0, temperature));
+                    rgb = spectrum.blackbody(std.math.max(800.0, temperature));
                 } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
                     linear = json.readBool(entry.value_ptr.*);
                 }

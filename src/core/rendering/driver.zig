@@ -321,7 +321,7 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         while (self.ranges.pop()) |range| {
-            self.workers[id].particles(self.frame, 0, range);
+            self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
 
             self.progressor.tick();
         }

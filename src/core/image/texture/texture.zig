@@ -38,7 +38,9 @@ pub const Texture = struct {
     }
 
     pub fn numChannels(self: Texture) u32 {
-        if (Null == self.image) return 0;
+        if (Null == self.image) {
+            return 0;
+        }
 
         return switch (self.type) {
             .Byte1_unorm, .Float1, .Float1Sparse => 1,

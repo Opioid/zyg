@@ -16,6 +16,7 @@ const Shape = @import("../shape/shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
+const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/sampler.zig");
 
 const base = @import("base");
@@ -272,32 +273,32 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn usefulTextureDescription(self: *const Material, scene: *const Scene) image.Description {
+    pub fn usefulTexture(self: *const Material) ?Texture {
         switch (self.*) {
             .Light => |*m| {
                 if (m.emission_map.valid()) {
-                    return m.emission_map.description(scene);
+                    return m.emission_map;
                 }
             },
             .Sky => |*m| {
                 if (m.emission_map.valid()) {
-                    return m.emission_map.description(scene);
+                    return m.emission_map;
                 }
             },
             .Substitute => |*m| {
                 if (m.emission_map.valid()) {
-                    return m.emission_map.description(scene);
+                    return m.emission_map;
                 }
             },
             .Volumetric => |*m| {
                 if (m.density_map.valid()) {
-                    return m.density_map.description(scene);
+                    return m.density_map;
                 }
             },
             else => {},
         }
 
         const color_map = self.super().color_map;
-        return if (color_map.valid()) color_map.description(scene) else .{};
+        return if (color_map.valid()) color_map else null;
     }
 };

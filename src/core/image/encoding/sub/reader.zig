@@ -1,12 +1,14 @@
 const img = @import("../../image.zig");
 const Image = img.Image;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+const Result = @import("../../../resource/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const json = base.json;
 const Bitfield = base.memory.Bitfield;
+const Variants = base.memory.VariantMap;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -21,7 +23,7 @@ pub const Reader = struct {
         EmptyTopology,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
+    pub fn read(alloc: Allocator, stream: *ReadStream) !Result(Image) {
         try stream.seekTo(4);
 
         var json_size: u64 = 0;
@@ -69,9 +71,8 @@ pub const Reader = struct {
         }
 
         const binary_start = json_size + 4 + @sizeOf(u64);
-        _ = binary_start;
 
-        const description = img.Description.init3D(dimensions, offset);
+        const description = img.Description.init3D(dimensions);
 
         if (image_node.Object.get("topology")) |topology_node| {
             var topology_offset: u64 = 0;
@@ -91,6 +92,10 @@ pub const Reader = struct {
             if (0 == topology_size) {
                 return Error.EmptyTopology;
             }
+
+            var meta = Variants{};
+            try meta.set(alloc, "offset", offset);
+            errdefer meta.deinit(alloc);
 
             var field = try Bitfield.init(alloc, description.numPixels());
             defer field.deinit(alloc);
@@ -115,7 +120,7 @@ pub const Reader = struct {
                     }
                 }
 
-                return Image{ .Byte1 = image };
+                return .{ .data = Image{ .Byte1 = image }, .meta = meta };
             }
 
             if (.Float1 == image_type) {
@@ -131,7 +136,7 @@ pub const Reader = struct {
                     }
                 }
 
-                return Image{ .Float1Sparse = image };
+                return .{ .data = Image{ .Float1Sparse = image }, .meta = meta };
 
                 // var image = try img.Float1.init(alloc, description);
 
@@ -165,7 +170,7 @@ pub const Reader = struct {
                     }
                 }
 
-                return Image{ .Float2 = image };
+                return .{ .data = Image{ .Float2 = image }, .meta = meta };
             }
         }
 
