@@ -61,7 +61,7 @@ pub fn build(b: *std.build.Builder) void {
     cli.linkLibC();
 
     // cli.sanitize_thread = true;
-    // cli.strip = true;
+    cli.strip = true;
 
     cli.install();
 
@@ -72,7 +72,7 @@ pub fn build(b: *std.build.Builder) void {
     capi.setBuildMode(mode);
     capi.linkLibC();
 
-    // capi.strip = true;
+    capi.strip = true;
 
     capi.install();
 
@@ -83,8 +83,8 @@ pub fn build(b: *std.build.Builder) void {
     it.setBuildMode(mode);
     it.linkLibC();
 
-    // cli.sanitize_thread = true;
-    // it.strip = true;
+    // it.sanitize_thread = true;
+    it.strip = true;
 
     it.install();
 
