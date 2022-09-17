@@ -114,7 +114,7 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
         accum += ((n_dot_wi * (result.reflection[0] + mms)) / result.pdf) / @intToFloat(f32, num_samples);
     }
 
-    return @minimum(accum, 1.0);
+    return std.math.min(accum, 1.0);
 }
 
 fn integrate_f_ms_avg(alpha: f32, f0: f32, e: E_func, num_samples: u32) f32 {
@@ -193,13 +193,13 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
                 &result,
             );
 
-            const inti = (@minimum(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
+            const inti = (std.math.min(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
 
             if (std.math.isNan(inti)) {
                 std.debug.print("reflection\n", .{});
             }
 
-            accum += (@minimum(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
+            accum += (std.math.min(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
         }
         {
             const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
@@ -414,7 +414,7 @@ fn make_f_ms_avg_table(comptime Num_samples: comptime_int, e: E_func, writer: an
 
         var i: u32 = 0;
         while (i < Num_samples) : (i += 1) {
-            const e_avg = @minimum(integrate_f_ms_avg(alpha, f0, e, 1024), 0.9997);
+            const e_avg = std.math.min(integrate_f_ms_avg(alpha, f0, e, 1024), 0.9997);
 
             line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e_avg});
             _ = try writer.write(line);

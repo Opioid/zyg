@@ -17,11 +17,11 @@ pub const IndexTriangle = struct {
 };
 
 pub fn min(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return @minimum(a, @minimum(b, c));
+    return math.min4(a, math.min4(b, c));
 }
 
 pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
-    return @maximum(a, @maximum(b, c));
+    return math.max4(a, math.max4(b, c));
 }
 
 pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {

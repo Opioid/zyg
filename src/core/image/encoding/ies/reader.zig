@@ -335,7 +335,7 @@ pub const Reader = struct {
         for (data.intensities.items) |*i| {
             const v = try std.fmt.parseFloat(f32, try tokenizer.next());
             i.* = v;
-            mi = @maximum(mi, v);
+            mi = std.math.max(mi, v);
         }
 
         const d = Vec2i{ 512, 512 };

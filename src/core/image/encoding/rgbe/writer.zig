@@ -54,7 +54,7 @@ pub const Writer = struct {
 
             var i: u32 = 0;
             while (i < scanline_width) : (i += 1) {
-                const rgbe = floatToRgbe(@maximum(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
+                const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
 
                 buffer[i] = rgbe[0];
                 buffer[i + scanline_width] = rgbe[1];
@@ -77,7 +77,7 @@ pub const Writer = struct {
 
     fn writePixels(writer: anytype, image: Float4) !void {
         for (image.pixels) |p| {
-            const rgbe = floatToRgbe(@maximum(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
+            const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
 
             try writer.writeAll(&rgbe);
         }

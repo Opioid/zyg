@@ -35,8 +35,8 @@ pub const AABB = struct {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
-        const t0 = @minimum(lower, upper);
-        const t1 = @maximum(lower, upper);
+        const t0 = math.min4(lower, upper);
+        const t1 = math.max4(lower, upper);
 
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
@@ -51,8 +51,8 @@ pub const AABB = struct {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
-        const t0 = @minimum(lower, upper);
-        const t1 = @maximum(lower, upper);
+        const t0 = math.min4(lower, upper);
+        const t1 = math.max4(lower, upper);
 
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
@@ -81,8 +81,8 @@ pub const AABB = struct {
     }
 
     pub fn insert(self: *AABB, p: Vec4f) void {
-        self.bounds[0] = @minimum(p, self.bounds[0]);
-        self.bounds[1] = @maximum(p, self.bounds[1]);
+        self.bounds[0] = math.min4(p, self.bounds[0]);
+        self.bounds[1] = math.max4(p, self.bounds[1]);
     }
 
     pub fn scale(self: *AABB, s: f32) void {
@@ -126,8 +126,8 @@ pub const AABB = struct {
         const mw = m.r[3];
 
         return init(
-            @minimum(xa, xb) + @minimum(ya, yb) + @minimum(za, zb) + mw,
-            @maximum(xa, xb) + @maximum(ya, yb) + @maximum(za, zb) + mw,
+            math.min4(xa, xb) + math.min4(ya, yb) + math.min4(za, zb) + mw,
+            math.max4(xa, xb) + math.max4(ya, yb) + math.max4(za, zb) + mw,
         );
     }
 
@@ -144,8 +144,8 @@ pub const AABB = struct {
         const za = @splat(4, self.bounds[0][2]) * mz;
         const zb = @splat(4, self.bounds[1][2]) * mz;
 
-        const min = @minimum(xa, xb) + @minimum(ya, yb) + @minimum(za, zb);
-        const max = @maximum(xa, xb) + @maximum(ya, yb) + @maximum(za, zb);
+        const min = math.min4(xa, xb) + math.min4(ya, yb) + math.min4(za, zb);
+        const max = math.max4(xa, xb) + math.max4(ya, yb) + math.max4(za, zb);
 
         const half = @splat(4, @as(f32, 0.5)) * (max - min);
 
@@ -156,14 +156,14 @@ pub const AABB = struct {
 
     pub fn intersection(self: AABB, other: AABB) AABB {
         return init(
-            @maximum(self.bounds[0], other.bounds[0]),
-            @minimum(self.bounds[1], other.bounds[1]),
+            math.max4(self.bounds[0], other.bounds[0]),
+            math.min4(self.bounds[1], other.bounds[1]),
         );
     }
 
     pub fn mergeAssign(self: *AABB, other: AABB) void {
-        self.bounds[0] = @minimum(self.bounds[0], other.bounds[0]);
-        self.bounds[1] = @maximum(self.bounds[1], other.bounds[1]);
+        self.bounds[0] = math.min4(self.bounds[0], other.bounds[0]);
+        self.bounds[1] = math.max4(self.bounds[1], other.bounds[1]);
     }
 
     pub fn clipMin(self: *AABB, d: f32, axis: u8) void {

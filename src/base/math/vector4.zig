@@ -115,8 +115,26 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
     return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
 }
 
+pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.min(a[0], b[0]),
+        std.math.min(a[1], b[1]),
+        std.math.min(a[2], b[2]),
+        std.math.min(a[3], b[3]),
+    };
+}
+
+pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.max(a[0], b[0]),
+        std.math.max(a[1], b[1]),
+        std.math.max(a[2], b[2]),
+        std.math.max(a[3], b[3]),
+    };
+}
+
 pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return @minimum(@maximum(v, @splat(4, mi)), @splat(4, ma));
+    return min4(max4(v, @splat(4, mi)), @splat(4, ma));
 }
 
 pub inline fn minComponent3(v: Vec4f) f32 {
