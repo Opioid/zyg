@@ -168,7 +168,7 @@ fn importance(
     const cos_n = -math.dot3(n, na);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
-    const sb = @maximum(@splat(4, @as(f32, 1.0)) - sa * sa, math.Min_normal);
+    const sb = math.max4(@splat(4, @as(f32, 1.0)) - sa * sa, math.Min_normal);
     const sr = @sqrt(sb);
 
     const cos_cu = sr[0];
@@ -360,7 +360,7 @@ pub const Tree = struct {
                     } else {
                         t.node = c1;
                         t.pdf *= p1;
-                        t.random = @minimum((t.random - p0) / p1, 1.0);
+                        t.random = std.math.min((t.random - p0) / p1, 1.0);
                     }
 
                     t.depth = Max_split_depth;
@@ -528,7 +528,7 @@ pub const PrimitiveTree = struct {
                 } else {
                     nid = c1;
                     pd *= p1;
-                    random = @minimum((random - p0) / p1, 1.0);
+                    random = std.math.min((random - p0) / p1, 1.0);
                 }
             } else {
                 const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);

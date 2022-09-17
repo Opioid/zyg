@@ -11,6 +11,8 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+
 pub const Coating = struct {
     frame: Frame = undefined,
 
@@ -118,7 +120,7 @@ pub const Coating = struct {
     }
 
     pub fn attenuation(self: Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
-        const f = self.weight * fresnel.schlick1(@minimum(n_dot_wi, n_dot_wo), self.f0);
+        const f = self.weight * fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), self.f0);
         const d = self.thickness * (1.0 / n_dot_wi + 1.0 / n_dot_wo);
 
         const absorption = inthlp.attenuation3(self.absorption_coef, d);
