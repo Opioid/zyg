@@ -194,16 +194,15 @@ pub const Disk = struct {
 
             return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, 1.0 / (std.math.pi * area));
         } else {
-            var dir = math.smpl.orientedConeUniform(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+            var dir = math.smpl.orientedConeCosine(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
             if (two_sided and sampler.sample1D(rng) > 0.5) {
                 wn = -wn;
                 dir = -dir;
             }
 
-            const c = math.dot3(dir, wn);
-            const pdf = math.smpl.conePdfUniform(cos_a);
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf / (c * area));
+            const pdf = math.smpl.conePdfCosine(cos_a);
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf / area);
         }
     }
 };

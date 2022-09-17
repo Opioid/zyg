@@ -64,17 +64,6 @@ pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     return @splat(4, xy[0]) * x + @splat(4, xy[1]) * y + @splat(4, za) * z;
 }
 
-pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
-    const za = 1.0 - uv[0];
-    const r = @sqrt(std.math.max(0.0, 1.0 - za * za));
-
-    const phi = uv[1] * (2.0 * std.math.pi);
-    const sin_phi = @sin(phi);
-    const cos_phi = @cos(phi);
-
-    return @splat(4, cos_phi * r) * x + @splat(4, sin_phi * r) * y + @splat(4, za) * z;
-}
-
 pub fn sphereUniform(uv: Vec2f) Vec4f {
     const z = 1.0 - 2.0 * uv[0];
     const r = @sqrt(std.math.max(0.0, 1.0 - z * z));
@@ -84,6 +73,17 @@ pub fn sphereUniform(uv: Vec2f) Vec4f {
     const cos_phi = @cos(phi);
 
     return .{ cos_phi * r, sin_phi * r, z, 0.0 };
+}
+
+pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+    const za = 1.0 - uv[0];
+    const r = @sqrt(std.math.max(0.0, 1.0 - za * za));
+
+    const phi = uv[1] * (2.0 * std.math.pi);
+    const sin_phi = @sin(phi);
+    const cos_phi = @cos(phi);
+
+    return @splat(4, cos_phi * r) * x + @splat(4, sin_phi * r) * y + @splat(4, za) * z;
 }
 
 pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
@@ -104,10 +104,21 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
 }
 
+pub fn orientedConeCosine(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+    const xy = @splat(2, @sqrt(1.0 - cos_theta_max * cos_theta_max)) * diskConcentric(uv);
+    const za = @sqrt(std.math.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
+
+    return @splat(4, xy[0]) * x + @splat(4, xy[1]) * y + @splat(4, za) * z;
+}
+
 pub const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
     return 1.0 / ((2.0 * std.math.pi) * std.math.max(1.0 - cos_theta_max, Eps));
+}
+
+pub fn conePdfCosine(cos_theta_max: f32) f32 {
+    return 1.0 / ((1.0 - (cos_theta_max * cos_theta_max)) * std.math.pi);
 }
 
 fn signNotZero(v: Vec2f) Vec2f {
