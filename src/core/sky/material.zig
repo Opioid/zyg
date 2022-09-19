@@ -21,6 +21,7 @@ const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Threads = base.thread.Pool;
 const spectrum = base.spectrum;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -65,12 +66,14 @@ pub const Material = struct {
     pub fn setSunRadiance(self: *Material, model: Model) void {
         const n = @intToFloat(f32, self.sun_radiance.samples.len - 1);
 
+        var rng = RNG.init(0, 0);
+
         for (self.sun_radiance.samples) |*s, i| {
             const v = @intToFloat(f32, i) / n;
             var wi = self.sky.sunWi(v);
             wi[1] = std.math.max(wi[1], 0.0);
 
-            s.* = model.evaluateSkyAndSun(wi);
+            s.* = model.evaluateSkyAndSun(wi, &rng);
         }
 
         var total = @splat(4, @as(f32, 0.0));

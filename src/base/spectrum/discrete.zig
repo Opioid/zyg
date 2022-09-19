@@ -34,6 +34,10 @@ pub fn DiscreteSpectralPowerDistribution(
             }
         }
 
+        pub fn randomWavelength(bin: usize, r: f32) f32 {
+            return WL_start + (@intToFloat(f32, bin) + r) * Step;
+        }
+
         pub fn wavelengthCenter(bin: usize) f32 {
             return WL_start + (@intToFloat(f32, bin) + 0.5) * Step;
         }
