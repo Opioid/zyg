@@ -14,6 +14,8 @@ pub fn DiscreteSpectralPowerDistribution(
         var Cie = [_]Vec4f{@splat(4, @as(f32, -1.0))} ** N;
         const Step = (WL_end - WL_start) / @intToFloat(f32, N);
 
+        pub const Bins = N;
+
         const Self = @This();
 
         pub fn staticInit() void {
@@ -34,12 +36,30 @@ pub fn DiscreteSpectralPowerDistribution(
             }
         }
 
+        pub fn wavelengthsStart() f32 {
+            return WL_start;
+        }
+
+        pub fn wavelengthsEnd() f32 {
+            return WL_end;
+        }
+
         pub fn randomWavelength(bin: usize, r: f32) f32 {
             return WL_start + (@intToFloat(f32, bin) + r) * Step;
         }
 
         pub fn wavelengthCenter(bin: usize) f32 {
             return WL_start + (@intToFloat(f32, bin) + 0.5) * Step;
+        }
+
+        pub fn init() Self {
+            var result = Self{};
+
+            for (result.values) |*v| {
+                v.* = 0.0;
+            }
+
+            return result;
         }
 
         pub fn initInterpolated(interpolated: Interpolated) Self {

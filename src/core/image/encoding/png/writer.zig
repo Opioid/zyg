@@ -73,8 +73,8 @@ pub const Writer = struct {
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
             @ptrCast(*const anyopaque, buffer.ptr),
-            d.v[0],
-            d.v[1],
+            d[0],
+            d[1],
             3,
             &buffer_len,
         );

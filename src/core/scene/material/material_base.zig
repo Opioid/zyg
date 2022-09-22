@@ -1,3 +1,4 @@
+const Rainbow = @import("rainbow_integral.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Scene = @import("../scene.zig").Scene;
 const Emittance = @import("../light/emittance.zig").Emittance;
@@ -125,66 +126,23 @@ pub const Base = struct {
         return (1.0 - g) / (1.0 - gs);
     }
 
-    const Num_bands = 36;
-
-    // For now this is just copied from the table calculated with sprout
-    const Rainbow = [Num_bands + 1]Vec4f{
-        .{ 0.00962823, 0, 0.100005, 1.0 },
-        .{ 0.025591, 0, 0.270464, 1.0 },
-        .{ 0.0620753, 0, 0.674678, 1.0 },
-        .{ 0.108291, 0, 1, 1.0 },
-        .{ 0.126475, 0, 1, 1.0 },
-        .{ 0.114185, 0, 1, 1.0 },
-        .{ 0.0822336, 0, 1, 1.0 },
-        .{ 0.0363506, 0, 1, 1.0 },
-        .{ 0, 0.0492168, 1, 1.0 },
-        .{ 0, 0.15781, 0.797668, 1.0 },
-        .{ 0, 0.274093, 0.50495, 1.0 },
-        .{ 0, 0.417446, 0.318206, 1.0 },
-        .{ 0, 0.614652, 0.206342, 1.0 },
-        .{ 0, 0.855357, 0.124255, 1.0 },
-        .{ 0, 1, 0.0685739, 1.0 },
-        .{ 0, 1, 0.0401956, 1.0 },
-        .{ 0.108656, 1, 0.0223897, 1.0 },
-        .{ 0.25955, 1, 0.0117566, 1.0 },
-        .{ 0.435642, 1, 0.00684643, 1.0 },
-        .{ 0.633237, 1, 0.00536615, 1.0 },
-        .{ 0.840695, 0.976963, 0.00562624, 1.0 },
-        .{ 1, 0.788856, 0.00667743, 1.0 },
-        .{ 1, 0.584584, 0.00753228, 1.0 },
-        .{ 1, 0.390579, 0.00812561, 1.0 },
-        .{ 1, 0.230459, 0.00812094, 1.0 },
-        .{ 1, 0.115009, 0.00748867, 1.0 },
-        .{ 1, 0.0434112, 0.00650762, 1.0 },
-        .{ 0.859776, 0.00545805, 0.00514384, 1.0 },
-        .{ 0.646021, 0, 0.00386653, 1.0 },
-        .{ 0.456052, 0, 0.00273025, 1.0 },
-        .{ 0.301629, 0, 0.00180471, 1.0 },
-        .{ 0.187707, 0, 0.00112459, 1.0 },
-        .{ 0.110306, 0, 0.000661374, 1.0 },
-        .{ 0.0652361, 0, 0.000391372, 1.0 },
-        .{ 0.0365208, 0, 0.000219199, 1.0 },
-        .{ 0.0200153, 0, 0.000120156, 1.0 },
-        .{ 0.0200153, 0, 0.000120156, 1.0 },
-    };
-
-    pub const Start_wavelength: f32 = 400.0;
-    pub const End_wavelength: f32 = 700.0;
+    pub const Start_wavelength = Rainbow.Wavelength_start;
+    pub const End_wavelength = Rainbow.Wavelength_end;
 
     pub fn spectrumAtWavelength(lambda: f32, value: f32) Vec4f {
-        const start: f32 = Start_wavelength;
-        const end: f32 = End_wavelength;
-        const nb = @intToFloat(f32, Num_bands);
+        const start = Rainbow.Wavelength_start;
+        const end = Rainbow.Wavelength_end;
+        const nb = @intToFloat(f32, Rainbow.Num_bands);
 
         const u = ((lambda - start) / (end - start)) * nb;
         const id = @floatToInt(u32, u);
         const frac = u - @intToFloat(f32, id);
 
-        if (id >= Num_bands) {
-            return Rainbow[Num_bands];
+        if (id >= Rainbow.Num_bands - 1) {
+            return Rainbow.Rainbow[Rainbow.Num_bands - 1];
         }
 
-        return @splat(4, value) * math.lerp3(Rainbow[id], Rainbow[id + 1], frac);
+        return @splat(4, value) * math.lerp3(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], frac);
     }
 
     var SR_low: u32 = 16;

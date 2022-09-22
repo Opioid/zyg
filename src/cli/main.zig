@@ -56,6 +56,7 @@ pub fn main() !void {
     defer threads.deinit(alloc);
 
     // try core.ggx_integrate.integrate(alloc, &threads);
+    // try core.rainbow_integrate.integrate(alloc);
 
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
