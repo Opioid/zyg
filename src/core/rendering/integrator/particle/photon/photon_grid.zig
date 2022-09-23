@@ -38,8 +38,6 @@ pub const Grid = struct {
 
     num_paths: f64 = undefined,
 
-    cell_bound: Vec2f = undefined,
-
     dimensions: Vec4i = @splat(4, @as(i32, 0)),
 
     local_to_texture: Vec4f = undefined,
@@ -53,7 +51,6 @@ pub const Grid = struct {
     pub fn configure(self: *Self, search_radius: f32, grid_cell_factor: f32) void {
         self.search_radius = search_radius;
         self.grid_cell_factor = grid_cell_factor;
-        self.cell_bound = .{ 0.5 / grid_cell_factor, 1.0 - (0.5 / grid_cell_factor) };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -379,7 +376,7 @@ pub const Grid = struct {
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
-        const cell_bound = Vec2f{ 0.5 / merge_grid_cell_factor, 1.0 - (0.5 / merge_grid_cell_factor) };
+        const cell_bound = 0.5 / merge_grid_cell_factor;
         const merge_radius2 = merge_radius * merge_radius;
 
         var i = begin;
@@ -467,7 +464,7 @@ pub const Grid = struct {
             @as(i64, c[0]));
     }
 
-    fn map3(self: Self, v: Vec4f, cell_bound: Vec2f, adjacents: *u8) Vec4i {
+    fn map3(self: Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
         const r = (v - self.aabb.bounds[0]) * self.local_to_texture;
         const c = math.vec4fTo4i(r);
         const d = r - math.vec4iTo4f(c);
@@ -487,19 +484,19 @@ pub const Grid = struct {
         Negative = 2,
     };
 
-    fn adjacent(s: f32, cell_bound: Vec2f) u8 {
-        if (s < cell_bound[0]) {
+    fn adjacent(s: f32, cell_bound: f32) u8 {
+        if (s < cell_bound) {
             return @enumToInt(Adjacent.Negative);
         }
 
-        if (s > cell_bound[1]) {
+        if (s > (1.0 - cell_bound)) {
             return @enumToInt(Adjacent.Positive);
         }
 
         return @enumToInt(Adjacent.None);
     }
 
-    fn adjacentCells(self: Self, v: Vec4f, cell_bound: Vec2f) Adjacency {
+    fn adjacentCells(self: Self, v: Vec4f, cell_bound: f32) Adjacency {
         var adjacents: u8 = undefined;
         const c = self.map3(v, cell_bound, &adjacents);
         const ic = (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
@@ -541,7 +538,7 @@ pub const Grid = struct {
             return result;
         }
 
-        const adjacency = self.adjacentCells(position, self.cell_bound);
+        const adjacency = self.adjacentCells(position, 0.5 / self.grid_cell_factor);
 
         const radius = self.search_radius;
         const radius2 = radius * radius;
@@ -597,7 +594,7 @@ pub const Grid = struct {
             return result;
         }
 
-        const adjacency = self.adjacentCells(position, self.cell_bound);
+        const adjacency = self.adjacentCells(position, 0.5 / self.grid_cell_factor);
 
         const radius = self.search_radius;
         const radius2 = radius * radius;
