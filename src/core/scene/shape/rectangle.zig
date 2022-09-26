@@ -26,7 +26,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -65,7 +65,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -95,7 +95,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];

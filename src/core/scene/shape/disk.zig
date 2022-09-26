@@ -26,7 +26,7 @@ pub const Disk = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
@@ -64,7 +64,7 @@ pub const Disk = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
@@ -85,7 +85,7 @@ pub const Disk = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
