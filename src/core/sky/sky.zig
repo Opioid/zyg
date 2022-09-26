@@ -28,6 +28,7 @@ const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
 const Transformation = math.Transformation;
 const Threads = base.thread.Pool;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -204,6 +205,8 @@ const SkyContext = struct {
 
         const self = @intToPtr(*SkyContext, context);
 
+        var rng = RNG{};
+
         const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
 
         var y = begin;
@@ -212,11 +215,13 @@ const SkyContext = struct {
 
             var x: u32 = 0;
             while (x < Sky.Bake_dimensions[0]) : (x += 1) {
+                rng.start(0, @intCast(u64, y * Sky.Bake_dimensions[0] + x));
+
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
                 const uv = Vec2f{ u, v };
                 const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
 
-                const li = self.model.evaluateSky(math.normalize3(wi));
+                const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
                 self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
             }
