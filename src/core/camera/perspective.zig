@@ -1,6 +1,7 @@
 const snsr = @import("../rendering/sensor/sensor.zig");
 const Sensor = snsr.Sensor;
 const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
+const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -16,6 +17,7 @@ const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
 const tx = @import("../image/texture/provider.zig");
+const img = @import("../image/image.zig");
 
 const base = @import("base");
 const json = base.json;
@@ -269,15 +271,31 @@ pub const Perspective = struct {
                 self.aperture.radius = json.readFloatMember(entry.value_ptr.*, "radius", self.aperture.radius);
 
                 const shape = json.readStringMember(entry.value_ptr.*, "shape", "");
-
                 if (shape.len > 0) {
                     var options: Variants = .{};
                     defer options.deinit(alloc);
-                    options.set(alloc, "usage", .Roughness) catch {};
+                    options.set(alloc, "usage", .Opacity) catch {};
 
                     const texture = try tx.Provider.loadFile(alloc, shape, options, @splat(2, @as(f32, 1.0)), resources);
-
                     try self.aperture.setShape(alloc, texture, scene);
+                } else {
+                    const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
+                    if (blades > 3) {
+                        var shaper = try Shaper.init(alloc, .{ 128, 128 });
+                        defer shaper.deinit(alloc);
+
+                        const roundness = json.readFloatMember(entry.value_ptr.*, "roundness", 0.0);
+
+                        shaper.clear();
+                        shaper.drawAperture(.{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
+
+                        var image = try img.Byte1.init(alloc, img.Description.init2D(shaper.dimensions));
+                        shaper.resolve(img.Byte1, &image);
+                        const iid = try resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image });
+
+                        const texture = try tx.Provider.createTexture(iid, .Opacity, @splat(2, @as(f32, 1.0)), resources);
+                        try self.aperture.setShape(alloc, texture, scene);
+                    }
                 }
             }
         }
