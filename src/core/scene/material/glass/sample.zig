@@ -75,6 +75,8 @@ pub const Sample = struct {
             return bxdf.Result.empty();
         }
 
+        const frame = self.super.frame;
+
         const wo = self.super.wo;
         if (!self.super.sameHemisphere(wo)) {
             const quo_ior = IoR{ .eta_i = self.ior_outside, .eta_t = self.ior };
@@ -95,8 +97,8 @@ pub const Sample = struct {
                 return bxdf.Result.empty();
             }
 
-            const n_dot_wi = self.super.frame.clampNdot(wi);
-            const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+            const n_dot_wi = frame.clampNdot(wi);
+            const n_dot_wo = frame.clampAbsNdot(wo);
             const n_dot_h = math.saturate(self.super.frame.nDot(h));
 
             const schlick = fresnel.Schlick1.init(self.f0);
@@ -119,8 +121,8 @@ pub const Sample = struct {
                 gg.pdf(),
             );
         } else {
-            const n_dot_wi = self.super.frame.clampNdot(wi);
-            const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+            const n_dot_wi = frame.clampNdot(wi);
+            const n_dot_wo = frame.clampAbsNdot(wo);
 
             const h = math.normalize3(wo + wi);
 
@@ -129,7 +131,7 @@ pub const Sample = struct {
             const schlick = fresnel.Schlick1.init(self.f0);
 
             var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, self.super.frame, &fr);
+            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, &fr);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
 
             return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());

@@ -57,30 +57,30 @@ pub fn mapRoughness(roughness: f32) f32 {
 pub const Iso = struct {
     pub fn reflection(
         h: Vec4f,
+        n: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
-        frame: Frame,
     ) bxdf.Result {
         var fresnel_result: Vec4f = undefined;
-        return reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, frame, &fresnel_result);
+        return reflectionF(h, n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, &fresnel_result);
     }
 
     pub fn reflectionF(
         h: Vec4f,
+        n: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
-        frame: Frame,
         fresnel_result: *Vec4f,
     ) bxdf.Result {
         const alpha2 = alpha * alpha;
 
-        const n_dot_h = math.saturate(math.dot3(frame.n, h));
+        const n_dot_h = math.saturate(math.dot3(n, h));
 
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
@@ -286,7 +286,7 @@ pub const Aniso = struct {
         fresnel_result: *Vec4f,
     ) bxdf.Result {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, frame, fresnel_result);
+            return Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, fresnel_result);
         }
 
         const n_dot_h = math.saturate(math.dot3(frame.n, h));
