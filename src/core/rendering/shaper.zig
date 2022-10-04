@@ -43,7 +43,7 @@ pub const Shaper = struct {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = enc.floatToUnorm(std.math.clamp(p.v[0], 0.0, 1.0));
+                image.pixels[i] = enc.floatToUnorm(std.math.clamp(p.v[3], 0.0, 1.0));
             }
         } else if (img.Float3 == T) {
             var i: usize = 0;

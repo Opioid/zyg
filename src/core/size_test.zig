@@ -27,8 +27,8 @@ pub fn testSize() void {
     //testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(Interface, "Interface", 16);
-    testType(mt.Material, "Material", 400);
-    testType(mt.Substitute, "SubstituteMaterial", 352);
+    testType(mt.Material, "Material", 416);
+    testType(mt.Substitute, "SubstituteMaterial", 400);
     testType(Texture, "Texture", 16);
 }
 

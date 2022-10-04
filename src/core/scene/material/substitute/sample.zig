@@ -28,12 +28,16 @@ pub const Sample = struct {
     f0: Vec4f,
     translucent_color: Vec4f = undefined,
     attenuation: Vec4f = undefined,
+    flakes_color: Vec4f = undefined,
+    flakes_normal: Vec4f = undefined,
 
     ior: IoR,
 
     metallic: f32,
     thickness: f32 = 0.0,
     transparency: f32 = undefined,
+    flakes_weight: f32 = 0.0,
+    flakes_alpha: f32 = undefined,
 
     volumetric: bool,
 
@@ -118,6 +122,12 @@ pub const Sample = struct {
             self.pureGlossEvaluate(wi, wo, h, wo_dot_h)
         else
             self.baseEvaluate(wi, wo, h, wo_dot_h);
+
+        const fw = self.flakes_weight;
+        if (fw > 0.0) {
+            const flakes = self.flakesEvaluate(wi, wo, h, wo_dot_h);
+            base_result.reflection = math.lerp3(base_result.reflection, flakes, fw);
+        }
 
         if (translucent) {
             base_result.mulAssignPdf(1.0 - tr);
@@ -386,8 +396,35 @@ pub const Sample = struct {
             result,
         );
 
-        result.reflection += ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-        result.reflection *= @splat(4, n_dot_wi);
+        const fw = self.flakes_weight;
+        if (fw > 0.0) {
+            const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+            result.reflection = math.lerp3(result.reflection, flakes, fw);
+        }
+
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
+    }
+
+    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) Vec4f {
+        const schlick = fresnel.Schlick.init(self.flakes_color);
+
+        const fnorm = self.flakes_normal;
+        const fn_dot_wi = hlp.clampDot(fnorm, wi);
+        const fn_dot_wo = hlp.clampAbsDot(fnorm, wo);
+
+        const flakes = ggx.Iso.reflection(
+            h,
+            self.flakes_normal,
+            fn_dot_wi,
+            fn_dot_wo,
+            wo_dot_h,
+            self.flakes_alpha,
+            schlick,
+        );
+
+        return flakes.reflection;
     }
 
     fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
@@ -406,10 +443,16 @@ pub const Sample = struct {
             result,
         );
 
-        const base_result = if (1.0 == self.metallic)
+        var base_result = if (1.0 == self.metallic)
             self.pureGlossEvaluate(result.wi, wo, result.h, result.h_dot_wi)
         else
             self.baseEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+
+        const fw = self.flakes_weight;
+        if (fw > 0.0) {
+            const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+            base_result.reflection = math.lerp3(base_result.reflection, flakes, fw);
+        }
 
         result.reflection = result.reflection + coating_attenuation * base_result.reflection;
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();

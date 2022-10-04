@@ -32,10 +32,13 @@ pub const Material = struct {
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
+    flakes_normal_map: Texture = .{},
+    flakes_mask: Texture = .{},
 
     color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
     coating_absorption_coef: Vec4f = @splat(4, @as(f32, 0.0)),
+    flakes_color: Vec4f = @splat(4, @as(f32, 0.8)),
 
     roughness: f32 = 0.8,
     anisotropy: f32 = 0.0,
@@ -46,6 +49,7 @@ pub const Material = struct {
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
+    flakes_alpha: f32 = 0.04,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -99,6 +103,11 @@ pub const Material = struct {
     pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
         self.coating_roughness_map = roughness.texture;
         self.coating_roughness = ggx.clampRoughness(roughness.value);
+    }
+
+    pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
+        const r = ggx.clampRoughness(roughness);
+        self.flakes_alpha = r * r;
     }
 
     pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, worker: Worker) Sample {
@@ -226,6 +235,16 @@ pub const Material = struct {
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
+        }
+
+        if (self.flakes_mask.valid()) {
+            const weight = ts.sample2D_1(key, self.flakes_mask, rs.uv, worker.scene.*);
+            if (weight > 0.0) {
+                result.flakes_weight = weight;
+                result.flakes_color = self.flakes_color;
+                result.flakes_normal = result.super.frame.n;
+                result.flakes_alpha = self.flakes_alpha;
+            }
         }
 
         return Sample{ .Substitute = result };
