@@ -297,25 +297,25 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "attenuation_distance", c.key_ptr.*)) {
                         coating_attenuation_distance = json.readFloat(f32, c.value_ptr.*);
                     } else if (std.mem.eql(u8, "ior", c.key_ptr.*)) {
-                        material.coating.ior = json.readFloat(f32, c.value_ptr.*);
+                        material.coating_ior = json.readFloat(f32, c.value_ptr.*);
                     } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
-                        material.coating.normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
+                        material.coating_normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
-                        material.coating.setRoughness(readValue(
+                        material.setCoatingRoughness(readValue(
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating.roughness,
+                            material.coating_roughness,
                             .Roughness,
                             self.tex,
                             resources,
                         ));
                     } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
-                        material.coating.setThickness(readValue(
+                        material.setCoatingThickness(readValue(
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating.thickness,
+                            material.coating_thickness,
                             .Roughness,
                             self.tex,
                             resources,
@@ -323,7 +323,7 @@ pub const Provider = struct {
                     }
                 }
 
-                material.coating.setAttenuation(coating_color, coating_attenuation_distance);
+                material.setCoatingAttenuation(coating_color, coating_attenuation_distance);
             }
         }
 
