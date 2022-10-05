@@ -71,6 +71,7 @@ pub const Shaper = struct {
     }
 
     const Circle = struct {
+        radius: f32,
         radius2: f32,
     };
 
@@ -125,10 +126,18 @@ pub const Shaper = struct {
         Circle: Circle,
         Aperture: Aperture,
         ApertureN: ApertureN,
+
+        pub fn radius(self: Shape) f32 {
+            return switch (self) {
+                .Circle => |s| s.radius,
+                .Aperture => |s| s.radius,
+                .ApertureN => |s| s.radius,
+            };
+        }
     };
 
     pub fn drawCircle(self: *Self, color: Vec4f, p: Vec2f, r: f32) void {
-        const circle = Shape{ .Circle = .{ .radius2 = r * r } };
+        const circle = Shape{ .Circle = .{ .radius = 2, .radius2 = r * r } };
         self.drawShape(color, p, circle);
     }
 
@@ -157,10 +166,25 @@ pub const Shaper = struct {
         const so = 0.5 * ss;
         const ss2 = 1.0 / @intToFloat(f32, Sub_samples * Sub_samples);
 
-        var y: i32 = 0;
-        while (y < dim[1]) : (y += 1) {
-            var x: i32 = 0;
-            while (x < dim[0]) : (x += 1) {
+        const r = @splat(2, shape.radius());
+        const min = p - r;
+        const max = p + r;
+        const contained = min[0] > 0.0 and min[1] > 0.0 and max[0] < 1.0 and max[1] < 1.0;
+
+        var begin = Vec2i{ 0, 0 };
+        var end = dim;
+
+        if (contained) {
+            begin[0] = @floatToInt(i32, min[0] * end_x);
+            begin[1] = @floatToInt(i32, min[1] * end_y);
+            end[0] = @floatToInt(i32, @ceil(max[0] * end_x));
+            end[1] = @floatToInt(i32, @ceil(max[1] * end_y));
+        }
+
+        var y = begin[1];
+        while (y < end[1]) : (y += 1) {
+            var x = begin[0];
+            while (x < end[0]) : (x += 1) {
                 var w: f32 = 0.0;
 
                 var v = (@intToFloat(f32, y) + so) / end_y;
@@ -171,7 +195,11 @@ pub const Shaper = struct {
 
                     var sx: i32 = 0;
                     while (sx < Sub_samples) : (sx += 1) {
-                        if (intersect(u, v, p, shape) or
+                        if (contained) {
+                            if (intersect(u, v, p, shape)) {
+                                w += ss2;
+                            }
+                        } else if (intersect(u, v, p, shape) or
                             intersect(u - 1.0, v, p, shape) or
                             intersect(u, v - 1.0, p, shape) or
                             intersect(u - 1.0, v - 1.0, p, shape) or
