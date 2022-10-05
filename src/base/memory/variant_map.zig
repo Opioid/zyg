@@ -68,8 +68,8 @@ pub const VariantMap = struct {
     }
 
     pub fn query(self: Self, comptime T: type, key: []const u8) ?T {
-        if (self.map.get(key)) |v| {
-            switch (v) {
+        if (self.map.get(key)) |val| {
+            switch (val) {
                 .Bool => |b| {
                     return if (T == bool) b else null;
                 },
