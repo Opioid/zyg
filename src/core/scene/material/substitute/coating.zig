@@ -48,12 +48,12 @@ pub const Coating = struct {
         var fresnel_result: Vec4f = undefined;
         const gg = ggx.Iso.reflectionF(
             h,
+            self.frame.n,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
             self.alpha,
             schlick,
-            self.frame,
             &fresnel_result,
         );
 

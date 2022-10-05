@@ -1,6 +1,7 @@
 const ComposedTransformation = @import("scene/composed_transformation.zig").ComposedTransformation;
 const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
+const mt = @import("scene/material/material.zig");
 const Interface = @import("scene/prop/interface.zig").Interface;
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
@@ -23,15 +24,21 @@ pub fn testSize() void {
     testType(Light, "Light", 16);
     //testType(PropIntersection, "PropIntersection", 176);
     //testType(smpl.To, "SampleTo", 112);
-    // testType(smpl.From, "SampleFrom", 144);
+    //testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(Interface, "Interface", 16);
+    testType(mt.Material, "Material", 400);
+    testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(Texture, "Texture", 16);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
     const measured = @sizeOf(T);
     const ao = @alignOf(T);
+
+    if (measured != expected) {
+        std.debug.print("alarm: ", .{});
+    }
 
     std.debug.print("{s}: {} ({}); {}\n", .{ name, measured, expected, ao });
 }

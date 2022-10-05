@@ -32,9 +32,7 @@ pub const VariantMap = struct {
             hasher.update(std.mem.asBytes(&et));
 
             switch (self) {
-                .Bool => |b| hasher.update(std.mem.asBytes(&b)),
-                .UInt => |i| hasher.update(std.mem.asBytes(&i)),
-                .Vec4i => |v| hasher.update(std.mem.asBytes(&v)),
+                inline else => |v| hasher.update(std.mem.asBytes(&v)),
             }
         }
     };
@@ -68,8 +66,8 @@ pub const VariantMap = struct {
     }
 
     pub fn query(self: Self, comptime T: type, key: []const u8) ?T {
-        if (self.map.get(key)) |v| {
-            switch (v) {
+        if (self.map.get(key)) |val| {
+            switch (val) {
                 .Bool => |b| {
                     return if (T == bool) b else null;
                 },
