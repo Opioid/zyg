@@ -200,32 +200,32 @@ pub const Part = struct {
         return v;
     }
 
-    pub fn aabb(self: Part, variant: u32) AABB {
+    pub fn aabb(self: *const Part, variant: u32) AABB {
         return self.variants.items[variant].aabb;
     }
 
-    pub fn power(self: Part, variant: u32) f32 {
+    pub fn power(self: *const Part, variant: u32) f32 {
         return self.variants.items[variant].distribution.integral;
     }
 
-    pub fn cone(self: Part, variant: u32) Vec4f {
+    pub fn cone(self: *const Part, variant: u32) Vec4f {
         return self.variants.items[variant].cone;
     }
 
-    pub fn lightAabb(self: Part, light: u32) AABB {
+    pub fn lightAabb(self: *const Part, light: u32) AABB {
         return self.aabbs[light];
     }
 
-    pub fn lightCone(self: Part, light: u32) Vec4f {
+    pub fn lightCone(self: *const Part, light: u32) Vec4f {
         return self.cones[light];
     }
 
-    pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
+    pub fn lightTwoSided(self: *const Part, variant: u32, light: u32) bool {
         _ = light;
         return self.variants.items[variant].two_sided;
     }
 
-    pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+    pub fn lightPower(self: *const Part, variant: u32, light: u32) f32 {
         const dist = self.variants.items[variant].distribution;
         return dist.pdfI(light) * dist.integral;
     }
@@ -321,7 +321,7 @@ pub const Part = struct {
         pdf: f32,
     };
 
-    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
+    pub fn sampleSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -338,7 +338,7 @@ pub const Part = struct {
         };
     }
 
-    pub fn sampleRandom(self: Part, variant: u32, r: f32) Discrete {
+    pub fn sampleRandom(self: *const Part, variant: u32, r: f32) Discrete {
         const pick = self.variants.items[variant].distribution.sampleDiscrete(r);
         const relative_area = self.aabbs[pick.offset].bounds[1][3];
 
@@ -349,7 +349,7 @@ pub const Part = struct {
         };
     }
 
-    pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
+    pub fn pdfSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -362,7 +362,7 @@ pub const Part = struct {
         return pdf * relative_area;
     }
 
-    pub fn pdfRandom(self: Part, variant: u32, id: u32) f32 {
+    pub fn pdfRandom(self: *const Part, variant: u32, id: u32) f32 {
         const pdf = self.variants.items[variant].distribution.pdfI(id);
         const relative_area = self.aabbs[id].bounds[1][3];
 

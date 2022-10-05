@@ -499,7 +499,7 @@ pub const PrimitiveTree = struct {
         n: Vec4f,
         total_sphere: bool,
         randomp: f32,
-        part: Part,
+        part: *const Part,
         variant: u32,
     ) Pick {
         var random = randomp;
@@ -537,7 +537,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: Part, variant: u32) f32 {
+    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
         const lo = self.light_orders[id];
 
         var pd: f32 = 1.0;
@@ -573,7 +573,6 @@ const TraversalStack = struct {
     pub const Value = struct {
         pdf: f32,
         random: f32,
-
         node: u32,
         depth: u32,
     };

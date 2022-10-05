@@ -54,7 +54,7 @@ pub const Shape = union(enum) {
     pub fn numParts(self: *const Shape) u32 {
         return switch (self.*) {
             .Null => 0,
-            .TriangleMesh => |m| m.numParts(),
+            .TriangleMesh => |*m| m.numParts(),
             else => 1,
         };
     }
@@ -62,14 +62,14 @@ pub const Shape = union(enum) {
     pub fn numMaterials(self: *const Shape) u32 {
         return switch (self.*) {
             .Null => 0,
-            .TriangleMesh => |m| m.numMaterials(),
+            .TriangleMesh => |*m| m.numMaterials(),
             else => 1,
         };
     }
 
     pub fn partIdToMaterialId(self: *const Shape, part: u32) u32 {
         return switch (self.*) {
-            .TriangleMesh => |m| m.partMaterialId(part),
+            .TriangleMesh => |*m| m.partMaterialId(part),
             else => part,
         };
     }
@@ -100,13 +100,13 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
-            .TriangleMesh => |m| m.tree.aabb(),
+            .TriangleMesh => |*m| m.tree.aabb(),
         };
     }
 
     pub fn partAabb(self: *const Shape, part: u32, variant: u32) AABB {
         return switch (self.*) {
-            .TriangleMesh => |m| m.partAabb(part, variant),
+            .TriangleMesh => |*m| m.partAabb(part, variant),
             else => self.aabb(),
         };
     }
@@ -114,7 +114,7 @@ pub const Shape = union(enum) {
     pub fn partCone(self: *const Shape, part: u32, variant: u32) Vec4f {
         return switch (self.*) {
             .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
-            .TriangleMesh => |m| m.cone(part, variant),
+            .TriangleMesh => |*m| m.cone(part, variant),
             else => .{ 0.0, 0.0, 1.0, 0.0 },
         };
     }
@@ -136,7 +136,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
-            .TriangleMesh => |m| m.area(part, scale),
+            .TriangleMesh => |*m| m.area(part, scale),
         };
     }
 
@@ -169,7 +169,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersect(&ray.ray, trafo, isec),
             .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
             .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
-            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, ipo, isec),
+            .TriangleMesh => |*m| m.intersect(&ray.ray, trafo, ipo, isec),
         };
     }
 
@@ -182,7 +182,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.intersectP(ray.ray, trafo),
             .Rectangle => Rectangle.intersectP(ray.ray, trafo),
             .Sphere => Sphere.intersectP(ray.ray, trafo),
-            .TriangleMesh => |m| m.intersectP(ray.ray, trafo),
+            .TriangleMesh => |*m| m.intersectP(ray.ray, trafo),
         };
     }
 
@@ -203,7 +203,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene),
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene),
             .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
+            .TriangleMesh => |*m| m.visibility(ray.ray, trafo, entity, filter, worker),
         };
     }
 
@@ -227,7 +227,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng),
             .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng),
             .Sphere => Sphere.sampleTo(p, trafo, sampler, rng),
-            .TriangleMesh => |m| m.sampleTo(
+            .TriangleMesh => |*m| m.sampleTo(
                 part,
                 variant,
                 p,
@@ -319,7 +319,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
             .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
-            .TriangleMesh => |m| m.sampleFrom(
+            .TriangleMesh => |*m| m.sampleFrom(
                 part,
                 variant,
                 trafo,
@@ -368,7 +368,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
             .Sphere => Sphere.pdf(ray.ray, isec.trafo),
-            .TriangleMesh => |m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
+            .TriangleMesh => |*m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
         };
     }
 
@@ -428,7 +428,7 @@ pub const Shape = union(enum) {
 
     pub fn differentialSurface(self: *const Shape, primitive: u32) DifferentialSurface {
         return switch (self.*) {
-            .TriangleMesh => |m| m.differentialSurface(primitive),
+            .TriangleMesh => |*m| m.differentialSurface(primitive),
             else => .{ .dpdu = .{ 1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } },
         };
     }
