@@ -98,7 +98,7 @@ pub const Transparent = struct {
         _ = @atomicRmw(f32, &value.v[3], .Add, wc[3], .Monotonic);
     }
 
-    pub fn resolve(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolve(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
@@ -107,7 +107,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn resolveTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
         const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
@@ -119,7 +119,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn resolveAccumulateTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveAccumulateTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
         const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {

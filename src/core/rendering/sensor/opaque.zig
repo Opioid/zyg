@@ -84,14 +84,14 @@ pub const Opaque = struct {
         _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .Monotonic);
     }
 
-    pub fn resolve(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolve(self: *const Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const color = @fabs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]));
             target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
         }
     }
 
-    pub fn resolveTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: *const Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const color = @fabs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]));
@@ -100,7 +100,7 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn resolveAccumulateTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveAccumulateTonemap(self: *const Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
         const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);

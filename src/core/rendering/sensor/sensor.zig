@@ -147,7 +147,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |s| s.sensor.resolve(target, begin, end),
+                inline else => |*s| s.sensor.resolve(target, begin, end),
             }
         }
 
@@ -158,7 +158,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |s| s.sensor.resolveTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveTonemap(target, begin, end),
             }
         }
 
@@ -169,7 +169,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveAccumulateTonemap(target, begin, end),
             }
         }
 
@@ -181,7 +181,7 @@ pub const Sensor = union(enum) {
             const class = self.aov;
 
             switch (self.sensor.*) {
-                inline else => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                inline else => |*s| s.sensor.base.aov.resolve(class, target, begin, end),
             }
         }
     };

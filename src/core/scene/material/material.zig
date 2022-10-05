@@ -91,9 +91,9 @@ pub const Material = union(enum) {
     pub fn twoSided(self: *const Material) bool {
         return switch (self.*) {
             .Debug => true,
-            .Glass => |m| m.thickness > 0.0,
-            .Light => |m| m.super.properties.two_sided,
-            .Substitute => |m| m.super.properties.two_sided,
+            .Glass => |*m| m.thickness > 0.0,
+            .Light => |*m| m.super.properties.two_sided,
+            .Substitute => |*m| m.super.properties.two_sided,
             else => false,
         };
     }
@@ -132,8 +132,8 @@ pub const Material = union(enum) {
 
     pub fn scatteringVolume(self: *const Material) bool {
         return switch (self.*) {
-            .Substitute => |m| m.super.properties.scattering_volume,
-            .Volumetric => |m| m.super.properties.scattering_volume,
+            .Substitute => |*m| m.super.properties.scattering_volume,
+            .Volumetric => |*m| m.super.properties.scattering_volume,
             else => false,
         };
     }
