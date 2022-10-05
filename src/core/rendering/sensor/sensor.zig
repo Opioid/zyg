@@ -115,23 +115,23 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn resolve(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolve(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolveTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAccumulateTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolveAccumulateTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAov(self: Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = class };
+    pub fn resolveAov(self: *const Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = class };
         _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
@@ -186,8 +186,8 @@ pub const Sensor = union(enum) {
         }
     };
 
-    pub fn filterRadiusInt(self: Sensor) i32 {
-        return switch (self) {
+    pub fn filterRadiusInt(self: *const Sensor) i32 {
+        return switch (self.*) {
             .Unfiltered_opaque => 0,
             .Unfiltered_transparent => 0,
             .Filtered_1p0_opaque, .Filtered_1p0_transparent => 1,
@@ -195,14 +195,14 @@ pub const Sensor = union(enum) {
         };
     }
 
-    pub fn alphaTransparency(self: Sensor) bool {
-        return switch (self) {
+    pub fn alphaTransparency(self: *const Sensor) bool {
+        return switch (self.*) {
             .Unfiltered_transparent, .Filtered_1p0_transparent, .Filtered_2p0_transparent => true,
             else => false,
         };
     }
 
-    pub fn isolatedTile(self: Sensor, tile: Vec4i) Vec4i {
+    pub fn isolatedTile(self: *const Sensor, tile: Vec4i) Vec4i {
         const r = self.filterRadiusInt();
 
         return tile + Vec4i{ r, r, -r, -r };
