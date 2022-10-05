@@ -108,23 +108,27 @@ pub const Transparent = struct {
     }
 
     pub fn resolveTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+        const weights = self.pixel_weights;
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
-            const weight = self.pixel_weights[j];
+            const weight = weights[j];
             const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
-            const tm = self.base.tonemapper.tonemap(color);
+            const tm = tonemapper.tonemap(color);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], color[3] };
         }
     }
 
     pub fn resolveAccumulateTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+        const weights = self.pixel_weights;
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
-            const weight = self.pixel_weights[j];
+            const weight = weights[j];
             const color = @as(Vec4f, p.v) / @splat(4, weight);
             const old = target[j];
             const combined = @fabs(color + @as(Vec4f, old.v));
-            const tm = self.base.tonemapper.tonemap(combined);
+            const tm = tonemapper.tonemap(combined);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], combined[3] };
         }
     }
