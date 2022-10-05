@@ -32,9 +32,7 @@ pub const VariantMap = struct {
             hasher.update(std.mem.asBytes(&et));
 
             switch (self) {
-                .Bool => |b| hasher.update(std.mem.asBytes(&b)),
-                .UInt => |i| hasher.update(std.mem.asBytes(&i)),
-                .Vec4i => |v| hasher.update(std.mem.asBytes(&v)),
+                inline else => |v| hasher.update(std.mem.asBytes(&v)),
             }
         }
     };
