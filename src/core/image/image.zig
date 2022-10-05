@@ -58,31 +58,13 @@ pub const Image = union(enum) {
 
     pub fn deinit(self: *Image, alloc: Allocator) void {
         switch (self.*) {
-            .Byte1 => |*i| i.deinit(alloc),
-            .Byte2 => |*i| i.deinit(alloc),
-            .Byte3 => |*i| i.deinit(alloc),
-            .Half3 => |*i| i.deinit(alloc),
-            .Half4 => |*i| i.deinit(alloc),
-            .Float1 => |*i| i.deinit(alloc),
-            .Float1Sparse => |*i| i.deinit(alloc),
-            .Float2 => |*i| i.deinit(alloc),
-            .Float3 => |*i| i.deinit(alloc),
-            .Float4 => |*i| i.deinit(alloc),
+            inline else => |*i| i.deinit(alloc),
         }
     }
 
     pub fn description(self: Image) Description {
         return switch (self) {
-            .Byte1 => |i| i.description,
-            .Byte2 => |i| i.description,
-            .Byte3 => |i| i.description,
-            .Half3 => |i| i.description,
-            .Half4 => |i| i.description,
-            .Float1 => |i| i.description,
-            .Float1Sparse => |i| i.description,
-            .Float2 => |i| i.description,
-            .Float3 => |i| i.description,
-            .Float4 => |i| i.description,
+            inline else => |i| i.description,
         };
     }
 };

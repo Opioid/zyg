@@ -47,12 +47,7 @@ pub const Material = union(enum) {
 
     pub fn super(self: Material) Base {
         return switch (self) {
-            .Debug => |m| m.super,
-            .Glass => |m| m.super,
-            .Light => |m| m.super,
-            .Sky => |m| m.super,
-            .Substitute => |m| m.super,
-            .Volumetric => |m| m.super,
+            inline else => |m| m.super,
         };
     }
 

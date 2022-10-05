@@ -92,20 +92,22 @@ pub const Opaque = struct {
     }
 
     pub fn resolveTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const color = @fabs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]));
-            const tm = self.base.tonemapper.tonemap(color);
+            const tm = tonemapper.tonemap(color);
             target[i + begin].v = Vec4f{ tm[0], tm[1], tm[2], 1.0 };
         }
     }
 
     pub fn resolveAccumulateTonemap(self: Opaque, target: [*]Pack4f, begin: u32, end: u32) void {
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
             const j = i + begin;
             const old = target[j];
             const combined = @fabs(color + Vec4f{ old.v[0], old.v[1], old.v[2], old.v[3] });
-            const tm = self.base.tonemapper.tonemap(combined);
+            const tm = tonemapper.tonemap(combined);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], 1.0 };
         }
     }
