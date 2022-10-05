@@ -286,8 +286,8 @@ pub const Perspective = struct {
 
                         const roundness = json.readFloatMember(entry.value_ptr.*, "roundness", 0.0);
 
-                        shaper.clear();
-                        shaper.drawAperture(.{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
+                        shaper.clear(@splat(4, @as(f32, 0.0)));
+                        shaper.drawAperture(@splat(4, @as(f32, 1.0)), .{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
 
                         var image = try img.Byte1.init(alloc, img.Description.init2D(shaper.dimensions));
                         shaper.resolve(img.Byte1, &image);

@@ -2,6 +2,7 @@ const img = @import("../image/image.zig");
 
 const base = @import("base");
 const math = base.math;
+const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
@@ -45,6 +46,15 @@ pub const Shaper = struct {
                 const p = source[i];
                 image.pixels[i] = enc.floatToUnorm(std.math.clamp(p.v[3], 0.0, 1.0));
             }
+        } else if (img.Byte2 == T) {
+            var i: usize = 0;
+            while (i < len) : (i += 1) {
+                const p = source[i];
+                image.pixels[i] = Vec2b{
+                    enc.floatToSnorm(std.math.clamp(p.v[0], -1.0, 1.0)),
+                    enc.floatToSnorm(std.math.clamp(p.v[1], -1.0, 1.0)),
+                };
+            }
         } else if (img.Float3 == T) {
             var i: usize = 0;
             while (i < len) : (i += 1) {
@@ -54,9 +64,9 @@ pub const Shaper = struct {
         }
     }
 
-    pub fn clear(self: *Self) void {
+    pub fn clear(self: *Self, value: Vec4f) void {
         for (self.pixels) |*p| {
-            p.* = Pack4f.init1(0.0);
+            p.v = value;
         }
     }
 
@@ -117,15 +127,15 @@ pub const Shaper = struct {
         ApertureN: ApertureN,
     };
 
-    pub fn drawCircle(self: *Self, p: Vec2f, r: f32) void {
+    pub fn drawCircle(self: *Self, color: Vec4f, p: Vec2f, r: f32) void {
         const circle = Shape{ .Circle = .{ .radius2 = r * r } };
-        self.drawShape(p, circle);
+        self.drawShape(color, p, circle);
     }
 
-    pub fn drawAperture(self: *Self, p: Vec2f, n: u32, r: f32, roundness: f32, rot: f32) void {
+    pub fn drawAperture(self: *Self, color: Vec4f, p: Vec2f, n: u32, r: f32, roundness: f32, rot: f32) void {
         if (n <= 8) {
             const aperture = Shape{ .ApertureN = ApertureN.init(n, r, roundness, rot) };
-            self.drawShape(p, aperture);
+            self.drawShape(color, p, aperture);
         } else {
             const aperture = Shape{ .Aperture = .{
                 .blades = n,
@@ -133,11 +143,11 @@ pub const Shaper = struct {
                 .roundness = roundness,
                 .rotation = rot,
             } };
-            self.drawShape(p, aperture);
+            self.drawShape(color, p, aperture);
         }
     }
 
-    fn drawShape(self: *Self, p: Vec2f, shape: Shape) void {
+    fn drawShape(self: *Self, color: Vec4f, p: Vec2f, shape: Shape) void {
         const dim = self.dimensions;
         const end_x = @intToFloat(f32, dim[0]);
         const end_y = @intToFloat(f32, dim[1]);
@@ -181,7 +191,9 @@ pub const Shaper = struct {
                 }
 
                 if (w > 0.0) {
-                    self.pixels[@intCast(usize, y * dim[0] + x)] = Pack4f.init1(w);
+                    var pixel = &self.pixels[@intCast(usize, y * dim[0] + x)];
+                    const old: Vec4f = pixel.v;
+                    pixel.v = math.lerp4(old, color, w);
                 }
             }
         }

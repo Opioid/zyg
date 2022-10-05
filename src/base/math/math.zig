@@ -46,11 +46,6 @@ pub fn lerp2(a: vec2.Vec2f, b: vec2.Vec2f, t: f32) vec2.Vec2f {
     return u * a + @splat(2, t) * b;
 }
 
-pub fn lerp3(a: vec4.Vec4f, b: vec4.Vec4f, t: f32) vec4.Vec4f {
-    const u = @splat(4, 1.0 - t);
-    return u * a + @splat(4, t) * b;
-}
-
 pub fn frac(x: f32) f32 {
     return x - @floor(x);
 }

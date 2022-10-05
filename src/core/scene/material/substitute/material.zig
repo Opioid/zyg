@@ -240,9 +240,11 @@ pub const Material = struct {
         if (self.flakes_mask.valid()) {
             const weight = ts.sample2D_1(key, self.flakes_mask, rs.uv, worker.scene.*);
             if (weight > 0.0) {
+                const n = hlp.sampleNormal(wo, rs, self.flakes_normal_map, key, worker.scene.*);
+
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
-                result.flakes_normal = result.super.frame.n;
+                result.flakes_normal = n;
                 result.flakes_alpha = self.flakes_alpha;
             }
         }
@@ -311,7 +313,7 @@ pub const Material = struct {
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp3(self.color, self.checkers, t);
+        return math.lerp4(self.color, self.checkers, t);
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {

@@ -84,7 +84,7 @@ fn spectrumAtWavelength(rainbow: []Vec4f, wl_start: f32, wl_end: f32, wl: f32) V
         return rainbow[rainbow.len - 1];
     }
 
-    return math.lerp3(rainbow[id], rainbow[id + 1], frac);
+    return math.lerp4(rainbow[id], rainbow[id + 1], frac);
 }
 
 fn write_rainbow_table(writer: anytype, rainbow: []Vec4f, wl_start: f32, wl_end: f32) !void {

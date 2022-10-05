@@ -13,7 +13,7 @@ const ts = @import("../../image/texture/sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
 const Result = @import("../../resource/result.zig").Result;
-const Shaper = @import("../../rendering/shaper.zig").Shaper;
+const FlakesGenerator = @import("flakes_generator.zig").Generator;
 
 const base = @import("base");
 const math = base.math;
@@ -335,21 +335,10 @@ pub const Provider = struct {
                     }
                 }
 
-                var shaper = Shaper.init(alloc, .{ 128, 128 }) catch continue;
-                defer shaper.deinit(alloc);
+                const textures = FlakesGenerator.generate(alloc, resources) catch continue;
 
-                shaper.clear();
-                shaper.drawCircle(.{ 0.5, 0.5 }, 0.1);
-
-                var image = img.Byte1.init(alloc, img.Description.init2D(shaper.dimensions)) catch continue;
-                shaper.resolve(img.Byte1, &image);
-                const iid = resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image }) catch {
-                    image.deinit(alloc);
-                    continue;
-                };
-
-                const texture = tx.Provider.createTexture(iid, .Opacity, @splat(2, @as(f32, 4.0)), resources) catch continue;
-                material.flakes_mask = texture;
+                material.flakes_normal_map = textures.normal;
+                material.flakes_mask = textures.mask;
             }
         }
 

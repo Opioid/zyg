@@ -24,6 +24,12 @@ pub const Result = struct {
     pub fn mulAssignPdf(self: *Result, p: f32) void {
         self.reflection[3] *= p;
     }
+
+    pub fn blend(self: *Result, other: Result, w: f32) void {
+        const r = self.reflection;
+        const n = math.lerp4(r, other.reflection, w);
+        self.reflection = .{ n[0], n[1], n[2], r[3] };
+    }
 };
 
 pub const Class = packed struct {
@@ -45,4 +51,8 @@ pub const Sample = struct {
     wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     class: Class = undefined,
+
+    pub fn blend(self: *Sample, other: Result, w: f32) void {
+        self.reflection = math.lerp4(self.reflection, other.reflection, w);
+    }
 };

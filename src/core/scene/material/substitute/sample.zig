@@ -62,7 +62,7 @@ pub const Sample = struct {
 
         return .{
             .super = super,
-            .f0 = math.lerp3(@splat(4, f0), albedo, metallic),
+            .f0 = math.lerp4(@splat(4, f0), albedo, metallic),
             .metallic = metallic,
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .volumetric = volumetric,
@@ -126,7 +126,7 @@ pub const Sample = struct {
         const fw = self.flakes_weight;
         if (fw > 0.0) {
             const flakes = self.flakesEvaluate(wi, wo, h, wo_dot_h);
-            base_result.reflection = math.lerp3(base_result.reflection, flakes, fw);
+            base_result.blend(flakes, fw);
         }
 
         if (translucent) {
@@ -396,35 +396,34 @@ pub const Sample = struct {
             result,
         );
 
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
+
         const fw = self.flakes_weight;
         if (fw > 0.0) {
             const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
-            result.reflection = math.lerp3(result.reflection, flakes, fw);
+            result.blend(flakes, fw);
         }
-
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-
-        result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
     }
 
-    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) Vec4f {
+    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
         const schlick = fresnel.Schlick.init(self.flakes_color);
 
-        const fnorm = self.flakes_normal;
-        const fn_dot_wi = hlp.clampDot(fnorm, wi);
-        const fn_dot_wo = hlp.clampAbsDot(fnorm, wo);
+        const norm = self.flakes_normal;
+        const n_dot_wi = hlp.clampDot(norm, wi);
+        const n_dot_wo = hlp.clampAbsDot(norm, wo);
 
         const flakes = ggx.Iso.reflection(
             h,
-            self.flakes_normal,
-            fn_dot_wi,
-            fn_dot_wo,
+            norm,
+            n_dot_wi,
+            n_dot_wo,
             wo_dot_h,
             self.flakes_alpha,
             schlick,
         );
 
-        return flakes.reflection;
+        return bxdf.Result.init(@splat(4, n_dot_wi) * flakes.reflection, flakes.pdf());
     }
 
     fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
@@ -451,7 +450,7 @@ pub const Sample = struct {
         const fw = self.flakes_weight;
         if (fw > 0.0) {
             const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
-            base_result.reflection = math.lerp3(base_result.reflection, flakes, fw);
+            base_result.blend(flakes, fw);
         }
 
         result.reflection = result.reflection + coating_attenuation * base_result.reflection;
