@@ -167,9 +167,10 @@ pub const Shaper = struct {
         const ss2 = 1.0 / @intToFloat(f32, Sub_samples * Sub_samples);
 
         const r = @splat(2, shape.radius());
-        const min = p - r;
-        const max = p + r;
-        const contained = min[0] > 0.0 and min[1] > 0.0 and max[0] < 1.0 and max[1] < 1.0;
+        // effectively disabling wrap for now, the implementation is too crappy
+        const min = math.max2(p - r, @splat(2, @as(f32, 0.0)));
+        const max = math.min2(p + r, @splat(2, @as(f32, 1.0)));
+        const contained = min[0] >= 0.0 and min[1] >= 0.0 and max[0] <= 1.0 and max[1] <= 1.0;
 
         var begin = Vec2i{ 0, 0 };
         var end = dim;

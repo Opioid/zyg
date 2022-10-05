@@ -49,7 +49,7 @@ pub const Material = struct {
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
-    flakes_alpha: f32 = 0.04,
+    flakes_alpha: f32 = 0.01,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
