@@ -25,9 +25,9 @@ pub const Result = struct {
         self.reflection[3] *= p;
     }
 
-    pub fn blend(self: *Result, other: Result, w: f32) void {
+    pub fn blend(self: *Result, other: Vec4f, w: f32) void {
         const r = self.reflection;
-        const n = math.lerp4(r, other.reflection, w);
+        const n = math.lerp4(r, other, w);
         self.reflection = .{ n[0], n[1], n[2], r[3] };
     }
 };
@@ -52,7 +52,7 @@ pub const Sample = struct {
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     class: Class = undefined,
 
-    pub fn blend(self: *Sample, other: Result, w: f32) void {
-        self.reflection = math.lerp4(self.reflection, other.reflection, w);
+    pub fn blend(self: *Sample, other: Vec4f, w: f32) void {
+        self.reflection = math.lerp4(self.reflection, other, w);
     }
 };

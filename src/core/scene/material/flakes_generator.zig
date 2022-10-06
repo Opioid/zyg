@@ -3,6 +3,7 @@ const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Shaper = @import("../../rendering/shaper.zig").Shaper;
+const ggx = @import("../../scene/material/ggx.zig");
 
 const PngWriter = @import("../../image/encoding/png/writer.zig").Writer;
 
@@ -21,11 +22,16 @@ pub const Generator = struct {
         mask: Texture,
     };
 
-    pub fn generate(alloc: Allocator, flakes_size: f32, flakes_coverage: f32, resources: *Resources) !Result {
+    pub fn generate(
+        alloc: Allocator,
+        flakes_size: f32,
+        flakes_coverage: f32,
+        flakes_roughness: f32,
+        resources: *Resources,
+    ) !Result {
         const texture_scale: f32 = 16.0;
 
         const flakes_radius = flakes_size / 2.0;
-
         const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (flakes_size * flakes_size)));
 
         var shaper = try Shaper.init(alloc, .{ 2048, 2048 });
@@ -50,10 +56,15 @@ pub const Generator = struct {
         // }
 
         {
+            const r = ggx.clampRoughness(flakes_roughness);
+            const alpha = r * r;
+            const cos_cone = @cos((0.5 * std.math.pi) * alpha);
+
             var context = Context{
                 .shaper = &shaper,
                 .num_flakes = num_flakes,
                 .flakes_radius = flakes_radius,
+                .flakes_cos_cone = cos_cone,
             };
 
             resources.threads.waitAsync();
@@ -85,6 +96,7 @@ const Context = struct {
     shaper: *Shaper,
     num_flakes: u32,
     flakes_radius: f32,
+    flakes_cos_cone: f32,
 
     pub fn render(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
@@ -94,25 +106,23 @@ const Context = struct {
 
         const num_flakes = self.num_flakes;
         const radius = self.flakes_radius;
+        const cos_cone = self.flakes_cos_cone;
         const vr = @splat(2, radius);
 
         var i = begin;
         while (i < end) : (i += 1) {
             var rng = RNG.init(0, i);
 
-            const uv = math.hammersley(i, num_flakes, 0);
-
             const jt = @splat(2, @as(f32, 2.0)) * Vec2f{ rng.randomFloat(), rng.randomFloat() } - @splat(2, @as(f32, 1.0));
+            const uv = math.hammersley(i, num_flakes, 0) + vr * jt;
 
             const st = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-            var n = math.smpl.hemisphereUniform(st);
-            n = math.normalize3(math.lerp4(n, .{ 0.0, 0.0, 1.0, 0.0 }, 0.6));
+            var n = math.smpl.coneUniform(st, cos_cone);
             n[3] = 1.0;
 
-            // shaper.drawCircle(n, uv, radius);
+            shaper.drawCircle(n, uv, radius);
             // shaper.drawAperture(n, uv, 6, radius, 0.0, (2.0 * std.math.pi) * rng.randomFloat());
-
-            shaper.drawDisk(n, uv + vr * jt, n, radius);
+            // shaper.drawDisk(n, uv, n, radius);
         }
     }
 };

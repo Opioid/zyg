@@ -326,8 +326,9 @@ pub const Provider = struct {
 
                 material.setCoatingAttenuation(coating_color, coating_attenuation_distance);
             } else if (std.mem.eql(u8, "flakes", entry.key_ptr.*)) {
-                var size: f32 = 0.1;
+                var size: f32 = 0.01;
                 var coverage: f32 = 0.1;
+                var roughness: f32 = 0.15;
 
                 var citer = entry.value_ptr.Object.iterator();
                 while (citer.next()) |c| {
@@ -335,14 +336,15 @@ pub const Provider = struct {
                         material.flakes_color = readColor(c.value_ptr.*);
                     } else if (std.mem.eql(u8, "coverage", c.key_ptr.*)) {
                         coverage = json.readFloat(f32, c.value_ptr.*);
-                    } else if (std.mem.eql(u8, "rougness", c.key_ptr.*)) {
-                        material.setFlakesRoughness(json.readFloat(f32, c.value_ptr.*));
+                    } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
+                        roughness = json.readFloat(f32, c.value_ptr.*);
+                        material.setFlakesRoughness(roughness);
                     } else if (std.mem.eql(u8, "size", c.key_ptr.*)) {
                         size = json.readFloat(f32, c.value_ptr.*);
                     }
                 }
 
-                const textures = FlakesGenerator.generate(alloc, size, coverage, resources) catch continue;
+                const textures = FlakesGenerator.generate(alloc, size, coverage, roughness, resources) catch continue;
 
                 material.flakes_normal_map = textures.normal;
                 material.flakes_mask = textures.mask;

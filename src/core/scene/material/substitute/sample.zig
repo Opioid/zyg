@@ -115,7 +115,6 @@ pub const Sample = struct {
         }
 
         const h = math.normalize3(wo + wi);
-
         const wo_dot_h = hlp.clampDot(wo, h);
 
         var base_result = if (1.0 == self.metallic)
@@ -125,7 +124,7 @@ pub const Sample = struct {
 
         const fw = self.flakes_weight;
         if (fw > 0.0) {
-            const flakes = self.flakesEvaluate(wi, wo, h, wo_dot_h);
+            const flakes = self.flakesEvaluate(wi, wo);
             base_result.blend(flakes, fw);
         }
 
@@ -401,29 +400,34 @@ pub const Sample = struct {
 
         const fw = self.flakes_weight;
         if (fw > 0.0) {
-            const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+            const flakes = self.flakesEvaluate(result.wi, wo);
             result.blend(flakes, fw);
         }
     }
 
-    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
-        const schlick = fresnel.Schlick.init(self.flakes_color);
+    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f) Vec4f {
+        const n = self.flakes_normal;
+        const f = flakesBsdf(wi, wo, n, self.flakes_alpha);
 
-        const norm = self.flakes_normal;
-        const n_dot_wi = hlp.clampDot(norm, wi);
-        const n_dot_wo = hlp.clampAbsDot(norm, wo);
+        const n_dot_wi = hlp.clampDot(n, wi);
 
-        const flakes = ggx.Iso.reflection(
-            h,
-            norm,
-            n_dot_wi,
-            n_dot_wo,
-            wo_dot_h,
-            self.flakes_alpha,
-            schlick,
-        );
+        return @splat(4, n_dot_wi * f) * self.flakes_color;
+    }
 
-        return bxdf.Result.init(@splat(4, n_dot_wi) * flakes.reflection, flakes.pdf());
+    fn solidAngleCone(c: f32) f32 {
+        return (2.0 * std.math.pi) * (1.0 - c);
+    }
+
+    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, alpha: f32) f32 {
+        const r = math.reflect3(n, wo);
+
+        comptime var target_angle = solidAngleCone(@cos(math.degreesToRadians(7.0)));
+        comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
+
+        const a2 = std.math.min(limit, 0.5 * alpha);
+        const cos_cone = 1.0 - (2.0 * a2) / (1.0 + a2);
+
+        return if (math.dot3(wi, r) > cos_cone) 1.0 / solidAngleCone(cos_cone) else 0.0;
     }
 
     fn coatingReflect(self: Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
@@ -449,7 +453,7 @@ pub const Sample = struct {
 
         const fw = self.flakes_weight;
         if (fw > 0.0) {
-            const flakes = self.flakesEvaluate(result.wi, wo, result.h, result.h_dot_wi);
+            const flakes = self.flakesEvaluate(result.wi, wo);
             base_result.blend(flakes, fw);
         }
 
