@@ -60,10 +60,10 @@ pub const Generator = struct {
             _ = resources.threads.runRange(&context, Context.render, 0, num_flakes, 0);
         }
 
-        var normal_view = try img.Float3.init(alloc, img.Description.init2D(shaper.dimensions));
-        defer normal_view.deinit(alloc);
-        shaper.resolve(img.Float3, &normal_view);
-        try PngWriter.writeFloat3Normal(alloc, normal_view);
+        // var normal_view = try img.Float3.init(alloc, img.Description.init2D(shaper.dimensions));
+        // defer normal_view.deinit(alloc);
+        // shaper.resolve(img.Float3, &normal_view);
+        // try PngWriter.writeFloat3Normal(alloc, normal_view);
 
         var normal_image = try img.Byte2.init(alloc, img.Description.init2D(shaper.dimensions));
         errdefer normal_image.deinit(alloc);
