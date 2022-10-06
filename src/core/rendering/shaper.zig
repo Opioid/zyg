@@ -75,6 +75,12 @@ pub const Shaper = struct {
         radius2: f32,
     };
 
+    const Disk = struct {
+        n: Vec4f,
+        radius: f32,
+        radius2: f32,
+    };
+
     const Aperture = struct {
         blades: u32,
         radius: f32,
@@ -124,21 +130,25 @@ pub const Shaper = struct {
 
     const Shape = union(enum) {
         Circle: Circle,
+        Disk: Disk,
         Aperture: Aperture,
         ApertureN: ApertureN,
 
         pub fn radius(self: Shape) f32 {
             return switch (self) {
-                .Circle => |s| s.radius,
-                .Aperture => |s| s.radius,
-                .ApertureN => |s| s.radius,
+                inline else => |s| s.radius,
             };
         }
     };
 
     pub fn drawCircle(self: *Self, color: Vec4f, p: Vec2f, r: f32) void {
-        const circle = Shape{ .Circle = .{ .radius = 2, .radius2 = r * r } };
+        const circle = Shape{ .Circle = .{ .radius = r, .radius2 = r * r } };
         self.drawShape(color, p, circle);
+    }
+
+    pub fn drawDisk(self: *Self, color: Vec4f, p: Vec2f, n: Vec4f, r: f32) void {
+        const disk = Shape{ .Disk = .{ .n = n, .radius = r, .radius2 = r * r } };
+        self.drawShape(color, p, disk);
     }
 
     pub fn drawAperture(self: *Self, color: Vec4f, p: Vec2f, n: u32, r: f32, roundness: f32, rot: f32) void {
@@ -167,20 +177,10 @@ pub const Shaper = struct {
         const ss2 = 1.0 / @intToFloat(f32, Sub_samples * Sub_samples);
 
         const r = @splat(2, shape.radius());
-        // effectively disabling wrap for now, the implementation is too crappy
-        const min = math.max2(p - r, @splat(2, @as(f32, 0.0)));
-        const max = math.min2(p + r, @splat(2, @as(f32, 1.0)));
-        const contained = min[0] >= 0.0 and min[1] >= 0.0 and max[0] <= 1.0 and max[1] <= 1.0;
-
-        var begin = Vec2i{ 0, 0 };
-        var end = dim;
-
-        if (contained) {
-            begin[0] = @floatToInt(i32, min[0] * end_x);
-            begin[1] = @floatToInt(i32, min[1] * end_y);
-            end[0] = @floatToInt(i32, @ceil(max[0] * end_x));
-            end[1] = @floatToInt(i32, @ceil(max[1] * end_y));
-        }
+        const min = p - r;
+        const max = p + r;
+        const begin = Vec2i{ @floatToInt(i32, min[0] * end_x), @floatToInt(i32, min[1] * end_y) };
+        const end = Vec2i{ @floatToInt(i32, max[0] * end_x), @floatToInt(i32, max[1] * end_y) };
 
         var y = begin[1];
         while (y < end[1]) : (y += 1) {
@@ -196,20 +196,7 @@ pub const Shaper = struct {
 
                     var sx: i32 = 0;
                     while (sx < Sub_samples) : (sx += 1) {
-                        if (contained) {
-                            if (intersect(u, v, p, shape)) {
-                                w += ss2;
-                            }
-                        } else if (intersect(u, v, p, shape) or
-                            intersect(u - 1.0, v, p, shape) or
-                            intersect(u, v - 1.0, p, shape) or
-                            intersect(u - 1.0, v - 1.0, p, shape) or
-                            intersect(u + 1.0, v, p, shape) or
-                            intersect(u, v + 1.0, p, shape) or
-                            intersect(u + 1.0, v + 1.0, p, shape) or
-                            intersect(u - 1.0, v + 1.0, p, shape) or
-                            intersect(u + 1.0, v - 1.0, p, shape))
-                        {
+                        if (intersect(u, v, p, shape)) {
                             w += ss2;
                         }
 
@@ -220,7 +207,21 @@ pub const Shaper = struct {
                 }
 
                 if (w > 0.0) {
-                    var pixel = &self.pixels[@intCast(usize, y * dim[0] + x)];
+                    var wx = x;
+                    if (wx < 0) {
+                        wx = dim[0] + x;
+                    } else if (wx >= dim[0]) {
+                        wx = wx - dim[0];
+                    }
+
+                    var wy = y;
+                    if (wy < 0) {
+                        wy = dim[1] + y;
+                    } else if (wy >= dim[1]) {
+                        wy = wy - dim[1];
+                    }
+
+                    var pixel = &self.pixels[@intCast(usize, wy * dim[0] + wx)];
                     const old: Vec4f = pixel.v;
                     pixel.v = math.lerp4(old, color, w);
                 }
@@ -236,6 +237,17 @@ pub const Shaper = struct {
             .Circle => |s| {
                 const d2 = math.dot2(center, center);
                 return d2 <= s.radius2;
+            },
+            .Disk => |s| {
+                const n = s.n;
+                const nxy = Vec2f{ n[0], n[1] };
+
+                const d = math.dot2(nxy, p);
+                const numer = math.dot2(nxy, uv) - d;
+                const hit_t = numer / n[2];
+                const k = Vec4f{ center[0], center[1], hit_t, 0.0 };
+                const l = math.dot3(k, k);
+                return l <= s.radius2;
             },
             .Aperture => |s| {
                 const radius = s.radius;
