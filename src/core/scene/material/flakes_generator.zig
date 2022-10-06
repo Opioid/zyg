@@ -21,18 +21,17 @@ pub const Generator = struct {
         mask: Texture,
     };
 
-    pub fn generate(alloc: Allocator, resources: *Resources) !Result {
+    pub fn generate(alloc: Allocator, flakes_size: f32, flakes_coverage: f32, resources: *Resources) !Result {
         const texture_scale: f32 = 16.0;
 
-        const flakes_size: f32 = 0.01;
         const flakes_radius = flakes_size / 2.0;
 
-        var shaper = try Shaper.init(alloc, .{ 1024, 1024 });
+        const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (flakes_size * flakes_size)));
+
+        var shaper = try Shaper.init(alloc, .{ 2048, 2048 });
         defer shaper.deinit(alloc);
 
         shaper.clear(.{ 0.0, 0.0, 1.0, 0.0 });
-
-        const num_flakes = 2048;
 
         // var rng = RNG.init(0, 0);
 
@@ -94,7 +93,8 @@ const Context = struct {
         var shaper = self.shaper;
 
         const num_flakes = self.num_flakes;
-        const flakes_radius = self.flakes_radius;
+        const radius = self.flakes_radius;
+        const vr = @splat(2, radius);
 
         var i = begin;
         while (i < end) : (i += 1) {
@@ -102,14 +102,17 @@ const Context = struct {
 
             const uv = math.hammersley(i, num_flakes, 0);
 
+            const jt = @splat(2, @as(f32, 2.0)) * Vec2f{ rng.randomFloat(), rng.randomFloat() } - @splat(2, @as(f32, 1.0));
+
             const st = Vec2f{ rng.randomFloat(), rng.randomFloat() };
             var n = math.smpl.hemisphereUniform(st);
-            n = math.normalize3(math.lerp4(n, .{ 0.0, 0.0, 1.0, 0.0 }, 0.75));
+            n = math.normalize3(math.lerp4(n, .{ 0.0, 0.0, 1.0, 0.0 }, 0.6));
             n[3] = 1.0;
 
-            //   shaper.drawCircle(n, uv, flakes_radius);
+            // shaper.drawCircle(n, uv, radius);
+            // shaper.drawAperture(n, uv, 6, radius, 0.0, (2.0 * std.math.pi) * rng.randomFloat());
 
-            shaper.drawAperture(n, uv, 6, flakes_radius, 0.0, (2.0 * std.math.pi) * rng.randomFloat());
+            shaper.drawDisk(n, uv + vr * jt, n, radius);
         }
     }
 };
