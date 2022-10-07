@@ -60,10 +60,11 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
 }
 
 pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
-    if (n[0] > n[1] and n[0] > n[2]) {
+    const an = @fabs(n);
+    if (an[0] > an[1] and an[0] > an[2]) {
         const sign = std.math.copysign(@as(f32, 1.0), p[0]);
         return .{ math.frac(sign * p[1] + 0.5), math.frac(p[2] + 0.5) };
-    } else if (n[1] > n[0] and n[1] > n[2]) {
+    } else if (an[1] > an[0] and an[1] > an[2]) {
         const sign = std.math.copysign(@as(f32, 1.0), p[1]);
         return .{ math.frac(-sign * p[0] + 0.5), math.frac(p[2] + 0.5) };
     } else {

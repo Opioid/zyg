@@ -238,11 +238,17 @@ pub const Material = struct {
         }
 
         if (self.flakes_mask.valid()) {
-            const uv = hlp.triplanarMapping(rs.p, result.super.frame.n);
+            const op = rs.trafo.worldToObjectPoint(rs.p);
+            const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
 
-            const weight = ts.sample2D_1(key, self.flakes_mask, uv, worker.scene.*);
+            const uv = hlp.triplanarMapping(op, on);
+
+            var rkey = key;
+            rkey.address = .{ .u = .Repeat, .v = .Repeat };
+
+            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene.*);
             if (weight > 0.0) {
-                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, key, worker.scene.*);
+                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, worker.scene.*);
 
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
@@ -320,7 +326,7 @@ pub const Material = struct {
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
         // filter kernel
-        const w = @maximum(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
+        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
 
         // analytical integral (box filter)
         const i = (tri(uv + @splat(2, @as(f32, 0.5)) * w) - tri(uv - @splat(2, @as(f32, 0.5)) * w)) / w;

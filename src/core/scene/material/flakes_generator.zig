@@ -29,10 +29,10 @@ pub const Generator = struct {
         flakes_roughness: f32,
         resources: *Resources,
     ) !Result {
-        const texture_scale: f32 = 16.0;
-
-        const flakes_radius = flakes_size / 2.0;
-        const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (flakes_size * flakes_size)));
+        const texture_scale: f32 = 8.0;
+        const adjusted_scale = texture_scale * flakes_size;
+        const flakes_radius = adjusted_scale / 2.0;
+        const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (adjusted_scale * adjusted_scale)));
 
         var shaper = try Shaper.init(alloc, .{ 2048, 2048 });
         defer shaper.deinit(alloc);
