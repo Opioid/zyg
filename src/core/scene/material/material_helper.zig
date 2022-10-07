@@ -58,3 +58,16 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
 
     return std.math.min(numer / denom, 8.0);
 }
+
+pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
+    if (n[0] > n[1] and n[0] > n[2]) {
+        const sign = std.math.copysign(@as(f32, 1.0), p[0]);
+        return .{ math.frac(sign * p[1] + 0.5), math.frac(p[2] + 0.5) };
+    } else if (n[1] > n[0] and n[1] > n[2]) {
+        const sign = std.math.copysign(@as(f32, 1.0), p[1]);
+        return .{ math.frac(-sign * p[0] + 0.5), math.frac(p[2] + 0.5) };
+    } else {
+        const sign = std.math.copysign(@as(f32, 1.0), p[2]);
+        return .{ math.frac(sign * p[0] + 0.5), math.frac(p[1] + 0.5) };
+    }
+}

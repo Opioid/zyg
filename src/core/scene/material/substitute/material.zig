@@ -238,9 +238,11 @@ pub const Material = struct {
         }
 
         if (self.flakes_mask.valid()) {
-            const weight = ts.sample2D_1(key, self.flakes_mask, rs.uv, worker.scene.*);
+            const uv = hlp.triplanarMapping(rs.p, result.super.frame.n);
+
+            const weight = ts.sample2D_1(key, self.flakes_mask, uv, worker.scene.*);
             if (weight > 0.0) {
-                const n = hlp.sampleNormal(wo, rs, self.flakes_normal_map, key, worker.scene.*);
+                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, key, worker.scene.*);
 
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
