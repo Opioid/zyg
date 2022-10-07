@@ -107,7 +107,6 @@ pub const Iso = struct {
         const h = Aniso.sample(wo, @splat(2, alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
-
         const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);

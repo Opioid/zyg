@@ -418,13 +418,17 @@ pub const Sample = struct {
         return (2.0 * std.math.pi) * (1.0 - c);
     }
 
-    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, alpha: f32) f32 {
-        const r = math.reflect3(n, wo);
-
+    pub fn flakesA2cone(alpha: f32) f32 {
         comptime var target_angle = solidAngleCone(@cos(math.degreesToRadians(7.0)));
         comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
 
-        const a2 = std.math.min(limit, 0.5 * alpha);
+        return std.math.min(limit, 0.5 * alpha);
+    }
+
+    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, alpha: f32) f32 {
+        const r = math.reflect3(n, wo);
+
+        const a2 = flakesA2cone(alpha);
         const cos_cone = 1.0 - (2.0 * a2) / (1.0 + a2);
 
         return if (math.dot3(wi, r) > cos_cone) 1.0 / solidAngleCone(cos_cone) else 0.0;

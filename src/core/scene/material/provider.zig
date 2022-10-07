@@ -328,7 +328,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "flakes", entry.key_ptr.*)) {
                 var size: f32 = 0.01;
                 var coverage: f32 = 0.1;
-                var roughness: f32 = 0.15;
+                var roughness: f32 = 0.2;
 
                 var citer = entry.value_ptr.Object.iterator();
                 while (citer.next()) |c| {

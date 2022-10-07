@@ -3,13 +3,16 @@ const tx = @import("../../image/texture/provider.zig");
 const Texture = tx.Texture;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Shaper = @import("../../rendering/shaper.zig").Shaper;
-const ggx = @import("../../scene/material/ggx.zig");
+const ggx = @import("ggx.zig");
+const Frame = @import("sample_base.zig").Frame;
+const Substitute = @import("substitute/sample.zig").Sample;
 
 const PngWriter = @import("../../image/encoding/png/writer.zig").Writer;
 
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 const Threads = base.thread.Pool;
 
@@ -34,7 +37,7 @@ pub const Generator = struct {
         const flakes_radius = adjusted_scale / 2.0;
         const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (adjusted_scale * adjusted_scale)));
 
-        var shaper = try Shaper.init(alloc, .{ 2048, 2048 });
+        var shaper = try Shaper.init(alloc, @splat(2, @as(u32, 2048)));
         defer shaper.deinit(alloc);
 
         shaper.clear(.{ 0.0, 0.0, 1.0, 0.0 });
@@ -58,13 +61,13 @@ pub const Generator = struct {
         {
             const r = ggx.clampRoughness(flakes_roughness);
             const alpha = r * r;
-            const cos_cone = @cos((0.5 * std.math.pi) * alpha);
+            const dist = alpha - Substitute.flakesA2cone(alpha);
 
             var context = Context{
                 .shaper = &shaper,
                 .num_flakes = num_flakes,
                 .flakes_radius = flakes_radius,
-                .flakes_cos_cone = cos_cone,
+                .flakes_alpha = dist,
             };
 
             resources.threads.waitAsync();
@@ -96,7 +99,7 @@ const Context = struct {
     shaper: *Shaper,
     num_flakes: u32,
     flakes_radius: f32,
-    flakes_cos_cone: f32,
+    flakes_alpha: f32,
 
     pub fn render(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
@@ -106,19 +109,29 @@ const Context = struct {
 
         const num_flakes = self.num_flakes;
         const radius = self.flakes_radius;
-        const cos_cone = self.flakes_cos_cone;
-        const vr = @splat(2, radius);
+        const alpha = @splat(2, self.flakes_alpha);
+        const range = @splat(2, radius);
+
+        const frame = Frame{
+            .t = .{ 1.0, 0.0, 0.0, 0.0 },
+            .b = .{ 0.0, 1.0, 0.0, 0.0 },
+            .n = .{ 0.0, 0.0, 1.0, 0.0 },
+        };
+
+        const wo = frame.n;
 
         var i = begin;
         while (i < end) : (i += 1) {
             var rng = RNG.init(0, i);
 
             const jt = @splat(2, @as(f32, 2.0)) * Vec2f{ rng.randomFloat(), rng.randomFloat() } - @splat(2, @as(f32, 1.0));
-            const uv = math.hammersley(i, num_flakes, 0) + vr * jt;
+            const uv = math.hammersley(i, num_flakes, 0) + range * jt;
 
-            const st = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-            var n = math.smpl.coneUniform(st, cos_cone);
-            n[3] = 1.0;
+            const xi = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+
+            var n_dot_h: f32 = undefined;
+            const m = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
+            const n = Vec4f{ m[0], m[1], m[2], 1.0 };
 
             shaper.drawCircle(n, uv, radius);
             // shaper.drawAperture(n, uv, 6, radius, 0.0, (2.0 * std.math.pi) * rng.randomFloat());
