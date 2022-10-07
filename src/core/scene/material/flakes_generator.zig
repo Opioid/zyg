@@ -110,7 +110,6 @@ const Context = struct {
         const num_flakes = self.num_flakes;
         const radius = self.flakes_radius;
         const alpha = @splat(2, self.flakes_alpha);
-        const range = @splat(2, radius);
 
         const frame = Frame{
             .t = .{ 1.0, 0.0, 0.0, 0.0 },
@@ -124,11 +123,9 @@ const Context = struct {
         while (i < end) : (i += 1) {
             var rng = RNG.init(0, i);
 
-            const jt = @splat(2, @as(f32, 2.0)) * Vec2f{ rng.randomFloat(), rng.randomFloat() } - @splat(2, @as(f32, 1.0));
-            const uv = math.hammersley(i, num_flakes, 0) + range * jt;
+            const uv = math.hammersley(i, num_flakes, 0);
 
             const xi = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-
             var n_dot_h: f32 = undefined;
             const m = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
             const n = Vec4f{ m[0], m[1], m[2], 1.0 };
