@@ -6,7 +6,6 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
@@ -41,8 +40,8 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, phase), phase);
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const r2 = sampler.sample2D(rng);
+    pub fn sample(self: Sample, sampler: *Sampler) bxdf.Sample {
+        const r2 = sampler.sample2D();
 
         const g = self.anisotropy;
 

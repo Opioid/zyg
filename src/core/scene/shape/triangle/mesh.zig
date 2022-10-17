@@ -19,7 +19,6 @@ const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Mat3x3 = math.Mat3x3;
@@ -525,9 +524,8 @@ pub const Mesh = struct {
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
-        const r = sampler.sample3D(rng);
+        const r = sampler.sample3D();
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
@@ -578,11 +576,10 @@ pub const Mesh = struct {
         extent: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r = sampler.sample1D(rng);
+        const r = sampler.sample1D();
         const s = self.parts[part].sampleRandom(variant, r);
 
         var sv: Vec4f = undefined;
@@ -595,8 +592,7 @@ pub const Mesh = struct {
         const xy = math.orthonormalBasis3(wn);
         var dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
 
-        //  if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
-        if (two_sided and rng.randomFloat() > 0.5) {
+        if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;
             dir = -dir;
         }

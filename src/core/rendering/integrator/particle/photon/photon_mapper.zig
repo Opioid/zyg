@@ -16,6 +16,7 @@ const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -27,14 +28,15 @@ pub const Mapper = struct {
     };
 
     settings: Settings = .{},
-    sampler: Sampler = Sampler{ .Random = {} },
+    sampler: Sampler = undefined,
 
     photons: []Photon = &.{},
 
     const Self = @This();
 
-    pub fn configure(self: *Self, alloc: Allocator, settings: Settings) !void {
+    pub fn configure(self: *Self, alloc: Allocator, settings: Settings, rng: *RNG) !void {
         self.settings = settings;
+        self.sampler = .{ .Random = .{ .rng = rng } };
         self.photons = try alloc.realloc(self.photons, settings.max_bounces);
     }
 
@@ -157,7 +159,7 @@ pub const Mapper = struct {
                     break;
                 }
 
-                const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+                const sample_result = mat_sample.sample(&self.sampler);
                 if (0.0 == sample_result.pdf) {
                     break;
                 }
@@ -204,7 +206,7 @@ pub const Mapper = struct {
                     const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
                     const continue_prob = std.math.min(1.0, avg);
 
-                    if (self.sampler.sample1D(&worker.super.rng) >= continue_prob) {
+                    if (self.sampler.sample1D() >= continue_prob) {
                         break;
                     }
 
@@ -273,11 +275,10 @@ pub const Mapper = struct {
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Ray {
-        var rng = &worker.super.rng;
-        const select = self.sampler.sample1D(rng);
+        const select = self.sampler.sample1D();
         const l = worker.super.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
+        const time = worker.super.absoluteTime(frame, self.sampler.sample1D());
 
         const light = worker.super.scene.light(l.offset);
         light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;

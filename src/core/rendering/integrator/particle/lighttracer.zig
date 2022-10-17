@@ -33,7 +33,7 @@ pub const Lighttracer = struct {
     settings: Settings,
 
     light_sampler: Sampler = Sampler{ .Sobol = .{} },
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -152,7 +152,7 @@ pub const Lighttracer = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -231,7 +231,7 @@ pub const Lighttracer = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var sampler = &self.light_sampler;
-        const s2 = sampler.sample2D(&worker.super.rng);
+        const s2 = sampler.sample2D();
         const l = worker.super.scene.randomLight(s2[0]);
         const time = worker.super.absoluteTime(frame, s2[1]);
 
@@ -274,7 +274,6 @@ pub const Lighttracer = struct {
             history.time,
             p,
             sampler,
-            &worker.super.rng,
             worker.super.scene.*,
         ) orelse return false;
 
@@ -319,7 +318,10 @@ pub const Lighttracer = struct {
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(self: Factory) Lighttracer {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) Lighttracer {
+        return .{ 
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+         };
     }
 };

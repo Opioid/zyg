@@ -9,7 +9,6 @@ const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
@@ -66,8 +65,8 @@ pub const DistantSphere = struct {
         return det >= 0.0;
     }
 
-    pub fn sampleTo(trafo: Trafo, extent: f32, sampler: *Sampler, rng: *RNG) SampleTo {
-        const r2 = sampler.sample2D(rng);
+    pub fn sampleTo(trafo: Trafo, extent: f32, sampler: *Sampler) SampleTo {
+        const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };

@@ -10,7 +10,6 @@ const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -145,7 +144,7 @@ pub const Sphere = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler, rng: *RNG) ?SampleTo {
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
         const v = trafo.position - p;
         const il = math.rlength3(v);
         const radius = trafo.scaleX();
@@ -155,7 +154,7 @@ pub const Sphere = struct {
         const z = @splat(4, il) * v;
         const xy = math.orthonormalBasis3(z);
 
-        const r2 = sampler.sample2D(rng);
+        const r2 = sampler.sample2D();
         const dir = math.smpl.orientedConeUniform(r2, cos_theta_max, xy[0], xy[1], z);
 
         const b = math.dot3(dir, v);

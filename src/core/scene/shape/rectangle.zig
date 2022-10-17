@@ -10,7 +10,6 @@ const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -125,9 +124,8 @@ pub const Rectangle = struct {
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
-        const uv = sampler.sample2D(rng);
+        const uv = sampler.sample2D();
         return sampleToUv(p, uv, trafo, area, two_sided);
     }
 
@@ -172,7 +170,6 @@ pub const Rectangle = struct {
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) SampleFrom {
@@ -188,7 +185,7 @@ pub const Rectangle = struct {
             wn,
         );
 
-        if (two_sided and sampler.sample1D(rng) > 0.5) {
+        if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;
             dir = -dir;
         }

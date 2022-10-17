@@ -26,7 +26,6 @@ const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -149,7 +148,6 @@ pub const Perspective = struct {
         time: u64,
         p: Vec4f,
         sampler: *Sampler,
-        rng: *RNG,
         scene: Scene,
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
@@ -161,7 +159,7 @@ pub const Perspective = struct {
         var out_dir: Vec4f = undefined;
 
         if (self.aperture.radius > 0.0) {
-            const uv = sampler.sample2D(rng);
+            const uv = sampler.sample2D();
             const lens = self.aperture.sample(uv);
             const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
             const axis = po - origin;

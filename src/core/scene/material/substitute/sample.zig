@@ -16,7 +16,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
@@ -141,17 +140,17 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: Sample, sampler: *Sampler) bxdf.Sample {
         var result = bxdf.Sample{ .wavelength = 0.0 };
 
         const th = self.thickness;
         if (th > 0.0) {
             const tr = self.transparency;
 
-            const s3 = sampler.sample3D(rng);
+            const s3 = sampler.sample3D();
             const p = s3[0];
             if (p < tr) {
-                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.frame, sampler, rng, &result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.frame, sampler, &result);
                 const n_dot_wo = self.super.frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
@@ -177,7 +176,7 @@ pub const Sample = struct {
             }
         } else {
             if (self.volumetric) {
-                self.volumetricSample(sampler, rng, &result);
+                self.volumetricSample(sampler, &result);
                 return result;
             }
 
@@ -186,9 +185,9 @@ pub const Sample = struct {
             }
 
             if (self.coating.thickness > 0.0) {
-                self.coatingSample(sampler, rng, &result);
+                self.coatingSample(sampler, &result);
             } else {
-                self.baseSample(sampler, rng, &result);
+                self.baseSample(sampler, &result);
             }
         }
 
@@ -263,12 +262,12 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
 
-    fn baseSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn baseSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         if (1.0 == self.metallic) {
-            const xi = sampler.sample2D(rng);
+            const xi = sampler.sample2D();
             self.pureGlossSample(xi, result);
         } else {
-            const s3 = sampler.sample3D(rng);
+            const s3 = sampler.sample3D();
             const p = s3[0];
             const xi = Vec2f{ s3[1], s3[2] };
             if (p < 0.5) {
@@ -279,11 +278,11 @@ pub const Sample = struct {
         }
     }
 
-    fn coatingSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn coatingSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         var n_dot_h: f32 = undefined;
-        const f = self.coating.sample(self.super.wo, sampler.sample2D(rng), &n_dot_h, result);
+        const f = self.coating.sample(self.super.wo, sampler.sample2D(), &n_dot_h, result);
 
-        const s3 = sampler.sample3D(rng);
+        const s3 = sampler.sample3D();
         const p = s3[0];
         if (p <= f) {
             self.coatingReflect(f, n_dot_h, result);
@@ -584,9 +583,9 @@ pub const Sample = struct {
         return bxdf.Result.init(base_reflection, base_pdf);
     }
 
-    fn volumetricSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn volumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         if (self.coating.thickness > 0.0) {
-            self.coatedVolumetricSample(sampler, rng, result);
+            self.coatedVolumetricSample(sampler, result);
             return;
         }
 
@@ -605,7 +604,7 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D(rng);
+        const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
@@ -706,7 +705,7 @@ pub const Sample = struct {
         }
     }
 
-    fn coatedVolumetricSample(self: Sample, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) void {
+    fn coatedVolumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
@@ -722,7 +721,7 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D(rng);
+        const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
         const p = s3[0];
 
@@ -734,7 +733,7 @@ pub const Sample = struct {
                 self.coatingReflect(cf, coat_n_dot_h, result);
             } else {
                 var n_dot_h: f32 = undefined;
-                const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(rng), frame, &n_dot_h);
+                const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(), frame, &n_dot_h);
 
                 const n_dot_wo = frame.clampAbsNdot(wo);
                 const wo_dot_h = hlp.clampDot(wo, h);

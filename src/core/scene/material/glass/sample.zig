@@ -14,7 +14,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
@@ -138,20 +137,20 @@ pub const Sample = struct {
         }
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: Sample, sampler: *Sampler) bxdf.Sample {
         var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
-            var result = self.roughSample(ior, sampler, rng);
+            var result = self.roughSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
         } else if (self.thickness > 0.0) {
-            var result = self.thinSample(ior, sampler, rng);
+            var result = self.thinSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
         } else {
             if (0.0 == self.abbe) {
-                const p = sampler.sample1D(rng);
+                const p = sampler.sample1D();
 
                 var result = self.thickSample(ior, p);
                 result.wavelength = 0.0;
@@ -160,7 +159,7 @@ pub const Sample = struct {
                 var weight: Vec4f = undefined;
                 var wavelength = self.wavelength;
 
-                const r = sampler.sample2D(rng);
+                const r = sampler.sample2D();
 
                 if (0.0 == wavelength) {
                     const start = Material.Start_wavelength;
@@ -228,7 +227,7 @@ pub const Sample = struct {
         }
     }
 
-    fn thinSample(self: Sample, ior: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    fn thinSample(self: Sample, ior: f32, sampler: *Sampler) bxdf.Sample {
         // Thin material is always double sided, so no need to check hemisphere.
         const eta_i = self.ior_outside;
         const eta_t = ior;
@@ -248,7 +247,7 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        const p = sampler.sample1D(rng);
+        const p = sampler.sample1D();
         if (p <= f) {
             return reflect(wo, n, n_dot_wo);
         } else {
@@ -261,7 +260,7 @@ pub const Sample = struct {
         }
     }
 
-    fn roughSample(self: Sample, ior_t: f32, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    fn roughSample(self: Sample, ior_t: f32, sampler: *Sampler) bxdf.Sample {
         const quo_ior = IoR{ .eta_i = self.ior_outside, .eta_t = ior_t };
 
         const wo = self.super.wo;
@@ -282,7 +281,7 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D(rng);
+        const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;

@@ -16,6 +16,7 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -45,7 +46,7 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -147,7 +148,7 @@ pub const PathtracerMIS = struct {
 
             var effective_bxdf_pdf = sample_result.pdf;
 
-            sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -270,7 +271,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D(&worker.super.rng))) {
+                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
                     break;
                 }
             }
@@ -301,7 +302,7 @@ pub const PathtracerMIS = struct {
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, translucent);
 
-        const select = sampler.sample1D(&worker.super.rng);
+        const select = sampler.sample1D();
         const split = self.splitting(ray.depth);
 
         const lights = worker.super.randomLightSpatial(p, n, translucent, select, split);
@@ -450,7 +451,10 @@ pub const PathtracerMIS = struct {
 pub const Factory = struct {
     settings: PathtracerMIS.Settings,
 
-    pub fn create(self: Factory) PathtracerMIS {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) PathtracerMIS {
+        return .{ 
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };
