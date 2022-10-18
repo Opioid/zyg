@@ -1,3 +1,4 @@
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../../scene/scene.zig").Scene;
 const Texture = @import("texture.zig").Texture;
 pub const AddressMode = @import("address_mode.zig").Mode;
@@ -78,20 +79,20 @@ pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, scene: Scene) Vec2f {
 const Nearest2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_1(xy[0], xy[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
+        return texture.get2D_1(m[0], m[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_2(xy[0], xy[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
+        return texture.get2D_2(m[0], m[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const xy = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_3(xy[0], xy[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
+        return texture.get2D_3(m[0], m[1], scene);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
@@ -158,6 +159,51 @@ const Linear2D = struct {
                 adr.u.increment(x, b[0]),
                 adr.v.increment(y, b[1]),
             },
+        };
+    }
+};
+
+const LinearStochastic2D = struct {
+    pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, sampler: Sampler, scene: Scene) f32 {
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
+        return texture.get2D_1(m[0], m[1], scene);
+    }
+
+    pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, sampler: Sampler, scene: Scene) Vec2f {
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
+        return texture.get2D_2(m[0], m[1], scene);
+    }
+
+    pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, sampler: Sampler, scene: Scene) Vec4f {
+        const d = texture.description(scene).dimensions;
+        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
+        return texture.get2D_3(m[0], m[1], scene);
+    }
+
+    fn map(d: Vec2i, uv: Vec2f, adr: Address, sampler: Sampler) Vec2i {
+        const df = math.vec2iTo2f(d);
+
+        const u = adr.u.f(uv[0]) * df[0] - 0.5;
+        const v = adr.v.f(uv[1]) * df[1] - 0.5;
+
+        const fu = @floor(u);
+        const fv = @floor(v);
+
+        const x = @floatToInt(i32, fu);
+        const y = @floatToInt(i32, fv);
+
+        const b = d - @splat(2, @as(i32, 1));
+
+        const r = sampler.sample2D();
+
+        const wu = u - fu;
+        const wv = v - fv;
+
+        return .{
+            if (wu <= r[0]) adr.u.lowerBound(x, b[0]) else adr.u.increment(x, b[0]),
+            if (wv <= r[1]) adr.v.lowerBound(y, b[1]) else adr.v.increment(y, b[1]),
         };
     }
 };
