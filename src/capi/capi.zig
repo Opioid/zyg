@@ -654,7 +654,7 @@ export fn su_resolve_frame(aov: u32) i32 {
 
 export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @minimum(width * height, @intCast(u32, e.driver.target.description.numPixels()));
+        const num_pixels = @min(width * height, @intCast(u32, e.driver.target.description.numPixels()));
 
         const target = @ptrCast([*]Pack4f, buffer);
 
@@ -693,7 +693,7 @@ export fn su_copy_framebuffer(
 
         const buffer = e.driver.target;
         const d = buffer.description.dimensions;
-        const used_height = @minimum(height, @intCast(u32, d[1]));
+        const used_height = @min(height, @intCast(u32, d[1]));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
 
@@ -718,7 +718,7 @@ const CopyFramebufferContext = struct {
         const d = self.source.description.dimensions;
 
         const width = self.width;
-        const used_width = @minimum(self.width, @intCast(u32, d[0]));
+        const used_width = @min(self.width, @intCast(u32, d[0]));
 
         if (3 == self.num_channels) {
             const destination = self.destination;

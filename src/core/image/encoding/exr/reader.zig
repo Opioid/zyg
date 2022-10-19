@@ -128,7 +128,7 @@ pub const Reader = struct {
         };
 
         const file_num_channels = @intCast(u32, channels.channels.items.len);
-        num_channels = @minimum(num_channels, file_num_channels);
+        num_channels = @min(num_channels, file_num_channels);
 
         const width = @intCast(u32, dimensions[0]);
         const height = @intCast(u32, dimensions[1]);
@@ -175,7 +175,7 @@ pub const Reader = struct {
 
             _ = try stream.read(buffer[0..size]);
 
-            const num_rows_here = @minimum(height - row, rows_per_block);
+            const num_rows_here = @min(height - row, rows_per_block);
             const num_pixels_here = num_rows_here * width;
 
             if (size < bytes_per_row_block) {
