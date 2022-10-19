@@ -195,15 +195,13 @@ const LinearStochastic2D = struct {
         const y = @floatToInt(i32, fv);
 
         const b = d - @splat(2, @as(i32, 1));
-
-        const r = sampler.sample2D();
-
         const wu = u - fu;
         const wv = v - fv;
+        const r = sampler.sample2D();
 
         return .{
-            if (wu <= r[0]) adr.u.lowerBound(x, b[0]) else adr.u.increment(x, b[0]),
-            if (wv <= r[1]) adr.v.lowerBound(y, b[1]) else adr.v.increment(y, b[1]),
+            if (r[0] <= wu) adr.u.increment(x, b[0]) else adr.u.lowerBound(x, b[0]),
+            if (r[1] <= wv) adr.v.increment(y, b[1]) else adr.v.lowerBound(y, b[1]),
         };
     }
 };
@@ -211,14 +209,14 @@ const LinearStochastic2D = struct {
 const Nearest3D = struct {
     pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const xyz = map(d, uvw, adr);
-        return texture.get3D_1(xyz[0], xyz[1], xyz[2], scene);
+        const m = map(d, uvw, adr);
+        return texture.get3D_1(m[0], m[1], m[2], scene);
     }
 
     pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const xyz = map(d, uvw, adr);
-        return texture.get3D_2(xyz[0], xyz[1], xyz[2], scene);
+        const m = map(d, uvw, adr);
+        return texture.get3D_2(m[0], m[1], m[2], scene);
     }
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
@@ -282,6 +280,39 @@ const Linear3D = struct {
             .w = muvw - fuvw,
             .xyz = adr.u.lowerBound3(xyz, b),
             .xyz1 = adr.u.increment3(xyz, b),
+        };
+    }
+};
+
+const LinearStochastic3D = struct {
+    pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, sampler: Sampler, scene: Scene) f32 {
+        const d = texture.description(scene).dimensions;
+        const m = map(d, uvw, adr);
+        return texture.get3D_1(m[0], m[1], m[2], sampler, scene);
+    }
+
+    pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, sampler: Sampler, scene: Scene) Vec2f {
+        const d = texture.description(scene).dimensions;
+        const m = map(d, uvw, adr);
+        return texture.get3D_2(m[0], m[1], m[2], sampler, scene);
+    }
+
+    fn map(d: Vec4i, uvw: Vec4f, adr: Address, sampler: Sampler) Vec4i {
+        const df = math.vec4iTo4f(d);
+
+        const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
+        const fuvw = @floor(muvw);
+        const xyz = math.vec4fTo4i(fuvw);
+
+        const b = d - Vec4i{ 1, 1, 1, 0 };
+        const w = muvw - fuvw;
+        const r = sampler.sample3D();
+
+        return .{
+            if (r[0] <= w[0]) adr.u.increment(xyz[0], b[0]) else adr.u.lowerBound(xyz[0], b[0]),
+            if (r[1] <= w[1]) adr.u.increment(xyz[1], b[1]) else adr.u.lowerBound(xyz[1], b[1]),
+            if (r[2] <= w[2]) adr.u.increment(xyz[2], b[2]) else adr.u.lowerBound(xyz[2], b[2]),
+            0,
         };
     }
 };
