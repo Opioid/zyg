@@ -226,7 +226,7 @@ const Nearest3D = struct {
 
         const b = d - @splat(4, @as(i32, 1));
 
-        return @minimum(math.vec4fTo4i(muvw * df), b);
+        return @min(math.vec4fTo4i(muvw * df), b);
     }
 };
 

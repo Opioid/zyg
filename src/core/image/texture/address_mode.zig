@@ -79,7 +79,7 @@ pub const Clamp = struct {
     }
 
     pub fn increment3(v: Vec4i, max: Vec4i) Vec4i {
-        return @minimum(v + Vec4i{ 1, 1, 1, 0 }, max);
+        return @min(v + Vec4i{ 1, 1, 1, 0 }, max);
     }
 
     pub fn lowerBound(v: i32) i32 {
@@ -91,7 +91,7 @@ pub const Clamp = struct {
     }
 
     pub fn lowerBound3(v: Vec4i) Vec4i {
-        return @maximum(v, @splat(4, @as(i32, 0)));
+        return @max(v, @splat(4, @as(i32, 0)));
     }
 };
 
