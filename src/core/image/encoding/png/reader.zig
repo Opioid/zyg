@@ -115,7 +115,7 @@ pub const Reader = struct {
             }
         }
 
-        pub fn numPixelBytes(self: Info) u32 {
+        pub fn numPixelBytes(self: *const Info) u32 {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             return row_size * @intCast(u32, self.height);
         }
