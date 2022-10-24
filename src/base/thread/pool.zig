@@ -58,7 +58,9 @@ pub const Pool = struct {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
         for (self.uniques) |*u, i| {
-            u.* = .{ .thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) }) };
+            // Initializing u first, seems to get rid of one data race
+            u.* = .{};
+            u.thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
         }
 
         self.asyncp.thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
@@ -72,7 +74,7 @@ pub const Pool = struct {
         alloc.free(self.uniques);
     }
 
-    pub fn numThreads(self: Pool) u32 {
+    pub fn numThreads(self: *const Pool) u32 {
         return @intCast(u32, self.uniques.len);
     }
 
