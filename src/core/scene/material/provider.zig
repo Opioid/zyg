@@ -13,6 +13,7 @@ const ts = @import("../../image/texture/sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
 const Result = @import("../../resource/result.zig").Result;
+const FlakesGenerator = @import("flakes_generator.zig").Generator;
 
 const base = @import("base");
 const math = base.math;
@@ -325,6 +326,29 @@ pub const Provider = struct {
                 }
 
                 material.setCoatingAttenuation(coating_color, coating_attenuation_distance);
+            } else if (std.mem.eql(u8, "flakes", entry.key_ptr.*)) {
+                var size: f32 = 0.01;
+                var coverage: f32 = 0.1;
+                var roughness: f32 = 0.2;
+
+                var citer = entry.value_ptr.Object.iterator();
+                while (citer.next()) |c| {
+                    if (std.mem.eql(u8, "color", c.key_ptr.*)) {
+                        material.flakes_color = readColor(c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "coverage", c.key_ptr.*)) {
+                        coverage = json.readFloat(f32, c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
+                        roughness = json.readFloat(f32, c.value_ptr.*);
+                        material.setFlakesRoughness(roughness);
+                    } else if (std.mem.eql(u8, "size", c.key_ptr.*)) {
+                        size = json.readFloat(f32, c.value_ptr.*);
+                    }
+                }
+
+                const textures = FlakesGenerator.generate(alloc, size, coverage, roughness, resources) catch continue;
+
+                material.flakes_normal_map = textures.normal;
+                material.flakes_mask = textures.mask;
             }
         }
 

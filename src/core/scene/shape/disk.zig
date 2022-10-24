@@ -10,7 +10,6 @@ const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -109,8 +108,8 @@ pub const Disk = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler, rng: *RNG) ?SampleTo {
-        const r2 = sampler.sample2D(rng);
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler) ?SampleTo {
+        const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -173,7 +172,6 @@ pub const Disk = struct {
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
@@ -187,7 +185,7 @@ pub const Disk = struct {
         if (cos_a < Dot_min) {
             var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-            if (two_sided and sampler.sample1D(rng) > 0.5) {
+            if (two_sided and sampler.sample1D() > 0.5) {
                 wn = -wn;
                 dir = -dir;
             }
@@ -196,7 +194,7 @@ pub const Disk = struct {
         } else {
             var dir = math.smpl.orientedConeCosine(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-            if (two_sided and sampler.sample1D(rng) > 0.5) {
+            if (two_sided and sampler.sample1D() > 0.5) {
                 wn = -wn;
                 dir = -dir;
             }

@@ -32,10 +32,13 @@ pub const Material = struct {
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
+    flakes_normal_map: Texture = .{},
+    flakes_mask: Texture = .{},
 
     color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
     coating_absorption_coef: Vec4f = @splat(4, @as(f32, 0.0)),
+    flakes_color: Vec4f = @splat(4, @as(f32, 0.8)),
 
     roughness: f32 = 0.8,
     anisotropy: f32 = 0.0,
@@ -46,6 +49,7 @@ pub const Material = struct {
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
+    flakes_alpha: f32 = 0.01,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -99,6 +103,11 @@ pub const Material = struct {
     pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
         self.coating_roughness_map = roughness.texture;
         self.coating_roughness = ggx.clampRoughness(roughness.value);
+    }
+
+    pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
+        const r = ggx.clampRoughness(roughness);
+        self.flakes_alpha = r * r;
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, worker: *const Worker) Sample {
@@ -228,6 +237,26 @@ pub const Material = struct {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
+        if (self.flakes_mask.valid()) {
+            const op = rs.trafo.worldToObjectPoint(rs.p);
+            const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
+
+            const uv = hlp.triplanarMapping(op, on);
+
+            var rkey = key;
+            rkey.address = .{ .u = .Repeat, .v = .Repeat };
+
+            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
+            if (weight > 0.0) {
+                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, worker.scene);
+
+                result.flakes_weight = weight;
+                result.flakes_color = self.flakes_color;
+                result.flakes_normal = n;
+                result.flakes_alpha = self.flakes_alpha;
+            }
+        }
+
         return Sample{ .Substitute = result };
     }
 
@@ -292,12 +321,12 @@ pub const Material = struct {
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp3(self.color, self.checkers, t);
+        return math.lerp4(self.color, self.checkers, t);
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
         // filter kernel
-        const w = @maximum(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
+        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
 
         // analytical integral (box filter)
         const i = (tri(uv + @splat(2, @as(f32, 0.5)) * w) - tri(uv - @splat(2, @as(f32, 0.5)) * w)) / w;

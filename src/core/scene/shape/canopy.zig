@@ -7,7 +7,6 @@ const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
@@ -48,8 +47,8 @@ pub const Canopy = struct {
         return true;
     }
 
-    pub fn sampleTo(trafo: Trafo, sampler: *Sampler, rng: *RNG) SampleTo {
-        const uv = sampler.sample2D(rng);
+    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
+        const uv = sampler.sample2D();
         const dir = math.smpl.orientedHemisphereUniform(uv, trafo.rotation.r[0], trafo.rotation.r[1], trafo.rotation.r[2]);
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
         const disk = hemisphereToDiskEquidistant(xyz);

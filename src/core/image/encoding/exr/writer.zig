@@ -324,7 +324,7 @@ pub const Writer = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const num_rows_here = @minimum(height - (y * self.rows_per_block), self.rows_per_block);
+                const num_rows_here = @min(height - (y * self.rows_per_block), self.rows_per_block);
 
                 const pixel = y * self.rows_per_block * width;
 

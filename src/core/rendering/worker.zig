@@ -63,11 +63,13 @@ pub const Worker = struct {
     ) !void {
         self.super.configure(camera, scene);
 
-        self.sampler = samplers.create();
+        const rng = &self.super.rng;
 
-        self.surface_integrator = surfaces.create();
+        self.sampler = samplers.create(rng);
+
+        self.surface_integrator = surfaces.create(rng);
         self.volume_integrator = volumes.create();
-        self.lighttracer = lighttracers.create();
+        self.lighttracer = lighttracers.create(rng);
 
         self.aov = aovs.create();
 
@@ -75,7 +77,7 @@ pub const Worker = struct {
         try self.photon_mapper.configure(alloc, .{
             .max_bounces = max_bounces,
             .full_light_path = photon_settings.full_light_path,
-        });
+        }, rng);
 
         self.photon_map = photon_map;
     }
@@ -133,7 +135,7 @@ pub const Worker = struct {
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.cameraSample(rng, pixel);
+                    const sample = self.sampler.cameraSample(pixel);
 
                     self.aov.clear();
 

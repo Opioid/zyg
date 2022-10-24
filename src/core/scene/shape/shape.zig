@@ -21,8 +21,8 @@ const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
+
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
@@ -218,15 +218,14 @@ pub const Shape = union(enum) {
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
         return switch (self.*) {
-            .Canopy => Canopy.sampleTo(trafo, sampler, rng),
-            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler, rng),
-            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler, rng),
-            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, rng),
-            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler, rng),
-            .Sphere => Sphere.sampleTo(p, trafo, sampler, rng),
+            .Canopy => Canopy.sampleTo(trafo, sampler),
+            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler),
+            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler),
+            .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler),
+            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler),
+            .Sphere => Sphere.sampleTo(p, trafo, sampler),
             .TriangleMesh => |*m| m.sampleTo(
                 part,
                 variant,
@@ -237,7 +236,6 @@ pub const Shape = union(enum) {
                 two_sided,
                 total_sphere,
                 sampler,
-                rng,
             ),
             else => null,
         };
@@ -250,12 +248,11 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         extent: f32,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
         _ = part;
 
         return switch (self.*) {
-            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler, rng),
+            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler),
             else => null,
         };
     }
@@ -306,7 +303,6 @@ pub const Shape = union(enum) {
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
         bounds: AABB,
@@ -314,10 +310,10 @@ pub const Shape = union(enum) {
     ) ?SampleFrom {
         return switch (self.*) {
             .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
-            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, rng, uv, importance_uv),
+            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, uv, importance_uv),
             .DistantSphere => DistantSphere.sampleFrom(trafo, extent, uv, importance_uv, bounds),
             .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, rng, uv, importance_uv),
+            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, uv, importance_uv),
             .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
             .TriangleMesh => |*m| m.sampleFrom(
                 part,
@@ -326,7 +322,6 @@ pub const Shape = union(enum) {
                 extent,
                 two_sided,
                 sampler,
-                rng,
                 uv,
                 importance_uv,
             ),

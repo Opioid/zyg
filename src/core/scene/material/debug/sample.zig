@@ -30,8 +30,8 @@ pub const Sample = struct {
         return bxdf.Result.init(reflection, pdf);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const s2d = sampler.sample2D(rng);
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+        const s2d = sampler.sample2D();
 
         const is = math.smpl.hemisphereCosine(s2d);
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));

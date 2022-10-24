@@ -8,8 +8,10 @@ const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -26,7 +28,7 @@ pub const Pathtracer = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -114,12 +116,12 @@ pub const Pathtracer = struct {
             var sampler = self.pickSampler(ray.depth);
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D(&worker.super.rng))) {
+                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
                     break;
                 }
             }
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -191,7 +193,10 @@ pub const Pathtracer = struct {
 pub const Factory = struct {
     settings: Pathtracer.Settings,
 
-    pub fn create(self: Factory) Pathtracer {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) Pathtracer {
+        return .{ 
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };

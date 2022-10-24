@@ -7,8 +7,10 @@ const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -38,7 +40,7 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -83,7 +85,7 @@ pub const AOV = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = sampler.sample2D(&worker.super.rng);
+            const sample = sampler.sample2D();
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -161,7 +163,7 @@ pub const AOV = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -244,7 +246,10 @@ pub const AOV = struct {
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory) AOV {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) AOV {
+        return .{ 
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };

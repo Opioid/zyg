@@ -7,7 +7,6 @@ const SampleFrom = smpl.From;
 const scn = @import("../constants.zig");
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
@@ -51,9 +50,8 @@ pub const InfiniteSphere = struct {
         trafo: Transformation,
         total_sphere: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) SampleTo {
-        const uv = sampler.sample2D(rng);
+        const uv = sampler.sample2D();
 
         var dir: Vec4f = undefined;
         var pdf_: f32 = undefined;

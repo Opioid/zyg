@@ -144,7 +144,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             const d = description.dimensions;
 
             var num_cells = d >> Log2_cell_dim4;
-            num_cells += @minimum(d - (num_cells << Log2_cell_dim4), @splat(4, @as(i32, 1)));
+            num_cells += @min(d - (num_cells << Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
             const cells_len = @intCast(usize, num_cells[0] * num_cells[1] * num_cells[2]);
 

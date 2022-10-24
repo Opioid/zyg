@@ -19,8 +19,10 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -63,12 +65,12 @@ pub const Factory = union(enum) {
     PTDL: PathtracerDLFactory,
     PTMIS: PathtracerMISFactory,
 
-    pub fn create(self: Factory) Integrator {
+    pub fn create(self: Factory, rng: *RNG) Integrator {
         return switch (self) {
-            .AOV => |i| Integrator{ .AOV = i.create() },
-            .PT => |i| Integrator{ .PT = i.create() },
-            .PTDL => |i| Integrator{ .PTDL = i.create() },
-            .PTMIS => |i| Integrator{ .PTMIS = i.create() },
+            .AOV => |i| Integrator{ .AOV = i.create(rng) },
+            .PT => |i| Integrator{ .PT = i.create(rng) },
+            .PTDL => |i| Integrator{ .PTDL = i.create(rng) },
+            .PTMIS => |i| Integrator{ .PTMIS = i.create(rng) },
         };
     }
 };

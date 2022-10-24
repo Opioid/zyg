@@ -166,7 +166,7 @@ pub const Reader = struct {
 
         const byte_compatible = num_channels == info.num_channels and .YX != swizzle;
 
-        num_channels = @minimum(num_channels, info.num_channels);
+        num_channels = @min(num_channels, info.num_channels);
 
         const dimensions = Vec2i{ info.width, info.height };
 

@@ -65,14 +65,14 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         return switch (self.*) {
-            .Debug => |*m| m.sample(sampler, rng),
-            .Glass => |*m| m.sample(sampler, rng),
+            .Debug => |*m| m.sample(sampler),
+            .Glass => |*m| m.sample(sampler),
             .Light => Light.sample(),
             .Null => |*m| m.sample(),
-            .Substitute => |*m| m.sample(sampler, rng),
-            .Volumetric => |*m| m.sample(sampler, rng),
+            .Substitute => |*m| m.sample(sampler),
+            .Volumetric => |*m| m.sample(sampler),
         };
     }
 };

@@ -61,7 +61,7 @@ pub const Interpolated = struct {
 
         const it = memory.lowerBound(f32, self.wavelengths[0..len], start);
 
-        var index = @maximum(it, 1) - 1;
+        var index = @max(it, 1) - 1;
 
         var integral: f32 = 0.0;
         while (index + 1 < len and end >= self.wavelengths[index]) : (index += 1) {
