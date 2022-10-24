@@ -370,7 +370,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectLight(
-        self: Self,
+        self: *const Self,
         ray: *const Ray,
         geo_n: Vec4f,
         isec: *const Intersection,
@@ -414,7 +414,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectVolumeLight(
-        self: Self,
+        self: *const Self,
         ray: *const Ray,
         geo_n: Vec4f,
         isec: *const Intersection,
@@ -442,7 +442,7 @@ pub const PathtracerMIS = struct {
         return hlp.powerHeuristic(bxdf_pdf, ls_pdf * light_pick.pdf);
     }
 
-    fn splitting(self: Self, bounce: u32) bool {
+    fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
     }
 

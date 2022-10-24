@@ -164,7 +164,7 @@ pub const Worker = struct {
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
-            self.lighttracer.li(frame, self, camera.interface_stack);
+            self.lighttracer.li(frame, self, &camera.interface_stack);
         }
     }
 

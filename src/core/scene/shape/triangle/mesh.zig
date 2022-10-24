@@ -49,7 +49,7 @@ pub const Part = struct {
             self.distribution.deinit(alloc);
         }
 
-        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: *const Scene) bool {
+        pub fn matches(self: *const Variant, m: u32, emission_map: bool, two_sided: bool, scene: *const Scene) bool {
             if (self.material == m) {
                 return true;
             }
@@ -196,7 +196,7 @@ pub const Part = struct {
 
         var variant = &self.variants.items[v];
         try variant.distribution.configure(alloc, context.powers, 0);
-        try builder.buildPrimitive(alloc, &variant.light_tree, self.*, v, threads);
+        try builder.buildPrimitive(alloc, &variant.light_tree, self, v, threads);
         return v;
     }
 

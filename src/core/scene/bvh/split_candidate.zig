@@ -148,7 +148,7 @@ pub const SplitCandidate = struct {
     }
 
     pub fn distribute(
-        self: Self,
+        self: *const Self,
         alloc: Allocator,
         references: []const Reference,
         references0: *References,
@@ -179,7 +179,7 @@ pub const SplitCandidate = struct {
         }
     }
 
-    pub fn behind(self: Self, point: Vec4f) bool {
+    pub fn behind(self: *const Self, point: Vec4f) bool {
         return point[self.axis] < self.d;
     }
 };
