@@ -226,7 +226,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
         result.h_dot_wi = wi_dot_h;
-        result.class = if (alpha <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.class = if (alpha <= Min_alpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
 
         return n_dot_wi;
     }

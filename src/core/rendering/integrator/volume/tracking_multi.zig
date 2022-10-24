@@ -50,7 +50,6 @@ pub const Multi = struct {
 
         if (missed) {
             worker.interface_stack.pop();
-
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
