@@ -6,6 +6,7 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const shp = @import("../../../scene/shape/intersection.zig");
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
@@ -17,8 +18,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, worker: *Worker) Result {
-        if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
+        if (!worker.intersectAndResolveMask(ray, filter, sampler, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
@@ -62,7 +63,7 @@ pub const Multi = struct {
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene.*).a;
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, sampler, worker.scene.*).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -84,7 +85,7 @@ pub const Multi = struct {
                         cm.minorant_mu_s *= srs;
                         cm.majorant_mu_s *= srs;
 
-                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, filter, worker);
+                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, filter, sampler, worker);
                         if (.Scatter == result.event) {
                             setScattering(isec, interface, ray.ray.point(result.t));
                             break;
@@ -108,7 +109,7 @@ pub const Multi = struct {
                         cm.minorant_mu_s *= srs;
                         cm.majorant_mu_s *= srs;
 
-                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, worker);
+                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, sampler, worker);
                         if (.Scatter == result.event) {
                             setScattering(isec, interface, ray.ray.point(result.t));
                             break;
@@ -128,7 +129,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene.*);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, sampler, worker.scene.*);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {

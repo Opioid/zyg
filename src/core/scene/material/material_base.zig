@@ -1,5 +1,6 @@
 const Rainbow = @import("rainbow_integral.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const Emittance = @import("../light/emittance.zig").Emittance;
 const ts = @import("../../image/texture/sampler.zig");
@@ -88,11 +89,11 @@ pub const Base = struct {
         self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: Scene) f32 {
+    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
-            return ts.sample2D_1(key, mask, uv, scene);
+            return ts.sample2D_1(key, mask, uv, sampler, scene);
         }
 
         return 1.0;

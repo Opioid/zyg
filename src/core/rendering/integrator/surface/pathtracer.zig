@@ -82,6 +82,7 @@ pub const Pathtracer = struct {
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+            var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.super.sampleMaterial(
                 ray.*,
@@ -89,6 +90,7 @@ pub const Pathtracer = struct {
                 wo1,
                 isec.*,
                 filter,
+                sampler,
                 0.0,
                 avoid_caustics,
                 from_subsurface,
@@ -112,8 +114,6 @@ pub const Pathtracer = struct {
             if (ray.depth >= self.settings.max_bounces) {
                 break;
             }
-
-            var sampler = self.pickSampler(ray.depth);
 
             if (ray.depth >= self.settings.min_bounces) {
                 if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
@@ -163,7 +163,7 @@ pub const Pathtracer = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 result += throughput * vr.li;
                 throughput *= vr.tr;
@@ -171,7 +171,7 @@ pub const Pathtracer = struct {
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, sampler, isec)) {
                 break;
             }
 
@@ -194,7 +194,7 @@ pub const Factory = struct {
     settings: Pathtracer.Settings,
 
     pub fn create(self: Factory, rng: *RNG) Pathtracer {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

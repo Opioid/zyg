@@ -18,6 +18,7 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -35,10 +36,7 @@ pub const Integrator = union(enum) {
 
     pub fn startPixel(self: *Integrator, sample: u32, seed: u32) void {
         switch (self.*) {
-            .AOV => |*i| i.startPixel(sample, seed),
-            .PT => |*i| i.startPixel(sample, seed),
-            .PTDL => |*i| i.startPixel(sample, seed),
-            .PTMIS => |*i| i.startPixel(sample, seed),
+            inline else => |*i| i.startPixel(sample, seed),
         }
     }
 
@@ -55,6 +53,12 @@ pub const Integrator = union(enum) {
             .PT => |*i| i.li(ray, isec, worker, initial_stack),
             .PTDL => |*i| i.li(ray, isec, worker, initial_stack),
             .PTMIS => |*i| i.li(ray, isec, gather_photons, worker, initial_stack),
+        };
+    }
+
+    pub fn sampler(self: *Integrator) *Sampler {
+        return switch (self.*) {
+            inline else => |*i| &i.samplers[0],
         };
     }
 };

@@ -1,6 +1,7 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Worker = @import("../../../worker.zig").Worker;
 const Filter = @import("../../../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
 
@@ -145,7 +146,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -168,7 +169,7 @@ pub const Tree = struct {
 
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
-                        const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene.*) orelse return null;
+                        const tv = material.visibility(ray_dir, normal, uv, filter, sampler, worker.scene.*) orelse return null;
 
                         vis *= tv;
                     }

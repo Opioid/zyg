@@ -68,11 +68,12 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: Scene) ?Vec4f {
         _ = ray;
         _ = trafo;
         _ = entity;
         _ = filter;
+        _ = sampler;
         _ = scene;
 
         return @splat(4, @as(f32, 1.0));

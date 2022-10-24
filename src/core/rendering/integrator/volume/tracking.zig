@@ -2,6 +2,7 @@ const scn = @import("../../../scene/ray.zig");
 const Result = @import("result.zig").Result;
 const Worker = @import("../../../scene/worker.zig").Worker;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../../../rendering/integrator/helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Material = @import("../../../scene/material/material.zig").Material;
@@ -22,7 +23,7 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+pub fn transmittance(ray: scn.Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
     const interface = worker.interface_stack.top();
     const material = interface.material(worker.scene.*);
 
@@ -44,7 +45,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
                 cm.minorant_mu_s *= srs;
                 cm.majorant_mu_s *= srs;
 
-                if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, worker)) {
+                if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, sampler, worker)) {
                     return null;
                 }
             }
@@ -69,6 +70,7 @@ fn trackingTransmitted(
     material: Material,
     srs: f32,
     filter: ?Filter,
+    sampler: *Sampler,
     worker: *Worker,
 ) bool {
     const mt = cm.majorant_mu_t();
@@ -87,6 +89,7 @@ fn trackingTransmitted(
             material,
             srs,
             filter,
+            sampler,
             worker,
         );
     }
@@ -106,7 +109,7 @@ fn trackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, sampler, worker.scene.*);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -131,6 +134,7 @@ fn residualRatioTrackingTransmitted(
     material: Material,
     srs: f32,
     filter: ?Filter,
+    sampler: *Sampler,
     worker: *Worker,
 ) bool {
     // Transmittance of the control medium
@@ -162,7 +166,7 @@ fn residualRatioTrackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, sampler, worker.scene.*);
         mu.s *= @splat(4, srs);
 
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
@@ -295,6 +299,7 @@ pub fn trackingHetero(
     srs: f32,
     w: Vec4f,
     filter: ?Filter,
+    sampler: *Sampler,
     worker: *Worker,
 ) Result {
     const mt = cm.majorant_mu_t();
@@ -319,7 +324,7 @@ pub fn trackingHetero(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene.*);
+        var mu = material.collisionCoefficients(uvw, filter, sampler, worker.scene.*);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -355,6 +360,7 @@ pub fn trackingHeteroEmission(
     srs: f32,
     w: Vec4f,
     filter: ?Filter,
+    sampler: *Sampler,
     worker: *Worker,
 ) Result {
     const mt = cm.majorant_mu_t();
@@ -379,7 +385,7 @@ pub fn trackingHeteroEmission(
 
         const uvw = ray.point(t);
 
-        const cce = material.collisionCoefficientsEmission(uvw, filter, worker.scene.*);
+        const cce = material.collisionCoefficientsEmission(uvw, filter, sampler, worker.scene.*);
         var mu = cce.cc;
         mu.s *= @splat(4, srs);
 

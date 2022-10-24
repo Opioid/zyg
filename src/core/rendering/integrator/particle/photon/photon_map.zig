@@ -3,6 +3,7 @@ const Grid = @import("photon_grid.zig").Grid;
 const Scene = @import("../../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -79,12 +80,12 @@ pub const Map = struct {
         self.grid.setNumPaths(self.num_paths);
     }
 
-    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, sampler: *Sampler, scene: Scene) Vec4f {
         if (0 == self.num_paths) {
             return @splat(4, @as(f32, 0.0));
         }
 
-        return self.grid.li2(isec, sample, scene);
+        return self.grid.li2(isec, sample, sampler, scene);
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {

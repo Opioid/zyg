@@ -89,12 +89,15 @@ pub const PathtracerDL = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
+            var sampler = self.pickSampler(ray.depth);
+
             const mat_sample = worker.super.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
                 isec.*,
                 filter,
+                sampler,
                 0.0,
                 avoid_caustics,
                 from_subsurface,
@@ -116,8 +119,6 @@ pub const PathtracerDL = struct {
                 transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
-
-            var sampler = self.pickSampler(ray.depth);
 
             result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, sampler, worker);
 
@@ -166,7 +167,7 @@ pub const PathtracerDL = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
                     if (0 == ray.depth) {
@@ -184,7 +185,7 @@ pub const PathtracerDL = struct {
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, sampler, isec)) {
                 break;
             }
 
@@ -248,11 +249,11 @@ pub const PathtracerDL = struct {
 
             shadow_ray.ray.setDirection(light_sample.wi);
             shadow_ray.ray.setMaxT(light_sample.offset());
-            const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
+            const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter, sampler) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
+            const radiance = light.evaluateTo(light_sample, .Nearest, sampler, worker.super.scene.*);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
@@ -279,7 +280,7 @@ pub const Factory = struct {
     settings: PathtracerDL.Settings,
 
     pub fn create(self: Factory, rng: *RNG) PathtracerDL {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

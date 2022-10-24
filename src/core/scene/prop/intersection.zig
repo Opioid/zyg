@@ -4,6 +4,7 @@ const Ray = @import("../ray.zig").Ray;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
 const mat = @import("../material/material.zig");
 const ro = @import("../ray_offset.zig");
@@ -34,8 +35,8 @@ pub const Intersection = struct {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, filter: ?Filter, scene: Scene) f32 {
-        return self.material(scene).opacity(self.geo.uv, filter, scene);
+    pub fn opacity(self: Self, filter: ?Filter, sampler: *Sampler, scene: Scene) f32 {
+        return self.material(scene).opacity(self.geo.uv, filter, sampler, scene);
     }
 
     pub fn sample(
@@ -43,6 +44,7 @@ pub const Intersection = struct {
         wo: Vec4f,
         ray: Ray,
         filter: ?Filter,
+        sampler: *Sampler,
         avoid_caustics: bool,
         worker: Worker,
     ) mat.Sample {
@@ -74,13 +76,14 @@ pub const Intersection = struct {
         rs.subsurface = self.subsurface;
         rs.avoid_caustics = avoid_caustics;
 
-        return m.sample(wo, rs, worker);
+        return m.sample(wo, rs, sampler, worker);
     }
 
     pub fn evaluateRadiance(
         self: Self,
         wo: Vec4f,
         filter: ?Filter,
+        sampler: *Sampler,
         scene: Scene,
         pure_emissive: *bool,
     ) ?Vec4f {
@@ -102,6 +105,7 @@ pub const Intersection = struct {
             self.geo.trafo,
             extent,
             filter,
+            sampler,
             scene,
         );
     }

@@ -5,6 +5,7 @@ const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Ray = @import("../ray.zig").Ray;
 const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../worker.zig").Worker;
 
 const math = @import("base").math;
@@ -240,7 +241,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (0 == self.num_nodes) {
             return @splat(4, @as(f32, 1.0));
         }
@@ -259,7 +260,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const tv = props[p].visibility(p, ray, filter, worker) orelse return null;
+                    const tv = props[p].visibility(p, ray, filter, sampler, worker) orelse return null;
                     vis *= tv;
                 }
 
@@ -289,7 +290,7 @@ pub const Tree = struct {
         }
 
         for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            const tv = props[p].visibility(p, ray, filter, worker) orelse return null;
+            const tv = props[p].visibility(p, ray, filter, sampler, worker) orelse return null;
             vis *= tv;
         }
 

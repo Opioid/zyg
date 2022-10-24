@@ -105,7 +105,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: Scene) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -125,7 +125,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, sampler, scene);
             }
 
             const t1 = b + dist;
@@ -137,7 +137,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, sampler, scene);
             }
         }
 

@@ -124,17 +124,17 @@ pub const Mapper = struct {
 
             var isec = Intersection{};
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(&ray, &isec, null);
+                const vr = worker.volume(&ray, &isec, null, &self.sampler);
                 throughput = vr.tr;
 
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     continue;
                 }
-            } else if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
+            } else if (!worker.super.intersectAndResolveMask(&ray, null, &self.sampler, &isec)) {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, &self.sampler, worker.super.scene.*) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
@@ -148,6 +148,7 @@ pub const Mapper = struct {
                     wo1,
                     isec,
                     filter,
+                    &self.sampler,
                     0.0,
                     Avoid_caustics,
                     from_subsurface,
@@ -242,7 +243,7 @@ pub const Mapper = struct {
                 from_subsurface = from_subsurface or isec.subsurface;
 
                 if (!worker.super.interface_stack.empty()) {
-                    const vr = worker.volume(&ray, &isec, filter);
+                    const vr = worker.volume(&ray, &isec, filter, &self.sampler);
 
                     // result += throughput * vr.li;
                     radiance *= vr.tr;
@@ -250,7 +251,7 @@ pub const Mapper = struct {
                     if (.Abort == vr.event or .Absorb == vr.event) {
                         break;
                     }
-                } else if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
+                } else if (!worker.super.intersectAndResolveMask(&ray, filter, &self.sampler, &isec)) {
                     break;
                 }
 

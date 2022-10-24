@@ -6,13 +6,14 @@ const Light = @import("light/light.zig").Light;
 const LightTree = @import("light/tree.zig").Tree;
 const LightTreeBuilder = @import("light/tree_builder.zig").Builder;
 const Image = @import("../image/image.zig").Image;
+const Filter = @import("../image/texture/sampler.zig").Filter;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
-const Filter = @import("../image/texture/sampler.zig").Filter;
 const Worker = @import("worker.zig").Worker;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
@@ -276,9 +277,9 @@ pub const Scene = struct {
         return self.prop_bvh.intersectP(ray, worker);
     }
 
-    pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Scene, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.tinted_shadow) {
-            return self.prop_bvh.visibility(ray, filter, worker);
+            return self.prop_bvh.visibility(ray, filter, sampler, worker);
         }
 
         if (self.prop_bvh.intersectP(ray, worker)) {

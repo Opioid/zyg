@@ -72,16 +72,16 @@ pub const AOV = struct {
 
         var result: f32 = 0.0;
 
+        var sampler = &self.samplers[0];
+
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
+        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker.super);
 
         var occlusion_ray: Ray = undefined;
 
         occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
         occlusion_ray.ray.setMaxT(self.settings.radius);
         occlusion_ray.time = ray.time;
-
-        var sampler = &self.samplers[0];
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
@@ -95,7 +95,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.visibility(occlusion_ray, null)) |_| {
+            if (worker.super.visibility(occlusion_ray, null, sampler)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -105,9 +105,11 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+        var sampler = &self.samplers[0];
+
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
+        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker.super);
 
         var vec: Vec4f = undefined;
 
@@ -143,6 +145,7 @@ pub const AOV = struct {
             const wo = -ray.ray.direction;
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.super.sampleMaterial(
                 ray.*,
@@ -150,6 +153,7 @@ pub const AOV = struct {
                 wo1,
                 isec.*,
                 filter,
+                sampler,
                 0.0,
                 true,
                 from_subsurface,
@@ -160,8 +164,6 @@ pub const AOV = struct {
             if (mat_sample.isPureEmissive()) {
                 break;
             }
-
-            var sampler = self.pickSampler(ray.depth);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
@@ -174,7 +176,7 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample, sampler));
                         break;
                     }
                 }
@@ -213,14 +215,14 @@ pub const AOV = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 throughput *= vr.tr;
 
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, sampler, isec)) {
                 break;
             }
 
@@ -247,7 +249,7 @@ pub const Factory = struct {
     settings: AOV.Settings,
 
     pub fn create(self: Factory, rng: *RNG) AOV {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

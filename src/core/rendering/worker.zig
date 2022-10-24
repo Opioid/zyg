@@ -172,8 +172,8 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self.super.scene.*);
+    pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample, sampler: *Sampler) Vec4f {
+        return self.photon_map.li(isec, sample, sampler, self.super.scene.*);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -214,7 +214,7 @@ pub const Worker = struct {
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         var isec = Intersection{};
-        if (self.super.intersectAndResolveMask(ray, null, &isec)) {
+        if (self.super.intersectAndResolveMask(ray, null, self.surface_integrator.sampler(), &isec)) {
             return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
         }
 
@@ -227,9 +227,10 @@ pub const Worker = struct {
         wo: Vec4f,
         isec: Intersection,
         filter: ?Filter,
+        sampler: *Sampler,
     ) ?Vec4f {
-        if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
-            if (self.transmittance(ray.*, filter)) |b| {
+        if (self.subsurfaceVisibility(ray, wo, isec, filter, sampler)) |a| {
+            if (self.transmittance(ray.*, filter, sampler)) |b| {
                 return a * b;
             }
         }
@@ -237,11 +238,11 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, self);
+    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
+        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
     }
 
-    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
+    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter, sampler: *Sampler) ?Vec4f {
         if (!self.super.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
@@ -267,7 +268,7 @@ pub const Worker = struct {
             const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
 
             if (!self.super.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(tray, filter, sampler, &self.super)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -303,6 +304,7 @@ pub const Worker = struct {
         wo: Vec4f,
         isec: Intersection,
         filter: ?Filter,
+        sampler: *Sampler,
     ) ?Vec4f {
         const material = isec.material(self.super.scene.*);
 
@@ -311,11 +313,11 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.super.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(ray.*, filter, sampler, &self.super)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
-                    if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
+                    if (self.super.scene.visibility(ray.*, filter, sampler, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -328,6 +330,6 @@ pub const Worker = struct {
             }
         }
 
-        return self.super.visibility(ray.*, filter);
+        return self.super.visibility(ray.*, filter, sampler);
     }
 };

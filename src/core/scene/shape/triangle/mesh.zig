@@ -27,6 +27,7 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 const Distribution1D = math.Distribution1D;
 const Threads = base.thread.Pool;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -265,6 +266,11 @@ pub const Part = struct {
 
                 var pow: f32 = undefined;
                 if (emission_map) {
+                    var rng = RNG{};
+                    rng.start(0, i);
+
+                    var sampler = Sampler{ .Random = .{ .rng = &rng } };
+
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
                     const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
@@ -283,6 +289,7 @@ pub const Part = struct {
                             IdTrafo,
                             1.0,
                             null,
+                            &sampler,
                             self.scene.*,
                         );
                     }
@@ -501,6 +508,7 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: usize,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
         const tray = Ray.init(
@@ -510,7 +518,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.visibility(tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, sampler, worker);
     }
 
     pub fn sampleTo(

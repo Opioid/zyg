@@ -59,22 +59,22 @@ pub const Worker = struct {
         return self.scene.intersectShadow(ray, self, isec);
     }
 
-    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
-        return self.scene.visibility(ray, filter, self);
+    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter, sampler: *Sampler) ?Vec4f {
+        return self.scene.visibility(ray, filter, sampler, self);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
+    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, sampler: *Sampler, isec: *Intersection) bool {
         if (!self.intersect(ray, .All, isec)) {
             return false;
         }
 
-        return self.resolveMask(ray, filter, isec);
+        return self.resolveMask(ray, filter, sampler, isec);
     }
 
-    fn resolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
+    fn resolveMask(self: *Worker, ray: *Ray, filter: ?Filter, sampler: *Sampler, isec: *Intersection) bool {
         const start_min_t = ray.ray.minT();
 
-        var o = isec.opacity(filter, self.scene.*);
+        var o = isec.opacity(filter, sampler, self.scene.*);
 
         while (o < 1.0) // : (o = isec.opacity(self.*))
         {
@@ -91,7 +91,7 @@ pub const Worker = struct {
                 return false;
             }
 
-            o = isec.opacity(filter, self.scene.*);
+            o = isec.opacity(filter, sampler, self.scene.*);
         }
 
         ray.ray.setMinT(start_min_t);
@@ -145,6 +145,7 @@ pub const Worker = struct {
         wo1: Vec4f,
         isec: Intersection,
         filter: ?Filter,
+        sampler: *Sampler,
         alpha: f32,
         avoid_caustics: bool,
         straight_border: bool,
@@ -164,7 +165,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
         }
 
-        return isec.sample(wo, ray, filter, avoid_caustics, self);
+        return isec.sample(wo, ray, filter, sampler, avoid_caustics, self);
     }
 
     pub fn randomLightSpatial(

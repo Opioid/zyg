@@ -11,6 +11,7 @@ const Transformation = @import("../scene/composed_transformation.zig").ComposedT
 const ts = @import("../image/texture/sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
 const Image = @import("../image/image.zig").Image;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -155,18 +156,18 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
-        const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: Scene) Sample {
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, sampler, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) Vec4f {
+    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample2D_3(key, self.emission_map, uv, scene);
+            return ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }
 
         return self.sun_radiance.eval(self.sky.sunV(wi));

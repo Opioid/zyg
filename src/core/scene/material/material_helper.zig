@@ -1,4 +1,5 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const ts = @import("../../image/texture/sampler.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Scene = @import("../scene.zig").Scene;
@@ -16,9 +17,10 @@ pub fn sampleNormal(
     rs: Renderstate,
     map: Texture,
     key: ts.Key,
+    sampler: *Sampler,
     scene: Scene,
 ) Vec4f {
-    return sampleNormalUV(wo, rs, rs.uv, map, key, scene);
+    return sampleNormalUV(wo, rs, rs.uv, map, key, sampler, scene);
 }
 
 pub fn sampleNormalUV(
@@ -27,9 +29,10 @@ pub fn sampleNormalUV(
     uv: Vec2f,
     map: Texture,
     key: ts.Key,
+    sampler: *Sampler,
     scene: Scene,
 ) Vec4f {
-    const nm = ts.sample2D_2(key, map, uv, scene);
+    const nm = ts.sample2D_2(key, map, uv, sampler, scene);
     const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));
     const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 

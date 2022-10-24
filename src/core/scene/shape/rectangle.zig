@@ -87,7 +87,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -112,7 +112,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, sampler, scene);
         }
 
         return @splat(4, @as(f32, 1.0));

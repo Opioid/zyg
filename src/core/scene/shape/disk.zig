@@ -77,7 +77,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -101,7 +101,7 @@ pub const Disk = struct {
                     0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, sampler, scene);
             }
         }
 

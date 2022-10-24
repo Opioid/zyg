@@ -114,12 +114,15 @@ pub const PathtracerMIS = struct {
             const avoid_caustics = self.settings.avoid_caustics and !pr;
             const straight_border = state.from_subsurface;
 
+            var sampler = self.pickSampler(ray.depth);
+
             const mat_sample = worker.super.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
                 isec.*,
                 filter,
+                sampler,
                 0.0,
                 avoid_caustics,
                 straight_border,
@@ -141,8 +144,6 @@ pub const PathtracerMIS = struct {
                 state.direct = false;
                 break;
             }
-
-            var sampler = self.pickSampler(ray.depth);
 
             result += throughput * self.sampleLights(ray.*, isec.*, mat_sample, filter, sampler, worker);
 
@@ -169,7 +170,7 @@ pub const PathtracerMIS = struct {
 
                     const indirect = !state.direct and 0 != ray.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample, sampler));
                     }
                 }
             }
@@ -210,7 +211,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
                     if (0 == ray.depth) {
@@ -243,7 +244,7 @@ pub const PathtracerMIS = struct {
                 if (.Scatter == vr.event and ray.depth >= max_bounces) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.super.intersectAndResolveMask(ray, filter, sampler, isec)) {
                 break;
             }
 
@@ -255,6 +256,7 @@ pub const PathtracerMIS = struct {
                 sample_result,
                 state,
                 filter,
+                sampler,
                 worker.super.scene.*,
                 &pure_emissive,
             );
@@ -352,11 +354,12 @@ pub const PathtracerMIS = struct {
             mat_sample.super().wo,
             isec,
             filter,
+            sampler,
         ) orelse return @splat(4, @as(f32, 0.0));
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
+        const radiance = light.evaluateTo(light_sample, .Nearest, sampler, worker.super.scene.*);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
@@ -372,6 +375,7 @@ pub const PathtracerMIS = struct {
         sample_result: BxdfSample,
         state: PathState,
         filter: ?Filter,
+        sampler: *Sampler,
         scene: Scene,
         pure_emissive: *bool,
     ) Vec4f {
@@ -386,6 +390,7 @@ pub const PathtracerMIS = struct {
         const ls_energy = isec.evaluateRadiance(
             wo,
             filter,
+            sampler,
             scene,
             pure_emissive,
         ) orelse return @splat(4, @as(f32, 0.0));
@@ -452,7 +457,7 @@ pub const Factory = struct {
     settings: PathtracerMIS.Settings,
 
     pub fn create(self: Factory, rng: *RNG) PathtracerMIS {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

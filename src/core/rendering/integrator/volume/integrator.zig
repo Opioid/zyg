@@ -10,6 +10,7 @@ const Worker = @import("../../worker.zig").Worker;
 const SceneWorker = @import("../../../scene/worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -25,16 +26,17 @@ pub const Integrator = union(enum) {
         ray: *Ray,
         isec: *Intersection,
         filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) Result {
         return switch (self.*) {
-            .Multi => Multi.integrate(ray, isec, filter, &worker.super),
+            .Multi => Multi.integrate(ray, isec, filter, sampler, &worker.super),
         };
     }
 
-    pub fn transmittance(self: Integrator, ray: Ray, filter: ?Filter, worker: *SceneWorker) ?Vec4f {
+    pub fn transmittance(self: Integrator, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *SceneWorker) ?Vec4f {
         _ = self;
-        return tracking.transmittance(ray, filter, worker);
+        return tracking.transmittance(ray, filter, sampler, worker);
     }
 };
 

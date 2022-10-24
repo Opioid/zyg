@@ -7,6 +7,7 @@ const Shape = @import("../../shape/shape.zig").Shape;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -107,9 +108,9 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, scene);
+        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, sampler, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -123,12 +124,13 @@ pub const Material = struct {
         trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
+        sampler: *Sampler,
         scene: Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
+        const rad = self.super.emittance.radiance(wi, trafo, extent, filter, sampler, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
-            return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
+            return rad * ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }
 
         return rad;
