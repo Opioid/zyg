@@ -173,7 +173,7 @@ pub const Worker = struct {
     }
 
     pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
-        return self.photon_map.li(isec, sample, self.super.scene);
+        return self.photon_map.li(isec, sample, sampler, self.super.scene);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {

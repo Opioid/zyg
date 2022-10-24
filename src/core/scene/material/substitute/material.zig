@@ -128,7 +128,7 @@ pub const Material = struct {
             self.super.color_map,
             rs.uv,
             sampler,
-            worker.scene.*,
+            worker.scene,
         ) else self.color;
 
         var rad = self.super.emittance.radiance(
@@ -140,7 +140,7 @@ pub const Material = struct {
             worker.scene,
         );
         if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
+            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, sampler, worker.scene);
         }
 
         var roughness: f32 = undefined;
@@ -253,7 +253,7 @@ pub const Material = struct {
             var rkey = key;
             rkey.address = .{ .u = .Repeat, .v = .Repeat };
 
-            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
+            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, sampler, worker.scene);
             if (weight > 0.0) {
                 const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, sampler, worker.scene);
                 result.flakes_weight = weight;

@@ -36,7 +36,7 @@ pub const Intersection = struct {
     }
 
     pub fn opacity(self: *const Self, filter: ?Filter, sampler: *Sampler, scene: *const Scene) f32 {
-        return self.material(scene).opacity(self.geo.uv, filter, scene);
+        return self.material(scene).opacity(self.geo.uv, filter, sampler, scene);
     }
 
     pub fn sample(

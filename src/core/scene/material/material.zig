@@ -163,7 +163,7 @@ pub const Material = union(enum) {
 
         switch (self.*) {
             .Volumetric => |*m| {
-                const d = @splat(4, m.density(uvw, filter, scene));
+                const d = @splat(4, m.density(uvw, filter, sampler, scene));
 
                 return .{ .a = d * cc.a, .s = d * cc.s };
             },
@@ -186,7 +186,7 @@ pub const Material = union(enum) {
 
         switch (self.*) {
             .Volumetric => |*m| {
-                return m.collisionCoefficientsEmission(uvw, filter, scene);
+                return m.collisionCoefficientsEmission(uvw, filter, sampler, scene);
             },
             else => {
                 const e = self.super().emittance.value;
