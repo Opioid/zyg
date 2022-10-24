@@ -164,7 +164,7 @@ pub const Worker = struct {
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
-            self.lighttracer.li(frame, self, camera.interface_stack);
+            self.lighttracer.li(frame, self, &camera.interface_stack);
         }
     }
 
@@ -172,7 +172,7 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: MaterialSample) Vec4f {
+    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample) Vec4f {
         return self.photon_map.li(isec, sample, self.super.scene);
     }
 

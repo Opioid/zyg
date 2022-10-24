@@ -105,7 +105,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
         const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
@@ -174,7 +174,7 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec, &mat_sample));
                         break;
                     }
                 }
@@ -247,7 +247,7 @@ pub const Factory = struct {
     settings: AOV.Settings,
 
     pub fn create(self: Factory, rng: *RNG) AOV {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

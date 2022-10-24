@@ -49,7 +49,7 @@ pub const Lighttracer = struct {
         self: *Self,
         frame: u32,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) void {
         _ = initial_stack;
 
