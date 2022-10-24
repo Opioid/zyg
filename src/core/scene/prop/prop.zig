@@ -59,7 +59,7 @@ pub const Prop = struct {
         self.properties.visible_in_shadow = in_shadow;
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
         self.shape = shape;
 
         self.properties = Properties{};
@@ -82,7 +82,7 @@ pub const Prop = struct {
         }
     }
 
-    pub fn configureAnimated(self: *Prop, scene: Scene) void {
+    pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
         const shape_inst = scene.shape(self.shape);
 
         self.properties.test_AABB = shape_inst.finite();
@@ -103,7 +103,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
@@ -131,7 +131,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
@@ -144,7 +144,7 @@ pub const Prop = struct {
     pub fn intersectP(
         self: Prop,
         entity: usize,
-        ray: Ray,
+        ray: *const Ray,
         worker: *Worker,
     ) bool {
         if (!self.visibleInShadow()) {
@@ -163,7 +163,7 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: usize, ray: *const Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (!self.tintedShadow()) {
             if (self.intersectP(entity, ray, worker)) {
                 return null;

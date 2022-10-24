@@ -10,7 +10,7 @@ pub const Sample = struct {
 
     factor: f32,
 
-    pub fn init(wo: Vec4f, rs: Renderstate) Sample {
+    pub fn init(wo: Vec4f, rs: *const Renderstate) Sample {
         var super = Base.init(
             rs,
             wo,
@@ -28,7 +28,7 @@ pub const Sample = struct {
         return .{ .super = super, .factor = factor };
     }
 
-    pub fn sample(self: Sample) bxdf.Sample {
+    pub fn sample(self: *const Sample) bxdf.Sample {
         return .{
             .reflection = @splat(4, self.factor),
             .wi = -self.super.wo,

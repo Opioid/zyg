@@ -19,36 +19,36 @@ pub const Intersection = struct {
 
     const Self = @This();
 
-    pub fn material(self: Self, scene: Scene) mat.Material {
-        return scene.propMaterial(self.prop, self.geo.part).*;
+    pub fn material(self: *const Self, scene: *const Scene) *const mat.Material {
+        return scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn shape(self: Self, scene: Scene) Shape {
-        return scene.propShape(self.prop).*;
+    pub fn shape(self: *const Self, scene: *const Scene) *Shape {
+        return scene.propShape(self.prop);
     }
 
-    pub fn lightId(self: Self, scene: Scene) u32 {
+    pub fn lightId(self: *const Self, scene: *const Scene) u32 {
         return scene.propLightId(self.prop, self.geo.part);
     }
 
-    pub fn visibleInCamera(self: Self, scene: Scene) bool {
+    pub fn visibleInCamera(self: *const Self, scene: *const Scene) bool {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, filter: ?Filter, sampler: *Sampler, scene: Scene) f32 {
-        return self.material(scene).opacity(self.geo.uv, filter, sampler, scene);
+    pub fn opacity(self: *const Self, filter: ?Filter, sampler: *Sampler, scene: *const Scene) f32 {
+        return self.material(scene).opacity(self.geo.uv, filter, scene);
     }
 
     pub fn sample(
-        self: Self,
+        self: *const Self,
         wo: Vec4f,
-        ray: Ray,
+        ray: *const Ray,
         filter: ?Filter,
         sampler: *Sampler,
         avoid_caustics: bool,
-        worker: Worker,
+        worker: *const Worker,
     ) mat.Sample {
-        const m = self.material(worker.scene.*);
+        const m = self.material(worker.scene);
         const p = self.geo.p;
         const b = self.geo.b;
 
@@ -76,15 +76,15 @@ pub const Intersection = struct {
         rs.subsurface = self.subsurface;
         rs.avoid_caustics = avoid_caustics;
 
-        return m.sample(wo, rs, sampler, worker);
+        return m.sample(wo, &rs, sampler, worker);
     }
 
     pub fn evaluateRadiance(
-        self: Self,
+        self: *const Self,
         wo: Vec4f,
         filter: ?Filter,
         sampler: *Sampler,
-        scene: Scene,
+        scene: *const Scene,
         pure_emissive: *bool,
     ) ?Vec4f {
         const m = self.material(scene);
@@ -110,17 +110,17 @@ pub const Intersection = struct {
         );
     }
 
-    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
+    pub fn sameHemisphere(self: *const Self, v: Vec4f) bool {
         return math.dot3(self.geo.geo_n, v) > 0.0;
     }
 
-    pub fn offsetP(self: Self, v: Vec4f) Vec4f {
+    pub fn offsetP(self: *const Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
 
         return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n);
     }
 
-    pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
+    pub fn offsetPN(self: *const Self, geo_n: Vec4f, translucent: bool) Vec4f {
         const p = self.geo.p;
 
         if (translucent) {

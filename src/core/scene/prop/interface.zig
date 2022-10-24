@@ -14,11 +14,11 @@ pub const Interface = struct {
     part: u32,
     uv: Vec2f,
 
-    pub fn material(self: Interface, scene: Scene) Material {
-        return scene.propMaterial(self.prop, self.part).*;
+    pub fn material(self: Interface, scene: *const Scene) *const Material {
+        return scene.propMaterial(self.prop, self.part);
     }
 
-    pub fn matches(self: Interface, isec: Intersection) bool {
+    pub fn matches(self: Interface, isec: *const Intersection) bool {
         return self.prop == isec.prop and self.part == isec.geo.part;
     }
 };
@@ -29,13 +29,13 @@ pub const Stack = struct {
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
 
-    pub fn copy(self: *Stack, other: Stack) void {
+    pub fn copy(self: *Stack, other: *const Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
     }
 
-    pub fn empty(self: Stack) bool {
+    pub fn empty(self: *const Stack) bool {
         return 0 == self.index;
     }
 
@@ -43,11 +43,11 @@ pub const Stack = struct {
         self.index = 0;
     }
 
-    pub fn top(self: Stack) Interface {
+    pub fn top(self: *const Stack) Interface {
         return self.stack[self.index - 1];
     }
 
-    pub fn topIor(self: Stack, scene: Scene) f32 {
+    pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
             return self.stack[index - 1].material(scene).ior();
@@ -56,7 +56,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: Stack, scene: Scene) f32 {
+    pub fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
             return self.stack[1].material(scene).ior();
@@ -65,7 +65,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn peekIor(self: Stack, isec: Intersection, scene: Scene) f32 {
+    pub fn peekIor(self: *const Stack, isec: *const Intersection, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -79,7 +79,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn straight(self: Stack, scene: Scene) bool {
+    pub fn straight(self: *const Stack, scene: *const Scene) bool {
         const index = self.index;
         if (index > 0) {
             return 1.0 == self.stack[index - 1].material(scene).ior();
@@ -88,7 +88,7 @@ pub const Stack = struct {
         return true;
     }
 
-    pub fn push(self: *Stack, isec: Intersection) void {
+    pub fn push(self: *Stack, isec: *const Intersection) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
             self.index += 1;
@@ -108,7 +108,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn remove(self: *Stack, isec: Intersection) bool {
+    pub fn remove(self: *Stack, isec: *const Intersection) bool {
         const back = @intCast(i32, self.index) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {

@@ -189,7 +189,7 @@ pub const Loader = struct {
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
                         const voxel_scale = @splat(4, trafo.scale[0]);
-                        const dimensions = t.description(scene.*).dimensions;
+                        const dimensions = t.description(scene).dimensions;
                         var offset = @splat(4, @as(i32, 0));
 
                         if (self.resources.images.meta(t.image)) |meta| {

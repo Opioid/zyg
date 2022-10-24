@@ -80,7 +80,8 @@ pub const Provider = struct {
         const root = document.root;
 
         var material = try self.loadMaterial(alloc, root, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
+
+        try material.commit(alloc, resources.scene, resources.threads);
         return .{ .data = material };
     }
 
@@ -96,7 +97,7 @@ pub const Provider = struct {
         const value = @intToPtr(*std.json.Value, data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
         return material;
     }
 
@@ -115,7 +116,7 @@ pub const Provider = struct {
             else => {},
         }
 
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
     }
 
     pub fn createFallbackMaterial() Material {
@@ -430,7 +431,7 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
-    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene.*));
+    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
 
     const value = json.readFloatMember(jvalue, "value", 1.0);
     const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));

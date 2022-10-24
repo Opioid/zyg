@@ -49,7 +49,7 @@ pub const Light = struct {
         return ~Volume_mask & id;
     }
 
-    pub fn finite(self: Light, scene: Scene) bool {
+    pub fn finite(self: Light, scene: *const Scene) bool {
         return scene.propShape(self.prop).finite();
     }
 
@@ -76,7 +76,7 @@ pub const Light = struct {
         scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, volume, threads);
     }
 
-    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
+    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: *const Scene) Vec4f {
         const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
 
         const radiance = @splat(4, extent) * average_radiance;
@@ -152,13 +152,13 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, sampler: *Sampler, scene: Scene) Vec4f {
+    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, sampler, scene);
     }
 
-    pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, sampler: *Sampler, scene: Scene) Vec4f {
+    pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(
@@ -173,7 +173,7 @@ pub const Light = struct {
         );
     }
 
-    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
+    pub fn pdf(self: Light, ray: *const Ray, n: Vec4f, isec: *const Intersection, total_sphere: bool, scene: *const Scene) f32 {
         return switch (self.class) {
             .Prop => self.propPdf(ray, n, isec, total_sphere, scene),
             .PropImage => self.propImagePdf(ray, isec, scene),
@@ -405,42 +405,42 @@ pub const Light = struct {
 
     fn propPdf(
         self: Light,
-        ray: Ray,
+        ray: *const Ray,
         n: Vec4f,
-        isec: Intersection,
+        isec: *const Intersection,
         total_sphere: bool,
-        scene: Scene,
+        scene: *const Scene,
     ) f32 {
         return isec.shape(scene).pdf(
             self.variant,
             ray,
             n,
-            isec.geo,
+            &isec.geo,
             self.extent,
             self.two_sided,
             total_sphere,
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: *const Ray, isec: *const Intersection, scene: *const Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
         const material_pdf = material.emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = isec.shape(scene).pdfUv(ray, isec.geo, self.extent, self.two_sided);
+        const shape_pdf = isec.shape(scene).pdfUv(ray, &isec.geo, self.extent, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
-    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
-        return isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
+    fn volumePdf(self: Light, ray: *const Ray, isec: *const Intersection, scene: *const Scene) f32 {
+        return isec.shape(scene).volumePdf(ray, &isec.geo, self.extent);
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn volumeImagePdf(self: Light, ray: *const Ray, isec: *const Intersection, scene: *const Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
-        const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
+        const shape_pdf = isec.shape(scene).volumePdf(ray, &isec.geo, self.extent);
 
         return material_pdf * shape_pdf;
     }

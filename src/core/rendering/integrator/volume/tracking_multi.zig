@@ -37,7 +37,7 @@ pub const Multi = struct {
 
         if (scn.Almost_ray_max_t <= d) {
             missed = true;
-        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
+        } else if (!interface.matches(isec) or !isec.sameHemisphere(ray.ray.direction)) {
             const v = -ray.ray.direction;
 
             var tray = Ray.init(isec.offsetP(v), v, 0.0, scn.Ray_max_t, 0, 0.0, ray.time);
@@ -51,7 +51,6 @@ pub const Multi = struct {
 
         if (missed) {
             worker.interface_stack.pop();
-
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
@@ -59,11 +58,13 @@ pub const Multi = struct {
             };
         }
 
-        const material = interface.material(worker.scene.*);
+        const material = interface.material(worker.scene);
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, sampler, worker.scene.*).a;
+
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, sampler, worker.scene).a;
+
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -72,7 +73,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker.*);
+            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -129,7 +130,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, sampler, worker.scene.*);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, sampler, worker.scene);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {

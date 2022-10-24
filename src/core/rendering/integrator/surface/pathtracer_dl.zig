@@ -49,7 +49,7 @@ pub const PathtracerDL = struct {
         ray: *Ray,
         isec: *Intersection,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
@@ -92,10 +92,10 @@ pub const PathtracerDL = struct {
             var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.super.sampleMaterial(
-                ray.*,
+                ray,
                 wo,
                 wo1,
-                isec.*,
+                isec,
                 filter,
                 sampler,
                 0.0,
@@ -104,7 +104,7 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray, isec, mat_sample, primary_ray);
             }
 
             wo1 = wo;
@@ -116,11 +116,11 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
-            result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray, isec, mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
@@ -161,7 +161,7 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.super.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
@@ -207,8 +207,8 @@ pub const PathtracerDL = struct {
 
     fn directLight(
         self: *Self,
-        ray: Ray,
-        isec: Intersection,
+        ray: *const Ray,
+        isec: *const Intersection,
         mat_sample: mat.Sample,
         filter: ?Filter,
         sampler: *Sampler,
@@ -253,7 +253,7 @@ pub const PathtracerDL = struct {
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, sampler, worker.super.scene.*);
+            const radiance = light.evaluateTo(light_sample, .Nearest, sampler, worker.super.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
@@ -263,7 +263,7 @@ pub const PathtracerDL = struct {
         return result;
     }
 
-    fn splitting(self: Self, bounce: u32) bool {
+    fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
     }
 

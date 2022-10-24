@@ -63,7 +63,7 @@ pub const Material = struct {
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
     }
 
-    pub fn prepareSampling(self: Material, area: f32, scene: Scene) Vec4f {
+    pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
         const rad = self.super.emittance.averageRadiance(area);
         if (self.emission_map.valid()) {
             return rad * self.emission_map.average_3(scene);
@@ -111,7 +111,7 @@ pub const Material = struct {
         self.flakes_alpha = r * r;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.subsurface) {
             const g = self.super.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
@@ -137,10 +137,10 @@ pub const Material = struct {
             worker.scene.lightArea(rs.prop, rs.part),
             rs.filter,
             sampler,
-            worker.scene.*,
+            worker.scene,
         );
         if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, sampler, worker.scene.*);
+            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
         }
 
         var roughness: f32 = undefined;
@@ -148,11 +148,12 @@ pub const Material = struct {
 
         const nc = self.surface_map.numChannels();
         if (nc >= 2) {
-            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, sampler, worker.scene.*);
+            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, sampler, worker.scene);
             roughness = ggx.mapRoughness(surface[0]);
             metallic = surface[1];
         } else if (1 == nc) {
-            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene.*));
+            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene));
+
             metallic = self.metallic;
         } else {
             roughness = self.roughness;
@@ -165,7 +166,8 @@ pub const Material = struct {
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene.*);
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene);
+
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
             coating_ior = math.lerp(rs.ior(), self.coating_ior, coating_weight);
@@ -193,7 +195,8 @@ pub const Material = struct {
         );
 
         if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker.scene.*);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker.scene);
+
             result.super.frame.setNormal(n);
         } else {
             result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -208,14 +211,15 @@ pub const Material = struct {
             if (self.normal_map.equal(self.coating_normal_map)) {
                 result.coating.frame = result.super.frame;
             } else if (self.coating_normal_map.valid()) {
-                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker.scene.*);
+                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker.scene);
+
                 result.coating.frame.setNormal(n);
             } else {
                 result.coating.frame.setTangentFrame(rs.t, rs.b, rs.n);
             }
 
             const r = if (self.coating_roughness_map.valid())
-                ggx.mapRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene.*))
+                ggx.mapRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene))
             else
                 self.coating_roughness;
 
@@ -232,7 +236,7 @@ pub const Material = struct {
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
         const rotation = if (self.rotation_map.valid())
-            ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene.*) * (2.0 * std.math.pi)
+            ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi)
         else
             self.rotation;
 
@@ -249,10 +253,9 @@ pub const Material = struct {
             var rkey = key;
             rkey.address = .{ .u = .Repeat, .v = .Repeat };
 
-            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, sampler, worker.scene.*);
+            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
             if (weight > 0.0) {
-                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, sampler, worker.scene.*);
-
+                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, sampler, worker.scene);
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
                 result.flakes_normal = n;
@@ -264,7 +267,7 @@ pub const Material = struct {
     }
 
     pub fn evaluateRadiance(
-        self: Material,
+        self: *const Material,
         wi: Vec4f,
         n: Vec4f,
         uv: Vec2f,
@@ -272,7 +275,7 @@ pub const Material = struct {
         extent: f32,
         filter: ?ts.Filter,
         sampler: *Sampler,
-        scene: Scene,
+        scene: *const Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, filter);
 
@@ -314,7 +317,7 @@ pub const Material = struct {
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    fn analyticCheckers(self: Material, rs: Renderstate, sampler_key: ts.Key, worker: Worker) Vec4f {
+    fn analyticCheckers(self: *const Material, rs: *const Renderstate, sampler_key: ts.Key, worker: *const Worker) Vec4f {
         const checkers_scale = self.checkers[3];
 
         const dd = @splat(4, checkers_scale) * worker.screenspaceDifferential(rs);

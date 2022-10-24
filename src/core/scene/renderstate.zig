@@ -1,5 +1,6 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
 const Filter = @import("../image/texture/sampler.zig").Filter;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -26,7 +27,7 @@ pub const Renderstate = struct {
     subsurface: bool = undefined,
     avoid_caustics: bool = undefined,
 
-    pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
+    pub fn tangentToWorld(self: *const Renderstate, v: Vec4f) Vec4f {
         return .{
             v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
             v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
@@ -35,11 +36,11 @@ pub const Renderstate = struct {
         };
     }
 
-    pub fn ior(self: Renderstate) f32 {
+    pub fn ior(self: *const Renderstate) f32 {
         return self.p[3];
     }
 
-    pub fn wavelength(self: Renderstate) f32 {
+    pub fn wavelength(self: *const Renderstate) f32 {
         return self.b[3];
     }
 };

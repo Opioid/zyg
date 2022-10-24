@@ -159,7 +159,7 @@ pub const InfiniteSphere = struct {
         return 1.0 / (2.0 * std.math.pi);
     }
 
-    pub fn pdfUv(isec: Intersection) f32 {
+    pub fn pdfUv(isec: *const Intersection) f32 {
         // sin_theta because of the uv weight
         const sin_theta = @sin(isec.uv[1] * std.math.pi);
 

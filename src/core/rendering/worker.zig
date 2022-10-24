@@ -139,8 +139,8 @@ pub const Worker = struct {
 
                     self.aov.clear();
 
-                    var ray = camera.generateRay(sample, frame, scene.*);
-                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
+                    var ray = camera.generateRay(sample, frame, scene);
+                    const color = self.li(&ray, s < num_photon_samples, &camera.interface_stack);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -172,8 +172,8 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: Worker, isec: Intersection, sample: MaterialSample, sampler: *Sampler) Vec4f {
-        return self.photon_map.li(isec, sample, sampler, self.super.scene.*);
+    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
+        return self.photon_map.li(isec, sample, self.super.scene);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -183,8 +183,8 @@ pub const Worker = struct {
     pub fn commonAOV(
         self: *Worker,
         throughput: Vec4f,
-        ray: Ray,
-        isec: Intersection,
+        ray: *const Ray,
+        isec: *const Intersection,
         mat_sample: MaterialSample,
         primary_ray: bool,
     ) void {
@@ -212,7 +212,7 @@ pub const Worker = struct {
         }
     }
 
-    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
+    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: *const InterfaceStack) Vec4f {
         var isec = Intersection{};
         if (self.super.intersectAndResolveMask(ray, null, self.surface_integrator.sampler(), &isec)) {
             return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
@@ -225,12 +225,12 @@ pub const Worker = struct {
         self: *Worker,
         ray: *Ray,
         wo: Vec4f,
-        isec: Intersection,
+        isec: *const Intersection,
         filter: ?Filter,
         sampler: *Sampler,
     ) ?Vec4f {
         if (self.subsurfaceVisibility(ray, wo, isec, filter, sampler)) |a| {
-            if (self.transmittance(ray.*, filter, sampler)) |b| {
+            if (self.transmittance(ray, filter, sampler)) |b| {
                 return a * b;
             }
         }
@@ -242,23 +242,23 @@ pub const Worker = struct {
         return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
     }
 
-    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter, sampler: *Sampler) ?Vec4f {
+    fn transmittance(self: *Worker, ray: *const Ray, filter: ?Filter, sampler: *Sampler) ?Vec4f {
         if (!self.super.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
 
         var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(self.super.interface_stack);
+        temp_stack.copy(&self.super.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.super.interface_stack.straight(self.super.scene.*)) {
+        if (!self.super.interface_stack.straight(self.super.scene)) {
             self.super.interface_stack.pop();
         }
 
         const ray_max_t = ray.ray.maxT();
-        var tray = ray;
+        var tray = ray.*;
 
         var isec: Intersection = undefined;
 
@@ -280,9 +280,9 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.super.interface_stack.remove(isec);
+                _ = self.super.interface_stack.remove(&isec);
             } else {
-                self.super.interface_stack.push(isec);
+                self.super.interface_stack.push(&isec);
             }
 
             tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
@@ -293,7 +293,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.copy(temp_stack);
+        self.super.interface_stack.copy(&temp_stack);
 
         return w;
     }
@@ -302,11 +302,11 @@ pub const Worker = struct {
         self: *Worker,
         ray: *Ray,
         wo: Vec4f,
-        isec: Intersection,
+        isec: *const Intersection,
         filter: ?Filter,
         sampler: *Sampler,
     ) ?Vec4f {
-        const material = isec.material(self.super.scene.*);
+        const material = isec.material(self.super.scene);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
@@ -317,7 +317,7 @@ pub const Worker = struct {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
-                    if (self.super.scene.visibility(ray.*, filter, sampler, &self.super)) |tv| {
+                    if (self.super.scene.visibility(ray, filter, sampler, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -330,6 +330,6 @@ pub const Worker = struct {
             }
         }
 
-        return self.super.visibility(ray.*, filter, sampler);
+        return self.super.visibility(ray, filter, sampler);
     }
 };

@@ -42,7 +42,7 @@ pub const Buffer = struct {
         }
     }
 
-    pub fn resolve(self: Self, class: aov.Value.Class, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolve(self: *const Self, class: aov.Value.Class, target: [*]Pack4f, begin: u32, end: u32) void {
         if (!class.activeIn(self.slots)) {
             return;
         }

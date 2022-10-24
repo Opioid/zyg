@@ -43,9 +43,9 @@ pub const Material = struct {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: Shape,
+        shape: *const Shape,
         area: f32,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
         if (self.average_emission[0] >= 0.0) {
@@ -69,8 +69,8 @@ pub const Material = struct {
 
         {
             var context = LuminanceContext{
-                .scene = &scene,
-                .shape = &shape,
+                .scene = scene,
+                .shape = shape,
                 .texture = &self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
@@ -108,7 +108,7 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
         const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, sampler, scene);
 
@@ -118,14 +118,14 @@ pub const Material = struct {
     }
 
     pub fn evaluateRadiance(
-        self: Material,
+        self: *const Material,
         wi: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
         extent: f32,
         filter: ?ts.Filter,
         sampler: *Sampler,
-        scene: Scene,
+        scene: *const Scene,
     ) Vec4f {
         const rad = self.super.emittance.radiance(wi, trafo, extent, filter, sampler, scene);
         if (self.emission_map.valid()) {
@@ -136,13 +136,13 @@ pub const Material = struct {
         return rad;
     }
 
-    pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
+    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
         const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
 
         return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
     }
 
-    pub fn emissionPdf(self: Material, uv: Vec2f) f32 {
+    pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (self.emission_map.valid()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
@@ -161,7 +161,7 @@ const LuminanceContext = struct {
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self = @intToPtr(*LuminanceContext, context);
 
-        const d = self.texture.description(self.scene.*).dimensions;
+        const d = self.texture.description(self.scene).dimensions;
         const width = @intCast(u32, d[0]);
 
         const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
@@ -182,7 +182,7 @@ const LuminanceContext = struct {
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const radiance = self.texture.get2D_3(@intCast(i32, x), @intCast(i32, y), self.scene.*);
+                const radiance = self.texture.get2D_3(@intCast(i32, x), @intCast(i32, y), self.scene);
                 const wr = @splat(4, uv_weight) * radiance;
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };

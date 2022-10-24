@@ -37,7 +37,7 @@ pub const Material = struct {
         self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
         const r = if (self.roughness_map.valid())
@@ -69,7 +69,7 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: Scene) ?Vec4f {
+    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const o = self.super.opacity(uv, filter, sampler, scene);
 
         if (self.thickness > 0.0) {

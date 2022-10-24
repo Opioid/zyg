@@ -49,7 +49,7 @@ pub const Part = struct {
             self.distribution.deinit(alloc);
         }
 
-        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: Scene) bool {
+        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: *const Scene) bool {
             if (self.material == m) {
                 return true;
             }
@@ -90,9 +90,9 @@ pub const Part = struct {
         alloc: Allocator,
         part: u32,
         material: u32,
-        tree: bvh.Tree,
+        tree: *const bvh.Tree,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
@@ -159,8 +159,8 @@ pub const Part = struct {
             .powers = try alloc.alloc(f32, num),
             .part = self,
             .m = m,
-            .tree = &tree,
-            .scene = &scene,
+            .tree = tree,
+            .scene = scene,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
@@ -200,32 +200,32 @@ pub const Part = struct {
         return v;
     }
 
-    pub fn aabb(self: Part, variant: u32) AABB {
+    pub fn aabb(self: *const Part, variant: u32) AABB {
         return self.variants.items[variant].aabb;
     }
 
-    pub fn power(self: Part, variant: u32) f32 {
+    pub fn power(self: *const Part, variant: u32) f32 {
         return self.variants.items[variant].distribution.integral;
     }
 
-    pub fn cone(self: Part, variant: u32) Vec4f {
+    pub fn cone(self: *const Part, variant: u32) Vec4f {
         return self.variants.items[variant].cone;
     }
 
-    pub fn lightAabb(self: Part, light: u32) AABB {
+    pub fn lightAabb(self: *const Part, light: u32) AABB {
         return self.aabbs[light];
     }
 
-    pub fn lightCone(self: Part, light: u32) Vec4f {
+    pub fn lightCone(self: *const Part, light: u32) Vec4f {
         return self.cones[light];
     }
 
-    pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
+    pub fn lightTwoSided(self: *const Part, variant: u32, light: u32) bool {
         _ = light;
         return self.variants.items[variant].two_sided;
     }
 
-    pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+    pub fn lightPower(self: *const Part, variant: u32, light: u32) f32 {
         const dist = self.variants.items[variant].distribution;
         return dist.pdfI(light) * dist.integral;
     }
@@ -290,7 +290,7 @@ pub const Part = struct {
                             1.0,
                             null,
                             &sampler,
-                            self.scene.*,
+                            self.scene,
                         );
                     }
 
@@ -327,7 +327,7 @@ pub const Part = struct {
         pdf: f32,
     };
 
-    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
+    pub fn sampleSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -344,7 +344,7 @@ pub const Part = struct {
         };
     }
 
-    pub fn sampleRandom(self: Part, variant: u32, r: f32) Discrete {
+    pub fn sampleRandom(self: *const Part, variant: u32, r: f32) Discrete {
         const pick = self.variants.items[variant].distribution.sampleDiscrete(r);
         const relative_area = self.aabbs[pick.offset].bounds[1][3];
 
@@ -355,7 +355,7 @@ pub const Part = struct {
         };
     }
 
-    pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
+    pub fn pdfSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -368,7 +368,7 @@ pub const Part = struct {
         return pdf * relative_area;
     }
 
-    pub fn pdfRandom(self: Part, variant: u32, id: u32) f32 {
+    pub fn pdfRandom(self: *const Part, variant: u32, id: u32) f32 {
         const pdf = self.variants.items[variant].distribution.pdfI(id);
         const relative_area = self.aabbs[id].bounds[1][3];
 
@@ -401,11 +401,11 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn numParts(self: Mesh) u32 {
+    pub fn numParts(self: *const Mesh) u32 {
         return @intCast(u32, self.parts.len);
     }
 
-    pub fn numMaterials(self: Mesh) u32 {
+    pub fn numMaterials(self: *const Mesh) u32 {
         var id: u32 = 0;
 
         for (self.parts) |p| {
@@ -415,7 +415,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: *const Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 
@@ -423,21 +423,21 @@ pub const Mesh = struct {
         self.parts[part].material = material;
     }
 
-    pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
+    pub fn area(self: *const Mesh, part: u32, scale: Vec4f) f32 {
         // HACK: This only really works for uniform scales!
         return self.parts[part].area * (scale[0] * scale[1]);
     }
 
-    pub fn partAabb(self: Mesh, part: u32, variant: u32) AABB {
+    pub fn partAabb(self: *const Mesh, part: u32, variant: u32) AABB {
         return self.parts[part].aabb(variant);
     }
 
-    pub fn cone(self: Mesh, part: u32, variant: u32) Vec4f {
+    pub fn cone(self: *const Mesh, part: u32, variant: u32) Vec4f {
         return self.parts[part].cone(variant);
     }
 
     pub fn intersect(
-        self: Mesh,
+        self: *const Mesh,
         ray: *Ray,
         trafo: Trafo,
         ipo: Interpolation,
@@ -491,7 +491,7 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         var tray = Ray.init(
             trafo.worldToObjectPoint(ray.origin),
             trafo.worldToObjectVector(ray.direction),
@@ -503,7 +503,7 @@ pub const Mesh = struct {
     }
 
     pub fn visibility(
-        self: Mesh,
+        self: *const Mesh,
         ray: Ray,
         trafo: Trafo,
         entity: usize,
@@ -522,7 +522,7 @@ pub const Mesh = struct {
     }
 
     pub fn sampleTo(
-        self: Mesh,
+        self: *const Mesh,
         part: u32,
         variant: u32,
         p: Vec4f,
@@ -577,7 +577,7 @@ pub const Mesh = struct {
     }
 
     pub fn sampleFrom(
-        self: Mesh,
+        self: *const Mesh,
         part: u32,
         variant: u32,
         trafo: Trafo,
@@ -617,11 +617,11 @@ pub const Mesh = struct {
     }
 
     pub fn pdf(
-        self: Mesh,
+        self: *const Mesh,
         variant: u32,
         ray: Ray,
         n: Vec4f,
-        isec: Intersection,
+        isec: *const Intersection,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
@@ -650,7 +650,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
@@ -668,10 +668,10 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {
+    pub fn differentialSurface(self: *const Mesh, primitive: u32) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(primitive);
 
         const duv02 = puv.uv[0] - puv.uv[2];

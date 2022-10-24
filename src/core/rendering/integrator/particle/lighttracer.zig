@@ -90,7 +90,7 @@ pub const Lighttracer = struct {
             return;
         }
 
-        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, sampler, worker.super.scene.*) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, sampler, worker.super.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
@@ -138,10 +138,10 @@ pub const Lighttracer = struct {
             var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.super.sampleMaterial(
-                ray.*,
+                ray,
                 wo,
                 wo1,
-                isec.*,
+                isec,
                 filter,
                 sampler,
                 0.0,
@@ -175,7 +175,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray.*, isec.*, mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, ray, isec, mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -198,7 +198,7 @@ pub const Lighttracer = struct {
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                const ior = worker.super.interfaceChangeIor(sample_result.wi, isec.*);
+                const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }
@@ -252,14 +252,14 @@ pub const Lighttracer = struct {
     fn directCamera(
         camera: *Camera,
         radiance: Vec4f,
-        history: Ray,
-        isec: Intersection,
+        history: *const Ray,
+        isec: *const Intersection,
         mat_sample: MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!isec.visibleInCamera(worker.super.scene.*)) {
+        if (!isec.visibleInCamera(worker.super.scene)) {
             return false;
         }
 
@@ -277,7 +277,7 @@ pub const Lighttracer = struct {
             history.time,
             p,
             sampler,
-            worker.super.scene.*,
+            worker.super.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
@@ -291,9 +291,9 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
 
-        const material_ior = isec.material(worker.super.scene.*).ior();
+        const material_ior = isec.material(worker.super.scene).ior();
         if (isec.subsurface and material_ior > 1.0) {
-            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
+            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }

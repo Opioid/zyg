@@ -14,23 +14,23 @@ const std = @import("std");
 
 pub fn sampleNormal(
     wo: Vec4f,
-    rs: Renderstate,
+    rs: *const Renderstate,
     map: Texture,
     key: ts.Key,
     sampler: *Sampler,
-    scene: Scene,
+    scene: *const Scene,
 ) Vec4f {
     return sampleNormalUV(wo, rs, rs.uv, map, key, sampler, scene);
 }
 
 pub fn sampleNormalUV(
     wo: Vec4f,
-    rs: Renderstate,
+    rs: *const Renderstate,
     uv: Vec2f,
     map: Texture,
     key: ts.Key,
     sampler: *Sampler,
-    scene: Scene,
+    scene: *const Scene,
 ) Vec4f {
     const nm = ts.sample2D_2(key, map, uv, sampler, scene);
     const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));

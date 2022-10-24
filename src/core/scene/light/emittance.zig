@@ -73,7 +73,7 @@ pub const Emittance = struct {
         area: f32,
         filter: ?ts.Filter,
         sampler: *Sampler,
-        scene: Scene,
+        scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
@@ -109,7 +109,7 @@ pub const Emittance = struct {
         return self.value;
     }
 
-    pub fn angleFromProfile(self: Emittance, scene: Scene) f32 {
+    pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
         if (!self.profile.valid()) {
             return std.math.pi;
         }

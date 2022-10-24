@@ -29,50 +29,50 @@ pub const Sample = union(enum) {
         _ = alloc;
     }
 
-    pub fn super(self: Sample) Base {
-        return switch (self) {
-            .Debug => |d| d.super,
-            .Glass => |g| g.super,
-            .Light => |l| l.super,
-            .Null => |n| n.super,
-            .Substitute => |s| s.super,
-            .Volumetric => |v| v.super,
+    pub fn super(self: *const Sample) *const Base {
+        return switch (self.*) {
+            .Debug => |*d| &d.super,
+            .Glass => |*g| &g.super,
+            .Light => |*l| &l.super,
+            .Null => |*n| &n.super,
+            .Substitute => |*s| &s.super,
+            .Volumetric => |*v| &v.super,
         };
     }
 
-    pub fn isPureEmissive(self: Sample) bool {
-        return switch (self) {
+    pub fn isPureEmissive(self: *const Sample) bool {
+        return switch (self.*) {
             .Light => true,
             else => false,
         };
     }
 
-    pub fn isTranslucent(self: Sample) bool {
+    pub fn isTranslucent(self: *const Sample) bool {
         return self.super().properties.translucent;
     }
 
-    pub fn canEvaluate(self: Sample) bool {
+    pub fn canEvaluate(self: *const Sample) bool {
         return self.super().properties.can_evaluate;
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
-        return switch (self) {
-            .Debug => |s| s.evaluate(wi),
-            .Glass => |s| s.evaluate(wi),
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+        return switch (self.*) {
+            .Debug => |*s| s.evaluate(wi),
+            .Glass => |*s| s.evaluate(wi),
             .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),
-            .Substitute => |s| s.evaluate(wi),
-            .Volumetric => |v| v.evaluate(wi),
+            .Substitute => |*s| s.evaluate(wi),
+            .Volumetric => |*v| v.evaluate(wi),
         };
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler) bxdf.Sample {
-        return switch (self) {
-            .Debug => |m| m.sample(sampler),
-            .Glass => |m| m.sample(sampler),
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+        return switch (self.*) {
+            .Debug => |*m| m.sample(sampler),
+            .Glass => |*m| m.sample(sampler),
             .Light => Light.sample(),
-            .Null => |m| m.sample(),
-            .Substitute => |m| m.sample(sampler),
-            .Volumetric => |m| m.sample(sampler),
+            .Null => |*m| m.sample(),
+            .Substitute => |*m| m.sample(sampler),
+            .Volumetric => |*m| m.sample(sampler),
         };
     }
 };

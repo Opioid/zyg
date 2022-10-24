@@ -11,7 +11,7 @@ const RNG = base.rnd.Generator;
 pub const Sample = struct {
     super: Base,
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
+    pub fn init(rs: *const Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
         return .{ .super = Base.init(
             rs,
             wo,
@@ -21,7 +21,7 @@ pub const Sample = struct {
         ) };
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
@@ -30,7 +30,7 @@ pub const Sample = struct {
         return bxdf.Result.init(reflection, pdf);
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         const s2d = sampler.sample2D();
 
         const is = math.smpl.hemisphereCosine(s2d);

@@ -56,18 +56,18 @@ pub const AOV = struct {
         ray: *Ray,
         isec: *Intersection,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) Vec4f {
         worker.super.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec.*, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
+            .AO => self.ao(ray, isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray, isec, worker),
             .Photons => self.photons(ray, isec, worker),
         };
     }
 
-    fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result: f32 = 0.0;
@@ -75,7 +75,8 @@ pub const AOV = struct {
         var sampler = &self.samplers[0];
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker.super);
+
+        const mat_sample = isec.sample(wo, ray, null, sampler, false, &worker.super);
 
         var occlusion_ray: Ray = undefined;
 
@@ -95,7 +96,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.visibility(occlusion_ray, null, sampler)) |_| {
+            if (worker.super.visibility(&occlusion_ray, null, sampler)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -105,11 +106,11 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: Self, ray: *const Ray, isec: *const Intersection, worker: *Worker) Vec4f {
         var sampler = &self.samplers[0];
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
         var vec: Vec4f = undefined;
 
@@ -148,10 +149,10 @@ pub const AOV = struct {
             var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.super.sampleMaterial(
-                ray.*,
+                ray,
                 wo,
                 wo1,
-                isec.*,
+                isec,
                 filter,
                 sampler,
                 0.0,
@@ -176,7 +177,8 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample, sampler));
+                        worker.addPhoton(throughput * worker.photonLi(isec, mat_sample, sampler));
+
                         break;
                     }
                 }
@@ -209,7 +211,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.super.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
