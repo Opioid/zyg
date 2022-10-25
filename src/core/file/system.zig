@@ -116,11 +116,11 @@ pub const System = struct {
         return ReadStream.initFile(&self.stream);
     }
 
-    pub fn lastResolvedName(self: System) []const u8 {
+    pub fn lastResolvedName(self: *const System) []const u8 {
         return self.name_buffer[0..self.resolved_name_len];
     }
 
-    pub fn cloneLastResolvedName(self: System, alloc: Allocator) ![]u8 {
+    pub fn cloneLastResolvedName(self: *const System, alloc: Allocator) ![]u8 {
         return try alloc.dupe(u8, self.name_buffer[0..self.resolved_name_len]);
     }
 };

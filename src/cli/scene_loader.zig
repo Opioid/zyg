@@ -59,7 +59,7 @@ pub const Loader = struct {
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: Take, graph: *Graph) !void {
+    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: *const Take, graph: *Graph) !void {
         try graph.bumpProps(alloc);
 
         const camera = take.view.camera;
@@ -293,7 +293,7 @@ pub const Loader = struct {
         scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
     }
 
-    fn loadShape(self: Loader, alloc: Allocator, value: std.json.Value) u32 {
+    fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
             return getShape(type_name);
@@ -345,7 +345,7 @@ pub const Loader = struct {
     }
 
     fn loadMaterial(
-        self: Loader,
+        self: *const Loader,
         alloc: Allocator,
         name: []const u8,
         local_materials: LocalMaterials,

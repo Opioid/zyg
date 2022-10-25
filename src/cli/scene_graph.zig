@@ -141,7 +141,7 @@ pub const Graph = struct {
         try self.scene.propAllocateFrames(alloc, entity);
     }
 
-    pub fn propSetTransformation(self: *Graph, entity: u32, t: math.Transformation) void {
+    pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
         const f = self.prop_frames.items[entity];
         self.keyframes.items[f] = t;
     }
@@ -172,7 +172,7 @@ pub const Graph = struct {
         try self.prop_topology.append(alloc, .{});
     }
 
-    fn propCalculateWorldTransformation(self: *Graph, entity: usize) void {
+    fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
         if (!self.prop_properties.items[entity].has_parent) {
             const f = self.prop_frames.items[entity];
 
@@ -186,7 +186,7 @@ pub const Graph = struct {
         }
     }
 
-    fn propPropagateTransformation(self: *Graph, entity: usize) void {
+    fn propPropagateTransformation(self: *Self, entity: usize) void {
         const f = self.prop_frames.items[entity];
 
         if (Scene.Null == f) {
@@ -211,7 +211,7 @@ pub const Graph = struct {
         }
     }
 
-    fn propInheritTransformation(self: *Graph, entity: u32, trafo: Transformation) void {
+    fn propInheritTransformation(self: *Self, entity: u32, trafo: Transformation) void {
         const f = self.prop_frames.items[entity];
 
         if (Scene.Null != f) {
@@ -233,7 +233,7 @@ pub const Graph = struct {
         self.propPropagateTransformation(entity);
     }
 
-    fn propInheritTransformations(self: *Graph, entity: u32, frames: [*]const math.Transformation) void {
+    fn propInheritTransformations(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
         const local_animation = self.prop_properties.items[entity].local_animation;
 
         const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];

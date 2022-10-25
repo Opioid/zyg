@@ -152,16 +152,12 @@ pub const Pool = struct {
     }
 
     pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
-        program(@ptrToInt(context));
+        self.waitAsync();
 
-        _ = self;
-
-        // self.waitAsync();
-
-        // self.asyncp.context = @ptrToInt(context);
-        // self.asyncp.program = program;
-        // self.asyncp.signal.store(SIGNAL_WAKE, .Release);
-        // std.Thread.Futex.wake(&self.asyncp.signal, 1);
+        self.asyncp.context = @ptrToInt(context);
+        self.asyncp.program = program;
+        self.asyncp.signal.store(SIGNAL_WAKE, .Release);
+        std.Thread.Futex.wake(&self.asyncp.signal, 1);
     }
 
     fn quitAll(self: *Pool) void {

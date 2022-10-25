@@ -140,14 +140,14 @@ pub const Reader = struct {
 
         while (handleChunk(alloc, stream, &self.chunk, &self.info)) {}
 
-        return try createImage(alloc, self.info, swizzle, invert);
+        return try createImage(alloc, &self.info, swizzle, invert);
     }
 
-    pub fn createFromBuffer(self: Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
-        return try createImage(alloc, self.info, swizzle, invert);
+    pub fn createFromBuffer(self: *const Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
+        return try createImage(alloc, &self.info, swizzle, invert);
     }
 
-    fn createImage(alloc: Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
+    fn createImage(alloc: Allocator, info: *const Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         switch (swizzle) {
             .X, .W => {
