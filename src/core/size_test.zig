@@ -1,6 +1,7 @@
 const ComposedTransformation = @import("scene/composed_transformation.zig").ComposedTransformation;
 const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
+const LightNode = @import("scene/light/tree.zig").Node;
 const mt = @import("scene/material/material.zig");
 const Interface = @import("scene/prop/interface.zig").Interface;
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
@@ -22,10 +23,11 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    //testType(PropIntersection, "PropIntersection", 176);
-    //testType(smpl.To, "SampleTo", 112);
-    //testType(smpl.From, "SampleFrom", 144);
+    testType(PropIntersection, "PropIntersection", 176);
+    testType(smpl.To, "SampleTo", 112);
+    testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
+    testType(LightNode, "LightNode", 48);
     testType(Interface, "Interface", 16);
     testType(mt.Material, "Material", 416);
     testType(mt.Substitute, "SubstituteMaterial", 400);
