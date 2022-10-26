@@ -426,7 +426,7 @@ pub const Builder = struct {
             node.bounds = bounds;
             node.cone = cone;
             node.power = total_power;
-            node.variance = variance(lights, scene, 0);
+            node.variance = variance(Scene, lights, scene, 0);
             node.middle = 0;
             node.children_or_light = begin;
             node.num_lights = len;
@@ -451,7 +451,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(lights, scene, 0);
+        node.variance = variance(Scene, lights, scene, 0);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -556,7 +556,7 @@ pub const Builder = struct {
         return begin + len;
     }
 
-    fn serialize(self: Builder, nodes: [*]Node, node_middles: [*]u32) void {
+    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
         for (self.build_nodes[0..self.current_node]) |source, i| {
             var dest = &nodes[i];
             const bounds = source.bounds;
@@ -566,16 +566,16 @@ pub const Builder = struct {
             dest.cone = source.cone;
             dest.power = source.power;
             dest.variance = source.variance;
-            dest.has_children = source.hasChildren();
-            dest.children_or_light = @intCast(u30, source.children_or_light);
+            dest.meta.has_children = source.hasChildren();
+            dest.meta.two_sided = source.two_sided;
+            dest.meta.children_or_light = @intCast(u30, source.children_or_light);
             dest.num_lights = source.num_lights;
-            dest.two_sided = source.two_sided;
 
             node_middles[i] = source.middle;
         }
     }
 
-    fn variance(lights: []u32, set: anytype, variant: u32) f32 {
+    fn variance(comptime T: type, lights: []u32, set: *const T, variant: u32) f32 {
         var ap: f32 = 0.0;
         var aps: f32 = 0.0;
 

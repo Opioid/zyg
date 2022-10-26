@@ -27,7 +27,7 @@ pub const Result = struct {
 
     pub fn blend(self: *Result, other: Vec4f, w: f32) void {
         const r = self.reflection;
-        const n = math.lerp4(r, other, w);
+        const n = math.lerp(r, other, w);
         self.reflection = .{ n[0], n[1], n[2], r[3] };
     }
 };
@@ -53,6 +53,6 @@ pub const Sample = struct {
     class: Class = undefined,
 
     pub fn blend(self: *Sample, other: Vec4f, w: f32) void {
-        self.reflection = math.lerp4(self.reflection, other, w);
+        self.reflection = math.lerp(self.reflection, other, w);
     }
 };

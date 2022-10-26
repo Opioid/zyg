@@ -223,7 +223,7 @@ pub const Shaper = struct {
 
                     var pixel = &self.pixels[@intCast(usize, wy * dim[0] + wx)];
                     const old: Vec4f = pixel.v;
-                    pixel.v = math.lerp4(old, color, w);
+                    pixel.v = math.lerp(old, color, w);
                 }
             }
         }

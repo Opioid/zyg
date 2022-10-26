@@ -293,11 +293,11 @@ pub const Base = struct {
         self.kernel.deinit(alloc);
     }
 
-    pub fn numReferenceIds(self: Base) u32 {
+    pub fn numReferenceIds(self: *const Base) u32 {
         return @intCast(u32, self.kernel.reference_ids.items.len);
     }
 
-    pub fn numBuildNodes(self: Base) u32 {
+    pub fn numBuildNodes(self: *const Base) u32 {
         return @intCast(u32, self.kernel.build_nodes.items.len);
     }
 
@@ -398,7 +398,7 @@ pub const Base = struct {
         self.current_node += 1;
     }
 
-    pub fn currentNodeIndex(self: Base) u32 {
+    pub fn currentNodeIndex(self: *const Base) u32 {
         return self.current_node;
     }
 };

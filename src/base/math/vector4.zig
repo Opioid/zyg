@@ -165,11 +165,6 @@ pub inline fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
-pub fn lerp4(a: Vec4f, b: Vec4f, t: f32) Vec4f {
-    const u = @splat(4, 1.0 - t);
-    return u * a + @splat(4, t) * b;
-}
-
 pub inline fn equal(a: Vec4f, b: Vec4f) bool {
     return @reduce(.And, a == b);
 }

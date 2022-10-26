@@ -198,7 +198,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return try self.store(alloc, id, item);
         }
 
-        pub fn get(self: Self, id: u32) ?*T {
+        pub fn get(self: *const Self, id: u32) ?*T {
             if (id < self.resources.items.len) {
                 return &self.resources.items[id];
             }
@@ -206,11 +206,11 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn getLast(self: Self) ?*T {
+        pub fn getLast(self: *const Self) ?*T {
             return self.get(@intCast(u32, self.resources.items.len - 1));
         }
 
-        pub fn getByName(self: Self, name: []const u8, options: Variants) ?u32 {
+        pub fn getByName(self: *const Self, name: []const u8, options: Variants) ?u32 {
             const key = Key{ .name = name, .options = options };
             if (self.entries.get(key)) |entry| {
                 return entry.id;
@@ -219,7 +219,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn meta(self: Self, id: u32) ?Variants {
+        pub fn meta(self: *const Self, id: u32) ?Variants {
             return self.metadata.get(id);
         }
 

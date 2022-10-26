@@ -37,7 +37,7 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
             const offset = @floatToInt(u32, o);
             const t = o - @intToFloat(f32, offset);
 
-            return math.lerp4(
+            return math.lerp(
                 self.samples[offset],
                 self.samples[std.math.min(offset + 1, @intCast(u32, self.samples.len - 1))],
                 t,

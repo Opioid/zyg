@@ -73,7 +73,7 @@ pub const View = struct {
         self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
     }
 
-    pub fn numParticleSamplesPerPixel(self: View) u32 {
+    pub fn numParticleSamplesPerPixel(self: *const View) u32 {
         return self.num_particles_per_pixel * self.lighttracers.settings.num_samples;
     }
 
