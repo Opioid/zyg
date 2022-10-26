@@ -50,11 +50,7 @@ pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
     }
 }
 
-pub fn frac(x: f32) f32 {
-    return x - @floor(x);
-}
-
-pub fn frac4(x: vec4.Vec4f) vec4.Vec4f {
+pub inline fn frac(x: anytype) @TypeOf(x) {
     return x - @floor(x);
 }
 
