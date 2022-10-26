@@ -36,14 +36,18 @@ pub fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }
 
-pub fn lerp(a: f32, b: f32, t: f32) f32 {
-    const u = 1.0 - t;
-    return u * a + t * b;
-}
-
-pub fn lerp2(a: vec2.Vec2f, b: vec2.Vec2f, t: f32) vec2.Vec2f {
-    const u = @splat(2, 1.0 - t);
-    return u * a + @splat(2, t) * b;
+pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
+    switch (@typeInfo(@TypeOf(a))) {
+        .Float => {
+            const u = 1.0 - t;
+            return @mulAdd(f32, u, a, t * b);
+        },
+        .Vector => |v| {
+            const u = 1.0 - t;
+            return @mulAdd(@TypeOf(a), @splat(v.len, u), a, @splat(v.len, t) * b);
+        },
+        else => unreachable,
+    }
 }
 
 pub fn frac(x: f32) f32 {

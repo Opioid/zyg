@@ -264,7 +264,7 @@ const Linear3D = struct {
             .{ c[6][0], c[6][1], c[7][0], c[7][1] },
         }, m.w[0], m.w[1]);
 
-        return math.lerp2(@as([4]f32, cl)[0..2].*, @as([4]f32, cl)[2..4].*, m.w[2]);
+        return math.lerp(Vec2f{ cl[0], cl[1] }, Vec2f{ cl[2], cl[3] }, m.w[2]);
     }
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {

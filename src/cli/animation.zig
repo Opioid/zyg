@@ -129,7 +129,7 @@ fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Ve
 fn interpolate(f0: Transformation, f1: Transformation, f2: Transformation, f3: Transformation, t: f32) Transformation {
     return .{
         .position = catmullRom(f0.position, f1.position, f2.position, f3.position, t, 0.5),
-        .scale = math.lerp4(f1.scale, f2.scale, t),
+        .scale = math.lerp(f1.scale, f2.scale, t),
         .rotation = math.quaternion.slerp(f1.rotation, f2.rotation, t),
     };
 }
