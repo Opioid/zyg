@@ -5,7 +5,7 @@ const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const mat = @import("../material/material.zig");
 const ro = @import("../ray_offset.zig");
 

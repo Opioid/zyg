@@ -1,6 +1,6 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Worker = @import("../../../worker.zig").Worker;
-const Filter = @import("../../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;

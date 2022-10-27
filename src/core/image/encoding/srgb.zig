@@ -1,5 +1,5 @@
 const Float4 = @import("../../image/image.zig").Float4;
-const Encoding = @import("../../image/writer.zig").Writer.Encoding;
+const Encoding = @import("../../image/image_writer.zig").Writer.Encoding;
 const scn = @import("../../scene/constants.zig");
 
 const base = @import("base");

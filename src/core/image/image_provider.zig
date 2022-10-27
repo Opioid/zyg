@@ -2,11 +2,11 @@ const file = @import("../file/file.zig");
 const img = @import("image.zig");
 const Swizzle = img.Swizzle;
 const Image = img.Image;
-const ExrReader = @import("encoding/exr/reader.zig").Reader;
-const IesReader = @import("encoding/ies/reader.zig").Reader;
-const PngReader = @import("encoding/png/reader.zig").Reader;
-const RgbeReader = @import("encoding/rgbe/reader.zig").Reader;
-const SubReader = @import("encoding/sub/reader.zig").Reader;
+const ExrReader = @import("encoding/exr/exr_reader.zig").Reader;
+const IesReader = @import("encoding/ies/ies_reader.zig").Reader;
+const PngReader = @import("encoding/png/png_reader.zig").Reader;
+const RgbeReader = @import("encoding/rgbe/rgbe_reader.zig").Reader;
+const SubReader = @import("encoding/sub/sub_reader.zig").Reader;
 const Resources = @import("../resource/manager.zig").Manager;
 const Result = @import("../resource/result.zig").Result;
 

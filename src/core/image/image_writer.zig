@@ -1,10 +1,10 @@
-const EXR = @import("encoding/exr/writer.zig").Writer;
-pub const PNG = @import("encoding/png/writer.zig").Writer;
-const RGBE = @import("encoding/rgbe/writer.zig").Writer;
+const EXR = @import("encoding/exr/exr_writer.zig").Writer;
+pub const PNG = @import("encoding/png/png_writer.zig").Writer;
+const RGBE = @import("encoding/rgbe/rgbe_writer.zig").Writer;
 
 const img = @import("image.zig");
 const Float4 = img.Float4;
-const AovClass = @import("../rendering/sensor/aov/value.zig").Value.Class;
+const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
 const Threads = base.thread.Pool;

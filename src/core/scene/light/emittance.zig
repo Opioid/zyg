@@ -1,6 +1,6 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const ts = @import("../../image/texture/sampler.zig");
+const ts = @import("../../image/texture/texture_sampler.zig");
 const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 

@@ -15,7 +15,7 @@ const Intersection = @import("prop/intersection.zig").Intersection;
 const shp = @import("shape/intersection.zig");
 const Interpolation = shp.Interpolation;
 const LightTree = @import("light/tree.zig").Tree;
-const Filter = @import("../image/texture/sampler.zig").Filter;
+const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 
 const base = @import("base");

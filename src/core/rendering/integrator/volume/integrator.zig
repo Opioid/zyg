@@ -9,7 +9,7 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const SceneWorker = @import("../../../scene/worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;

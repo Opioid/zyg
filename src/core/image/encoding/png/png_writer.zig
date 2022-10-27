@@ -1,6 +1,6 @@
 const Srgb = @import("../srgb.zig").Srgb;
 const img = @import("../../image.zig");
-const Encoding = @import("../../writer.zig").Writer.Encoding;
+const Encoding = @import("../../image_writer.zig").Writer.Encoding;
 const Float3 = img.Float3;
 const Float4 = img.Float4;
 
