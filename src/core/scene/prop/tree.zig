@@ -4,7 +4,7 @@ const Interpolation = @import("../shape/intersection.zig").Interpolation;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Ray = @import("../ray.zig").Ray;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Worker = @import("../worker.zig").Worker;
 
 const math = @import("base").math;

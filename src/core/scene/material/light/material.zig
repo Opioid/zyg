@@ -5,7 +5,7 @@ const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const ts = @import("../../../image/texture/sampler.zig");
+const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 
 const base = @import("base");

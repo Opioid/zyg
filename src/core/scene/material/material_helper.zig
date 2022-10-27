@@ -1,5 +1,5 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
-const ts = @import("../../image/texture/sampler.zig");
+const ts = @import("../../image/texture/texture_sampler.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Scene = @import("../scene.zig").Scene;
 const hlp = @import("sample_helper.zig");

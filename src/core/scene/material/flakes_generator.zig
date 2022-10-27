@@ -1,5 +1,5 @@
 const img = @import("../../image/image.zig");
-const tx = @import("../../image/texture/provider.zig");
+const tx = @import("../../image/texture/texture_provider.zig");
 const Texture = tx.Texture;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Shaper = @import("../../rendering/shaper.zig").Shaper;
@@ -7,7 +7,7 @@ const ggx = @import("ggx.zig");
 const Frame = @import("sample_base.zig").Frame;
 const Substitute = @import("substitute/sample.zig").Sample;
 
-const PngWriter = @import("../../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../../image/encoding/png/png_writer.zig").Writer;
 
 const base = @import("base");
 const math = base.math;

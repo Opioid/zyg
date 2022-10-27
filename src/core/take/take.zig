@@ -1,4 +1,4 @@
-const aov = @import("../rendering/sensor/aov/value.zig");
+const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
@@ -8,7 +8,7 @@ const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
 const MaterialBase = @import("../scene/material/material_base.zig").Base;
-const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
 const base = @import("base");

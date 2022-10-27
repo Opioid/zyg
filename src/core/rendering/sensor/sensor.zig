@@ -1,5 +1,5 @@
 const Base = @import("base.zig").Base;
-const aov = @import("aov/value.zig");
+const aov = @import("aov/aov_value.zig");
 
 pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const Filtered = @import("filtered.zig").Filtered;

@@ -1,11 +1,11 @@
 const Rainbow = @import("rainbow_integral.zig");
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const Scene = @import("../scene.zig").Scene;
-const Emittance = @import("../light/emittance.zig").Emittance;
-const ts = @import("../../image/texture/sampler.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
+const Emittance = @import("../light/emittance.zig").Emittance;
+const Scene = @import("../scene.zig").Scene;
+const Texture = @import("../../image/texture/texture.zig").Texture;
+const ts = @import("../../image/texture/texture_sampler.zig");
 
 const base = @import("base");
 const math = base.math;

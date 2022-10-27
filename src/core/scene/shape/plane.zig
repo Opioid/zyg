@@ -1,7 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;

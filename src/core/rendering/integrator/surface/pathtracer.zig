@@ -2,7 +2,7 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -194,7 +194,7 @@ pub const Factory = struct {
     settings: Pathtracer.Settings,
 
     pub fn create(self: Factory, rng: *RNG) Pathtracer {
-        return .{ 
+        return .{
             .settings = self.settings,
             .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
         };

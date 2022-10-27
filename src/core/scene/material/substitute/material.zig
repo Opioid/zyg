@@ -10,7 +10,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const ts = @import("../../../image/texture/sampler.zig");
+const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
 

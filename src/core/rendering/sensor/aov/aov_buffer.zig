@@ -1,4 +1,4 @@
-const aov = @import("value.zig");
+const aov = @import("aov_value.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;

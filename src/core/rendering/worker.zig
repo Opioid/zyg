@@ -9,7 +9,7 @@ const ro = @import("../scene/ray_offset.zig");
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const SceneWorker = @import("../scene/worker.zig").Worker;
-const Filter = @import("../image/texture/sampler.zig").Filter;
+const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 const vol = @import("integrator/volume/integrator.zig");
 const VolumeResult = @import("integrator/volume/result.zig").Result;
@@ -17,7 +17,7 @@ const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const aov = @import("sensor/aov/value.zig");
+const aov = @import("sensor/aov/aov_value.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;

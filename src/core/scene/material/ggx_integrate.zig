@@ -7,7 +7,7 @@ const Layer = sample.Layer;
 const IoR = sample.IoR;
 const img = @import("../../image/image.zig");
 const Float4 = img.Float4;
-const ExrWriter = @import("../../image/encoding/exr/writer.zig").Writer;
+const ExrWriter = @import("../../image/encoding/exr/exr_writer.zig").Writer;
 
 const base = @import("base");
 const math = base.math;

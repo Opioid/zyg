@@ -17,7 +17,7 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
-const ts = @import("../../image/texture/sampler.zig");
+const ts = @import("../../image/texture/texture_sampler.zig");
 
 const base = @import("base");
 const math = base.math;

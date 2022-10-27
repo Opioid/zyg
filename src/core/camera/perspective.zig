@@ -16,7 +16,7 @@ const RayDif = sr.RayDif;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
-const tx = @import("../image/texture/provider.zig");
+const tx = @import("../image/texture/texture_provider.zig");
 const img = @import("../image/image.zig");
 
 const base = @import("base");

@@ -1,6 +1,6 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");

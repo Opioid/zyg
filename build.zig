@@ -61,7 +61,7 @@ pub fn build(b: *std.build.Builder) void {
     cli.linkLibC();
 
     //cli.sanitize_thread = true;
-    //cli.strip = true;
+    cli.strip = true;
 
     cli.install();
 

@@ -1,4 +1,4 @@
-const Encoding = @import("../../../image/writer.zig").Writer.Encoding;
+const Encoding = @import("../../../image/image_writer.zig").Writer.Encoding;
 
 const base = @import("base");
 const math = base.math;

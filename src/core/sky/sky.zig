@@ -8,10 +8,10 @@ const Canopy = @import("../scene/shape/canopy.zig").Canopy;
 const Worker = @import("../scene/worker.zig").Worker;
 const ComposedTransformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Texture = @import("../image/texture/texture.zig").Texture;
-const ts = @import("../image/texture/sampler.zig");
+const ts = @import("../image/texture/texture_sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
-const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const Filesystem = @import("../file/system.zig").System;
 
 // const SkyMaterial = @import("../sky/material.zig").Material;

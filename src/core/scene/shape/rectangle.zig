@@ -5,7 +5,7 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 

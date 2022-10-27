@@ -1,6 +1,6 @@
 const img = @import("../../image/image.zig");
 const Image = img.Image;
-const PngWriter = @import("../../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../../image/encoding/png/png_writer.zig").Writer;
 
 const base = @import("base");
 const math = base.math;
