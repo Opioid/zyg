@@ -236,6 +236,15 @@ pub inline fn vec4iTo4f(v: Vec4i) Vec4f {
     };
 }
 
+pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
+    return .{
+        @intToFloat(f32, v[0]),
+        @intToFloat(f32, v[1]),
+        @intToFloat(f32, v[2]),
+        @intToFloat(f32, v[3]),
+    };
+}
+
 pub inline fn vec4iTo4u(v: Vec4i) Vec4u {
     return @bitCast(Vec4u, v);
 }
