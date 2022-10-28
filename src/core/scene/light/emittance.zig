@@ -55,14 +55,14 @@ pub const Emittance = struct {
     pub fn setRadiantIntensity(self: *Emittance, radi: Vec4f, cos_a: f32) void {
         self.value = radi;
         self.cos_a = cos_a;
-        self.quantity = Quantity.Intensity;
+        self.quantity = .Intensity;
     }
 
     // unit: watt per unit solid angle per unit projected area (W / sr / m^2)
     pub fn setRadiance(self: *Emittance, rad: Vec4f, cos_a: f32) void {
         self.value = rad;
         self.cos_a = cos_a;
-        self.quantity = Quantity.Radiance;
+        self.quantity = .Radiance;
     }
 
     pub fn radiance(
