@@ -32,7 +32,7 @@ pub const Sobol = struct {
     }
 
     pub fn sample1D(self: *Self) f32 {
-        if (self.dimension >= 4) {
+        if (self.dimension >= 5) {
             self.incrementPadding();
         }
 
@@ -45,7 +45,7 @@ pub const Sobol = struct {
     }
 
     pub fn sample2D(self: *Self) Vec2f {
-        if (self.dimension >= 3) {
+        if (self.dimension >= 4) {
             self.incrementPadding();
         }
 
@@ -58,7 +58,7 @@ pub const Sobol = struct {
     }
 
     pub fn sample3D(self: *Self) Vec4f {
-        if (self.dimension >= 2) {
+        if (self.dimension >= 3) {
             self.incrementPadding();
         }
 
@@ -76,7 +76,7 @@ pub const Sobol = struct {
     }
 
     pub fn sample4D(self: *Self) Vec4f {
-        if (self.dimension >= 1) {
+        if (self.dimension >= 2) {
             self.incrementPadding();
         }
 
