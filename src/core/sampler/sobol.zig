@@ -70,13 +70,6 @@ pub const Sobol = struct {
         self.dimension = d + 3;
 
         return sobolOwen3(i, s, d);
-
-        // return .{
-        //     sobolOwen(i, s, d),
-        //     sobolOwen(i, s, d + 1),
-        //     sobolOwen(i, s, d + 2),
-        //     0.0,
-        // };
     }
 
     pub fn sample4D(self: *Self) Vec4f {
@@ -124,21 +117,21 @@ fn sobolOwen(scrambled_index: u32, seed: u32, dim: u32) f32 {
 fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {
     const sob = sobol2(scrambled_index, dim);
     const hc = hashCombine2(seed, dim);
-    const nus = nestedUniformScrambleBase2_2(sob, hc);
+    const nus = nestedUniformScrambleBase2(sob, hc);
     return math.vec2uTo2f(nus) * @splat(2, S);
 }
 
 fn sobolOwen3(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol3(scrambled_index, dim);
     const hc = hashCombine3(seed, dim);
-    const nus = nestedUniformScrambleBase2_4(sob, hc);
+    const nus = nestedUniformScrambleBase2(sob, hc);
     return math.vec4uTo4f(nus) * @splat(4, S);
 }
 
 fn sobolOwen4(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol4(scrambled_index, dim);
     const hc = hashCombine4(seed, dim);
-    const nus = nestedUniformScrambleBase2_4(sob, hc);
+    const nus = nestedUniformScrambleBase2(sob, hc);
     return math.vec4uTo4f(nus) * @splat(4, S);
 }
 
@@ -164,25 +157,13 @@ fn hashCombine4(seed: u32, v: u32) Vec4u {
     return seed4 ^ (v4 +% (seed4 << @splat(4, @as(u5, 6))) +% (seed4 >> @splat(4, @as(u5, 2))));
 }
 
-fn nestedUniformScrambleBase2(x: u32, seed: u32) u32 {
+fn nestedUniformScrambleBase2(x: anytype, seed: anytype) @TypeOf(x, seed) {
     var o = @bitReverse(x);
     o = laineKarrasPermutation(o, seed);
     return @bitReverse(o);
 }
 
-fn nestedUniformScrambleBase2_2(x: Vec2u, seed: Vec2u) Vec2u {
-    var o = @bitReverse(x);
-    o = laineKarrasPermutation2(o, seed);
-    return @bitReverse(o);
-}
-
-fn nestedUniformScrambleBase2_4(x: Vec4u, seed: Vec4u) Vec4u {
-    var o = @bitReverse(x);
-    o = laineKarrasPermutation4(o, seed);
-    return @bitReverse(o);
-}
-
-fn laineKarrasPermutation(i: u32, seed: u32) u32 {
+fn laineKarrasPermutation(i: anytype, seed: anytype) @TypeOf(i, seed) {
     // var x = i +% seed;
     // x ^= x *% 0x6c50b47c;
     // x ^= x *% 0xb82f1e52;
@@ -192,48 +173,28 @@ fn laineKarrasPermutation(i: u32, seed: u32) u32 {
 
     // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
 
-    var x = i ^ (i *% 0x3d20adea);
-    x +%= seed;
-    x *%= (seed >> 16) | 1;
-    x ^= x *% 0x05526c56;
-    x ^= x *% 0x53a22864;
-    return x;
-}
+    switch (@typeInfo(@TypeOf(i))) {
+        .Int => {
+            var x = i ^ (i *% 0x3d20adea);
+            x +%= seed;
+            x *%= (seed >> 16) | 1;
+            x ^= x *% 0x05526c56;
+            x ^= x *% 0x53a22864;
+            return x;
+        },
+        .Vector => |v| {
+            const l = comptime v.len;
 
-fn laineKarrasPermutation2(i: Vec2u, seed: Vec2u) Vec2u {
-    // var x = i +% seed;
-    // x ^= x *% 0x6c50b47c;
-    // x ^= x *% 0xb82f1e52;
-    // x ^= x *% 0xc7afe638;
-    // x ^= x *% 0x8d22f6e6;
-    // return x;
+            var x = i ^ (i *% @splat(l, @as(u32, 0x3d20adea)));
+            x +%= seed;
+            x *%= (seed >> @splat(l, @as(u5, 16))) | @splat(l, @as(u32, 1));
+            x ^= x *% @splat(l, @as(u32, 0x05526c56));
+            x ^= x *% @splat(l, @as(u32, 0x53a22864));
+            return x;
+        },
 
-    // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
-
-    var x = i ^ (i *% @splat(2, @as(u32, 0x3d20adea)));
-    x +%= seed;
-    x *%= (seed >> @splat(2, @as(u5, 16))) | @splat(2, @as(u32, 1));
-    x ^= x *% @splat(2, @as(u32, 0x05526c56));
-    x ^= x *% @splat(2, @as(u32, 0x53a22864));
-    return x;
-}
-
-fn laineKarrasPermutation4(i: Vec4u, seed: Vec4u) Vec4u {
-    // var x = i +% seed;
-    // x ^= x *% 0x6c50b47c;
-    // x ^= x *% 0xb82f1e52;
-    // x ^= x *% 0xc7afe638;
-    // x ^= x *% 0x8d22f6e6;
-    // return x;
-
-    // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
-
-    var x = i ^ (i *% @splat(4, @as(u32, 0x3d20adea)));
-    x +%= seed;
-    x *%= (seed >> @splat(4, @as(u5, 16))) | @splat(4, @as(u32, 1));
-    x ^= x *% @splat(4, @as(u32, 0x05526c56));
-    x ^= x *% @splat(4, @as(u32, 0x53a22864));
-    return x;
+        else => comptime unreachable,
+    }
 }
 
 fn sobol(index: u32, dim: u32) u32 {
