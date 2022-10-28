@@ -136,10 +136,11 @@ fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {
 fn sobolOwen3(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol3(scrambled_index, dim);
     const hc = hashCombine3(seed, dim);
+    const nus = nestedUniformScrambleBase2_4(sob, hc);
     return .{
-        @intToFloat(f32, nestedUniformScrambleBase2(sob[0], hc[0])) * S,
-        @intToFloat(f32, nestedUniformScrambleBase2(sob[1], hc[1])) * S,
-        @intToFloat(f32, nestedUniformScrambleBase2(sob[2], hc[2])) * S,
+        @intToFloat(f32, nus[0]) * S,
+        @intToFloat(f32, nus[1]) * S,
+        @intToFloat(f32, nus[2]) * S,
         0.0,
     };
 }
@@ -166,6 +167,12 @@ fn nestedUniformScrambleBase2(x: u32, seed: u32) u32 {
     return @bitReverse(o);
 }
 
+fn nestedUniformScrambleBase2_4(x: Vec4u, seed: Vec4u) Vec4u {
+    var o = @bitReverse(x);
+    o = laineKarrasPermutation4(o, seed);
+    return @bitReverse(o);
+}
+
 fn laineKarrasPermutation(i: u32, seed: u32) u32 {
     // var x = i +% seed;
     // x ^= x *% 0x6c50b47c;
@@ -181,6 +188,24 @@ fn laineKarrasPermutation(i: u32, seed: u32) u32 {
     x *%= (seed >> 16) | 1;
     x ^= x *% 0x05526c56;
     x ^= x *% 0x53a22864;
+    return x;
+}
+
+fn laineKarrasPermutation4(i: Vec4u, seed: Vec4u) Vec4u {
+    // var x = i +% seed;
+    // x ^= x *% 0x6c50b47c;
+    // x ^= x *% 0xb82f1e52;
+    // x ^= x *% 0xc7afe638;
+    // x ^= x *% 0x8d22f6e6;
+    // return x;
+
+    // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
+
+    var x = i ^ (i *% @splat(4, @as(u32, 0x3d20adea)));
+    x +%= seed;
+    x *%= (seed >> @splat(4, @as(u5, 16))) | @splat(4, @as(u32, 1));
+    x ^= x *% @splat(4, @as(u32, 0x05526c56));
+    x ^= x *% @splat(4, @as(u32, 0x53a22864));
     return x;
 }
 
