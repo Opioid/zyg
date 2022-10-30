@@ -16,6 +16,7 @@ pub const Texture = struct {
         Byte2_unorm,
         Byte2_snorm,
         Byte3_sRGB,
+        Half1,
         Half3,
         Half4,
         Float1,
@@ -43,7 +44,7 @@ pub const Texture = struct {
         }
 
         return switch (self.type) {
-            .Byte1_unorm, .Float1, .Float1Sparse => 1,
+            .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
             .Half4, .Float4 => 4,
@@ -54,10 +55,8 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
-            .Byte1_unorm => {
-                const value = image.Byte1.get2D(x, y);
-                return enc.cachedUnormToFloat(value);
-            },
+            .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
+            .Half1 => @floatCast(f32, image.Half1.get2D(x, y)),
             .Float1 => image.Float1.get2D(x, y),
             else => 0.0,
         };
@@ -76,6 +75,15 @@ pub const Texture = struct {
                     enc.cachedUnormToFloat(values[3]),
                 };
             },
+            .Half1 => {
+                const values = image.Half1.gather2D(xy_xy1);
+                return .{
+                    @floatCast(f32, values[0]),
+                    @floatCast(f32, values[1]),
+                    @floatCast(f32, values[2]),
+                    @floatCast(f32, values[3]),
+                };
+            },
             .Float1 => image.Float1.gather2D(xy_xy1),
             else => .{ 0.0, 0.0, 0.0, 0.0 },
         };
@@ -85,14 +93,8 @@ pub const Texture = struct {
         const image = scene.image(self.image);
 
         return switch (self.type) {
-            .Byte2_unorm => {
-                const value = image.Byte2.get2D(x, y);
-                return enc.cachedUnormToFloat2(value);
-            },
-            .Byte2_snorm => {
-                const value = image.Byte2.get2D(x, y);
-                return enc.cachedSnormToFloat2(value);
-            },
+            .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
+            .Byte2_snorm => enc.cachedSnormToFloat2(image.Byte2.get2D(x, y)),
             .Float2 => image.Float2.get2D(x, y),
             else => @splat(2, @as(f32, 0.0)),
         };

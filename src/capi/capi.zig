@@ -296,12 +296,12 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
         if (e.resources.images.get(id)) |image| {
             const bpc: u32 = switch (image.*) {
                 .Byte1, .Byte2, .Byte3 => 1,
-                .Half3, .Half4 => 2,
+                .Half1, .Half3, .Half4 => 2,
                 .Float1, .Float1Sparse, .Float2, .Float3, .Float4 => 4,
             };
 
             const num_channels: u32 = switch (image.*) {
-                .Byte1, .Float1, .Float1Sparse => 1,
+                .Byte1, .Half1, .Float1, .Float1Sparse => 1,
                 .Byte2, .Float2 => 2,
                 .Byte3, .Half3, .Float3 => 3,
                 .Half4, .Float4 => 4,

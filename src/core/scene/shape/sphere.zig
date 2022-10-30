@@ -146,20 +146,20 @@ pub const Sphere = struct {
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
         const v = trafo.position - p;
-        const il = math.rlength3(v);
-        const radius = trafo.scaleX();
-        const sin_theta_max = std.math.min(il * radius, 1.0);
-        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Eps));
+        const l2 = math.squaredLength3(v);
+        const r = trafo.scaleX();
+        const r2 = r * r;
+        const cos_theta_max = @sqrt(std.math.max(1.0 - r2 / l2, math.smpl.Eps));
 
-        const z = @splat(4, il) * v;
+        const z = @splat(4, 1.0 / @sqrt(l2)) * v;
         const xy = math.orthonormalBasis3(z);
 
-        const r2 = sampler.sample2D();
-        const dir = math.smpl.orientedConeUniform(r2, cos_theta_max, xy[0], xy[1], z);
+        const s2 = sampler.sample2D();
+        const dir = math.smpl.orientedConeUniform(s2, cos_theta_max, xy[0], xy[1], z);
 
         const b = math.dot3(dir, v);
         const remedy_term = v - @splat(4, b) * dir;
-        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
+        const discriminant = r2 - math.dot3(remedy_term, remedy_term);
 
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
@@ -232,12 +232,11 @@ pub const Sphere = struct {
     }
 
     pub fn pdf(ray: Ray, trafo: Trafo) f32 {
-        const axis = trafo.position - ray.origin;
-
-        const il = math.rlength3(axis);
-        const radius = trafo.scaleX();
-        const sin_theta_max = std.math.min(il * radius, 1.0);
-        const cos_theta_max = @sqrt(std.math.max(1.0 - sin_theta_max * sin_theta_max, math.smpl.Eps));
+        const v = trafo.position - ray.origin;
+        const l2 = math.squaredLength3(v);
+        const r = trafo.scaleX();
+        const r2 = r * r;
+        const cos_theta_max = @sqrt(std.math.max(1.0 - r2 / l2, math.smpl.Eps));
 
         return math.smpl.conePdfUniform(cos_theta_max);
     }

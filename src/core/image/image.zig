@@ -11,6 +11,7 @@ pub const Description = ti.Description;
 pub const Byte1 = ti.TypedImage(u8);
 pub const Byte2 = ti.TypedImage(Vec2b);
 pub const Byte3 = ti.TypedImage(Pack3b);
+pub const Half1 = ti.TypedImage(f16);
 pub const Half3 = ti.TypedImage(Pack3h);
 pub const Half4 = ti.TypedImage(Pack4h);
 pub const Float1 = ti.TypedImage(f32);
@@ -36,6 +37,7 @@ pub const Type = enum {
     Byte1,
     Byte2,
     Byte3,
+    Half1,
     Half3,
     Half4,
     Float1,
@@ -48,6 +50,7 @@ pub const Image = union(enum) {
     Byte1: Byte1,
     Byte2: Byte2,
     Byte3: Byte3,
+    Half1: Half1,
     Half3: Half3,
     Half4: Half4,
     Float1: Float1,

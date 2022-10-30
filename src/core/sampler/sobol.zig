@@ -123,7 +123,7 @@ fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {
 
 fn sobolOwen3(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol3(scrambled_index, dim);
-    const hc = hashCombine3(seed, dim);
+    const hc = hashCombine4(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
     return math.vec4uTo4f(nus) * @splat(4, S);
 }
@@ -141,19 +141,13 @@ fn hashCombine(seed: u32, v: u32) u32 {
 
 fn hashCombine2(seed: u32, v: u32) Vec2u {
     const seed2 = @splat(2, seed);
-    const v2 = Vec2u{ v, v + 1 };
+    const v2 = @splat(2, v) + Vec2u{ 0, 1 };
     return seed2 ^ (v2 +% (seed2 << @splat(2, @as(u5, 6))) +% (seed2 >> @splat(2, @as(u5, 2))));
-}
-
-fn hashCombine3(seed: u32, v: u32) Vec4u {
-    const seed4 = @splat(4, seed);
-    const v4 = Vec4u{ v, v + 1, v + 2, 0 };
-    return seed4 ^ (v4 +% (seed4 << @splat(4, @as(u5, 6))) +% (seed4 >> @splat(4, @as(u5, 2))));
 }
 
 fn hashCombine4(seed: u32, v: u32) Vec4u {
     const seed4 = @splat(4, seed);
-    const v4 = Vec4u{ v, v + 1, v + 2, v + 3 };
+    const v4 = @splat(4, v) + Vec4u{ 0, 1, 2, 3 };
     return seed4 ^ (v4 +% (seed4 << @splat(4, @as(u5, 6))) +% (seed4 >> @splat(4, @as(u5, 2))));
 }
 
