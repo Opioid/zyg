@@ -314,7 +314,7 @@ const LinearStochastic3D = struct {
 
         const b = d - Vec4i{ 1, 1, 1, 0 };
         const w = muvw - fuvw;
-        const r = sampler.sample1D();
+        const r = sampler.sample3D();
         // _ = sampler;
         // const r = Vec4f{ 0.5, 0.5, 0.5, 0.0 };
 
