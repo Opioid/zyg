@@ -32,7 +32,7 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
     return radians * (180.0 / std.math.pi);
 }
 
-pub fn saturate(x: f32) f32 {
+pub inline fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }
 
@@ -65,7 +65,7 @@ pub fn pow5(x: f32) f32 {
     return x4 * x;
 }
 
-pub fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
+pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
     switch (@typeInfo(T)) {
         .Float => {
             const _s = 1.0 - s;
