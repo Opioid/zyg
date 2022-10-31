@@ -267,7 +267,7 @@ pub const Worker = struct {
             const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
 
             if (!self.super.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(&tray, filter, &self.super)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -311,7 +311,7 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.super.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(ray, filter, &self.super)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
