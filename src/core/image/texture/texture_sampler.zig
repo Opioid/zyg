@@ -314,7 +314,7 @@ const LinearStochastic3D = struct {
 
         const b = d - Vec4i{ 1, 1, 1, 0 };
         const w = muvw - fuvw;
-        const r = sampler.sample3D();
+        const r = sampler.sample1D();
         // _ = sampler;
         // const r = Vec4f{ 0.5, 0.5, 0.5, 0.0 };
 
@@ -324,5 +324,27 @@ const LinearStochastic3D = struct {
             if (r[2] <= w[2]) adr.u.increment(xyz[2], b[2]) else adr.u.lowerBound(xyz[2], b[2]),
             0,
         };
+
+        // var p: [3]f32 = undefined;
+
+        // p[0] = r;
+        // if (p[0] <= w[0]) {
+        //     p[1] = p[0] / w[0];
+        // } else {
+        //     p[1] = p[0] / (1.0 - w[0]);
+        // }
+
+        // if (p[1] <= w[1]) {
+        //     p[2] = p[1] / w[0];
+        // } else {
+        //     p[2] = p[1] / (1.0 - w[0]);
+        // }
+
+        // return .{
+        //     if (p[0] <= w[0]) adr.u.increment(xyz[0], b[0]) else adr.u.lowerBound(xyz[0], b[0]),
+        //     if (p[1] <= w[1]) adr.u.increment(xyz[1], b[1]) else adr.u.lowerBound(xyz[1], b[1]),
+        //     if (p[2] <= w[2]) adr.u.increment(xyz[2], b[2]) else adr.u.lowerBound(xyz[2], b[2]),
+        //     0,
+        // };
     }
 };
