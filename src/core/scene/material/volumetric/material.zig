@@ -173,12 +173,12 @@ pub const Material = struct {
         return .{ .Null = Null.init(wo, rs) };
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, scene: *const Scene) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, filter);
+        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
 
         const emission = if (self.temperature_map.valid())
             self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, scene))

@@ -81,7 +81,7 @@ pub const Emittance = struct {
 
             const key = ts.Key{
                 .filter = filter orelse .Linear,
-                .address = .{ .u = .Repeat, .v = .Clamp },
+                .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
             const o = math.smpl.octEncode(lwi);

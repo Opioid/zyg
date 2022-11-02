@@ -356,7 +356,7 @@ pub const PathtracerMIS = struct {
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(p, &light_sample, .Nearest, worker.super.scene);
+        const radiance = light.evaluateTo(p, &light_sample, filter, worker.super.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());

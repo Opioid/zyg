@@ -88,7 +88,7 @@ pub const Lighttracer = struct {
             return;
         }
 
-        const initrad = light.evaluateFrom(isec.geo.p, &light_sample, .Nearest, worker.super.scene) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(isec.geo.p, &light_sample, null, worker.super.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
