@@ -95,7 +95,7 @@ pub const Pathtracer = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray, isec, mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray, isec, &mat_sample, primary_ray);
             }
 
             wo1 = wo;

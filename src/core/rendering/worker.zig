@@ -185,7 +185,7 @@ pub const Worker = struct {
         throughput: Vec4f,
         ray: *const Ray,
         isec: *const Intersection,
-        mat_sample: MaterialSample,
+        mat_sample: *const MaterialSample,
         primary_ray: bool,
     ) void {
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {

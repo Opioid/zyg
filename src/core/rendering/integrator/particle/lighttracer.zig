@@ -88,7 +88,7 @@ pub const Lighttracer = struct {
             return;
         }
 
-        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(&light_sample, Filter.Nearest, worker.super.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
@@ -172,7 +172,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray, isec, mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, ray, isec, &mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -251,7 +251,7 @@ pub const Lighttracer = struct {
         radiance: Vec4f,
         history: *const Ray,
         isec: *const Intersection,
-        mat_sample: MaterialSample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
