@@ -109,7 +109,7 @@ pub const Material = struct {
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, scene: *const Scene) Sample {
         const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, area, rs.filter, scene);
+        const rad = self.evaluateRadiance(rs.p, -wo, rs.uv, rs.trafo, area, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -118,6 +118,7 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
+        p: Vec4f,
         wi: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
@@ -125,7 +126,7 @@ pub const Material = struct {
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(wi, trafo, extent, filter, scene);
+        const rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, scene);

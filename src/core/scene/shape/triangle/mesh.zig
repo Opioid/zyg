@@ -244,6 +244,7 @@ pub const Part = struct {
         scene: *const Scene,
         estimate_area: f32,
 
+        const Pos = Vec4f{ 0.0, 0.0, 0.0, 0.0 };
         const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
 
         const IdTrafo = Trafo{
@@ -277,6 +278,7 @@ pub const Part = struct {
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
                         radiance += self.m.evaluateRadiance(
+                            Pos,
                             Dir,
                             Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },

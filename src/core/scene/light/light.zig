@@ -152,16 +152,17 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, sample: *const SampleTo, filter: ?Filter, scene: *const Scene) Vec4f {
+    pub fn evaluateTo(self: Light, p: Vec4f, sample: *const SampleTo, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
-        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
+        return material.evaluateRadiance(p, sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
     }
 
-    pub fn evaluateFrom(self: Light, sample: *const SampleFrom, filter: ?Filter, scene: *const Scene) Vec4f {
+    pub fn evaluateFrom(self: Light, p: Vec4f, sample: *const SampleFrom, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(
+            p,
             -sample.dir,
             sample.n,
             sample.uvw,

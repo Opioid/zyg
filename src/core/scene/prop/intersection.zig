@@ -96,6 +96,7 @@ pub const Intersection = struct {
 
         const uv = self.geo.uv;
         return m.evaluateRadiance(
+            self.geo.p,
             wo,
             self.geo.geo_n,
             .{ uv[0], uv[1], 0.0, 0.0 },
