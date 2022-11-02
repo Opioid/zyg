@@ -127,14 +127,13 @@ pub const Distribution1D = struct {
         self.lut[0] = 1;
 
         var border: u32 = 0;
-        var last: u32 = 0;
 
         const len = self.size;
         var i: u32 = 1;
         while (i < len) : (i += 1) {
             const mapped = self.map(self.cdf[i]);
             if (mapped > border) {
-                last = i;
+                const last = i;
 
                 var j = border + 1;
                 while (j <= mapped) : (j += 1) {
