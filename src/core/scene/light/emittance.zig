@@ -68,6 +68,7 @@ pub const Emittance = struct {
 
     pub fn radiance(
         self: Emittance,
+        p: Vec4f,
         wi: Vec4f,
         trafo: Trafo,
         area: f32,
@@ -77,11 +78,12 @@ pub const Emittance = struct {
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
-            const lwi = trafo.worldToObjectNormal(wi);
+            const dir = math.normalize3(trafo.position - p);
+            const lwi = trafo.worldToObjectNormal(dir);
 
             const key = ts.Key{
                 .filter = filter orelse .Linear,
-                .address = .{ .u = .Repeat, .v = .Clamp },
+                .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
             const o = math.smpl.octEncode(lwi);

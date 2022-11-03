@@ -99,18 +99,18 @@ pub const Base = struct {
         return 1.0;
     }
 
-    pub fn border(self: Base, wi: Vec4f, n: Vec4f) f32 {
+    pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
         const f0 = fresnel.Schlick.F0(self.ior, 1.0);
         const n_dot_wi = std.math.max(math.dot3(n, wi), 0.0);
         return 1.0 - fresnel.schlick1(n_dot_wi, f0);
     }
 
-    pub fn similarityRelationScale(self: Base, depth: u32) f32 {
+    pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {
         const gs = self.vanDeHulstAnisotropy(depth);
         return vanDeHulst(self.volumetric_anisotropy, gs);
     }
 
-    pub fn vanDeHulstAnisotropy(self: Base, depth: u32) f32 {
+    pub fn vanDeHulstAnisotropy(self: *const Base, depth: u32) f32 {
         if (depth < SR_low) {
             return self.volumetric_anisotropy;
         }

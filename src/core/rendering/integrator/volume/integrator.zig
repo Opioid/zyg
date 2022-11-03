@@ -34,7 +34,7 @@ pub const Integrator = union(enum) {
         };
     }
 
-    pub fn transmittance(self: Integrator, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *SceneWorker) ?Vec4f {
+    pub fn transmittance(self: Integrator, ray: *const Ray, filter: ?Filter, sampler: *Sampler, worker: *SceneWorker) ?Vec4f {
         _ = self;
         return tracking.transmittance(ray, filter, sampler, worker);
     }

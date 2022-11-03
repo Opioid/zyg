@@ -132,6 +132,7 @@ pub const Material = struct {
         ) else self.color;
 
         var rad = self.super.emittance.radiance(
+            rs.p,
             -wo,
             rs.trafo,
             worker.scene.lightArea(rs.prop, rs.part),
@@ -268,6 +269,7 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
+        p: Vec4f,
         wi: Vec4f,
         n: Vec4f,
         uv: Vec2f,
@@ -277,9 +279,10 @@ pub const Material = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const key = ts.resolveKey(self.super.sampler_key, filter);
+        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
 
-        var rad = self.super.emittance.radiance(wi, trafo, extent, filter, sampler, scene);
+        var rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, sampler, scene);
+
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }

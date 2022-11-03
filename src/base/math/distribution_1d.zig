@@ -24,7 +24,7 @@ pub const Distribution1D = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, data: []const f32, lut_bucket_size: u32) !void {
-        try self.precompute1DPdfCdf(alloc, data);
+        try self.precomputePdfCdf(alloc, data);
 
         var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
         lut_size = std.math.min(std.math.max(lut_size, 1), self.size);
@@ -42,9 +42,7 @@ pub const Distribution1D = struct {
     pub fn sample(self: Self, r: f32) u32 {
         const bucket = self.map(r);
         const begin = self.lut[bucket];
-        const it = search(self.cdf, begin, self.size - 1, r);
-
-        return if (0 == it) 0 else it - 1;
+        return search(self.cdf, begin, self.size - 1, r) - 1;
     }
 
     pub fn sampleDiscrete(self: Self, r: f32) Discrete {
@@ -79,7 +77,7 @@ pub const Distribution1D = struct {
         return self.cdf[o + 1] - self.cdf[o];
     }
 
-    fn precompute1DPdfCdf(self: *Self, alloc: Allocator, data: []const f32) !void {
+    fn precomputePdfCdf(self: *Self, alloc: Allocator, data: []const f32) !void {
         var integral: f32 = 0.0;
         for (data) |d| {
             integral += d;
@@ -105,10 +103,13 @@ pub const Distribution1D = struct {
 
         const ii = 1.0 / integral;
 
+        var p: f32 = 0.0;
         self.cdf[0] = 0.0;
         var i: usize = 1;
         while (i < data.len) : (i += 1) {
-            self.cdf[i] = @mulAdd(f32, data[i - 1], ii, self.cdf[i - 1]);
+            const c = @mulAdd(f32, data[i - 1], ii, p);
+            self.cdf[i] = c;
+            p = c;
         }
         self.cdf[data.len] = 1.0;
         self.integral = integral;
@@ -123,17 +124,16 @@ pub const Distribution1D = struct {
             self.lut_range = @intToFloat(f32, lut_size);
         }
 
-        self.lut[0] = 0;
+        self.lut[0] = 1;
 
         var border: u32 = 0;
-        var last: u32 = 0;
 
         const len = self.size;
         var i: u32 = 1;
         while (i < len) : (i += 1) {
             const mapped = self.map(self.cdf[i]);
             if (mapped > border) {
-                last = i;
+                const last = i;
 
                 var j = border + 1;
                 while (j <= mapped) : (j += 1) {

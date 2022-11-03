@@ -23,7 +23,7 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittance(ray: scn.Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
+pub fn transmittance(ray: *const scn.Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
     const interface = worker.interface_stack.top();
     const material = interface.material(worker.scene);
 
@@ -45,7 +45,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, sampler: *Sampler, worker: *
                 cm.minorant_mu_s *= srs;
                 cm.majorant_mu_s *= srs;
 
-                if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, sampler, worker)) {
+                if (!trackingTransmitted(&w, &local_ray, cm, material, srs, filter, sampler, worker)) {
                     return null;
                 }
             }
@@ -65,7 +65,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, sampler: *Sampler, worker: *
 
 fn trackingTransmitted(
     transmitted: *Vec4f,
-    ray: Ray,
+    ray: *const Ray,
     cm: CM,
     material: *const Material,
     srs: f32,
@@ -129,7 +129,7 @@ fn trackingTransmitted(
 
 fn residualRatioTrackingTransmitted(
     transmitted: *Vec4f,
-    ray: Ray,
+    ray: *const Ray,
     minorant_mu_t: f32,
     majorant_mu_t: f32,
     material: *const Material,
@@ -182,7 +182,7 @@ fn residualRatioTrackingTransmitted(
     }
 }
 
-pub fn tracking(ray: Ray, mu: CC, rng: *RNG) Result {
+pub fn tracking(ray: *const Ray, mu: CC, rng: *RNG) Result {
     const mu_t = mu.a + mu.s;
 
     const mt = math.maxComponent3(mu_t);
@@ -231,7 +231,7 @@ pub fn tracking(ray: Ray, mu: CC, rng: *RNG) Result {
     }
 }
 
-pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
+pub fn trackingEmission(ray: *const Ray, cce: CCE, rng: *RNG) Result {
     const mu = cce.cc;
 
     const mu_t = mu.a + mu.s;
@@ -295,7 +295,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
 }
 
 pub fn trackingHetero(
-    ray: Ray,
+    ray: *const Ray,
     cm: CM,
     material: *const Material,
     srs: f32,
@@ -357,7 +357,7 @@ pub fn trackingHetero(
 }
 
 pub fn trackingHeteroEmission(
-    ray: Ray,
+    ray: *const Ray,
     cm: CM,
     material: *const Material,
     srs: f32,
@@ -431,7 +431,7 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: *const Worker) Ray {
+pub fn texturespaceRay(ray: *const scn.Ray, entity: u32, worker: *const Worker) Ray {
     const trafo = worker.scene.propTransformationAt(entity, ray.time);
 
     const local_origin = trafo.worldToObjectPoint(ray.ray.origin);

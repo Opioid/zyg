@@ -128,21 +128,21 @@ const Linear2D = struct {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_1(m.xy_xy1, scene);
-        return math.bilinear1(c, m.w[0], m.w[1]);
+        return math.bilinear(f32, c, m.w[0], m.w[1]);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_2(m.xy_xy1, scene);
-        return math.bilinear2(c, m.w[0], m.w[1]);
+        return math.bilinear(Vec2f, c, m.w[0], m.w[1]);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec4f {
         const d = texture.description(scene).dimensions;
         const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
         const c = texture.gather2D_3(m.xy_xy1, scene);
-        return math.bilinear3(c, m.w[0], m.w[1]);
+        return math.bilinear(Vec4f, c, m.w[0], m.w[1]);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
@@ -250,7 +250,7 @@ const Linear3D = struct {
         const m = map(d, uvw, adr);
         const c = texture.gather3D_1(m.xyz, m.xyz1, scene);
 
-        const ci = math.bilinear2(.{
+        const ci = math.bilinear(Vec2f, .{
             c[0..2].*,
             c[2..4].*,
             c[4..6].*,
@@ -265,7 +265,7 @@ const Linear3D = struct {
         const m = map(d, uvw, adr);
         const c = texture.gather3D_2(m.xyz, m.xyz1, scene);
 
-        const cl = math.bilinear3(.{
+        const cl = math.bilinear(Vec4f, .{
             .{ c[0][0], c[0][1], c[1][0], c[1][1] },
             .{ c[2][0], c[2][1], c[3][0], c[3][1] },
             .{ c[4][0], c[4][1], c[5][0], c[5][1] },

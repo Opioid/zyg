@@ -8,7 +8,7 @@ const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
-const mat = @import("../../../scene/material/material.zig");
+const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -129,7 +129,7 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray, isec, mat_sample, pr);
+                worker.commonAOV(throughput, ray, isec, &mat_sample, pr);
             }
 
             wo1 = wo;
@@ -145,7 +145,7 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            result += throughput * self.sampleLights(ray, isec, mat_sample, filter, sampler, worker);
+            result += throughput * self.sampleLights(ray, isec, &mat_sample, filter, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
@@ -290,7 +290,7 @@ pub const PathtracerMIS = struct {
         self: *Self,
         ray: *const Ray,
         isec: *const Intersection,
-        mat_sample: mat.Sample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
@@ -327,7 +327,7 @@ pub const PathtracerMIS = struct {
         history: *const Ray,
         p: Vec4f,
         isec: *const Intersection,
-        mat_sample: mat.Sample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
@@ -362,7 +362,7 @@ pub const PathtracerMIS = struct {
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(light_sample, .Nearest, &self.samplers[1], worker.super.scene);
+        const radiance = light.evaluateTo(p, &light_sample, filter, &self.samplers[1], worker.super.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());

@@ -185,7 +185,7 @@ pub const Worker = struct {
         throughput: Vec4f,
         ray: *const Ray,
         isec: *const Intersection,
-        mat_sample: MaterialSample,
+        mat_sample: *const MaterialSample,
         primary_ray: bool,
     ) void {
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
@@ -268,7 +268,7 @@ pub const Worker = struct {
             const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
 
             if (!self.super.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, sampler, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(&tray, filter, sampler, &self.super)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -313,7 +313,7 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.super.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, sampler, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(ray, filter, sampler, &self.super)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 

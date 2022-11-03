@@ -32,7 +32,7 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
     return radians * (180.0 / std.math.pi);
 }
 
-pub fn saturate(x: f32) f32 {
+pub inline fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }
 
@@ -43,10 +43,11 @@ pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
             return @mulAdd(f32, u, a, t * b);
         },
         .Vector => |v| {
+            const l = comptime v.len;
             const u = 1.0 - t;
-            return @mulAdd(@TypeOf(a), @splat(v.len, u), a, @splat(v.len, t) * b);
+            return @mulAdd(@TypeOf(a), @splat(l, u), a, @splat(l, t) * b);
         },
-        else => unreachable,
+        else => comptime unreachable,
     }
 }
 
@@ -64,31 +65,27 @@ pub fn pow5(x: f32) f32 {
     return x4 * x;
 }
 
-pub fn bilinear1(c: [4]f32, s: f32, t: f32) f32 {
-    const _s = 1.0 - s;
-    const _t = 1.0 - t;
+pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
+    switch (@typeInfo(T)) {
+        .Float => {
+            const _s = 1.0 - s;
+            const _t = 1.0 - t;
 
-    return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
-}
+            return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
+        },
+        .Vector => |v| {
+            const l = comptime v.len;
 
-pub fn bilinear2(c: [4]vec2.Vec2f, s: f32, t: f32) vec2.Vec2f {
-    const vs = @splat(2, s);
-    const vt = @splat(2, t);
+            const vs = @splat(l, s);
+            const vt = @splat(l, t);
 
-    const _s = @splat(2, @as(f32, 1.0)) - vs;
-    const _t = @splat(2, @as(f32, 1.0)) - vt;
+            const _s = @splat(l, @as(f32, 1.0)) - vs;
+            const _t = @splat(l, @as(f32, 1.0)) - vt;
 
-    return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
-}
-
-pub fn bilinear3(c: [4]vec4.Vec4f, s: f32, t: f32) vec4.Vec4f {
-    const vs = @splat(4, s);
-    const vt = @splat(4, t);
-
-    const _s = @splat(4, @as(f32, 1.0)) - vs;
-    const _t = @splat(4, @as(f32, 1.0)) - vt;
-
-    return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
+            return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
+        },
+        else => comptime unreachable,
+    }
 }
 
 pub fn cubic1(c: *const [4]f32, t: f32) f32 {

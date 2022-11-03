@@ -5,7 +5,7 @@ const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
-const mat = @import("../../../scene/material/material.zig");
+const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -104,7 +104,7 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray, isec, mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray, isec, &mat_sample, primary_ray);
             }
 
             wo1 = wo;
@@ -120,7 +120,7 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            result += throughput * self.directLight(ray, isec, mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray, isec, &mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
@@ -209,7 +209,7 @@ pub const PathtracerDL = struct {
         self: *Self,
         ray: *const Ray,
         isec: *const Intersection,
-        mat_sample: mat.Sample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
@@ -253,7 +253,7 @@ pub const PathtracerDL = struct {
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, sampler, worker.super.scene);
+            const radiance = light.evaluateTo(p, &light_sample, filter, sampler, worker.super.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 

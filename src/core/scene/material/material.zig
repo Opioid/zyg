@@ -219,6 +219,7 @@ pub const Material = union(enum) {
 
     pub fn evaluateRadiance(
         self: *const Material,
+        p: Vec4f,
         wi: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
@@ -229,10 +230,10 @@ pub const Material = union(enum) {
         scene: *const Scene,
     ) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
-            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, filter, sampler, scene),
-            .Substitute => |*m| m.evaluateRadiance(wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
-            .Volumetric => |*m| m.evaluateRadiance(uvw, filter, sampler, scene),
+            .Light => |*m| m.evaluateRadiance(p, wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
+            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, .Nearest, sampler, scene),
+            .Substitute => |*m| m.evaluateRadiance(p, wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
+            .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
 
             else => @splat(4, @as(f32, 0.0)),
         };

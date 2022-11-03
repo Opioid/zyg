@@ -96,7 +96,7 @@ pub fn InterpolatedFunction2D(comptime T: type) type {
                 self.samples[col1 + row1],
             };
 
-            return math.bilinear3(c, t[0], t[1]);
+            return math.bilinear(Vec4f, c, t[0], t[1]);
         }
     };
 }
@@ -202,7 +202,7 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
                 self.samples[@intCast(u32, col1 + row1)],
             };
 
-            return math.bilinear1(c, t[0], t[1]);
+            return math.bilinear(f32, c, t[0], t[1]);
         }
     };
 }
@@ -261,8 +261,8 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
                 self.samples[@intCast(u32, col1 + row1 + slice1)],
             };
 
-            const c0 = math.bilinear1(ca, t[0], t[1]);
-            const c1 = math.bilinear1(cb, t[0], t[1]);
+            const c0 = math.bilinear(f32, ca, t[0], t[1]);
+            const c1 = math.bilinear(f32, cb, t[0], t[1]);
 
             return math.lerp(c0, c1, t[2]);
         }
