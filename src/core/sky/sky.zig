@@ -112,7 +112,7 @@ pub const Sky = struct {
         self.privateUpadate(scene);
     }
 
-    pub fn sunDirection(self: Self) Vec4f {
+    pub fn sunDirection(self: *const Self) Vec4f {
         return self.sun_rotation.r[2];
     }
 
@@ -166,7 +166,7 @@ pub const Sky = struct {
         // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
 
-    pub fn sunWi(self: Self, v: f32) Vec4f {
+    pub fn sunWi(self: *const Self, v: f32) Vec4f {
         const y = (2.0 * v) - 1.0;
 
         const ls = Vec4f{ 0.0, y * Radius, 0.0, 0.0 };
@@ -175,7 +175,7 @@ pub const Sky = struct {
         return math.normalize3(ws - self.sun_rotation.r[2]);
     }
 
-    pub fn sunV(self: Self, wi: Vec4f) f32 {
+    pub fn sunV(self: *const Self, wi: Vec4f) f32 {
         const k = wi - self.sun_rotation.r[2];
 
         const c = math.dot3(self.sun_rotation.r[1], k) / Radius;
