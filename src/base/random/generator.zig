@@ -36,7 +36,7 @@ pub const Generator = struct {
         const old = self.state;
 
         // Advance internal state
-        self.state = old *% 6364136223846793005 + (self.inc | 1);
+        self.state = old *% 6364136223846793005 + self.inc;
 
         // Calculate output function (XSH RR), uses old state for max ILP
         const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
