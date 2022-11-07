@@ -4,6 +4,7 @@ const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const fresnel = @import("../fresnel.zig");
 const Sample = @import("../sample.zig").Sample;
+const Frame = @import("../sample_base.zig").Frame;
 const Surface = @import("sample.zig").Sample;
 const Volumetric = @import("../volumetric/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
@@ -15,6 +16,7 @@ const Texture = @import("../../../image/texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
 
 const math = @import("base").math;
+const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -50,6 +52,8 @@ pub const Material = struct {
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
     flakes_alpha: f32 = 0.01,
+    flakes_size: f32 = 0.01,
+    flakes_coverage: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -244,12 +248,16 @@ pub const Material = struct {
 
             const uv = hlp.triplanarMapping(op, on);
 
-            var rkey = key;
-            rkey.address = .{ .u = .Repeat, .v = .Repeat };
+            const flake = flakeTexture(uv, wo, self.flakes_size, self.flakes_coverage, self.flakes_alpha, result.super.frame);
 
-            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
+            // var rkey = key;
+            // rkey.address = .{ .u = .Repeat, .v = .Repeat };
+
+            const weight = flake.o; //ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
             if (weight > 0.0) {
-                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, worker.scene);
+                //   const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, worker.scene);
+
+                const n = flake.n; //math.normalize3(rs.tangentToWorld(flake.n));
 
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
@@ -259,6 +267,126 @@ pub const Material = struct {
         }
 
         return Sample{ .Substitute = result };
+    }
+
+    fn gridCell(uv: Vec2f, size: f32) Vec2i {
+        const N = 1.5396 / (size * size);
+        const K = 4.0;
+
+        const res = std.math.max(4.0, @ceil(@sqrt(N / K)));
+
+        const i: i32 = @floatToInt(i32, res * @mod(uv[0], 1.0));
+        const j: i32 = @floatToInt(i32, res * @mod(uv[1], 1.0));
+        return .{ i, j };
+    }
+
+    const Flake = struct {
+        n: Vec4f,
+        o: f32,
+    };
+
+    fn flakeTexture(uv: Vec2f, wo: Vec4f, size: f32, coverage: f32, alpha: f32, frame: Frame) Flake {
+        const ij = gridCell(uv, size);
+
+        var nearest_d: f32 = 100000.0;
+        var nearest_n: Vec4f = undefined;
+        var nearest_o: f32 = undefined;
+
+        var ii = ij[0] - 1;
+        while (ii < ij[0] + 1) : (ii += 1) {
+            var jj = ij[1] - 1;
+            while (jj < ij[1] + 1) : (jj += 1) {
+                var rng = initRNG(hashyBashy(ii, jj));
+
+                var fl: u32 = 0;
+                while (fl < 4) : (fl += 1) {
+                    const f = generateFlake(wo, coverage, alpha, frame, &rng);
+
+                    const vcd = math.squaredLength2(uv - f.p);
+                    if (vcd < nearest_d) {
+                        nearest_d = vcd;
+
+                        nearest_n = f.n;
+                        nearest_o = f.o;
+                    }
+                }
+            }
+        }
+
+        return .{ .n = nearest_n, .o = nearest_o };
+    }
+
+    const FlakeyBakey = struct {
+        p: Vec2f,
+        o: f32,
+        n: Vec4f,
+    };
+
+    fn generateFlake(wo: Vec4f, coverage: f32, alpha: f32, frame: Frame, rng: *u64) FlakeyBakey {
+        const r0 = Vec2f{ randomFloat(rng), randomFloat(rng) };
+        const r1 = Vec2f{ randomFloat(rng), randomFloat(rng) };
+        const r2 = randomFloat(rng);
+
+        //  std.debug.print("{} {} {}\n", .{ r0, r1, r2 });
+
+        var n_dot_h: f32 = undefined;
+        const m = ggx.Aniso.sample(wo, @splat(2, alpha), r1, frame, &n_dot_h);
+
+        return .{
+            .p = r0,
+            .o = if (r2 < coverage) 1.0 else 0.0,
+            .n = m,
+        };
+    }
+
+    fn hashyBashy(a: i32, b: i32) u32 {
+        const hb = hash(@bitCast(u32, a));
+        const ha = hash(@bitCast(u32, b));
+        return hashCombine(hb, ha);
+    }
+
+    fn hash(i: u32) u32 {
+        var x = i ^ (i >> 16);
+        x *%= 0x7feb352d;
+        x ^= x >> 15;
+        x *%= 0x846ca68b;
+        x ^= x >> 16;
+        return x;
+    }
+
+    fn hashCombine(seed: u32, v: u32) u32 {
+        return seed ^ (v +% (seed << 6) +% (seed >> 2));
+    }
+
+    fn initRNG(seed: u32) u64 {
+        var state: u64 = 0;
+
+        _ = advanceRNG(&state);
+        state += seed;
+        _ = advanceRNG(&state);
+        return state;
+    }
+
+    fn advanceRNG(state: *u64) u32 {
+        const old = state.*;
+
+        // Advance internal state
+        state.* = old *% 6364136223846793005 + 1;
+
+        // Calculate output function (XSH RR), uses old state for max ILP
+        const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
+        const rot = @truncate(u5, old >> 59);
+
+        return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
+    }
+
+    fn randomFloat(state: *u64) f32 {
+        var bits = advanceRNG(state);
+
+        bits &= 0x007FFFFF;
+        bits |= 0x3F800000;
+
+        return @bitCast(f32, bits) - 1.0;
     }
 
     pub fn evaluateRadiance(

@@ -349,6 +349,8 @@ pub const Provider = struct {
 
                 material.flakes_normal_map = textures.normal;
                 material.flakes_mask = textures.mask;
+                material.flakes_size = size;
+                material.flakes_coverage = coverage;
             }
         }
 
