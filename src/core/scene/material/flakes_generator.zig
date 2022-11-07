@@ -35,7 +35,7 @@ pub const Generator = struct {
         const texture_scale: f32 = 8.0;
         const adjusted_scale = texture_scale * flakes_size;
         const flakes_radius = adjusted_scale / 2.0;
-        const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (adjusted_scale * adjusted_scale)));
+        const num_flakes = @floatToInt(u32, @ceil(flakes_coverage / (std.math.pi * (flakes_radius * flakes_radius))));
 
         var shaper = try Shaper.init(alloc, @splat(2, @as(u32, 2048)));
         defer shaper.deinit(alloc);
