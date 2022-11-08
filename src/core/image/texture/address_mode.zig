@@ -97,11 +97,11 @@ pub const Clamp = struct {
 
 pub const Repeat = struct {
     pub fn f(x: f32) f32 {
-        return math.frac(x);
+        return x - @floor(x);
     }
 
     pub fn f3(x: Vec4f) Vec4f {
-        return math.frac(x);
+        return x - @floor(x);
     }
 
     pub fn increment(v: i32, max: i32) i32 {

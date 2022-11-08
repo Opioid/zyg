@@ -51,8 +51,8 @@ pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
     }
 }
 
-pub inline fn frac(x: anytype) @TypeOf(x) {
-    return x - @floor(x);
+pub inline fn frac(x: f32) f32 {
+    return x - @intToFloat(f32, @floatToInt(i32, x));
 }
 
 pub fn pow2(x: f32) f32 {
@@ -111,4 +111,8 @@ pub fn bicubic1(c: [16]f32, s: f32, t: f32) f32 {
 
 pub fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
+}
+
+pub inline fn solidAngleCone(c: f32) f32 {
+    return (2.0 * std.math.pi) * (1.0 - c);
 }
