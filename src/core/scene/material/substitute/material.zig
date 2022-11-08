@@ -304,7 +304,7 @@ pub const Material = struct {
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
-                var rng = initRNG(hashyBashy(ii, jj));
+                var rng = initRNG(fuse(ii, jj));
 
                 var fl: u32 = 0;
                 while (fl < 4) : (fl += 1) {
@@ -329,34 +329,15 @@ pub const Material = struct {
         };
     }
 
-    fn hashyBashy(a: i32, b: i32) u32 {
-        // const hb = hash(@bitCast(u32, a));
-        // const ha = hash(@bitCast(u32, b));
-        // return hashCombine(hb, ha);
-
-        const sa = @intCast(i16, a);
-        const sb = @intCast(i16, b);
-        return @as(u32, @bitCast(u16, sa)) << 16 | @as(u32, @bitCast(u16, sb));
+    fn fuse(a: i32, b: i32) u64 {
+        return (@as(u64, @bitCast(u32, a)) << 32) | @as(u64, @bitCast(u32, b));
     }
 
-    fn hash(i: u32) u32 {
-        var x = i ^ (i >> 16);
-        x *%= 0x7feb352d;
-        x ^= x >> 15;
-        x *%= 0x846ca68b;
-        x ^= x >> 16;
-        return x;
-    }
-
-    fn hashCombine(seed: u32, v: u32) u32 {
-        return seed ^ (v +% (seed << 6) +% (seed >> 2));
-    }
-
-    fn initRNG(seed: u32) u64 {
+    fn initRNG(seed: u64) u64 {
         var state: u64 = 0;
 
         _ = advanceRNG(&state);
-        state += seed;
+        state +%= seed;
         _ = advanceRNG(&state);
         return state;
     }
@@ -365,7 +346,7 @@ pub const Material = struct {
         const old = state.*;
 
         // Advance internal state
-        state.* = old *% 6364136223846793005 + 1;
+        state.* = old *% 6364136223846793005 +% 1;
 
         // Calculate output function (XSH RR), uses old state for max ILP
         const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);

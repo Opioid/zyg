@@ -15,7 +15,7 @@ pub const Generator = struct {
         self.inc = (sequence << 1) | 1;
 
         _ = self.randomUint();
-        self.state += state;
+        self.state +%= state;
         _ = self.randomUint();
     }
 
@@ -36,7 +36,7 @@ pub const Generator = struct {
         const old = self.state;
 
         // Advance internal state
-        self.state = old *% 6364136223846793005 + self.inc;
+        self.state = old *% 6364136223846793005 +% self.inc;
 
         // Calculate output function (XSH RR), uses old state for max ILP
         const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
