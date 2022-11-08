@@ -252,16 +252,17 @@ pub const Material = struct {
 
             const weight = flake.o;
             if (weight > 0.0) {
+                const fa = self.flakes_alpha;
+                const a2_cone = flakesA2cone(fa);
+                const fa2 = fa - a2_cone;
+                const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
+
                 var n_dot_h: f32 = undefined;
-                const m = ggx.Aniso.sample(wo, @splat(2, self.flakes_alpha), flake.r, result.super.frame, &n_dot_h);
+                const m = ggx.Aniso.sample(wo, @splat(2, fa2), flake.r, result.super.frame, &n_dot_h);
 
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
                 result.flakes_normal = m;
-
-                const a2_cone = flakesA2cone(self.flakes_alpha);
-                const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
-
                 result.flakes_cos_cone = cos_cone;
             }
         }
