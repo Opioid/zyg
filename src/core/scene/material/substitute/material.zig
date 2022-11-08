@@ -51,7 +51,7 @@ pub const Material = struct {
     coating_roughness: f32 = 0.2,
     flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
-    flakes_size: f32 = 0.01,
+    flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -110,6 +110,13 @@ pub const Material = struct {
     pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
         const r = ggx.clampRoughness(roughness);
         self.flakes_alpha = r * r;
+    }
+
+    pub fn setFlakesSize(self: *Material, size: f32) void {
+        const N = 1.5396 / (size * size);
+        const K = 4.0;
+
+        self.flakes_res = std.math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, worker: *const Worker) Sample {
@@ -247,7 +254,7 @@ pub const Material = struct {
 
             const uv = hlp.triplanarMapping(op, on);
 
-            const flake = sampleFlake(uv, self.flakes_size, flakes_coverage);
+            const flake = sampleFlake(uv, self.flakes_res, flakes_coverage);
 
             const weight = flake.o;
             if (weight > 0.0) {
@@ -269,19 +276,14 @@ pub const Material = struct {
         return Sample{ .Substitute = result };
     }
 
-    pub fn flakesA2cone(alpha: f32) f32 {
+    fn flakesA2cone(alpha: f32) f32 {
         comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
         comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
 
         return std.math.min(limit, 0.5 * alpha);
     }
 
-    fn gridCell(uv: Vec2f, size: f32) Vec2i {
-        const N = 1.5396 / (size * size);
-        const K = 4.0;
-
-        const res = std.math.max(4.0, @ceil(@sqrt(N / K)));
-
+    fn gridCell(uv: Vec2f, res: f32) Vec2i {
         const i: i32 = @floatToInt(i32, res * @mod(uv[0], 1.0));
         const j: i32 = @floatToInt(i32, res * @mod(uv[1], 1.0));
         return .{ i, j };
@@ -292,8 +294,8 @@ pub const Material = struct {
         r: Vec2f,
     };
 
-    fn sampleFlake(uv: Vec2f, size: f32, coverage: f32) Flake {
-        const ij = gridCell(uv, size);
+    fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) Flake {
+        const ij = gridCell(uv, res);
 
         var nearest_d: f32 = std.math.f32_max;
         var nearest_r: [3]f32 = undefined;

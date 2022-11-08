@@ -335,7 +335,7 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
                         material.setFlakesRoughness(json.readFloat(f32, c.value_ptr.*));
                     } else if (std.mem.eql(u8, "size", c.key_ptr.*)) {
-                        material.flakes_size = json.readFloat(f32, c.value_ptr.*);
+                        material.setFlakesSize(json.readFloat(f32, c.value_ptr.*));
                     }
                 }
             }
