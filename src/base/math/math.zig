@@ -51,8 +51,8 @@ pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
     }
 }
 
-pub inline fn frac(x: anytype) @TypeOf(x) {
-    return x - @floor(x);
+pub inline fn frac(x: f32) f32 {
+    return x - @intToFloat(f32, @floatToInt(i32, x));
 }
 
 pub fn pow2(x: f32) f32 {
