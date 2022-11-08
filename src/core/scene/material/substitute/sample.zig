@@ -36,7 +36,7 @@ pub const Sample = struct {
     thickness: f32 = 0.0,
     transparency: f32 = undefined,
     flakes_weight: f32 = 0.0,
-    flakes_alpha: f32 = undefined,
+    flakes_cos_cone: f32 = undefined,
 
     volumetric: bool,
 
@@ -406,31 +406,17 @@ pub const Sample = struct {
 
     fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f) Vec4f {
         const n = self.flakes_normal;
-        const f = flakesBsdf(wi, wo, n, self.flakes_alpha);
+        const f = flakesBsdf(wi, wo, n, self.flakes_cos_cone);
 
         const n_dot_wi = hlp.clampDot(n, wi);
 
         return @splat(4, n_dot_wi * f) * self.flakes_color;
     }
 
-    fn solidAngleCone(c: f32) f32 {
-        return (2.0 * std.math.pi) * (1.0 - c);
-    }
-
-    pub fn flakesA2cone(alpha: f32) f32 {
-        comptime var target_angle = solidAngleCone(@cos(math.degreesToRadians(7.0)));
-        comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
-
-        return std.math.min(limit, 0.5 * alpha);
-    }
-
-    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, alpha: f32) f32 {
+    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, cos_cone: f32) f32 {
         const r = math.reflect3(n, wo);
 
-        const a2 = flakesA2cone(alpha);
-        const cos_cone = 1.0 - (2.0 * a2) / (1.0 + a2);
-
-        return if (math.dot3(wi, r) > cos_cone) 1.0 / solidAngleCone(cos_cone) else 0.0;
+        return if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
     }
 
     fn coatingReflect(self: *const Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {

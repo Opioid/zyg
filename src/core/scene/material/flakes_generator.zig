@@ -5,7 +5,7 @@ const Resources = @import("../../resource/manager.zig").Manager;
 const Shaper = @import("../../rendering/shaper.zig").Shaper;
 const ggx = @import("ggx.zig");
 const Frame = @import("sample_base.zig").Frame;
-const Substitute = @import("substitute/sample.zig").Sample;
+const Substitute = @import("substitute/material.zig").Material;
 
 const PngWriter = @import("../../image/encoding/png/png_writer.zig").Writer;
 

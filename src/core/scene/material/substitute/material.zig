@@ -248,25 +248,32 @@ pub const Material = struct {
 
             const uv = hlp.triplanarMapping(op, on);
 
-            const flake = flakeTexture(uv, wo, self.flakes_size, self.flakes_coverage, self.flakes_alpha, result.super.frame);
+            const flake = sampleFlake(uv, self.flakes_size, self.flakes_coverage);
 
-            // var rkey = key;
-            // rkey.address = .{ .u = .Repeat, .v = .Repeat };
-
-            const weight = flake.o; //ts.sample2D_1(rkey, self.flakes_mask, uv, worker.scene);
+            const weight = flake.o;
             if (weight > 0.0) {
-                //   const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, worker.scene);
-
-                const n = flake.n; //math.normalize3(rs.tangentToWorld(flake.n));
+                var n_dot_h: f32 = undefined;
+                const m = ggx.Aniso.sample(wo, @splat(2, self.flakes_alpha), flake.r, result.super.frame, &n_dot_h);
 
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
-                result.flakes_normal = n;
-                result.flakes_alpha = self.flakes_alpha;
+                result.flakes_normal = m;
+
+                const a2_cone = flakesA2cone(self.flakes_alpha);
+                const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
+
+                result.flakes_cos_cone = cos_cone;
             }
         }
 
         return Sample{ .Substitute = result };
+    }
+
+    pub fn flakesA2cone(alpha: f32) f32 {
+        comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
+        comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
+
+        return std.math.min(limit, 0.5 * alpha);
     }
 
     fn gridCell(uv: Vec2f, size: f32) Vec2i {
@@ -281,11 +288,11 @@ pub const Material = struct {
     }
 
     const Flake = struct {
-        n: Vec4f,
         o: f32,
+        r: Vec2f,
     };
 
-    fn flakeTexture(uv: Vec2f, wo: Vec4f, size: f32, coverage: f32, alpha: f32, frame: Frame) Flake {
+    fn sampleFlake(uv: Vec2f, size: f32, coverage: f32) Flake {
         const ij = gridCell(uv, size);
 
         var nearest_d: f32 = std.math.f32_max;
@@ -314,12 +321,9 @@ pub const Material = struct {
             }
         }
 
-        var n_dot_h: f32 = undefined;
-        const m = ggx.Aniso.sample(wo, @splat(2, alpha), .{ nearest_r[0], nearest_r[1] }, frame, &n_dot_h);
-
         return .{
-            .n = m,
             .o = if (nearest_r[2] < coverage) 1.0 else 0.0,
+            .r = .{ nearest_r[0], nearest_r[1] },
         };
     }
 
