@@ -34,8 +34,6 @@ pub const Material = struct {
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
-    flakes_normal_map: Texture = .{},
-    flakes_mask: Texture = .{},
 
     color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
@@ -51,9 +49,9 @@ pub const Material = struct {
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
+    flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
     flakes_size: f32 = 0.01,
-    flakes_coverage: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -242,13 +240,14 @@ pub const Material = struct {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
-        if (self.flakes_mask.valid()) {
+        const flakes_coverage = self.flakes_coverage;
+        if (flakes_coverage > 0.0) {
             const op = rs.trafo.worldToObjectPoint(rs.p);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
 
             const uv = hlp.triplanarMapping(op, on);
 
-            const flake = sampleFlake(uv, self.flakes_size, self.flakes_coverage);
+            const flake = sampleFlake(uv, self.flakes_size, flakes_coverage);
 
             const weight = flake.o;
             if (weight > 0.0) {
