@@ -15,7 +15,8 @@ const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -304,12 +305,12 @@ pub const Material = struct {
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
-                var rng = initRNG(fuse(ii, jj));
+                var rng = base.rnd.SingleGenerator.init(fuse(ii, jj)); // initRNG(fuse(ii, jj));
 
                 var fl: u32 = 0;
                 while (fl < 4) : (fl += 1) {
-                    const p = Vec2f{ randomFloat(&rng), randomFloat(&rng) };
-                    const r = [3]f32{ randomFloat(&rng), randomFloat(&rng), randomFloat(&rng) };
+                    const p = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+                    const r = [3]f32{ rng.randomFloat(), rng.randomFloat(), rng.randomFloat() };
 
                     const vcd = math.squaredLength2(uv - p);
                     if (vcd < nearest_d) {
@@ -331,37 +332,6 @@ pub const Material = struct {
 
     fn fuse(a: i32, b: i32) u64 {
         return (@as(u64, @bitCast(u32, a)) << 32) | @as(u64, @bitCast(u32, b));
-    }
-
-    fn initRNG(seed: u64) u64 {
-        var state: u64 = 0;
-
-        _ = advanceRNG(&state);
-        state +%= seed;
-        _ = advanceRNG(&state);
-        return state;
-    }
-
-    fn advanceRNG(state: *u64) u32 {
-        const old = state.*;
-
-        // Advance internal state
-        state.* = old *% 6364136223846793005 +% 1;
-
-        // Calculate output function (XSH RR), uses old state for max ILP
-        const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
-        const rot = @truncate(u5, old >> 59);
-
-        return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
-    }
-
-    fn randomFloat(state: *u64) f32 {
-        var bits = advanceRNG(state);
-
-        bits &= 0x007FFFFF;
-        bits |= 0x3F800000;
-
-        return @bitCast(f32, bits) - 1.0;
     }
 
     pub fn evaluateRadiance(
