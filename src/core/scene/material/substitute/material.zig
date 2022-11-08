@@ -288,61 +288,49 @@ pub const Material = struct {
     fn flakeTexture(uv: Vec2f, wo: Vec4f, size: f32, coverage: f32, alpha: f32, frame: Frame) Flake {
         const ij = gridCell(uv, size);
 
-        var nearest_d: f32 = 100000.0;
-        var nearest_n: Vec4f = undefined;
-        var nearest_o: f32 = undefined;
+        var nearest_d: f32 = std.math.f32_max;
+        var nearest_r: [3]f32 = undefined;
 
         var ii = ij[0] - 1;
-        while (ii < ij[0] + 1) : (ii += 1) {
+        while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
-            while (jj < ij[1] + 1) : (jj += 1) {
+            while (jj <= ij[1] + 1) : (jj += 1) {
                 var rng = initRNG(hashyBashy(ii, jj));
 
                 var fl: u32 = 0;
                 while (fl < 4) : (fl += 1) {
-                    const f = generateFlake(wo, coverage, alpha, frame, &rng);
+                    const p = Vec2f{ randomFloat(&rng), randomFloat(&rng) };
+                    const r = [3]f32{ randomFloat(&rng), randomFloat(&rng), randomFloat(&rng) };
 
-                    const vcd = math.squaredLength2(uv - f.p);
+                    const vcd = math.squaredLength2(uv - p);
                     if (vcd < nearest_d) {
                         nearest_d = vcd;
 
-                        nearest_n = f.n;
-                        nearest_o = f.o;
+                        nearest_r[0] = r[0];
+                        nearest_r[1] = r[1];
+                        nearest_r[2] = r[2];
                     }
                 }
             }
         }
 
-        return .{ .n = nearest_n, .o = nearest_o };
-    }
-
-    const FlakeyBakey = struct {
-        p: Vec2f,
-        o: f32,
-        n: Vec4f,
-    };
-
-    fn generateFlake(wo: Vec4f, coverage: f32, alpha: f32, frame: Frame, rng: *u64) FlakeyBakey {
-        const r0 = Vec2f{ randomFloat(rng), randomFloat(rng) };
-        const r1 = Vec2f{ randomFloat(rng), randomFloat(rng) };
-        const r2 = randomFloat(rng);
-
-        //  std.debug.print("{} {} {}\n", .{ r0, r1, r2 });
-
         var n_dot_h: f32 = undefined;
-        const m = ggx.Aniso.sample(wo, @splat(2, alpha), r1, frame, &n_dot_h);
+        const m = ggx.Aniso.sample(wo, @splat(2, alpha), .{ nearest_r[0], nearest_r[1] }, frame, &n_dot_h);
 
         return .{
-            .p = r0,
-            .o = if (r2 < coverage) 1.0 else 0.0,
             .n = m,
+            .o = if (nearest_r[2] < coverage) 1.0 else 0.0,
         };
     }
 
     fn hashyBashy(a: i32, b: i32) u32 {
-        const hb = hash(@bitCast(u32, a));
-        const ha = hash(@bitCast(u32, b));
-        return hashCombine(hb, ha);
+        // const hb = hash(@bitCast(u32, a));
+        // const ha = hash(@bitCast(u32, b));
+        // return hashCombine(hb, ha);
+
+        const sa = @intCast(i16, a);
+        const sb = @intCast(i16, b);
+        return @as(u32, @bitCast(u16, sa)) << 16 | @as(u32, @bitCast(u16, sb));
     }
 
     fn hash(i: u32) u32 {
