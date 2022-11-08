@@ -297,6 +297,7 @@ pub const Material = struct {
 
     fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) Flake {
         const ij = gridCell(uv, res);
+        const suv = @splat(2, res) * uv;
 
         var nearest_d: f32 = std.math.f32_max;
         var nearest_r: f32 = undefined;
@@ -306,15 +307,17 @@ pub const Material = struct {
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
+                const fij = Vec2f{ @intToFloat(f32, ii), @intToFloat(f32, jj) };
+
                 var rng = base.rnd.SingleGenerator.init(fuse(ii, jj));
 
                 var fl: u32 = 0;
                 while (fl < 4) : (fl += 1) {
-                    const p = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+                    const p = fij + Vec2f{ rng.randomFloat(), rng.randomFloat() };
                     const xi = Vec2f{ rng.randomFloat(), rng.randomFloat() };
                     const r = rng.randomFloat();
 
-                    const vcd = math.squaredLength2(uv - p);
+                    const vcd = math.squaredLength2(suv - p);
                     if (vcd < nearest_d) {
                         nearest_d = vcd;
                         nearest_r = r;
