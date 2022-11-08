@@ -250,7 +250,7 @@ pub const Material = struct {
 
         const flakes_coverage = self.flakes_coverage;
         if (flakes_coverage > 0.0) {
-            const op = rs.trafo.worldToObjectPoint(rs.p);
+            const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
 
             const uv = hlp.triplanarMapping(op, on);
@@ -299,34 +299,34 @@ pub const Material = struct {
         const ij = gridCell(uv, res);
 
         var nearest_d: f32 = std.math.f32_max;
-        var nearest_r: [3]f32 = undefined;
+        var nearest_r: f32 = undefined;
+        var nearest_xi: Vec2f = undefined;
 
         var ii = ij[0] - 1;
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
-                var rng = base.rnd.SingleGenerator.init(fuse(ii, jj)); // initRNG(fuse(ii, jj));
+                var rng = base.rnd.SingleGenerator.init(fuse(ii, jj));
 
                 var fl: u32 = 0;
                 while (fl < 4) : (fl += 1) {
                     const p = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-                    const r = [3]f32{ rng.randomFloat(), rng.randomFloat(), rng.randomFloat() };
+                    const xi = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+                    const r = rng.randomFloat();
 
                     const vcd = math.squaredLength2(uv - p);
                     if (vcd < nearest_d) {
                         nearest_d = vcd;
-
-                        nearest_r[0] = r[0];
-                        nearest_r[1] = r[1];
-                        nearest_r[2] = r[2];
+                        nearest_r = r;
+                        nearest_xi = xi;
                     }
                 }
             }
         }
 
         return .{
-            .o = if (nearest_r[2] < coverage) 1.0 else 0.0,
-            .r = .{ nearest_r[0], nearest_r[1] },
+            .o = if (nearest_r < coverage) 1.0 else 0.0,
+            .r = nearest_xi,
         };
     }
 
