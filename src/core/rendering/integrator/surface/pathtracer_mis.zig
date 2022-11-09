@@ -122,7 +122,7 @@ pub const PathtracerMIS = struct {
                 wo1,
                 isec,
                 filter,
-                &self.samplers[1],
+                sampler,
                 0.0,
                 avoid_caustics,
                 straight_border,
@@ -314,14 +314,13 @@ pub const PathtracerMIS = struct {
         for (lights) |l| {
             const light = worker.super.scene.light(l.offset);
 
-            result += self.evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, sampler, worker);
+            result += evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, sampler, worker);
         }
 
         return result;
     }
 
     fn evaluateLight(
-        self: *Self,
         light: Light,
         light_weight: f32,
         history: *const Ray,
@@ -357,12 +356,12 @@ pub const PathtracerMIS = struct {
             mat_sample.super().wo,
             isec,
             filter,
-            &self.samplers[1],
+            sampler,
         ) orelse return @splat(4, @as(f32, 0.0));
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(p, &light_sample, filter, &self.samplers[1], worker.super.scene);
+        const radiance = light.evaluateTo(p, &light_sample, filter, sampler, worker.super.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
