@@ -193,23 +193,38 @@ const LinearStochastic2D = struct {
     fn map(d: Vec2i, uv: Vec2f, adr: Address, sampler: *Sampler) Vec2i {
         const df = math.vec2iTo2f(d);
 
-        const u = adr.u.f(uv[0]) * df[0] - 0.5;
-        const v = adr.v.f(uv[1]) * df[1] - 0.5;
+        // const u = adr.u.f(uv[0]) * df[0] - 0.5;
+        // const v = adr.v.f(uv[1]) * df[1] - 0.5;
 
-        const fu = @floor(u);
-        const fv = @floor(v);
+        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @splat(2, @as(f32, 0.5));
 
-        const x = @floatToInt(i32, fu);
-        const y = @floatToInt(i32, fv);
+        // const fu = @floor(u);
+        // const fv = @floor(v);
+
+        const fuv = @floor(muv);
+
+        // const x = @floatToInt(i32, fu);
+        // const y = @floatToInt(i32, fv);
+
+        const xy = math.vec2fTo2i(fuv);
 
         const b = d - @splat(2, @as(i32, 1));
-        const wu = u - fu;
-        const wv = v - fv;
+        // const wu = u - fu;
+        // const wv = v - fv;
+
+        const wuv = muv - fuv;
         const r = sampler.sample2D();
 
+        // return .{
+        //     if (r[0] <= wu) adr.u.increment(x, b[0]) else adr.u.lowerBound(x, b[0]),
+        //     if (r[1] <= wv) adr.v.increment(y, b[1]) else adr.v.lowerBound(y, b[1]),
+        // };
+
+        const c = r <= wuv;
+
         return .{
-            if (r[0] <= wu) adr.u.increment(x, b[0]) else adr.u.lowerBound(x, b[0]),
-            if (r[1] <= wv) adr.v.increment(y, b[1]) else adr.v.lowerBound(y, b[1]),
+            adr.u.offset(xy[0], @boolToInt(c[0]), b[0]),
+            adr.v.offset(xy[1], @boolToInt(c[1]), b[1]),
         };
     }
 };

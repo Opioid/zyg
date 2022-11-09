@@ -59,6 +59,13 @@ pub const Mode = union(enum) {
             },
         };
     }
+
+    pub fn offset(m: Mode, v: i32, d: i32, max: i32) i32 {
+        return switch (m) {
+            .Clamp => Clamp.offset(v, d, max),
+            .Repeat => Repeat.offset(v, d, max),
+        };
+    }
 };
 
 pub const Clamp = struct {
@@ -93,6 +100,11 @@ pub const Clamp = struct {
     pub fn lowerBound3(v: Vec4i) Vec4i {
         return @max(v, @splat(4, @as(i32, 0)));
     }
+
+    pub fn offset(v: i32, d: i32, max: i32) i32 {
+        const x = v + d;
+        return @max(@min(x, max), 0);
+    }
 };
 
 pub const Repeat = struct {
@@ -118,5 +130,19 @@ pub const Repeat = struct {
         }
 
         return v;
+    }
+
+    pub fn offset(v: i32, d: i32, max: i32) i32 {
+        const x = v + d;
+
+        if (x > max) {
+            return 0;
+        }
+
+        if (x < 0) {
+            return max;
+        }
+
+        return x;
     }
 };
