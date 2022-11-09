@@ -1,4 +1,5 @@
 const math = @import("base").math;
+const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
@@ -66,6 +67,25 @@ pub const Mode = union(enum) {
             .Repeat => Repeat.offset(v, d, max),
         };
     }
+
+    pub fn offset2(m: Mode, v: Vec2i, d: Vec2i, max: Vec2i) Vec2i {
+        return switch (m) {
+            .Clamp => Clamp.offset2(v, d, max),
+            .Repeat => .{ Repeat.offset(v[0], d[0], max[0]), Repeat.offset(v[1], d[1], max[1]) },
+        };
+    }
+
+    pub fn offset3(m: Mode, v: Vec4i, d: Vec4i, max: Vec4i) Vec4i {
+        return switch (m) {
+            .Clamp => Clamp.offset3(v, d, max),
+            .Repeat => .{
+                Repeat.offset(v[0], d[0], max[0]),
+                Repeat.offset(v[1], d[1], max[1]),
+                Repeat.offset(v[2], d[2], max[2]),
+                0,
+            },
+        };
+    }
 };
 
 pub const Clamp = struct {
@@ -104,6 +124,16 @@ pub const Clamp = struct {
     pub fn offset(v: i32, d: i32, max: i32) i32 {
         const x = v + d;
         return @max(@min(x, max), 0);
+    }
+
+    pub fn offset2(v: Vec2i, d: Vec2i, max: Vec2i) Vec2i {
+        const x = v + d;
+        return @max(@min(x, max), @splat(2, @as(i32, 0)));
+    }
+
+    pub fn offset3(v: Vec4i, d: Vec4i, max: Vec4i) Vec4i {
+        const x = v + d;
+        return @max(@min(x, max), @splat(4, @as(i32, 0)));
     }
 };
 
