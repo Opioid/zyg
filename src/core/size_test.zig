@@ -29,8 +29,8 @@ pub fn testSize() void {
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 48);
     testType(Interface, "Interface", 16);
-    testType(mt.Material, "Material", 416);
-    testType(mt.Substitute, "SubstituteMaterial", 400);
+    testType(mt.Material, "Material", 400);
+    testType(mt.Substitute, "SubstituteMaterial", 368);
     testType(Texture, "Texture", 16);
 }
 

@@ -10,6 +10,10 @@ pub inline fn dot2(a: Vec2f, b: Vec2f) f32 {
     return a[0] * b[0] + a[1] * b[1];
 }
 
+pub inline fn squaredLength2(v: Vec2f) f32 {
+    return dot2(v, v);
+}
+
 pub inline fn length2(v: Vec2f) f32 {
     return @sqrt(dot2(v, v));
 }

@@ -4,6 +4,7 @@ const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const fresnel = @import("../fresnel.zig");
 const Sample = @import("../sample.zig").Sample;
+const Frame = @import("../sample_base.zig").Frame;
 const Surface = @import("sample.zig").Sample;
 const Volumetric = @import("../volumetric/sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
@@ -15,7 +16,9 @@ const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
+const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -33,8 +36,6 @@ pub const Material = struct {
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
-    flakes_normal_map: Texture = .{},
-    flakes_mask: Texture = .{},
 
     color: Vec4f = @splat(4, @as(f32, 0.5)),
     checkers: Vec4f = @splat(4, @as(f32, 0.0)),
@@ -50,7 +51,9 @@ pub const Material = struct {
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     coating_roughness: f32 = 0.2,
+    flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
+    flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         self.super.properties.emission_map = self.emission_map.valid();
@@ -109,6 +112,13 @@ pub const Material = struct {
     pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
         const r = ggx.clampRoughness(roughness);
         self.flakes_alpha = r * r;
+    }
+
+    pub fn setFlakesSize(self: *Material, size: f32) void {
+        const N = 1.5396 / (size * size);
+        const K = 4.0;
+
+        self.flakes_res = std.math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
@@ -245,26 +255,93 @@ pub const Material = struct {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
-        if (self.flakes_mask.valid()) {
-            const op = rs.trafo.worldToObjectPoint(rs.p);
+        const flakes_coverage = self.flakes_coverage;
+        if (flakes_coverage > 0.0) {
+            const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
 
             const uv = hlp.triplanarMapping(op, on);
 
-            var rkey = key;
-            rkey.address = .{ .u = .Repeat, .v = .Repeat };
+            const flake = sampleFlake(uv, self.flakes_res, flakes_coverage);
 
-            const weight = ts.sample2D_1(rkey, self.flakes_mask, uv, sampler, worker.scene);
+            const weight = flake.o;
             if (weight > 0.0) {
-                const n = hlp.sampleNormalUV(wo, rs, uv, self.flakes_normal_map, rkey, sampler, worker.scene);
+                const fa = self.flakes_alpha;
+                const a2_cone = flakesA2cone(fa);
+                const fa2 = fa - a2_cone;
+                const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
+
+                var n_dot_h: f32 = undefined;
+                const m = ggx.Aniso.sample(wo, @splat(2, fa2), flake.r, result.super.frame, &n_dot_h);
+
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
-                result.flakes_normal = n;
-                result.flakes_alpha = self.flakes_alpha;
+                result.flakes_normal = m;
+                result.flakes_cos_cone = cos_cone;
             }
         }
 
         return Sample{ .Substitute = result };
+    }
+
+    fn flakesA2cone(alpha: f32) f32 {
+        comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
+        comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
+
+        return std.math.min(limit, 0.5 * alpha);
+    }
+
+    fn gridCell(uv: Vec2f, res: f32) Vec2i {
+        const i: i32 = @floatToInt(i32, res * @mod(uv[0], 1.0));
+        const j: i32 = @floatToInt(i32, res * @mod(uv[1], 1.0));
+        return .{ i, j };
+    }
+
+    const Flake = struct {
+        o: f32,
+        r: Vec2f,
+    };
+
+    fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) Flake {
+        const ij = gridCell(uv, res);
+        const suv = @splat(2, res) * uv;
+
+        var nearest_d: f32 = std.math.f32_max;
+        var nearest_r: f32 = undefined;
+        var nearest_xi: Vec2f = undefined;
+
+        var ii = ij[0] - 1;
+        while (ii <= ij[0] + 1) : (ii += 1) {
+            var jj = ij[1] - 1;
+            while (jj <= ij[1] + 1) : (jj += 1) {
+                const fij = Vec2f{ @intToFloat(f32, ii), @intToFloat(f32, jj) };
+
+                var rng = base.rnd.SingleGenerator.init(fuse(ii, jj));
+
+                var fl: u32 = 0;
+                while (fl < 4) : (fl += 1) {
+                    const p = fij + Vec2f{ rng.randomFloat(), rng.randomFloat() };
+                    const xi = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+                    const r = rng.randomFloat();
+
+                    const vcd = math.squaredLength2(suv - p);
+                    if (vcd < nearest_d) {
+                        nearest_d = vcd;
+                        nearest_r = r;
+                        nearest_xi = xi;
+                    }
+                }
+            }
+        }
+
+        return .{
+            .o = if (nearest_r < coverage) 1.0 else 0.0,
+            .r = nearest_xi,
+        };
+    }
+
+    fn fuse(a: i32, b: i32) u64 {
+        return (@as(u64, @bitCast(u32, a)) << 32) | @as(u64, @bitCast(u32, b));
     }
 
     pub fn evaluateRadiance(
