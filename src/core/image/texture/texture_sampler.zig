@@ -147,25 +147,19 @@ const Linear2D = struct {
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
         const df = math.vec2iTo2f(d);
-
-        const u = adr.u.f(uv[0]) * df[0] - 0.5;
-        const v = adr.v.f(uv[1]) * df[1] - 0.5;
-
-        const fu = @floor(u);
-        const fv = @floor(v);
-
-        const x = @floatToInt(i32, fu);
-        const y = @floatToInt(i32, fv);
+        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @splat(2, @as(f32, 0.5));
+        const fuv = @floor(muv);
+        const xy = math.vec2fTo2i(fuv);
 
         const b = d - @splat(2, @as(i32, 1));
 
         return .{
-            .w = .{ u - fu, v - fv },
+            .w = muv - fuv,
             .xy_xy1 = Vec4i{
-                adr.u.lowerBound(x, b[0]),
-                adr.v.lowerBound(y, b[1]),
-                adr.u.increment(x, b[0]),
-                adr.v.increment(y, b[1]),
+                adr.u.lowerBound(xy[0], b[0]),
+                adr.v.lowerBound(xy[1], b[1]),
+                adr.u.increment(xy[0], b[0]),
+                adr.v.increment(xy[1], b[1]),
             },
         };
     }
