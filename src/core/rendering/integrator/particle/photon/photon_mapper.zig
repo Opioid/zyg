@@ -124,7 +124,7 @@ pub const Mapper = struct {
 
             var isec = Intersection{};
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(&ray, &isec, null);
+                const vr = worker.volume(&ray, &isec, null, &self.sampler);
                 throughput = vr.tr;
 
                 if (.Abort == vr.event or .Absorb == vr.event) {
@@ -242,7 +242,7 @@ pub const Mapper = struct {
                 from_subsurface = from_subsurface or isec.subsurface;
 
                 if (!worker.super.interface_stack.empty()) {
-                    const vr = worker.volume(&ray, &isec, filter);
+                    const vr = worker.volume(&ray, &isec, filter, &self.sampler);
 
                     // result += throughput * vr.li;
                     radiance *= vr.tr;

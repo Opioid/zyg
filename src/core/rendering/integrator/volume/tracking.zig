@@ -2,6 +2,7 @@ const scn = @import("../../../scene/ray.zig");
 const Result = @import("result.zig").Result;
 const Worker = @import("../../../scene/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../../../rendering/integrator/helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Material = @import("../../../scene/material/material.zig").Material;
@@ -176,7 +177,7 @@ fn residualRatioTrackingTransmitted(
     }
 }
 
-pub fn tracking(ray: *const Ray, mu: CC, rng: *RNG) Result {
+pub fn tracking(ray: *const Ray, mu: CC, sampler: *Sampler) Result {
     const mu_t = mu.a + mu.s;
 
     const mt = math.maxComponent3(mu_t);
@@ -189,8 +190,8 @@ pub fn tracking(ray: *const Ray, mu: CC, rng: *RNG) Result {
     const d = ray.maxT();
     var t = ray.minT();
     while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        const r = sampler.sample2D();
+        t -= @log(1.0 - r[0]) * imt;
         if (t > d) {
             return Result.initPass(w);
         }
@@ -208,8 +209,7 @@ pub fn tracking(ray: *const Ray, mu: CC, rng: *RNG) Result {
         const ps = ms * c;
         const pn = mn * c;
 
-        const r1 = rng.randomFloat();
-        if (r1 <= 1.0 - pn and ps > 0.0) {
+        if (r[1] <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
             return Result{
                 .li = @splat(4, @as(f32, 0.0)),

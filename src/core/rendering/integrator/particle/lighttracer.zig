@@ -76,9 +76,11 @@ pub const Lighttracer = struct {
 
         var throughput = @splat(4, @as(f32, 1.0));
 
+        var sampler = self.pickSampler(0);
+
         var isec = Intersection{};
         if (!worker.super.interface_stack.empty()) {
-            const vr = worker.volume(&ray, &isec, null);
+            const vr = worker.volume(&ray, &isec, null, sampler);
             throughput = vr.tr;
 
             if (.Abort == vr.event or .Absorb == vr.event) {
@@ -203,7 +205,7 @@ pub const Lighttracer = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 // result += throughput * vr.li;
                 radiance *= vr.tr;

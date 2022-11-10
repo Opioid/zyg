@@ -166,7 +166,7 @@ pub const PathtracerDL = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
                     if (0 == ray.depth) {

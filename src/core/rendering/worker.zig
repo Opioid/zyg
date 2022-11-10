@@ -237,8 +237,8 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, self);
+    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
+        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
     }
 
     fn transmittance(self: *Worker, ray: *const Ray, filter: ?Filter) ?Vec4f {

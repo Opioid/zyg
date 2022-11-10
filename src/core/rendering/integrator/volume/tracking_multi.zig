@@ -6,6 +6,7 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const shp = @import("../../../scene/shape/intersection.zig");
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
@@ -17,7 +18,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, worker: *Worker) Result {
+    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
         if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
@@ -141,7 +142,7 @@ pub const Multi = struct {
 
         const mu = material.super().cc;
 
-        const result = tracking.tracking(&ray.ray, mu, &worker.rng);
+        const result = tracking.tracking(&ray.ray, mu, sampler);
         if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
         }
