@@ -256,9 +256,7 @@ pub const PathtracerMIS = struct {
                 sample_result,
                 state,
                 filter,
-
                 sampler,
-
                 worker.super.scene,
                 &pure_emissive,
             );
