@@ -76,14 +76,12 @@ pub const Emittance = struct {
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
-            const dir = math.normalize3(trafo.position - p);
-            const lwi = trafo.worldToObjectNormal(dir);
-
             const key = ts.Key{
                 .filter = filter orelse .Linear,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
+            const lwi = -math.normalize3(trafo.worldToObjectPoint(p));
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @splat(2, @as(f32, 1.0))) * @splat(2, @as(f32, 0.5));
 

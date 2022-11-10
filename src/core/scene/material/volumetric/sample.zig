@@ -59,7 +59,6 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const tb = math.orthonormalBasis3(wo);
-
         const wi = math.smpl.sphereDirection(sin_theta, cos_theta, phi, tb[0], tb[1], -wo);
 
         const phase = phaseHg(-cos_theta, g);
