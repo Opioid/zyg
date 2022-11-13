@@ -182,7 +182,7 @@ pub const Worker = struct {
         return self.camera.absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: *const Worker, rs: *const Renderstate) Vec4f {
+    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
         const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene);
 
         const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);

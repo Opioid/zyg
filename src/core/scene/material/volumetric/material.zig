@@ -164,7 +164,7 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
         if (rs.subsurface) {
             const gs = self.super.vanDeHulstAnisotropy(rs.depth);
             return .{ .Volumetric = Volumetric.init(wo, rs, gs) };

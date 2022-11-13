@@ -29,7 +29,7 @@ pub const Sample = struct {
     wavelength: f32,
 
     pub fn init(
-        rs: *const Renderstate,
+        rs: Renderstate,
         wo: Vec4f,
         absorption_coef: Vec4f,
         ior: f32,

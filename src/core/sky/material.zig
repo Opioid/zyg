@@ -155,7 +155,7 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, scene: *const Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
         const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);

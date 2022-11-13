@@ -14,7 +14,7 @@ pub const Sample = struct {
 
     anisotropy: f32,
 
-    pub fn init(wo: Vec4f, rs: *const Renderstate, anisotropy: f32) Sample {
+    pub fn init(wo: Vec4f, rs: Renderstate, anisotropy: f32) Sample {
         var super = Base.init(
             rs,
             wo,
