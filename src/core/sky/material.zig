@@ -108,7 +108,7 @@ pub const Material = struct {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: *const Shape,
+        shape: Shape,
         scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
@@ -125,7 +125,7 @@ pub const Material = struct {
             const height = @intCast(u32, d[1]);
 
             var context = Context{
-                .shape = shape,
+                .shape = &shape,
                 .image = scene.imagePtr(self.emission_map.image),
                 .dimensions = .{ d[0], d[1] },
                 .conditional = self.distribution.allocate(alloc, height) catch

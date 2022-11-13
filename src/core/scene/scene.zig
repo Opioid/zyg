@@ -462,7 +462,7 @@ pub const Scene = struct {
         volume: bool,
         threads: *Threads,
     ) void {
-        var shape_inst = self.propShape(entity);
+        const shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
@@ -481,7 +481,7 @@ pub const Scene = struct {
         self.lights.items[light_id].extent = extent;
 
         const mat = &self.materials.items[m];
-        const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
+        const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self, threads);
 
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
