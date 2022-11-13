@@ -11,10 +11,6 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
-
-const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const Sample = union(enum) {
     Debug: Debug,
@@ -23,11 +19,6 @@ pub const Sample = union(enum) {
     Null: Null,
     Substitute: Substitute,
     Volumetric: Volumetric,
-
-    pub fn deinit(self: *Sample, alloc: *Allocator) void {
-        _ = self;
-        _ = alloc;
-    }
 
     pub fn super(self: *const Sample) *const Base {
         return switch (self.*) {
