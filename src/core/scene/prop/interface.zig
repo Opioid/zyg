@@ -29,7 +29,7 @@ pub const Stack = struct {
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
 
-    pub fn copy(self: *Stack, other: *const Stack) void {
+    pub fn copy(self: *Stack, other: Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);

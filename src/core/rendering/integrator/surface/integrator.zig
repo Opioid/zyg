@@ -48,7 +48,7 @@ pub const Integrator = union(enum) {
         isec: *Intersection,
         gather_photons: bool,
         worker: *Worker,
-        initial_stack: *const InterfaceStack,
+        initial_stack: InterfaceStack,
     ) Vec4f {
         return switch (self.*) {
             .AOV => |*i| i.li(ray, isec, worker, initial_stack),

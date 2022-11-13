@@ -70,7 +70,7 @@ pub const Material = struct {
             var context = LuminanceContext{
                 .scene = scene,
                 .shape = &shape,
-                .texture = &self.emission_map,
+                .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
                     return @splat(4, @as(f32, 0.0)),
@@ -153,7 +153,7 @@ pub const Material = struct {
 const LuminanceContext = struct {
     scene: *const Scene,
     shape: *const Shape,
-    texture: *const Texture,
+    texture: Texture,
     luminance: [*]f32,
     averages: []Vec4f,
 

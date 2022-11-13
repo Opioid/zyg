@@ -51,13 +51,7 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        worker: *Worker,
-        initial_stack: *const InterfaceStack,
-    ) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: InterfaceStack) Vec4f {
         worker.super.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {

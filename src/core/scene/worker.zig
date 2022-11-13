@@ -76,8 +76,7 @@ pub const Worker = struct {
 
         var o = isec.opacity(filter, self.scene);
 
-        while (o < 1.0) // : (o = isec.opacity(self.*))
-        {
+        while (o < 1.0) {
             if (o > 0.0 and o > self.rng.randomFloat()) {
                 ray.ray.setMinT(start_min_t);
                 return true;
@@ -98,7 +97,7 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
+    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
         self.interface_stack.copy(stack);
     }
 
