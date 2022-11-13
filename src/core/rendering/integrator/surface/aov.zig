@@ -61,13 +61,13 @@ pub const AOV = struct {
         worker.super.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec, worker),
+            .AO => self.ao(ray.*, isec.*, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
             .Photons => self.photons(ray, isec, worker),
         };
     }
 
-    fn ao(self: *Self, ray: Ray, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result: f32 = 0.0;
@@ -105,7 +105,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, ray: Ray, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
         const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
 
@@ -148,7 +148,7 @@ pub const AOV = struct {
                 ray.*,
                 wo,
                 wo1,
-                isec,
+                isec.*,
                 filter,
                 0.0,
                 true,
@@ -174,7 +174,7 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec, &mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
                         break;
                     }
                 }
@@ -207,7 +207,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec);
+                worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;

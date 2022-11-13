@@ -93,7 +93,7 @@ pub const PathtracerDL = struct {
                 ray.*,
                 wo,
                 wo1,
-                isec,
+                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -101,7 +101,7 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
             }
 
             wo1 = wo;
@@ -119,7 +119,7 @@ pub const PathtracerDL = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.directLight(ray.*, isec, &mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
@@ -160,7 +160,7 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec);
+                worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
@@ -207,7 +207,7 @@ pub const PathtracerDL = struct {
     fn directLight(
         self: *Self,
         ray: Ray,
-        isec: *const Intersection,
+        isec: Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,

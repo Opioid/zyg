@@ -118,7 +118,7 @@ pub const PathtracerMIS = struct {
                 ray.*,
                 wo,
                 wo1,
-                isec,
+                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -126,7 +126,7 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec, &mat_sample, pr);
+                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, pr);
             }
 
             wo1 = wo;
@@ -144,7 +144,7 @@ pub const PathtracerMIS = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.sampleLights(ray.*, isec, &mat_sample, filter, sampler, worker);
+            result += throughput * self.sampleLights(ray.*, isec.*, &mat_sample, filter, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
@@ -169,7 +169,7 @@ pub const PathtracerMIS = struct {
 
                     const indirect = !state.direct and 0 != ray.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                        worker.addPhoton(throughput * worker.photonLi(isec, &mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
                     }
                 }
             }
@@ -197,7 +197,7 @@ pub const PathtracerMIS = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec);
+                worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
             state.from_subsurface = state.from_subsurface or isec.subsurface;
@@ -220,7 +220,7 @@ pub const PathtracerMIS = struct {
                         const w = self.connectVolumeLight(
                             ray.*,
                             geo_n,
-                            isec,
+                            isec.*,
                             effective_bxdf_pdf,
                             state,
                             worker.super.scene,
@@ -251,7 +251,7 @@ pub const PathtracerMIS = struct {
             const radiance = self.connectLight(
                 ray.*,
                 geo_n,
-                isec,
+                isec.*,
                 sample_result,
                 state,
                 filter,
@@ -285,7 +285,7 @@ pub const PathtracerMIS = struct {
     fn sampleLights(
         self: *Self,
         ray: Ray,
-        isec: *const Intersection,
+        isec: Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
@@ -321,7 +321,7 @@ pub const PathtracerMIS = struct {
         light_weight: f32,
         history: Ray,
         p: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
@@ -368,7 +368,7 @@ pub const PathtracerMIS = struct {
         self: *const Self,
         ray: Ray,
         geo_n: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         sample_result: BxdfSample,
         state: PathState,
         filter: ?Filter,
@@ -410,7 +410,7 @@ pub const PathtracerMIS = struct {
         self: *const Self,
         ray: Ray,
         geo_n: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         bxdf_pdf: f32,
         state: PathState,
         scene: *const Scene,

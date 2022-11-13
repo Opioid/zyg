@@ -172,7 +172,7 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample) Vec4f {
+    pub fn photonLi(self: *const Worker, isec: Intersection, sample: *const MaterialSample) Vec4f {
         return self.photon_map.li(isec, sample, self.super.scene);
     }
 
@@ -184,7 +184,7 @@ pub const Worker = struct {
         self: *Worker,
         throughput: Vec4f,
         ray: Ray,
-        isec: *const Intersection,
+        isec: Intersection,
         mat_sample: *const MaterialSample,
         primary_ray: bool,
     ) void {
@@ -225,7 +225,7 @@ pub const Worker = struct {
         self: *Worker,
         ray: *Ray,
         wo: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
         if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
@@ -279,9 +279,9 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.super.interface_stack.remove(&isec);
+                _ = self.super.interface_stack.remove(isec);
             } else {
-                self.super.interface_stack.push(&isec);
+                self.super.interface_stack.push(isec);
             }
 
             tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
@@ -301,7 +301,7 @@ pub const Worker = struct {
         self: *Worker,
         ray: *Ray,
         wo: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
         const material = isec.material(self.super.scene);

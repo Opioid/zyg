@@ -139,7 +139,7 @@ pub const Lighttracer = struct {
                 ray.*,
                 wo,
                 wo1,
-                isec,
+                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -174,7 +174,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray.*, isec, &mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, ray.*, isec.*, &mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -197,7 +197,7 @@ pub const Lighttracer = struct {
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
+                const ior = worker.super.interfaceChangeIor(sample_result.wi, isec.*);
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }
@@ -252,7 +252,7 @@ pub const Lighttracer = struct {
         camera: *Camera,
         radiance: Vec4f,
         history: Ray,
-        isec: *const Intersection,
+        isec: Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,

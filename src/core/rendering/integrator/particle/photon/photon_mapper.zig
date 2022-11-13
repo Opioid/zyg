@@ -146,7 +146,7 @@ pub const Mapper = struct {
                     ray,
                     wo,
                     wo1,
-                    &isec,
+                    isec,
                     filter,
                     0.0,
                     Avoid_caustics,
@@ -234,7 +234,7 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.super.interfaceChangeIor(sample_result.wi, &isec);
+                    const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }

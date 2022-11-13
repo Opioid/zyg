@@ -87,7 +87,7 @@ pub const Pathtracer = struct {
                 ray.*,
                 wo,
                 wo1,
-                isec,
+                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -95,7 +95,7 @@ pub const Pathtracer = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
             }
 
             wo1 = wo;
@@ -157,7 +157,7 @@ pub const Pathtracer = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec);
+                worker.super.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;

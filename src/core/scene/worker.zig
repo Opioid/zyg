@@ -102,7 +102,7 @@ pub const Worker = struct {
         self.interface_stack.copy(stack);
     }
 
-    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: *const Intersection) f32 {
+    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: Intersection) f32 {
         if (isec.sameHemisphere(wo)) {
             return self.interface_stack.topIor(self.scene);
         }
@@ -110,7 +110,7 @@ pub const Worker = struct {
         return self.interface_stack.peekIor(isec, self.scene);
     }
 
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *const Intersection) void {
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             _ = self.interface_stack.remove(isec);
@@ -119,7 +119,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: *const Intersection) IoR {
+    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
         const inter_ior = isec.material(self.scene).ior();
 
         const leave = isec.sameHemisphere(dir);
@@ -143,7 +143,7 @@ pub const Worker = struct {
         ray: Ray,
         wo: Vec4f,
         wo1: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         filter: ?Filter,
         alpha: f32,
         avoid_caustics: bool,

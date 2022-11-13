@@ -18,28 +18,28 @@ pub const Intersection = struct {
 
     const Self = @This();
 
-    pub fn material(self: *const Self, scene: *const Scene) *const mat.Material {
+    pub fn material(self: Self, scene: *const Scene) *const mat.Material {
         return scene.propMaterial(self.prop, self.geo.part);
     }
 
-    pub fn shape(self: *const Self, scene: *const Scene) *Shape {
+    pub fn shape(self: Self, scene: *const Scene) *Shape {
         return scene.propShape(self.prop);
     }
 
-    pub fn lightId(self: *const Self, scene: *const Scene) u32 {
+    pub fn lightId(self: Self, scene: *const Scene) u32 {
         return scene.propLightId(self.prop, self.geo.part);
     }
 
-    pub fn visibleInCamera(self: *const Self, scene: *const Scene) bool {
+    pub fn visibleInCamera(self: Self, scene: *const Scene) bool {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: *const Self, filter: ?Filter, scene: *const Scene) f32 {
+    pub fn opacity(self: Self, filter: ?Filter, scene: *const Scene) f32 {
         return self.material(scene).opacity(self.geo.uv, filter, scene);
     }
 
     pub fn sample(
-        self: *const Self,
+        self: Self,
         wo: Vec4f,
         ray: Ray,
         filter: ?Filter,
@@ -78,7 +78,7 @@ pub const Intersection = struct {
     }
 
     pub fn evaluateRadiance(
-        self: *const Self,
+        self: Self,
         wo: Vec4f,
         filter: ?Filter,
         scene: *const Scene,
@@ -107,17 +107,17 @@ pub const Intersection = struct {
         );
     }
 
-    pub fn sameHemisphere(self: *const Self, v: Vec4f) bool {
+    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
         return math.dot3(self.geo.geo_n, v) > 0.0;
     }
 
-    pub fn offsetP(self: *const Self, v: Vec4f) Vec4f {
+    pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
 
         return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n);
     }
 
-    pub fn offsetPN(self: *const Self, geo_n: Vec4f, translucent: bool) Vec4f {
+    pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
         const p = self.geo.p;
 
         if (translucent) {

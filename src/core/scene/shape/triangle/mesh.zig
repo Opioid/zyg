@@ -615,7 +615,7 @@ pub const Mesh = struct {
         variant: u32,
         ray: Ray,
         n: Vec4f,
-        isec: *const Intersection,
+        isec: Intersection,
         extent: f32,
         two_sided: bool,
         total_sphere: bool,
