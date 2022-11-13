@@ -7,8 +7,6 @@ const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
-pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
-
 pub fn Vec4(comptime T: type) type {
     return extern struct {
         v: [4]T = undefined,
