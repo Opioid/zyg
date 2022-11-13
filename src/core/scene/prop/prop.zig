@@ -102,7 +102,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
@@ -130,7 +130,7 @@ pub const Prop = struct {
 
         const scene = worker.scene;
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
@@ -143,7 +143,7 @@ pub const Prop = struct {
     pub fn intersectP(
         self: Prop,
         entity: usize,
-        ray: *const Ray,
+        ray: Ray,
         worker: *Worker,
     ) bool {
         if (!self.visibleInShadow()) {
@@ -162,7 +162,7 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: *const Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (!self.tintedShadow()) {
             if (self.intersectP(entity, ray, worker)) {
                 return null;

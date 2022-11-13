@@ -183,7 +183,7 @@ pub const Worker = struct {
     pub fn commonAOV(
         self: *Worker,
         throughput: Vec4f,
-        ray: *const Ray,
+        ray: Ray,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
         primary_ray: bool,
@@ -229,7 +229,7 @@ pub const Worker = struct {
         filter: ?Filter,
     ) ?Vec4f {
         if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
-            if (self.transmittance(ray, filter)) |b| {
+            if (self.transmittance(ray.*, filter)) |b| {
                 return a * b;
             }
         }
@@ -241,7 +241,7 @@ pub const Worker = struct {
         return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
     }
 
-    fn transmittance(self: *Worker, ray: *const Ray, filter: ?Filter) ?Vec4f {
+    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
         if (!self.super.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
@@ -257,7 +257,7 @@ pub const Worker = struct {
         }
 
         const ray_max_t = ray.ray.maxT();
-        var tray = ray.*;
+        var tray = ray;
 
         var isec: Intersection = undefined;
 
@@ -267,7 +267,7 @@ pub const Worker = struct {
             const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
 
             if (!self.super.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(&tray, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -311,11 +311,11 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.super.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray, filter, &self.super)) |tr| {
+                if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
-                    if (self.super.scene.visibility(ray, filter, &self.super)) |tv| {
+                    if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -328,6 +328,6 @@ pub const Worker = struct {
             }
         }
 
-        return self.super.visibility(ray, filter);
+        return self.super.visibility(ray.*, filter);
     }
 };

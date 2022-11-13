@@ -84,7 +84,7 @@ pub const Pathtracer = struct {
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
             const mat_sample = worker.super.sampleMaterial(
-                ray,
+                ray.*,
                 wo,
                 wo1,
                 isec,
@@ -95,7 +95,7 @@ pub const Pathtracer = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
             }
 
             wo1 = wo;

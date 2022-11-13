@@ -71,7 +71,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray, interface.prop, worker);
+            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -84,7 +84,7 @@ pub const Multi = struct {
                         cm.minorant_mu_s *= srs;
                         cm.majorant_mu_s *= srs;
 
-                        result = tracking.trackingHeteroEmission(&local_ray, cm, material, srs, result.tr, filter, worker);
+                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, filter, worker);
                         if (.Scatter == result.event) {
                             setScattering(isec, interface, ray.ray.point(result.t));
                             break;
@@ -108,7 +108,7 @@ pub const Multi = struct {
                         cm.minorant_mu_s *= srs;
                         cm.majorant_mu_s *= srs;
 
-                        result = tracking.trackingHetero(&local_ray, cm, material, srs, result.tr, filter, worker);
+                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, filter, worker);
                         if (.Scatter == result.event) {
                             setScattering(isec, interface, ray.ray.point(result.t));
                             break;
@@ -130,7 +130,7 @@ pub const Multi = struct {
         if (material.emissive()) {
             const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
 
-            const result = tracking.trackingEmission(&ray.ray, cce, &worker.rng);
+            const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {
                 setScattering(isec, interface, ray.ray.point(result.t));
             } else if (.Absorb == result.event) {
@@ -142,7 +142,7 @@ pub const Multi = struct {
 
         const mu = material.super().cc;
 
-        const result = tracking.tracking(&ray.ray, mu, sampler);
+        const result = tracking.tracking(ray.ray, mu, sampler);
         if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
         }

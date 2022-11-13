@@ -59,7 +59,7 @@ pub const Worker = struct {
         return self.scene.intersectShadow(ray, self, isec);
     }
 
-    pub fn visibility(self: *Worker, ray: *const Ray, filter: ?Filter) ?Vec4f {
+    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
         return self.scene.visibility(ray, filter, self);
     }
 
@@ -140,7 +140,7 @@ pub const Worker = struct {
 
     pub fn sampleMaterial(
         self: *const Worker,
-        ray: *const Ray,
+        ray: Ray,
         wo: Vec4f,
         wo1: Vec4f,
         isec: *const Intersection,

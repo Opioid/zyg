@@ -183,7 +183,7 @@ pub const Tree = struct {
         return hit;
     }
 
-    pub fn intersectP(self: *const Tree, ray: *const Ray, worker: *Worker) bool {
+    pub fn intersectP(self: *const Tree, ray: Ray, worker: *Worker) bool {
         if (0 == self.num_nodes) {
             return false;
         }
@@ -240,7 +240,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Tree, ray: *const Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (0 == self.num_nodes) {
             return @splat(4, @as(f32, 1.0));
         }

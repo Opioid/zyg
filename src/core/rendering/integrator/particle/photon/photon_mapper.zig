@@ -143,7 +143,7 @@ pub const Mapper = struct {
                 const wo = -ray.ray.direction;
 
                 const mat_sample = worker.super.sampleMaterial(
-                    &ray,
+                    ray,
                     wo,
                     wo1,
                     &isec,

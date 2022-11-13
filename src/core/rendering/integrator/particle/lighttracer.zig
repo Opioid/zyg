@@ -136,7 +136,7 @@ pub const Lighttracer = struct {
 
             const filter: ?Filter = if (ray.depth <= 1 or caustic_path) null else .Nearest;
             const mat_sample = worker.super.sampleMaterial(
-                ray,
+                ray.*,
                 wo,
                 wo1,
                 isec,
@@ -174,7 +174,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray, isec, &mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, ray.*, isec, &mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -251,7 +251,7 @@ pub const Lighttracer = struct {
     fn directCamera(
         camera: *Camera,
         radiance: Vec4f,
-        history: *const Ray,
+        history: Ray,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,

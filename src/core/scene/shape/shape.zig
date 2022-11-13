@@ -173,7 +173,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersectP(self: *const Shape, ray: *const Ray, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Shape, ray: Ray, trafo: Trafo) bool {
         return switch (self.*) {
             .Null, .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray.ray, trafo),
@@ -188,7 +188,7 @@ pub const Shape = union(enum) {
 
     pub fn visibility(
         self: *const Shape,
-        ray: *const Ray,
+        ray: Ray,
         trafo: Trafo,
         entity: usize,
         filter: ?Filter,
@@ -348,7 +348,7 @@ pub const Shape = union(enum) {
     pub fn pdf(
         self: *const Shape,
         variant: u32,
-        ray: *const Ray,
+        ray: Ray,
         n: Vec4f,
         isec: *const Intersection,
         extent: f32,
@@ -369,7 +369,7 @@ pub const Shape = union(enum) {
 
     pub fn pdfUv(
         self: *const Shape,
-        ray: *const Ray,
+        ray: Ray,
         isec: *const Intersection,
         extent: f32,
         two_sided: bool,
@@ -386,7 +386,7 @@ pub const Shape = union(enum) {
 
     pub fn volumePdf(
         self: *const Shape,
-        ray: *const Ray,
+        ray: Ray,
         isec: *const Intersection,
         extent: f32,
     ) f32 {

@@ -41,7 +41,7 @@ pub const Intersection = struct {
     pub fn sample(
         self: *const Self,
         wo: Vec4f,
-        ray: *const Ray,
+        ray: Ray,
         filter: ?Filter,
         avoid_caustics: bool,
         worker: *const Worker,

@@ -115,7 +115,7 @@ pub const PathtracerMIS = struct {
             const straight_border = state.from_subsurface;
 
             const mat_sample = worker.super.sampleMaterial(
-                ray,
+                ray.*,
                 wo,
                 wo1,
                 isec,
@@ -126,7 +126,7 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray, isec, &mat_sample, pr);
+                worker.commonAOV(throughput, ray.*, isec, &mat_sample, pr);
             }
 
             wo1 = wo;
@@ -144,7 +144,7 @@ pub const PathtracerMIS = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.sampleLights(ray, isec, &mat_sample, filter, sampler, worker);
+            result += throughput * self.sampleLights(ray.*, isec, &mat_sample, filter, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
@@ -218,7 +218,7 @@ pub const PathtracerMIS = struct {
                         result += vr.li;
                     } else {
                         const w = self.connectVolumeLight(
-                            ray,
+                            ray.*,
                             geo_n,
                             isec,
                             effective_bxdf_pdf,
@@ -249,7 +249,7 @@ pub const PathtracerMIS = struct {
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(
-                ray,
+                ray.*,
                 geo_n,
                 isec,
                 sample_result,
@@ -284,7 +284,7 @@ pub const PathtracerMIS = struct {
 
     fn sampleLights(
         self: *Self,
-        ray: *const Ray,
+        ray: Ray,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
@@ -319,7 +319,7 @@ pub const PathtracerMIS = struct {
     fn evaluateLight(
         light: Light,
         light_weight: f32,
-        history: *const Ray,
+        history: Ray,
         p: Vec4f,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
@@ -366,7 +366,7 @@ pub const PathtracerMIS = struct {
 
     fn connectLight(
         self: *const Self,
-        ray: *const Ray,
+        ray: Ray,
         geo_n: Vec4f,
         isec: *const Intersection,
         sample_result: BxdfSample,
@@ -408,7 +408,7 @@ pub const PathtracerMIS = struct {
 
     fn connectVolumeLight(
         self: *const Self,
-        ray: *const Ray,
+        ray: Ray,
         geo_n: Vec4f,
         isec: *const Intersection,
         bxdf_pdf: f32,
