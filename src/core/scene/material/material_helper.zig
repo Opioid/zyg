@@ -30,7 +30,7 @@ pub fn sampleNormalUV(
     scene: *const Scene,
 ) Vec4f {
     const nm = ts.sample2D_2(key, map, uv, scene);
-    const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), hlp.Dot_min));
+    const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), 0.01));
     const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 
     // // Normal mapping can lead to normals facing away from the view direction.
