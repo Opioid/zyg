@@ -134,7 +134,7 @@ pub const Mapper = struct {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(isec.geo.p, &light_sample, filter, worker.super.scene) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.super.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
