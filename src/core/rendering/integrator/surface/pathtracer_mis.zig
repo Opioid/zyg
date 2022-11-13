@@ -365,7 +365,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectLight(
-        self: *const Self,
+        self: Self,
         ray: Ray,
         geo_n: Vec4f,
         isec: Intersection,
@@ -407,7 +407,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectVolumeLight(
-        self: *const Self,
+        self: Self,
         ray: Ray,
         geo_n: Vec4f,
         isec: Intersection,
