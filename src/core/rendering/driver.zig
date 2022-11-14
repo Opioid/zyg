@@ -165,7 +165,7 @@ pub const Driver = struct {
         const start = @as(u64, frame) * camera.frame_step;
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
-        camera.update(start, &self.workers[0].super);
+        camera.update(start, self.scene);
 
         if (progressive) {
             camera.sensor.clear(0.0);
@@ -338,7 +338,7 @@ pub const Driver = struct {
         const start = std.time.milliTimestamp();
 
         for (self.workers) |*w, i| {
-            w.super.rng.start(0, i);
+            w.rng.start(0, i);
         }
 
         var num_paths: u64 = 0;

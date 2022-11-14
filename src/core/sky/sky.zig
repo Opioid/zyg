@@ -5,7 +5,6 @@ const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Canopy = @import("../scene/shape/canopy.zig").Canopy;
-const Worker = @import("../scene/worker.zig").Worker;
 const ComposedTransformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");

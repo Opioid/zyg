@@ -8,7 +8,6 @@ pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
-const Worker = @import("../worker.zig").Worker;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;

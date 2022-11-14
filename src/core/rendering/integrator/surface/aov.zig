@@ -52,7 +52,7 @@ pub const AOV = struct {
     }
 
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: InterfaceStack) Vec4f {
-        worker.super.resetInterfaceStack(initial_stack);
+        worker.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
             .AO => self.ao(ray.*, isec.*, worker),
@@ -67,7 +67,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker);
 
         var occlusion_ray: Ray = undefined;
 
@@ -89,7 +89,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.scene.visibility(occlusion_ray, null)) |_| {
+            if (worker.scene.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -101,7 +101,7 @@ pub const AOV = struct {
 
     fn vector(self: *const Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, &worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker);
 
         var vec: Vec4f = undefined;
 
@@ -138,7 +138,7 @@ pub const AOV = struct {
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
 
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -201,12 +201,12 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.super.interface_stack.empty()) {
+            if (!worker.interface_stack.empty()) {
                 const vr = worker.volume(ray, isec, filter, sampler);
 
                 throughput *= vr.tr;
@@ -214,7 +214,7 @@ pub const AOV = struct {
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 

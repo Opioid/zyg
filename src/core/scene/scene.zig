@@ -13,7 +13,6 @@ const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
-const Worker = @import("worker.zig").Worker;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
@@ -31,6 +30,7 @@ const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
 
 pub const Scene = struct {
+    pub const Lights = LightTree.Lights;
     pub const LightPick = Distribution1D.Discrete;
     pub const Tick_duration = cnst.Units_per_second / 60;
     const Num_steps = 4;
@@ -606,7 +606,7 @@ pub const Scene = struct {
         total_sphere: bool,
         random: f32,
         split: bool,
-        buffer: *Worker.Lights,
+        buffer: *Lights,
     ) []LightPick {
         // _ = p;
         // _ = n;

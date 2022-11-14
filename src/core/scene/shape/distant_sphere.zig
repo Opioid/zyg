@@ -1,6 +1,5 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("intersection.zig").Intersection;
-const Worker = @import("../worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;

@@ -1,6 +1,6 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../worker.zig").Worker;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const Ray = @import("../ray.zig").Ray;
 const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;

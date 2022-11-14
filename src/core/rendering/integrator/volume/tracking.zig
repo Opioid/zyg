@@ -1,6 +1,6 @@
 const scn = @import("../../../scene/ray.zig");
 const Result = @import("result.zig").Result;
-const Worker = @import("../../../scene/worker.zig").Worker;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../../../rendering/integrator/helper.zig");

@@ -52,7 +52,7 @@ pub const Pathtracer = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            worker.super.resetInterfaceStack(initial_stack);
+            worker.resetInterfaceStack(initial_stack);
 
             var split_ray = ray.*;
             var split_isec = isec.*;
@@ -83,7 +83,7 @@ pub const Pathtracer = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -105,7 +105,7 @@ pub const Pathtracer = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
@@ -157,12 +157,12 @@ pub const Pathtracer = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.super.interface_stack.empty()) {
+            if (!worker.interface_stack.empty()) {
                 const vr = worker.volume(ray, isec, filter, sampler);
 
                 result += throughput * vr.li;
@@ -171,7 +171,7 @@ pub const Pathtracer = struct {
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 

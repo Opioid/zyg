@@ -72,7 +72,7 @@ pub const PathtracerMIS = struct {
 
         var i = num_samples;
         while (i > 0) : (i -= 1) {
-            worker.super.resetInterfaceStack(initial_stack);
+            worker.resetInterfaceStack(initial_stack);
 
             var split_ray = ray.*;
             var split_isec = isec.*;
@@ -114,7 +114,7 @@ pub const PathtracerMIS = struct {
             const avoid_caustics = self.settings.avoid_caustics and !pr;
             const straight_border = state.from_subsurface;
 
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -197,7 +197,7 @@ pub const PathtracerMIS = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+                worker.interfaceChange(sample_result.wi, isec.*);
             }
 
             state.from_subsurface = state.from_subsurface or isec.subsurface;
@@ -209,7 +209,7 @@ pub const PathtracerMIS = struct {
                 geo_n = mat_sample.super().geometricNormal();
             }
 
-            if (!worker.super.interface_stack.empty()) {
+            if (!worker.interface_stack.empty()) {
                 const vr = worker.volume(ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
@@ -223,7 +223,7 @@ pub const PathtracerMIS = struct {
                             isec.*,
                             effective_bxdf_pdf,
                             state,
-                            worker.super.scene,
+                            worker.scene,
                         );
 
                         result += @splat(4, w) * (throughput * vr.li);
@@ -243,7 +243,7 @@ pub const PathtracerMIS = struct {
                 if (.Scatter == vr.event and ray.depth >= max_bounces) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 
@@ -255,14 +255,14 @@ pub const PathtracerMIS = struct {
                 sample_result,
                 state,
                 filter,
-                worker.super.scene,
+                worker.scene,
                 &pure_emissive,
             );
 
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.direct = state.direct and (!isec.visibleInCamera(worker.super.scene) and ray.ray.maxT() >= scn.Ray_max_t);
+                state.direct = state.direct and (!isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t);
                 break;
             }
 
@@ -305,10 +305,10 @@ pub const PathtracerMIS = struct {
         const select = sampler.sample1D();
         const split = self.splitting(ray.depth);
 
-        const lights = worker.super.randomLightSpatial(p, n, translucent, select, split);
+        const lights = worker.randomLightSpatial(p, n, translucent, select, split);
 
         for (lights) |l| {
-            const light = worker.super.scene.light(l.offset);
+            const light = worker.scene.light(l.offset);
 
             result += evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, sampler, worker);
         }
@@ -334,7 +334,7 @@ pub const PathtracerMIS = struct {
             history.time,
             mat_sample.isTranslucent(),
             sampler,
-            &worker.super,
+            worker,
         ) orelse return @splat(4, @as(f32, 0.0));
 
         var shadow_ray = Ray.init(
@@ -356,7 +356,7 @@ pub const PathtracerMIS = struct {
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(p, light_sample, filter, worker.super.scene);
+        const radiance = light.evaluateTo(p, light_sample, filter, worker.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());

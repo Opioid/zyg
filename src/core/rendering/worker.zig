@@ -1,14 +1,22 @@
 const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
-const Ray = @import("../scene/ray.zig").Ray;
+const scn = @import("../scene/constants.zig");
+const sr = @import("../scene/ray.zig");
+const Ray = sr.Ray;
+const RayDif = sr.RayDif;
+const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/material_helper.zig");
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
+const NullSample = @import("../scene/material/null/sample.zig").Sample;
+const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
+const shp = @import("../scene/shape/intersection.zig");
+const Interpolation = shp.Interpolation;
+const LightTree = @import("../scene/light/tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
-const SceneWorker = @import("../scene/worker.zig").Worker;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 const vol = @import("integrator/volume/integrator.zig");
@@ -19,17 +27,28 @@ const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Map
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const aov = @import("sensor/aov/aov_value.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
+const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    super: SceneWorker = undefined,
+    camera: *cam.Perspective = undefined,
+    scene: *Scene = undefined,
+
+    rng: RNG = undefined,
+
+    interface_stack: InterfaceStack = undefined,
+
+    lights: Scene.Lights = undefined,
 
     sampler: Sampler = undefined,
 
@@ -61,9 +80,10 @@ pub const Worker = struct {
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
     ) !void {
-        self.super.configure(camera, scene);
+        self.camera = camera;
+        self.scene = scene;
 
-        const rng = &self.super.rng;
+        const rng = &self.rng;
 
         self.sampler = samplers.create(rng);
 
@@ -91,10 +111,10 @@ pub const Worker = struct {
         num_expected_samples: u32,
         num_photon_samples: u32,
     ) void {
-        var camera = self.super.camera;
+        var camera = self.camera;
         const sensor = &camera.sensor;
-        const scene = self.super.scene;
-        var rng = &self.super.rng;
+        const scene = self.scene;
+        var rng = &self.rng;
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;
@@ -155,9 +175,9 @@ pub const Worker = struct {
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
-        const camera = self.super.camera;
+        const camera = self.camera;
 
-        var rng = &self.super.rng;
+        var rng = &self.rng;
         rng.start(0, offset);
         const seed = rng.randomUint();
         self.lighttracer.startPixel(@truncate(u32, range[0]), seed);
@@ -173,7 +193,7 @@ pub const Worker = struct {
     }
 
     pub fn photonLi(self: *const Worker, isec: Intersection, sample: *const MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self.super.scene);
+        return self.photon_map.li(isec, sample, self.scene);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -207,14 +227,14 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @intToFloat(f32, 1 + self.super.scene.propMaterialId(isec.prop, isec.geo.part)),
+                @intToFloat(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
             );
         }
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         var isec = Intersection{};
-        if (self.super.intersectAndResolveMask(ray, null, &isec)) {
+        if (self.intersectAndResolveMask(ray, null, &isec)) {
             return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
         }
 
@@ -238,22 +258,22 @@ pub const Worker = struct {
     }
 
     pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, sampler, &self.super);
+        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
     }
 
     fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
-        if (!self.super.scene.has_volumes) {
+        if (!self.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
 
         var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(self.super.interface_stack);
+        temp_stack.copy(self.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.super.interface_stack.straight(self.super.scene)) {
-            self.super.interface_stack.pop();
+        if (!self.interface_stack.straight(self.scene)) {
+            self.interface_stack.pop();
         }
 
         const ray_max_t = ray.ray.maxT();
@@ -264,10 +284,10 @@ pub const Worker = struct {
         var w = @splat(4, @as(f32, 1.0));
 
         while (true) {
-            const hit = self.super.scene.intersectVolume(&tray, &isec);
+            const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!self.super.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
+            if (!self.interface_stack.empty()) {
+                if (self.volume_integrator.transmittance(tray, filter, self)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -279,9 +299,9 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.super.interface_stack.remove(isec);
+                _ = self.interface_stack.remove(isec);
             } else {
-                self.super.interface_stack.push(isec);
+                self.interface_stack.push(isec);
             }
 
             tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
@@ -292,7 +312,7 @@ pub const Worker = struct {
             }
         }
 
-        self.super.interface_stack.copy(temp_stack);
+        self.interface_stack.copy(temp_stack);
 
         return w;
     }
@@ -304,18 +324,18 @@ pub const Worker = struct {
         isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        const material = isec.material(self.super.scene);
+        const material = isec.material(self.scene);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
 
             var nisec: Intersection = .{};
-            if (self.super.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
+            if (self.scene.intersectShadow(ray, &nisec)) {
+                if (self.volume_integrator.transmittance(ray.*, filter, self)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
-                    if (self.super.scene.visibility(ray.*, filter)) |tv| {
+                    if (self.scene.visibility(ray.*, filter)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -328,6 +348,180 @@ pub const Worker = struct {
             }
         }
 
-        return self.super.scene.visibility(ray.*, filter);
+        return self.scene.visibility(ray.*, filter);
+    }
+
+    pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
+        return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
+    }
+
+    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
+        if (!self.scene.intersect(ray, .All, isec)) {
+            return false;
+        }
+
+        const start_min_t = ray.ray.minT();
+
+        var o = isec.opacity(filter, self.scene);
+
+        while (o < 1.0) {
+            if (o > 0.0 and o > self.rng.randomFloat()) {
+                ray.ray.setMinT(start_min_t);
+                return true;
+            }
+
+            // Slide along ray until opaque surface is found
+            ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+            ray.ray.setMaxT(scn.Ray_max_t);
+            if (!self.scene.intersect(ray, .All, isec)) {
+                ray.ray.setMinT(start_min_t);
+                return false;
+            }
+
+            o = isec.opacity(filter, self.scene);
+        }
+
+        ray.ray.setMinT(start_min_t);
+        return true;
+    }
+
+    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
+        self.interface_stack.copy(stack);
+    }
+
+    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: Intersection) f32 {
+        if (isec.sameHemisphere(wo)) {
+            return self.interface_stack.topIor(self.scene);
+        }
+
+        return self.interface_stack.peekIor(isec, self.scene);
+    }
+
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
+        const leave = isec.sameHemisphere(dir);
+        if (leave) {
+            _ = self.interface_stack.remove(isec);
+        } else if (self.interface_stack.straight(self.scene) or isec.material(self.scene).ior() > 1.0) {
+            self.interface_stack.push(isec);
+        }
+    }
+
+    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
+        const inter_ior = isec.material(self.scene).ior();
+
+        const leave = isec.sameHemisphere(dir);
+        if (leave) {
+            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.scene), .eta_i = inter_ior };
+            _ = self.interface_stack.remove(isec);
+            return ior;
+        }
+
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
+
+        if (self.interface_stack.straight(self.scene) or inter_ior > 1.0) {
+            self.interface_stack.push(isec);
+        }
+
+        return ior;
+    }
+
+    pub fn sampleMaterial(
+        self: *const Worker,
+        ray: Ray,
+        wo: Vec4f,
+        wo1: Vec4f,
+        isec: Intersection,
+        filter: ?Filter,
+        alpha: f32,
+        avoid_caustics: bool,
+        straight_border: bool,
+    ) MaterialSample {
+        const material = isec.material(self.scene);
+
+        const wi = ray.ray.direction;
+
+        if (!isec.subsurface and straight_border and material.ior() > 1.0 and isec.sameHemisphere(wi)) {
+            const geo_n = isec.geo.geo_n;
+            const n = isec.geo.n;
+
+            const vbh = material.super().border(wi, n);
+            const nsc = mat.nonSymmetryCompensation(wo1, wi, geo_n, n);
+            const factor = nsc * vbh;
+
+            return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
+        }
+
+        return isec.sample(wo, ray, filter, avoid_caustics, self);
+    }
+
+    pub fn randomLightSpatial(
+        self: *Worker,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        random: f32,
+        split: bool,
+    ) []Scene.LightPick {
+        return self.scene.randomLightSpatial(p, n, total_sphere, random, split, &self.lights);
+    }
+
+    pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
+        return self.camera.absoluteTime(frame, frame_delta);
+    }
+
+    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
+        const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene);
+
+        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
+
+        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
+        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
+
+        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
+    }
+
+    // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
+    fn calculateScreenspaceDifferential(p: Vec4f, n: Vec4f, rd: RayDif, dpdu: Vec4f, dpdv: Vec4f) Vec4f {
+        // Compute offset-ray isec points with tangent plane
+        const d = math.dot3(n, p);
+
+        const tx = -(math.dot3(n, rd.x_origin) - d) / math.dot3(n, rd.x_direction);
+        const ty = -(math.dot3(n, rd.y_origin) - d) / math.dot3(n, rd.y_direction);
+
+        const px = rd.x_origin + @splat(4, tx) * rd.x_direction;
+        const py = rd.y_origin + @splat(4, ty) * rd.y_direction;
+
+        // Compute uv offsets at offset-ray isec points
+        // Choose two dimensions to use for ray offset computations
+        const dim = if (@fabs(n[0]) > @fabs(n[1]) and @fabs(n[0]) > @fabs(n[2])) Vec2b{
+            1,
+            2,
+        } else if (@fabs(n[1]) > @fabs(n[2])) Vec2b{
+            0,
+            2,
+        } else Vec2b{
+            0,
+            1,
+        };
+
+        // Initialize A, bx, and by matrices for offset computation
+        const a: [2][2]f32 = .{ .{ dpdu[dim[0]], dpdv[dim[0]] }, .{ dpdu[dim[1]], dpdv[dim[1]] } };
+
+        const bx = Vec2f{ px[dim[0]] - p[dim[0]], px[dim[1]] - p[dim[1]] };
+        const by = Vec2f{ py[dim[0]] - p[dim[0]], py[dim[1]] - p[dim[1]] };
+
+        const det = a[0][0] * a[1][1] - a[0][1] * a[1][0];
+
+        if (@fabs(det) < 1.0e-10) {
+            return @splat(4, @as(f32, 0.0));
+        }
+
+        const dudx = (a[1][1] * bx[0] - a[0][1] * bx[1]) / det;
+        const dvdx = (a[0][0] * bx[1] - a[1][0] * bx[0]) / det;
+
+        const dudy = (a[1][1] * by[0] - a[0][1] * by[1]) / det;
+        const dvdy = (a[0][0] * by[1] - a[1][0] * by[0]) / det;
+
+        return .{ dudx, dvdx, dudy, dvdy };
     }
 };

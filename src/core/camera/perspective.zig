@@ -8,7 +8,6 @@ const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
-const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
 const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
@@ -91,7 +90,7 @@ pub const Perspective = struct {
         self.crop[3] = std.math.min(resolution[1], crop[3]);
     }
 
-    pub fn update(self: *Self, time: u64, worker: *Worker) void {
+    pub fn update(self: *Self, time: u64, scene: *const Scene) void {
         self.interface_stack.clear();
 
         const fr = math.vec2iTo2f(self.resolution);
@@ -112,7 +111,7 @@ pub const Perspective = struct {
 
         self.a = @fabs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
 
-        self.updateFocus(time, worker);
+        self.updateFocus(time, scene);
     }
 
     pub fn generateRay(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Ray {
@@ -308,13 +307,13 @@ pub const Perspective = struct {
         self.focus_distance = focus.distance;
     }
 
-    fn updateFocus(self: *Self, time: u64, worker: *Worker) void {
+    fn updateFocus(self: *Self, time: u64, scene: *const Scene) void {
         if (self.focus.use_point and self.aperture.radius > 0.0) {
             const direction = math.normalize3(
                 self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
             );
 
-            const trafo = worker.scene.propTransformationAt(self.entity, time);
+            const trafo = scene.propTransformationAt(self.entity, time);
 
             var ray = Ray.init(
                 trafo.position,
@@ -327,7 +326,7 @@ pub const Perspective = struct {
             );
 
             var isec = Intersection{};
-            if (worker.scene.intersect(&ray, .Normal, &isec)) {
+            if (scene.intersect(&ray, .Normal, &isec)) {
                 self.focus_distance = ray.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
