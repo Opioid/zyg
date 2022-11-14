@@ -163,14 +163,16 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const normal = self.data.normal(i);
-                        const uv = self.data.interpolateUv(hit.u, hit.v, i);
-
                         const material = worker.scene.propMaterial(entity, self.data.part(i));
 
-                        const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene) orelse return null;
+                        if (material.evaluateVisibility()) {
+                            const normal = self.data.normal(i);
+                            const uv = self.data.interpolateUv(hit.u, hit.v, i);
 
-                        vis *= tv;
+                            const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene) orelse return null;
+
+                            vis *= tv;
+                        } else return null;
                     }
                 }
 

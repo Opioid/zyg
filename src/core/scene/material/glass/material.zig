@@ -26,7 +26,9 @@ pub const Material = struct {
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
-        self.super.properties.two_sided = self.thickness > 0.0;
+        const thin = self.thickness > 0.0;
+        self.super.properties.two_sided = thin;
+        self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
         self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
     }
 

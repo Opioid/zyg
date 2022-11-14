@@ -53,12 +53,9 @@ pub const Material = union(enum) {
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         switch (self.*) {
-            .Glass => |*m| m.commit(),
-            .Light => |*m| m.commit(),
-            .Sky => |*m| m.commit(),
-            .Substitute => |*m| m.commit(),
+            .Debug => {},
             .Volumetric => |*m| try m.commit(alloc, scene, threads),
-            else => {},
+            inline else => |*m| m.commit(),
         }
     }
 
@@ -84,29 +81,16 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn masked(self: *const Material) bool {
-        return self.super().mask.valid();
-    }
-
     pub fn twoSided(self: *const Material) bool {
-        return switch (self.*) {
-            .Debug => true,
-            .Glass => |*m| m.thickness > 0.0,
-            .Light => |*m| m.super.properties.two_sided,
-            .Substitute => |*m| m.super.properties.two_sided,
-            else => false,
-        };
+        return self.super().properties.two_sided;
     }
 
     pub fn caustic(self: *const Material) bool {
         return self.super().properties.caustic;
     }
 
-    pub fn tintedShadow(self: *const Material) bool {
-        return switch (self.*) {
-            .Glass => |*m| m.thickness > 0.0,
-            else => false,
-        };
+    pub fn evaluateVisibility(self: *const Material) bool {
+        return self.super().properties.evaluate_visibility;
     }
 
     pub fn emissive(self: *const Material) bool {
@@ -131,11 +115,7 @@ pub const Material = union(enum) {
     }
 
     pub fn scatteringVolume(self: *const Material) bool {
-        return switch (self.*) {
-            .Substitute => |*m| m.super.properties.scattering_volume,
-            .Volumetric => |*m| m.super.properties.scattering_volume,
-            else => false,
-        };
+        return self.super().properties.scattering_volume;
     }
 
     pub fn heterogeneousVolume(self: *const Material) bool {

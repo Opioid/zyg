@@ -55,6 +55,7 @@ pub const Material = struct {
     flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
+        self.super.properties.evaluate_visibility = self.super.mask.valid();
         self.super.properties.emission_map = self.emission_map.valid();
         self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
 

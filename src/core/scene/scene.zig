@@ -95,7 +95,7 @@ pub const Scene = struct {
 
     sky: ?Sky = null,
 
-    tinted_shadow: bool = undefined,
+    evaluate_visibility: bool = undefined,
     has_volumes: bool = undefined,
 
     pub fn init(alloc: Allocator) !Scene {
@@ -211,12 +211,12 @@ pub const Scene = struct {
         const frames_start = time - (time % Tick_duration);
         self.current_time_start = frames_start;
 
-        self.tinted_shadow = false;
+        self.evaluate_visibility = false;
 
         for (self.props.items) |p, i| {
             self.propCalculateWorldBounds(i, camera_pos);
 
-            self.tinted_shadow = self.tinted_shadow or p.tintedShadow();
+            self.evaluate_visibility = self.evaluate_visibility or p.evaluateVisibility();
         }
 
         for (self.volumes.items) |v| {
@@ -277,7 +277,7 @@ pub const Scene = struct {
     }
 
     pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (self.tinted_shadow) {
+        if (self.evaluate_visibility) {
             return self.prop_bvh.visibility(ray, filter, worker);
         }
 

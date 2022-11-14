@@ -15,7 +15,7 @@ pub const Prop = struct {
         visible_in_camera: bool = false,
         visible_in_reflection: bool = false,
         visible_in_shadow: bool = false,
-        tinted_shadow: bool = false,
+        evaluate_visibility: bool = false,
         test_AABB: bool = false,
         static: bool = false,
     };
@@ -44,8 +44,8 @@ pub const Prop = struct {
         return self.properties.visible_in_shadow;
     }
 
-    pub fn tintedShadow(self: Prop) bool {
-        return self.properties.tinted_shadow;
+    pub fn evaluateVisibility(self: Prop) bool {
+        return self.properties.evaluate_visibility;
     }
 
     pub fn setVisibleInShadow(self: *Prop, value: bool) void {
@@ -73,9 +73,8 @@ pub const Prop = struct {
 
         for (materials) |mid| {
             const m = scene.material(mid);
-
-            if (m.masked() or m.tintedShadow()) {
-                self.properties.tinted_shadow = true;
+            if (m.evaluateVisibility()) {
+                self.properties.evaluate_visibility = true;
                 break;
             }
         }
@@ -163,7 +162,7 @@ pub const Prop = struct {
     }
 
     pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (!self.tintedShadow()) {
+        if (!self.evaluateVisibility()) {
             if (self.intersectP(entity, ray, worker)) {
                 return null;
             }

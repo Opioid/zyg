@@ -47,6 +47,7 @@ pub const Base = struct {
 
     pub const Properties = packed struct {
         two_sided: bool = false,
+        evaluate_visibility: bool = false,
         caustic: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
