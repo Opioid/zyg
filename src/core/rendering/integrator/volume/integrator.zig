@@ -6,17 +6,13 @@ pub const Multi = multi.Multi;
 pub const MultiFactory = multi.Factory;
 
 const Ray = @import("../../../scene/ray.zig").Ray;
-const Worker = @import("../../worker.zig").Worker;
-const SceneWorker = @import("../../../scene/worker.zig").Worker;
+const Worker = @import("../../../scene/worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
-
-const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const Integrator = union(enum) {
     Multi: Multi,
@@ -30,11 +26,11 @@ pub const Integrator = union(enum) {
         worker: *Worker,
     ) Result {
         return switch (self.*) {
-            .Multi => Multi.integrate(ray, isec, filter, sampler, &worker.super),
+            .Multi => Multi.integrate(ray, isec, filter, sampler, worker),
         };
     }
 
-    pub fn transmittance(self: Integrator, ray: Ray, filter: ?Filter, worker: *SceneWorker) ?Vec4f {
+    pub fn transmittance(self: Integrator, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         _ = self;
         return tracking.transmittance(ray, filter, worker);
     }

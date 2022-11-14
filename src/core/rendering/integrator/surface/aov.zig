@@ -89,7 +89,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.visibility(occlusion_ray, null)) |_| {
+            if (worker.super.scene.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
 

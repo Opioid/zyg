@@ -1,5 +1,4 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -503,7 +502,7 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: usize,
         filter: ?Filter,
-        worker: *Worker,
+        scene: *const Scene,
     ) ?Vec4f {
         const tray = Ray.init(
             trafo.worldToObjectPoint(ray.origin),
@@ -512,7 +511,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.visibility(tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, scene);
     }
 
     pub fn sampleTo(

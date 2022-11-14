@@ -327,7 +327,7 @@ pub const Perspective = struct {
             );
 
             var isec = Intersection{};
-            if (worker.intersect(&ray, .Normal, &isec)) {
+            if (worker.scene.intersect(&ray, .Normal, &isec)) {
                 self.focus_distance = ray.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

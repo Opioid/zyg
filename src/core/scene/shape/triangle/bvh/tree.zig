@@ -1,5 +1,5 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
-const Worker = @import("../../../worker.zig").Worker;
+const Scene = @import("../../../scene.zig").Scene;
 const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
@@ -33,7 +33,7 @@ pub const Tree = struct {
         alloc.free(self.nodes);
     }
 
-    pub fn numTriangles(self: *const Tree) u32 {
+    pub fn numTriangles(self: Tree) u32 {
         return self.data.num_triangles;
     }
 
@@ -145,7 +145,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -163,13 +163,13 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const material = worker.scene.propMaterial(entity, self.data.part(i));
+                        const material = scene.propMaterial(entity, self.data.part(i));
 
                         if (material.evaluateVisibility()) {
                             const normal = self.data.normal(i);
                             const uv = self.data.interpolateUv(hit.u, hit.v, i);
 
-                            const tv = material.visibility(ray_dir, normal, uv, filter, worker.scene) orelse return null;
+                            const tv = material.visibility(ray_dir, normal, uv, filter, scene) orelse return null;
 
                             vis *= tv;
                         } else return null;

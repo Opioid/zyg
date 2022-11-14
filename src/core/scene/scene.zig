@@ -260,28 +260,28 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
-        return self.prop_bvh.intersect(ray, worker, ipo, isec);
+    pub fn intersect(self: *const Scene, ray: *Ray, ipo: Interpolation, isec: *Intersection) bool {
+        return self.prop_bvh.intersect(ray, self, ipo, isec);
     }
 
-    pub fn intersectShadow(self: *const Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
-        return self.prop_bvh.intersectShadow(ray, worker, isec);
+    pub fn intersectShadow(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
+        return self.prop_bvh.intersectShadow(ray, self, isec);
     }
 
-    pub fn intersectVolume(self: *const Scene, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
-        return self.volume_bvh.intersect(ray, worker, .NoTangentSpace, isec);
+    pub fn intersectVolume(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
+        return self.volume_bvh.intersect(ray, self, .NoTangentSpace, isec);
     }
 
-    pub fn intersectP(self: *const Scene, ray: Ray, worker: *Worker) bool {
-        return self.prop_bvh.intersectP(ray, worker);
+    pub fn intersectP(self: *const Scene, ray: Ray) bool {
+        return self.prop_bvh.intersectP(ray, self);
     }
 
-    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(ray, filter, worker);
+            return self.prop_bvh.visibility(ray, filter, self);
         }
 
-        if (self.prop_bvh.intersectP(ray, worker)) {
+        if (self.prop_bvh.intersectP(ray, self)) {
             return null;
         }
 

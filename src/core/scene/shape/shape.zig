@@ -192,18 +192,18 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         entity: usize,
         filter: ?Filter,
-        worker: *Worker,
+        scene: *const Scene,
     ) ?Vec4f {
         return switch (self) {
             .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
                 return @splat(4, @as(f32, 1.0));
             },
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, worker.scene),
-            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, worker),
+            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, scene),
+            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, scene),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, scene),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, scene),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, scene),
+            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, scene),
         };
     }
 

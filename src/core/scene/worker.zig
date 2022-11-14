@@ -27,9 +27,6 @@ const Vec4f = math.Vec4f;
 const Distribution1D = math.Distribution1D;
 const RNG = base.rnd.Generator;
 
-const std = @import("std");
-const Allocator = std.mem.Allocator;
-
 pub const Worker = struct {
     pub const Lights = LightTree.Lights;
 
@@ -47,31 +44,15 @@ pub const Worker = struct {
         self.scene = scene;
     }
 
-    pub fn intersect(self: *Worker, ray: *Ray, ipo: Interpolation, isec: *Intersection) bool {
-        return self.scene.intersect(ray, self, ipo, isec);
-    }
-
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
-        return self.scene.prop(entity).intersect(entity, ray, self, ipo, isec);
-    }
-
-    pub fn intersectShadow(self: *Worker, ray: *Ray, isec: *Intersection) bool {
-        return self.scene.intersectShadow(ray, self, isec);
-    }
-
-    pub fn visibility(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
-        return self.scene.visibility(ray, filter, self);
+        return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
-        if (!self.intersect(ray, .All, isec)) {
+        if (!self.scene.intersect(ray, .All, isec)) {
             return false;
         }
 
-        return self.resolveMask(ray, filter, isec);
-    }
-
-    fn resolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
         const start_min_t = ray.ray.minT();
 
         var o = isec.opacity(filter, self.scene);
@@ -85,7 +66,7 @@ pub const Worker = struct {
             // Slide along ray until opaque surface is found
             ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             ray.ray.setMaxT(scn.Ray_max_t);
-            if (!self.intersect(ray, .All, isec)) {
+            if (!self.scene.intersect(ray, .All, isec)) {
                 ray.ray.setMinT(start_min_t);
                 return false;
             }

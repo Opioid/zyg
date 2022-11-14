@@ -238,7 +238,7 @@ pub const Worker = struct {
     }
 
     pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
+        return self.volume_integrator.integrate(ray, isec, filter, sampler, &self.super);
     }
 
     fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
@@ -264,7 +264,7 @@ pub const Worker = struct {
         var w = @splat(4, @as(f32, 1.0));
 
         while (true) {
-            const hit = self.super.scene.intersectVolume(&tray, &self.super, &isec);
+            const hit = self.super.scene.intersectVolume(&tray, &isec);
 
             if (!self.super.interface_stack.empty()) {
                 if (self.volume_integrator.transmittance(tray, filter, &self.super)) |tr| {
@@ -310,12 +310,12 @@ pub const Worker = struct {
             const ray_max_t = ray.ray.maxT();
 
             var nisec: Intersection = .{};
-            if (self.super.intersectShadow(ray, &nisec)) {
+            if (self.super.scene.intersectShadow(ray, &nisec)) {
                 if (self.volume_integrator.transmittance(ray.*, filter, &self.super)) |tr| {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
                     ray.ray.setMaxT(ray_max_t);
 
-                    if (self.super.scene.visibility(ray.*, filter, &self.super)) |tv| {
+                    if (self.super.scene.visibility(ray.*, filter)) |tv| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -328,6 +328,6 @@ pub const Worker = struct {
             }
         }
 
-        return self.super.visibility(ray.*, filter);
+        return self.super.scene.visibility(ray.*, filter);
     }
 };

@@ -2,7 +2,6 @@ const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
-const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");
 
 const base = @import("base");
@@ -91,15 +90,13 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: *Ray,
-        worker: *Worker,
+        scene: *const Scene,
         ipo: shp.Interpolation,
         isec: *shp.Intersection,
     ) bool {
         if (!self.visible(ray.depth)) {
             return false;
         }
-
-        const scene = worker.scene;
 
         if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
@@ -120,14 +117,12 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: *Ray,
-        worker: *Worker,
+        scene: *const Scene,
         isec: *shp.Intersection,
     ) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
-
-        const scene = worker.scene;
 
         if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
@@ -143,13 +138,11 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: Ray,
-        worker: *Worker,
+        scene: *const Scene,
     ) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
-
-        const scene = worker.scene;
 
         if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
@@ -161,9 +154,9 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
         if (!self.evaluateVisibility()) {
-            if (self.intersectP(entity, ray, worker)) {
+            if (self.intersectP(entity, ray, scene)) {
                 return null;
             }
 
@@ -174,8 +167,6 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const scene = worker.scene;
-
         if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return @splat(4, @as(f32, 1.0));
         }
@@ -183,6 +174,6 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker);
+        return scene.propShape(entity).visibility(ray, trafo, entity, filter, scene);
     }
 };
