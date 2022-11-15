@@ -78,7 +78,7 @@ pub const Emittance = struct {
         if (self.profile.valid()) {
             const key = ts.Key{
                 .filter = filter orelse .Linear,
-                .address = .Clamp,
+                .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
             const lwi = -math.normalize3(trafo.worldToObjectPoint(p));

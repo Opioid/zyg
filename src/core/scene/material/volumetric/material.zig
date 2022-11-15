@@ -46,7 +46,7 @@ pub const Material = struct {
 
     pub fn init() Material {
         return .{ .super = .{
-            .sampler_key = .{ .filter = .Linear, .address = .Clamp },
+            .sampler_key = .{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } },
             .ior = 1.0,
         } };
     }
@@ -205,7 +205,7 @@ pub const Material = struct {
 
     pub fn emissionPdf(self: *const Material, uvw: Vec4f) f32 {
         if (self.density_map.valid()) {
-            return self.distribution.pdf(self.super.sampler_key.address.f3(uvw)) * self.pdf_factor;
+            return self.distribution.pdf(self.super.sampler_key.address.address3(uvw)) * self.pdf_factor;
         }
 
         return 1.0;

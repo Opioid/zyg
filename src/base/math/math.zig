@@ -65,16 +65,6 @@ pub fn pow5(x: f32) f32 {
     return x4 * x;
 }
 
-pub inline fn clamp(x: anytype, mi: f32, ma: f32) @TypeOf(x) {
-    if (@TypeOf(x) == f32) {
-        return std.math.min(std.math.max(x, mi), ma);
-    } else if (@TypeOf(x) == vec2.Vec2f) {
-        return vec2.min2(vec2.max2(x, @splat(2, mi)), @splat(2, ma));
-    } else if (@TypeOf(x) == vec4.Vec4f) {
-        return vec4.min4(vec4.max4(x, @splat(4, mi)), @splat(4, ma));
-    } else unreachable;
-}
-
 pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
     switch (@typeInfo(T)) {
         .Float => {

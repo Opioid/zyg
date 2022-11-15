@@ -513,22 +513,13 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
                 } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
                     switch (entry.value_ptr.*) {
                         .Array => |a| {
-                            const u = readAddress(a.items[0]);
-                            const v = readAddress(a.items[1]);
-
-                            if (u == v) {
-                                key.address = u;
-                            }
-
-                            if (.Clamp == u and .Repeat == v) {
-                                key.address = .ClampRepeat;
-                            } else {
-                                key.address = .RepeatClamp;
-                            }
+                            key.address.u = readAddress(a.items[0]);
+                            key.address.v = readAddress(a.items[1]);
                         },
                         else => {
                             const adr = readAddress(entry.value_ptr.*);
-                            key.address = adr;
+                            key.address.u = adr;
+                            key.address.v = adr;
                         },
                     }
                 }
@@ -540,7 +531,7 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
     return key;
 }
 
-fn readAddress(value: std.json.Value) ts.Address {
+fn readAddress(value: std.json.Value) ts.AddressMode {
     const address = json.readString(value);
 
     if (std.mem.eql(u8, "Clamp", address)) {

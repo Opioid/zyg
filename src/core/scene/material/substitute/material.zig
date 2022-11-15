@@ -395,7 +395,7 @@ pub const Material = struct {
         const dd = @splat(4, checkers_scale) * worker.screenspaceDifferential(rs);
 
         const t = checkersGrad(
-            @splat(2, checkers_scale) * sampler_key.address.f2(rs.uv),
+            @splat(2, checkers_scale) * sampler_key.address.address2(rs.uv),
             .{ dd[0], dd[1] },
             .{ dd[2], dd[3] },
         );
