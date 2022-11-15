@@ -131,10 +131,6 @@ pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
     };
 }
 
-pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return min4(max4(v, @splat(4, mi)), @splat(4, ma));
-}
-
 pub inline fn minComponent3(v: Vec4f) f32 {
     return std.math.min(v[0], std.math.min(v[1], v[2]));
 }

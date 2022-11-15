@@ -39,7 +39,7 @@ pub const Material = struct {
 
     pub fn initSky(emission_map: Texture, sky: *const Sky) Material {
         return Material{
-            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
+            .super = .{ .sampler_key = .{ .address = .Clamp } },
             .emission_map = emission_map,
             .sky = sky,
         };
@@ -47,7 +47,7 @@ pub const Material = struct {
 
     pub fn initSun(alloc: Allocator, sky: *const Sky) !Material {
         return Material{
-            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
+            .super = .{ .sampler_key = .{ .address = .Clamp } },
             .emission_map = .{},
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
             .sky = sky,
@@ -180,7 +180,7 @@ pub const Material = struct {
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (self.emission_map.valid()) {
-            return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
+            return self.distribution.pdf(self.super.sampler_key.address.f2(uv)) * self.total_weight;
         }
 
         return 1.0;

@@ -1,28 +1,13 @@
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../../scene/scene.zig").Scene;
 const Texture = @import("texture.zig").Texture;
-pub const AddressMode = @import("address_mode.zig").Mode;
+pub const Address = @import("address_mode.zig").Mode;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
-
-const std = @import("std");
-
-const Address = struct {
-    u: AddressMode,
-    v: AddressMode,
-
-    pub fn address2(self: Address, uv: Vec2f) Vec2f {
-        return .{ self.u.f(uv[0]), self.v.f(uv[1]) };
-    }
-
-    pub fn address3(self: Address, uvw: Vec4f) Vec4f {
-        return self.u.f3(uvw);
-    }
-};
 
 pub const Filter = enum {
     Nearest,
@@ -31,7 +16,7 @@ pub const Filter = enum {
 
 pub const Key = struct {
     filter: Filter = .Linear,
-    address: Address = .{ .u = .Repeat, .v = .Repeat },
+    address: Address = .Repeat,
 };
 
 pub fn resolveKey(key: Key, filter: ?Filter) Key {
@@ -98,15 +83,11 @@ const Nearest2D = struct {
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
         const df = math.vec2iTo2f(d);
 
-        const u = adr.u.f(uv[0]);
-        const v = adr.v.f(uv[1]);
+        const muv = adr.f2(uv);
 
         const b = d - @splat(2, @as(i32, 1));
 
-        return .{
-            std.math.min(@floatToInt(i32, u * df[0]), b[0]),
-            std.math.min(@floatToInt(i32, v * df[1]), b[1]),
-        };
+        return @min(math.vec2fTo2i(muv * df), b);
     }
 };
 
@@ -139,19 +120,22 @@ const Linear2D = struct {
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Map {
         const df = math.vec2iTo2f(d);
-        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @splat(2, @as(f32, 0.5));
+        const muv = adr.f2(uv) * df - @splat(2, @as(f32, 0.5));
         const fuv = @floor(muv);
         const xy = math.vec2fTo2i(fuv);
 
         const b = d - @splat(2, @as(i32, 1));
 
+        const uvl = adr.lowerBound2(xy, b);
+        const uvi = adr.increment2(xy, b);
+
         return .{
             .w = muv - fuv,
             .xy_xy1 = Vec4i{
-                adr.u.lowerBound(xy[0], b[0]),
-                adr.v.lowerBound(xy[1], b[1]),
-                adr.u.increment(xy[0], b[0]),
-                adr.v.increment(xy[1], b[1]),
+                uvl[0],
+                uvl[1],
+                uvi[0],
+                uvi[1],
             },
         };
     }
@@ -216,7 +200,7 @@ const Nearest3D = struct {
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
         const df = math.vec4iTo4f(d);
 
-        const muvw = adr.u.f3(uvw);
+        const muvw = adr.f3(uvw);
 
         const b = d - @splat(4, @as(i32, 1));
 
@@ -264,7 +248,7 @@ const Linear3D = struct {
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Map {
         const df = math.vec4iTo4f(d);
 
-        const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
+        const muvw = adr.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
         const fuvw = @floor(muvw);
         const xyz = math.vec4fTo4i(fuvw);
 
@@ -272,8 +256,8 @@ const Linear3D = struct {
 
         return .{
             .w = muvw - fuvw,
-            .xyz = adr.u.lowerBound3(xyz, b),
-            .xyz1 = adr.u.increment3(xyz, b),
+            .xyz = adr.lowerBound3(xyz, b),
+            .xyz1 = adr.increment3(xyz, b),
         };
     }
 };

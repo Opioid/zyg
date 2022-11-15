@@ -143,7 +143,7 @@ pub const Material = struct {
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (self.emission_map.valid()) {
-            return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
+            return self.distribution.pdf(self.super.sampler_key.address.f2(uv)) * self.total_weight;
         }
 
         return 1.0;

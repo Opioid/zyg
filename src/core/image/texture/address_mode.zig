@@ -1,81 +1,75 @@
 const math = @import("base").math;
+const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
+pub const Mode = enum {
+    Clamp,
+    Repeat,
+    ClampRepeat,
+    RepeatClamp,
 
-pub const Mode = union(enum) {
-    Clamp: Clamp,
-    Repeat: Repeat,
-
-    pub fn f(m: Mode, x: f32) f32 {
+    pub fn f2(m: Mode, x: Vec2f) Vec2f {
         return switch (m) {
             .Clamp => Clamp.f(x),
+            .ClampRepeat => .{ Clamp.f(x[0]), Repeat.f(x[1]) },
             .Repeat => Repeat.f(x),
+            .RepeatClamp => .{ Repeat.f(x[0]), Clamp.f(x[1]) },
         };
     }
 
     pub fn f3(m: Mode, x: Vec4f) Vec4f {
         return switch (m) {
-            .Clamp => Clamp.f3(x),
-            .Repeat => Repeat.f3(x),
+            .Clamp, .ClampRepeat => Clamp.f(x),
+            .Repeat, .RepeatClamp => Repeat.f(x),
         };
     }
 
-    pub fn increment(m: Mode, v: i32, max: i32) i32 {
+    pub fn increment2(m: Mode, v: Vec2i, max: Vec2i) Vec2i {
         return switch (m) {
-            .Clamp => Clamp.increment(v, max),
-            .Repeat => Repeat.increment(v, max),
+            .Clamp => Clamp.increment2(v, max),
+            .ClampRepeat => .{ Clamp.increment(v[0], max[0]), Repeat.increment(v[1], max[1]) },
+            .Repeat => Repeat.increment2(v, max),
+            .RepeatClamp => .{ Repeat.increment(v[0], max[0]), Clamp.increment(v[1], max[1]) },
         };
     }
 
     pub fn increment3(m: Mode, v: Vec4i, max: Vec4i) Vec4i {
         return switch (m) {
-            .Clamp => Clamp.increment3(v, max),
-            .Repeat => .{
-                Repeat.increment(v[0], max[0]),
-                Repeat.increment(v[1], max[1]),
-                Repeat.increment(v[2], max[2]),
-                0,
-            },
+            .Clamp, .ClampRepeat => Clamp.increment3(v, max),
+            .Repeat, .RepeatClamp => Repeat.increment3(v, max),
         };
     }
 
-    pub fn lowerBound(m: Mode, v: i32, max: i32) i32 {
+    pub fn lowerBound2(m: Mode, v: Vec2i, max: Vec2i) Vec2i {
         return switch (m) {
-            .Clamp => Clamp.lowerBound(v),
-            .Repeat => Repeat.lowerBound(v, max),
+            .Clamp => Clamp.lowerBound2(v),
+            .ClampRepeat => .{ Clamp.lowerBound(v[0]), Repeat.lowerBound(v[1], max[1]) },
+            .Repeat => Repeat.lowerBound2(v, max),
+            .RepeatClamp => .{ Repeat.lowerBound(v[0], max[0]), Clamp.lowerBound(v[1]) },
         };
     }
 
     pub fn lowerBound3(m: Mode, v: Vec4i, max: Vec4i) Vec4i {
         return switch (m) {
-            .Clamp => Clamp.lowerBound3(v),
-            .Repeat => .{
-                Repeat.lowerBound(v[0], max[0]),
-                Repeat.lowerBound(v[1], max[1]),
-                Repeat.lowerBound(v[2], max[2]),
-                0,
-            },
+            .Clamp, .ClampRepeat => Clamp.lowerBound3(v),
+            .Repeat, .RepeatClamp => Repeat.lowerBound3(v, max),
         };
     }
 };
 
-pub const Clamp = struct {
-    pub fn f(x: f32) f32 {
-        return std.math.clamp(x, 0.0, 1.0);
-    }
-
-    pub fn f3(x: Vec4f) Vec4f {
+const Clamp = struct {
+    pub fn f(x: anytype) @TypeOf(x) {
         return math.clamp(x, 0.0, 1.0);
     }
 
     pub fn increment(v: i32, max: i32) i32 {
-        if (v >= max) {
-            return max;
-        }
+        return @min(v + 1, max);
+    }
 
-        return v + 1;
+    pub fn increment2(v: Vec2i, max: Vec2i) Vec2i {
+        return @min(v + Vec2i{ 1, 1 }, max);
     }
 
     pub fn increment3(v: Vec4i, max: Vec4i) Vec4i {
@@ -83,11 +77,11 @@ pub const Clamp = struct {
     }
 
     pub fn lowerBound(v: i32) i32 {
-        if (v < 0) {
-            return 0;
-        }
+        return @max(v, 0);
+    }
 
-        return v;
+    pub fn lowerBound2(v: Vec2i) Vec2i {
+        return @max(v, @splat(2, @as(i32, 0)));
     }
 
     pub fn lowerBound3(v: Vec4i) Vec4i {
@@ -95,28 +89,32 @@ pub const Clamp = struct {
     }
 };
 
-pub const Repeat = struct {
-    pub fn f(x: f32) f32 {
-        return math.frac(x);
-    }
-
-    pub fn f3(x: Vec4f) Vec4f {
+const Repeat = struct {
+    pub fn f(x: anytype) @TypeOf(x) {
         return math.frac(x);
     }
 
     pub fn increment(v: i32, max: i32) i32 {
-        if (v >= max) {
-            return 0;
-        }
+        return if (v >= max) 0 else v + 1;
+    }
 
-        return v + 1;
+    pub fn increment2(v: Vec2i, max: Vec2i) Vec2i {
+        return @select(i32, v >= max, Vec2i{ 0, 0 }, v + Vec2i{ 1, 1 });
+    }
+
+    pub fn increment3(v: Vec4i, max: Vec4i) Vec4i {
+        return @select(i32, v >= max, Vec4i{ 0, 0, 0, 0 }, v + Vec4i{ 1, 1, 1, 0 });
     }
 
     pub fn lowerBound(v: i32, max: i32) i32 {
-        if (v < 0) {
-            return max;
-        }
+        return if (v < 0) max else v;
+    }
 
-        return v;
+    pub fn lowerBound2(v: Vec2i, max: Vec2i) Vec2i {
+        return @select(i32, v < Vec2i{ 0, 0 }, max, v);
+    }
+
+    pub fn lowerBound3(v: Vec4i, max: Vec4i) Vec4i {
+        return @select(i32, v < Vec4i{ 0, 0, 0, 0 }, max, v);
     }
 };
