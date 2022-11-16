@@ -154,9 +154,6 @@ pub const Worker = struct {
                 var old_m = @splat(4, @as(f32, 0.0));
                 var old_s: f32 = 0.0;
 
-                var s_min: f32 = 100000000.0;
-                var s_max: f32 = 0.0;
-
                 var next_check = step;
 
                 var s: u32 = 0;
@@ -179,9 +176,6 @@ pub const Worker = struct {
 
                     const value = clamped.last;
 
-                    s_min = @min(s_min, math.minComponent3(value));
-                    s_max = @max(s_max, math.maxComponent3(value));
-
                     if (target_cv > 0.0) {
                         const new_m = clamped.mean;
 
@@ -192,19 +186,10 @@ pub const Worker = struct {
                         old_s = new_s;
 
                         if (s == next_check) {
-                            const s_total = s_max + s_min;
-
-                            if (0.0 == s_total) {
-                                break;
-                            }
-
                             const variance = new_s * new_m[3];
 
                             const mam = math.maxComponent3(new_m);
-                            const coeff = @sqrt(variance) / @max(mam, 0.02);
-
-                            // const contrast = (s_max - s_min) / s_total;
-                            // const coeff = @sqrt(variance) / contrast;
+                            const coeff = @sqrt(variance) / std.math.max(mam, 0.02);
 
                             if (coeff <= target_cv) {
                                 break;
