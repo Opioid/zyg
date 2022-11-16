@@ -2,13 +2,15 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -38,7 +40,7 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -49,14 +51,8 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        worker: *Worker,
-        initial_stack: InterfaceStack,
-    ) Vec4f {
-        worker.super.resetInterfaceStack(initial_stack);
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: InterfaceStack) Vec4f {
+        worker.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
             .AO => self.ao(ray.*, isec.*, worker),
@@ -71,7 +67,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker);
 
         var occlusion_ray: Ray = undefined;
 
@@ -83,7 +79,7 @@ pub const AOV = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            const sample = sampler.sample2D(&worker.super.rng);
+            const sample = sampler.sample2D();
 
             const t = mat_sample.super().shadingTangent();
             const b = mat_sample.super().shadingBitangent();
@@ -93,7 +89,7 @@ pub const AOV = struct {
 
             occlusion_ray.ray.setDirection(ws);
 
-            if (worker.super.visibility(occlusion_ray, null)) |_| {
+            if (worker.scene.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -103,9 +99,9 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker.super);
+        const mat_sample = isec.sample(wo, ray, null, false, worker);
 
         var vec: Vec4f = undefined;
 
@@ -142,7 +138,7 @@ pub const AOV = struct {
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
 
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -161,24 +157,24 @@ pub const AOV = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
 
-            if (sample_result.class.is(.Specular)) {} else if (sample_result.class.no2(.Straight, .Transmission)) {
+            if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
                 if (primary_ray) {
                     primary_ray = false;
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
                         break;
                     }
                 }
             }
 
-            if (!sample_result.class.equal(.StraightTransmission)) {
+            if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 ray.depth += 1;
             }
 
@@ -186,7 +182,7 @@ pub const AOV = struct {
                 break;
             }
 
-            if (sample_result.class.is(.Straight)) {
+            if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -204,21 +200,21 @@ pub const AOV = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.class.is(.Transmission)) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+            if (sample_result.class.transmission) {
+                worker.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+            if (!worker.interface_stack.empty()) {
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 throughput *= vr.tr;
 
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 
@@ -244,7 +240,10 @@ pub const AOV = struct {
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory) AOV {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) AOV {
+        return .{
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };

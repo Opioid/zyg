@@ -79,7 +79,7 @@ pub const Map = struct {
         self.grid.setNumPaths(self.num_paths);
     }
 
-    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         if (0 == self.num_paths) {
             return @splat(4, @as(f32, 0.0));
         }

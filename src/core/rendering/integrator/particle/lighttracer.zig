@@ -5,7 +5,7 @@ const Camera = @import("../../../camera/perspective.zig").Perspective;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const mat = @import("../../../scene/material/material_helper.zig");
@@ -23,8 +23,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
         num_samples: u32,
         min_bounces: u32,
@@ -35,7 +33,7 @@ pub const Lighttracer = struct {
     settings: Settings,
 
     light_sampler: Sampler = Sampler{ .Sobol = .{} },
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -51,11 +49,11 @@ pub const Lighttracer = struct {
         self: *Self,
         frame: u32,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) void {
         _ = initial_stack;
 
-        const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
+        const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
         const frustum_bounds = world_bounds;
 
         var light_id: u32 = undefined;
@@ -68,36 +66,38 @@ pub const Lighttracer = struct {
             &light_sample,
         ) orelse return;
 
-        const light = worker.super.scene.light(light_id);
+        const light = worker.scene.light(light_id);
         const volumetric = light.volumetric();
 
-        worker.super.interface_stack.clear();
+        worker.interface_stack.clear();
         if (volumetric) {
-            worker.super.interface_stack.pushVolumeLight(light);
+            worker.interface_stack.pushVolumeLight(light);
         }
 
         var throughput = @splat(4, @as(f32, 1.0));
 
+        var sampler = self.pickSampler(0);
+
         var isec = Intersection{};
-        if (!worker.super.interface_stack.empty()) {
-            const vr = worker.volume(&ray, &isec, null);
+        if (!worker.interface_stack.empty()) {
+            const vr = worker.volume(&ray, &isec, null, sampler);
             throughput = vr.tr;
 
             if (.Abort == vr.event or .Absorb == vr.event) {
                 return;
             }
-        } else if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
+        } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
             return;
         }
 
-        const initrad = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(isec.geo.p, light_sample, null, worker.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            worker.super.interface_stack.clear();
+            worker.interface_stack.clear();
             if (volumetric) {
-                worker.super.interface_stack.pushVolumeLight(light);
+                worker.interface_stack.pushVolumeLight(light);
             }
 
             var split_ray = ray;
@@ -120,7 +120,7 @@ pub const Lighttracer = struct {
         light_id: u32,
         light_sample_xy: Vec2f,
     ) void {
-        const camera = worker.super.camera;
+        const camera = worker.camera;
 
         var radiance = radiance_;
 
@@ -135,7 +135,7 @@ pub const Lighttracer = struct {
             const wo = -ray.ray.direction;
 
             const filter: ?Filter = if (ray.depth <= 1 or caustic_path) null else .Nearest;
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -154,15 +154,15 @@ pub const Lighttracer = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
 
-            if (sample_result.class.is(.Straight)) {
+            if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
 
-                if (sample_result.class.no(.Transmission)) {
+                if (!sample_result.class.transmission) {
                     ray.depth += 1;
                 }
             } else {
@@ -170,14 +170,14 @@ pub const Lighttracer = struct {
                 ray.ray.setDirection(sample_result.wi);
                 ray.depth += 1;
 
-                if (sample_result.class.no(.Specular) and
+                if (!sample_result.class.specular and
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray.*, isec.*, mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, ray.*, isec.*, &mat_sample, filter, sampler, worker);
                 }
 
-                if (sample_result.class.is(.Specular)) {
+                if (sample_result.class.specular) {
                     caustic_path = true;
                 }
 
@@ -196,16 +196,16 @@ pub const Lighttracer = struct {
 
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.class.is(.Transmission)) {
-                const ior = worker.super.interfaceChangeIor(sample_result.wi, isec.*);
+            if (sample_result.class.transmission) {
+                const ior = worker.interfaceChangeIor(sample_result.wi, isec.*);
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+            if (!worker.interface_stack.empty()) {
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 // result += throughput * vr.li;
                 radiance *= vr.tr;
@@ -213,7 +213,7 @@ pub const Lighttracer = struct {
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 
@@ -233,12 +233,12 @@ pub const Lighttracer = struct {
         light_sample: *SampleFrom,
     ) ?Ray {
         var sampler = &self.light_sampler;
-        const s2 = sampler.sample2D(&worker.super.rng);
-        const l = worker.super.scene.randomLight(s2[0]);
-        const time = worker.super.absoluteTime(frame, s2[1]);
+        const s2 = sampler.sample2D();
+        const l = worker.scene.randomLight(s2[0]);
+        const time = worker.absoluteTime(frame, s2[1]);
 
-        const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, sampler, bounds, &worker.super) orelse return null;
+        const light = worker.scene.light(l.offset);
+        light_sample.* = light.sampleFrom(time, sampler, bounds, worker) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
@@ -253,12 +253,12 @@ pub const Lighttracer = struct {
         radiance: Vec4f,
         history: Ray,
         isec: Intersection,
-        mat_sample: MaterialSample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!isec.visibleInCamera(worker.super.scene.*)) {
+        if (!isec.visibleInCamera(worker.scene)) {
             return false;
         }
 
@@ -276,8 +276,7 @@ pub const Lighttracer = struct {
             history.time,
             p,
             sampler,
-            &worker.super.rng,
-            worker.super.scene.*,
+            worker.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
@@ -291,9 +290,9 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
 
-        const material_ior = isec.material(worker.super.scene.*).ior();
+        const material_ior = isec.material(worker.scene).ior();
         if (isec.subsurface and material_ior > 1.0) {
-            const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
+            const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }
@@ -321,7 +320,10 @@ pub const Lighttracer = struct {
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(self: Factory) Lighttracer {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) Lighttracer {
+        return .{
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };

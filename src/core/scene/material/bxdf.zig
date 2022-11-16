@@ -1,7 +1,6 @@
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const Flags = base.flags.Flags;
 
 pub const Result = struct {
     reflection: Vec4f,
@@ -25,40 +24,35 @@ pub const Result = struct {
     pub fn mulAssignPdf(self: *Result, p: f32) void {
         self.reflection[3] *= p;
     }
+
+    pub fn blend(self: *Result, other: Vec4f, w: f32) void {
+        const r = self.reflection;
+        const n = math.lerp(r, other, w);
+        self.reflection = .{ n[0], n[1], n[2], r[3] };
+    }
 };
 
-const Reflection = 1 << 0;
-const Transmission = 1 << 1;
-const Diffuse = 1 << 2;
-const Glossy = 1 << 3;
-const Specular = 1 << 4;
-const Straight = 1 << 5;
-
-pub const Class = enum(u32) {
-    Reflection = Reflection,
-    Transmission = Transmission,
-    Diffuse = Diffuse,
-    Glossy = Glossy,
-    Specular = Specular,
-    Straight = Straight,
-
-    DiffuseReflection = Reflection | Diffuse,
-    GlossyReflection = Reflection | Glossy,
-    SpecularReflection = Reflection | Specular,
-    DiffuseTransmission = Transmission | Diffuse,
-    GlossyTransmission = Transmission | Glossy,
-    SpecularTransmission = Transmission | Specular,
-    StraightTransmission = Transmission | Straight,
+pub const Class = packed struct {
+    reflection: bool = false,
+    transmission: bool = false,
+    diffuse: bool = false,
+    glossy: bool = false,
+    specular: bool = false,
+    straight: bool = false,
 };
-
-pub const ClassFlag = Flags(Class);
 
 pub const Sample = struct {
+    pub const StraightTransmission = Class{ .transmission = true, .straight = true };
+
     reflection: Vec4f = undefined,
     wi: Vec4f = undefined,
     h: Vec4f = undefined, // intermediate result, convenient to store here
     pdf: f32 = 0.0,
     wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
-    class: ClassFlag = undefined,
+    class: Class = undefined,
+
+    pub fn blend(self: *Sample, other: Vec4f, w: f32) void {
+        self.reflection = math.lerp(self.reflection, other, w);
+    }
 };

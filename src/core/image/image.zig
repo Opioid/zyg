@@ -11,6 +11,7 @@ pub const Description = ti.Description;
 pub const Byte1 = ti.TypedImage(u8);
 pub const Byte2 = ti.TypedImage(Vec2b);
 pub const Byte3 = ti.TypedImage(Pack3b);
+pub const Half1 = ti.TypedImage(f16);
 pub const Half3 = ti.TypedImage(Pack3h);
 pub const Half4 = ti.TypedImage(Pack4h);
 pub const Float1 = ti.TypedImage(f32);
@@ -36,6 +37,7 @@ pub const Type = enum {
     Byte1,
     Byte2,
     Byte3,
+    Half1,
     Half3,
     Half4,
     Float1,
@@ -48,6 +50,7 @@ pub const Image = union(enum) {
     Byte1: Byte1,
     Byte2: Byte2,
     Byte3: Byte3,
+    Half1: Half1,
     Half3: Half3,
     Half4: Half4,
     Float1: Float1,
@@ -58,31 +61,13 @@ pub const Image = union(enum) {
 
     pub fn deinit(self: *Image, alloc: Allocator) void {
         switch (self.*) {
-            .Byte1 => |*i| i.deinit(alloc),
-            .Byte2 => |*i| i.deinit(alloc),
-            .Byte3 => |*i| i.deinit(alloc),
-            .Half3 => |*i| i.deinit(alloc),
-            .Half4 => |*i| i.deinit(alloc),
-            .Float1 => |*i| i.deinit(alloc),
-            .Float1Sparse => |*i| i.deinit(alloc),
-            .Float2 => |*i| i.deinit(alloc),
-            .Float3 => |*i| i.deinit(alloc),
-            .Float4 => |*i| i.deinit(alloc),
+            inline else => |*i| i.deinit(alloc),
         }
     }
 
     pub fn description(self: Image) Description {
         return switch (self) {
-            .Byte1 => |i| i.description,
-            .Byte2 => |i| i.description,
-            .Byte3 => |i| i.description,
-            .Half3 => |i| i.description,
-            .Half4 => |i| i.description,
-            .Float1 => |i| i.description,
-            .Float1Sparse => |i| i.description,
-            .Float2 => |i| i.description,
-            .Float3 => |i| i.description,
-            .Float4 => |i| i.description,
+            inline else => |i| i.description,
         };
     }
 };

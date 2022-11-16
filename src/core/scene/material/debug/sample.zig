@@ -21,7 +21,7 @@ pub const Sample = struct {
         ) };
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
@@ -30,8 +30,8 @@ pub const Sample = struct {
         return bxdf.Result.init(reflection, pdf);
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const s2d = sampler.sample2D(rng);
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+        const s2d = sampler.sample2D();
 
         const is = math.smpl.hemisphereCosine(s2d);
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));
@@ -48,7 +48,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
+            .class = .{ .diffuse = true, .reflection = true },
         };
     }
 };

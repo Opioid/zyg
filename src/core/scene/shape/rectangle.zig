@@ -5,12 +5,11 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -26,7 +25,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -65,7 +64,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -88,14 +87,14 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -125,9 +124,8 @@ pub const Rectangle = struct {
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
-        const uv = sampler.sample2D(rng);
+        const uv = sampler.sample2D();
         return sampleToUv(p, uv, trafo, area, two_sided);
     }
 
@@ -172,7 +170,6 @@ pub const Rectangle = struct {
         area: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) SampleFrom {
@@ -188,7 +185,7 @@ pub const Rectangle = struct {
             wn,
         );
 
-        if (two_sided and sampler.sample1D(rng) > 0.5) {
+        if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;
             dir = -dir;
         }

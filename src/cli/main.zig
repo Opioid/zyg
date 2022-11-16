@@ -56,6 +56,7 @@ pub fn main() !void {
     defer threads.deinit(alloc);
 
     // try core.ggx_integrate.integrate(alloc, &threads);
+    // try core.rainbow_integrate.integrate(alloc);
 
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
@@ -121,7 +122,7 @@ pub fn main() !void {
                     &resources,
                 ) catch continue;
 
-                const camera = take.view.camera;
+                const camera = &take.view.camera;
                 const start = @as(u64, i) * camera.frame_step;
                 graph.simulate(start, start + camera.frame_duration);
 
@@ -167,7 +168,7 @@ fn loadTakeAndScene(
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take.*, graph) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return false;
     };
@@ -215,7 +216,7 @@ fn reloadFrameDependant(
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take.*, graph) catch |err| {
+    scene_loader.load(alloc, take.scene_filename, take, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return err;
     };

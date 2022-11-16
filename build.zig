@@ -60,8 +60,8 @@ pub fn build(b: *std.build.Builder) void {
     cli.setBuildMode(mode);
     cli.linkLibC();
 
-    // cli.sanitize_thread = true;
-    // cli.strip = true;
+    //cli.sanitize_thread = true;
+    cli.strip = true;
 
     cli.install();
 
@@ -72,7 +72,7 @@ pub fn build(b: *std.build.Builder) void {
     capi.setBuildMode(mode);
     capi.linkLibC();
 
-    // capi.strip = true;
+    capi.strip = true;
 
     capi.install();
 
@@ -83,8 +83,8 @@ pub fn build(b: *std.build.Builder) void {
     it.setBuildMode(mode);
     it.linkLibC();
 
-    // cli.sanitize_thread = true;
-    // it.strip = true;
+    // it.sanitize_thread = true;
+    it.strip = true;
 
     it.install();
 
@@ -101,7 +101,7 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/san_miguel.take",
             //"takes/cornell.take",
             //"takes/imrod.take",
-            //"takes/model_test.take",
+            "takes/model_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",

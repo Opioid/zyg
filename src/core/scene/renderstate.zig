@@ -1,5 +1,6 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
-const Filter = @import("../image/texture/sampler.zig").Filter;
+const Filter = @import("../image/texture/texture_sampler.zig").Filter;
+
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;

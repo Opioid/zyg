@@ -120,7 +120,7 @@ pub const GzipReadStream = struct {
                 }
             }
 
-            const copy_len = @minimum(@intCast(u32, dest.len - dest_cur), self.buffer_count);
+            const copy_len = @min(@intCast(u32, dest.len - dest_cur), self.buffer_count);
 
             const dest_end = dest_cur + copy_len;
             const source_end = self.buffer_head + copy_len;

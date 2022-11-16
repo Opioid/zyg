@@ -11,6 +11,8 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+
 pub const Coating = struct {
     frame: Frame = undefined,
 
@@ -31,7 +33,7 @@ pub const Coating = struct {
         pdf: f32,
     };
 
-    pub fn evaluate(self: Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, avoid_caustics: bool) Result {
+    pub fn evaluate(self: *const Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, avoid_caustics: bool) Result {
         const n_dot_wi = self.frame.clampNdot(wi);
         const n_dot_wo = self.frame.clampAbsNdot(wo);
 
@@ -46,12 +48,12 @@ pub const Coating = struct {
         var fresnel_result: Vec4f = undefined;
         const gg = ggx.Iso.reflectionF(
             h,
+            self.frame.n,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
             self.alpha,
             schlick,
-            self.frame,
             &fresnel_result,
         );
 
@@ -65,7 +67,7 @@ pub const Coating = struct {
     }
 
     pub fn reflect(
-        self: Self,
+        self: *const Self,
         wo: Vec4f,
         h: Vec4f,
         n_dot_wo: f32,
@@ -94,7 +96,7 @@ pub const Coating = struct {
         result.reflection *= @splat(4, ep * self.weight * n_dot_wi) * f;
     }
 
-    pub fn sample(self: Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
+    pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
         const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, self.frame, n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
@@ -113,12 +115,12 @@ pub const Coating = struct {
         return inthlp.attenuation3(absorption_coef, d);
     }
 
-    pub fn singleAttenuation(self: Self, n_dot_wo: f32) Vec4f {
+    pub fn singleAttenuation(self: *const Self, n_dot_wo: f32) Vec4f {
         return singleAttenuationStatic(self.absorption_coef, self.thickness, n_dot_wo);
     }
 
-    pub fn attenuation(self: Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
-        const f = self.weight * fresnel.schlick1(@minimum(n_dot_wi, n_dot_wo), self.f0);
+    pub fn attenuation(self: *const Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
+        const f = self.weight * fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), self.f0);
         const d = self.thickness * (1.0 / n_dot_wi + 1.0 / n_dot_wo);
 
         const absorption = inthlp.attenuation3(self.absorption_coef, d);

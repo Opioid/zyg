@@ -5,13 +5,12 @@ const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Canopy = @import("../scene/shape/canopy.zig").Canopy;
-const Worker = @import("../scene/worker.zig").Worker;
 const ComposedTransformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Texture = @import("../image/texture/texture.zig").Texture;
-const ts = @import("../image/texture/sampler.zig");
+const ts = @import("../image/texture/texture_sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
-const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const Filesystem = @import("../file/system.zig").System;
 
 // const SkyMaterial = @import("../sky/material.zig").Material;
@@ -28,6 +27,7 @@ const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
 const Transformation = math.Transformation;
 const Threads = base.thread.Pool;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -111,7 +111,7 @@ pub const Sky = struct {
         self.privateUpadate(scene);
     }
 
-    pub fn sunDirection(self: Self) Vec4f {
+    pub fn sunDirection(self: *const Self) Vec4f {
         return self.sun_rotation.r[2];
     }
 
@@ -165,7 +165,7 @@ pub const Sky = struct {
         // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
 
-    pub fn sunWi(self: Self, v: f32) Vec4f {
+    pub fn sunWi(self: *const Self, v: f32) Vec4f {
         const y = (2.0 * v) - 1.0;
 
         const ls = Vec4f{ 0.0, y * Radius, 0.0, 0.0 };
@@ -174,7 +174,7 @@ pub const Sky = struct {
         return math.normalize3(ws - self.sun_rotation.r[2]);
     }
 
-    pub fn sunV(self: Self, wi: Vec4f) f32 {
+    pub fn sunV(self: *const Self, wi: Vec4f) f32 {
         const k = wi - self.sun_rotation.r[2];
 
         const c = math.dot3(self.sun_rotation.r[1], k) / Radius;
@@ -204,6 +204,8 @@ const SkyContext = struct {
 
         const self = @intToPtr(*SkyContext, context);
 
+        var rng = RNG{};
+
         const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
 
         var y = begin;
@@ -212,11 +214,13 @@ const SkyContext = struct {
 
             var x: u32 = 0;
             while (x < Sky.Bake_dimensions[0]) : (x += 1) {
+                rng.start(0, @intCast(u64, y * Sky.Bake_dimensions[0] + x));
+
                 const u = idf[0] * (@intToFloat(f32, x) + 0.5);
                 const uv = Vec2f{ u, v };
                 const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
 
-                const li = self.model.evaluateSky(math.normalize3(wi));
+                const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
                 self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
             }

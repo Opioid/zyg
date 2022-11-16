@@ -16,6 +16,7 @@ pub const Texture = struct {
         Byte2_unorm,
         Byte2_snorm,
         Byte3_sRGB,
+        Half1,
         Half3,
         Half4,
         Float1,
@@ -38,30 +39,30 @@ pub const Texture = struct {
     }
 
     pub fn numChannels(self: Texture) u32 {
-        if (Null == self.image) return 0;
+        if (Null == self.image) {
+            return 0;
+        }
 
         return switch (self.type) {
-            .Byte1_unorm, .Float1, .Float1Sparse => 1,
+            .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
             .Half4, .Float4 => 4,
         };
     }
 
-    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: Scene) f32 {
+    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
-            .Byte1_unorm => {
-                const value = image.Byte1.get2D(x, y);
-                return enc.cachedUnormToFloat(value);
-            },
+            .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
+            .Half1 => @floatCast(f32, image.Half1.get2D(x, y)),
             .Float1 => image.Float1.get2D(x, y),
             else => 0.0,
         };
     }
 
-    pub fn gather2D_1(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]f32 {
+    pub fn gather2D_1(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -74,29 +75,32 @@ pub const Texture = struct {
                     enc.cachedUnormToFloat(values[3]),
                 };
             },
+            .Half1 => {
+                const values = image.Half1.gather2D(xy_xy1);
+                return .{
+                    @floatCast(f32, values[0]),
+                    @floatCast(f32, values[1]),
+                    @floatCast(f32, values[2]),
+                    @floatCast(f32, values[3]),
+                };
+            },
             .Float1 => image.Float1.gather2D(xy_xy1),
             else => .{ 0.0, 0.0, 0.0, 0.0 },
         };
     }
 
-    pub fn get2D_2(self: Texture, x: i32, y: i32, scene: Scene) Vec2f {
+    pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
-            .Byte2_unorm => {
-                const value = image.Byte2.get2D(x, y);
-                return enc.cachedUnormToFloat2(value);
-            },
-            .Byte2_snorm => {
-                const value = image.Byte2.get2D(x, y);
-                return enc.cachedSnormToFloat2(value);
-            },
+            .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
+            .Byte2_snorm => enc.cachedSnormToFloat2(image.Byte2.get2D(x, y)),
             .Float2 => image.Float2.get2D(x, y),
             else => @splat(2, @as(f32, 0.0)),
         };
     }
 
-    pub fn gather2D_2(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]Vec2f {
+    pub fn gather2D_2(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -128,7 +132,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_3(self: Texture, x: i32, y: i32, scene: Scene) Vec4f {
+    pub fn get2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -157,7 +161,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather2D_3(self: Texture, xy_xy1: Vec4i, scene: Scene) [4]Vec4f {
+    pub fn gather2D_3(self: Texture, xy_xy1: Vec4i, scene: *const Scene) [4]Vec4f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -226,7 +230,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_4(self: Texture, x: i32, y: i32, scene: Scene) Vec4f {
+    pub fn get2D_4(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -269,7 +273,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get3D_1(self: Texture, x: i32, y: i32, z: i32, scene: Scene) f32 {
+    pub fn get3D_1(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -284,7 +288,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_1(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]f32 {
+    pub fn gather3D_1(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: *const Scene) [8]f32 {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -320,7 +324,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get3D_2(self: Texture, x: i32, y: i32, z: i32, scene: Scene) Vec2f {
+    pub fn get3D_2(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -329,7 +333,7 @@ pub const Texture = struct {
         };
     }
 
-    pub fn gather3D_2(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: Scene) [8]Vec2f {
+    pub fn gather3D_2(self: Texture, xyz: Vec4i, xyz1: Vec4i, scene: *const Scene) [8]Vec2f {
         const image = scene.image(self.image);
 
         return switch (self.type) {
@@ -338,11 +342,11 @@ pub const Texture = struct {
         };
     }
 
-    pub fn description(self: Texture, scene: Scene) Description {
+    pub fn description(self: Texture, scene: *const Scene) Description {
         return scene.image(self.image).description();
     }
 
-    pub fn average_3(self: Texture, scene: Scene) Vec4f {
+    pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
         var average = @splat(4, @as(f32, 0.0));
 
         const d = self.description(scene).dimensions;

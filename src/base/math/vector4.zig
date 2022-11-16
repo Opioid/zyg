@@ -7,8 +7,6 @@ const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
-pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
-
 pub fn Vec4(comptime T: type) type {
     return extern struct {
         v: [4]T = undefined,
@@ -37,7 +35,8 @@ pub const Vec4u = @Vector(4, u32);
 pub const Vec4f = @Vector(4, f32);
 
 pub inline fn dot3(a: Vec4f, b: Vec4f) f32 {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const ab = a * b;
+    return ab[0] + ab[1] + ab[2];
 }
 
 pub inline fn squaredLength3(v: Vec4f) f32 {
@@ -114,8 +113,26 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
     return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
 }
 
+pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.min(a[0], b[0]),
+        std.math.min(a[1], b[1]),
+        std.math.min(a[2], b[2]),
+        std.math.min(a[3], b[3]),
+    };
+}
+
+pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.max(a[0], b[0]),
+        std.math.max(a[1], b[1]),
+        std.math.max(a[2], b[2]),
+        std.math.max(a[3], b[3]),
+    };
+}
+
 pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return @minimum(@maximum(v, @splat(4, mi)), @splat(4, ma));
+    return min4(max4(v, @splat(4, mi)), @splat(4, ma));
 }
 
 pub inline fn minComponent3(v: Vec4f) f32 {
@@ -209,6 +226,15 @@ pub inline fn vec4fTo4i(v: Vec4f) Vec4i {
 }
 
 pub inline fn vec4iTo4f(v: Vec4i) Vec4f {
+    return .{
+        @intToFloat(f32, v[0]),
+        @intToFloat(f32, v[1]),
+        @intToFloat(f32, v[2]),
+        @intToFloat(f32, v[3]),
+    };
+}
+
+pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
     return .{
         @intToFloat(f32, v[0]),
         @intToFloat(f32, v[1]),

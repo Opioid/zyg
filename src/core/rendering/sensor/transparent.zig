@@ -1,12 +1,13 @@
 const Base = @import("base.zig").Base;
-const aov = @import("aov/value.zig");
+const aov = @import("aov/aov_value.zig");
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
 
-const Allocator = @import("std").mem.Allocator;
+const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Transparent = struct {
     base: Base = .{},
@@ -86,35 +87,38 @@ pub const Transparent = struct {
         _ = @atomicRmw(f32, &value.v[3], .Add, wc[3], .Monotonic);
     }
 
-    pub fn resolve(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolve(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = @as(Vec4f, p.v) / @splat(4, weight);
-
+            const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
             target[j].v = color;
         }
     }
 
-    pub fn resolveTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+        const weights = self.pixel_weights;
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
-            const weight = self.pixel_weights[j];
-            const color = @as(Vec4f, p.v) / @splat(4, weight);
-            const tm = self.base.tonemapper.tonemap(color);
-            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(color[3], 0.0) };
+            const weight = weights[j];
+            const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
+            const tm = tonemapper.tonemap(color);
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], color[3] };
         }
     }
 
-    pub fn resolveAccumulateTonemap(self: Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveAccumulateTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+        const weights = self.pixel_weights;
+        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
-            const weight = self.pixel_weights[j];
+            const weight = weights[j];
             const color = @as(Vec4f, p.v) / @splat(4, weight);
             const old = target[j];
-            const combined = color + @as(Vec4f, old.v);
-            const tm = self.base.tonemapper.tonemap(combined);
-            target[j].v = Vec4f{ tm[0], tm[1], tm[2], @maximum(combined[3], 0.0) };
+            const combined = @fabs(color + @as(Vec4f, old.v));
+            const tm = tonemapper.tonemap(combined);
+            target[j].v = Vec4f{ tm[0], tm[1], tm[2], combined[3] };
         }
     }
 

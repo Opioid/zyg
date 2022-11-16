@@ -8,7 +8,7 @@ const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Transformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
-const ts = @import("../image/texture/sampler.zig");
+const ts = @import("../image/texture/texture_sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
 const Image = @import("../image/image.zig").Image;
 
@@ -21,6 +21,7 @@ const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Threads = base.thread.Pool;
 const spectrum = base.spectrum;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -59,18 +60,20 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.set(.EmissionMap, self.emission_map.valid());
+        self.super.properties.emission_map = self.emission_map.valid();
     }
 
     pub fn setSunRadiance(self: *Material, model: Model) void {
         const n = @intToFloat(f32, self.sun_radiance.samples.len - 1);
+
+        var rng = RNG.init(0, 0);
 
         for (self.sun_radiance.samples) |*s, i| {
             const v = @intToFloat(f32, i) / n;
             var wi = self.sky.sunWi(v);
             wi[1] = std.math.max(wi[1], 0.0);
 
-            s.* = model.evaluateSkyAndSun(wi);
+            s.* = model.evaluateSkyAndSun(wi, &rng);
         }
 
         var total = @splat(4, @as(f32, 0.0));
@@ -106,7 +109,7 @@ pub const Material = struct {
         self: *Material,
         alloc: Allocator,
         shape: Shape,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) Vec4f {
         if (self.average_emission[0] >= 0.0) {
@@ -152,7 +155,7 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: Material, wo: Vec4f, rs: Renderstate, scene: Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
         const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, scene);
 
         var result = Sample.init(rs, wo, rad);
@@ -160,7 +163,7 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn evaluateRadiance(self: Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: Scene) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample2D_3(key, self.emission_map, uv, scene);
@@ -169,13 +172,13 @@ pub const Material = struct {
         return self.sun_radiance.eval(self.sky.sunV(wi));
     }
 
-    pub fn radianceSample(self: Material, r3: Vec4f) Base.RadianceSample {
+    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
         const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
 
         return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
     }
 
-    pub fn emissionPdf(self: Material, uv: Vec2f) f32 {
+    pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (self.emission_map.valid()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }

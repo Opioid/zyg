@@ -81,8 +81,8 @@ pub const BuilderSAH = struct {
                 const r = i + begin;
                 self.references[r].set(min, max, @intCast(u32, r));
 
-                bounds.bounds[0] = @minimum(bounds.bounds[0], min);
-                bounds.bounds[1] = @maximum(bounds.bounds[1], max);
+                bounds.bounds[0] = math.min4(bounds.bounds[0], min);
+                bounds.bounds[1] = math.max4(bounds.bounds[1], max);
             }
 
             self.aabbs[id] = bounds;

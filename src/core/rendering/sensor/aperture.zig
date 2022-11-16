@@ -18,7 +18,7 @@ pub const Aperture = struct {
         self.distribution.deinit(alloc);
     }
 
-    pub fn setShape(self: *Aperture, alloc: Allocator, texture: Texture, scene: Scene) !void {
+    pub fn setShape(self: *Aperture, alloc: Allocator, texture: Texture, scene: *const Scene) !void {
         const d = texture.description(scene).dimensions;
 
         const width = @intCast(u32, d[0]);

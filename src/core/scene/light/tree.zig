@@ -14,21 +14,25 @@ const Pick = Distribution1D.Discrete;
 // 0.08 ^ 4
 pub var Splitting_threshold: f32 = 0.00004096;
 
-pub const Node = packed struct {
+const Meta = packed struct {
+    has_children: bool,
+    two_sided: bool,
+    children_or_light: u30,
+};
+
+pub const Node = struct {
     center: Vec4f,
     cone: Vec4f,
 
     power: f32,
     variance: f32,
 
-    has_children: bool,
-    two_sided: bool,
-    children_or_light: u30,
+    meta: Meta,
     num_lights: u32,
 
     pub fn weight(self: Node, p: Vec4f, n: Vec4f, total_sphere: bool) f32 {
         const r = self.center[3];
-        return importance(p, n, self.center, self.cone, r, self.power, self.two_sided, total_sphere);
+        return importance(p, n, self.center, self.cone, r, self.power, self.meta.two_sided, total_sphere);
     }
 
     pub fn split(self: Node, p: Vec4f) bool {
@@ -67,7 +71,7 @@ pub const Node = packed struct {
         variant: u32,
     ) Pick {
         const num_lights = self.num_lights;
-        const light = self.children_or_light;
+        const light = self.meta.children_or_light;
 
         if (1 == num_lights) {
             return .{ .offset = light_mapping[light], .pdf = 1.0 };
@@ -125,7 +129,7 @@ pub const Node = packed struct {
             return 1.0;
         }
 
-        const light = self.children_or_light;
+        const light = self.meta.children_or_light;
         const end = light + num_lights;
 
         var w_id: f32 = undefined;
@@ -168,7 +172,7 @@ fn importance(
     const cos_n = -math.dot3(n, na);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
-    const sb = @maximum(@splat(4, @as(f32, 1.0)) - sa * sa, math.Min_normal);
+    const sb = math.max4(@splat(4, @as(f32, 1.0)) - sa * sa, @splat(4, @as(f32, 0.0)));
     const sr = @sqrt(sb);
 
     const cos_cu = sr[0];
@@ -288,7 +292,7 @@ pub const Tree = struct {
         total_sphere: bool,
         random: f32,
         split: bool,
-        scene: Scene,
+        scene: *const Scene,
         buffer: *Lights,
     ) []Pick {
         var current_light: u32 = 0;
@@ -336,8 +340,8 @@ pub const Tree = struct {
 
             const do_split = t.depth < Max_split_depth and node.split(p);
 
-            if (node.has_children) {
-                const c0 = node.children_or_light;
+            if (node.meta.has_children) {
+                const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
                 if (do_split) {
@@ -360,14 +364,14 @@ pub const Tree = struct {
                     } else {
                         t.node = c1;
                         t.pdf *= p1;
-                        t.random = @minimum((t.random - p0) / p1, 1.0);
+                        t.random = std.math.min((t.random - p0) / p1, 1.0);
                     }
 
                     t.depth = Max_split_depth;
                 }
             } else {
                 if (do_split) {
-                    const begin = node.children_or_light;
+                    const begin = node.meta.children_or_light;
                     for (self.light_mapping[begin .. begin + node.num_lights]) |lm| {
                         buffer[current_light] = .{ .offset = lm, .pdf = t.pdf };
                         current_light += 1;
@@ -385,7 +389,7 @@ pub const Tree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: Scene) f32 {
+    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
         const lo = self.light_orders[id];
         const num_infinite_lights = self.num_infinite_lights;
 
@@ -414,8 +418,8 @@ pub const Tree = struct {
 
             const do_split = depth < Max_split_depth and node.split(p);
 
-            if (node.has_children) {
-                const c0 = node.children_or_light;
+            if (node.meta.has_children) {
+                const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
                 const middle = self.node_middles[nid];
@@ -499,7 +503,7 @@ pub const PrimitiveTree = struct {
         n: Vec4f,
         total_sphere: bool,
         randomp: f32,
-        part: Part,
+        part: *const Part,
         variant: u32,
     ) Pick {
         var random = randomp;
@@ -509,8 +513,8 @@ pub const PrimitiveTree = struct {
         while (true) {
             const node = self.nodes[nid];
 
-            if (node.has_children) {
-                const c0 = node.children_or_light;
+            if (node.meta.has_children) {
+                const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
                 var p0 = self.nodes[c0].weight(p, n, total_sphere);
@@ -528,7 +532,7 @@ pub const PrimitiveTree = struct {
                 } else {
                     nid = c1;
                     pd *= p1;
-                    random = @minimum((random - p0) / p1, 1.0);
+                    random = std.math.min((random - p0) / p1, 1.0);
                 }
             } else {
                 const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
@@ -537,7 +541,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: Part, variant: u32) f32 {
+    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
         const lo = self.light_orders[id];
 
         var pd: f32 = 1.0;
@@ -548,7 +552,7 @@ pub const PrimitiveTree = struct {
             const middle = self.node_middles[nid];
 
             if (middle > 0) {
-                const c0 = node.children_or_light;
+                const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
                 const p0 = self.nodes[c0].weight(p, n, total_sphere);
@@ -573,7 +577,6 @@ const TraversalStack = struct {
     pub const Value = struct {
         pdf: f32,
         random: f32,
-
         node: u32,
         depth: u32,
     };

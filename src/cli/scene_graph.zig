@@ -9,7 +9,6 @@ const Transformation = core.scn.Transformation;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const Flags = base.flags.Flags;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -21,12 +20,10 @@ pub const Graph = struct {
         child: u32 = Scene.Null,
     };
 
-    const Property = enum(u8) {
-        HasParent = 1 << 0,
-        LocalAnimation = 1 << 1,
+    const Properties = packed struct {
+        has_parent: bool = false,
+        local_animation: bool = false,
     };
-
-    const Properties = Flags(Property);
 
     scene: Scene,
 
@@ -114,7 +111,7 @@ pub const Graph = struct {
     }
 
     pub fn propSerializeChild(self: *Self, alloc: Allocator, parent_id: u32, child_id: u32) !void {
-        self.prop_properties.items[child_id].set(.HasParent, true);
+        self.prop_properties.items[child_id].has_parent = true;
 
         if (self.scene.propHasAnimatedFrames(parent_id) and !self.scene.propHasAnimatedFrames(child_id)) {
             // This is the case if child has no animation attached to it directly
@@ -139,12 +136,12 @@ pub const Graph = struct {
             try self.keyframes.append(alloc, .{});
         }
 
-        self.prop_properties.items[entity].set(.LocalAnimation, local_animation);
+        self.prop_properties.items[entity].local_animation = local_animation;
 
         try self.scene.propAllocateFrames(alloc, entity);
     }
 
-    pub fn propSetTransformation(self: *Graph, entity: u32, t: math.Transformation) void {
+    pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
         const f = self.prop_frames.items[entity];
         self.keyframes.items[f] = t;
     }
@@ -175,8 +172,8 @@ pub const Graph = struct {
         try self.prop_topology.append(alloc, .{});
     }
 
-    fn propCalculateWorldTransformation(self: *Graph, entity: usize) void {
-        if (self.prop_properties.items[entity].no(.HasParent)) {
+    fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
+        if (!self.prop_properties.items[entity].has_parent) {
             const f = self.prop_frames.items[entity];
 
             if (Scene.Null != f) {
@@ -189,7 +186,7 @@ pub const Graph = struct {
         }
     }
 
-    fn propPropagateTransformation(self: *Graph, entity: usize) void {
+    fn propPropagateTransformation(self: *Self, entity: usize) void {
         const f = self.prop_frames.items[entity];
 
         if (Scene.Null == f) {
@@ -214,15 +211,14 @@ pub const Graph = struct {
         }
     }
 
-    fn propInheritTransformation(self: *Graph, entity: u32, trafo: Transformation) void {
+    fn propInheritTransformation(self: *Self, entity: u32, trafo: Transformation) void {
         const f = self.prop_frames.items[entity];
 
         if (Scene.Null != f) {
             const frames = self.keyframes.items.ptr + f;
 
-            // Logically this has to be true here
-            // const local_animation = true; //self.prop(entity).hasLocalAnimation();
-            const local_animation = self.prop_properties.items[entity].is(.LocalAnimation);
+            // Logically this has to be true here, maybe assert instead?
+            const local_animation = self.prop_properties.items[entity].local_animation;
 
             const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
 
@@ -237,9 +233,8 @@ pub const Graph = struct {
         self.propPropagateTransformation(entity);
     }
 
-    fn propInheritTransformations(self: *Graph, entity: u32, frames: [*]const math.Transformation) void {
-        //  const local_animation = self.prop(entity).hasLocalAnimation();
-        const local_animation = self.prop_properties.items[entity].is(.LocalAnimation);
+    fn propInheritTransformations(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
+        const local_animation = self.prop_properties.items[entity].local_animation;
 
         const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
         const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];

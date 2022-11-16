@@ -1,10 +1,10 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../worker.zig").Worker;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const Ray = @import("../ray.zig").Ray;
 const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
@@ -49,7 +49,7 @@ pub const Light = struct {
         return ~Volume_mask & id;
     }
 
-    pub fn finite(self: Light, scene: Scene) bool {
+    pub fn finite(self: Light, scene: *const Scene) bool {
         return scene.propShape(self.prop).finite();
     }
 
@@ -76,7 +76,7 @@ pub const Light = struct {
         scene.propPrepareSampling(alloc, self.prop, self.part, light_id, time, volume, threads);
     }
 
-    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: Scene) Vec4f {
+    pub fn power(self: Light, average_radiance: Vec4f, scene_bb: AABB, scene: *const Scene) Vec4f {
         const extent = if (self.two_sided) 2.0 * self.extent else self.extent;
 
         const radiance = @splat(4, extent) * average_radiance;
@@ -152,16 +152,17 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, sample: SampleTo, filter: ?Filter, scene: Scene) Vec4f {
+    pub fn evaluateTo(self: Light, p: Vec4f, sample: SampleTo, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
-        return material.evaluateRadiance(sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
+        return material.evaluateRadiance(p, sample.wi, sample.n, sample.uvw, sample.trafo, self.extent, filter, scene);
     }
 
-    pub fn evaluateFrom(self: Light, sample: SampleFrom, filter: ?Filter, scene: Scene) Vec4f {
+    pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, filter: ?Filter, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
 
         return material.evaluateRadiance(
+            p,
             -sample.dir,
             sample.n,
             sample.uvw,
@@ -172,7 +173,7 @@ pub const Light = struct {
         );
     }
 
-    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: Scene) f32 {
+    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: *const Scene) f32 {
         return switch (self.class) {
             .Prop => self.propPdf(ray, n, isec, total_sphere, scene),
             .PropImage => self.propImagePdf(ray, isec, scene),
@@ -201,7 +202,6 @@ pub const Light = struct {
             self.two_sided,
             total_sphere,
             sampler,
-            &worker.rng,
         ) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
@@ -220,7 +220,7 @@ pub const Light = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) ?SampleTo {
-        const s2 = sampler.sample2D(&worker.rng);
+        const s2 = sampler.sample2D();
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2[0], s2[1], 0.0, 0.0 });
@@ -255,7 +255,7 @@ pub const Light = struct {
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
-        const s4 = sampler.sample4D(&worker.rng);
+        const s4 = sampler.sample4D();
 
         const uv = Vec2f{ s4[0], s4[1] };
         const importance_uv = Vec2f{ s4[2], s4[3] };
@@ -273,7 +273,6 @@ pub const Light = struct {
             cos_a,
             self.two_sided,
             sampler,
-            &worker.rng,
             uv,
             importance_uv,
             bounds,
@@ -288,7 +287,7 @@ pub const Light = struct {
         bounds: AABB,
         worker: *Worker,
     ) ?SampleFrom {
-        const s4 = sampler.sample4D(&worker.rng);
+        const s4 = sampler.sample4D();
 
         const material = worker.scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s4[0], s4[1], 0.0, 0.0 });
@@ -312,7 +311,6 @@ pub const Light = struct {
             cos_a,
             self.two_sided,
             sampler,
-            &worker.rng,
             .{ rs.uvw[0], rs.uvw[1] },
             importance_uv,
             bounds,
@@ -340,7 +338,6 @@ pub const Light = struct {
             trafo,
             self.extent,
             sampler,
-            &worker.rng,
         ) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
@@ -360,7 +357,7 @@ pub const Light = struct {
         worker: *Worker,
     ) ?SampleTo {
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(sampler.sample3D(&worker.rng));
+        const rs = material.radianceSample(sampler.sample3D());
         if (0.0 == rs.pdf()) {
             return null;
         }
@@ -384,12 +381,12 @@ pub const Light = struct {
 
     fn volumeImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, worker: *Worker) ?SampleFrom {
         const material = worker.scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(sampler.sample3D(&worker.rng));
+        const rs = material.radianceSample(sampler.sample3D());
         if (0.0 == rs.pdf()) {
             return null;
         }
 
-        const importance_uv = sampler.sample2D(&worker.rng);
+        const importance_uv = sampler.sample2D();
 
         const shape = worker.scene.propShape(self.prop);
 
@@ -412,7 +409,7 @@ pub const Light = struct {
         n: Vec4f,
         isec: Intersection,
         total_sphere: bool,
-        scene: Scene,
+        scene: *const Scene,
     ) f32 {
         return isec.shape(scene).pdf(
             self.variant,
@@ -425,7 +422,7 @@ pub const Light = struct {
         );
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         const material = isec.material(scene);
 
         const uv = isec.geo.uv;
@@ -437,11 +434,11 @@ pub const Light = struct {
         return material_pdf * shape_pdf;
     }
 
-    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn volumePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         return isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: Scene) f32 {
+    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.geo.p);
         const shape_pdf = isec.shape(scene).volumePdf(ray, isec.geo, self.extent);
 

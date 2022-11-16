@@ -1,13 +1,13 @@
 const snsr = @import("../rendering/sensor/sensor.zig");
 const Sensor = snsr.Sensor;
 const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
+const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
-const Worker = @import("../scene/worker.zig").Worker;
 const scn = @import("../scene/constants.zig");
 const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
@@ -15,7 +15,8 @@ const RayDif = sr.RayDif;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
-const tx = @import("../image/texture/provider.zig");
+const tx = @import("../image/texture/texture_provider.zig");
+const img = @import("../image/image.zig");
 
 const base = @import("base");
 const json = base.json;
@@ -24,7 +25,6 @@ const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -90,7 +90,7 @@ pub const Perspective = struct {
         self.crop[3] = std.math.min(resolution[1], crop[3]);
     }
 
-    pub fn update(self: *Self, time: u64, worker: *Worker) void {
+    pub fn update(self: *Self, time: u64, scene: *const Scene) void {
         self.interface_stack.clear();
 
         const fr = math.vec2iTo2f(self.resolution);
@@ -111,11 +111,10 @@ pub const Perspective = struct {
 
         self.a = @fabs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
 
-        self.updateFocus(time, worker);
+        self.updateFocus(time, scene);
     }
 
-    pub fn generateRay(self: Self, sample: *Sample, frame: u32, scene: Scene) Ray {
-        // const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
+    pub fn generateRay(self: *const Self, sample: *Sample, frame: u32, scene: *const Scene) Ray {
         const coordinates = self.sensor.pixelToImageCoordinates(sample);
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -143,13 +142,12 @@ pub const Perspective = struct {
     }
 
     pub fn sampleTo(
-        self: Self,
+        self: *const Self,
         bounds: Vec4i,
         time: u64,
         p: Vec4f,
         sampler: *Sampler,
-        rng: *RNG,
-        scene: Scene,
+        scene: *const Scene,
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
 
@@ -160,7 +158,7 @@ pub const Perspective = struct {
         var out_dir: Vec4f = undefined;
 
         if (self.aperture.radius > 0.0) {
-            const uv = sampler.sample2D(rng);
+            const uv = sampler.sample2D();
             const lens = self.aperture.sample(uv);
             const origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
             const axis = po - origin;
@@ -211,7 +209,7 @@ pub const Perspective = struct {
         };
     }
 
-    pub fn calculateRayDifferential(self: Self, p: Vec4f, time: u64, scene: Scene) RayDif {
+    pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
         const trafo = scene.propTransformationAt(self.entity, time);
 
         const p_w = trafo.position;
@@ -243,7 +241,7 @@ pub const Perspective = struct {
         return @as(u64, frame) * self.frame_step + fdi;
     }
 
-    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: Scene, resources: *Resources) !void {
+    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
         var motion_blur = true;
 
         var iter = value.Object.iterator();
@@ -270,15 +268,31 @@ pub const Perspective = struct {
                 self.aperture.radius = json.readFloatMember(entry.value_ptr.*, "radius", self.aperture.radius);
 
                 const shape = json.readStringMember(entry.value_ptr.*, "shape", "");
-
                 if (shape.len > 0) {
                     var options: Variants = .{};
                     defer options.deinit(alloc);
-                    options.set(alloc, "usage", .Roughness) catch {};
+                    options.set(alloc, "usage", .Opacity) catch {};
 
                     const texture = try tx.Provider.loadFile(alloc, shape, options, @splat(2, @as(f32, 1.0)), resources);
-
                     try self.aperture.setShape(alloc, texture, scene);
+                } else {
+                    const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
+                    if (blades > 3) {
+                        var shaper = try Shaper.init(alloc, .{ 128, 128 });
+                        defer shaper.deinit(alloc);
+
+                        const roundness = json.readFloatMember(entry.value_ptr.*, "roundness", 0.0);
+
+                        shaper.clear(@splat(4, @as(f32, 0.0)));
+                        shaper.drawAperture(@splat(4, @as(f32, 1.0)), .{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
+
+                        var image = try img.Byte1.init(alloc, img.Description.init2D(shaper.dimensions));
+                        shaper.resolve(img.Byte1, &image);
+                        const iid = try resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image });
+
+                        const texture = try tx.Provider.createTexture(iid, .Opacity, @splat(2, @as(f32, 1.0)), resources);
+                        try self.aperture.setShape(alloc, texture, scene);
+                    }
                 }
             }
         }
@@ -293,13 +307,13 @@ pub const Perspective = struct {
         self.focus_distance = focus.distance;
     }
 
-    fn updateFocus(self: *Self, time: u64, worker: *Worker) void {
+    fn updateFocus(self: *Self, time: u64, scene: *const Scene) void {
         if (self.focus.use_point and self.aperture.radius > 0.0) {
             const direction = math.normalize3(
                 self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
             );
 
-            const trafo = worker.scene.propTransformationAt(self.entity, time);
+            const trafo = scene.propTransformationAt(self.entity, time);
 
             var ray = Ray.init(
                 trafo.position,
@@ -312,7 +326,7 @@ pub const Perspective = struct {
             );
 
             var isec = Intersection{};
-            if (worker.intersect(&ray, .Normal, &isec)) {
+            if (scene.intersect(&ray, .Normal, &isec)) {
                 self.focus_distance = ray.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

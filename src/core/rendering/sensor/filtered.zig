@@ -2,7 +2,7 @@ const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Result = @import("base.zig").Base.Result;
-const AovValue = @import("aov/value.zig").Value;
+const AovValue = @import("aov/aov_value.zig").Value;
 
 const base = @import("base");
 const math = base.math;

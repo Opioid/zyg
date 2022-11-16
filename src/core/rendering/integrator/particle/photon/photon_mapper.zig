@@ -7,7 +7,7 @@ const Camera = @import("../../../../camera/perspective.zig").Perspective;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
-const Filter = @import("../../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const scn = @import("../../../../scene/constants.zig");
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
@@ -16,6 +16,7 @@ const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -27,14 +28,15 @@ pub const Mapper = struct {
     };
 
     settings: Settings = .{},
-    sampler: Sampler = Sampler{ .Random = {} },
+    sampler: Sampler = undefined,
 
     photons: []Photon = &.{},
 
     const Self = @This();
 
-    pub fn configure(self: *Self, alloc: Allocator, settings: Settings) !void {
+    pub fn configure(self: *Self, alloc: Allocator, settings: Settings, rng: *RNG) !void {
         self.settings = settings;
+        self.sampler = .{ .Random = .{ .rng = rng } };
         self.photons = try alloc.realloc(self.photons, settings.max_bounces);
     }
 
@@ -53,10 +55,10 @@ pub const Mapper = struct {
     ) u32 {
         _ = iteration;
 
-        const world_bounds = if (self.settings.full_light_path) worker.super.scene.aabb() else worker.super.scene.causticAabb();
+        const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
         const bounds = world_bounds;
 
-        const finite = worker.super.scene.finite();
+        const finite = worker.scene.finite();
 
         var num_paths: u32 = 0;
 
@@ -111,28 +113,28 @@ pub const Mapper = struct {
                 &light_sample,
             ) orelse continue;
 
-            const light = worker.super.scene.light(light_id);
+            const light = worker.scene.light(light_id);
 
-            worker.super.interface_stack.clear();
+            worker.interface_stack.clear();
             if (light.volumetric()) {
-                worker.super.interface_stack.pushVolumeLight(light);
+                worker.interface_stack.pushVolumeLight(light);
             }
 
             var throughput = @splat(4, @as(f32, 1.0));
 
             var isec = Intersection{};
-            if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(&ray, &isec, null);
+            if (!worker.interface_stack.empty()) {
+                const vr = worker.volume(&ray, &isec, null, &self.sampler);
                 throughput = vr.tr;
 
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     continue;
                 }
-            } else if (!worker.super.intersectAndResolveMask(&ray, null, &isec)) {
+            } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(light_sample, Filter.Nearest, worker.super.scene.*) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
@@ -140,7 +142,7 @@ pub const Mapper = struct {
             while (ray.depth < self.settings.max_bounces) {
                 const wo = -ray.ray.direction;
 
-                const mat_sample = worker.super.sampleMaterial(
+                const mat_sample = worker.sampleMaterial(
                     ray,
                     wo,
                     wo1,
@@ -157,22 +159,22 @@ pub const Mapper = struct {
                     break;
                 }
 
-                const sample_result = mat_sample.sample(&self.sampler, &worker.super.rng);
+                const sample_result = mat_sample.sample(&self.sampler);
                 if (0.0 == sample_result.pdf) {
                     break;
                 }
 
-                if (sample_result.class.no(.Straight)) {
-                    if (sample_result.class.no(.Specular) and
+                if (!sample_result.class.straight) {
+                    if (!sample_result.class.specular and
                         (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
                         if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
-                            const material_ior = isec.material(worker.super.scene.*).ior();
+                            const material_ior = isec.material(worker.scene).ior();
                             if (isec.subsurface and material_ior > 1.0) {
-                                const ior_t = worker.super.interface_stack.nextToBottomIor(worker.super.scene.*);
+                                const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
                             }
@@ -193,7 +195,7 @@ pub const Mapper = struct {
                         }
                     }
 
-                    if (sample_result.class.is(.Specular)) {
+                    if (sample_result.class.specular) {
                         caustic_path = true;
                     } else {
                         filter = .Nearest;
@@ -204,17 +206,17 @@ pub const Mapper = struct {
                     const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
                     const continue_prob = std.math.min(1.0, avg);
 
-                    if (self.sampler.sample1D(&worker.super.rng) >= continue_prob) {
+                    if (self.sampler.sample1D() >= continue_prob) {
                         break;
                     }
 
                     radiance = nr / @splat(4, continue_prob);
                 }
 
-                if (sample_result.class.is(.Straight)) {
+                if (sample_result.class.straight) {
                     ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
 
-                    if (sample_result.class.no(.Transmission)) {
+                    if (!sample_result.class.transmission) {
                         ray.depth += 1;
                     }
                 } else {
@@ -231,16 +233,16 @@ pub const Mapper = struct {
                     ray.wavelength = sample_result.wavelength;
                 }
 
-                if (sample_result.class.is(.Transmission)) {
-                    const ior = worker.super.interfaceChangeIor(sample_result.wi, isec);
+                if (sample_result.class.transmission) {
+                    const ior = worker.interfaceChangeIor(sample_result.wi, isec);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }
 
                 from_subsurface = from_subsurface or isec.subsurface;
 
-                if (!worker.super.interface_stack.empty()) {
-                    const vr = worker.volume(&ray, &isec, filter);
+                if (!worker.interface_stack.empty()) {
+                    const vr = worker.volume(&ray, &isec, filter, &self.sampler);
 
                     // result += throughput * vr.li;
                     radiance *= vr.tr;
@@ -248,7 +250,7 @@ pub const Mapper = struct {
                     if (.Abort == vr.event or .Absorb == vr.event) {
                         break;
                     }
-                } else if (!worker.super.intersectAndResolveMask(&ray, filter, &isec)) {
+                } else if (!worker.intersectAndResolveMask(&ray, filter, &isec)) {
                     break;
                 }
 
@@ -273,14 +275,13 @@ pub const Mapper = struct {
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Ray {
-        var rng = &worker.super.rng;
-        const select = self.sampler.sample1D(rng);
-        const l = worker.super.scene.randomLight(select);
+        const select = self.sampler.sample1D();
+        const l = worker.scene.randomLight(select);
 
-        const time = worker.super.absoluteTime(frame, self.sampler.sample1D(rng));
+        const time = worker.absoluteTime(frame, self.sampler.sample1D());
 
-        const light = worker.super.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, &worker.super) orelse return null;
+        const light = worker.scene.light(l.offset);
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;

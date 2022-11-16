@@ -2,7 +2,7 @@ const FFMPEG = @import("ffmpeg.zig").FFMPEG;
 const ImageSequence = @import("image_sequence.zig").ImageSequence;
 const img = @import("../image/image.zig");
 const Float4 = img.Float4;
-const AovClass = @import("../rendering/sensor/aov/value.zig").Value.Class;
+const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
 const Threads = base.thread.Pool;

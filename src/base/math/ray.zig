@@ -1,6 +1,8 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+
 pub const Ray = struct {
     origin: Vec4f,
     direction: Vec4f,
@@ -37,6 +39,11 @@ pub const Ray = struct {
 
     pub fn setMaxT(self: *Ray, t: f32) void {
         self.inv_direction[3] = t;
+    }
+
+    pub fn clipMaxT(self: *Ray, t: f32) void {
+        const max_t = self.inv_direction[3];
+        self.inv_direction[3] = std.math.min(max_t, t);
     }
 
     pub fn point(self: Ray, t: f32) Vec4f {

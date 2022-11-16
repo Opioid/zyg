@@ -1,5 +1,5 @@
 const Base = @import("base.zig").Base;
-const aov = @import("aov/value.zig");
+const aov = @import("aov/aov_value.zig");
 
 pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const Filtered = @import("filtered.zig").Filtered;
@@ -67,56 +67,31 @@ pub const Sensor = union(enum) {
 
     pub fn deinit(self: *Sensor, alloc: Allocator) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.deinit(alloc),
-            .Unfiltered_transparent => |*s| s.sensor.deinit(alloc),
-            .Filtered_1p0_opaque => |*s| s.sensor.deinit(alloc),
-            .Filtered_2p0_opaque => |*s| s.sensor.deinit(alloc),
-            .Filtered_1p0_transparent => |*s| s.sensor.deinit(alloc),
-            .Filtered_2p0_transparent => |*s| s.sensor.deinit(alloc),
+            inline else => |*s| s.sensor.deinit(alloc),
         }
     }
 
     pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         try switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
-            .Unfiltered_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
-            .Filtered_1p0_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
-            .Filtered_2p0_opaque => |*s| s.sensor.resize(alloc, dimensions, factory),
-            .Filtered_1p0_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
-            .Filtered_2p0_transparent => |*s| s.sensor.resize(alloc, dimensions, factory),
+            inline else => |*s| s.sensor.resize(alloc, dimensions, factory),
         };
     }
 
     pub fn basePtr(self: *Sensor) *Base {
         return switch (self.*) {
-            .Unfiltered_opaque => |*s| &s.sensor.base,
-            .Unfiltered_transparent => |*s| &s.sensor.base,
-            .Filtered_1p0_opaque => |*s| &s.sensor.base,
-            .Filtered_2p0_opaque => |*s| &s.sensor.base,
-            .Filtered_1p0_transparent => |*s| &s.sensor.base,
-            .Filtered_2p0_transparent => |*s| &s.sensor.base,
+            inline else => |*s| &s.sensor.base,
         };
     }
 
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.clear(weight),
-            .Unfiltered_transparent => |*s| s.sensor.clear(weight),
-            .Filtered_1p0_opaque => |*s| s.sensor.clear(weight),
-            .Filtered_2p0_opaque => |*s| s.sensor.clear(weight),
-            .Filtered_1p0_transparent => |*s| s.sensor.clear(weight),
-            .Filtered_2p0_transparent => |*s| s.sensor.clear(weight),
+            inline else => |*s| s.sensor.clear(weight),
         }
     }
 
     pub fn fixZeroWeights(self: *Sensor) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.sensor.fixZeroWeights(),
-            .Unfiltered_transparent => |*s| s.sensor.fixZeroWeights(),
-            .Filtered_1p0_opaque => |*s| s.sensor.fixZeroWeights(),
-            .Filtered_2p0_opaque => |*s| s.sensor.fixZeroWeights(),
-            .Filtered_1p0_transparent => |*s| s.sensor.fixZeroWeights(),
-            .Filtered_2p0_transparent => |*s| s.sensor.fixZeroWeights(),
+            inline else => |*s| s.sensor.fixZeroWeights(),
         }
     }
 
@@ -127,43 +102,34 @@ pub const Sensor = union(enum) {
         aovs: aov.Value,
     ) Base.Result {
         return switch (self.*) {
-            .Unfiltered_opaque => |*s| s.addSample(sample, color, aovs),
-            .Unfiltered_transparent => |*s| s.addSample(sample, color, aovs),
-            .Filtered_1p0_opaque => |*s| s.addSample(sample, color, aovs),
-            .Filtered_2p0_opaque => |*s| s.addSample(sample, color, aovs),
-            .Filtered_1p0_transparent => |*s| s.addSample(sample, color, aovs),
-            .Filtered_2p0_transparent => |*s| s.addSample(sample, color, aovs),
+            inline else => |*s| s.addSample(sample, color, aovs),
         };
     }
 
     pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
         switch (self.*) {
-            .Unfiltered_opaque => |*s| s.splatSample(sample, color),
-            .Unfiltered_transparent => |*s| s.splatSample(sample, color),
-            .Filtered_1p0_opaque => |*s| s.splatSample(sample, color, bounds),
-            .Filtered_2p0_opaque => |*s| s.splatSample(sample, color, bounds),
-            .Filtered_1p0_transparent => |*s| s.splatSample(sample, color, bounds),
-            .Filtered_2p0_transparent => |*s| s.splatSample(sample, color, bounds),
+            inline .Unfiltered_opaque, .Unfiltered_transparent => |*s| s.splatSample(sample, color),
+            inline else => |*s| s.splatSample(sample, color, bounds),
         }
     }
 
-    pub fn resolve(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolve(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolveTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAccumulateTonemap(self: Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = .Albedo };
+    pub fn resolveAccumulateTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAov(self: Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = &self, .target = target, .aov = class };
+    pub fn resolveAov(self: *const Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        const context = ResolveContext{ .sensor = self, .target = target, .aov = class };
         _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
@@ -179,12 +145,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                .Unfiltered_opaque => |s| s.sensor.resolve(target, begin, end),
-                .Unfiltered_transparent => |s| s.sensor.resolve(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.sensor.resolve(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.sensor.resolve(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.sensor.resolve(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.sensor.resolve(target, begin, end),
+                inline else => |*s| s.sensor.resolve(target, begin, end),
             }
         }
 
@@ -195,12 +156,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                .Unfiltered_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Unfiltered_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.sensor.resolveTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveTonemap(target, begin, end),
             }
         }
 
@@ -211,12 +167,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                .Unfiltered_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Unfiltered_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_1p0_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_2p0_opaque => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_1p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
-                .Filtered_2p0_transparent => |s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveAccumulateTonemap(target, begin, end),
             }
         }
 
@@ -228,29 +179,19 @@ pub const Sensor = union(enum) {
             const class = self.aov;
 
             switch (self.sensor.*) {
-                .Unfiltered_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
-                .Unfiltered_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
-                .Filtered_1p0_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
-                .Filtered_2p0_opaque => |s| s.sensor.base.aov.resolve(class, target, begin, end),
-                .Filtered_1p0_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
-                .Filtered_2p0_transparent => |s| s.sensor.base.aov.resolve(class, target, begin, end),
+                inline else => |*s| s.sensor.base.aov.resolve(class, target, begin, end),
             }
         }
     };
 
-    pub fn copyWeights(self: Sensor, weights: []f32) void {
-        switch (self) {
-            .Unfiltered_opaque => |s| s.sensor.copyWeights(weights),
-            .Unfiltered_transparent => |s| s.sensor.copyWeights(weights),
-            .Filtered_1p0_opaque => |s| s.sensor.copyWeights(weights),
-            .Filtered_2p0_opaque => |s| s.sensor.copyWeights(weights),
-            .Filtered_1p0_transparent => |s| s.sensor.copyWeights(weights),
-            .Filtered_2p0_transparent => |s| s.sensor.copyWeights(weights),
+    pub fn copyWeights(self: *const Sensor, weights: []f32) void {
+        switch (self.*) {
+            inline else => |*s| s.sensor.copyWeights(weights),
         }
     }
 
-    pub fn filterRadiusInt(self: Sensor) i32 {
-        return switch (self) {
+    pub fn filterRadiusInt(self: *const Sensor) i32 {
+        return switch (self.*) {
             .Unfiltered_opaque => 0,
             .Unfiltered_transparent => 0,
             .Filtered_1p0_opaque, .Filtered_1p0_transparent => 1,
@@ -258,18 +199,18 @@ pub const Sensor = union(enum) {
         };
     }
 
-    pub fn pixelToImageCoordinates(self: Sensor, sample: *Sample) Vec2f {
-        return switch (self) {
-            .Filtered_1p0_opaque => |s| s.pixelToImageCoordinates(sample),
-            .Filtered_1p0_transparent => |s| s.pixelToImageCoordinates(sample),
-            .Filtered_2p0_opaque => |s| s.pixelToImageCoordinates(sample),
-            .Filtered_2p0_transparent => |s| s.pixelToImageCoordinates(sample),
+    pub fn pixelToImageCoordinates(self: *const Sensor, sample: *Sample) Vec2f {
+        return switch (self.*) {
+            .Filtered_1p0_opaque => |*s| s.pixelToImageCoordinates(sample),
+            .Filtered_1p0_transparent => |*s| s.pixelToImageCoordinates(sample),
+            .Filtered_2p0_opaque => |*s| s.pixelToImageCoordinates(sample),
+            .Filtered_2p0_transparent => |*s| s.pixelToImageCoordinates(sample),
             else => math.vec2iTo2f(sample.pixel) + sample.pixel_uv,
         };
     }
 
-    pub fn alphaTransparency(self: Sensor) bool {
-        return switch (self) {
+    pub fn alphaTransparency(self: *const Sensor) bool {
+        return switch (self.*) {
             .Unfiltered_transparent, .Filtered_1p0_transparent, .Filtered_2p0_transparent => true,
             else => false,
         };

@@ -5,12 +5,11 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -26,7 +25,7 @@ pub const Disk = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
@@ -64,7 +63,7 @@ pub const Disk = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
@@ -78,14 +77,14 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t > ray.minT() and hit_t < ray.maxT()) {
+        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
@@ -109,8 +108,8 @@ pub const Disk = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler, rng: *RNG) ?SampleTo {
-        const r2 = sampler.sample2D(rng);
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler) ?SampleTo {
+        const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -131,14 +130,7 @@ pub const Disk = struct {
             return null;
         }
 
-        return SampleTo.init(
-            dir,
-            wn,
-            @splat(4, @as(f32, 0.0)),
-            trafo,
-            sl / (c * area),
-            t,
-        );
+        return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), trafo, sl / (c * area), t);
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32, two_sided: bool) ?SampleTo {
@@ -168,14 +160,7 @@ pub const Disk = struct {
                 return null;
             }
 
-            return SampleTo.init(
-                dir,
-                wn,
-                .{ uv[0], uv[1], 0.0, 0.0 },
-                trafo,
-                sl / (c * area),
-                t,
-            );
+            return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area), t);
         }
 
         return null;
@@ -187,36 +172,35 @@ pub const Disk = struct {
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
         const xy = math.smpl.diskConcentric(uv);
-
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
+        const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
+
         var wn = trafo.rotation.r[2];
 
         if (cos_a < Dot_min) {
             var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-            if (two_sided and sampler.sample1D(rng) > 0.5) {
+            if (two_sided and sampler.sample1D() > 0.5) {
                 wn = -wn;
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, 1.0 / (std.math.pi * area));
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, 1.0 / (std.math.pi * area));
         } else {
-            var dir = math.smpl.orientedConeUniform(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+            var dir = math.smpl.orientedConeCosine(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
-            const pdf = math.smpl.conePdfUniform(cos_a);
-
-            if (two_sided and sampler.sample1D(rng) > 0.5) {
+            if (two_sided and sampler.sample1D() > 0.5) {
                 wn = -wn;
                 dir = -dir;
             }
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, importance_uv, trafo, pdf / area);
+            const pdf = math.smpl.conePdfCosine(cos_a);
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf / area);
         }
     }
 };

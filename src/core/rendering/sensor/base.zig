@@ -1,5 +1,5 @@
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
-const aov = @import("aov/buffer.zig");
+const aov = @import("aov/aov_buffer.zig");
 
 const base = @import("base");
 const math = base.math;

@@ -1,8 +1,8 @@
 const exr = @import("exr.zig");
 const img = @import("../../image.zig");
-const Encoding = @import("../../writer.zig").Writer.Encoding;
+const Encoding = @import("../../image_writer.zig").Writer.Encoding;
 const Float4 = img.Float4;
-const AovClass = @import("../../../rendering/sensor/aov/value.zig").Value.Class;
+const AovClass = @import("../../../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
 const math = base.math;
@@ -324,7 +324,7 @@ pub const Writer = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const num_rows_here = @minimum(height - (y * self.rows_per_block), self.rows_per_block);
+                const num_rows_here = @min(height - (y * self.rows_per_block), self.rows_per_block);
 
                 const pixel = y * self.rows_per_block * width;
 

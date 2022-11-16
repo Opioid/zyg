@@ -9,7 +9,7 @@ const TileQueue = tq.TileQueue;
 const RangeQueue = tq.RangeQueue;
 const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
-const PngWriter = @import("../image/encoding/png/writer.zig").Writer;
+const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const Progressor = @import("../progress.zig").Progressor;
 pub const snsr = @import("sensor/sensor.zig");
 
@@ -166,7 +166,7 @@ pub const Driver = struct {
         const start = @as(u64, frame) * camera.frame_step;
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
-        camera.update(start, &self.workers[0].super);
+        camera.update(start, self.scene);
 
         if (progressive) {
             camera.sensor.clear(0.0);
@@ -252,8 +252,8 @@ pub const Driver = struct {
         var max: f32 = 0.0;
 
         for (weights) |w| {
-            min = @minimum(min, w);
-            max = @maximum(max, w);
+            min = @min(min, w);
+            max = @max(max, w);
         }
 
         try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
@@ -340,7 +340,7 @@ pub const Driver = struct {
         const self = @intToPtr(*Driver, context);
 
         while (self.ranges.pop()) |range| {
-            self.workers[id].particles(self.frame, 0, range);
+            self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
 
             self.progressor.tick();
         }
@@ -357,7 +357,7 @@ pub const Driver = struct {
         const start = std.time.milliTimestamp();
 
         for (self.workers) |*w, i| {
-            w.super.rng.start(0, i);
+            w.rng.start(0, i);
         }
 
         var num_paths: u64 = 0;

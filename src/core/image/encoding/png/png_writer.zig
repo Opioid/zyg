@@ -1,6 +1,6 @@
 const Srgb = @import("../srgb.zig").Srgb;
 const img = @import("../../image.zig");
-const Encoding = @import("../../writer.zig").Writer.Encoding;
+const Encoding = @import("../../image_writer.zig").Writer.Encoding;
 const Float3 = img.Float3;
 const Float4 = img.Float4;
 
@@ -72,8 +72,41 @@ pub const Writer = struct {
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
             @ptrCast(*const anyopaque, buffer.ptr),
-            d.v[0],
-            d.v[1],
+            d[0],
+            d[1],
+            3,
+            &buffer_len,
+        );
+
+        var file = try std.fs.cwd().createFile("temp_image.png", .{});
+        defer file.close();
+
+        const writer = file.writer();
+
+        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+
+        c.mz_free(png);
+    }
+
+    pub fn writeFloat3Normal(alloc: Allocator, image: Float3) !void {
+        const d = image.description.dimensions;
+
+        const num_pixels = @intCast(u32, d[0] * d[1]);
+
+        const buffer = try alloc.alloc(u8, 3 * num_pixels);
+        defer alloc.free(buffer);
+
+        for (image.pixels) |p, i| {
+            buffer[i * 3 + 0] = enc.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
+            buffer[i * 3 + 1] = enc.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
+            buffer[i * 3 + 2] = enc.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
+        }
+
+        var buffer_len: usize = 0;
+        const png = c.tdefl_write_image_to_png_file_in_memory(
+            @ptrCast(*const anyopaque, buffer.ptr),
+            d[0],
+            d[1],
             3,
             &buffer_len,
         );

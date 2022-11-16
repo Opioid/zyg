@@ -35,14 +35,14 @@ pub const Builder = struct {
         tree: *Gridtree,
         texture: Texture,
         cc: CC,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !void {
         const d = texture.description(scene).dimensions;
 
         var num_cells = d >> Gridtree.Log2_cell_dim4;
 
-        num_cells = num_cells + @minimum(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
+        num_cells = num_cells + @min(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
         const cell_len = @intCast(u32, num_cells[0] * num_cells[1] * num_cells[2]);
 
@@ -53,7 +53,7 @@ pub const Builder = struct {
             .num_cells = num_cells,
             .texture = texture,
             .cc = cc,
-            .scene = &scene,
+            .scene = scene,
         };
 
         defer {
@@ -128,13 +128,13 @@ const Splitter = struct {
         texture: Texture,
         cc: CC,
         depth: u32,
-        scene: Scene,
+        scene: *const Scene,
     ) SplitError!void {
         const d = texture.description(scene).dimensions;
 
         // Include 1 additional voxel on each border to account for filtering
-        const minb = @maximum(box.bounds[0] - @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0)));
-        const maxb = @minimum(box.bounds[1] + @splat(4, @as(i32, 1)), d);
+        const minb = @max(box.bounds[0] - @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0)));
+        const maxb = @min(box.bounds[1] + @splat(4, @as(i32, 1)), d);
 
         var min_density: f32 = 1.0;
         var max_density: f32 = 0.0;
@@ -310,7 +310,7 @@ const Context = struct {
                 self.texture,
                 self.cc,
                 0,
-                self.scene.*,
+                self.scene,
             ) catch {};
         }
     }

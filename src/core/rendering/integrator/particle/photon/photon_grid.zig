@@ -38,8 +38,6 @@ pub const Grid = struct {
 
     num_paths: f64 = undefined,
 
-    cell_bound: Vec2f = undefined,
-
     dimensions: Vec4i = @splat(4, @as(i32, 0)),
 
     local_to_texture: Vec4f = undefined,
@@ -53,7 +51,6 @@ pub const Grid = struct {
     pub fn configure(self: *Self, search_radius: f32, grid_cell_factor: f32) void {
         self.search_radius = search_radius;
         self.grid_cell_factor = grid_cell_factor;
-        self.cell_bound = .{ 0.5 / grid_cell_factor, 1.0 - (0.5 / grid_cell_factor) };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -344,7 +341,7 @@ pub const Grid = struct {
     pub fn initCells(self: *Self, photons: []Photon) void {
         self.photons = photons;
 
-        std.sort.sort(Photon, photons, self.*, compareByMap);
+        std.sort.sort(Photon, photons, self, compareByMap);
 
         var current: u32 = 0;
         for (self.grid) |*cell, c| {
@@ -379,7 +376,7 @@ pub const Grid = struct {
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
-        const cell_bound = Vec2f{ 0.5 / merge_grid_cell_factor, 1.0 - (0.5 / merge_grid_cell_factor) };
+        const cell_bound = 0.5 / merge_grid_cell_factor;
         const merge_radius2 = merge_radius * merge_radius;
 
         var i = begin;
@@ -454,20 +451,20 @@ pub const Grid = struct {
         }
     }
 
-    fn compareByMap(self: Self, a: Photon, b: Photon) bool {
+    fn compareByMap(self: *const Self, a: Photon, b: Photon) bool {
         const ida = self.map1(a.p);
         const idb = self.map1(b.p);
         return ida < idb;
     }
 
-    fn map1(self: Self, v: Vec4f) u64 {
+    fn map1(self: *const Self, v: Vec4f) u64 {
         const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @splat(4, @as(i32, 1));
         return @intCast(u64, (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
             @as(i64, c[0]));
     }
 
-    fn map3(self: Self, v: Vec4f, cell_bound: Vec2f, adjacents: *u8) Vec4i {
+    fn map3(self: *const Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
         const r = (v - self.aabb.bounds[0]) * self.local_to_texture;
         const c = math.vec4fTo4i(r);
         const d = r - math.vec4iTo4f(c);
@@ -487,19 +484,19 @@ pub const Grid = struct {
         Negative = 2,
     };
 
-    fn adjacent(s: f32, cell_bound: Vec2f) u8 {
-        if (s < cell_bound[0]) {
+    fn adjacent(s: f32, cell_bound: f32) u8 {
+        if (s < cell_bound) {
             return @enumToInt(Adjacent.Negative);
         }
 
-        if (s > cell_bound[1]) {
+        if (s > (1.0 - cell_bound)) {
             return @enumToInt(Adjacent.Positive);
         }
 
         return @enumToInt(Adjacent.None);
     }
 
-    fn adjacentCells(self: Self, v: Vec4f, cell_bound: Vec2f) Adjacency {
+    fn adjacentCells(self: *const Self, v: Vec4f, cell_bound: f32) Adjacency {
         var adjacents: u8 = undefined;
         const c = self.map3(v, cell_bound, &adjacents);
         const ic = (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
@@ -532,7 +529,7 @@ pub const Grid = struct {
         self.num_paths = @intToFloat(f64, num_paths);
     }
 
-    pub fn li(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -541,7 +538,7 @@ pub const Grid = struct {
             return result;
         }
 
-        const adjacency = self.adjacentCells(position, self.cell_bound);
+        const adjacency = self.adjacentCells(position, 0.5 / self.grid_cell_factor);
 
         const radius = self.search_radius;
         const radius2 = radius * radius;
@@ -588,7 +585,7 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
-    pub fn li2(self: Self, isec: Intersection, sample: MaterialSample, scene: Scene) Vec4f {
+    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -597,7 +594,7 @@ pub const Grid = struct {
             return result;
         }
 
-        const adjacency = self.adjacentCells(position, self.cell_bound);
+        const adjacency = self.adjacentCells(position, 0.5 / self.grid_cell_factor);
 
         const radius = self.search_radius;
         const radius2 = radius * radius;
@@ -679,7 +676,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, scene: Scene) Vec4f {
+    fn scatteringCoefficient(isec: Intersection, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {

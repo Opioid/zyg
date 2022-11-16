@@ -7,7 +7,7 @@ const Layer = sample.Layer;
 const IoR = sample.IoR;
 const img = @import("../../image/image.zig");
 const Float4 = img.Float4;
-const ExrWriter = @import("../../image/encoding/exr/writer.zig").Writer;
+const ExrWriter = @import("../../image/encoding/exr/exr_writer.zig").Writer;
 
 const base = @import("base");
 const math = base.math;
@@ -26,7 +26,7 @@ const E_m_avg_func = math.InterpolatedFunction1D_N(E_m_samples);
 const E_func = math.InterpolatedFunction3D_N(E_samples, E_samples, E_samples);
 
 fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
-    const calpha = @maximum(alpha, ggx.Min_alpha);
+    const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
     const schlick = fresnel.Schlick1.init(1.0);
@@ -86,7 +86,7 @@ fn dspbrMicroEc(f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, e_m: E_m_func
 }
 
 fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_m_avg_func, num_samples: u32) f32 {
-    const calpha = @maximum(alpha, ggx.Min_alpha);
+    const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
     const schlick = fresnel.Schlick1.init(f0);
@@ -114,7 +114,7 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
         accum += ((n_dot_wi * (result.reflection[0] + mms)) / result.pdf) / @intToFloat(f32, num_samples);
     }
 
-    return @minimum(accum, 1.0);
+    return std.math.min(accum, 1.0);
 }
 
 fn integrate_f_ms_avg(alpha: f32, f0: f32, e: E_func, num_samples: u32) f32 {
@@ -193,13 +193,13 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
                 &result,
             );
 
-            const inti = (@minimum(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
+            const inti = (std.math.min(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
 
             if (std.math.isNan(inti)) {
                 std.debug.print("reflection\n", .{});
             }
 
-            accum += (@minimum(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
+            accum += (std.math.min(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
         }
         {
             const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
@@ -414,7 +414,7 @@ fn make_f_ms_avg_table(comptime Num_samples: comptime_int, e: E_func, writer: an
 
         var i: u32 = 0;
         while (i < Num_samples) : (i += 1) {
-            const e_avg = @minimum(integrate_f_ms_avg(alpha, f0, e, 1024), 0.9997);
+            const e_avg = std.math.min(integrate_f_ms_avg(alpha, f0, e, 1024), 0.9997);
 
             line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e_avg});
             _ = try writer.write(line);

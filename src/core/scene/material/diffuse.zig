@@ -8,13 +8,12 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
 pub const Lambert = struct {
-    pub fn reflect(color: Vec4f, frame: Frame, sampler: *Sampler, rng: *RNG, result: *bxdf.Sample) f32 {
-        const s2d = sampler.sample2D(rng);
+    pub fn reflect(color: Vec4f, frame: Frame, sampler: *Sampler, result: *bxdf.Sample) f32 {
+        const s2d = sampler.sample2D();
         const is = math.smpl.hemisphereCosine(s2d);
         const wi = math.normalize3(frame.tangentToWorld(is));
 
@@ -23,7 +22,7 @@ pub const Lambert = struct {
         result.reflection = @splat(4, @as(f32, math.pi_inv)) * color;
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.class.clearWith(.DiffuseReflection);
+        result.class = .{ .diffuse = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -77,7 +76,7 @@ pub const Micro = struct {
         result.h = h;
         result.pdf = n_dot_wi * math.pi_inv;
         result.h_dot_wi = h_dot_wi;
-        result.class.clearWith(.DiffuseReflection);
+        result.class = .{ .diffuse = true, .reflection = true };
 
         return n_dot_wi;
     }

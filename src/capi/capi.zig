@@ -247,10 +247,7 @@ export fn su_image_create(
             .UInt32, .Float32 => 4,
         };
 
-        const desc = img.Description.init3D(
-            .{ @intCast(i32, width), @intCast(i32, height), @intCast(i32, depth), 0 },
-            @splat(4, @as(i32, 0)),
-        );
+        const desc = img.Description.init3D(.{ @intCast(i32, width), @intCast(i32, height), @intCast(i32, depth), 0 });
 
         var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
             return -1;
@@ -299,12 +296,12 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
         if (e.resources.images.get(id)) |image| {
             const bpc: u32 = switch (image.*) {
                 .Byte1, .Byte2, .Byte3 => 1,
-                .Half3, .Half4 => 2,
+                .Half1, .Half3, .Half4 => 2,
                 .Float1, .Float1Sparse, .Float2, .Float3, .Float4 => 4,
             };
 
             const num_channels: u32 = switch (image.*) {
-                .Byte1, .Float1, .Float1Sparse => 1,
+                .Byte1, .Half1, .Float1, .Float1Sparse => 1,
                 .Byte2, .Float2 => 2,
                 .Byte3, .Half3, .Float3 => 3,
                 .Half4, .Float4 => 4,
@@ -657,7 +654,7 @@ export fn su_resolve_frame(aov: u32) i32 {
 
 export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @minimum(width * height, @intCast(u32, e.driver.target.description.numPixels()));
+        const num_pixels = @min(width * height, @intCast(u32, e.driver.target.description.numPixels()));
 
         const target = @ptrCast([*]Pack4f, buffer);
 
@@ -696,7 +693,7 @@ export fn su_copy_framebuffer(
 
         const buffer = e.driver.target;
         const d = buffer.description.dimensions;
-        const used_height = @minimum(height, @intCast(u32, d[1]));
+        const used_height = @min(height, @intCast(u32, d[1]));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
 
@@ -721,7 +718,7 @@ const CopyFramebufferContext = struct {
         const d = self.source.description.dimensions;
 
         const width = self.width;
-        const used_width = @minimum(self.width, @intCast(u32, d[0]));
+        const used_width = @min(self.width, @intCast(u32, d[0]));
 
         if (3 == self.num_channels) {
             const destination = self.destination;

@@ -57,30 +57,30 @@ pub fn mapRoughness(roughness: f32) f32 {
 pub const Iso = struct {
     pub fn reflection(
         h: Vec4f,
+        n: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
-        frame: Frame,
     ) bxdf.Result {
         var fresnel_result: Vec4f = undefined;
-        return reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, frame, &fresnel_result);
+        return reflectionF(h, n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, &fresnel_result);
     }
 
     pub fn reflectionF(
         h: Vec4f,
+        n: Vec4f,
         n_dot_wi: f32,
         n_dot_wo: f32,
         wo_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
-        frame: Frame,
         fresnel_result: *Vec4f,
     ) bxdf.Result {
         const alpha2 = alpha * alpha;
 
-        const n_dot_h = math.saturate(math.dot3(frame.n, h));
+        const n_dot_h = math.saturate(math.dot3(n, h));
 
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
@@ -107,7 +107,6 @@ pub const Iso = struct {
         const h = Aniso.sample(wo, @splat(2, alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
-
         const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
@@ -122,7 +121,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.class.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class = if (alpha <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -185,7 +184,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wi_dot_h;
-        result.class.clearWith(if (alpha <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class = if (alpha <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -227,7 +226,7 @@ pub const Iso = struct {
         result.h = h;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
         result.h_dot_wi = wi_dot_h;
-        result.class.clearWith(if (alpha <= Min_alpha) .SpecularTransmission else .GlossyTransmission);
+        result.class = if (alpha <= Min_alpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
 
         return n_dot_wi;
     }
@@ -286,7 +285,7 @@ pub const Aniso = struct {
         fresnel_result: *Vec4f,
     ) bxdf.Result {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflectionF(h, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, frame, fresnel_result);
+            return Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, fresnel_result);
         }
 
         const n_dot_h = math.saturate(math.dot3(frame.n, h));
@@ -353,7 +352,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wo_dot_h;
-        result.class.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class = if (alpha[1] <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -394,7 +393,7 @@ pub const Aniso = struct {
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
         result.h_dot_wi = wi_dot_h;
-        result.class.clearWith(if (alpha[1] <= Min_alpha) .SpecularReflection else .GlossyReflection);
+        result.class = if (alpha[1] <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }

@@ -1,97 +1,96 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
-const Worker = @import("../worker.zig").Worker;
 const shp = @import("../shape/intersection.zig");
+
 const base = @import("base");
 const Vec4f = base.math.Vec4f;
-const Flags = base.flags.Flags;
 
 pub const Prop = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
-    const Property = enum(u32) {
-        VisibleInCamera = 1 << 0,
-        VisibleInReflection = 1 << 1,
-        VisibleInShadow = 1 << 2,
-        TintedShadow = 1 << 3,
-        TestAABB = 1 << 4,
-        Static = 1 << 6,
+    const Properties = packed struct {
+        visible_in_camera: bool = false,
+        visible_in_reflection: bool = false,
+        visible_in_shadow: bool = false,
+        evaluate_visibility: bool = false,
+        test_AABB: bool = false,
+        static: bool = false,
     };
 
     shape: u32 = Null,
 
-    properties: Flags(Property) = undefined,
+    properties: Properties = undefined,
 
     fn visible(self: Prop, ray_depth: u32) bool {
         if (0 == ray_depth) {
-            return self.properties.is(.VisibleInCamera);
+            return self.properties.visible_in_camera;
         }
 
-        return self.properties.is(.VisibleInReflection);
+        return self.properties.visible_in_reflection;
     }
 
     pub fn visibleInCamera(self: Prop) bool {
-        return self.properties.is(.VisibleInCamera);
+        return self.properties.visible_in_camera;
     }
 
     pub fn visibleInReflection(self: Prop) bool {
-        return self.properties.is(.VisibleInReflection);
+        return self.properties.visible_in_reflection;
     }
 
     pub fn visibleInShadow(self: Prop) bool {
-        return self.properties.is(.VisibleInShadow);
+        return self.properties.visible_in_shadow;
     }
 
-    pub fn tintedShadow(self: Prop) bool {
-        return self.properties.is(.TintedShadow);
+    pub fn evaluateVisibility(self: Prop) bool {
+        return self.properties.evaluate_visibility;
     }
 
     pub fn setVisibleInShadow(self: *Prop, value: bool) void {
-        self.properties.set(.VisibleInShadow, value);
+        self.properties.visible_in_shadow = value;
     }
 
     pub fn setVisibility(self: *Prop, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
-        self.properties.set(.VisibleInCamera, in_camera);
-        self.properties.set(.VisibleInReflection, in_reflection);
-        self.properties.set(.VisibleInShadow, in_shadow);
+        self.properties.visible_in_camera = in_camera;
+        self.properties.visible_in_reflection = in_reflection;
+        self.properties.visible_in_shadow = in_shadow;
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
         self.shape = shape;
 
-        self.properties.clear();
-        self.properties.set(.VisibleInCamera, true);
-        self.properties.set(.VisibleInReflection, true);
-        self.properties.set(.VisibleInShadow, true);
+        self.properties = Properties{};
+        self.properties.visible_in_camera = true;
+        self.properties.visible_in_reflection = true;
+        self.properties.visible_in_shadow = true;
 
         const shape_inst = scene.shape(shape);
-        self.properties.set(.TestAABB, shape_inst.finite() and shape_inst.complex());
+        self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
 
-        self.properties.set(.Static, true);
+        self.properties.static = true;
 
         for (materials) |mid| {
             const m = scene.material(mid);
-
-            if (m.masked() or m.tintedShadow()) {
-                self.properties.set(.TintedShadow, true);
+            if (m.evaluateVisibility()) {
+                self.properties.evaluate_visibility = true;
+                break;
             }
         }
     }
 
-    pub fn configureAnimated(self: *Prop, scene: Scene) void {
+    pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
         const shape_inst = scene.shape(self.shape);
 
-        self.properties.set(.TestAABB, shape_inst.finite());
-        self.properties.set(.Static, false);
+        self.properties.test_AABB = shape_inst.finite();
+        self.properties.static = false;
     }
 
     pub fn intersect(
         self: Prop,
         entity: usize,
         ray: *Ray,
-        worker: *Worker,
+        scene: *const Scene,
         ipo: shp.Interpolation,
         isec: *shp.Intersection,
     ) bool {
@@ -99,13 +98,11 @@ pub const Prop = struct {
             return false;
         }
 
-        const scene = worker.scene;
-
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
-        const static = self.properties.is(.Static);
+        const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
         if (scene.propShape(entity).intersect(ray, trafo, ipo, isec)) {
@@ -120,20 +117,18 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: *Ray,
-        worker: *Worker,
+        scene: *const Scene,
         isec: *shp.Intersection,
     ) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
 
-        const scene = worker.scene;
-
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
-        const static = self.properties.is(.Static);
+        const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
         return scene.propShape(entity).intersect(ray, trafo, .Normal, isec);
@@ -143,27 +138,25 @@ pub const Prop = struct {
         self: Prop,
         entity: usize,
         ray: Ray,
-        worker: *Worker,
+        scene: *const Scene,
     ) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
 
-        const scene = worker.scene;
-
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
-        const static = self.properties.is(.Static);
+        const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
         return scene.propShape(entity).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (!self.tintedShadow()) {
-            if (self.intersectP(entity, ray, worker)) {
+    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+        if (!self.evaluateVisibility()) {
+            if (self.intersectP(entity, ray, scene)) {
                 return null;
             }
 
@@ -174,15 +167,13 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const scene = worker.scene;
-
-        if (self.properties.is(.TestAABB) and !scene.propAabbIntersect(entity, ray)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const static = self.properties.is(.Static);
+        const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).visibility(ray, trafo, entity, filter, worker);
+        return scene.propShape(entity).visibility(ray, trafo, entity, filter, scene);
     }
 };

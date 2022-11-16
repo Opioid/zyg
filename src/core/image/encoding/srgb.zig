@@ -1,5 +1,5 @@
 const Float4 = @import("../../image/image.zig").Float4;
-const Encoding = @import("../../image/writer.zig").Writer.Encoding;
+const Encoding = @import("../../image/image_writer.zig").Writer.Encoding;
 const scn = @import("../../scene/constants.zig");
 
 const base = @import("base");
@@ -45,10 +45,10 @@ pub const Srgb = struct {
                 for (image.pixels) |p| {
                     const depth = p.v[0];
 
-                    mind = @minimum(mind, depth);
+                    mind = std.math.min(mind, depth);
 
                     if (depth < scn.Almost_ray_max_t) {
-                        maxd = @maximum(maxd, depth);
+                        maxd = std.math.max(maxd, depth);
                     }
                 }
             },

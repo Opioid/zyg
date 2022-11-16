@@ -2,16 +2,18 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
-const mat = @import("../../../scene/material/material.zig");
+const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec4f = math.Vec4f;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -31,7 +33,7 @@ pub const PathtracerDL = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler = [2]Sampler{ .{ .Sobol = .{} }, .{ .Random = {} } },
+    samplers: [2]Sampler,
 
     const Self = @This();
 
@@ -55,7 +57,7 @@ pub const PathtracerDL = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            worker.super.resetInterfaceStack(initial_stack);
+            worker.resetInterfaceStack(initial_stack);
 
             var split_ray = ray.*;
             var split_isec = isec.*;
@@ -87,7 +89,7 @@ pub const PathtracerDL = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
-            const mat_sample = worker.super.sampleMaterial(
+            const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 wo1,
@@ -99,7 +101,7 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
             }
 
             wo1 = wo;
@@ -111,35 +113,35 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.super.scene.*) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t;
                 break;
             }
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.directLight(ray.*, isec.*, mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
 
-            const sample_result = mat_sample.sample(sampler, &worker.super.rng);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
 
-            if (sample_result.class.is(.Specular)) {
+            if (sample_result.class.specular) {
                 if (avoid_caustics) {
                     break;
                 }
 
                 treat_as_singular = true;
-            } else if (sample_result.class.no(.Straight)) {
+            } else if (!sample_result.class.straight) {
                 treat_as_singular = false;
                 primary_ray = false;
             }
 
-            if (!sample_result.class.equal(.StraightTransmission)) {
+            if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 ray.depth += 1;
             }
 
-            if (sample_result.class.is(.Straight)) {
+            if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
@@ -157,14 +159,14 @@ pub const PathtracerDL = struct {
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
-            if (sample_result.class.is(.Transmission)) {
-                worker.super.interfaceChange(sample_result.wi, isec.*);
+            if (sample_result.class.transmission) {
+                worker.interfaceChange(sample_result.wi, isec.*);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.super.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter);
+            if (!worker.interface_stack.empty()) {
+                const vr = worker.volume(ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
                     if (0 == ray.depth) {
@@ -182,7 +184,7 @@ pub const PathtracerDL = struct {
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.super.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
 
@@ -191,7 +193,7 @@ pub const PathtracerDL = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D(&worker.super.rng))) {
+                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
                     break;
                 }
             }
@@ -206,7 +208,7 @@ pub const PathtracerDL = struct {
         self: *Self,
         ray: Ray,
         isec: Intersection,
-        mat_sample: mat.Sample,
+        mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
@@ -228,20 +230,20 @@ pub const PathtracerDL = struct {
         shadow_ray.time = ray.time;
         shadow_ray.wavelength = ray.wavelength;
 
-        const select = sampler.sample1D(&worker.super.rng);
+        const select = sampler.sample1D();
         const split = self.splitting(ray.depth);
 
-        const lights = worker.super.randomLightSpatial(p, n, translucent, select, split);
+        const lights = worker.randomLightSpatial(p, n, translucent, select, split);
 
         for (lights) |l| {
-            const light = worker.super.scene.light(l.offset);
+            const light = worker.scene.light(l.offset);
             const light_sample = light.sampleTo(
                 p,
                 n,
                 ray.time,
                 translucent,
                 sampler,
-                &worker.super,
+                worker,
             ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi);
@@ -250,7 +252,7 @@ pub const PathtracerDL = struct {
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(light_sample, .Nearest, worker.super.scene.*);
+            const radiance = light.evaluateTo(p, light_sample, filter, worker.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
@@ -260,7 +262,7 @@ pub const PathtracerDL = struct {
         return result;
     }
 
-    fn splitting(self: Self, bounce: u32) bool {
+    fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
     }
 
@@ -276,7 +278,10 @@ pub const PathtracerDL = struct {
 pub const Factory = struct {
     settings: PathtracerDL.Settings,
 
-    pub fn create(self: Factory) PathtracerDL {
-        return .{ .settings = self.settings };
+    pub fn create(self: Factory, rng: *RNG) PathtracerDL {
+        return .{
+            .settings = self.settings,
+            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
+        };
     }
 };

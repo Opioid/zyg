@@ -1,11 +1,11 @@
 const Prop = @import("prop.zig").Prop;
 const Intersection = @import("intersection.zig").Intersection;
+const Ray = @import("../ray.zig").Ray;
+const Scene = @import("../scene.zig").Scene;
 const Interpolation = @import("../shape/intersection.zig").Interpolation;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
-const Ray = @import("../ray.zig").Ray;
-const Filter = @import("../../image/texture/sampler.zig").Filter;
-const Worker = @import("../worker.zig").Worker;
+const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -57,7 +57,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: *Ray, worker: *Worker, ipo: Interpolation, isec: *Intersection) bool {
+    pub fn intersect(self: Tree, ray: *Ray, scene: *const Scene, ipo: Interpolation, isec: *Intersection) bool {
         if (0 == self.num_nodes) {
             return false;
         }
@@ -77,7 +77,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, ray, worker, ipo, &isec.geo)) {
+                    if (props[p].intersect(p, ray, scene, ipo, &isec.geo)) {
                         prop = p;
                         hit = true;
                     }
@@ -109,7 +109,7 @@ pub const Tree = struct {
         }
 
         for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersect(p, ray, worker, ipo, &isec.geo)) {
+            if (props[p].intersect(p, ray, scene, ipo, &isec.geo)) {
                 prop = p;
                 hit = true;
             }
@@ -120,7 +120,7 @@ pub const Tree = struct {
         return hit;
     }
 
-    pub fn intersectShadow(self: Tree, ray: *Ray, worker: *Worker, isec: *Intersection) bool {
+    pub fn intersectShadow(self: Tree, ray: *Ray, scene: *const Scene, isec: *Intersection) bool {
         if (0 == self.num_nodes) {
             return false;
         }
@@ -140,7 +140,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersectShadow(p, ray, worker, &isec.geo)) {
+                    if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
                         prop = p;
                         hit = true;
                     }
@@ -172,7 +172,7 @@ pub const Tree = struct {
         }
 
         for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersectShadow(p, ray, worker, &isec.geo)) {
+            if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
                 prop = p;
                 hit = true;
             }
@@ -183,7 +183,7 @@ pub const Tree = struct {
         return hit;
     }
 
-    pub fn intersectP(self: Tree, ray: Ray, worker: *Worker) bool {
+    pub fn intersectP(self: Tree, ray: Ray, scene: *const Scene) bool {
         if (0 == self.num_nodes) {
             return false;
         }
@@ -201,7 +201,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersectP(p, ray, worker)) {
+                    if (props[p].intersectP(p, ray, scene)) {
                         return true;
                     }
                 }
@@ -232,7 +232,7 @@ pub const Tree = struct {
         }
 
         for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersectP(p, ray, worker)) {
+            if (props[p].intersectP(p, ray, scene)) {
                 return true;
             }
         }
@@ -240,7 +240,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
         if (0 == self.num_nodes) {
             return @splat(4, @as(f32, 1.0));
         }
@@ -259,7 +259,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const tv = props[p].visibility(p, ray, filter, worker) orelse return null;
+                    const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
                     vis *= tv;
                 }
 
@@ -289,7 +289,7 @@ pub const Tree = struct {
         }
 
         for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            const tv = props[p].visibility(p, ray, filter, worker) orelse return null;
+            const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
             vis *= tv;
         }
 

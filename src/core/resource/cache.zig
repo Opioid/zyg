@@ -82,13 +82,15 @@ const Entry = struct {
 };
 
 const List = std.ArrayListUnmanaged;
-const HashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
+const EntryHashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
+const MetaHashMap = std.AutoHashMapUnmanaged(u32, Variants);
 
 pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
         resources: *List(T),
-        entries: HashMap = .{},
+        entries: EntryHashMap = .{},
+        metadata: MetaHashMap = .{},
 
         const Self = @This();
 
@@ -97,10 +99,21 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         }
 
         pub fn deinit(self: *Self, alloc: Allocator) void {
-            var iter = self.entries.iterator();
-            while (iter.next()) |entry| {
-                entry.key_ptr.deinit(alloc);
-                alloc.free(entry.value_ptr.source_name);
+            {
+                var iter = self.metadata.iterator();
+                while (iter.next()) |entry| {
+                    entry.value_ptr.deinit(alloc);
+                }
+            }
+
+            self.metadata.deinit(alloc);
+
+            {
+                var iter = self.entries.iterator();
+                while (iter.next()) |entry| {
+                    entry.key_ptr.deinit(alloc);
+                    alloc.free(entry.value_ptr.source_name);
+                }
             }
 
             self.entries.deinit(alloc);
@@ -123,8 +136,16 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
                     const id = entry.value_ptr.id;
                     self.resources.items[id].deinit(alloc);
-                    self.resources.items[id] = item;
+                    self.resources.items[id] = item.data;
                     deprecated = true;
+
+                    if (self.metadata.getEntry(id)) |e| {
+                        e.value_ptr.deinit(alloc);
+                    }
+
+                    if (item.meta.map.count() > 0) {
+                        try self.metadata.put(alloc, id, item.meta);
+                    }
                 }
             }
 
@@ -148,7 +169,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
                 return e;
             };
 
-            try self.resources.append(alloc, item);
+            try self.resources.append(alloc, item.data);
             const id = @intCast(u32, self.resources.items.len - 1);
 
             try self.entries.put(
@@ -156,6 +177,10 @@ pub fn Cache(comptime T: type, comptime P: type) type {
                 try key.clone(alloc),
                 .{ .id = id, .source_name = try resources.fs.cloneLastResolvedName(alloc) },
             );
+
+            if (item.meta.map.count() > 0) {
+                try self.metadata.put(alloc, id, item.meta);
+            }
 
             return id;
         }
@@ -173,7 +198,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return try self.store(alloc, id, item);
         }
 
-        pub fn get(self: Self, id: u32) ?*T {
+        pub fn get(self: *const Self, id: u32) ?*T {
             if (id < self.resources.items.len) {
                 return &self.resources.items[id];
             }
@@ -181,17 +206,21 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn getLast(self: Self) ?*T {
+        pub fn getLast(self: *const Self) ?*T {
             return self.get(@intCast(u32, self.resources.items.len - 1));
         }
 
-        pub fn getByName(self: Self, name: []const u8, options: Variants) ?u32 {
+        pub fn getByName(self: *const Self, name: []const u8, options: Variants) ?u32 {
             const key = Key{ .name = name, .options = options };
             if (self.entries.get(key)) |entry| {
                 return entry.id;
             }
 
             return null;
+        }
+
+        pub fn meta(self: *const Self, id: u32) ?Variants {
+            return self.metadata.get(id);
         }
 
         pub fn store(self: *Self, alloc: Allocator, id: u32, item: T) !u32 {

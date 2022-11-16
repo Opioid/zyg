@@ -2,10 +2,10 @@ const cache = @import("cache.zig");
 const Cache = cache.Cache;
 const Filesystem = @import("../file/system.zig").System;
 const Image = @import("../image/image.zig").Image;
-const ImageProvider = @import("../image/provider.zig").Provider;
+const ImageProvider = @import("../image/image_provider.zig").Provider;
 const Images = Cache(Image, ImageProvider);
 const Material = @import("../scene/material/material.zig").Material;
-pub const MaterialProvider = @import("../scene/material/provider.zig").Provider;
+pub const MaterialProvider = @import("../scene/material/material_provider.zig").Provider;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
@@ -94,7 +94,7 @@ pub const Manager = struct {
         self.shapes.provider.commitAsync(self);
     }
 
-    pub fn get(self: Manager, comptime T: type, id: u32) ?*T {
+    pub fn get(self: *const Manager, comptime T: type, id: u32) ?*T {
         if (Image == T) {
             return self.images.get(id);
         }
@@ -106,7 +106,7 @@ pub const Manager = struct {
         return null;
     }
 
-    pub fn getByName(self: Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
+    pub fn getByName(self: *const Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
             return self.images.getByName(name, options);
         } else if (Material == T) {

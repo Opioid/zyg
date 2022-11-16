@@ -115,7 +115,7 @@ pub const Reader = struct {
             }
         }
 
-        pub fn numPixelBytes(self: Info) u32 {
+        pub fn numPixelBytes(self: *const Info) u32 {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             return row_size * @intCast(u32, self.height);
         }
@@ -140,14 +140,14 @@ pub const Reader = struct {
 
         while (handleChunk(alloc, stream, &self.chunk, &self.info)) {}
 
-        return try createImage(alloc, self.info, swizzle, invert);
+        return try createImage(alloc, &self.info, swizzle, invert);
     }
 
-    pub fn createFromBuffer(self: Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
-        return try createImage(alloc, self.info, swizzle, invert);
+    pub fn createFromBuffer(self: *const Reader, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
+        return try createImage(alloc, &self.info, swizzle, invert);
     }
 
-    fn createImage(alloc: Allocator, info: Info, swizzle: Swizzle, invert: bool) !Image {
+    fn createImage(alloc: Allocator, info: *const Info, swizzle: Swizzle, invert: bool) !Image {
         var num_channels: u32 = undefined;
         switch (swizzle) {
             .X, .W => {
@@ -166,7 +166,7 @@ pub const Reader = struct {
 
         const byte_compatible = num_channels == info.num_channels and .YX != swizzle;
 
-        num_channels = @minimum(num_channels, info.num_channels);
+        num_channels = @min(num_channels, info.num_channels);
 
         const dimensions = Vec2i{ info.width, info.height };
 
@@ -268,7 +268,7 @@ pub const Reader = struct {
         var length: u32 = 0;
         _ = stream.read(std.mem.asBytes(&length)) catch return false;
 
-        length = @byteSwap(u32, length);
+        length = @byteSwap(length);
 
         // Max chunk length according to spec
         if (length > 0x7FFFFFFF) {

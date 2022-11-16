@@ -1,7 +1,6 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../../worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
@@ -19,7 +18,6 @@ const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
-const RNG = base.rnd.Generator;
 const math = base.math;
 const AABB = math.AABB;
 const Mat3x3 = math.Mat3x3;
@@ -49,7 +47,7 @@ pub const Part = struct {
             self.distribution.deinit(alloc);
         }
 
-        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: Scene) bool {
+        pub fn matches(self: Variant, m: u32, emission_map: bool, two_sided: bool, scene: *const Scene) bool {
             if (self.material == m) {
                 return true;
             }
@@ -90,9 +88,9 @@ pub const Part = struct {
         alloc: Allocator,
         part: u32,
         material: u32,
-        tree: bvh.Tree,
+        tree: *const bvh.Tree,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
@@ -153,15 +151,14 @@ pub const Part = struct {
             }
         }
 
-        const dimensions = m.usefulTextureDescription(scene).dimensions;
-
+        const dimensions = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(4, @as(i32, 0));
         const context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .part = self,
             .m = m,
-            .tree = &tree,
-            .scene = &scene,
+            .tree = tree,
+            .scene = scene,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
@@ -197,7 +194,7 @@ pub const Part = struct {
 
         var variant = &self.variants.items[v];
         try variant.distribution.configure(alloc, context.powers, 0);
-        try builder.buildPrimitive(alloc, &variant.light_tree, self.*, v, threads);
+        try builder.buildPrimitive(alloc, &variant.light_tree, self, v, threads);
         return v;
     }
 
@@ -246,6 +243,7 @@ pub const Part = struct {
         scene: *const Scene,
         estimate_area: f32,
 
+        const Pos = Vec4f{ 0.0, 0.0, 0.0, 0.0 };
         const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
 
         const IdTrafo = Trafo{
@@ -279,13 +277,14 @@ pub const Part = struct {
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(s2[0], s2[1], t);
                         radiance += self.m.evaluateRadiance(
+                            Pos,
                             Dir,
                             Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             IdTrafo,
                             1.0,
                             null,
-                            self.scene.*,
+                            self.scene,
                         );
                     }
 
@@ -329,7 +328,7 @@ pub const Part = struct {
 
         // return self.sampleRandom(variant, r);
 
-        const pick = self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant);
+        const pick = self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
         const relative_area = self.aabbs[pick.offset].bounds[1][3];
 
         return .{
@@ -357,13 +356,13 @@ pub const Part = struct {
 
         // return self.pdfRandom(variant, id);
 
-        const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
+        const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
         const relative_area = self.aabbs[id].bounds[1][3];
 
         return pdf * relative_area;
     }
 
-    pub fn pdfRandom(self: Part, variant: u32, id: u32) f32 {
+    pub fn pdfRandom(self: *const Part, variant: u32, id: u32) f32 {
         const pdf = self.variants.items[variant].distribution.pdfI(id);
         const relative_area = self.aabbs[id].bounds[1][3];
 
@@ -418,16 +417,16 @@ pub const Mesh = struct {
         self.parts[part].material = material;
     }
 
-    pub fn area(self: Mesh, part: u32, scale: Vec4f) f32 {
+    pub fn area(self: *const Mesh, part: u32, scale: Vec4f) f32 {
         // HACK: This only really works for uniform scales!
         return self.parts[part].area * (scale[0] * scale[1]);
     }
 
-    pub fn partAabb(self: Mesh, part: u32, variant: u32) AABB {
+    pub fn partAabb(self: *const Mesh, part: u32, variant: u32) AABB {
         return self.parts[part].aabb(variant);
     }
 
-    pub fn cone(self: Mesh, part: u32, variant: u32) Vec4f {
+    pub fn cone(self: *const Mesh, part: u32, variant: u32) Vec4f {
         return self.parts[part].cone(variant);
     }
 
@@ -503,7 +502,7 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: usize,
         filter: ?Filter,
-        worker: *Worker,
+        scene: *const Scene,
     ) ?Vec4f {
         const tray = Ray.init(
             trafo.worldToObjectPoint(ray.origin),
@@ -512,7 +511,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.visibility(tray, entity, filter, worker);
+        return self.tree.visibility(tray, entity, filter, scene);
     }
 
     pub fn sampleTo(
@@ -526,9 +525,8 @@ pub const Mesh = struct {
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
-        rng: *RNG,
     ) ?SampleTo {
-        const r = sampler.sample3D(rng);
+        const r = sampler.sample3D();
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
@@ -579,11 +577,10 @@ pub const Mesh = struct {
         extent: f32,
         two_sided: bool,
         sampler: *Sampler,
-        rng: *RNG,
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
-        const r = sampler.sample1D(rng);
+        const r = sampler.sample1D();
         const s = self.parts[part].sampleRandom(variant, r);
 
         var sv: Vec4f = undefined;
@@ -596,8 +593,7 @@ pub const Mesh = struct {
         const xy = math.orthonormalBasis3(wn);
         var dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
 
-        //  if (two_sided and sampler.sample1D(rng, sampler_d) > 0.5) {
-        if (two_sided and rng.randomFloat() > 0.5) {
+        if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;
             dir = -dir;
         }
@@ -647,7 +643,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: Scene,
+        scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
@@ -665,7 +661,7 @@ pub const Mesh = struct {
             }
         }
 
-        return try self.parts[part].configure(alloc, part, material, self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {

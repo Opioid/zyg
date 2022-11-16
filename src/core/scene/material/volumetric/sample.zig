@@ -2,10 +2,10 @@ const Base = @import("../sample_base.zig").SampleBase;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
@@ -23,7 +23,7 @@ pub const Sample = struct {
             @splat(2, @as(f32, 1.0)),
         );
 
-        super.properties.set(.Translucent, true);
+        super.properties.translucent = true;
 
         return .{
             .super = super,
@@ -31,7 +31,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const wo_dot_wi = math.dot3(self.super.wo, wi);
         const g = self.anisotropy;
 
@@ -40,8 +40,8 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(4, phase), phase);
     }
 
-    pub fn sample(self: Sample, sampler: *Sampler, rng: *RNG) bxdf.Sample {
-        const r2 = sampler.sample2D(rng);
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+        const r2 = sampler.sample2D();
 
         const g = self.anisotropy;
 
@@ -59,7 +59,6 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const tb = math.orthonormalBasis3(wo);
-
         const wi = math.smpl.sphereDirection(sin_theta, cos_theta, phi, tb[0], tb[1], -wo);
 
         const phase = phaseHg(-cos_theta, g);
@@ -71,7 +70,7 @@ pub const Sample = struct {
             .pdf = phase,
             .wavelength = 0.0,
             .h_dot_wi = undefined,
-            .class = bxdf.ClassFlag.init1(.DiffuseReflection),
+            .class = .{ .diffuse = true, .reflection = true },
         };
     }
 

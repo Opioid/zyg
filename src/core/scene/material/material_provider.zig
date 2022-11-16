@@ -6,12 +6,13 @@ const metal = @import("metal_presets.zig");
 const fresnel = @import("fresnel.zig");
 const Emittance = @import("../light/emittance.zig").Emittance;
 const img = @import("../../image/image.zig");
-const tx = @import("../../image/texture/provider.zig");
+const tx = @import("../../image/texture/texture_provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
-const ts = @import("../../image/texture/sampler.zig");
+const ts = @import("../../image/texture/texture_sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
+const Result = @import("../../resource/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -59,7 +60,7 @@ pub const Provider = struct {
         name: []const u8,
         options: Variants,
         resources: *Resources,
-    ) !Material {
+    ) !Result(Material) {
         _ = options;
 
         var stream = try resources.fs.readStream(alloc, name);
@@ -78,8 +79,9 @@ pub const Provider = struct {
         const root = document.root;
 
         var material = try self.loadMaterial(alloc, root, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
-        return material;
+
+        try material.commit(alloc, resources.scene, resources.threads);
+        return .{ .data = material };
     }
 
     pub fn loadData(
@@ -94,7 +96,7 @@ pub const Provider = struct {
         const value = @intToPtr(*std.json.Value, data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
         return material;
     }
 
@@ -113,7 +115,7 @@ pub const Provider = struct {
             else => {},
         }
 
-        try material.commit(alloc, resources.scene.*, resources.threads);
+        try material.commit(alloc, resources.scene, resources.threads);
     }
 
     pub fn createFallbackMaterial() Material {
@@ -296,25 +298,25 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "attenuation_distance", c.key_ptr.*)) {
                         coating_attenuation_distance = json.readFloat(f32, c.value_ptr.*);
                     } else if (std.mem.eql(u8, "ior", c.key_ptr.*)) {
-                        material.coating.ior = json.readFloat(f32, c.value_ptr.*);
+                        material.coating_ior = json.readFloat(f32, c.value_ptr.*);
                     } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
-                        material.coating.normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
+                        material.coating_normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
-                        material.coating.setRoughness(readValue(
+                        material.setCoatingRoughness(readValue(
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating.roughness,
+                            material.coating_roughness,
                             .Roughness,
                             self.tex,
                             resources,
                         ));
                     } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
-                        material.coating.setThickness(readValue(
+                        material.setCoatingThickness(readValue(
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating.thickness,
+                            material.coating_thickness,
                             .Roughness,
                             self.tex,
                             resources,
@@ -322,7 +324,20 @@ pub const Provider = struct {
                     }
                 }
 
-                material.coating.setAttenuation(coating_color, coating_attenuation_distance);
+                material.setCoatingAttenuation(coating_color, coating_attenuation_distance);
+            } else if (std.mem.eql(u8, "flakes", entry.key_ptr.*)) {
+                var citer = entry.value_ptr.Object.iterator();
+                while (citer.next()) |c| {
+                    if (std.mem.eql(u8, "color", c.key_ptr.*)) {
+                        material.flakes_color = readColor(c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "coverage", c.key_ptr.*)) {
+                        material.flakes_coverage = json.readFloat(f32, c.value_ptr.*);
+                    } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
+                        material.setFlakesRoughness(json.readFloat(f32, c.value_ptr.*));
+                    } else if (std.mem.eql(u8, "size", c.key_ptr.*)) {
+                        material.setFlakesSize(json.readFloat(f32, c.value_ptr.*));
+                    }
+                }
             }
         }
 
@@ -401,8 +416,14 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         color = readColor(s);
     }
 
+    if (jvalue.Object.get("profile")) |p| {
+        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
+    }
+
+    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
+
     const value = json.readFloatMember(jvalue, "value", 1.0);
-    const cos_a = @maximum(@cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", 180.0))), 0.0);
+    const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
 
     if (std.mem.eql(u8, "Flux", quantity)) {
         emittance.setLuminousFlux(color, value, cos_a);
@@ -415,10 +436,6 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     } else // if (std.mem.eql(u8, "Radiance", quantity))
     {
         emittance.setRadiance(@splat(4, value) * color, cos_a);
-    }
-
-    if (jvalue.Object.get("profile")) |p| {
-        emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 }
 
@@ -543,7 +560,7 @@ fn readColor(value: std.json.Value) Vec4f {
                     rgb = readColor(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = json.readFloat(f32, entry.value_ptr.*);
-                    rgb = spectrum.blackbody(@maximum(800.0, temperature));
+                    rgb = spectrum.blackbody(std.math.max(800.0, temperature));
                 } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
                     linear = json.readBool(entry.value_ptr.*);
                 }

@@ -1,10 +1,12 @@
 const Result = @import("result.zig").Result;
 const tracking = @import("tracking.zig");
 const Ray = @import("../../../scene/ray.zig").Ray;
-const Worker = @import("../../../scene/worker.zig").Worker;
+const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const shp = @import("../../../scene/shape/intersection.zig");
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
-const Filter = @import("../../../image/texture/sampler.zig").Filter;
+const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const scn = @import("../../../scene/constants.zig");
@@ -16,7 +18,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, worker: *Worker) Result {
+    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
         if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
@@ -35,11 +37,20 @@ pub const Multi = struct {
 
         if (scn.Almost_ray_max_t <= d) {
             missed = true;
-        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {}
+        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
+            const v = -ray.ray.direction;
+
+            var tray = Ray.init(isec.offsetP(v), v, 0.0, scn.Ray_max_t, 0, 0.0, ray.time);
+            var nisec = shp.Intersection{};
+            if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
+                missed = math.dot3(nisec.geo_n, v) <= 0.0;
+            } else {
+                missed = true;
+            }
+        }
 
         if (missed) {
             worker.interface_stack.pop();
-
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
@@ -47,11 +58,11 @@ pub const Multi = struct {
             };
         }
 
-        const material = interface.material(worker.scene.*);
+        const material = interface.material(worker.scene);
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene.*).a;
+            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene).a;
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
@@ -60,7 +71,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker.*);
+            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -117,7 +128,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene.*);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
 
             const result = tracking.trackingEmission(ray.ray, cce, &worker.rng);
             if (.Scatter == result.event) {
@@ -131,7 +142,7 @@ pub const Multi = struct {
 
         const mu = material.super().cc;
 
-        const result = tracking.tracking(ray.ray, mu, &worker.rng);
+        const result = tracking.tracking(ray.ray, mu, sampler);
         if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
         }
