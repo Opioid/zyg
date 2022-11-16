@@ -5,8 +5,8 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Mode = union(enum) {
-    Clamp: Clamp,
-    Repeat: Repeat,
+    Clamp,
+    Repeat,
 
     pub fn f(m: Mode, x: f32) f32 {
         return switch (m) {
@@ -71,11 +71,7 @@ pub const Clamp = struct {
     }
 
     pub fn increment(v: i32, max: i32) i32 {
-        if (v >= max) {
-            return max;
-        }
-
-        return v + 1;
+        return @min(v + 1, max);
     }
 
     pub fn increment3(v: Vec4i, max: Vec4i) Vec4i {
@@ -83,11 +79,7 @@ pub const Clamp = struct {
     }
 
     pub fn lowerBound(v: i32) i32 {
-        if (v < 0) {
-            return 0;
-        }
-
-        return v;
+        return @max(v, 0);
     }
 
     pub fn lowerBound3(v: Vec4i) Vec4i {
@@ -105,18 +97,10 @@ pub const Repeat = struct {
     }
 
     pub fn increment(v: i32, max: i32) i32 {
-        if (v >= max) {
-            return 0;
-        }
-
-        return v + 1;
+        return if (v >= max) 0 else v + 1;
     }
 
     pub fn lowerBound(v: i32, max: i32) i32 {
-        if (v < 0) {
-            return max;
-        }
-
-        return v;
+        return if (v < 0) max else v;
     }
 };
