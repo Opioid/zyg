@@ -121,82 +121,113 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        const step = 2 * @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
         const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
-        const y_back = tile[3];
-        var y: i32 = tile[1];
-        while (y <= y_back) : (y += 1) {
-            const pixel_n = @intCast(u32, y * r[0]);
+        const yy_back = tile[3];
+        var yy: i32 = tile[1];
+        while (yy <= yy_back) : (yy += 2) {
+            const xx_back = tile[2];
+            var xx: i32 = tile[0];
+            while (xx <= xx_back) : (xx += 2) {
+                var old_ms = [4]Vec4f{
+                    @splat(4, @as(f32, 0.0)),
+                    @splat(4, @as(f32, 0.0)),
+                    @splat(4, @as(f32, 0.0)),
+                    @splat(4, @as(f32, 0.0)),
+                };
 
-            const x_back = tile[2];
-            var x: i32 = tile[0];
-            while (x <= x_back) : (x += 1) {
-                const pixel_id = pixel_n + @intCast(u32, x);
+                var old_ss = [4]f32{ 0.0, 0.0, 0.0, 0.0 };
 
-                rng.start(0, @as(u64, pixel_id) + o);
+                var coeffs: [4]f32 = undefined;
 
-                const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
-                const tsi = @truncate(u32, sample_index);
-                const seed = @truncate(u32, sample_index >> 32) + so;
+                var ss: u32 = 0;
+                while (ss < num_samples) : (ss += step) {
+                    const s_end = @min(ss + step, num_samples);
+                    var c: u32 = 0;
 
-                self.sampler.startPixel(tsi, seed);
-                self.surface_integrator.startPixel(tsi, seed + 1);
+                    const y_back = @min(yy + 1, yy_back);
+                    var y = yy;
+                    while (y <= y_back) : (y += 1) {
+                        const pixel_n = @intCast(u32, y * r[0]);
 
-                self.photon = @splat(4, @as(f32, 0.0));
+                        const x_back = @min(xx + 1, xx_back);
+                        var x = xx;
+                        while (x <= x_back) : (x += 1) {
+                            const pixel_id = pixel_n + @intCast(u32, x);
 
-                const pixel = Vec2i{ x, y };
+                            rng.start(0, @as(u64, pixel_id) + o);
 
-                var old_m = @splat(4, @as(f32, 0.0));
-                var old_s: f32 = 0.0;
+                            const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
+                            const tsi = @truncate(u32, sample_index);
+                            const seed = @truncate(u32, sample_index >> 32) + so;
 
-                var next_check = step;
+                            self.sampler.startPixel(tsi, seed);
+                            self.surface_integrator.startPixel(tsi, seed + 1);
 
-                var s: u32 = 0;
-                while (s < num_samples) : (s += 1) {
-                    var sample = self.sampler.cameraSample(pixel);
+                            self.photon = @splat(4, @as(f32, 0.0));
 
-                    self.aov.clear();
+                            const pixel = Vec2i{ x, y };
 
-                    var ray = camera.generateRay(&sample, frame, scene);
+                            var old_m = old_ms[c];
+                            var old_s = old_ss[c];
 
-                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
+                            var new_m: Vec4f = undefined;
+                            var new_s: f32 = undefined;
 
-                    var photon = self.photon;
-                    if (photon[3] > 0.0) {
-                        photon /= @splat(4, photon[3]);
-                        photon[3] = 0.0;
-                    }
+                            var s = ss;
+                            while (s < s_end) : (s += 1) {
+                                var sample = self.sampler.cameraSample(pixel);
 
-                    const clamped = sensor.addSample(sample, color + photon, self.aov);
+                                self.aov.clear();
 
-                    const value = clamped.last;
+                                var ray = camera.generateRay(&sample, frame, scene);
 
-                    if (target_cv > 0.0) {
-                        const new_m = clamped.mean;
+                                const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
 
-                        const new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
+                                var photon = self.photon;
+                                if (photon[3] > 0.0) {
+                                    photon /= @splat(4, photon[3]);
+                                    photon[3] = 0.0;
+                                }
 
-                        // set up for next iteration
-                        old_m = new_m;
-                        old_s = new_s;
+                                const clamped = sensor.addSample(sample, color + photon, self.aov);
 
-                        if (s == next_check) {
-                            const variance = new_s * new_m[3];
+                                const value = clamped.last;
 
-                            const mam = math.maxComponent3(new_m);
-                            const coeff = @sqrt(variance) / std.math.max(mam, 0.02);
+                                if (target_cv > 0.0) {
+                                    new_m = clamped.mean;
 
-                            if (coeff <= target_cv) {
-                                break;
+                                    new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
+
+                                    // set up for next iteration
+                                    old_m = new_m;
+                                    old_s = new_s;
+                                }
                             }
 
-                            next_check += step;
+                            old_ms[c] = old_m;
+                            old_ss[c] = old_s;
+
+                            const variance = new_s * new_m[3];
+                            const mam = math.maxComponent3(new_m);
+                            const coeff = @sqrt(variance) / std.math.max(mam, 0.02);
+                            coeffs[c] = coeff;
+
+                            c += 1;
                         }
+                    }
+
+                    const mc0 = std.math.max(coeffs[0], coeffs[1]);
+                    const mc1 = std.math.max(coeffs[2], coeffs[3]);
+                    const max_coeff = std.math.max(mc0, mc1);
+
+                    if (max_coeff < target_cv) {
+                        break;
                     }
                 }
             }
