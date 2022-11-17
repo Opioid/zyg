@@ -121,7 +121,7 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        const step = 2 * @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -130,34 +130,34 @@ pub const Worker = struct {
 
         const yy_back = tile[3];
         var yy: i32 = tile[1];
-        while (yy <= yy_back) : (yy += 2) {
+        while (yy <= yy_back) : (yy += 4) {
             const xx_back = tile[2];
             var xx: i32 = tile[0];
-            while (xx <= xx_back) : (xx += 2) {
-                var old_ms = [4]Vec4f{
-                    @splat(4, @as(f32, 0.0)),
-                    @splat(4, @as(f32, 0.0)),
-                    @splat(4, @as(f32, 0.0)),
-                    @splat(4, @as(f32, 0.0)),
-                };
+            while (xx <= xx_back) : (xx += 4) {
+                var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
 
-                var old_ss = [4]f32{ 0.0, 0.0, 0.0, 0.0 };
+                var old_ss = [_]f32{0.0} ** 16;
 
-                var coeffs: [4]f32 = undefined;
+                var coeffs: [16]f32 = undefined;
 
                 var ss: u32 = 0;
                 while (ss < num_samples) : (ss += step) {
                     const s_end = @min(ss + step, num_samples);
-                    var c: u32 = 0;
+                    var cc: u32 = 0;
 
-                    const y_back = @min(yy + 1, yy_back);
+                    const y_back = @min(yy + 3, yy_back);
                     var y = yy;
                     while (y <= y_back) : (y += 1) {
                         const pixel_n = @intCast(u32, y * r[0]);
 
-                        const x_back = @min(xx + 1, xx_back);
+                        const x_back = @min(xx + 3, xx_back);
                         var x = xx;
                         while (x <= x_back) : (x += 1) {
+                            const c = cc;
+                            cc += 1;
+
+                            if (ss >= (num_samples / 4) and coeffs[c] < target_cv) continue;
+
                             const pixel_id = pixel_n + @intCast(u32, x);
 
                             rng.start(0, @as(u64, pixel_id) + o);
@@ -217,14 +217,14 @@ pub const Worker = struct {
                             const mam = math.maxComponent3(new_m);
                             const coeff = @sqrt(variance) / std.math.max(mam, 0.02);
                             coeffs[c] = coeff;
-
-                            c += 1;
                         }
                     }
 
-                    const mc0 = std.math.max(coeffs[0], coeffs[1]);
-                    const mc1 = std.math.max(coeffs[2], coeffs[3]);
-                    const max_coeff = std.math.max(mc0, mc1);
+                    var max_coeff = coeffs[0];
+                    var ci: u32 = 1;
+                    while (ci < 16) : (ci += 1) {
+                        max_coeff = std.math.max(coeffs[ci], max_coeff);
+                    }
 
                     if (max_coeff < target_cv) {
                         break;
