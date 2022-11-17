@@ -135,16 +135,16 @@ pub const Worker = struct {
             var xx: i32 = tile[0];
             while (xx <= xx_back) : (xx += 4) {
                 var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
-
                 var old_ss = [_]f32{0.0} ** 16;
 
                 var coeffs: [16]f32 = undefined;
+                var cell_coeffs: [4]f32 = undefined;
 
                 var ss: u32 = 0;
                 while (ss < num_samples) : (ss += step) {
-                    const s_end = @min(ss + step, num_samples);
                     var cc: u32 = 0;
 
+                    const s_end = @min(ss + step, num_samples);
                     const y_back = @min(yy + 3, yy_back);
                     var y = yy;
                     while (y <= y_back) : (y += 1) {
@@ -156,7 +156,15 @@ pub const Worker = struct {
                             const c = cc;
                             cc += 1;
 
-                            if (ss >= (num_samples / 4) and coeffs[c] < target_cv) continue;
+                            if (ss >= num_samples / 4) {
+                                const cx = (x - xx) >> 1;
+                                const cy = (y - yy) >> 1;
+                                const cid = @intCast(u32, (cy << 1) | cx);
+
+                                if (cell_coeffs[cid] < target_cv) continue;
+                            }
+
+                            if (ss >= (num_samples / 2) and coeffs[c] < target_cv) continue;
 
                             const pixel_id = pixel_n + @intCast(u32, x);
 
@@ -181,10 +189,9 @@ pub const Worker = struct {
 
                             var s = ss;
                             while (s < s_end) : (s += 1) {
-                                var sample = self.sampler.cameraSample(pixel);
-
                                 self.aov.clear();
 
+                                var sample = self.sampler.cameraSample(pixel);
                                 var ray = camera.generateRay(&sample, frame, scene);
 
                                 const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
@@ -196,18 +203,14 @@ pub const Worker = struct {
                                 }
 
                                 const clamped = sensor.addSample(sample, color + photon, self.aov);
-
                                 const value = clamped.last;
 
-                                if (target_cv > 0.0) {
-                                    new_m = clamped.mean;
+                                new_m = clamped.mean;
+                                new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
 
-                                    new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
-
-                                    // set up for next iteration
-                                    old_m = new_m;
-                                    old_s = new_s;
-                                }
+                                // set up for next iteration
+                                old_m = new_m;
+                                old_s = new_s;
                             }
 
                             old_ms[c] = old_m;
@@ -220,11 +223,33 @@ pub const Worker = struct {
                         }
                     }
 
-                    var max_coeff = coeffs[0];
-                    var ci: u32 = 1;
-                    while (ci < 16) : (ci += 1) {
-                        max_coeff = std.math.max(coeffs[ci], max_coeff);
+                    {
+                        const mc0 = std.math.max(coeffs[0], coeffs[1]);
+                        const mc1 = std.math.max(coeffs[4], coeffs[5]);
+                        cell_coeffs[0] = std.math.max(mc0, mc1);
                     }
+
+                    {
+                        const mc0 = std.math.max(coeffs[2], coeffs[3]);
+                        const mc1 = std.math.max(coeffs[6], coeffs[7]);
+                        cell_coeffs[1] = std.math.max(mc0, mc1);
+                    }
+
+                    {
+                        const mc0 = std.math.max(coeffs[8], coeffs[9]);
+                        const mc1 = std.math.max(coeffs[12], coeffs[13]);
+                        cell_coeffs[2] = std.math.max(mc0, mc1);
+                    }
+
+                    {
+                        const mc0 = std.math.max(coeffs[10], coeffs[11]);
+                        const mc1 = std.math.max(coeffs[14], coeffs[15]);
+                        cell_coeffs[3] = std.math.max(mc0, mc1);
+                    }
+
+                    const mc0 = std.math.max(cell_coeffs[0], cell_coeffs[1]);
+                    const mc1 = std.math.max(cell_coeffs[2], cell_coeffs[3]);
+                    const max_coeff = std.math.max(mc0, mc1);
 
                     if (max_coeff < target_cv) {
                         break;
