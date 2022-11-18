@@ -54,7 +54,7 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
             return result;
         }
 
-        pub fn pixelToImageCoordinates(self: Self, sample: *Sample) Vec2f {
+        pub fn pixelToImageCoordinates(self: *const Self, sample: *Sample) Vec2f {
             const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
             const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
 
@@ -190,11 +190,11 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
             }
         }
 
-        inline fn eval(self: Self, s: f32) f32 {
+        inline fn eval(self: *const Self, s: f32) f32 {
             return self.filter.eval(@fabs(s));
         }
 
-        fn integral(self: Self, num_samples: u32, radius: f32) f32 {
+        fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {
             const interval = radius / @intToFloat(f32, num_samples);
             var s = 0.5 * interval;
             var sum: f32 = 0.0;

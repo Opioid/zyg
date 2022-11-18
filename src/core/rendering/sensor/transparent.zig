@@ -122,7 +122,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn copyWeights(self: Transparent, weights: []f32) void {
+    pub fn copyWeights(self: *const Transparent, weights: []f32) void {
         for (self.pixel_weights) |w, i| {
             weights[i] = w;
         }

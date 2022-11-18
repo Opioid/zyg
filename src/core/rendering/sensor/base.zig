@@ -22,7 +22,7 @@ pub const Base = struct {
         mean: Vec4f,
     };
 
-    pub fn clamp(self: Base, color: Vec4f) Vec4f {
+    pub fn clamp(self: *const Base, color: Vec4f) Vec4f {
         const mc = math.maxComponent3(color);
 
         if (mc > self.max) {

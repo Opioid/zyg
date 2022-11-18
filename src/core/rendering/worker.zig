@@ -121,7 +121,7 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        const step = 2 * @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        const step_length = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -140,8 +140,9 @@ pub const Worker = struct {
                 var coeffs: [16]f32 = undefined;
                 var cell_coeffs: [4]f32 = undefined;
 
+                var step = 4 * step_length;
                 var ss: u32 = 0;
-                while (ss < num_samples) : (ss += step) {
+                while (ss < num_samples) {
                     var cc: u32 = 0;
 
                     const s_end = @min(ss + step, num_samples);
@@ -237,6 +238,9 @@ pub const Worker = struct {
                     if (max_coeff < target_cv) {
                         break;
                     }
+
+                    ss += step;
+                    step = step_length;
                 }
             }
         }

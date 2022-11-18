@@ -103,7 +103,7 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn copyWeights(self: Opaque, weights: []f32) void {
+    pub fn copyWeights(self: *const Opaque, weights: []f32) void {
         for (self.pixels) |p, i| {
             weights[i] = p.v[3];
         }
