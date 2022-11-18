@@ -47,7 +47,7 @@ pub const Perspective = struct {
     crop: Vec4i = @splat(4, @as(i32, 0)),
 
     sensor: Sensor = .{
-        .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(
+        .Opaque = snsr.Filtered(snsr.Opaque).init(
             std.math.f32_max,
             2.0,
             snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },

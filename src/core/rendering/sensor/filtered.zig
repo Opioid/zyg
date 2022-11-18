@@ -9,7 +9,7 @@ const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
+pub fn Filtered(comptime T: type) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
@@ -17,12 +17,20 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
 
         filter: Func,
 
+        radius_int: i32,
+
         const Self = @This();
 
         pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
-            var result = Self{ .sensor = T.init(clamp_max), .filter = Func.init(0.0, radius, f) };
+            var result = Self{
+                .sensor = T.init(clamp_max),
+                .filter = Func.init(0.0, radius, f),
+                .radius_int = @floatToInt(i32, @ceil(radius)),
+            };
 
-            result.filter.scale(1.0 / result.integral(64, radius));
+            if (radius > 0.0) {
+                result.filter.scale(1.0 / result.integral(64, radius));
+            }
 
             return result;
         }
@@ -37,13 +45,36 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
         ) void {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = sample.pixel[0];
-            const y = sample.pixel[1];
+            const pixel = sample.pixel;
+            const x = pixel[0];
+            const y = pixel[1];
 
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
+            const pixel_uv = sample.pixel_uv;
+            const ox = pixel_uv[0] - 0.5;
+            const oy = pixel_uv[1] - 0.5;
 
-            if (1 == N) {
+            if (0 == self.radius_int) {
+                self.sensor.addPixel(pixel, clamped, 1.0);
+
+                if (aov.active()) {
+                    const len = AovValue.Num_classes;
+                    var i: u32 = 0;
+                    while (i < len) : (i += 1) {
+                        const class = @intToEnum(AovValue.Class, i);
+                        if (aov.activeClass(class)) {
+                            const value = aov.values[i];
+
+                            if (.Depth == class) {
+                                self.sensor.base.lessAov(pixel, i, value[0]);
+                            } else if (.MaterialId == class) {
+                                self.sensor.base.overwriteAov(pixel, i, value[0], 1.0);
+                            } else {
+                                self.sensor.base.addAov(pixel, i, value, 1.0);
+                            }
+                        }
+                    }
+                }
+            } else if (1 == self.radius_int) {
                 const wx0 = self.eval(ox + 1.0);
                 const wx1 = self.eval(ox);
                 const wx2 = self.eval(ox - 1.0);
@@ -100,7 +131,7 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
                         }
                     }
                 }
-            } else if (2 == N) {
+            } else if (2 == self.radius_int) {
                 const wx0 = self.eval(ox + 2.0);
                 const wx1 = self.eval(ox + 1.0);
                 const wx2 = self.eval(ox);
@@ -207,13 +238,17 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = sample.pixel[0];
-            const y = sample.pixel[1];
+            const pixel = sample.pixel;
+            const x = pixel[0];
+            const y = pixel[1];
 
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
+            const pixel_uv = sample.pixel_uv;
+            const ox = pixel_uv[0] - 0.5;
+            const oy = pixel_uv[1] - 0.5;
 
-            if (1 == N) {
+            if (0 == self.radius_int) {
+                self.sensor.splatPixelAtomic(pixel, clamped, 1.0);
+            } else if (1 == self.radius_int) {
                 const wx0 = self.eval(ox + 1.0);
                 const wx1 = self.eval(ox);
                 const wx2 = self.eval(ox - 1.0);
@@ -236,7 +271,7 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
                 self.splat(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
                 self.splat(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
                 self.splat(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
-            } else if (2 == N) {
+            } else if (2 == self.radius_int) {
                 const wx0 = self.eval(ox + 2.0);
                 const wx1 = self.eval(ox + 1.0);
                 const wx2 = self.eval(ox);
@@ -372,11 +407,11 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
             }
         }
 
-        fn eval(self: Self, s: f32) f32 {
+        fn eval(self: *const Self, s: f32) f32 {
             return self.filter.eval(@fabs(s));
         }
 
-        fn integral(self: Self, num_samples: u32, radius: f32) f32 {
+        fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {
             const interval = radius / @intToFloat(f32, num_samples);
             var s = 0.5 * interval;
             var sum: f32 = 0.0;
