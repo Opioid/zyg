@@ -136,8 +136,7 @@ pub const Worker = struct {
             while (xx <= xx_back) : (xx += 4) {
                 var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
                 var old_ss = [_]f32{0.0} ** 16;
-
-                var coeffs: [16]f32 = undefined;
+                var coeffs = [_]f32{0.0} ** 16;
                 var cell_coeffs: [4]f32 = undefined;
 
                 var step = 4 * step_length;
