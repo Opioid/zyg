@@ -61,17 +61,7 @@ pub const Buffer = struct {
         }
     }
 
-    pub fn addPixel(
-        self: *Self,
-        dimensions: Vec2i,
-        pixel: Vec2i,
-        slot: u32,
-        value: Vec4f,
-        weight: f32,
-    ) void {
-        const d = dimensions;
-        const id = @intCast(usize, d[0] * pixel[1] + pixel[0]);
-
+    pub fn addPixel(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
         const wc = @splat(4, weight) * value;
 
         const pixels = self.buffers[slot];
@@ -80,18 +70,9 @@ pub const Buffer = struct {
         pixels[id].v = dest;
     }
 
-    pub fn addPixelAtomic(
-        self: *Self,
-        dimensions: Vec2i,
-        pixel: Vec2i,
-        slot: u32,
-        value: Vec4f,
-        weight: f32,
-    ) void {
-        const d = dimensions;
-
+    pub fn addPixelAtomic(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
         const pixels = self.buffers[slot];
-        var dest = &pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        var dest = &pixels[id];
 
         _ = @atomicRmw(f32, &dest.v[0], .Add, weight * value[0], .Monotonic);
         _ = @atomicRmw(f32, &dest.v[1], .Add, weight * value[1], .Monotonic);
@@ -99,35 +80,18 @@ pub const Buffer = struct {
         _ = @atomicRmw(f32, &dest.v[3], .Add, weight, .Monotonic);
     }
 
-    pub fn lessPixel(
-        self: *Self,
-        dimensions: Vec2i,
-        pixel: Vec2i,
-        slot: u32,
-        value: f32,
-    ) void {
-        const d = dimensions;
-
+    pub fn lessPixel(self: *Self, id: usize, slot: u32, value: f32) void {
         const pixels = self.buffers[slot];
-        var dest = &pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        var dest = &pixels[id];
 
         if (value < dest.v[0]) {
             dest.v[0] = value;
         }
     }
 
-    pub fn overwritePixel(
-        self: *Self,
-        dimensions: Vec2i,
-        pixel: Vec2i,
-        slot: u32,
-        value: f32,
-        weight: f32,
-    ) void {
-        const d = dimensions;
-
+    pub fn overwritePixel(self: *Self, id: usize, slot: u32, value: f32, weight: f32) void {
         const pixels = self.buffers[slot];
-        var dest = &pixels[@intCast(usize, d[0] * pixel[1] + pixel[0])];
+        var dest = &pixels[id];
 
         if (weight > dest.v[3]) {
             dest.v[0] = value;

@@ -1,11 +1,10 @@
-const Base = @import("base.zig").Base;
 const aov = @import("aov/aov_value.zig");
 
 pub const Filtered = @import("filtered.zig").Filtered;
 pub const Opaque = @import("opaque.zig").Opaque;
 pub const Transparent = @import("transparent.zig").Transparent;
-
 pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
+const Result = @import("result.zig").Result;
 
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
@@ -68,19 +67,25 @@ pub const Sensor = union(enum) {
 
     pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         try switch (self.*) {
-            inline else => |*s| s.sensor.resize(alloc, dimensions, factory),
+            inline else => |*s| s.resize(alloc, dimensions, factory),
         };
     }
 
-    pub fn basePtr(self: *Sensor) *Base {
-        return switch (self.*) {
-            inline else => |*s| &s.sensor.base,
-        };
+    pub fn setTonemapper(self: *Sensor, tonemapper: Tonemapper) void {
+        switch (self.*) {
+            inline else => |*s| s.tonemapper = tonemapper,
+        }
     }
 
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
             inline else => |*s| s.sensor.clear(weight),
+        }
+    }
+
+    pub fn clearAov(self: *Sensor) void {
+        switch (self.*) {
+            inline else => |*s| s.aov.clear(),
         }
     }
 
@@ -90,12 +95,7 @@ pub const Sensor = union(enum) {
         }
     }
 
-    pub fn addSample(
-        self: *Sensor,
-        sample: Sample,
-        color: Vec4f,
-        aovs: aov.Value,
-    ) Base.Result {
+    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, aovs: aov.Value) Result {
         return switch (self.*) {
             inline else => |*s| s.addSample(sample, color, aovs),
         };
@@ -150,7 +150,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.resolveTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveTonemap(s.tonemapper, target, begin, end),
             }
         }
 
@@ -161,7 +161,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveAccumulateTonemap(s.tonemapper, target, begin, end),
             }
         }
 
@@ -173,7 +173,7 @@ pub const Sensor = union(enum) {
             const class = self.aov;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.base.aov.resolve(class, target, begin, end),
+                inline else => |*s| s.aov.resolve(class, target, begin, end),
             }
         }
     };

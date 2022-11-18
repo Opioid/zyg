@@ -1,5 +1,5 @@
-const Base = @import("base.zig").Base;
-const aov = @import("aov/aov_value.zig");
+const Tonemapper = @import("tonemapper.zig").Tonemapper;
+const Result = @import("result.zig").Result;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -10,33 +10,20 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Transparent = struct {
-    base: Base = .{},
-
     pixel_weights: []f32 = &.{},
 
     pixels: []Pack4f = &.{},
 
-    pub fn init(clamp_max: f32) Transparent {
-        return .{ .base = .{ .max = clamp_max } };
-    }
-
     pub fn deinit(self: *Transparent, alloc: Allocator) void {
         alloc.free(self.pixels);
         alloc.free(self.pixel_weights);
-        self.base.aov.deinit(alloc);
     }
 
-    pub fn resize(self: *Transparent, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
-        self.base.dimensions = dimensions;
-
-        const len = @intCast(usize, dimensions[0] * dimensions[1]);
-
+    pub fn resize(self: *Transparent, alloc: Allocator, len: usize) !void {
         if (len > self.pixels.len) {
             self.pixel_weights = try alloc.realloc(self.pixel_weights, len);
             self.pixels = try alloc.realloc(self.pixels, len);
         }
-
-        try self.base.aov.resize(alloc, len, factory);
     }
 
     pub fn clear(self: *Transparent, weight: f32) void {
@@ -57,10 +44,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn addPixel(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) Base.Result {
-        const d = self.base.dimensions;
-        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
-
+    pub fn addPixel(self: *Transparent, i: usize, color: Vec4f, weight: f32) Result {
         self.pixel_weights[i] += weight;
 
         const wc = @splat(4, weight) * color;
@@ -74,10 +58,7 @@ pub const Transparent = struct {
         return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
     }
 
-    pub fn splatPixelAtomic(self: *Transparent, pixel: Vec2i, color: Vec4f, weight: f32) void {
-        const d = self.base.dimensions;
-        const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
-
+    pub fn splatPixelAtomic(self: *Transparent, i: usize, color: Vec4f, weight: f32) void {
         const wc = @splat(4, weight) * color;
 
         var value = &self.pixels[i];
@@ -96,9 +77,8 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn resolveTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveTonemap(self: *const Transparent, tonemapper: Tonemapper, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
-        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = weights[j];
@@ -108,9 +88,8 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn resolveAccumulateTonemap(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
+    pub fn resolveAccumulateTonemap(self: *const Transparent, tonemapper: Tonemapper, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
-        const tonemapper = self.base.tonemapper;
         for (self.pixels[begin..end]) |p, i| {
             const j = i + begin;
             const weight = weights[j];
