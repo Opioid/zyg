@@ -218,33 +218,16 @@ pub const Worker = struct {
 
                             const variance = new_s * new_m[3];
                             const mam = math.maxComponent3(new_m);
-                            const coeff = @sqrt(variance) / std.math.max(mam, 0.02);
+                            const coeff = @sqrt(variance) / std.math.max(mam, 0.0001);
                             coeffs[c] = coeff;
                         }
                     }
 
-                    {
-                        const mc0 = std.math.max(coeffs[0], coeffs[1]);
-                        const mc1 = std.math.max(coeffs[4], coeffs[5]);
-                        cell_coeffs[0] = std.math.max(mc0, mc1);
-                    }
-
-                    {
-                        const mc0 = std.math.max(coeffs[2], coeffs[3]);
-                        const mc1 = std.math.max(coeffs[6], coeffs[7]);
-                        cell_coeffs[1] = std.math.max(mc0, mc1);
-                    }
-
-                    {
-                        const mc0 = std.math.max(coeffs[8], coeffs[9]);
-                        const mc1 = std.math.max(coeffs[12], coeffs[13]);
-                        cell_coeffs[2] = std.math.max(mc0, mc1);
-                    }
-
-                    {
-                        const mc0 = std.math.max(coeffs[10], coeffs[11]);
-                        const mc1 = std.math.max(coeffs[14], coeffs[15]);
-                        cell_coeffs[3] = std.math.max(mc0, mc1);
+                    inline for (cell_coeffs) |*c, i| {
+                        const id = ((i >> 1) << 2) + (i << 1);
+                        const mc0 = std.math.max(coeffs[id + 0], coeffs[id + 1]);
+                        const mc1 = std.math.max(coeffs[id + 4], coeffs[id + 5]);
+                        c.* = std.math.max(mc0, mc1);
                     }
 
                     const mc0 = std.math.max(cell_coeffs[0], cell_coeffs[1]);
