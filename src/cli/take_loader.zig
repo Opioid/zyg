@@ -195,9 +195,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
 
         var iter = filter_value.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "Gaussian", entry.key_ptr.*) or
-                std.mem.eql(u8, "Blackman", entry.key_ptr.*))
-            {
+            if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
                 const filter = snsr.Blackman{ .r = radius };
 
                 if (alpha_transparency) {
