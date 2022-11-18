@@ -67,19 +67,25 @@ pub const Sensor = union(enum) {
 
     pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         try switch (self.*) {
-            inline else => |*s| s.sensor.resize(alloc, dimensions, factory),
+            inline else => |*s| s.resize(alloc, dimensions, factory),
         };
     }
 
-    pub fn basePtr(self: *Sensor) *Base {
-        return switch (self.*) {
-            inline else => |*s| &s.sensor.base,
-        };
+    pub fn setTonemapper(self: *Sensor, tonemapper: Tonemapper) void {
+        switch (self.*) {
+            inline else => |*s| s.tonemapper = tonemapper,
+        }
     }
 
     pub fn clear(self: *Sensor, weight: f32) void {
         switch (self.*) {
             inline else => |*s| s.sensor.clear(weight),
+        }
+    }
+
+    pub fn clearAov(self: *Sensor) void {
+        switch (self.*) {
+            inline else => |*s| s.aov.clear(),
         }
     }
 
@@ -151,7 +157,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.resolveTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveTonemap(s.tonemapper, target, begin, end),
             }
         }
 
@@ -162,7 +168,7 @@ pub const Sensor = union(enum) {
             const target = self.target;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.resolveAccumulateTonemap(target, begin, end),
+                inline else => |*s| s.sensor.resolveAccumulateTonemap(s.tonemapper, target, begin, end),
             }
         }
 
@@ -174,7 +180,7 @@ pub const Sensor = union(enum) {
             const class = self.aov;
 
             switch (self.sensor.*) {
-                inline else => |*s| s.sensor.base.aov.resolve(class, target, begin, end),
+                inline else => |*s| s.aov.resolve(class, target, begin, end),
             }
         }
     };

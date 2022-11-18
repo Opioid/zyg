@@ -1,7 +1,11 @@
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
-const AovValue = @import("aov/aov_value.zig").Value;
+const Tonemapper = @import("tonemapper.zig").Tonemapper;
+const AovBuffer = @import("aov/aov_buffer.zig").Buffer;
+const aovns = @import("aov/aov_value.zig");
+const AovValue = aovns.Value;
+const AovFactory = aovns.Factory;
 
 const base = @import("base");
 const math = base.math;
@@ -9,23 +13,34 @@ const Vec2i = math.Vec2i;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
 pub fn Filtered(comptime T: type) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
-        sensor: T,
+        sensor: T = .{},
+
+        aov: AovBuffer = .{},
+
+        dimensions: Vec2i = @splat(2, @as(i32, 0)),
+
+        clamp_max: f32,
+
+        radius_int: i32,
 
         filter: Func,
 
-        radius_int: i32,
+        tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 
         const Self = @This();
 
         pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
             var result = Self{
-                .sensor = T.init(clamp_max),
-                .filter = Func.init(0.0, radius, f),
+                .clamp_max = clamp_max,
                 .radius_int = @floatToInt(i32, @ceil(radius)),
+                .filter = Func.init(0.0, radius, f),
             };
 
             if (radius > 0.0) {
@@ -35,15 +50,22 @@ pub fn Filtered(comptime T: type) type {
             return result;
         }
 
-        pub fn addSample(
-            self: *Self,
-            sample: Sample,
-            color: Vec4f,
-            aov: AovValue,
-            bounds: Vec4i,
-            isolated: Vec4i,
-        ) void {
-            const clamped = self.sensor.base.clamp(color);
+        pub fn deinit(self: *Self, alloc: Allocator) void {
+            self.sensor.deinit(alloc);
+            self.aov.deinit(alloc);
+        }
+
+        pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory) !void {
+            self.dimensions = dimensions;
+
+            const len = @intCast(usize, dimensions[0] * dimensions[1]);
+
+            try self.sensor.resize(alloc, len);
+            try self.aov.resize(alloc, len, factory);
+        }
+
+        pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue, bounds: Vec4i, isolated: Vec4i) void {
+            const clamped = self.clamp(color);
 
             const pixel = sample.pixel;
             const x = pixel[0];
@@ -54,7 +76,10 @@ pub fn Filtered(comptime T: type) type {
             const oy = pixel_uv[1] - 0.5;
 
             if (0 == self.radius_int) {
-                self.sensor.addPixel(pixel, clamped, 1.0);
+                const d = self.dimensions;
+                const id = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+                self.sensor.addPixel(id, clamped, 1.0);
 
                 if (aov.active()) {
                     const len = AovValue.Num_classes;
@@ -65,11 +90,11 @@ pub fn Filtered(comptime T: type) type {
                             const value = aov.values[i];
 
                             if (.Depth == class) {
-                                self.sensor.base.lessAov(pixel, i, value[0]);
+                                self.lessAov(pixel, i, value[0], bounds);
                             } else if (.MaterialId == class) {
-                                self.sensor.base.overwriteAov(pixel, i, value[0], 1.0);
+                                self.overwriteAov(pixel, i, 1.0, value[0], bounds);
                             } else {
-                                self.sensor.base.addAov(pixel, i, value, 1.0);
+                                self.addAov(pixel, i, 1.0, value, bounds, isolated);
                             }
                         }
                     }
@@ -236,7 +261,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
-            const clamped = self.sensor.base.clamp(color);
+            const clamped = self.clamp(color);
 
             const pixel = sample.pixel;
             const x = pixel[0];
@@ -247,7 +272,10 @@ pub fn Filtered(comptime T: type) type {
             const oy = pixel_uv[1] - 0.5;
 
             if (0 == self.radius_int) {
-                self.sensor.splatPixelAtomic(pixel, clamped, 1.0);
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+                self.sensor.splatPixelAtomic(i, clamped, 1.0);
             } else if (1 == self.radius_int) {
                 const wx0 = self.eval(ox + 1.0);
                 const wx1 = self.eval(ox);
@@ -321,90 +349,83 @@ pub fn Filtered(comptime T: type) type {
             }
         }
 
-        fn splat(
-            self: *Self,
-            pixel: Vec2i,
-            weight: f32,
-            color: Vec4f,
-            bounds: Vec4i,
-        ) void {
+        fn splat(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                self.sensor.splatPixelAtomic(pixel, color, weight);
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+                self.sensor.splatPixelAtomic(i, color, weight);
             }
         }
 
-        fn add(
-            self: *Self,
-            pixel: Vec2i,
-            weight: f32,
-            color: Vec4f,
-            bounds: Vec4i,
-            isolated: Vec4i,
-        ) void {
+        fn add(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
                 if (@bitCast(u32, pixel[0] - isolated[0]) <= @bitCast(u32, isolated[2]) and
                     @bitCast(u32, pixel[1] - isolated[1]) <= @bitCast(u32, isolated[3]))
                 {
-                    self.sensor.addPixel(pixel, color, weight);
+                    self.sensor.addPixel(i, color, weight);
                 } else {
-                    self.sensor.addPixelAtomic(pixel, color, weight);
+                    self.sensor.addPixelAtomic(i, color, weight);
                 }
             }
         }
 
-        fn addAov(
-            self: *Self,
-            pixel: Vec2i,
-            slot: u32,
-            weight: f32,
-            value: Vec4f,
-            bounds: Vec4i,
-            isolated: Vec4i,
-        ) void {
+        fn addAov(self: *Self, pixel: Vec2i, slot: u32, weight: f32, value: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
                 if (@bitCast(u32, pixel[0] - isolated[0]) <= @bitCast(u32, isolated[2]) and
                     @bitCast(u32, pixel[1] - isolated[1]) <= @bitCast(u32, isolated[3]))
                 {
-                    self.sensor.base.addAov(pixel, slot, value, weight);
+                    self.aov.addPixel(i, slot, value, weight);
                 } else {
-                    self.sensor.base.addAovAtomic(pixel, slot, value, weight);
+                    self.aov.addPixelAtomic(i, slot, value, weight);
                 }
             }
         }
 
-        fn lessAov(
-            self: *Self,
-            pixel: Vec2i,
-            slot: u32,
-            value: f32,
-            bounds: Vec4i,
-        ) void {
+        fn lessAov(self: *Self, pixel: Vec2i, slot: u32, value: f32, bounds: Vec4i) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                self.sensor.base.lessAov(pixel, slot, value);
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+                self.aov.lessPixel(i, slot, value);
             }
         }
 
-        fn overwriteAov(
-            self: *Self,
-            pixel: Vec2i,
-            slot: u32,
-            weight: f32,
-            value: f32,
-            bounds: Vec4i,
-        ) void {
+        fn overwriteAov(self: *Self, pixel: Vec2i, slot: u32, weight: f32, value: f32, bounds: Vec4i) void {
             if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
                 @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
             {
-                self.sensor.base.overwriteAov(pixel, slot, value, weight);
+                const d = self.dimensions;
+                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+
+                self.aov.overwritePixel(i, slot, value, weight);
             }
+        }
+
+        inline fn clamp(self: *const Self, color: Vec4f) Vec4f {
+            const mc = math.maxComponent3(color);
+            const max = self.clamp_max;
+
+            if (mc > max) {
+                const r = max / mc;
+                const s = @splat(4, r) * color;
+                return .{ s[0], s[1], s[2], color[3] };
+            }
+
+            return color;
         }
 
         fn eval(self: *const Self, s: f32) f32 {

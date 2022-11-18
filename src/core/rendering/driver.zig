@@ -294,7 +294,7 @@ pub const Driver = struct {
         var camera = &self.view.camera;
 
         camera.sensor.clear(0.0);
-        camera.sensor.basePtr().aov.clear();
+        camera.sensor.clearAov();
 
         self.progressor.start(self.tiles.size());
 
