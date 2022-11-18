@@ -11,13 +11,14 @@ const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
+pub fn Filtered(comptime T: type) type {
     return struct {
         const Func = math.InterpolatedFunction1D_N(30);
 
         sensor: T,
 
         radius: f32,
+        radius_int: i32,
 
         filter: Func,
 
@@ -28,33 +29,45 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
         pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
             @setEvalBranchQuota(7600);
 
-            var result = Self{ .sensor = T.init(clamp_max), .radius = radius, .filter = Func.init(0.0, radius, f) };
+            var result = Self{
+                .sensor = T.init(clamp_max),
+                .radius = radius,
+                .radius_int = @floatToInt(i32, @ceil(radius)),
 
-            result.filter.scale(1.0 / result.integral(64, radius));
+                .filter = Func.init(0.0, radius, f),
+            };
 
-            const Num: u32 = comptime result.distribution.conditional.len;
-            const interval = (2.0 * radius) / @intToFloat(f32, Num - 1);
+            if (radius > 0.0) {
+                result.filter.scale(1.0 / result.integral(64, radius));
 
-            for (result.distribution.conditional) |*c, y| {
-                const sy = -radius + @intToFloat(f32, y) * interval;
-                const fy = f.eval(@fabs(sy));
+                const Num: u32 = comptime result.distribution.conditional.len;
+                const interval = (2.0 * radius) / @intToFloat(f32, Num - 1);
 
-                var data: [Num]f32 = undefined;
+                for (result.distribution.conditional) |*c, y| {
+                    const sy = -radius + @intToFloat(f32, y) * interval;
+                    const fy = f.eval(@fabs(sy));
 
-                for (data) |*d, x| {
-                    const sx = -radius + @intToFloat(f32, x) * interval;
-                    d.* = @fabs(fy * f.eval(@fabs(sx)));
+                    var data: [Num]f32 = undefined;
+
+                    for (data) |*d, x| {
+                        const sx = -radius + @intToFloat(f32, x) * interval;
+                        d.* = @fabs(fy * f.eval(@fabs(sx)));
+                    }
+
+                    c.configure(data);
                 }
 
-                c.configure(data);
+                result.distribution.configure();
             }
-
-            result.distribution.configure();
 
             return result;
         }
 
         pub fn pixelToImageCoordinates(self: *const Self, sample: *Sample) Vec2f {
+            if (0 == self.radius_int) {
+                return math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
+            }
+
             const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
             const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
 
@@ -97,13 +110,17 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
         pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
             const clamped = self.sensor.base.clamp(color);
 
-            const x = sample.pixel[0];
-            const y = sample.pixel[1];
+            const pixel = sample.pixel;
+            const x = pixel[0];
+            const y = pixel[1];
 
-            const ox = sample.pixel_uv[0] - 0.5;
-            const oy = sample.pixel_uv[1] - 0.5;
+            const pixel_uv = sample.pixel_uv;
+            const ox = pixel_uv[0] - 0.5;
+            const oy = pixel_uv[1] - 0.5;
 
-            if (1 == N) {
+            if (0 == self.radius_int) {
+                self.sensor.splatPixelAtomic(pixel, clamped, 1.0);
+            } else if (1 == self.radius_int) {
                 const wx0 = self.eval(ox + 1.0);
                 const wx1 = self.eval(ox);
                 const wx2 = self.eval(ox - 1.0);
@@ -126,7 +143,7 @@ pub fn Filtered(comptime T: type, comptime N: comptime_int) type {
                 self.splat(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
                 self.splat(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
                 self.splat(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
-            } else if (2 == N) {
+            } else if (2 == self.radius_int) {
                 const wx0 = self.eval(ox + 2.0);
                 const wx1 = self.eval(ox + 1.0);
                 const wx2 = self.eval(ox);

@@ -1,7 +1,6 @@
 const Base = @import("base.zig").Base;
 const aov = @import("aov/aov_value.zig");
 
-pub const Unfiltered = @import("unfiltered.zig").Unfiltered;
 pub const Filtered = @import("filtered.zig").Filtered;
 pub const Opaque = @import("opaque.zig").Opaque;
 pub const Transparent = @import("transparent.zig").Transparent;
@@ -58,12 +57,8 @@ pub const Mitchell = struct {
 };
 
 pub const Sensor = union(enum) {
-    Unfiltered_opaque: Unfiltered(Opaque),
-    Unfiltered_transparent: Unfiltered(Transparent),
-    Filtered_1p0_opaque: Filtered(Opaque, 1),
-    Filtered_2p0_opaque: Filtered(Opaque, 2),
-    Filtered_1p0_transparent: Filtered(Transparent, 1),
-    Filtered_2p0_transparent: Filtered(Transparent, 2),
+    Opaque: Filtered(Opaque),
+    Transparent: Filtered(Transparent),
 
     pub fn deinit(self: *Sensor, alloc: Allocator) void {
         switch (self.*) {
@@ -108,7 +103,6 @@ pub const Sensor = union(enum) {
 
     pub fn splatSample(self: *Sensor, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
         switch (self.*) {
-            inline .Unfiltered_opaque, .Unfiltered_transparent => |*s| s.splatSample(sample, color),
             inline else => |*s| s.splatSample(sample, color, bounds),
         }
     }
@@ -192,23 +186,19 @@ pub const Sensor = union(enum) {
 
     pub fn filterRadiusInt(self: *const Sensor) i32 {
         return switch (self.*) {
-            .Unfiltered_opaque => 0,
-            .Unfiltered_transparent => 0,
-            .Filtered_1p0_opaque, .Filtered_1p0_transparent => 1,
-            .Filtered_2p0_opaque, .Filtered_2p0_transparent => 2,
+            inline else => |*s| s.radius_int,
         };
     }
 
     pub fn pixelToImageCoordinates(self: *const Sensor, sample: *Sample) Vec2f {
         return switch (self.*) {
-            .Unfiltered_opaque, .Unfiltered_transparent => math.vec2iTo2f(sample.pixel) + sample.pixel_uv,
             inline else => |*s| s.pixelToImageCoordinates(sample),
         };
     }
 
     pub fn alphaTransparency(self: *const Sensor) bool {
         return switch (self.*) {
-            .Unfiltered_transparent, .Filtered_1p0_transparent, .Filtered_2p0_transparent => true,
+            .Transparent => true,
             else => false,
         };
     }

@@ -195,33 +195,33 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
 
         var iter = filter_value.Object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "Gaussian", entry.key_ptr.*) or
-                std.mem.eql(u8, "Blackman", entry.key_ptr.*))
-            {
+            if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
                 const filter = snsr.Blackman{ .r = radius };
 
                 if (alpha_transparency) {
-                    return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
+                    return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, radius, filter) };
                 } else {
-                    return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
+                    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, radius, filter) };
                 }
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
                 const filter = snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
                 if (alpha_transparency) {
-                    return .{ .Filtered_2p0_transparent = snsr.Filtered(snsr.Transparent, 2).init(clamp_max, radius, filter) };
+                    return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, radius, filter) };
                 } else {
-                    return .{ .Filtered_2p0_opaque = snsr.Filtered(snsr.Opaque, 2).init(clamp_max, radius, filter) };
+                    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, radius, filter) };
                 }
             }
         }
     }
 
+    const filter = snsr.Blackman{ .r = 0.0 };
+
     if (alpha_transparency) {
-        return .{ .Unfiltered_transparent = snsr.Unfiltered(snsr.Transparent).init(clamp_max) };
+        return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, 0.0, filter) };
     }
 
-    return .{ .Unfiltered_opaque = snsr.Unfiltered(snsr.Opaque).init(clamp_max) };
+    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, 0.0, filter) };
 }
 
 fn loadSampler(value: std.json.Value, view: *View) void {
