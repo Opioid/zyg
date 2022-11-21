@@ -4,6 +4,8 @@ const scn = @import("../../scene/constants.zig");
 
 const base = @import("base");
 const math = base.math;
+const Vec2i = math.Vec2i;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 const enc = base.encoding;
@@ -18,6 +20,7 @@ pub const Srgb = struct {
     error_diffusion: bool,
 
     image: Float4 = undefined,
+    crop: Vec4i = undefined,
     encoding: Encoding = undefined,
 
     min_depth: f32 = undefined,
@@ -27,9 +30,13 @@ pub const Srgb = struct {
         alloc.free(self.buffer);
     }
 
-    pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, encoding: Encoding, threads: *Threads) !u32 {
+    pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, crop: Vec4i, encoding: Encoding, threads: *Threads) !u32 {
         const d = image.description.dimensions;
         const num_pixels = @intCast(u32, d[0] * d[1]);
+
+        const xy = Vec2i{ crop[0], crop[1] };
+        const zw = Vec2i{ crop[2], crop[3] };
+        const dim = zw - xy;
 
         var num_channels: u32 = 3;
 
@@ -42,13 +49,21 @@ pub const Srgb = struct {
             .Depth => {
                 num_channels = 1;
 
-                for (image.pixels) |p| {
-                    const depth = p.v[0];
+                var y = crop[1];
+                while (y < crop[3]) : (y += 1) {
+                    var i = @intCast(u32, y * d[0] + crop[0]);
 
-                    mind = std.math.min(mind, depth);
+                    var x = crop[1];
+                    while (x < crop[2]) : (x += 1) {
+                        const depth = image.pixels[i].v[0];
 
-                    if (depth < scn.Almost_ray_max_t) {
-                        maxd = std.math.max(maxd, depth);
+                        mind = std.math.min(mind, depth);
+
+                        if (depth < scn.Almost_ray_max_t) {
+                            maxd = std.math.max(maxd, depth);
+                        }
+
+                        i += 1;
                     }
                 }
             },
@@ -64,11 +79,16 @@ pub const Srgb = struct {
         }
 
         self.image = image;
+        self.crop = crop;
         self.encoding = encoding;
         self.min_depth = mind;
         self.max_depth = maxd;
 
-        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, d[1]), 0);
+        if (d[0] != dim[0] or d[1] != dim[1]) {
+            std.mem.set(u8, self.buffer[0..num_bytes], 0);
+        }
+
+        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, dim[1]), 0);
 
         return num_channels;
     }
@@ -83,10 +103,19 @@ pub const Srgb = struct {
 
     fn toSrgbBuffer(self: *Srgb, begin: u32, end: u32) void {
         const d = self.image.description.dimensions;
-        const width = @intCast(u32, d[0]);
+        const data_width = @intCast(u32, d[0]);
 
-        var y = begin;
-        var i = begin * width;
+        const crop = self.crop;
+        const xy = Vec2i{ crop[0], crop[1] };
+        const zw = Vec2i{ crop[2], crop[3] };
+        const dim = zw - xy;
+        const width = @intCast(u32, dim[0]);
+        const x_start = @intCast(u32, crop[0]);
+        const y_start = @intCast(u32, crop[1]);
+
+        const y_end = y_start + end;
+
+        var y = y_start + begin;
 
         const asColor = .Color == self.encoding or .Color_alpha == self.encoding;
         const alpha = .Color_alpha == self.encoding;
@@ -97,9 +126,10 @@ pub const Srgb = struct {
         if (asColor) {
             if (alpha) {
                 if (self.error_diffusion) {
-                    while (y < end) : (y += 1) {
+                    while (y < y_end) : (y += 1) {
                         var err = @splat(4, goldenRatio(y) - 0.5);
 
+                        var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
@@ -125,7 +155,8 @@ pub const Srgb = struct {
                         }
                     }
                 } else {
-                    while (y < end) : (y += 1) {
+                    while (y < y_end) : (y += 1) {
+                        var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
@@ -141,9 +172,10 @@ pub const Srgb = struct {
                 }
             } else {
                 if (self.error_diffusion) {
-                    while (y < end) : (y += 1) {
+                    while (y < y_end) : (y += 1) {
                         var err = @splat(4, goldenRatio(y) - 0.5);
 
+                        var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
@@ -168,7 +200,8 @@ pub const Srgb = struct {
                         }
                     }
                 } else {
-                    while (y < end) : (y += 1) {
+                    while (y < y_end) : (y += 1) {
+                        var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
@@ -187,7 +220,8 @@ pub const Srgb = struct {
                 const mind = self.min_depth;
                 const range = self.max_depth - mind;
 
-                while (y < end) : (y += 1) {
+                while (y < y_end) : (y += 1) {
+                    var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const depth = image.pixels[i].v[0];
@@ -198,7 +232,8 @@ pub const Srgb = struct {
                     }
                 }
             } else if (.Float == self.encoding) {
-                while (y < end) : (y += 1) {
+                while (y < y_end) : (y += 1) {
+                    var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const f = image.pixels[i].v[0];
@@ -209,7 +244,8 @@ pub const Srgb = struct {
                     }
                 }
             } else if (.Id == self.encoding) {
-                while (y < end) : (y += 1) {
+                while (y < y_end) : (y += 1) {
+                    var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const id = @floatToInt(u32, image.pixels[i].v[0]);
@@ -223,7 +259,8 @@ pub const Srgb = struct {
                     }
                 }
             } else if (.Normal == self.encoding) {
-                while (y < end) : (y += 1) {
+                while (y < y_end) : (y += 1) {
+                    var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const p = image.pixels[i];

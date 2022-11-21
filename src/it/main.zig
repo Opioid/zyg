@@ -153,8 +153,10 @@ fn write(
         var file = try std.fs.cwd().createFile(output_name, .{});
         defer file.close();
 
+        const d = target.description.dimensions;
+
         var buffered = std.io.bufferedWriter(file.writer());
-        try writer.write(alloc, buffered.writer(), target, encoding, threads);
+        try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);
         try buffered.flush();
     }
 }

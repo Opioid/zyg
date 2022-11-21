@@ -84,10 +84,10 @@ pub const Perspective = struct {
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
         self.resolution = resolution;
 
-        self.crop[0] = std.math.max(0, crop[0]);
-        self.crop[1] = std.math.max(0, crop[1]);
-        self.crop[2] = std.math.min(resolution[0], crop[2]);
-        self.crop[3] = std.math.min(resolution[1], crop[3]);
+        self.crop[0] = @max(0, crop[0]);
+        self.crop[1] = @max(0, crop[1]);
+        self.crop[2] = @min(resolution[0], crop[2]);
+        self.crop[3] = @min(resolution[1], crop[3]);
     }
 
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
