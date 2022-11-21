@@ -17,25 +17,13 @@ pub const TileQueue = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32) void {
-        var padded_crop = crop;
+        const mc = @mod(Vec4i{ crop[0], crop[1], -crop[2], -crop[3] }, @splat(4, @as(i32, 4)));
 
-        const mc = @mod(padded_crop, @splat(4, @as(i32, 4)));
-
-        if (padded_crop[0] > 0) {
-            padded_crop[0] -= mc[0];
-        }
-
-        if (padded_crop[1] > 0) {
-            padded_crop[1] -= mc[1];
-        }
-
-        if (padded_crop[2] < dimensions[0] and mc[2] > 0) {
-            padded_crop[2] = @min(padded_crop[2] + 4 - mc[2], dimensions[0]);
-        }
-
-        if (padded_crop[3] < dimensions[1] and mc[3] > 0) {
-            padded_crop[3] = @min(padded_crop[3] + 4 - mc[3], dimensions[1]);
-        }
+        var padded_crop: Vec4i = undefined;
+        padded_crop[0] = @max(crop[0] - mc[0], 0);
+        padded_crop[1] = @max(crop[1] - mc[1], 0);
+        padded_crop[2] = @min(crop[2] + mc[2], dimensions[0]);
+        padded_crop[3] = @min(crop[3] + mc[3], dimensions[1]);
 
         self.crop = padded_crop;
         self.tile_dimensions = tile_dimensions;
