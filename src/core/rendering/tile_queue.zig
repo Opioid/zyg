@@ -16,12 +16,32 @@ pub const TileQueue = struct {
 
     const Self = @This();
 
-    pub fn configure(self: *Self, crop: Vec4i, tile_dimensions: i32) void {
-        self.crop = crop;
+    pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32) void {
+        var padded_crop = crop;
+
+        const mc = @mod(padded_crop, @splat(4, @as(i32, 4)));
+
+        if (padded_crop[0] > 0) {
+            padded_crop[0] -= mc[0];
+        }
+
+        if (padded_crop[1] > 0) {
+            padded_crop[1] -= mc[1];
+        }
+
+        if (padded_crop[2] < dimensions[0] and mc[2] > 0) {
+            padded_crop[2] = @min(padded_crop[2] + 4 - mc[2], dimensions[0]);
+        }
+
+        if (padded_crop[3] < dimensions[1] and mc[3] > 0) {
+            padded_crop[3] = @min(padded_crop[3] + 4 - mc[3], dimensions[1]);
+        }
+
+        self.crop = padded_crop;
         self.tile_dimensions = tile_dimensions;
 
-        const xy = Vec2i{ crop[0], crop[1] };
-        const zw = Vec2i{ crop[2], crop[3] };
+        const xy = Vec2i{ padded_crop[0], padded_crop[1] };
+        const zw = Vec2i{ padded_crop[2], padded_crop[3] };
         const dim = math.vec2iTo2f(zw - xy);
         const tdf = @intToFloat(f32, tile_dimensions);
 
