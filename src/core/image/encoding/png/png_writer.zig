@@ -8,6 +8,7 @@ const base = @import("base");
 const enc = base.encoding;
 const spectrum = base.spectrum;
 const math = base.math;
+const Vec4i = math.Vec4i;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -33,12 +34,13 @@ pub const Writer = struct {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        crop: Vec4i,
         encoding: Encoding,
         threads: *Threads,
     ) !void {
         const d = image.description.dimensions;
 
-        const num_channels = try self.srgb.toSrgb(alloc, image, encoding, threads);
+        const num_channels = try self.srgb.toSrgb(alloc, image, crop, encoding, threads);
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(

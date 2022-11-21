@@ -220,8 +220,10 @@ pub const Driver = struct {
 
         self.resolve();
 
+        const crop = self.view.camera.crop;
+
         for (exporters) |*e| {
-            try e.write(alloc, self.target, null, frame, self.threads);
+            try e.write(alloc, self.target, crop, null, frame, self.threads);
         }
 
         const len = View.AovValue.Num_classes;
@@ -233,7 +235,7 @@ pub const Driver = struct {
             }
 
             for (exporters) |*e| {
-                try e.write(alloc, self.target, class, frame, self.threads);
+                try e.write(alloc, self.target, crop, class, frame, self.threads);
             }
         }
 
