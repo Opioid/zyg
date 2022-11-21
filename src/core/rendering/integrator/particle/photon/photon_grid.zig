@@ -63,7 +63,7 @@ pub const Grid = struct {
         const diameter = 2.0 * self.search_radius;
         const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))) + @splat(4, @as(i32, 2));
 
-        if (!math.equal4i(dimensions, self.dimensions)) {
+        if (!math.equal(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;

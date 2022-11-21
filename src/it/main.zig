@@ -65,6 +65,8 @@ pub fn main() !void {
     };
     defer operator.deinit(alloc);
 
+    var bytes_per_channel: u32 = 0;
+
     for (options.inputs.items) |input, i| {
         log.info("Loading file {s}", .{input});
 
@@ -75,6 +77,8 @@ pub fn main() !void {
 
         try operator.textures.append(alloc, texture);
         try operator.input_ids.append(alloc, @intCast(u32, i));
+
+        bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }
 
     if (0 == operator.textures.items.len) {
@@ -90,7 +94,9 @@ pub fn main() !void {
         else => .Color_alpha,
     };
 
-    var writer = switch (options.format) {
+    const format = options.format orelse (if (bytes_per_channel > 1) Options.Format.EXR else Options.Format.PNG);
+
+    var writer = switch (format) {
         .EXR => core.ImageWriter{ .EXR = .{ .half = true } },
         .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false) },
         .RGBE => core.ImageWriter{ .RGBE = .{} },
