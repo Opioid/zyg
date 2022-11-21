@@ -130,7 +130,7 @@ pub const Shape = union(enum) {
 
             // This calculates the solid angle, not the area!
             // I think it is what we actually need for the PDF, but results are extremely close
-            .DistantSphere => (2.0 * std.math.pi) * (1.0 - (1.0 / @sqrt(scale[0] * scale[0] + 1.0))),
+            .DistantSphere => (2.0 * std.math.pi) * (1.0 - @sqrt(1.0 / (scale[0] * scale[0] + 1.0))),
 
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],

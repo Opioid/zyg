@@ -151,7 +151,7 @@ pub const Sphere = struct {
         const r2 = r * r;
         const cos_theta_max = @sqrt(std.math.max(1.0 - r2 / l2, math.smpl.Eps));
 
-        const z = @splat(4, 1.0 / @sqrt(l2)) * v;
+        const z = @splat(4, @sqrt(1.0 / l2)) * v;
         const xy = math.orthonormalBasis3(z);
 
         const s2 = sampler.sample2D();
