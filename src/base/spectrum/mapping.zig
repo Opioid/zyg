@@ -70,6 +70,10 @@ const color_matching = [_][3]f32{
 };
 
 pub fn turbo(x: f32) [3]u8 {
+    if (x < 0.0) {
+        return .{ 0, 0, 0 };
+    }
+
     const i = @floatToInt(u8, x * 255.0 + 0.5);
     return turbo_srgb_bytes[i];
 }

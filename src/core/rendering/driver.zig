@@ -254,8 +254,10 @@ pub const Driver = struct {
         var max: f32 = 0.0;
 
         for (weights) |w| {
-            min = @min(min, w);
-            max = @max(max, w);
+            if (w > 1.0) {
+                min = std.math.min(min, w);
+            }
+            max = std.math.max(max, w);
         }
 
         try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
