@@ -240,27 +240,32 @@ pub const Driver = struct {
             }
         }
 
-        log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
+        if (self.view.aov_sample_count) {
+            const d = self.view.camera.sensorDimensions();
+            var sensor = self.view.camera.sensor;
 
-        const d = self.view.camera.sensorDimensions();
-        var sensor = self.view.camera.sensor;
+            var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
+            defer alloc.free(weights);
 
-        var weights = try alloc.alloc(f32, @intCast(u32, d[0] * d[1]));
-        defer alloc.free(weights);
+            sensor.copyWeights(weights);
 
-        sensor.copyWeights(weights);
+            var min: f32 = std.math.f32_max;
+            var max: f32 = 0.0;
 
-        var min: f32 = std.math.f32_max;
-        var max: f32 = 0.0;
-
-        for (weights) |w| {
-            if (w > 1.0) {
-                min = std.math.min(min, w);
+            for (weights) |w| {
+                if (w > 1.0) {
+                    min = std.math.min(min, w);
+                }
+                max = std.math.max(max, w);
             }
-            max = std.math.max(max, w);
+
+            var buf: [22]u8 = undefined;
+            const filename = try std.fmt.bufPrint(&buf, "image_{d:0>8}_sc.png", .{frame});
+
+            try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
         }
 
-        try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, "info_sample_count.png");
+        log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
     fn renderFrameBackward(self: *Driver) void {
@@ -298,10 +303,10 @@ pub const Driver = struct {
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
         const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
-        const target_cv = self.view.cv;
+        const em_threshold = self.view.em_threshold;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples, target_cv);
+            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples, em_threshold);
 
             self.progressor.tick();
         }

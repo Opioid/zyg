@@ -113,7 +113,7 @@ pub const Worker = struct {
         num_samples: u32,
         num_expected_samples: u32,
         num_photon_samples: u32,
-        target_cv: f32,
+        em_threshold: f32,
     ) void {
         var camera = self.camera;
         const sensor = &camera.sensor;
@@ -136,8 +136,8 @@ pub const Worker = struct {
             while (xx <= xx_back) : (xx += 4) {
                 var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
                 var old_ss = [_]f32{0.0} ** 16;
-                var coeffs = [_]f32{0.0} ** 16;
-                var cell_coeffs: [4]f32 = undefined;
+                var ems = [_]f32{0.0} ** 16;
+                var cell_ems: [4]f32 = undefined;
 
                 var step = 4 * step_length;
                 var ss: u32 = 0;
@@ -161,10 +161,10 @@ pub const Worker = struct {
                                 const cy = (y - yy) >> 1;
                                 const cid = @intCast(u32, (cy << 1) | cx);
 
-                                if (cell_coeffs[cid] < target_cv) continue;
+                                if (cell_ems[cid] < em_threshold) continue;
                             }
 
-                            if (ss >= (num_samples / 2) and coeffs[c] < target_cv) continue;
+                            if (ss >= (num_samples / 2) and ems[c] < em_threshold) continue;
 
                             const pixel_id = pixel_n + @intCast(u32, x);
 
@@ -218,23 +218,29 @@ pub const Worker = struct {
 
                             const variance = new_s * new_m[3];
                             const mam = math.maxComponent3(new_m);
-                            const coeff = @sqrt(variance) / std.math.max(mam, 0.0001);
-                            coeffs[c] = coeff;
+
+                            const em = @sqrt(variance) / std.math.max(mam, 0.0001);
+
+                            // const em = std.math.pow(f32, variance, 0.2);
+
+                            // const em = std.math.pow(f32, variance / std.math.max(mam, 1.0), 0.2);
+
+                            ems[c] = em;
                         }
                     }
 
-                    inline for (cell_coeffs) |*c, i| {
+                    inline for (cell_ems) |*c, i| {
                         const id = ((i >> 1) << 2) + (i << 1);
-                        const mc0 = std.math.max(coeffs[id + 0], coeffs[id + 1]);
-                        const mc1 = std.math.max(coeffs[id + 4], coeffs[id + 5]);
-                        c.* = std.math.max(mc0, mc1);
+                        const em0 = std.math.max(ems[id + 0], ems[id + 1]);
+                        const em1 = std.math.max(ems[id + 4], ems[id + 5]);
+                        c.* = std.math.max(em0, em1);
                     }
 
-                    const mc0 = std.math.max(cell_coeffs[0], cell_coeffs[1]);
-                    const mc1 = std.math.max(cell_coeffs[2], cell_coeffs[3]);
-                    const max_coeff = std.math.max(mc0, mc1);
+                    const em0 = std.math.max(cell_ems[0], cell_ems[1]);
+                    const em1 = std.math.max(cell_ems[2], cell_ems[3]);
+                    const max_em = std.math.max(em0, em1);
 
-                    if (max_coeff < target_cv) {
+                    if (max_em < em_threshold) {
                         break;
                     }
 
