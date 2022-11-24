@@ -219,11 +219,17 @@ pub const Worker = struct {
                             const variance = new_s * new_m[3];
                             const mam = math.maxComponent3(new_m);
 
-                            const em = @sqrt(variance) / std.math.max(mam, 0.0001);
+                            // c0
+                            //   const em = @sqrt(variance) / std.math.max(mam, 0.0001);
 
-                            // const em = std.math.pow(f32, variance, 0.2);
+                            // csw
+                            const em = @sqrt(variance / std.math.max(mam, 0.0001));
 
-                            // const em = std.math.pow(f32, variance / std.math.max(mam, 1.0), 0.2);
+                            // cg
+                            // const em = std.math.pow(f32, variance, 0.16);
+
+                            // cw
+                            // const em = std.math.pow(f32, variance / std.math.max(mam, 1.0), 0.16);
 
                             ems[c] = em;
                         }

@@ -263,6 +263,8 @@ pub const Driver = struct {
             const filename = try std.fmt.bufPrint(&buf, "image_{d:0>8}_sc.png", .{frame});
 
             try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
+
+            log.info("Sample count [{}, {}]", .{ @floatToInt(u32, @ceil(min)), @floatToInt(u32, @ceil(max)) });
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});

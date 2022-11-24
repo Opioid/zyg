@@ -235,7 +235,7 @@ fn loadSampler(value: std.json.Value, view: *View) void {
             view.em_threshold = 0.0;
         } else {
             view.num_samples_per_pixel = num_samples;
-            view.em_threshold = @fabs(1.0 - (1.0 / quality));
+            view.em_threshold = @fabs(1.0 - (1.0 / @sqrt(quality)));
         }
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
