@@ -58,10 +58,6 @@ const Kernel = struct {
         self.build_nodes.deinit(alloc);
     }
 
-    const SplitError = error{
-        OutOfMemory,
-    };
-
     fn split(
         self: *Kernel,
         alloc: Allocator,
@@ -72,7 +68,7 @@ const Kernel = struct {
         settings: Settings,
         threads: *Threads,
         tasks: *Tasks,
-    ) SplitError!void {
+    ) !void {
         var node = &self.build_nodes.items[node_id];
         node.setAABB(aabb);
 
@@ -119,8 +115,8 @@ const Kernel = struct {
                         try self.build_nodes.append(alloc, .{});
 
                         const next_depth = depth + 1;
-                        try self.split(alloc, child0, references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth, settings, threads, tasks);
-                        try self.split(alloc, child0 + 1, references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth, settings, threads, tasks);
+                        try self.split(alloc, child0, try references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth, settings, threads, tasks);
+                        try self.split(alloc, child0 + 1, try references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth, settings, threads, tasks);
                     }
                 }
             } else {
