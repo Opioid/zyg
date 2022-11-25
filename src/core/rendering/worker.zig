@@ -156,6 +156,8 @@ pub const Worker = struct {
                             const c = cc;
                             cc += 1;
 
+                            if (ss >= num_samples / 2 and ems[c] < em_threshold) continue;
+
                             if (ss >= num_samples / 4) {
                                 const cx = (x - xx) >> 1;
                                 const cy = (y - yy) >> 1;
@@ -163,8 +165,6 @@ pub const Worker = struct {
 
                                 if (cell_ems[cid] < em_threshold) continue;
                             }
-
-                            if (ss >= (num_samples / 2) and ems[c] < em_threshold) continue;
 
                             const pixel_id = pixel_n + @intCast(u32, x);
 
