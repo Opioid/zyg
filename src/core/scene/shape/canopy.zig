@@ -166,6 +166,6 @@ pub const Canopy = struct {
         const sin_lon = @sin(longitude);
         const cos_lon = @cos(longitude);
 
-        return .{ sin_col * cos_lon, sin_col * sin_lon, cos_col };
+        return .{ sin_col * cos_lon, sin_col * sin_lon, cos_col, 0.0 };
     }
 };
