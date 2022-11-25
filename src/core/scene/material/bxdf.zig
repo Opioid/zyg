@@ -24,12 +24,6 @@ pub const Result = struct {
     pub fn mulAssignPdf(self: *Result, p: f32) void {
         self.reflection[3] *= p;
     }
-
-    pub fn blend(self: *Result, other: Vec4f, w: f32) void {
-        const r = self.reflection;
-        const n = math.lerp(r, other, w);
-        self.reflection = .{ n[0], n[1], n[2], r[3] };
-    }
 };
 
 pub const Class = packed struct {

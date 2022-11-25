@@ -268,6 +268,8 @@ pub const Material = struct {
                 var n_dot_h: f32 = undefined;
                 const m = ggx.Aniso.sample(wo, @splat(2, fa2), flake.r, result.super.frame, &n_dot_h);
 
+                result.metallic = 1.0;
+
                 result.flakes_weight = weight;
                 result.flakes_color = self.flakes_color;
                 result.flakes_normal = m;

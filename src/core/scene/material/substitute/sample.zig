@@ -121,12 +121,6 @@ pub const Sample = struct {
         else
             self.baseEvaluate(wi, wo, h, wo_dot_h);
 
-        const fw = self.flakes_weight;
-        if (fw > 0.0) {
-            const flakes = self.flakesEvaluate(wi, wo);
-            base_result.blend(flakes, fw);
-        }
-
         if (translucent) {
             base_result.mulAssignPdf(1.0 - tr);
         }
@@ -258,6 +252,14 @@ pub const Sample = struct {
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+
+        const fw = self.flakes_weight;
+        if (fw > 0.0) {
+            const flakes = self.flakesEvaluate(wi, wo);
+            //base_result.blend(flakes, fw);
+
+            return bxdf.Result.init(flakes, gg.pdf());
+        }
 
         return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
@@ -400,7 +402,7 @@ pub const Sample = struct {
         const fw = self.flakes_weight;
         if (fw > 0.0) {
             const flakes = self.flakesEvaluate(result.wi, wo);
-            result.blend(flakes, fw);
+            result.reflection = flakes;
         }
     }
 
@@ -439,12 +441,6 @@ pub const Sample = struct {
             self.pureGlossEvaluate(result.wi, wo, result.h, result.h_dot_wi)
         else
             self.baseEvaluate(result.wi, wo, result.h, result.h_dot_wi);
-
-        const fw = self.flakes_weight;
-        if (fw > 0.0) {
-            const flakes = self.flakesEvaluate(result.wi, wo);
-            base_result.blend(flakes, fw);
-        }
 
         result.reflection = result.reflection + coating_attenuation * base_result.reflection;
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
