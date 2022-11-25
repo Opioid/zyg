@@ -223,7 +223,10 @@ pub const Worker = struct {
                             //   const em = @sqrt(variance) / std.math.max(mam, 0.0001);
 
                             // csw
-                            const em = @sqrt(variance / std.math.max(mam, 0.0001));
+                            //  const em = @sqrt(variance / std.math.max(mam, 0.0001));
+
+                            //  const em = @sqrt(variance) / (if (mam < 1.0) std.math.max(@sqrt(mam), 0.0001) else mam);
+                            const em = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
 
                             // cg
                             // const em = std.math.pow(f32, variance, 0.16);
