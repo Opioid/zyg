@@ -31,6 +31,7 @@ pub fn testSize() void {
     testType(Interface, "Interface", 16);
     testType(mt.Material, "Material", 400);
     testType(mt.Substitute, "SubstituteMaterial", 368);
+    testType(mt.Sample, "MaterialSample", 336);
     testType(Texture, "Texture", 16);
 }
 

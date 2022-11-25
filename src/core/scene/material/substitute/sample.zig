@@ -27,18 +27,16 @@ pub const Sample = struct {
     f0: Vec4f,
     translucent_color: Vec4f = undefined,
     attenuation: Vec4f = undefined,
-    flakes_color: Vec4f = undefined,
-    flakes_normal: Vec4f = undefined,
 
     ior: IoR,
 
     metallic: f32,
     thickness: f32 = 0.0,
     transparency: f32 = undefined,
-    flakes_weight: f32 = 0.0,
     flakes_cos_cone: f32 = undefined,
 
     volumetric: bool,
+    flakes: bool = false,
 
     pub fn init(
         rs: Renderstate,
@@ -221,9 +219,7 @@ pub const Sample = struct {
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-
         const pdf = 0.5 * (d.pdf() + gg.pdf());
-
         return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms), pdf);
     }
 
@@ -251,16 +247,12 @@ pub const Sample = struct {
             self.super.frame,
         );
 
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-
-        const fw = self.flakes_weight;
-        if (fw > 0.0) {
+        if (self.flakes) {
             const flakes = self.flakesEvaluate(wi, wo);
-            //base_result.blend(flakes, fw);
-
             return bxdf.Result.init(flakes, gg.pdf());
         }
 
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
         return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
 
@@ -396,23 +388,22 @@ pub const Sample = struct {
             result,
         );
 
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
-        result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
-
-        const fw = self.flakes_weight;
-        if (fw > 0.0) {
+        if (self.flakes) {
             const flakes = self.flakesEvaluate(result.wi, wo);
             result.reflection = flakes;
+        } else {
+            const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+            result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
         }
     }
 
     fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f) Vec4f {
-        const n = self.flakes_normal;
+        const n = self.super.frame.n;
         const f = flakesBsdf(wi, wo, n, self.flakes_cos_cone);
 
         const n_dot_wi = hlp.clampDot(n, wi);
 
-        return @splat(4, n_dot_wi * f) * self.flakes_color;
+        return @splat(4, n_dot_wi * f) * self.f0;
     }
 
     fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, cos_cone: f32) f32 {
