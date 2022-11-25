@@ -209,7 +209,7 @@ pub const Worker = struct {
         primary_ray: bool,
     ) void {
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
-            self.aov.insert3(.Albedo, throughput * mat_sample.super().albedo);
+            self.aov.insert3(.Albedo, throughput * mat_sample.aovAlbedo());
         }
 
         if (ray.depth > 0) {
