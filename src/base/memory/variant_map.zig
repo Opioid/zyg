@@ -21,7 +21,7 @@ pub const VariantMap = struct {
                     else => false,
                 },
                 .Vec4i => |s| switch (other) {
-                    .Vec4i => |o| math.equal4i(s, o),
+                    .Vec4i => |o| math.equal(s, o),
                     else => false,
                 },
             };

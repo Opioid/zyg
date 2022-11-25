@@ -258,20 +258,23 @@ pub const Material = struct {
 
             const flake = sampleFlake(uv, self.flakes_res, flakes_coverage);
 
-            const weight = flake.o;
-            if (weight > 0.0) {
+            if (flake) |xi| {
                 const fa = self.flakes_alpha;
                 const a2_cone = flakesA2cone(fa);
                 const fa2 = fa - a2_cone;
                 const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
 
                 var n_dot_h: f32 = undefined;
-                const m = ggx.Aniso.sample(wo, @splat(2, fa2), flake.r, result.super.frame, &n_dot_h);
+                const m = ggx.Aniso.sample(wo, @splat(2, fa2), xi, result.super.frame, &n_dot_h);
 
-                result.flakes_weight = weight;
-                result.flakes_color = self.flakes_color;
-                result.flakes_normal = m;
+                result.metallic = 1.0;
+                result.f0 = self.flakes_color;
+                result.super.alpha = @splat(2, @sqrt(a2_cone));
+                result.super.frame.setNormal(m);
+
                 result.flakes_cos_cone = cos_cone;
+
+                result.flakes = true;
             }
         }
 
@@ -291,12 +294,7 @@ pub const Material = struct {
         return .{ i, j };
     }
 
-    const Flake = struct {
-        o: f32,
-        r: Vec2f,
-    };
-
-    fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) Flake {
+    fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) ?Vec2f {
         const ij = gridCell(uv, res);
         const suv = @splat(2, res) * uv;
 
@@ -328,10 +326,7 @@ pub const Material = struct {
             }
         }
 
-        return .{
-            .o = if (nearest_r < coverage) 1.0 else 0.0,
-            .r = nearest_xi,
-        };
+        return if (nearest_r < coverage) nearest_xi else null;
     }
 
     fn fuse(a: i32, b: i32) u64 {

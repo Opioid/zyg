@@ -18,10 +18,6 @@ pub fn Vec4(comptime T: type) type {
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
         }
-
-        pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
-            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
-        }
     };
 }
 
@@ -163,11 +159,7 @@ pub inline fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
-pub inline fn equal(a: Vec4f, b: Vec4f) bool {
-    return @reduce(.And, a == b);
-}
-
-pub inline fn equal4i(a: Vec4i, b: Vec4i) bool {
+pub inline fn equal(a: anytype, b: @TypeOf(a)) bool {
     return @reduce(.And, a == b);
 }
 

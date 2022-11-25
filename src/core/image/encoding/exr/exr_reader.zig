@@ -11,6 +11,7 @@ const Pack3h = math.Pack3h;
 const Pack3f = math.Pack3f;
 const Pack4i = math.Pack4i;
 const Pack4h = math.Pack4h;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Pack4f = math.Pack4f;
 const spectrum = base.spectrum;
@@ -25,7 +26,7 @@ const mz = @cImport({
 pub const Reader = struct {
     const Error = error{
         BadEXRSignature,
-        DisplayWindowNotEqlDataWindow,
+        DataWindowNotSubsetOfDisplayWindow,
         NoChannels,
         Exactly3ChannelsSupported,
         MixedChannelFormats,
@@ -58,8 +59,8 @@ pub const Reader = struct {
 
         var compression = exr.Compression.Undefined;
 
-        var data_window = Pack4i.init1(0);
-        var display_window = Pack4i.init1(0);
+        var data_window = @splat(4, @as(i32, 0));
+        var display_window = @splat(4, @as(i32, 0));
 
         while (true) {
             const attribute_name = try stream.readUntilDelimiter(&name_buf, '\x00');
@@ -78,9 +79,9 @@ pub const Reader = struct {
                 _ = try stream.read(std.mem.asBytes(&box));
 
                 if (std.mem.eql(u8, attribute_name, "dataWindow")) {
-                    data_window = box;
+                    data_window = box.v;
                 } else if (std.mem.eql(u8, attribute_name, "displayWindow")) {
-                    display_window = box;
+                    display_window = box.v;
                 }
             } else if (std.mem.eql(u8, attribute_type, "chlist")) {
                 try channels.read(alloc, stream);
@@ -91,8 +92,10 @@ pub const Reader = struct {
             }
         }
 
-        if (!data_window.equal(display_window)) {
-            return Error.DisplayWindowNotEqlDataWindow;
+        if (data_window[0] < display_window[0] or data_window[1] < display_window[1] or
+            data_window[2] > display_window[2] or data_window[3] > display_window[3])
+        {
+            return Error.DataWindowNotSubsetOfDisplayWindow;
         }
 
         if (0 == channels.channels.items.len) {
@@ -107,15 +110,14 @@ pub const Reader = struct {
             return Error.NotZipCompression;
         }
 
-        const dimensions = Vec2i{ display_window.v[2] + 1, display_window.v[3] + 1 };
-
-        return try readZip(alloc, stream, dimensions, channels, swizzle, color);
+        return try readZip(alloc, stream, data_window, display_window, channels, swizzle, color);
     }
 
     fn readZip(
         alloc: Allocator,
         stream: *ReadStream,
-        dimensions: Vec2i,
+        data_window: Vec4i,
+        display_window: Vec4i,
         channels: Channels,
         swizzle: Swizzle,
         color: bool,
@@ -130,8 +132,12 @@ pub const Reader = struct {
         const file_num_channels = @intCast(u32, channels.channels.items.len);
         num_channels = @min(num_channels, file_num_channels);
 
-        const width = @intCast(u32, dimensions[0]);
-        const height = @intCast(u32, dimensions[1]);
+        const data_xy = Vec2i{ data_window[0], data_window[1] };
+        const data_zw = Vec2i{ data_window[2], data_window[3] };
+        const data_dim = (data_zw - data_xy) + @splat(2, @as(i32, 1));
+
+        const width = @intCast(u32, data_dim[0]);
+        const height = @intCast(u32, data_dim[1]);
 
         const rows_per_block = exr.Compression.ZIP.numScanlinesPerBlock();
         const row_blocks = exr.Compression.ZIP.numScanlineBlocks(height);
@@ -148,8 +154,15 @@ pub const Reader = struct {
         var uncompressed = try alloc.alloc(u8, bytes_per_row_block);
         defer alloc.free(uncompressed);
 
+        const display_xy = Vec2i{ display_window[0], display_window[1] };
+        const display_zw = Vec2i{ display_window[2], display_window[3] };
+        const display_dim = (display_zw - display_xy) + @splat(2, @as(i32, 1));
+
+        const display_width = @intCast(u32, display_dim[0]);
+        const display_height = @intCast(u32, display_dim[1]);
+
         const half = .Half == channels.channels.items[0].format;
-        const desc = img.Description.init2D(dimensions);
+        const desc = img.Description.init2D(display_dim);
 
         var image = switch (num_channels) {
             4 => if (half)
@@ -165,7 +178,6 @@ pub const Reader = struct {
         errdefer image.deinit(alloc);
 
         var i: u32 = 0;
-        var p: u32 = 0;
         while (i < row_blocks) : (i += 1) {
             var row: u32 = undefined;
             _ = try stream.read(std.mem.asBytes(&row));
@@ -175,7 +187,7 @@ pub const Reader = struct {
 
             _ = try stream.read(buffer[0..size]);
 
-            const num_rows_here = @min(height - row, rows_per_block);
+            const num_rows_here = @min(display_height - row, rows_per_block);
             const num_pixels_here = num_rows_here * width;
 
             if (size < bytes_per_row_block) {
@@ -197,6 +209,8 @@ pub const Reader = struct {
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
+
+                        var p = (row + y) * display_width + @intCast(u32, data_window[0]);
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = halfs[o + 2 * width + x];
@@ -220,6 +234,8 @@ pub const Reader = struct {
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
+
+                        var p = (row + y) * display_width + @intCast(u32, data_window[0]);
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = floats[o + 2 * width + x];
@@ -242,6 +258,8 @@ pub const Reader = struct {
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
+
+                        var p = row * display_width + @intCast(u32, data_window[0]);
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = halfs[o + 3 * width + x];
@@ -268,6 +286,8 @@ pub const Reader = struct {
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
+
+                        var p = row * display_width + @intCast(u32, data_window[0]);
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const a = floats[o + 3 * width + x];

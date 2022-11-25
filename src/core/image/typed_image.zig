@@ -239,7 +239,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             const cc0 = xyz >> Log2_cell_dim4;
             const cc1 = xyz1 >> Log2_cell_dim4;
 
-            if (math.equal4i(cc0, cc1)) {
+            if (math.equal(cc0, cc1)) {
                 const num_cells = self.num_cells;
                 const cell_index = (cc0[2] * num_cells[1] + cc0[1]) * num_cells[0] + cc0[0];
 
