@@ -248,7 +248,7 @@ pub const Sample = struct {
         );
 
         if (self.flakes) {
-            const flakes = self.flakesEvaluate(wi, wo);
+            const flakes = self.flakesEvaluate(wi, wo, n_dot_wi);
             return bxdf.Result.init(flakes, gg.pdf());
         }
 
@@ -389,7 +389,7 @@ pub const Sample = struct {
         );
 
         if (self.flakes) {
-            const flakes = self.flakesEvaluate(result.wi, wo);
+            const flakes = self.flakesEvaluate(result.wi, wo, n_dot_wi);
             result.reflection = flakes;
         } else {
             const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
@@ -397,11 +397,9 @@ pub const Sample = struct {
         }
     }
 
-    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f) Vec4f {
+    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, n_dot_wi: f32) Vec4f {
         const n = self.super.frame.n;
         const f = flakesBsdf(wi, wo, n, self.flakes_cos_cone);
-
-        const n_dot_wi = hlp.clampDot(n, wi);
 
         return @splat(4, n_dot_wi * f) * self.f0;
     }
