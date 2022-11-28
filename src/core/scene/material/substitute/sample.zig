@@ -31,11 +31,7 @@ pub const Sample = struct {
     ior: IoR,
 
     metallic: f32,
-    thickness: f32 = 0.0,
     transparency: f32 = undefined,
-
-    volumetric: bool,
-    flakes: bool = false,
 
     pub fn init(
         rs: Renderstate,
@@ -51,8 +47,9 @@ pub const Sample = struct {
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
-        var super = Base.init(rs, wo, color, radiance, alpha);
+        var super = Base.init(rs, wo, color, radiance, alpha, 0.0);
         super.properties.can_evaluate = ior != ior_medium;
+        super.properties.volumetric = volumetric;
 
         const f0 = fresnel.Schlick.F0(ior, ior_outer);
 
@@ -61,29 +58,28 @@ pub const Sample = struct {
             .f0 = math.lerp(@splat(4, f0), albedo, metallic),
             .metallic = metallic,
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
-            .volumetric = volumetric,
         };
     }
 
     pub fn setTranslucency(self: *Sample, color: Vec4f, thickness: f32, attenuation_distance: f32, transparency: f32) void {
         self.super.properties.translucent = true;
+        self.super.properties.volumetric = false;
         self.super.albedo = @splat(4, 1.0 - transparency) * color;
         self.translucent_color = color;
         self.attenuation = ccoef.attenuationCoefficient(color, attenuation_distance);
-        self.thickness = thickness;
+        self.super.thickness = thickness;
         self.transparency = transparency;
-        self.volumetric = false;
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
-        if (self.volumetric) {
+        if (self.super.properties.volumetric) {
             return self.volumetricEvaluate(wi);
         }
 
         const wo = self.super.wo;
 
         const tr = self.transparency;
-        const th = self.thickness;
+        const th = self.super.thickness;
         const translucent = th > 0.0;
 
         if (translucent) {
@@ -128,7 +124,7 @@ pub const Sample = struct {
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         var result = bxdf.Sample{ .wavelength = 0.0 };
 
-        const th = self.thickness;
+        const th = self.super.thickness;
         if (th > 0.0) {
             const tr = self.transparency;
 
@@ -161,7 +157,7 @@ pub const Sample = struct {
                 result.pdf *= o;
             }
         } else {
-            if (self.volumetric) {
+            if (self.super.properties.volumetric) {
                 self.volumetricSample(sampler, &result);
                 return result;
             }
@@ -223,7 +219,7 @@ pub const Sample = struct {
 
         const n_dot_wi = frame.clampNdot(wi);
 
-        if (self.flakes) {
+        if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
             const r = math.reflect3(frame.n, wo);
             const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
@@ -358,14 +354,12 @@ pub const Sample = struct {
         const frame = self.super.frame;
         const alpha = self.super.alpha;
 
-        if (self.flakes) {
-            const n = frame.n;
-            const h = math.reflect3(n, wo);
+        if (self.super.properties.flakes) {
+            const h = math.reflect3(frame.n, wo);
             const tb = math.orthonormalBasis3(h);
 
             const cos_cone = alpha[0];
             const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
-
             const wi_dot_h = hlp.clampDot(wi, h);
 
             const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;

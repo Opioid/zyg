@@ -429,9 +429,7 @@ pub const Aniso = struct {
 
         n_dot_h.* = hlp.clamp(m[2]);
 
-        const h = frame.tangentToWorld(m);
-
-        return h;
+        return frame.tangentToWorld(m);
     }
 
     fn distribution(n_dot_h: f32, x_dot_h: f32, y_dot_h: f32, a: Vec2f) f32 {

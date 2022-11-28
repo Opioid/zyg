@@ -272,7 +272,7 @@ pub const Material = struct {
                 result.super.alpha = .{ cos_cone, a2_cone };
                 result.super.frame.setNormal(m);
 
-                result.flakes = true;
+                result.super.properties.flakes = true;
             }
         }
 

@@ -14,7 +14,7 @@ const math = base.math;
 const std = @import("std");
 
 pub fn testSize() void {
-    std.debug.print("Name: measured size (expected size); align\n", .{});
+    std.debug.print("Name: measured size (expected size); alignment\n", .{});
 
     testType(math.Vec2f, "Vec2f", 8);
     testType(math.Pack3f, "Pack3f", 12);
@@ -31,7 +31,7 @@ pub fn testSize() void {
     testType(Interface, "Interface", 16);
     testType(mt.Material, "Material", 400);
     testType(mt.Substitute, "SubstituteMaterial", 368);
-    testType(mt.Sample, "MaterialSample", 336);
+    testType(mt.Sample, "MaterialSample", 320);
     testType(Texture, "Texture", 16);
 }
 
