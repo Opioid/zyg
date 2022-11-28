@@ -25,7 +25,7 @@ pub const Sample = struct {
     coating: Coating = .{},
 
     f0: Vec4f,
-    attenuation: Vec4f = undefined,
+    absorption_coef: Vec4f = undefined,
 
     ior: IoR,
 
@@ -63,8 +63,8 @@ pub const Sample = struct {
     pub fn setTranslucency(self: *Sample, color: Vec4f, thickness: f32, attenuation_distance: f32, transparency: f32) void {
         self.super.properties.translucent = true;
         self.super.properties.volumetric = false;
-        self.attenuation = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.super.thickness = thickness;
+        self.absorption_coef = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.opacity = 1.0 - transparency;
     }
 
@@ -87,7 +87,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = inthlp.attenuation3(self.attenuation, approx_dist);
+                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
                 const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
@@ -136,7 +136,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = inthlp.attenuation3(self.attenuation, approx_dist);
+                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
                 result.wi = -result.wi;
                 result.reflection *= @splat(4, tr * n_dot_wi * (1.0 - f)) * attenuation;
