@@ -128,11 +128,10 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick1.init(self.f0);
 
-            var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, &fr);
+            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
 
-            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());
+            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.r.reflection, gg.f[0] * gg.r.pdf());
         }
     }
 

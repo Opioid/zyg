@@ -387,15 +387,13 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const n_dot_wo = self.coating.frame.clampAbsNdot(self.super.wo);
 
-        var coating_attenuation: Vec4f = undefined;
-        self.coating.reflect(
+        const coating_attenuation = self.coating.reflect(
             wo,
             result.h,
             n_dot_wo,
             n_dot_h,
             result.h_dot_wi,
             result.h_dot_wi,
-            &coating_attenuation,
             result,
         );
 
@@ -500,7 +498,6 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        var fresnel_result: Vec4f = undefined;
         var gg = ggx.Aniso.reflectionF(
             wi,
             wo,
@@ -511,12 +508,11 @@ pub const Sample = struct {
             alpha,
             schlick,
             frame,
-            &fresnel_result,
         );
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-        const base_reflection = @splat(4, n_dot_wi) * (gg.reflection + mms);
-        const base_pdf = fresnel_result[0] * gg.pdf();
+        const base_reflection = @splat(4, n_dot_wi) * (gg.r.reflection + mms);
+        const base_pdf = gg.f[0] * gg.r.pdf();
 
         if (self.coating.thickness > 0.0) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
