@@ -25,13 +25,12 @@ pub const Sample = struct {
     coating: Coating = .{},
 
     f0: Vec4f,
-    translucent_color: Vec4f = undefined,
     attenuation: Vec4f = undefined,
 
     ior: IoR,
 
     metallic: f32,
-    transparency: f32 = undefined,
+    opacity: f32 = 1.0,
 
     pub fn init(
         rs: Renderstate,
@@ -56,19 +55,17 @@ pub const Sample = struct {
         return .{
             .super = super,
             .f0 = math.lerp(@splat(4, f0), albedo, metallic),
-            .metallic = metallic,
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
+            .metallic = metallic,
         };
     }
 
     pub fn setTranslucency(self: *Sample, color: Vec4f, thickness: f32, attenuation_distance: f32, transparency: f32) void {
         self.super.properties.translucent = true;
         self.super.properties.volumetric = false;
-        self.super.albedo = @splat(4, 1.0 - transparency) * color;
-        self.translucent_color = color;
         self.attenuation = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.super.thickness = thickness;
-        self.transparency = transparency;
+        self.opacity = 1.0 - transparency;
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
@@ -78,7 +75,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        const tr = self.transparency;
+        const op = self.opacity;
         const th = self.super.thickness;
         const translucent = th > 0.0;
 
@@ -92,9 +89,9 @@ pub const Sample = struct {
                 const approx_dist = th / n_dot_wi;
                 const attenuation = inthlp.attenuation3(self.attenuation, approx_dist);
 
-                const pdf = n_dot_wi * (tr * math.pi_inv);
+                const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
-                return bxdf.Result.init(@splat(4, pdf * (1.0 - f)) * (attenuation * self.translucent_color), pdf);
+                return bxdf.Result.init(@splat(4, pdf * (1.0 - f)) * (attenuation * self.super.albedo), pdf);
             }
         } else if (!self.super.sameHemisphere(wo)) {
             return bxdf.Result.empty();
@@ -109,7 +106,7 @@ pub const Sample = struct {
             self.baseEvaluate(wi, wo, h, wo_dot_h);
 
         if (translucent) {
-            base_result.mulAssignPdf(1.0 - tr);
+            base_result.mulAssignPdf(op);
         }
 
         if (self.coating.thickness > 0.0) {
@@ -126,13 +123,14 @@ pub const Sample = struct {
 
         const th = self.super.thickness;
         if (th > 0.0) {
-            const tr = self.transparency;
+            const op = self.opacity;
+            const tr = 1.0 - op;
 
             const s3 = sampler.sample3D();
             const p = s3[0];
             if (p < tr) {
                 const frame = self.super.frame;
-                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, frame, sampler, &result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, &result);
                 const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
@@ -144,17 +142,15 @@ pub const Sample = struct {
                 result.reflection *= @splat(4, tr * n_dot_wi * (1.0 - f)) * attenuation;
                 result.pdf *= tr;
             } else {
-                const o = 1.0 - tr;
-
                 const xi = Vec2f{ s3[1], s3[2] };
 
-                if (p < tr + 0.5 * o) {
+                if (p < tr + 0.5 * op) {
                     self.diffuseSample(xi, &result);
                 } else {
                     self.glossSample(xi, &result);
                 }
 
-                result.pdf *= o;
+                result.pdf *= op;
             }
         } else {
             if (self.super.properties.volumetric) {
@@ -183,7 +179,8 @@ pub const Sample = struct {
         const n_dot_wi = frame.clampNdot(wi);
         const n_dot_wo = frame.clampAbsNdot(wo);
 
-        const d = diffuse.Micro.reflection(self.super.albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
+        const albedo = @splat(4, self.opacity) * self.super.albedo;
+        const d = diffuse.Micro.reflection(albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
@@ -294,8 +291,9 @@ pub const Sample = struct {
 
         const n_dot_wo = frame.clampAbsNdot(wo);
 
+        const albedo = @splat(4, self.opacity) * self.super.albedo;
         const n_dot_wi = diffuse.Micro.reflect(
-            self.super.albedo,
+            albedo,
             self.f0,
             wo,
             n_dot_wo,
@@ -343,7 +341,8 @@ pub const Sample = struct {
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
-        const d = diffuse.Micro.reflection(self.super.albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
+        const albedo = @splat(4, self.opacity) * self.super.albedo;
+        const d = diffuse.Micro.reflection(albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms + d.reflection);
         result.pdf = 0.5 * (result.pdf + d.pdf());

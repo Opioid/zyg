@@ -40,13 +40,7 @@ const E_avg_tex = math.InterpolatedFunction2D_N(
 ).fromArray(&integral.E_avg);
 
 pub const Micro = struct {
-    pub fn reflection(
-        color: Vec4f,
-        f0: Vec4f,
-        n_dot_wi: f32,
-        n_dot_wo: f32,
-        alpha: f32,
-    ) bxdf.Result {
+    pub fn reflection(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) bxdf.Result {
         const refl = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
 
         const pdf = n_dot_wi * math.pi_inv;
