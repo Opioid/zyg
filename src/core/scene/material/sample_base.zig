@@ -109,13 +109,7 @@ pub const SampleBase = struct {
 
     const Self = @This();
 
-    pub fn init(
-        rs: Renderstate,
-        wo: Vec4f,
-        albedo: Vec4f,
-        radiance: Vec4f,
-        alpha: Vec2f,
-    ) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, radiance: Vec4f, alpha: Vec2f) SampleBase {
         return .{
             .geo_n = rs.geo_n,
             .n = rs.n,

@@ -33,7 +33,6 @@ pub const Sample = struct {
     metallic: f32,
     thickness: f32 = 0.0,
     transparency: f32 = undefined,
-    flakes_cos_cone: f32 = undefined,
 
     volumetric: bool,
     flakes: bool = false,
@@ -66,13 +65,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn setTranslucency(
-        self: *Sample,
-        color: Vec4f,
-        thickness: f32,
-        attenuation_distance: f32,
-        transparency: f32,
-    ) void {
+    pub fn setTranslucency(self: *Sample, color: Vec4f, thickness: f32, attenuation_distance: f32, transparency: f32) void {
         self.super.properties.translucent = true;
         self.super.albedo = @splat(4, 1.0 - transparency) * color;
         self.translucent_color = color;
@@ -142,8 +135,9 @@ pub const Sample = struct {
             const s3 = sampler.sample3D();
             const p = s3[0];
             if (p < tr) {
-                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, self.super.frame, sampler, &result);
-                const n_dot_wo = self.super.frame.clampAbsNdot(self.super.wo);
+                const frame = self.super.frame;
+                const n_dot_wi = diffuse.Lambert.reflect(self.translucent_color, frame, sampler, &result);
+                const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
@@ -187,18 +181,13 @@ pub const Sample = struct {
     }
 
     fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+        const frame = self.super.frame;
         const alpha = self.super.alpha;
 
-        const n_dot_wi = self.super.frame.clampNdot(wi);
-        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+        const n_dot_wi = frame.clampNdot(wi);
+        const n_dot_wo = frame.clampAbsNdot(wo);
 
-        const d = diffuse.Micro.reflection(
-            self.super.albedo,
-            self.f0,
-            n_dot_wi,
-            n_dot_wo,
-            alpha[0],
-        );
+        const d = diffuse.Micro.reflection(self.super.albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             return bxdf.Result.init(@splat(4, n_dot_wi) * d.reflection, d.pdf());
@@ -215,10 +204,10 @@ pub const Sample = struct {
             wo_dot_h,
             alpha,
             schlick,
-            self.super.frame,
+            frame,
         );
 
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const pdf = 0.5 * (d.pdf() + gg.pdf());
         return bxdf.Result.init(@splat(4, n_dot_wi) * (d.reflection + gg.reflection + mms), pdf);
     }
@@ -230,8 +219,19 @@ pub const Sample = struct {
             return bxdf.Result.empty();
         }
 
-        const n_dot_wi = self.super.frame.clampNdot(wi);
-        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+        const frame = self.super.frame;
+
+        const n_dot_wi = frame.clampNdot(wi);
+
+        if (self.flakes) {
+            const cos_cone = alpha[0];
+            const r = math.reflect3(frame.n, wo);
+            const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+
+            return bxdf.Result.init(@splat(4, n_dot_wi * f) * self.f0, f);
+        }
+
+        const n_dot_wo = frame.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
@@ -244,15 +244,10 @@ pub const Sample = struct {
             wo_dot_h,
             alpha,
             schlick,
-            self.super.frame,
+            frame,
         );
 
-        if (self.flakes) {
-            const flakes = self.flakesEvaluate(wi, wo, n_dot_wi);
-            return bxdf.Result.init(flakes, gg.pdf());
-        }
-
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         return bxdf.Result.init(@splat(4, n_dot_wi) * (gg.reflection + mms), gg.pdf());
     }
 
@@ -298,17 +293,18 @@ pub const Sample = struct {
 
     fn diffuseSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
+        const frame = self.super.frame;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+        const n_dot_wo = frame.clampAbsNdot(wo);
 
         const n_dot_wi = diffuse.Micro.reflect(
             self.super.albedo,
             self.f0,
             wo,
             n_dot_wo,
-            self.super.frame,
-            alpha[0],
+            frame,
+            alpha[1],
             xi,
             result,
         );
@@ -329,10 +325,10 @@ pub const Sample = struct {
             result.h_dot_wi,
             alpha,
             schlick,
-            self.super.frame,
+            frame,
         );
 
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + gg.reflection + mms);
         result.pdf = 0.5 * (result.pdf + gg.pdf());
@@ -340,31 +336,18 @@ pub const Sample = struct {
 
     fn glossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
+        const frame = self.super.frame;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
+        const n_dot_wo = frame.clampAbsNdot(wo);
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        const n_dot_wi = ggx.Aniso.reflect(
-            wo,
-            n_dot_wo,
-            alpha,
-            xi,
-            schlick,
-            self.super.frame,
-            result,
-        );
+        const n_dot_wi = ggx.Aniso.reflect(wo, n_dot_wo, alpha, xi, schlick, frame, result);
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
-        const d = diffuse.Micro.reflection(
-            self.super.albedo,
-            self.f0,
-            n_dot_wi,
-            n_dot_wo,
-            alpha[0],
-        );
+        const d = diffuse.Micro.reflection(self.super.albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms + d.reflection);
         result.pdf = 0.5 * (result.pdf + d.pdf());
@@ -372,42 +355,39 @@ pub const Sample = struct {
 
     fn pureGlossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) void {
         const wo = self.super.wo;
+        const frame = self.super.frame;
         const alpha = self.super.alpha;
 
-        const n_dot_wo = self.super.frame.clampAbsNdot(wo);
-
-        const schlick = fresnel.Schlick.init(self.f0);
-
-        const n_dot_wi = ggx.Aniso.reflect(
-            wo,
-            n_dot_wo,
-            alpha,
-            xi,
-            schlick,
-            self.super.frame,
-            result,
-        );
-
         if (self.flakes) {
-            const flakes = self.flakesEvaluate(result.wi, wo, n_dot_wi);
-            result.reflection = flakes;
+            const n = frame.n;
+            const h = math.reflect3(n, wo);
+            const tb = math.orthonormalBasis3(h);
+
+            const cos_cone = alpha[0];
+            const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
+
+            const wi_dot_h = hlp.clampDot(wi, h);
+
+            const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+
+            const n_dot_wi = frame.clampNdot(wi);
+
+            result.reflection = @splat(4, n_dot_wi * f) * self.f0;
+            result.wi = wi;
+            result.h = h;
+            result.h_dot_wi = wi_dot_h;
+            result.pdf = f;
+            result.class = .{ .glossy = true, .reflection = true };
         } else {
-            const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+            const n_dot_wo = frame.clampAbsNdot(wo);
+
+            const schlick = fresnel.Schlick.init(self.f0);
+
+            const n_dot_wi = ggx.Aniso.reflect(wo, n_dot_wo, alpha, xi, schlick, frame, result);
+
+            const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
             result.reflection = @splat(4, n_dot_wi) * (result.reflection + mms);
         }
-    }
-
-    fn flakesEvaluate(self: Sample, wi: Vec4f, wo: Vec4f, n_dot_wi: f32) Vec4f {
-        const n = self.super.frame.n;
-        const f = flakesBsdf(wi, wo, n, self.flakes_cos_cone);
-
-        return @splat(4, n_dot_wi * f) * self.f0;
-    }
-
-    fn flakesBsdf(wi: Vec4f, wo: Vec4f, n: Vec4f, cos_cone: f32) f32 {
-        const r = math.reflect3(n, wo);
-
-        return if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
     }
 
     fn coatingReflect(self: *const Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
@@ -541,7 +521,7 @@ pub const Sample = struct {
             &fresnel_result,
         );
 
-        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+        const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @splat(4, n_dot_wi) * (gg.reflection + mms);
         const base_pdf = fresnel_result[0] * gg.pdf();
 
@@ -612,7 +592,7 @@ pub const Sample = struct {
                     result,
                 );
 
-                const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+                const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                 const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                 result.reflection = reflection;
@@ -672,7 +652,7 @@ pub const Sample = struct {
                 result.pdf *= omf;
             }
 
-            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], quo_ior.eta_t));
+            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], quo_ior.eta_t));
         }
     }
 
@@ -735,7 +715,7 @@ pub const Sample = struct {
                         result,
                     );
 
-                    const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[0]);
+                    const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                     const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                     result.reflection = reflection;
@@ -749,7 +729,7 @@ pub const Sample = struct {
                         n_dot_h,
                         -wi_dot_h,
                         r_wo_dot_h,
-                        alpha[0],
+                        alpha[1],
                         ior,
                         frame,
                         result,
@@ -814,7 +794,7 @@ pub const Sample = struct {
                     n_dot_h,
                     -wi_dot_h,
                     r_wo_dot_h,
-                    alpha[0],
+                    alpha[1],
                     ior,
                     frame,
                     result,
@@ -829,7 +809,7 @@ pub const Sample = struct {
                 result.pdf *= omf;
             }
 
-            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], quo_ior.eta_t));
+            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], quo_ior.eta_t));
         }
     }
 };
