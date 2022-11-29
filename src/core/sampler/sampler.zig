@@ -74,17 +74,16 @@ pub const Sampler = union(enum) {
 
     pub fn cameraSample(self: *Sampler, pixel: Vec2i) CameraSample {
         const s4 = self.sample4D();
-
-        const sample = CameraSample{
-            .pixel = pixel,
-            .pixel_uv = .{ s4[0], s4[1] },
-            .lens_uv = .{ s4[2], s4[3] },
-            .time = self.sample1D(),
-        };
+        const s1 = self.sample1D();
 
         self.incrementSample();
 
-        return sample;
+        return .{
+            .pixel = pixel,
+            .pixel_uv = .{ s4[0], s4[1] },
+            .lens_uv = .{ s4[2], s4[3] },
+            .time = s1,
+        };
     }
 };
 
