@@ -154,11 +154,11 @@ pub const Worker = struct {
 
                 var s: u32 = 0;
                 while (s < num_samples) : (s += 1) {
-                    const sample = self.sampler.cameraSample(pixel);
-
                     self.aov.clear();
 
+                    const sample = self.sampler.cameraSample(pixel);
                     var ray = camera.generateRay(sample, frame, scene);
+
                     const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
 
                     var photon = self.photon;
