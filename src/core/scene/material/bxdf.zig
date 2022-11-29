@@ -45,8 +45,4 @@ pub const Sample = struct {
     wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     class: Class = undefined,
-
-    pub fn blend(self: *Sample, other: Vec4f, w: f32) void {
-        self.reflection = math.lerp(self.reflection, other, w);
-    }
 };

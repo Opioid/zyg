@@ -1,12 +1,12 @@
 const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
 const Ray = @import("../ray.zig").Ray;
+const ro = @import("../ray_offset.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const mat = @import("../material/material.zig");
-const ro = @import("../ray_offset.zig");
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;

@@ -4,8 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-//const Filter = @import("../../image/texture/sampler.zig").Filter;
-const scn = @import("../constants.zig");
+const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -19,7 +18,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < scn.Ray_max_t) {
+        if (b > 0.0 or ray.maxT() < ro.Ray_max_t) {
             return false;
         }
 
@@ -27,7 +26,7 @@ pub const DistantSphere = struct {
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
 
         if (det >= 0.0) {
-            isec.p = @splat(4, @as(f32, scn.Almost_ray_max_t)) * ray.direction;
+            isec.p = @splat(4, @as(f32, ro.Almost_ray_max_t)) * ray.direction;
             isec.geo_n = n;
             isec.t = trafo.rotation.r[0];
             isec.b = trafo.rotation.r[1];
@@ -42,7 +41,7 @@ pub const DistantSphere = struct {
             isec.part = 0;
             isec.primitive = 0;
 
-            ray.setMaxT(scn.Almost_ray_max_t);
+            ray.setMaxT(ro.Almost_ray_max_t);
 
             return true;
         }
@@ -54,7 +53,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < scn.Ray_max_t) {
+        if (b > 0.0 or ray.maxT() < ro.Ray_max_t) {
             return false;
         }
 
@@ -78,7 +77,7 @@ pub const DistantSphere = struct {
             @splat(4, @as(f32, 0.0)),
             trafo,
             1.0 / extent,
-            scn.Almost_ray_max_t,
+            ro.Almost_ray_max_t,
         );
     }
 

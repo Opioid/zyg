@@ -9,7 +9,6 @@ const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const scn = @import("../../../scene/constants.zig");
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -35,12 +34,12 @@ pub const Multi = struct {
         // but the intersection point was too close to detect.
         var missed = false;
 
-        if (scn.Almost_ray_max_t <= d) {
+        if (ro.Almost_ray_max_t <= d) {
             missed = true;
         } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
             const v = -ray.ray.direction;
 
-            var tray = Ray.init(isec.offsetP(v), v, 0.0, scn.Ray_max_t, 0, 0.0, ray.time);
+            var tray = Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
             var nisec = shp.Intersection{};
             if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
                 missed = math.dot3(nisec.geo_n, v) <= 0.0;

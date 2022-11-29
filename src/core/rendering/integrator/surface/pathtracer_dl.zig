@@ -6,7 +6,6 @@ const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
-const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -113,7 +112,7 @@ pub const PathtracerDL = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
                 break;
             }
 
@@ -151,7 +150,7 @@ pub const PathtracerDL = struct {
                 from_subsurface = false;
             }
 
-            ray.ray.setMaxT(scn.Ray_max_t);
+            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;

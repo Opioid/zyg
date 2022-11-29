@@ -54,8 +54,10 @@ pub fn mapRoughness(roughness: f32) f32 {
     return roughness * (1.0 - Min_roughness) + Min_roughness;
 }
 
+const ResultF = struct { r: bxdf.Result, f: Vec4f };
+
 pub const Iso = struct {
-    pub fn reflection(
+    pub inline fn reflection(
         h: Vec4f,
         n: Vec4f,
         n_dot_wi: f32,
@@ -64,8 +66,7 @@ pub const Iso = struct {
         alpha: f32,
         fresnel: anytype,
     ) bxdf.Result {
-        var fresnel_result: Vec4f = undefined;
-        return reflectionF(h, n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, &fresnel_result);
+        return reflectionF(h, n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel).r;
     }
 
     pub fn reflectionF(
@@ -76,8 +77,7 @@ pub const Iso = struct {
         wo_dot_h: f32,
         alpha: f32,
         fresnel: anytype,
-        fresnel_result: *Vec4f,
-    ) bxdf.Result {
+    ) ResultF {
         const alpha2 = alpha * alpha;
 
         const n_dot_h = math.saturate(math.dot3(n, h));
@@ -86,12 +86,12 @@ pub const Iso = struct {
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
 
-        fresnel_result.* = f;
+        //   fresnel_result.* = f;
 
         const refl = @splat(4, d * g[0]) * f;
         const pdf = pdfVisible(d, g[1]);
 
-        return bxdf.Result.init(refl, pdf);
+        return .{ .r = bxdf.Result.init(refl, pdf), .f = f };
     }
 
     pub fn reflect(
@@ -257,7 +257,7 @@ pub const Iso = struct {
 };
 
 pub const Aniso = struct {
-    pub fn reflection(
+    pub inline fn reflection(
         wi: Vec4f,
         wo: Vec4f,
         h: Vec4f,
@@ -268,8 +268,7 @@ pub const Aniso = struct {
         fresnel: anytype,
         frame: Frame,
     ) bxdf.Result {
-        var fresnel_result: Vec4f = undefined;
-        return reflectionF(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, frame, &fresnel_result);
+        return reflectionF(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, fresnel, frame).r;
     }
 
     pub fn reflectionF(
@@ -282,10 +281,9 @@ pub const Aniso = struct {
         alpha: Vec2f,
         fresnel: anytype,
         frame: Frame,
-        fresnel_result: *Vec4f,
-    ) bxdf.Result {
+    ) ResultF {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel, fresnel_result);
+            return Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel);
         }
 
         const n_dot_h = math.saturate(math.dot3(frame.n, h));
@@ -303,12 +301,10 @@ pub const Aniso = struct {
 
         const f = fresnel.f(wo_dot_h);
 
-        fresnel_result.* = f;
-
         const refl = @splat(4, d * g[0]) * f;
         const pdf = pdfVisible(d, g[1]);
 
-        return bxdf.Result.init(refl, pdf);
+        return .{ .r = bxdf.Result.init(refl, pdf), .f = f };
     }
 
     pub fn reflect(
@@ -429,9 +425,7 @@ pub const Aniso = struct {
 
         n_dot_h.* = hlp.clamp(m[2]);
 
-        const h = frame.tangentToWorld(m);
-
-        return h;
+        return frame.tangentToWorld(m);
     }
 
     fn distribution(n_dot_h: f32, x_dot_h: f32, y_dot_h: f32, a: Vec2f) f32 {

@@ -8,7 +8,6 @@ const Intersection = @import("../../../../scene/prop/intersection.zig").Intersec
 const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
 const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
-const scn = @import("../../../../scene/constants.zig");
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
@@ -227,7 +226,7 @@ pub const Mapper = struct {
                     from_subsurface = false;
                 }
 
-                ray.ray.setMaxT(scn.Ray_max_t);
+                ray.ray.setMaxT(ro.Ray_max_t);
 
                 if (0.0 == ray.wavelength) {
                     ray.wavelength = sample_result.wavelength;
@@ -286,6 +285,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, scn.Ray_max_t, 0, 0.0, time);
+        return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 };

@@ -4,7 +4,6 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const hlp = @import("../helper.zig");
-const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -105,7 +104,7 @@ pub const Pathtracer = struct {
             }
 
             if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
                 break;
             }
 
@@ -148,7 +147,7 @@ pub const Pathtracer = struct {
                 from_subsurface = false;
             }
 
-            ray.ray.setMaxT(scn.Ray_max_t);
+            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;

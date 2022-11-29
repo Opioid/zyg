@@ -24,7 +24,6 @@ pub const Sample = struct {
     ior: f32,
     ior_outside: f32,
     f0: f32,
-    thickness: f32,
     abbe: f32,
     wavelength: f32,
 
@@ -45,6 +44,7 @@ pub const Sample = struct {
             @splat(4, @as(f32, 1.0)),
             @splat(4, @as(f32, 0.0)),
             @splat(2, alpha),
+            thickness,
         );
 
         const rough = alpha > 0.0;
@@ -58,7 +58,6 @@ pub const Sample = struct {
             .ior = ior,
             .ior_outside = ior_outside,
             .f0 = if (rough) fresnel.Schlick.F0(ior, ior_outside) else 0.0,
-            .thickness = thickness,
             .abbe = abbe,
             .wavelength = wavelength,
         };
@@ -129,11 +128,10 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick1.init(self.f0);
 
-            var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, &fr);
+            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
 
-            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());
+            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.r.reflection, gg.f[0] * gg.r.pdf());
         }
     }
 
@@ -144,7 +142,7 @@ pub const Sample = struct {
             var result = self.roughSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
-        } else if (self.thickness > 0.0) {
+        } else if (self.super.thickness > 0.0) {
             var result = self.thinSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
@@ -252,7 +250,7 @@ pub const Sample = struct {
             return reflect(wo, n, n_dot_wo);
         } else {
             const n_dot_wi = hlp.clamp(n_dot_wo);
-            const approx_dist = self.thickness / n_dot_wi;
+            const approx_dist = self.super.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 

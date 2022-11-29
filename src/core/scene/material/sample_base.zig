@@ -93,6 +93,8 @@ pub const SampleBase = struct {
         translucent: bool = false,
         can_evaluate: bool = false,
         avoid_caustics: bool = false,
+        volumetric: bool = false,
+        flakes: bool = false,
     };
 
     frame: Frame = undefined,
@@ -105,6 +107,8 @@ pub const SampleBase = struct {
 
     alpha: Vec2f,
 
+    thickness: f32,
+
     properties: Properties,
 
     const Self = @This();
@@ -115,6 +119,7 @@ pub const SampleBase = struct {
         albedo: Vec4f,
         radiance: Vec4f,
         alpha: Vec2f,
+        thickness: f32,
     ) SampleBase {
         return .{
             .geo_n = rs.geo_n,
@@ -123,6 +128,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .radiance = radiance,
             .alpha = alpha,
+            .thickness = thickness,
             .properties = Properties{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
         };
     }
@@ -135,6 +141,7 @@ pub const SampleBase = struct {
             .albedo = @splat(4, @as(f32, 0.0)),
             .radiance = @splat(4, @as(f32, 0.0)),
             .alpha = @splat(2, alpha),
+            .thickness = 0.0,
             .properties = .{},
         };
     }

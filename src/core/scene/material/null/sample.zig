@@ -18,6 +18,7 @@ pub const Sample = struct {
             @splat(4, @as(f32, 0.0)),
             @splat(4, @as(f32, 0.0)),
             @splat(2, @as(f32, 1.0)),
+            0.0,
         );
         super.properties.can_evaluate = false;
         return .{ .super = super, .factor = 1.0 };

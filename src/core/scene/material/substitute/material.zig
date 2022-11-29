@@ -269,12 +269,10 @@ pub const Material = struct {
 
                 result.metallic = 1.0;
                 result.f0 = self.flakes_color;
-                result.super.alpha = @splat(2, @sqrt(a2_cone));
+                result.super.alpha = .{ cos_cone, a2_cone };
                 result.super.frame.setNormal(m);
 
-                result.flakes_cos_cone = cos_cone;
-
-                result.flakes = true;
+                result.super.properties.flakes = true;
             }
         }
 

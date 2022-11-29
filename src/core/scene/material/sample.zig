@@ -41,6 +41,13 @@ pub const Sample = union(enum) {
         return self.super().properties.can_evaluate;
     }
 
+    pub fn aovAlbedo(self: *const Sample) Vec4f {
+        return switch (self.*) {
+            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, s.metallic),
+            inline else => |*s| s.super.albedo,
+        };
+    }
+
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         return switch (self.*) {
             .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),

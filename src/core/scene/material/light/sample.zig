@@ -15,6 +15,7 @@ pub const Sample = struct {
             radiance,
             radiance,
             @splat(2, @as(f32, 1.0)),
+            0.0,
         ) };
     }
 

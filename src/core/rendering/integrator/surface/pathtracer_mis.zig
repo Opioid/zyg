@@ -9,7 +9,6 @@ const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
-const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -188,7 +187,7 @@ pub const PathtracerMIS = struct {
                 state.from_subsurface = false;
             }
 
-            ray.ray.setMaxT(scn.Ray_max_t);
+            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
@@ -262,7 +261,7 @@ pub const PathtracerMIS = struct {
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.direct = state.direct and (!isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= scn.Ray_max_t);
+                state.direct = state.direct and (!isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
