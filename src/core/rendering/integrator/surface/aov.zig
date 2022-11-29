@@ -3,7 +3,6 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
-const scn = @import("../../../scene/constants.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -192,7 +191,7 @@ pub const AOV = struct {
                 from_subsurface = false;
             }
 
-            ray.ray.setMaxT(scn.Ray_max_t);
+            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;

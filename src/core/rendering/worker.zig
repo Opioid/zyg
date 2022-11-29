@@ -1,6 +1,5 @@
 const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
-const scn = @import("../scene/constants.zig");
 const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
 const RayDif = sr.RayDif;
@@ -372,7 +371,7 @@ pub const Worker = struct {
 
             // Slide along ray until opaque surface is found
             ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-            ray.ray.setMaxT(scn.Ray_max_t);
+            ray.ray.setMaxT(ro.Ray_max_t);
             if (!self.scene.intersect(ray, .All, isec)) {
                 ray.ray.setMinT(start_min_t);
                 return false;

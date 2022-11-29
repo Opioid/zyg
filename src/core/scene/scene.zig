@@ -1,4 +1,3 @@
-pub const cnst = @import("constants.zig");
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/tree.zig").Tree;
 const PropBvhBuilder = @import("prop/builder.zig").Builder;
@@ -32,9 +31,14 @@ const List = std.ArrayListUnmanaged;
 pub const Scene = struct {
     pub const Lights = LightTree.Lights;
     pub const LightPick = Distribution1D.Discrete;
-    pub const Tick_duration = cnst.Units_per_second / 60;
+    pub const Units_per_second: u64 = 705600000;
+    pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;
     const Interval = 1.0 / @intToFloat(f32, Num_steps);
+
+    pub fn absoluteTime(dtime: f64) u64 {
+        return @floatToInt(u64, @round(@intToFloat(f64, Units_per_second) * dtime));
+    }
 
     pub const Num_reserved_props = 32;
 

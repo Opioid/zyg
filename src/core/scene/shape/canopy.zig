@@ -4,7 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const scn = @import("../constants.zig");
+const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -20,7 +20,7 @@ pub const Canopy = struct {
     const Eps = -0.0005;
 
     pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
-        if (ray.maxT() < scn.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
+        if (ray.maxT() < ro.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
             return false;
         }
 
@@ -33,7 +33,7 @@ pub const Canopy = struct {
         };
 
         // This is nonsense
-        isec.p = @splat(4, @as(f32, scn.Ray_max_t)) * ray.direction;
+        isec.p = @splat(4, @as(f32, ro.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
@@ -42,7 +42,7 @@ pub const Canopy = struct {
         isec.part = 0;
         isec.primitive = 0;
 
-        ray.setMaxT(scn.Ray_max_t);
+        ray.setMaxT(ro.Ray_max_t);
 
         return true;
     }
@@ -66,7 +66,7 @@ pub const Canopy = struct {
             uvw,
             trafo,
             1.0 / (2.0 * std.math.pi),
-            scn.Ray_max_t,
+            ro.Ray_max_t,
         );
     }
 
@@ -85,7 +85,7 @@ pub const Canopy = struct {
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / (2.0 * std.math.pi),
-            scn.Ray_max_t,
+            ro.Ray_max_t,
         );
     }
 

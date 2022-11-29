@@ -1,9 +1,7 @@
 const Graph = @import("scene_graph.zig").Graph;
 const Keyframe = @import("animation.zig").Keyframe;
 
-const core = @import("core");
-const scn = core.scn;
-const Scene = scn.Scene;
+const Scene = @import("core").scn.Scene;
 
 const base = @import("base");
 const json = base.json;
@@ -23,7 +21,7 @@ pub fn load(
     var start_time: u64 = 0;
 
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
-    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, scn.cnst.Units_per_second) / fps)) else 0;
+    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps)) else 0;
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
@@ -64,7 +62,7 @@ pub fn loadKeyframes(
                 var iter = n.Object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "time", entry.key_ptr.*)) {
-                        keyframe.time = scn.cnst.time(json.readFloat(f64, entry.value_ptr.*));
+                        keyframe.time = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                         json.readTransformation(entry.value_ptr.*, &keyframe.k);
                     }

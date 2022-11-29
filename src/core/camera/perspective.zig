@@ -3,15 +3,15 @@ const Sensor = snsr.Sensor;
 const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
 const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
-const cs = @import("../sampler/camera_sample.zig");
 const Sampler = @import("../sampler/sampler.zig").Sampler;
+const cs = @import("../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
-const scn = @import("../scene/constants.zig");
 const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
 const RayDif = sr.RayDif;
+const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
@@ -37,7 +37,7 @@ pub const Perspective = struct {
         use_point: bool = false,
     };
 
-    const Default_frame_time = scn.Units_per_second / 60;
+    const Default_frame_time = Scene.Units_per_second / 60;
 
     entity: u32 = Prop.Null,
 
@@ -138,7 +138,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, scn.Ray_max_t, 0, 0.0, time);
+        return Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 
     pub fn sampleTo(
@@ -247,13 +247,13 @@ pub const Perspective = struct {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
-                self.frame_step = scn.time(json.readFloat(f64, entry.value_ptr.*));
+                self.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
                 const fps = json.readFloat(f64, entry.value_ptr.*);
                 if (0.0 == fps) {
                     self.frame_step = 0;
                 } else {
-                    self.frame_step = @floatToInt(u64, @round(@intToFloat(f64, scn.Units_per_second) / fps));
+                    self.frame_step = @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps));
                 }
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
@@ -319,7 +319,7 @@ pub const Perspective = struct {
                 trafo.position,
                 trafo.objectToWorldVector(direction),
                 0.0,
-                scn.Ray_max_t,
+                ro.Ray_max_t,
                 0,
                 0.0,
                 time,
