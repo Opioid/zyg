@@ -120,7 +120,7 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        const step_length = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
         const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -138,7 +138,6 @@ pub const Worker = struct {
                 var ems = [_]f32{0.0} ** 16;
                 var cell_ems: [4]f32 = undefined;
 
-                var step = 4 * step_length;
                 var ss: u32 = 0;
                 while (ss < num_samples) {
                     var cc: u32 = 0;
@@ -155,9 +154,9 @@ pub const Worker = struct {
                             const c = cc;
                             cc += 1;
 
-                            if (ss >= num_samples / 2 and ems[c] < em_threshold) continue;
-
-                            if (ss >= num_samples / 4) {
+                            if (ss >= num_samples / 2) {
+                                if (ems[c] < em_threshold) continue;
+                            } else if (ss >= num_samples / 4) {
                                 const cx = (x - xx) >> 1;
                                 const cy = (y - yy) >> 1;
                                 const cid = @intCast(u32, (cy << 1) | cx);
@@ -248,12 +247,11 @@ pub const Worker = struct {
                     const em1 = std.math.max(cell_ems[2], cell_ems[3]);
                     const max_em = std.math.max(em0, em1);
 
-                    if (max_em < em_threshold) {
+                    if (0.0 == max_em or (ss >= step * 4 and max_em < em_threshold)) {
                         break;
                     }
 
                     ss += step;
-                    step = step_length;
                 }
             }
         }
