@@ -466,7 +466,7 @@ pub const Sample = struct {
             const n_dot_wo = frame.clampAbsNdot(wo);
             const n_dot_h = math.saturate(frame.nDot(h));
 
-            const schlick = fresnel.Schlick1.init(self.f0[0]);
+            const schlick = fresnel.Schlick.init(self.f0);
 
             const gg = ggx.Iso.refraction(
                 n_dot_wi,

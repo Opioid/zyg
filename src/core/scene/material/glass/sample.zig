@@ -99,7 +99,7 @@ pub const Sample = struct {
             const n_dot_wo = frame.clampAbsNdot(wo);
             const n_dot_h = math.saturate(self.super.frame.nDot(h));
 
-            const schlick = fresnel.Schlick1.init(self.f0);
+            const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
             const gg = ggx.Iso.refraction(
                 n_dot_wi,
@@ -126,7 +126,7 @@ pub const Sample = struct {
 
             const wo_dot_h = hlp.clampDot(wo, h);
 
-            const schlick = fresnel.Schlick1.init(self.f0);
+            const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
             const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
