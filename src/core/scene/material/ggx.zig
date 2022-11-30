@@ -28,8 +28,8 @@ const E_s_tex = math.InterpolatedFunction3D_N(
     integral.E_s_size,
 ).fromArray(&integral.E_s);
 
-pub fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, ior: f32) f32 {
-    return 1.0 / E_s_tex.eval(n_dot_wo, alpha, ior - 1.0);
+pub fn ilmEpDielectric(n_dot_wo: f32, alpha: f32, f0: f32) f32 {
+    return 1.0 / E_s_tex.eval(n_dot_wo, alpha, f0 * integral.E_s_inverse_max_f0);
 }
 
 pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {

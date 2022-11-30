@@ -215,12 +215,12 @@ pub const Material = struct {
 
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating_normal_map)) {
-                result.coating.frame = result.super.frame;
+                result.coating.n = result.super.frame.n;
             } else if (self.coating_normal_map.valid()) {
                 const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, worker.scene);
-                result.coating.frame.setNormal(n);
+                result.coating.n = n;
             } else {
-                result.coating.frame.setTangentFrame(rs.t, rs.b, rs.n);
+                result.coating.n = rs.n;
             }
 
             const r = if (self.coating_roughness_map.valid())
@@ -230,12 +230,11 @@ pub const Material = struct {
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
-            result.coating.ior = coating_ior;
-            result.coating.f0 = fresnel.Schlick.F0(coating_ior, rs.ior());
+            result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior());
             result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
 
-            const n_dot_wo = result.coating.frame.clampAbsNdot(wo);
+            const n_dot_wo = hlp.clampAbsDot(result.coating.n, wo);
             result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
         }
 

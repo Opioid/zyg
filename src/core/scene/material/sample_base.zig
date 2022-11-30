@@ -11,6 +11,11 @@ pub const Frame = struct {
     b: Vec4f,
     n: Vec4f,
 
+    pub fn init(n: Vec4f) Frame {
+        const tb = math.orthonormalBasis3(n);
+        return .{ .t = tb[0], .b = tb[1], .n = n };
+    }
+
     pub fn swapped(self: Frame, same_side: bool) Frame {
         if (same_side) {
             return self;

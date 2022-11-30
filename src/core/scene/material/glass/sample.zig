@@ -57,7 +57,7 @@ pub const Sample = struct {
             .absorption_coef = absorption_coef,
             .ior = ior,
             .ior_outside = ior_outside,
-            .f0 = if (rough) fresnel.Schlick.F0(ior, ior_outside) else 0.0,
+            .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .abbe = abbe,
             .wavelength = wavelength,
         };
@@ -112,7 +112,7 @@ pub const Sample = struct {
                 schlick,
             );
 
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             return bxdf.Result.init(
                 @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
@@ -129,7 +129,7 @@ pub const Sample = struct {
             const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
             const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.r.reflection, gg.f[0] * gg.r.pdf());
         }
@@ -341,7 +341,7 @@ pub const Sample = struct {
             result.pdf *= omf;
         }
 
-        result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], ior_t));
+        result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0));
 
         return result;
     }
