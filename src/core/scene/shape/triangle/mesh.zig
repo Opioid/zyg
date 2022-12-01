@@ -63,11 +63,12 @@ pub const Part = struct {
 
     material: u32 = 0,
     num_triangles: u32 = 0,
+    num_alloc: u32 = 0,
     area: f32 = undefined,
 
-    triangle_mapping: []u32 = &.{},
-    aabbs: []AABB = &.{},
-    cones: []Vec4f = &.{},
+    triangle_mapping: [*]u32 = undefined,
+    aabbs: [*]AABB = undefined,
+    cones: [*]Vec4f = undefined,
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
@@ -78,9 +79,10 @@ pub const Part = struct {
 
         self.variants.deinit(alloc);
 
-        alloc.free(self.cones);
-        alloc.free(self.aabbs);
-        alloc.free(self.triangle_mapping);
+        const num = self.num_alloc;
+        alloc.free(self.cones[0..num]);
+        alloc.free(self.aabbs[0..num]);
+        alloc.free(self.triangle_mapping[0..num]);
     }
 
     pub fn configure(
@@ -95,12 +97,12 @@ pub const Part = struct {
     ) !u32 {
         const num = self.num_triangles;
 
-        if (0 == self.triangle_mapping.len) {
+        if (0 == self.num_alloc) {
             var total_area: f32 = 0.0;
 
-            const triangle_mapping = try alloc.alloc(u32, num);
-            const aabbs = try alloc.alloc(AABB, num);
-            const cones = try alloc.alloc(Vec4f, num);
+            const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
+            const aabbs = (try alloc.alloc(AABB, num)).ptr;
+            const cones = (try alloc.alloc(Vec4f, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
@@ -130,10 +132,11 @@ pub const Part = struct {
                 }
             }
 
-            for (aabbs) |*b| {
+            for (aabbs[0..num]) |*b| {
                 b.bounds[1][3] = total_area / b.bounds[1][3];
             }
 
+            self.num_alloc = num;
             self.area = total_area;
             self.triangle_mapping = triangle_mapping;
             self.aabbs = aabbs;
@@ -178,7 +181,7 @@ pub const Part = struct {
         const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
 
         var angle: f32 = 0.0;
-        for (self.cones) |n| {
+        for (self.cones[0..self.num_alloc]) |n| {
             const c = math.dot3(da, n);
             angle = std.math.max(angle, std.math.acos(c));
         }
@@ -373,36 +376,40 @@ pub const Part = struct {
 pub const Mesh = struct {
     tree: bvh.Tree = .{},
 
-    parts: []Part,
+    num_parts: u32 = 0,
+    num_primitives: u32 = 0,
 
-    primitive_mapping: []u32 = &.{},
+    parts: [*]Part = undefined,
+    primitive_mapping: [*]u32 = undefined,
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
         std.mem.set(Part, parts, .{});
 
-        return Mesh{ .parts = parts };
+        return Mesh{ .num_parts = num_parts, .parts = parts.ptr };
     }
 
     pub fn deinit(self: *Mesh, alloc: Allocator) void {
-        alloc.free(self.primitive_mapping);
+        alloc.free(self.primitive_mapping[0..self.num_primitives]);
 
-        for (self.parts) |*p| {
+        var parts = self.parts[0..self.num_parts];
+
+        for (parts) |*p| {
             p.deinit(alloc);
         }
 
-        alloc.free(self.parts);
+        alloc.free(parts);
         self.tree.deinit(alloc);
     }
 
     pub fn numParts(self: Mesh) u32 {
-        return @intCast(u32, self.parts.len);
+        return self.num_parts;
     }
 
     pub fn numMaterials(self: Mesh) u32 {
         var id: u32 = 0;
 
-        for (self.parts) |p| {
+        for (self.parts[0..self.num_parts]) |p| {
             id = std.math.max(id, p.material);
         }
 
@@ -647,18 +654,21 @@ pub const Mesh = struct {
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
-        if (0 == self.primitive_mapping.len) {
+        if (0 == self.num_primitives) {
             const num_triangles = self.tree.numTriangles();
 
-            self.primitive_mapping = try alloc.alloc(u32, num_triangles);
+            self.num_primitives = num_triangles;
+            var primitive_mapping = (try alloc.alloc(u32, num_triangles)).ptr;
 
             var i: u32 = 0;
             while (i < num_triangles) : (i += 1) {
                 const p = &self.parts[self.tree.data.part(i)];
                 const pm = p.num_triangles;
                 p.num_triangles = pm + 1;
-                self.primitive_mapping[i] = pm;
+                primitive_mapping[i] = pm;
             }
+
+            self.primitive_mapping = primitive_mapping;
         }
 
         return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);

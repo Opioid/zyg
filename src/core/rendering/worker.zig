@@ -234,19 +234,13 @@ pub const Worker = struct {
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         var isec = Intersection{};
         if (self.intersectAndResolveMask(ray, null, &isec)) {
-            return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
+            return self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
         }
 
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(
-        self: *Worker,
-        ray: *Ray,
-        wo: Vec4f,
-        isec: Intersection,
-        filter: ?Filter,
-    ) ?Vec4f {
+    pub fn transmitted(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
         if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
             if (self.transmittance(ray.*, filter)) |b| {
                 return a * b;
@@ -266,7 +260,7 @@ pub const Worker = struct {
         }
 
         var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(self.interface_stack);
+        temp_stack.copy(&self.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
@@ -311,7 +305,7 @@ pub const Worker = struct {
             }
         }
 
-        self.interface_stack.copy(temp_stack);
+        self.interface_stack.copy(&temp_stack);
 
         return w;
     }
@@ -384,7 +378,7 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
+    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
         self.interface_stack.copy(stack);
     }
 

@@ -30,7 +30,7 @@ pub const Light = struct {
         VolumeImage,
     };
 
-    class: Class,
+    class: Class align(16),
     two_sided: bool,
     variant: u16 = undefined,
     prop: u32,

@@ -62,7 +62,7 @@ pub const PathtracerMIS = struct {
         isec: *Intersection,
         gather_photons: bool,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) Vec4f {
         const num_samples = self.settings.num_samples;
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, num_samples);

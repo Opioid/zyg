@@ -44,12 +44,7 @@ pub const Lighttracer = struct {
         }
     }
 
-    pub fn li(
-        self: *Self,
-        frame: u32,
-        worker: *Worker,
-        initial_stack: *const InterfaceStack,
-    ) void {
+    pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const InterfaceStack) void {
         _ = initial_stack;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
