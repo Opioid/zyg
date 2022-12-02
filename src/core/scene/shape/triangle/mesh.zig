@@ -452,36 +452,38 @@ pub const Mesh = struct {
         );
 
         if (self.tree.intersect(tray)) |hit| {
+            const data = self.tree.data;
+
             ray.setMaxT(hit.t);
 
-            const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
+            const p = data.interpolateP(hit.u, hit.v, hit.index);
             isec.p = trafo.objectToWorldPoint(p);
 
-            const geo_n = self.tree.data.normal(hit.index);
+            const geo_n = data.normal(hit.index);
             isec.geo_n = trafo.rotation.transformVector(geo_n);
 
-            isec.part = self.tree.data.part(hit.index);
+            isec.part = data.part(hit.index);
             isec.primitive = hit.index;
 
             if (.All == ipo) {
                 var t: Vec4f = undefined;
                 var n: Vec4f = undefined;
                 var uv: Vec2f = undefined;
-                self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
+                data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
 
                 const t_w = trafo.rotation.transformVector(t);
                 const n_w = trafo.rotation.transformVector(n);
-                const b_w = @splat(4, self.tree.data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
+                const b_w = @splat(4, data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
 
                 isec.t = t_w;
                 isec.b = b_w;
                 isec.n = n_w;
                 isec.uv = uv;
             } else if (.NoTangentSpace == ipo) {
-                const uv = self.tree.data.interpolateUv(hit.u, hit.v, hit.index);
+                const uv = data.interpolateUv(hit.u, hit.v, hit.index);
                 isec.uv = uv;
             } else {
-                const n = self.tree.data.interpolateShadingNormal(hit.u, hit.v, hit.index);
+                const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);
                 isec.n = n_w;
             }

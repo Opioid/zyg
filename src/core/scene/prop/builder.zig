@@ -68,15 +68,13 @@ pub const Builder = struct {
         tree: *Tree,
         current_prop: *u32,
     ) void {
-        const node = &self.super.kernel.build_nodes.items[source_node];
-
-        var n = &tree.nodes[dest_node];
-        n.setAABB(node.aabb());
+        const node = self.super.kernel.build_nodes.items[source_node];
+        var n = node;
 
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
-
             n.setSplitNode(child0);
+            tree.nodes[dest_node] = n;
 
             self.super.newNode();
             self.super.newNode();
@@ -89,6 +87,7 @@ pub const Builder = struct {
             var i = current_prop.*;
             const num = node.numIndices();
             n.setLeafNode(i, num);
+            tree.nodes[dest_node] = n;
 
             const begin = node.children();
             const indices = self.super.kernel.reference_ids.items[begin .. begin + num];

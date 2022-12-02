@@ -98,14 +98,13 @@ pub const BuilderSAH = struct {
         vertices: VertexStream,
         current_triangle: *u32,
     ) void {
-        const node = &self.super.kernel.build_nodes.items[source_node];
-
-        var n = &tree.nodes[dest_node];
-        n.setAABB(node.aabb());
+        const node = self.super.kernel.build_nodes.items[source_node];
+        var n = node;
 
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
             n.setSplitNode(child0);
+            tree.nodes[dest_node] = n;
 
             self.super.newNode();
             self.super.newNode();
@@ -117,7 +116,7 @@ pub const BuilderSAH = struct {
         } else {
             var i = current_triangle.*;
             const num = node.numIndices();
-            n.setLeafNode(i, num);
+            tree.nodes[dest_node] = n;
 
             const ro = node.children();
 
