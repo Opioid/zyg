@@ -47,12 +47,7 @@ pub const Indexed_data = struct {
         self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
-        var i: u32 = 0;
-        while (i < num_vertices) : (i += 1) {
-            self.positions[i] = vertices.position(i);
-            self.frames[i] = vertices.frame(i);
-            self.uvs[i] = vertices.uv(i);
-        }
+        vertices.copy(self.positions, self.frames, self.uvs, num_vertices);
     }
 
     pub fn setTriangle(
