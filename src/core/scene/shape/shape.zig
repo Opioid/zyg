@@ -61,7 +61,7 @@ pub const Shape = union(enum) {
     pub fn numMaterials(self: Shape) u32 {
         return switch (self) {
             .Null => 0,
-            .TriangleMesh => |*m| m.numMaterials(),
+            .TriangleMesh => |m| m.numMaterials(),
             else => 1,
         };
     }
@@ -362,7 +362,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
             .Sphere => Sphere.pdf(ray.ray, isec.trafo),
-            .TriangleMesh => |*m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
+            .TriangleMesh => |m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
         };
     }
 

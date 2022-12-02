@@ -583,7 +583,7 @@ pub const Scene = struct {
         return &self.materials.items[material_id];
     }
 
-    pub fn shape(self: *const Scene, shape_id: u32) *Shape {
+    pub fn shape(self: *const Scene, shape_id: u32) *const Shape {
         return &self.shapes.items[shape_id];
     }
 

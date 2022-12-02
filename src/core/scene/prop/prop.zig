@@ -21,7 +21,7 @@ pub const Prop = struct {
 
     shape: u32 = Null,
 
-    properties: Properties = undefined,
+    properties: Properties = .{},
 
     fn visible(self: Prop, ray_depth: u32) bool {
         if (0 == ray_depth) {
@@ -97,7 +97,7 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        if (scene.propShape(entity).intersect(ray, trafo, ipo, isec)) {
+        if (scene.shape(self.shape).intersect(ray, trafo, ipo, isec)) {
             isec.trafo = trafo;
             return true;
         }
@@ -117,7 +117,7 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersect(ray, trafo, .Normal, isec);
+        return scene.shape(self.shape).intersect(ray, trafo, .Normal, isec);
     }
 
     pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
@@ -132,7 +132,7 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).intersectP(ray, trafo);
+        return scene.shape(self.shape).intersectP(ray, trafo);
     }
 
     pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
@@ -155,6 +155,6 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        return scene.propShape(entity).visibility(ray, trafo, entity, filter, scene);
+        return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
     }
 };
