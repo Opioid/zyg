@@ -541,7 +541,13 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Compact = vs.Compact.init(positions, normals) };
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                        positions,
+                        normals,
+                        &.{},
+                        &.{},
+                        &.{},
+                    ) };
                 }
             }
         }

@@ -10,10 +10,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const VertexStream = union(enum) {
+    C: CAPI,
     Separate: Separate,
     SeparateQuat: SeparateQuat,
-    Compact: Compact,
-    C: CAPI,
 
     pub fn deinit(self: *VertexStream, alloc: Allocator) void {
         return switch (self.*) {
@@ -31,21 +30,13 @@ pub const VertexStream = union(enum) {
 
     pub fn position(self: VertexStream, i: usize) Vec4f {
         switch (self) {
-            .Separate => |v| {
-                const p = v.positions[i];
-                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
-            },
-            .SeparateQuat => |v| {
-                const p = v.positions[i];
-                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
-            },
-            .Compact => |v| {
-                const p = v.positions[i];
-                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
-            },
             .C => |v| {
                 const id = i * v.positions_stride;
                 return .{ v.positions[id + 0], v.positions[id + 1], v.positions[id + 2], 0.0 };
+            },
+            inline else => |v| {
+                const p = v.positions[i];
+                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
             },
         }
     }
@@ -58,57 +49,8 @@ pub const VertexStream = union(enum) {
 
     pub fn bitangentSign(self: VertexStream, i: usize) bool {
         return switch (self) {
-            .Compact => false,
             inline else => |v| v.bitangentSign(i),
         };
-    }
-};
-
-const Json = struct {
-    positions: []const Pack3f,
-    normals: []const Pack3f,
-    tangents: []const Pack3f,
-    uvs: []const Vec2f,
-    bts: []const u8,
-
-    const Self = @This();
-
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
-
-        i = 0;
-        if (count == self.tangents.len) {
-            while (i < count) : (i += 1) {
-                const n3 = self.normals[i];
-                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-                const t3 = self.tangents[i];
-                const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
-
-                frames[i] = quaternion.initFromTN(t, n);
-            }
-        } else {
-            while (i < count) : (i += 1) {
-                const n3 = self.normals[i];
-                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-                const t = math.tangent3(n);
-
-                frames[i] = quaternion.initFromTN(t, n);
-            }
-        }
-
-        if (count == self.uvs.len) {
-            std.mem.copy(Vec2f, uvs[0..count], self.uvs);
-        } else {
-            std.mem.set(Vec2f, uvs[0..count], .{ 0.0, 0.0 });
-        }
-    }
-
-    pub fn bitangentSign(self: Self, i: usize) bool {
-        return if (self.bts.len > i) self.bts[i] > 0 else false;
     }
 };
 
@@ -233,44 +175,6 @@ pub const SeparateQuat = struct {
 
     pub fn bitangentSign(self: Self, i: usize) bool {
         return self.ts[i].v[3] < 0.0;
-    }
-};
-
-pub const Compact = struct {
-    positions: []const Pack3f,
-    normals: []const Pack3f,
-
-    const Self = @This();
-
-    pub fn init(positions: []Pack3f, normals: []Pack3f) Self {
-        return Self{
-            .positions = positions,
-            .normals = normals,
-        };
-    }
-
-    pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.normals);
-        alloc.free(self.positions);
-    }
-
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
-
-        i = 0;
-        while (i < count) : (i += 1) {
-            const n3 = self.normals[i];
-            const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-            const t = math.tangent3(n);
-
-            frames[i] = quaternion.initFromTN(t, n);
-        }
-
-        std.mem.set(Vec2f, uvs[0..count], .{ 0.0, 0.0 });
     }
 };
 
