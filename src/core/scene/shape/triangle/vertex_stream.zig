@@ -10,7 +10,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const VertexStream = union(enum) {
-    Json: Json,
     Separate: Separate,
     SeparateQuat: SeparateQuat,
     Compact: Compact,
@@ -18,7 +17,7 @@ pub const VertexStream = union(enum) {
 
     pub fn deinit(self: *VertexStream, alloc: Allocator) void {
         return switch (self.*) {
-            .Json, .C => {},
+            .C => {},
             inline else => |*v| v.deinit(alloc),
         };
     }
@@ -32,10 +31,6 @@ pub const VertexStream = union(enum) {
 
     pub fn position(self: VertexStream, i: usize) Vec4f {
         switch (self) {
-            .Json => |v| {
-                const p = v.positions[i];
-                return .{ p.v[0], p.v[1], p.v[2], 0.0 };
-            },
             .Separate => |v| {
                 const p = v.positions[i];
                 return .{ p.v[0], p.v[1], p.v[2], 0.0 };
@@ -124,6 +119,8 @@ pub const Separate = struct {
     uvs: []const Vec2f,
     bts: []const u8,
 
+    owning: bool,
+
     const Self = @This();
 
     pub fn init(positions: []Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) Self {
@@ -133,15 +130,29 @@ pub const Separate = struct {
             .tangents = tangents,
             .uvs = uvs,
             .bts = bts,
+            .owning = false,
+        };
+    }
+
+    pub fn initOwned(positions: []Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) Self {
+        return Self{
+            .positions = positions,
+            .normals = normals,
+            .tangents = tangents,
+            .uvs = uvs,
+            .bts = bts,
+            .owning = true,
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.bts);
-        alloc.free(self.uvs);
-        alloc.free(self.tangents);
-        alloc.free(self.normals);
-        alloc.free(self.positions);
+        if (self.owning) {
+            alloc.free(self.bts);
+            alloc.free(self.uvs);
+            alloc.free(self.tangents);
+            alloc.free(self.normals);
+            alloc.free(self.positions);
+        }
     }
 
     pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
@@ -152,20 +163,34 @@ pub const Separate = struct {
         }
 
         i = 0;
-        while (i < count) : (i += 1) {
-            const n3 = self.normals[i];
-            const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-            const t3 = self.tangents[i];
-            const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
+        if (count == self.tangents.len) {
+            while (i < count) : (i += 1) {
+                const n3 = self.normals[i];
+                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
+                const t3 = self.tangents[i];
+                const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
 
-            frames[i] = quaternion.initFromTN(t, n);
+                frames[i] = quaternion.initFromTN(t, n);
+            }
+        } else {
+            while (i < count) : (i += 1) {
+                const n3 = self.normals[i];
+                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
+                const t = math.tangent3(n);
+
+                frames[i] = quaternion.initFromTN(t, n);
+            }
         }
 
-        std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+        if (count == self.uvs.len) {
+            std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+        } else {
+            std.mem.set(Vec2f, uvs[0..count], .{ 0.0, 0.0 });
+        }
     }
 
     pub fn bitangentSign(self: Self, i: usize) bool {
-        return self.bts[i] > 0;
+        return if (self.bts.len > i) self.bts[i] > 0 else false;
     }
 };
 

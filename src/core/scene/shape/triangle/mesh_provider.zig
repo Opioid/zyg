@@ -223,13 +223,13 @@ pub const Provider = struct {
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Json = .{
-            .positions = handler.positions.items,
-            .normals = handler.normals.items,
-            .tangents = handler.tangents.items,
-            .uvs = handler.uvs.items,
-            .bts = handler.bitangent_signs.items,
-        } };
+        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+            handler.positions.items,
+            handler.normals.items,
+            handler.tangents.items,
+            handler.uvs.items,
+            handler.bitangent_signs.items,
+        ) };
 
         buildBVH(self.alloc, &self.tree, self.handler.triangles.items, vertices, self.threads) catch {};
 
@@ -533,7 +533,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
