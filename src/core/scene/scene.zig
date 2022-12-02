@@ -402,12 +402,12 @@ pub const Scene = struct {
         return self.keyframes.items[f].position;
     }
 
-    pub fn propTransformationAt(self: *const Scene, entity: usize, time: u64) Transformation {
+    pub fn propTransformationAt(self: *const Scene, entity: u32, time: u64) Transformation {
         const f = self.prop_frames.items[entity];
         return self.propTransformationAtMaybeStatic(entity, time, Null == f);
     }
 
-    pub fn propTransformationAtMaybeStatic(self: *const Scene, entity: usize, time: u64, static: bool) Transformation {
+    pub fn propTransformationAtMaybeStatic(self: *const Scene, entity: u32, time: u64, static: bool) Transformation {
         if (static) {
             var trafo = self.prop_world_transformations.items[entity];
             trafo.translate(-self.camera_pos);
@@ -548,7 +548,7 @@ pub const Scene = struct {
         );
     }
 
-    pub fn propAabbIntersect(self: *const Scene, entity: usize, ray: Ray) bool {
+    pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: Ray) bool {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
@@ -556,7 +556,7 @@ pub const Scene = struct {
         return &self.shapes.items[self.props.items[entity].shape];
     }
 
-    pub fn propMaterialId(self: *const Scene, entity: usize, part: u32) u32 {
+    pub fn propMaterialId(self: *const Scene, entity: u32, part: u32) u32 {
         const p = self.prop_parts.items[entity] + part;
         return self.material_ids.items[p];
     }
@@ -649,7 +649,7 @@ pub const Scene = struct {
         return self.lights.items[light_id].extent;
     }
 
-    pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: usize) bool {
+    pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {
         _ = variant;
         return self.lights.items[light_id].two_sided;
     }

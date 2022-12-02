@@ -74,7 +74,7 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, index: usize) ?triangle.Intersection {
+    pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Intersection {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
@@ -84,7 +84,7 @@ pub const Indexed_data = struct {
         return triangle.intersect(ray, ap, bp, cp);
     }
 
-    pub fn intersectP(self: *const Self, ray: Ray, index: usize) bool {
+    pub fn intersectP(self: *const Self, ray: Ray, index: u32) bool {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];

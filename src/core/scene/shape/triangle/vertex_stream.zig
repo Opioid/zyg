@@ -28,7 +28,7 @@ pub const VertexStream = union(enum) {
         };
     }
 
-    pub fn position(self: VertexStream, i: usize) Vec4f {
+    pub fn position(self: VertexStream, i: u32) Vec4f {
         switch (self) {
             .C => |v| {
                 const id = i * v.positions_stride;
@@ -47,7 +47,7 @@ pub const VertexStream = union(enum) {
         };
     }
 
-    pub fn bitangentSign(self: VertexStream, i: usize) bool {
+    pub fn bitangentSign(self: VertexStream, i: u32) bool {
         return switch (self) {
             inline else => |v| v.bitangentSign(i),
         };
@@ -61,7 +61,7 @@ pub const Separate = struct {
     uvs: []const Vec2f,
     bts: []const u8,
 
-    owning: bool,
+    own: bool,
 
     const Self = @This();
 
@@ -72,23 +72,23 @@ pub const Separate = struct {
             .tangents = tangents,
             .uvs = uvs,
             .bts = bts,
-            .owning = false,
+            .own = false,
         };
     }
 
     pub fn initOwned(positions: []Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) Self {
-        return Self{
+        return .{
             .positions = positions,
             .normals = normals,
             .tangents = tangents,
             .uvs = uvs,
             .bts = bts,
-            .owning = true,
+            .own = true,
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        if (self.owning) {
+        if (self.own) {
             alloc.free(self.bts);
             alloc.free(self.uvs);
             alloc.free(self.tangents);
@@ -131,7 +131,7 @@ pub const Separate = struct {
         }
     }
 
-    pub fn bitangentSign(self: Self, i: usize) bool {
+    pub fn bitangentSign(self: Self, i: u32) bool {
         return if (self.bts.len > i) self.bts[i] > 0 else false;
     }
 };
@@ -144,7 +144,7 @@ pub const SeparateQuat = struct {
     const Self = @This();
 
     pub fn init(positions: []Pack3f, ts: []Pack4f, uvs: []Vec2f) Self {
-        return Self{
+        return .{
             .positions = positions,
             .ts = ts,
             .uvs = uvs,
@@ -173,7 +173,7 @@ pub const SeparateQuat = struct {
         std.mem.copy(Vec2f, uvs[0..count], self.uvs);
     }
 
-    pub fn bitangentSign(self: Self, i: usize) bool {
+    pub fn bitangentSign(self: Self, i: u32) bool {
         return self.ts[i].v[3] < 0.0;
     }
 };
@@ -203,7 +203,7 @@ pub const CAPI = struct {
         tangents: [*]const f32,
         uvs: [*]const f32,
     ) Self {
-        return Self{
+        return .{
             .positions = positions,
             .normals = normals,
             .tangents = tangents,
@@ -247,7 +247,7 @@ pub const CAPI = struct {
         }
     }
 
-    pub fn bitangentSign(self: Self, i: usize) bool {
+    pub fn bitangentSign(self: Self, i: u32) bool {
         const stride = self.tangents_stride;
 
         if (stride <= 3) {

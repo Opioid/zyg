@@ -11,12 +11,12 @@ pub const Prop = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
     const Properties = packed struct {
-        visible_in_camera: bool = false,
-        visible_in_reflection: bool = false,
-        visible_in_shadow: bool = false,
+        visible_in_camera: bool = true,
+        visible_in_reflection: bool = true,
+        visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
         test_AABB: bool = false,
-        static: bool = false,
+        static: bool = true,
     };
 
     shape: u32 = Null,
@@ -60,15 +60,8 @@ pub const Prop = struct {
     pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
         self.shape = shape;
 
-        self.properties = Properties{};
-        self.properties.visible_in_camera = true;
-        self.properties.visible_in_reflection = true;
-        self.properties.visible_in_shadow = true;
-
         const shape_inst = scene.shape(shape);
         self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
-
-        self.properties.static = true;
 
         for (materials) |mid| {
             const m = scene.material(mid);
@@ -81,14 +74,13 @@ pub const Prop = struct {
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
         const shape_inst = scene.shape(self.shape);
-
         self.properties.test_AABB = shape_inst.finite();
         self.properties.static = false;
     }
 
     pub fn intersect(
         self: Prop,
-        entity: usize,
+        entity: u32,
         ray: *Ray,
         scene: *const Scene,
         ipo: shp.Interpolation,
@@ -113,13 +105,7 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectShadow(
-        self: Prop,
-        entity: usize,
-        ray: *Ray,
-        scene: *const Scene,
-        isec: *shp.Intersection,
-    ) bool {
+    pub fn intersectShadow(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
@@ -134,12 +120,7 @@ pub const Prop = struct {
         return scene.propShape(entity).intersect(ray, trafo, .Normal, isec);
     }
 
-    pub fn intersectP(
-        self: Prop,
-        entity: usize,
-        ray: Ray,
-        scene: *const Scene,
-    ) bool {
+    pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
         if (!self.visibleInShadow()) {
             return false;
         }
@@ -154,7 +135,7 @@ pub const Prop = struct {
         return scene.propShape(entity).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
         if (!self.evaluateVisibility()) {
             if (self.intersectP(entity, ray, scene)) {
                 return null;
