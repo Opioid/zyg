@@ -33,10 +33,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Sky = struct {
-    prop: u32,
+    prop: u32 = Prop.Null,
 
-    sky: u32 = Prop.Null,
     sun: u32 = Prop.Null,
+    sky: u32 = Prop.Null,
 
     sky_image: u32 = Prop.Null,
 
@@ -55,24 +55,24 @@ pub const Sky = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
-        if (self.sky != Prop.Null) {
+        if (Prop.Null != self.prop) {
             return;
         }
 
-        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
-        const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
-
-        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
-
-        var sky_mat = SkyMaterial.initSky(emission_map, self);
-        sky_mat.commit();
-        const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
+        self.prop = try scene.createEntity(alloc);
 
         var sun_mat = try SkyMaterial.initSun(alloc, self);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
+
+        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
+        const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
+        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
+        var sky_mat = SkyMaterial.initSky(emission_map, self);
+        sky_mat.commit();
+        const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
+        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
 
         self.sky = sky_prop;
         self.sun = sun_prop;
@@ -86,8 +86,8 @@ pub const Sky = struct {
 
         scene.propSetWorldTransformation(sky_prop, trafo);
 
-        try scene.createLight(alloc, sky_prop);
         try scene.createLight(alloc, sun_prop);
+        try scene.createLight(alloc, sky_prop);
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value, scene: *Scene) void {
@@ -123,8 +123,11 @@ pub const Sky = struct {
         threads: *Threads,
         fs: *Filesystem,
     ) void {
-        const e = scene.prop(self.prop);
+        if (Prop.Null == self.prop) {
+            return;
+        }
 
+        const e = scene.prop(self.prop);
         scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
         scene.propSetVisibility(self.sun, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
 

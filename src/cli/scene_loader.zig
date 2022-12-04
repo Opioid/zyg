@@ -380,8 +380,6 @@ pub const Loader = struct {
 
         const sky = try scene.createSky(alloc);
 
-        try sky.configure(alloc, scene);
-
         try graph.bumpProps(alloc);
 
         if (value.Object.get("parameters")) |parameters| {

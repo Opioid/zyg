@@ -97,7 +97,7 @@ pub const Scene = struct {
 
     volumes: List(u32),
 
-    sky: ?Sky = null,
+    sky: Sky = .{},
 
     evaluate_visibility: bool = undefined,
     has_volumes: bool = undefined,
@@ -227,9 +227,7 @@ pub const Scene = struct {
             self.props.items[v].setVisibleInShadow(false);
         }
 
-        if (self.sky) |*sky| {
-            sky.compile(alloc, time, self, threads, fs);
-        }
+        self.sky.compile(alloc, time, self, threads, fs);
 
         // rebuild prop BVH_builder
         try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
@@ -730,13 +728,8 @@ pub const Scene = struct {
     }
 
     pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {
-        if (null == self.sky) {
-            const dummy = try self.createEntity(alloc);
-
-            self.sky = Sky{ .prop = dummy };
-        }
-
-        return &self.sky.?;
+        try self.sky.configure(alloc, self);
+        return &self.sky;
     }
 
     pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
