@@ -13,11 +13,6 @@ const Image = img.Image;
 const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const Filesystem = @import("../file/system.zig").System;
 
-// const SkyMaterial = @import("../sky/material.zig").Material;
-// const Texture = @import("../image/texture/texture.zig").Texture;
-
-// const img = @import("../image/image.zig");
-
 const base = @import("base");
 const json = base.json;
 const math = base.math;
@@ -41,7 +36,7 @@ pub const Sky = struct {
 
     sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
-    const Radius = @tan(@as(f32, Model.Angular_radius));
+    pub const Radius = @tan(@as(f32, Model.Angular_radius));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
 
@@ -52,7 +47,7 @@ pub const Sky = struct {
             return;
         }
 
-        var sun_mat = try SkyMaterial.initSun(alloc, self);
+        var sun_mat = try SkyMaterial.initSun(alloc);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
@@ -60,7 +55,7 @@ pub const Sky = struct {
         const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
         const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
-        var sky_mat = SkyMaterial.initSky(emission_map, self);
+        var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
         const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
@@ -96,10 +91,6 @@ pub const Sky = struct {
         }
     }
 
-    pub fn sunDirection(self: *const Self) Vec4f {
-        return self.sun_rotation.r[2];
-    }
-
     pub fn compile(
         self: *Self,
         alloc: Allocator,
@@ -132,7 +123,8 @@ pub const Sky = struct {
 
         const image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
 
-        var model = Model.init(alloc, self.sunDirection(), self.visibility, self.albedo, fs) catch {
+        const sun_direction = self.sun_rotation.r[2];
+        var model = Model.init(alloc, sun_direction, self.visibility, self.albedo, fs) catch {
             var y: i32 = 0;
             while (y < Sky.Bake_dimensions[1]) : (y += 1) {
                 var x: i32 = 0;
@@ -148,7 +140,7 @@ pub const Sky = struct {
         };
         defer model.deinit();
 
-        scene.propMaterial(self.sun, 0).Sky.setSunRadiance(model);
+        scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, model);
 
         var context = SkyContext{
             .model = &model,
@@ -160,33 +152,6 @@ pub const Sky = struct {
         _ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]), 0);
 
         // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
-    }
-
-    pub fn sunWi(self: *const Self, v: f32) Vec4f {
-        const y = (2.0 * v) - 1.0;
-
-        const ls = Vec4f{ 0.0, y * Radius, 0.0, 0.0 };
-        const ws = self.sun_rotation.transformVector(ls);
-
-        return math.normalize3(ws - self.sun_rotation.r[2]);
-    }
-
-    pub fn sunV(self: *const Self, wi: Vec4f) f32 {
-        const k = wi - self.sun_rotation.r[2];
-
-        const c = math.dot3(self.sun_rotation.r[1], k) / Radius;
-
-        return std.math.max((c + 1.0) * 0.5, 0.0);
-    }
-
-    fn privateUpadate(self: *Self, scene: *Scene) void {
-        const trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = .{ Radius, Radius, Radius, 1.0 },
-            .rotation = math.quaternion.initFromMat3x3(self.sun_rotation),
-        };
-
-        scene.propSetWorldTransformation(self.sun, trafo);
     }
 };
 
