@@ -40,7 +40,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    camera: *cam.Perspective = undefined,
+    camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
 
     rng: RNG = undefined,

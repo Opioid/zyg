@@ -39,7 +39,7 @@ pub fn testSize() void {
     testType(Texture, "Texture", 16);
     testType(Mesh, "Mesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 1136);
+    testType(Worker, "Worker", 1152);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
