@@ -450,6 +450,16 @@ pub const Scene = struct {
         std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
     }
 
+    pub fn propSetFramesScale(self: *Scene, entity: u32, scale: Vec4f) void {
+        const len = self.num_interpolation_frames;
+        const b = self.prop_frames.items[entity];
+        const e = b + len;
+
+        for (self.keyframes.items[b..e]) |*f| {
+            f.scale = scale;
+        }
+    }
+
     pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
         self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }

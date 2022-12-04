@@ -33,20 +33,13 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Sky = struct {
-    prop: u32 = Prop.Null,
-
     sun: u32 = Prop.Null,
     sky: u32 = Prop.Null,
 
-    sky_image: u32 = Prop.Null,
-
-    sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
-
     visibility: f32 = 100.0,
-
     albedo: f32 = 0.2,
 
-    implicit_rotation: bool = true,
+    sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
     const Radius = @tan(@as(f32, Model.Angular_radius));
 
@@ -55,11 +48,9 @@ pub const Sky = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, alloc: Allocator, scene: *Scene) !void {
-        if (Prop.Null != self.prop) {
+        if (Prop.Null != self.sun) {
             return;
         }
-
-        self.prop = try scene.createEntity(alloc);
 
         var sun_mat = try SkyMaterial.initSun(alloc, self);
         sun_mat.commit();
@@ -76,7 +67,6 @@ pub const Sky = struct {
 
         self.sky = sky_prop;
         self.sun = sun_prop;
-        self.sky_image = sky_image;
 
         const trafo = Transformation{
             .position = @splat(4, @as(f32, 0.0)),
@@ -90,15 +80,12 @@ pub const Sky = struct {
         try scene.createLight(alloc, sky_prop);
     }
 
-    pub fn setParameters(self: *Self, value: std.json.Value, scene: *Scene) void {
-        self.implicit_rotation = true;
-
+    pub fn setParameters(self: *Self, value: std.json.Value) void {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "sun", entry.key_ptr.*)) {
                 const angles = json.readVec4f3Member(entry.value_ptr.*, "rotation", @splat(4, @as(f32, 0.0)));
                 self.sun_rotation = json.createRotationMatrix(angles);
-                self.implicit_rotation = false;
             } else if (std.mem.eql(u8, "turbidity", entry.key_ptr.*)) {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
@@ -107,8 +94,6 @@ pub const Sky = struct {
                 self.albedo = json.readFloat(f32, entry.value_ptr.*);
             }
         }
-
-        self.privateUpadate(scene);
     }
 
     pub fn sunDirection(self: *const Self) Vec4f {
@@ -123,22 +108,31 @@ pub const Sky = struct {
         threads: *Threads,
         fs: *Filesystem,
     ) void {
-        if (Prop.Null == self.prop) {
+        if (Prop.Null == self.sun) {
             return;
         }
 
-        const e = scene.prop(self.prop);
+        const e = scene.prop(self.sun);
         scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
-        scene.propSetVisibility(self.sun, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow());
 
-        if (self.implicit_rotation) {
-            self.sun_rotation = scene.propTransformationAt(self.prop, time).rotation;
-            self.privateUpadate(scene);
+        const scale = Vec4f{ Radius, Radius, Radius, 1.0 };
+
+        if (scene.propHasAnimatedFrames(self.sun)) {
+            self.sun_rotation = scene.propTransformationAt(self.sun, time).rotation;
+            scene.propSetFramesScale(self.sun, scale);
+        } else {
+            const trafo = Transformation{
+                .position = @splat(4, @as(f32, 0.0)),
+                .scale = .{ Radius, Radius, Radius, 1.0 },
+                .rotation = math.quaternion.initFromMat3x3(self.sun_rotation),
+            };
+
+            scene.propSetWorldTransformation(self.sun, trafo);
         }
 
-        var model = Model.init(alloc, self.sunDirection(), self.visibility, self.albedo, fs) catch {
-            var image = scene.imagePtr(self.sky_image);
+        const image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
 
+        var model = Model.init(alloc, self.sunDirection(), self.visibility, self.albedo, fs) catch {
             var y: i32 = 0;
             while (y < Sky.Bake_dimensions[1]) : (y += 1) {
                 var x: i32 = 0;
@@ -159,7 +153,7 @@ pub const Sky = struct {
         var context = SkyContext{
             .model = &model,
             .shape = scene.propShape(self.sky),
-            .image = scene.imagePtr(self.sky_image),
+            .image = image,
             .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
         };
 
