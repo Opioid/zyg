@@ -141,7 +141,7 @@ pub const Material = struct {
         ) else self.color;
 
         var rad = self.super.emittance.radiance(
-            rs.p,
+            rs.ray_p,
             -wo,
             rs.trafo,
             worker.scene.lightArea(rs.prop, rs.part),

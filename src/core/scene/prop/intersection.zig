@@ -64,6 +64,8 @@ pub const Intersection = struct {
             rs.n = self.geo.n;
         }
 
+        rs.ray_p = ray.ray.origin;
+
         rs.uv = self.geo.uv;
         rs.prop = self.prop;
         rs.part = self.geo.part;

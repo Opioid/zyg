@@ -382,7 +382,7 @@ pub const PathtracerMIS = struct {
 
         const wo = -sample_result.wi;
 
-        const ls_energy = isec.evaluateRadiance(
+        const energy = isec.evaluateRadiance(
             wo,
             filter,
             scene,
@@ -390,7 +390,7 @@ pub const PathtracerMIS = struct {
         ) orelse return @splat(4, @as(f32, 0.0));
 
         if (state.treat_as_singular) {
-            return ls_energy;
+            return energy;
         }
 
         const translucent = state.is_translucent;
@@ -399,10 +399,10 @@ pub const PathtracerMIS = struct {
         const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene);
-        const weight = hlp.powerHeuristic(sample_result.pdf, ls_pdf * light_pick.pdf);
+        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
+        const weight = hlp.powerHeuristic(sample_result.pdf, pdf * light_pick.pdf);
 
-        return @splat(4, weight) * ls_energy;
+        return @splat(4, weight) * energy;
     }
 
     fn connectVolumeLight(
