@@ -646,6 +646,20 @@ pub const Mesh = struct {
         return angle_pdf * tri_pdf;
     }
 
+    pub fn calculateAreas(self: *Mesh) void {
+        var p: u32 = 0;
+        const np = self.num_parts;
+        while (p < np) : (p += 1) {
+            self.parts[p].area = 0.0;
+        }
+
+        var t: u32 = 0;
+        const nt = self.tree.numTriangles();
+        while (t < nt) : (t += 1) {
+            self.parts[self.tree.data.part(t)].area += self.tree.data.area(t);
+        }
+    }
+
     pub fn prepareSampling(
         self: *Mesh,
         alloc: Allocator,
