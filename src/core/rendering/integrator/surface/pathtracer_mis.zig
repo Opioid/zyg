@@ -429,9 +429,9 @@ pub const PathtracerMIS = struct {
         const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const ls_pdf = light.pdf(ray, geo_n, isec, translucent, scene);
+        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
 
-        return hlp.powerHeuristic(bxdf_pdf, ls_pdf * light_pick.pdf);
+        return hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {

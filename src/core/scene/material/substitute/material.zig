@@ -148,6 +148,7 @@ pub const Material = struct {
             rs.filter,
             worker.scene,
         );
+
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
         }
