@@ -81,6 +81,7 @@ pub const Intersection = struct {
 
     pub fn evaluateRadiance(
         self: Self,
+        shading_p: Vec4f,
         wo: Vec4f,
         filter: ?Filter,
         scene: *const Scene,
@@ -98,7 +99,7 @@ pub const Intersection = struct {
 
         const uv = self.geo.uv;
         return m.evaluateRadiance(
-            self.geo.p,
+            shading_p,
             wo,
             self.geo.geo_n,
             .{ uv[0], uv[1], 0.0, 0.0 },

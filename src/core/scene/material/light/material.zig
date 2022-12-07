@@ -118,7 +118,7 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
+        shading_p: Vec4f,
         wi: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
@@ -126,7 +126,7 @@ pub const Material = struct {
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, scene);
+        const rad = self.super.emittance.radiance(shading_p, wi, trafo, extent, filter, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, scene);

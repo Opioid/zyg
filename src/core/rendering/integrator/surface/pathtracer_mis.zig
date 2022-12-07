@@ -383,6 +383,7 @@ pub const PathtracerMIS = struct {
         const wo = -sample_result.wi;
 
         const energy = isec.evaluateRadiance(
+            ray.ray.origin,
             wo,
             filter,
             scene,
