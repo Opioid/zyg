@@ -56,6 +56,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.evaluate_visibility = self.super.mask.valid();
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.emission_map.valid();
         self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
 
@@ -140,19 +141,6 @@ pub const Material = struct {
             worker.scene,
         ) else self.color;
 
-        var rad = self.super.emittance.radiance(
-            rs.ray_p,
-            -wo,
-            rs.trafo,
-            worker.scene.lightArea(rs.prop, rs.part),
-            rs.filter,
-            worker.scene,
-        );
-
-        if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
-        }
-
         var roughness: f32 = undefined;
         var metallic: f32 = undefined;
 
@@ -193,7 +181,6 @@ pub const Material = struct {
             rs,
             wo,
             color,
-            rad,
             alpha,
             ior,
             ior_outer,
@@ -234,9 +221,6 @@ pub const Material = struct {
             result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior());
             result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
-
-            const n_dot_wo = hlp.clampAbsDot(result.coating.n, wo);
-            result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected

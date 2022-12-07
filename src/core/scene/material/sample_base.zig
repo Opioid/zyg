@@ -94,7 +94,6 @@ pub const Frame = struct {
 
 pub const SampleBase = struct {
     pub const Properties = packed struct {
-        pure_emissive: bool = false,
         translucent: bool = false,
         can_evaluate: bool = false,
         avoid_caustics: bool = false,
@@ -108,7 +107,6 @@ pub const SampleBase = struct {
     n: Vec4f,
     wo: Vec4f,
     albedo: Vec4f,
-    radiance: Vec4f,
 
     alpha: Vec2f,
 
@@ -122,7 +120,6 @@ pub const SampleBase = struct {
         rs: Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
-        radiance: Vec4f,
         alpha: Vec2f,
         thickness: f32,
     ) SampleBase {
@@ -131,7 +128,6 @@ pub const SampleBase = struct {
             .n = rs.n,
             .wo = wo,
             .albedo = albedo,
-            .radiance = radiance,
             .alpha = alpha,
             .thickness = thickness,
             .properties = Properties{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
@@ -144,7 +140,6 @@ pub const SampleBase = struct {
             .n = n,
             .wo = wo,
             .albedo = @splat(4, @as(f32, 0.0)),
-            .radiance = @splat(4, @as(f32, 0.0)),
             .alpha = @splat(2, alpha),
             .thickness = 0.0,
             .properties = .{},

@@ -103,6 +103,23 @@ pub const PathtracerMIS = struct {
         var geo_n = @splat(4, @as(f32, 0.0));
         var wo1 = @splat(4, @as(f32, 0.0));
 
+        {
+            var pure_emissive: bool = undefined;
+            const energy = isec.evaluateRadiance(
+                ray.ray.origin,
+                -ray.ray.direction,
+                null,
+                worker.scene,
+                &pure_emissive,
+            ) orelse @splat(4, @as(f32, 0.0));
+
+            if (pure_emissive) {
+                return hlp.composeAlpha(energy, throughput, false);
+            }
+
+            result += energy;
+        }
+
         var i: u32 = 0;
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
@@ -129,17 +146,6 @@ pub const PathtracerMIS = struct {
             }
 
             wo1 = wo;
-
-            // Only check direct eye-light connections for the very first hit.
-            // Subsequent hits are handled by MIS.
-            if (0 == i and mat_sample.super().sameHemisphere(wo)) {
-                result += throughput * mat_sample.super().radiance;
-            }
-
-            if (mat_sample.isPureEmissive()) {
-                state.direct = false;
-                break;
-            }
 
             var sampler = self.pickSampler(ray.depth);
 
@@ -282,7 +288,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn sampleLights(
-        self: *Self,
+        self: *const Self,
         ray: Ray,
         isec: Intersection,
         mat_sample: *const MaterialSample,
@@ -364,7 +370,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectLight(
-        self: Self,
+        self: *const Self,
         ray: Ray,
         geo_n: Vec4f,
         isec: Intersection,
@@ -374,14 +380,7 @@ pub const PathtracerMIS = struct {
         scene: *const Scene,
         pure_emissive: *bool,
     ) Vec4f {
-        const light_id = isec.lightId(scene);
-        if (!Light.isAreaLight(light_id)) {
-            pure_emissive.* = false;
-            return @splat(4, @as(f32, 0.0));
-        }
-
         const wo = -sample_result.wi;
-
         const energy = isec.evaluateRadiance(
             ray.ray.origin,
             wo,
@@ -390,7 +389,8 @@ pub const PathtracerMIS = struct {
             pure_emissive,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        if (state.treat_as_singular) {
+        const light_id = isec.lightId(scene);
+        if (state.treat_as_singular or !Light.isAreaLight(light_id)) {
             return energy;
         }
 
@@ -407,7 +407,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectVolumeLight(
-        self: Self,
+        self: *const Self,
         ray: Ray,
         geo_n: Vec4f,
         isec: Intersection,
@@ -416,11 +416,8 @@ pub const PathtracerMIS = struct {
         scene: *const Scene,
     ) f32 {
         const light_id = isec.lightId(scene);
-        if (!Light.isLight(light_id)) {
-            return 0.0;
-        }
 
-        if (state.treat_as_singular) {
+        if (state.treat_as_singular or !Light.isLight(light_id)) {
             return 1.0;
         }
 

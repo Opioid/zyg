@@ -82,6 +82,22 @@ pub const Pathtracer = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
+            var pure_emissive: bool = undefined;
+            const energy = isec.evaluateRadiance(
+                ray.ray.origin,
+                wo,
+                filter,
+                worker.scene,
+                &pure_emissive,
+            ) orelse @splat(4, @as(f32, 0.0));
+
+            result += throughput * energy;
+
+            if (pure_emissive) {
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                break;
+            }
+
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
@@ -98,15 +114,6 @@ pub const Pathtracer = struct {
             }
 
             wo1 = wo;
-
-            if (mat_sample.super().sameHemisphere(wo)) {
-                result += throughput * mat_sample.super().radiance;
-            }
-
-            if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
-                break;
-            }
 
             if (ray.depth >= self.settings.max_bounces) {
                 break;

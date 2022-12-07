@@ -94,13 +94,7 @@ pub const Material = union(enum) {
     }
 
     pub fn emissive(self: *const Material) bool {
-        return switch (self.*) {
-            .Sky => true,
-            .Light => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Substitute => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Volumetric => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            else => false,
-        };
+        return self.super().properties.emissive;
     }
 
     pub fn emissionMapped(self: *const Material) bool {
@@ -188,8 +182,8 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, worker.scene) },
-            .Light => |*l| .{ .Light = l.sample(wo, rs, worker.scene) },
-            .Sky => |*s| .{ .Light = s.sample(wo, rs, worker.scene) },
+            .Light => .{ .Light = Light.sample(wo, rs) },
+            .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, worker),
             .Volumetric => |*v| v.sample(wo, rs),
         };

@@ -42,7 +42,6 @@ pub const Sample = struct {
             rs,
             wo,
             @splat(4, @as(f32, 1.0)),
-            @splat(4, @as(f32, 0.0)),
             @splat(2, alpha),
             thickness,
         );

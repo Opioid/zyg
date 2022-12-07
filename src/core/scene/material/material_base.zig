@@ -49,6 +49,7 @@ pub const Base = struct {
         two_sided: bool = false,
         evaluate_visibility: bool = false,
         caustic: bool = false,
+        emissive: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
         heterogeneous_volume: bool = false,

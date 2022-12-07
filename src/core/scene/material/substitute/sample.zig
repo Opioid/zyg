@@ -36,7 +36,6 @@ pub const Sample = struct {
         rs: Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
-        radiance: Vec4f,
         alpha: Vec2f,
         ior: f32,
         ior_outer: f32,
@@ -46,7 +45,7 @@ pub const Sample = struct {
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
-        var super = Base.init(rs, wo, color, radiance, alpha, 0.0);
+        var super = Base.init(rs, wo, color, alpha, 0.0);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 

@@ -91,7 +91,7 @@ pub const Intersection = struct {
 
         pure_emissive.* = m.pureEmissive();
 
-        if (!m.twoSided() and !self.sameHemisphere(wo)) {
+        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo))) {
             return null;
         }
 

@@ -57,6 +57,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
+        self.super.properties.emissive = true;
         self.super.properties.emission_map = self.emission_map.valid();
     }
 
@@ -152,10 +153,8 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
-        const rad = self.evaluateRadiance(-wo, rs.uv, rs.trafo, rs.filter, scene);
-
-        var result = Sample.init(rs, wo, rad);
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
+        var result = Sample.init(rs, wo);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
