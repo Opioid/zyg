@@ -60,20 +60,13 @@ pub const Loader = struct {
     }
 
     pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: *const Take, graph: *Graph) !void {
-        try graph.bumpProps(alloc);
-
         const camera = take.view.camera;
-
         graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
         const fs = &self.resources.fs;
-
         var stream = try fs.readStream(alloc, filename);
-
         const buffer = try stream.readAll(alloc);
-
         stream.deinit();
-
         defer alloc.free(buffer);
 
         var parser = std.json.Parser.init(alloc, false);

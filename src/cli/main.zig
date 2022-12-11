@@ -161,7 +161,7 @@ fn loadTakeAndScene(
         return false;
     };
 
-    TakeLoader.load(alloc, stream, take, &graph.scene, resources) catch |err| {
+    TakeLoader.load(alloc, stream, take, graph, resources) catch |err| {
         log.err("Loading take: {}", .{err});
         return false;
     };
@@ -209,7 +209,7 @@ fn reloadFrameDependant(
         return err;
     };
 
-    TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, &graph.scene) catch |err| {
+    TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, graph) catch |err| {
         log.err("Loading take: {}", .{err});
         return err;
     };
