@@ -90,7 +90,7 @@ pub fn build(b: *std.build.Builder) void {
 
     const run_cmd = cli.run();
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    run_cmd.cwd = "C:/workspace/sprout/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {
@@ -99,12 +99,12 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
-            //"takes/whirligig.take",
+            "takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
             //"takes/rene.take",
@@ -112,14 +112,14 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/embergen.take",
             //"takes/intel_sponza.take",
             "-t",
-            "-4",
+            "-1",
             //"--no-tex",
             //"--no-tex-dwim",
             //"--debug-mat",
             "-f",
             "0",
             "-n",
-            "1",
+            "2",
         });
     }
 
