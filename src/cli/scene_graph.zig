@@ -97,8 +97,10 @@ pub const Graph = struct {
     pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
         try self.prop_props.append(alloc, render_id);
         try self.prop_properties.append(alloc, .{});
-        try self.prop_frames.append(alloc, Scene.Null);
+        try self.prop_frames.append(alloc, @intCast(u32, self.keyframes.items.len));
         try self.prop_topology.append(alloc, .{});
+
+        try self.keyframes.append(alloc, .{});
 
         return @intCast(u32, self.prop_props.items.len - 1);
     }
@@ -123,11 +125,11 @@ pub const Graph = struct {
     }
 
     pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, local_animation: bool) !void {
-        self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
+        // self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
 
         const num_frames = if (local_animation) self.scene.num_interpolation_frames else 1;
 
-        var i: u32 = 0;
+        var i: u32 = 1;
         while (i < num_frames) : (i += 1) {
             try self.keyframes.append(alloc, .{});
         }
@@ -168,73 +170,35 @@ pub const Graph = struct {
     fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
         if (!self.prop_properties.items[entity].has_parent) {
             const f = self.prop_frames.items[entity];
+            const frames = self.keyframes.items.ptr + f;
 
-            if (Scene.Null != f) {
-                const frames = self.keyframes.items.ptr + f;
+            const animation = self.prop_properties.items[entity].local_animation;
 
-                const render_id = self.prop_props.items[entity];
-                if (Scene.Null != render_id) {
+            const render_id = self.prop_props.items[entity];
+            if (Scene.Null != render_id) {
+                if (animation) {
                     self.scene.propSetFrames(render_id, frames);
+                } else {
+                    self.scene.propSetWorldTransformation(render_id, frames[0]);
                 }
             }
 
-            self.propPropagateTransformation(entity);
+            const num_frames = if (animation) self.scene.num_interpolation_frames else 1;
+            self.propPropagateTransformation(entity, num_frames, frames);
         }
     }
 
-    fn propPropagateTransformation(self: *Self, entity: usize) void {
-        const f = self.prop_frames.items[entity];
+    fn propPropagateTransformation(self: *Self, entity: usize, num_frames: u32, frames: [*]const math.Transformation) void {
+        var child = self.prop_topology.items[entity].child;
+        while (Scene.Null != child) {
+            self.propInheritTransformations(child, num_frames, frames);
 
-        const render_id = self.prop_props.items[entity];
-
-        if (Scene.Null == f) {
-            const trafo = self.scene.prop_world_transformations.items[render_id];
-
-            var child = self.prop_topology.items[entity].child;
-            while (Scene.Null != child) {
-                self.propInheritTransformation(child, trafo);
-
-                child = self.prop_topology.items[child].next;
-            }
-        } else {
-            //    const frames = self.keyframes.items.ptr + f;
-            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
-
-            var child = self.prop_topology.items[entity].child;
-            while (Scene.Null != child) {
-                self.propInheritTransformations(child, frames);
-
-                child = self.prop_topology.items[child].next;
-            }
+            child = self.prop_topology.items[child].next;
         }
     }
 
-    fn propInheritTransformation(self: *Self, entity: u32, trafo: Transformation) void {
-        const f = self.prop_frames.items[entity];
-
-        if (Scene.Null != f) {
-            const frames = self.keyframes.items.ptr + f;
-
-            // Logically this has to be true here, maybe assert instead?
-            const local_animation = self.prop_properties.items[entity].local_animation;
-
-            const render_id = self.prop_props.items[entity];
-
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
-
-            var i: u32 = 0;
-            const len = self.scene.num_interpolation_frames;
-            while (i < len) : (i += 1) {
-                const lf = if (local_animation) i else 0;
-                df[i] = trafo.transform(frames[lf]);
-            }
-        }
-
-        self.propPropagateTransformation(entity);
-    }
-
-    fn propInheritTransformations(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
-        const local_animation = self.prop_properties.items[entity].local_animation;
+    fn propInheritTransformations(self: *Self, entity: u32, num_frames: u32, frames: [*]const math.Transformation) void {
+        const animation = self.prop_properties.items[entity].local_animation;
 
         const render_id = self.prop_props.items[entity];
 
@@ -244,10 +208,11 @@ pub const Graph = struct {
         var i: u32 = 0;
         const len = self.scene.num_interpolation_frames;
         while (i < len) : (i += 1) {
-            const lf = if (local_animation) i else 0;
-            df[i] = frames[i].transform(sf[lf]);
+            const lf = if (1 == num_frames) 0 else i;
+            const lsf = if (animation) i else 0;
+            df[i] = frames[lf].transform(sf[lsf]);
         }
 
-        self.propPropagateTransformation(entity);
+        self.propPropagateTransformation(entity, len, df);
     }
 };

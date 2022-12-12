@@ -209,9 +209,11 @@ pub const Loader = struct {
             const world_trafo = parent_trafo.transform(trafo);
 
             if (!animation) {
-                if (scene.propHasAnimatedFrames(entity_id)) {
+                if (Prop.Null != graph_id) {
                     graph.propSetTransformation(graph_id, trafo);
-                } else {
+                }
+
+                if (Prop.Null != entity_id) {
                     scene.propSetWorldTransformation(entity_id, world_trafo);
                 }
             }
