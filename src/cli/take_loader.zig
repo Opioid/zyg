@@ -106,8 +106,9 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
                 json.readTransformation(trafo_node, &trafo);
             }
 
-            const prop_id = try graph.createEntity(alloc);
+            const prop_id = try graph.scene.createEntity(alloc);
             graph.scene.propSetWorldTransformation(prop_id, trafo);
+            //_ = try graph.createEntity(alloc, prop_id);
             camera.entity = prop_id;
         }
     }
@@ -164,8 +165,9 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
         try camera.setParameters(alloc, param_value.*, &graph.scene, resources);
     }
 
-    const prop_id = try graph.createEntity(alloc);
+    const prop_id = try graph.scene.createEntity(alloc);
     graph.scene.propSetWorldTransformation(prop_id, trafo);
+    // _ = try graph.createEntity(alloc, prop_id);
     camera.entity = prop_id;
 }
 

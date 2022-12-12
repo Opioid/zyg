@@ -145,7 +145,7 @@ pub const Loader = struct {
             } else if (std.mem.eql(u8, "Prop", type_name)) {
                 entity_id = try self.loadProp(alloc, entity, local_materials, graph);
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                entity_id = try graph.createEntity(alloc);
+                entity_id = try graph.scene.createEntity(alloc);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = try loadSky(alloc, entity, graph);
             }
@@ -153,6 +153,8 @@ pub const Loader = struct {
             if (Prop.Null == entity_id) {
                 continue;
             }
+
+            const graph_id = try graph.createEntity(alloc, entity_id);
 
             var trafo = Transformation{
                 .position = @splat(4, @as(f32, 0.0)),
@@ -196,23 +198,21 @@ pub const Loader = struct {
             }
 
             const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, entity_id, graph)
+                try anim.load(alloc, animation.*, trafo, graph_id, graph)
             else
                 false;
 
             if (Prop.Null != parent_id) {
-                try graph.propSerializeChild(alloc, parent_id, entity_id);
+                try graph.propSerializeChild(alloc, parent_id, graph_id);
             }
+
+            const world_trafo = parent_trafo.transform(trafo);
 
             if (!animation) {
                 if (scene.propHasAnimatedFrames(entity_id)) {
-                    graph.propSetTransformation(entity_id, trafo);
+                    graph.propSetTransformation(graph_id, trafo);
                 } else {
-                    if (Prop.Null != parent_id) {
-                        trafo = parent_trafo.transform(trafo);
-                    }
-
-                    scene.propSetWorldTransformation(entity_id, trafo);
+                    scene.propSetWorldTransformation(entity_id, world_trafo);
                 }
             }
 
@@ -228,8 +228,8 @@ pub const Loader = struct {
                 try self.loadEntities(
                     alloc,
                     children.*,
-                    entity_id,
-                    trafo,
+                    graph_id,
+                    world_trafo,
                     local_materials,
                     graph,
                 );
@@ -264,7 +264,7 @@ pub const Loader = struct {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        return try graph.createProp(alloc, shape, self.materials.items);
+        return try scene.createProp(alloc, shape, self.materials.items);
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
@@ -371,7 +371,7 @@ pub const Loader = struct {
     fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
         const sky = try graph.scene.createSky(alloc);
 
-        try graph.bumpProps(alloc);
+        // try graph.bumpProps(alloc);
 
         if (value.Object.get("parameters")) |parameters| {
             sky.setParameters(parameters);

@@ -27,6 +27,7 @@ pub const Graph = struct {
 
     scene: Scene,
 
+    prop_props: List(u32),
     prop_properties: List(Properties),
     prop_frames: List(u32),
     prop_topology: List(Topology),
@@ -40,6 +41,7 @@ pub const Graph = struct {
     pub fn init(alloc: Allocator) !Self {
         return Graph{
             .scene = try Scene.init(alloc),
+            .prop_props = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_properties = try List(Properties).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_frames = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_topology = try List(Topology).initCapacity(alloc, Scene.Num_reserved_props),
@@ -57,6 +59,7 @@ pub const Graph = struct {
         self.prop_topology.deinit(alloc);
         self.prop_frames.deinit(alloc);
         self.prop_properties.deinit(alloc);
+        self.prop_props.deinit(alloc);
 
         self.scene.deinit(alloc);
     }
@@ -71,6 +74,7 @@ pub const Graph = struct {
         self.prop_topology.clearRetainingCapacity();
         self.prop_frames.clearRetainingCapacity();
         self.prop_properties.clearRetainingCapacity();
+        self.prop_props.clearRetainingCapacity();
 
         self.scene.clear();
     }
@@ -90,30 +94,22 @@ pub const Graph = struct {
         }
     }
 
-    pub fn createEntity(self: *Self, alloc: Allocator) !u32 {
-        try self.allocateProp(alloc);
+    pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
+        try self.prop_props.append(alloc, render_id);
+        try self.prop_properties.append(alloc, .{});
+        try self.prop_frames.append(alloc, Scene.Null);
+        try self.prop_topology.append(alloc, .{});
 
-        return try self.scene.createEntity(alloc);
-    }
-
-    pub fn createProp(self: *Self, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
-        try self.allocateProp(alloc);
-
-        return try self.scene.createProp(alloc, shape_id, materials);
-    }
-
-    pub fn bumpProps(self: *Self, alloc: Allocator) !void {
-        const d = self.scene.props.items.len - self.prop_properties.items.len;
-        var i: usize = 0;
-        while (i < d) : (i += 1) {
-            try self.allocateProp(alloc);
-        }
+        return @intCast(u32, self.prop_props.items.len - 1);
     }
 
     pub fn propSerializeChild(self: *Self, alloc: Allocator, parent_id: u32, child_id: u32) !void {
         self.prop_properties.items[child_id].has_parent = true;
 
-        if (self.scene.propHasAnimatedFrames(parent_id) and !self.scene.propHasAnimatedFrames(child_id)) {
+        const parent_render_id = self.prop_props.items[parent_id];
+        const child_render_id = self.prop_props.items[child_id];
+
+        if (self.scene.propHasAnimatedFrames(parent_render_id) and !self.scene.propHasAnimatedFrames(child_render_id)) {
             // This is the case if child has no animation attached to it directly
             try self.propAllocateFrames(alloc, child_id, false);
         }
@@ -138,7 +134,10 @@ pub const Graph = struct {
 
         self.prop_properties.items[entity].local_animation = local_animation;
 
-        try self.scene.propAllocateFrames(alloc, entity);
+        const render_id = self.prop_props.items[entity];
+        if (Scene.Null != render_id) {
+            try self.scene.propAllocateFrames(alloc, render_id);
+        }
     }
 
     pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
@@ -166,12 +165,6 @@ pub const Graph = struct {
         self.animations.items[animation].set(index, keyframe);
     }
 
-    fn allocateProp(self: *Self, alloc: Allocator) !void {
-        try self.prop_properties.append(alloc, .{});
-        try self.prop_frames.append(alloc, Scene.Null);
-        try self.prop_topology.append(alloc, .{});
-    }
-
     fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
         if (!self.prop_properties.items[entity].has_parent) {
             const f = self.prop_frames.items[entity];
@@ -179,7 +172,10 @@ pub const Graph = struct {
             if (Scene.Null != f) {
                 const frames = self.keyframes.items.ptr + f;
 
-                self.scene.propSetFrames(@intCast(u32, entity), frames);
+                const render_id = self.prop_props.items[entity];
+                if (Scene.Null != render_id) {
+                    self.scene.propSetFrames(render_id, frames);
+                }
             }
 
             self.propPropagateTransformation(entity);
@@ -189,8 +185,10 @@ pub const Graph = struct {
     fn propPropagateTransformation(self: *Self, entity: usize) void {
         const f = self.prop_frames.items[entity];
 
+        const render_id = self.prop_props.items[entity];
+
         if (Scene.Null == f) {
-            const trafo = self.scene.prop_world_transformations.items[entity];
+            const trafo = self.scene.prop_world_transformations.items[render_id];
 
             var child = self.prop_topology.items[entity].child;
             while (Scene.Null != child) {
@@ -200,7 +198,7 @@ pub const Graph = struct {
             }
         } else {
             //    const frames = self.keyframes.items.ptr + f;
-            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
+            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
 
             var child = self.prop_topology.items[entity].child;
             while (Scene.Null != child) {
@@ -220,7 +218,9 @@ pub const Graph = struct {
             // Logically this has to be true here, maybe assert instead?
             const local_animation = self.prop_properties.items[entity].local_animation;
 
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
+            const render_id = self.prop_props.items[entity];
+
+            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
 
             var i: u32 = 0;
             const len = self.scene.num_interpolation_frames;
@@ -236,8 +236,10 @@ pub const Graph = struct {
     fn propInheritTransformations(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
         const local_animation = self.prop_properties.items[entity].local_animation;
 
+        const render_id = self.prop_props.items[entity];
+
         const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
-        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
+        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
 
         var i: u32 = 0;
         const len = self.scene.num_interpolation_frames;
