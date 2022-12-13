@@ -1,4 +1,4 @@
-const Tree = @import("tree.zig").Tree;
+const Tree = @import("triangle_tree.zig").Tree;
 const tri = @import("../triangle.zig");
 const IndexTriangle = tri.IndexTriangle;
 const VertexStream = @import("../vertex_stream.zig").VertexStream;
@@ -12,19 +12,19 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const BuilderSAH = struct {
+pub const Builder = struct {
     super: Base,
 
-    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !BuilderSAH {
-        return BuilderSAH{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
+    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !Builder {
+        return Builder{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
     }
 
-    pub fn deinit(self: *BuilderSAH, alloc: Allocator) void {
+    pub fn deinit(self: *Builder, alloc: Allocator) void {
         self.super.deinit(alloc);
     }
 
     pub fn build(
-        self: *BuilderSAH,
+        self: *Builder,
         alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
@@ -90,7 +90,7 @@ pub const BuilderSAH = struct {
     };
 
     fn serialize(
-        self: *BuilderSAH,
+        self: *Builder,
         source_node: u32,
         dest_node: u32,
         tree: *Tree,

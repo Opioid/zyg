@@ -10,9 +10,9 @@ const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-const bvh = @import("bvh/tree.zig");
-const LightTree = @import("../../light/tree.zig").PrimitiveTree;
-const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
+const Tree = @import("bvh/triangle_tree.zig").Tree;
+const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
+const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -90,7 +90,7 @@ pub const Part = struct {
         alloc: Allocator,
         part: u32,
         material: u32,
-        tree: *const bvh.Tree,
+        tree: *const Tree,
         builder: *LightTreeBuilder,
         scene: *const Scene,
         threads: *Threads,
@@ -242,7 +242,7 @@ pub const Part = struct {
         powers: []f32,
         part: *const Part,
         m: *const Material,
-        tree: *const bvh.Tree,
+        tree: *const Tree,
         scene: *const Scene,
         estimate_area: f32,
 
@@ -374,7 +374,7 @@ pub const Part = struct {
 };
 
 pub const Mesh = struct {
-    tree: bvh.Tree = .{},
+    tree: Tree = .{},
 
     num_parts: u32 = 0,
     num_primitives: u32 = 0,

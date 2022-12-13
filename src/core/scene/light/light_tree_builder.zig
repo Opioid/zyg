@@ -1,4 +1,4 @@
-const tr = @import("tree.zig");
+const tr = @import("light_tree.zig");
 const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;

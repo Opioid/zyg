@@ -19,7 +19,7 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const LightTreeBuilder = @import("../light/tree_builder.zig").Builder;
+const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
 
 const base = @import("base");
 const math = base.math;
