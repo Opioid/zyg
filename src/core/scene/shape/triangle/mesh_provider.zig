@@ -5,8 +5,8 @@ const Resources = @import("../../../resource/manager.zig").Manager;
 const Result = @import("../../../resource/result.zig").Result;
 const vs = @import("vertex_stream.zig");
 const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const bvh = @import("bvh/tree.zig");
-const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
+const Tree = @import("bvh/triangle_tree.zig").Tree;
+const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
@@ -87,7 +87,7 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: bvh.Tree = .{},
+    tree: Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
@@ -108,7 +108,7 @@ pub const Provider = struct {
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
                 .TriangleMesh => |*m| {
-                    std.mem.swap(bvh.Tree, &m.tree, &self.tree);
+                    std.mem.swap(Tree, &m.tree, &self.tree);
                     m.calculateAreas();
                 },
                 else => {},
@@ -690,7 +690,7 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *bvh.Tree,
+        tree: *Tree,
         triangles: []const IndexTriangle,
         vertices: vs.VertexStream,
         threads: *Threads,

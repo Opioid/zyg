@@ -1,13 +1,13 @@
 const ComposedTransformation = @import("scene/composed_transformation.zig").ComposedTransformation;
 const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
-const LightNode = @import("scene/light/tree.zig").Node;
+const LightNode = @import("scene/light/light_tree.zig").Node;
 const mt = @import("scene/material/material.zig");
 const intf = @import("scene/prop/interface.zig");
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
 const Mesh = @import("scene/shape/triangle/mesh.zig").Mesh;
-const TriangleBvh = @import("scene/shape/triangle/bvh/tree.zig").Tree;
+const TriangleBvh = @import("scene/shape/triangle/bvh/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
 

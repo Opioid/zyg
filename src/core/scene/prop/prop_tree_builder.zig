@@ -1,6 +1,7 @@
 const Base = @import("../bvh/builder_base.zig").Base;
 const Reference = @import("../bvh/split_candidate.zig").Reference;
-const Tree = @import("tree.zig").Tree;
+const Tree = @import("prop_tree.zig").Tree;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;

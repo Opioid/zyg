@@ -1,9 +1,9 @@
 pub const Prop = @import("prop/prop.zig").Prop;
-const PropBvh = @import("prop/tree.zig").Tree;
-const PropBvhBuilder = @import("prop/builder.zig").Builder;
+const PropBvh = @import("prop/prop_tree.zig").Tree;
+const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
-const LightTree = @import("light/tree.zig").Tree;
-const LightTreeBuilder = @import("light/tree_builder.zig").Builder;
+const LightTree = @import("light/light_tree.zig").Tree;
+const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
