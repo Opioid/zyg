@@ -102,6 +102,7 @@ pub const Loader = struct {
                     entry.value_ptr.*,
                     parent_id,
                     parent_trafo,
+                    false,
                     local_materials,
                     graph,
                 );
@@ -127,6 +128,7 @@ pub const Loader = struct {
         value: std.json.Value,
         parent_id: u32,
         parent_trafo: Transformation,
+        animated: bool,
         local_materials: LocalMaterials,
         graph: *Graph,
     ) Error!void {
@@ -153,8 +155,6 @@ pub const Loader = struct {
             if (Prop.Null == entity_id) {
                 continue;
             }
-
-            const graph_id = try graph.createEntity(alloc, entity_id);
 
             var trafo = Transformation{
                 .position = @splat(4, @as(f32, 0.0)),
@@ -198,17 +198,28 @@ pub const Loader = struct {
             }
 
             const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, graph_id, graph)
+                try anim.load(alloc, animation.*, trafo, graph)
             else
-                false;
+                Prop.Null;
+
+            const graph_id = try graph.createEntity(alloc, entity_id);
+
+            const local_animation = Prop.Null != animation;
+            const world_animation = animated or local_animation;
+
+            try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
+
+            if (local_animation) {
+                graph.animationSetEntity(animation, graph_id);
+            }
 
             if (Prop.Null != parent_id) {
-                try graph.propSerializeChild(alloc, parent_id, graph_id);
+                graph.propSerializeChild(parent_id, graph_id);
             }
 
             const world_trafo = parent_trafo.transform(trafo);
 
-            if (!animation) {
+            if (!local_animation) {
                 if (Prop.Null != graph_id) {
                     graph.propSetTransformation(graph_id, trafo);
                 }
@@ -232,6 +243,7 @@ pub const Loader = struct {
                     children.*,
                     graph_id,
                     world_trafo,
+                    world_animation,
                     local_materials,
                     graph,
                 );

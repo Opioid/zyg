@@ -15,13 +15,16 @@ const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
 
 pub const Graph = struct {
+    pub const Null = Scene.Null;
+
     const Topology = struct {
-        next: u32 = Scene.Null,
-        child: u32 = Scene.Null,
+        next: u32 = Null,
+        child: u32 = Null,
     };
 
     const Properties = packed struct {
         has_parent: bool = false,
+        animation: bool = false,
         local_animation: bool = false,
     };
 
@@ -100,46 +103,39 @@ pub const Graph = struct {
         try self.prop_frames.append(alloc, @intCast(u32, self.keyframes.items.len));
         try self.prop_topology.append(alloc, .{});
 
-        try self.keyframes.append(alloc, .{});
-
         return @intCast(u32, self.prop_props.items.len - 1);
     }
 
-    pub fn propSerializeChild(self: *Self, alloc: Allocator, parent_id: u32, child_id: u32) !void {
+    pub fn propSerializeChild(self: *Self, parent_id: u32, child_id: u32) void {
         self.prop_properties.items[child_id].has_parent = true;
 
-        const parent_render_id = self.prop_props.items[parent_id];
-        const child_render_id = self.prop_props.items[child_id];
-
-        if (self.scene.propHasAnimatedFrames(parent_render_id) and !self.scene.propHasAnimatedFrames(child_render_id)) {
-            // This is the case if child has no animation attached to it directly
-            try self.propAllocateFrames(alloc, child_id, false);
-        }
-
         const pt = &self.prop_topology.items[parent_id];
-        if (Scene.Null == pt.child) {
+        if (Null == pt.child) {
             pt.child = child_id;
         } else {
             self.prop_topology.items[self.prop_topology.items.len - 2].next = child_id;
         }
     }
 
-    pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, local_animation: bool) !void {
-        // self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
-
-        const num_frames = if (local_animation) self.scene.num_interpolation_frames else 1;
-
-        var i: u32 = 1;
-        while (i < num_frames) : (i += 1) {
-            try self.keyframes.append(alloc, .{});
-        }
-
-        self.prop_properties.items[entity].local_animation = local_animation;
-
+    pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, world_animation: bool, local_animation: bool) !void {
         const render_id = self.prop_props.items[entity];
-        if (Scene.Null != render_id) {
-            try self.scene.propAllocateFrames(alloc, render_id);
+        const render_entity = Null != render_id;
+
+        if (world_animation) {
+            const nif = self.scene.num_interpolation_frames;
+            const num_frames = if (local_animation) (if (render_entity) nif else 2 * nif) else (if (render_entity) 1 else 1 + nif);
+            try self.keyframes.appendNTimes(alloc, .{}, num_frames);
+
+            if (render_entity) {
+                try self.scene.propAllocateFrames(alloc, render_id);
+            }
+        } else {
+            const num_frames: u32 = if (render_entity) 2 else 1;
+            try self.keyframes.appendNTimes(alloc, .{}, num_frames);
         }
+
+        self.prop_properties.items[entity].animation = world_animation;
+        self.prop_properties.items[entity].local_animation = local_animation;
     }
 
     pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
@@ -155,12 +151,14 @@ pub const Graph = struct {
         std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
     }
 
-    pub fn createAnimation(self: *Self, alloc: Allocator, entity: u32, count: u32) !u32 {
-        try self.animations.append(alloc, try Animation.init(alloc, entity, count, self.scene.num_interpolation_frames));
-
-        try self.propAllocateFrames(alloc, entity, true);
+    pub fn createAnimation(self: *Self, alloc: Allocator, count: u32) !u32 {
+        try self.animations.append(alloc, try Animation.init(alloc, count, self.scene.num_interpolation_frames));
 
         return @intCast(u32, self.animations.items.len - 1);
+    }
+
+    pub fn animationSetEntity(self: *Self, animation: u32, entity: u32) void {
+        self.animations.items[animation].entity = entity;
     }
 
     pub fn animationSetFrame(self: *Self, animation: u32, index: usize, keyframe: Keyframe) void {
@@ -175,7 +173,7 @@ pub const Graph = struct {
             const animation = self.prop_properties.items[entity].local_animation;
 
             const render_id = self.prop_props.items[entity];
-            if (Scene.Null != render_id) {
+            if (Null != render_id) {
                 if (animation) {
                     self.scene.propSetFrames(render_id, frames);
                 } else {
@@ -190,7 +188,7 @@ pub const Graph = struct {
 
     fn propPropagateTransformation(self: *Self, entity: usize, num_frames: u32, frames: [*]const math.Transformation) void {
         var child = self.prop_topology.items[entity].child;
-        while (Scene.Null != child) {
+        while (Null != child) {
             self.propInheritTransformations(child, num_frames, frames);
 
             child = self.prop_topology.items[child].next;

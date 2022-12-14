@@ -15,9 +15,8 @@ pub fn load(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
-    entity: u32,
     graph: *Graph,
-) !bool {
+) !u32 {
     var start_time: u64 = 0;
 
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
@@ -30,7 +29,6 @@ pub fn load(
                 alloc,
                 entry.value_ptr.*,
                 default_trafo,
-                entity,
                 start_time,
                 frame_step,
                 graph,
@@ -38,21 +36,20 @@ pub fn load(
         }
     }
 
-    return false;
+    return Graph.Null;
 }
 
 pub fn loadKeyframes(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
-    entity: u32,
     start_time: u64,
     frame_step: u64,
     graph: *Graph,
-) !bool {
+) !u32 {
     return switch (value) {
         .Array => |array| {
-            const animation = try graph.createAnimation(alloc, entity, @intCast(u32, array.items.len));
+            const animation = try graph.createAnimation(alloc, @intCast(u32, array.items.len));
 
             var current_time = start_time;
 
@@ -73,8 +70,8 @@ pub fn loadKeyframes(
                 current_time += frame_step;
             }
 
-            return true;
+            return animation;
         },
-        else => false,
+        else => Graph.Null,
     };
 }

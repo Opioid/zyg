@@ -22,12 +22,11 @@ pub const Animation = struct {
 
     pub fn init(
         alloc: Allocator,
-        entity: u32,
         num_frames: u32,
         num_interpolated_frames: u32,
     ) !Animation {
         return Animation{
-            .entity = entity,
+            .entity = Graph.Null,
             .last_frame = 0,
             .num_frames = num_frames,
             .times = (try alloc.alloc(u64, num_frames)).ptr,
