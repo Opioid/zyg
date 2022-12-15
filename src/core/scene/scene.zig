@@ -425,11 +425,11 @@ pub const Scene = struct {
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-	const current_len = @intCast(u32, self.keyframes.items.len);
+        const current_len = @intCast(u32, self.keyframes.items.len);
         self.prop_frames.items[entity] = current_len;
 
         const num_frames = self.num_interpolation_frames;
-	try self.keyframes.resize(alloc, current_len + num_frames);
+        try self.keyframes.resize(alloc, current_len + num_frames);
 
         self.props.items[entity].configureAnimated(self);
     }

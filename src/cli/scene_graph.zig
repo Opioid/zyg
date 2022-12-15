@@ -121,17 +121,19 @@ pub const Graph = struct {
         const render_id = self.prop_props.items[entity];
         const render_entity = Null != render_id;
 
+        const current_len = @intCast(u32, self.keyframes.items.len);
+
         if (world_animation) {
             const nif = self.scene.num_interpolation_frames;
             const num_frames = if (local_animation) (if (render_entity) nif else 2 * nif) else (if (render_entity) 1 else 1 + nif);
-            try self.keyframes.appendNTimes(alloc, .{}, num_frames);
+            try self.keyframes.resize(alloc, current_len + num_frames);
 
             if (render_entity) {
                 try self.scene.propAllocateFrames(alloc, render_id);
             }
         } else {
             const num_frames: u32 = if (render_entity) 2 else 1;
-            try self.keyframes.appendNTimes(alloc, .{}, num_frames);
+            try self.keyframes.resize(alloc, current_len + num_frames);
         }
 
         self.prop_properties.items[entity].animation = world_animation;
