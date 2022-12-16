@@ -138,6 +138,7 @@ pub const Loader = struct {
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;
 
+            var graph_id: u32 = Prop.Null;
             var entity_id: u32 = Prop.Null;
             var is_light = false;
 
@@ -147,12 +148,12 @@ pub const Loader = struct {
             } else if (std.mem.eql(u8, "Prop", type_name)) {
                 entity_id = try self.loadProp(alloc, entity, local_materials, graph);
             } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                entity_id = try graph.scene.createEntity(alloc);
+                graph_id = try graph.createEntity(alloc, Prop.Null);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = try loadSky(alloc, entity, graph);
             }
 
-            if (Prop.Null == entity_id) {
+            if (Prop.Null == entity_id and Prop.Null == graph_id) {
                 continue;
             }
 
@@ -202,10 +203,12 @@ pub const Loader = struct {
             else
                 Prop.Null;
 
-            const graph_id = try graph.createEntity(alloc, entity_id);
-
             const local_animation = Prop.Null != animation;
             const world_animation = animated or local_animation;
+
+            if (Prop.Null == graph_id and (world_animation or Prop.Null != parent_id)) {
+                graph_id = try graph.createEntity(alloc, entity_id);
+            }
 
             try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
 

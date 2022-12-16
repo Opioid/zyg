@@ -118,6 +118,10 @@ pub const Graph = struct {
     }
 
     pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, world_animation: bool, local_animation: bool) !void {
+        if (Null == entity) {
+            return;
+        }
+
         const render_id = self.prop_props.items[entity];
         const render_entity = Null != render_id;
 
@@ -200,19 +204,34 @@ pub const Graph = struct {
     fn propInheritTransformations(self: *Self, entity: u32, num_frames: u32, frames: [*]const math.Transformation) void {
         const animation = self.prop_properties.items[entity].local_animation;
 
+        const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
+
+        const len = self.scene.num_interpolation_frames;
+
         const render_id = self.prop_props.items[entity];
 
-        const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
-        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
+        if (Null != render_id) {
+            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
 
-        var i: u32 = 0;
-        const len = self.scene.num_interpolation_frames;
-        while (i < len) : (i += 1) {
-            const lf = if (1 == num_frames) 0 else i;
-            const lsf = if (animation) i else 0;
-            df[i] = frames[lf].transform(sf[lsf]);
+            var i: u32 = 0;
+            while (i < len) : (i += 1) {
+                const lf = if (1 == num_frames) 0 else i;
+                const lsf = if (animation) i else 0;
+                df[i] = frames[lf].transform(sf[lsf]);
+            }
+
+            self.propPropagateTransformation(entity, len, df);
+        } else {
+            const df = sf + if (animation) 1 else len;
+
+            var i: u32 = 0;
+            while (i < len) : (i += 1) {
+                const lf = if (1 == num_frames) 0 else i;
+                const lsf = if (animation) i else 0;
+                df[i] = frames[lf].transform(sf[lsf]);
+            }
+
+            self.propPropagateTransformation(entity, len, df);
         }
-
-        self.propPropagateTransformation(entity, len, df);
     }
 };
