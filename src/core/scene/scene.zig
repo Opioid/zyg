@@ -481,7 +481,7 @@ pub const Scene = struct {
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
 
-        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, entity, part, m, &self.light_tree_builder, self, threads) catch 0;
 
         var l = &self.lights.items[light_id];
         l.variant = variant;

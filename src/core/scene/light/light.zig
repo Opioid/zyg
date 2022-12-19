@@ -119,28 +119,13 @@ pub const Light = struct {
     }
 
     pub fn evaluateTo(self: Light, p: Vec4f, sample: SampleTo, filter: ?Filter, scene: *const Scene) Vec4f {
-        const shape = scene.propShape(self.prop);
-        const area = shape.area(self.part, sample.trafo.scale());
-
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(p, sample.wi, sample.n, sample.uvw, sample.trafo, area, filter, scene);
+        return material.evaluateRadiance(p, sample.wi, sample.n, sample.uvw, sample.trafo, self.prop, self.part, filter, scene);
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, filter: ?Filter, scene: *const Scene) Vec4f {
-        const shape = scene.propShape(self.prop);
-        const area = shape.area(self.part, sample.trafo.scale());
-
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(
-            p,
-            -sample.dir,
-            sample.n,
-            sample.uvw,
-            sample.trafo,
-            area,
-            filter,
-            scene,
-        );
+        return material.evaluateRadiance(p, -sample.dir, sample.n, sample.uvw, sample.trafo, self.prop, self.part, filter, scene);
     }
 
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: *const Scene) f32 {
