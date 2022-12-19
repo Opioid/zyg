@@ -130,7 +130,7 @@ pub const Shape = union(enum) {
 
             // This calculates the solid angle, not the area!
             // I think it is what we actually need for the PDF, but results are extremely close
-            .DistantSphere => (2.0 * std.math.pi) * (1.0 - @sqrt(1.0 / (scale[0] * scale[0] + 1.0))),
+            .DistantSphere => DistantSphere.solidAngle(scale[0]),
 
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
@@ -139,9 +139,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn volume(self: Shape, part: u32, scale: Vec4f) f32 {
-        _ = part;
-
+    pub fn volume(self: Shape, scale: Vec4f) f32 {
         return switch (self) {
             .Cube => {
                 const d = @splat(4, @as(f32, 2.0)) * scale;
@@ -151,13 +149,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(
-        self: Shape,
-        ray: *Ray,
-        trafo: Trafo,
-        ipo: Interpolation,
-        isec: *Intersection,
-    ) bool {
+    pub fn intersect(self: Shape, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         return switch (self) {
             .Null => false,
             .Canopy => Canopy.intersect(&ray.ray, trafo, isec),
@@ -213,17 +205,16 @@ pub const Shape = union(enum) {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
     ) ?SampleTo {
         return switch (self) {
             .Canopy => Canopy.sampleTo(trafo, sampler),
-            .Disk => Disk.sampleTo(p, trafo, extent, two_sided, sampler),
-            .DistantSphere => DistantSphere.sampleTo(trafo, extent, sampler),
+            .Disk => Disk.sampleTo(p, trafo, two_sided, sampler),
+            .DistantSphere => DistantSphere.sampleTo(trafo, sampler),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler),
-            .Rectangle => Rectangle.sampleTo(p, trafo, extent, two_sided, sampler),
+            .Rectangle => Rectangle.sampleTo(p, trafo, two_sided, sampler),
             .Sphere => Sphere.sampleTo(p, trafo, sampler),
             .TriangleMesh => |m| m.sampleTo(
                 part,
@@ -231,7 +222,6 @@ pub const Shape = union(enum) {
                 p,
                 n,
                 trafo,
-                extent,
                 two_sided,
                 total_sphere,
                 sampler,
@@ -240,18 +230,11 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleVolumeTo(
-        self: Shape,
-        part: u32,
-        p: Vec4f,
-        trafo: Trafo,
-        extent: f32,
-        sampler: *Sampler,
-    ) ?SampleTo {
+    pub fn sampleVolumeTo(self: Shape, part: u32, p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeTo(p, trafo, extent, sampler),
+            .Cube => Cube.sampleVolumeTo(p, trafo, sampler),
             else => null,
         };
     }
@@ -262,33 +245,25 @@ pub const Shape = union(enum) {
         p: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
     ) ?SampleTo {
         _ = part;
 
         return switch (self) {
             .Canopy => Canopy.sampleToUv(uv, trafo),
-            .Disk => Disk.sampleToUv(p, uv, trafo, extent, two_sided),
+            .Disk => Disk.sampleToUv(p, uv, trafo, two_sided),
             .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
-            .Rectangle => Rectangle.sampleToUv(p, uv, trafo, extent, two_sided),
-            .Sphere => Sphere.sampleToUv(p, uv, trafo, extent),
+            .Rectangle => Rectangle.sampleToUv(p, uv, trafo, two_sided),
+            .Sphere => Sphere.sampleToUv(p, uv, trafo),
             else => null,
         };
     }
 
-    pub fn sampleVolumeToUvw(
-        self: Shape,
-        part: u32,
-        p: Vec4f,
-        uvw: Vec4f,
-        trafo: Trafo,
-        extent: f32,
-    ) ?SampleTo {
+    pub fn sampleVolumeToUvw(self: Shape, part: u32, p: Vec4f, uvw: Vec4f, trafo: Trafo) ?SampleTo {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeToUvw(p, uvw, trafo, extent),
+            .Cube => Cube.sampleVolumeToUvw(p, uvw, trafo),
             else => null,
         };
     }
@@ -298,7 +273,6 @@ pub const Shape = union(enum) {
         part: u32,
         variant: u32,
         trafo: Trafo,
-        extent: f32,
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -309,16 +283,15 @@ pub const Shape = union(enum) {
     ) ?SampleFrom {
         return switch (self) {
             .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
-            .Disk => Disk.sampleFrom(trafo, extent, cos_a, two_sided, sampler, uv, importance_uv),
-            .DistantSphere => DistantSphere.sampleFrom(trafo, extent, uv, importance_uv, bounds),
+            .Disk => Disk.sampleFrom(trafo, cos_a, two_sided, sampler, uv, importance_uv),
+            .DistantSphere => DistantSphere.sampleFrom(trafo, uv, importance_uv, bounds),
             .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
-            .Rectangle => Rectangle.sampleFrom(trafo, extent, two_sided, sampler, uv, importance_uv),
-            .Sphere => Sphere.sampleFrom(trafo, extent, uv, importance_uv),
+            .Rectangle => Rectangle.sampleFrom(trafo, two_sided, sampler, uv, importance_uv),
+            .Sphere => Sphere.sampleFrom(trafo, uv, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(
                 part,
                 variant,
                 trafo,
-                extent,
                 two_sided,
                 sampler,
                 uv,
@@ -328,60 +301,51 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleVolumeFromUvw(
-        self: Shape,
-        part: u32,
-        uvw: Vec4f,
-        trafo: Trafo,
-        extent: f32,
-        importance_uv: Vec2f,
-    ) ?SampleFrom {
+    pub fn sampleVolumeFromUvw(self: Shape, part: u32, uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) ?SampleFrom {
         _ = part;
 
         return switch (self) {
-            .Cube => Cube.sampleVolumeFromUvw(uvw, trafo, extent, importance_uv),
+            .Cube => Cube.sampleVolumeFromUvw(uvw, trafo, importance_uv),
             else => null,
         };
     }
 
     pub fn pdf(
         self: Shape,
+        part: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
         return switch (self) {
             .Cube, .Null, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
-            .DistantSphere => 1.0 / extent,
+            .Disk => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
+            .DistantSphere => DistantSphere.pdf(isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
+            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
             .Sphere => Sphere.pdf(ray.ray, isec.trafo),
-            .TriangleMesh => |m| m.pdf(variant, ray.ray, n, isec, extent, two_sided, total_sphere),
+            .TriangleMesh => |m| m.pdf(part, variant, ray.ray, n, isec, two_sided, total_sphere),
         };
     }
 
-    pub fn pdfUv(self: Shape, ray: Ray, isec: Intersection, extent: f32, two_sided: bool) f32 {
+    pub fn pdfUv(self: Shape, ray: Ray, isec: Intersection, two_sided: bool) f32 {
         return switch (self) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
+            .Disk => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
-            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, extent, two_sided),
-            .Sphere => Sphere.pdfUv(ray.ray, isec, extent),
+            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
+            .Sphere => Sphere.pdfUv(ray.ray, isec),
             else => 0.0,
         };
     }
 
-    pub fn volumePdf(self: Shape, ray: Ray, isec: Intersection, extent: f32) f32 {
-        _ = isec;
-
+    pub fn volumePdf(self: Shape, ray: Ray, isec: Intersection) f32 {
         return switch (self) {
-            .Cube => Cube.volumePdf(ray.ray, extent),
+            .Cube => Cube.volumePdf(ray.ray, isec.trafo.scale()),
             else => 0.0,
         };
     }

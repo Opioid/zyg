@@ -530,7 +530,6 @@ pub const Mesh = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
@@ -566,6 +565,8 @@ pub const Mesh = struct {
             return null;
         }
 
+        const extent = self.area(part, trafo.scale());
+
         const angle_pdf = sl / (c * extent);
 
         return SampleTo.init(
@@ -583,7 +584,6 @@ pub const Mesh = struct {
         part: u32,
         variant: u32,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         sampler: *Sampler,
         uv: Vec2f,
@@ -607,6 +607,8 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * self.area(part, trafo.scale());
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
@@ -620,11 +622,11 @@ pub const Mesh = struct {
 
     pub fn pdf(
         self: Mesh,
+        part: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
@@ -633,6 +635,8 @@ pub const Mesh = struct {
         if (two_sided) {
             c = @fabs(c);
         }
+
+        const extent = self.area(part, isec.trafo.scale());
 
         const sl = ray.maxT() * ray.maxT();
         const angle_pdf = sl / (c * extent);

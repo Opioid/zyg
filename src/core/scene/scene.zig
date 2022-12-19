@@ -85,7 +85,6 @@ pub const Scene = struct {
 
     material_ids: List(u32),
     light_ids: List(u32),
-    part_extents: List(f32),
 
     keyframes: List(math.Transformation),
 
@@ -128,7 +127,6 @@ pub const Scene = struct {
             .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
             .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .part_extents = try List(f32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try List(u32).initCapacity(alloc, 3),
@@ -159,7 +157,6 @@ pub const Scene = struct {
         alloc.free(self.light_temp_powers);
 
         self.keyframes.deinit(alloc);
-        self.part_extents.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
         self.light_cones.deinit(alloc);
@@ -221,7 +218,7 @@ pub const Scene = struct {
         self.evaluate_visibility = false;
 
         for (self.props.items) |p, i| {
-            self.propCalculateWorldBounds(@intCast(u32, i), camera_pos, time);
+            self.propCalculateWorldBounds(@intCast(u32, i), camera_pos);
 
             self.evaluate_visibility = self.evaluate_visibility or p.evaluateVisibility();
         }
@@ -243,7 +240,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(alloc, i, time, self, threads);
+            self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -331,7 +328,6 @@ pub const Scene = struct {
             while (i < num_parts) : (i += 1) {
                 try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
                 try self.light_ids.append(alloc, Null);
-                try self.part_extents.append(alloc, 0.0);
             }
         }
 
@@ -425,11 +421,11 @@ pub const Scene = struct {
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-	const current_len = @intCast(u32, self.keyframes.items.len);
+        const current_len = @intCast(u32, self.keyframes.items.len);
         self.prop_frames.items[entity] = current_len;
 
         const num_frames = self.num_interpolation_frames;
-	try self.keyframes.resize(alloc, current_len + num_frames);
+        try self.keyframes.resize(alloc, current_len + num_frames);
 
         self.props.items[entity].configureAnimated(self);
     }
@@ -483,16 +479,16 @@ pub const Scene = struct {
         self.light_ids.items[p] = if (volume) Light.Volume_mask | @intCast(u32, light_id) else @intCast(u32, light_id);
 
         const m = self.material_ids.items[p];
+        const mat = &self.materials.items[m];
 
         const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
-        const extent = self.part_extents.items[p];
 
         var l = &self.lights.items[light_id];
-        l.variant = @intCast(u16, variant);
-        l.extent = extent;
+        l.variant = variant;
 
         const trafo = self.propTransformationAt(entity, time);
-        const mat = &self.materials.items[m];
+        const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
+
         const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self, threads);
 
         const f = self.prop_frames.items[entity];
@@ -552,7 +548,7 @@ pub const Scene = struct {
         }
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
-            self.lights.items[light_id].power(average_radiance, self.aabb(), self),
+            self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
 
@@ -644,11 +640,6 @@ pub const Scene = struct {
 
         const pdf = self.light_tree.pdf(p, n, total_sphere, split, light_id, self);
         return .{ .offset = light_id, .pdf = pdf };
-    }
-
-    pub fn lightArea(self: *const Scene, entity: u32, part: u32) f32 {
-        const p = self.prop_parts.items[entity] + part;
-        return self.part_extents.items[p];
     }
 
     pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {
@@ -746,7 +737,7 @@ pub const Scene = struct {
         return @intCast(u32, self.materials.items.len - 1);
     }
 
-    fn propCalculateWorldBounds(self: *Scene, entity: u32, camera_pos: Vec4f, time: u64) void {
+    fn propCalculateWorldBounds(self: *Scene, entity: u32, camera_pos: Vec4f) void {
         const f = self.prop_frames.items[entity];
 
         const shape_aabb = self.propShape(entity).aabb();
@@ -782,23 +773,6 @@ pub const Scene = struct {
 
         bounds.translate(-camera_pos);
         self.prop_aabbs.items[entity] = bounds;
-
-        const trafo = self.propTransformationAt(entity, time);
-        const scale = trafo.scale();
-
-        const shape_inst = self.propShape(entity);
-        const num_parts = shape_inst.numParts();
-
-        var i: u32 = 0;
-        while (i < num_parts) : (i += 1) {
-            const mat = self.propMaterial(entity, i);
-            const volume = mat.scatteringVolume();
-
-            const p = self.prop_parts.items[entity] + i;
-
-            const extent = if (volume) shape_inst.volume(i, scale) else shape_inst.area(i, scale);
-            self.part_extents.items[p] = extent;
-        }
     }
 
     fn propAnimatedTransformationAt(self: *const Scene, frames_id: u32, time: u64) Transformation {

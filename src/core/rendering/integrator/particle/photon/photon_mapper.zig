@@ -280,7 +280,7 @@ pub const Mapper = struct {
         const time = worker.absoluteTime(frame, self.sampler.sample1D());
 
         const light = worker.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker.scene) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;

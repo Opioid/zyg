@@ -95,7 +95,9 @@ pub const Intersection = struct {
             return null;
         }
 
-        const extent = scene.lightArea(self.prop, self.geo.part);
+        const scale = self.geo.trafo.scale();
+        const shape_inst = scene.propShape(self.prop);
+        const area = shape_inst.area(self.geo.part, scale);
 
         const uv = self.geo.uv;
         return m.evaluateRadiance(
@@ -104,7 +106,7 @@ pub const Intersection = struct {
             self.geo.geo_n,
             .{ uv[0], uv[1], 0.0, 0.0 },
             self.geo.trafo,
-            extent,
+            area,
             filter,
             scene,
         );
