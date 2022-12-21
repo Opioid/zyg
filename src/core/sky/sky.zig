@@ -36,7 +36,7 @@ pub const Sky = struct {
 
     sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
-    pub const Radius = @tan(@as(f32, Model.Angular_radius));
+    pub const Radius = @tan(@floatCast(f32, Model.Angular_radius));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
 

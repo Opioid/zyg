@@ -138,7 +138,6 @@ pub const Part = struct {
             }
 
             self.num_alloc = num;
-            self.area = total_area;
             self.triangle_mapping = triangle_mapping;
             self.aabbs = aabbs;
             self.cones = cones;
