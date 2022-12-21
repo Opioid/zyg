@@ -202,25 +202,20 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(
-        self: *Scene,
-        alloc: Allocator,
-        camera_pos: Vec4f,
-        time: u64,
-        threads: *Threads,
-        fs: *Filesystem,
-    ) !void {
+    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
         self.camera_pos = camera_pos;
 
         const frames_start = time - (time % Tick_duration);
         self.current_time_start = frames_start;
 
+        self.calculateWorldBounds(camera_pos);
+
         self.evaluate_visibility = false;
-
-        for (self.props.items) |p, i| {
-            self.propCalculateWorldBounds(@intCast(u32, i), camera_pos);
-
-            self.evaluate_visibility = self.evaluate_visibility or p.evaluateVisibility();
+        for (self.material_ids.items) |i| {
+            if (self.materials.items[i].evaluateVisibility()) {
+                self.evaluate_visibility = true;
+                break;
+            }
         }
 
         for (self.volumes.items) |v| {
@@ -670,14 +665,7 @@ pub const Scene = struct {
         return @intCast(u32, self.props.items.len - 1);
     }
 
-    fn allocateLight(
-        self: *Scene,
-        alloc: Allocator,
-        class: Light.Class,
-        two_sided: bool,
-        entity: u32,
-        part: u32,
-    ) !void {
+    fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
@@ -737,42 +725,42 @@ pub const Scene = struct {
         return @intCast(u32, self.materials.items.len - 1);
     }
 
-    fn propCalculateWorldBounds(self: *Scene, entity: u32, camera_pos: Vec4f) void {
-        const f = self.prop_frames.items[entity];
+    fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
+        for (self.prop_frames.items) |f, entity| {
+            const shape_aabb = self.propShape(entity).aabb();
 
-        const shape_aabb = self.propShape(entity).aabb();
+            var bounds: AABB = undefined;
 
-        var bounds: AABB = undefined;
+            if (Null == f) {
+                const trafo = self.prop_world_transformations.items[entity];
 
-        if (Null == f) {
-            const trafo = self.prop_world_transformations.items[entity];
+                bounds = shape_aabb.transform(trafo.objectToWorld());
+            } else {
+                const frames = self.keyframes.items.ptr + f;
 
-            bounds = shape_aabb.transform(trafo.objectToWorld());
-        } else if (Null != f) {
-            const frames = self.keyframes.items.ptr + f;
+                bounds = shape_aabb.transform(frames[0].toMat4x4());
 
-            bounds = shape_aabb.transform(frames[0].toMat4x4());
+                var i: u32 = 0;
+                const len = self.num_interpolation_frames - 1;
+                while (i < len) : (i += 1) {
+                    const a = frames[i];
+                    const b = frames[i + 1];
 
-            var i: u32 = 0;
-            const len = self.num_interpolation_frames - 1;
-            while (i < len) : (i += 1) {
-                const a = frames[i];
-                const b = frames[i + 1];
-
-                var t = Interval;
-                var j: u32 = Num_steps - 1;
-                while (j > 0) : (j -= 1) {
-                    const inter = a.lerp(b, t);
-                    bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
-                    t += Interval;
+                    var t = Interval;
+                    var j: u32 = Num_steps - 1;
+                    while (j > 0) : (j -= 1) {
+                        const inter = a.lerp(b, t);
+                        bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
+                        t += Interval;
+                    }
                 }
+
+                bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
             }
 
-            bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
+            bounds.translate(-camera_pos);
+            self.prop_aabbs.items[entity] = bounds;
         }
-
-        bounds.translate(-camera_pos);
-        self.prop_aabbs.items[entity] = bounds;
     }
 
     fn propAnimatedTransformationAt(self: *const Scene, frames_id: u32, time: u64) Transformation {
