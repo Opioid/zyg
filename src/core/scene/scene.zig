@@ -85,7 +85,6 @@ pub const Scene = struct {
 
     material_ids: List(u32),
     light_ids: List(u32),
-    part_extents: List(f32),
 
     keyframes: List(math.Transformation),
 
@@ -128,7 +127,6 @@ pub const Scene = struct {
             .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
             .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .part_extents = try List(f32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try List(u32).initCapacity(alloc, 3),
@@ -159,7 +157,6 @@ pub const Scene = struct {
         alloc.free(self.light_temp_powers);
 
         self.keyframes.deinit(alloc);
-        self.part_extents.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
         self.light_cones.deinit(alloc);
@@ -205,25 +202,20 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(
-        self: *Scene,
-        alloc: Allocator,
-        camera_pos: Vec4f,
-        time: u64,
-        threads: *Threads,
-        fs: *Filesystem,
-    ) !void {
+    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
         self.camera_pos = camera_pos;
 
         const frames_start = time - (time % Tick_duration);
         self.current_time_start = frames_start;
 
+        self.calculateWorldBounds(camera_pos);
+
         self.evaluate_visibility = false;
-
-        for (self.props.items) |p, i| {
-            self.propCalculateWorldBounds(@intCast(u32, i), camera_pos, time);
-
-            self.evaluate_visibility = self.evaluate_visibility or p.evaluateVisibility();
+        for (self.material_ids.items) |i| {
+            if (self.materials.items[i].evaluateVisibility()) {
+                self.evaluate_visibility = true;
+                break;
+            }
         }
 
         for (self.volumes.items) |v| {
@@ -243,7 +235,7 @@ pub const Scene = struct {
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
         for (self.lights.items) |l, i| {
-            l.prepareSampling(alloc, i, time, self, threads);
+            self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
@@ -331,7 +323,6 @@ pub const Scene = struct {
             while (i < num_parts) : (i += 1) {
                 try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
                 try self.light_ids.append(alloc, Null);
-                try self.part_extents.append(alloc, 0.0);
             }
         }
 
@@ -483,16 +474,16 @@ pub const Scene = struct {
         self.light_ids.items[p] = if (volume) Light.Volume_mask | @intCast(u32, light_id) else @intCast(u32, light_id);
 
         const m = self.material_ids.items[p];
+        const mat = &self.materials.items[m];
 
-        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
-        const extent = self.part_extents.items[p];
+        const variant = shape_inst.prepareSampling(alloc, entity, part, m, &self.light_tree_builder, self, threads) catch 0;
 
         var l = &self.lights.items[light_id];
-        l.variant = @intCast(u16, variant);
-        l.extent = extent;
+        l.variant = variant;
 
         const trafo = self.propTransformationAt(entity, time);
-        const mat = &self.materials.items[m];
+        const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
+
         const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self, threads);
 
         const f = self.prop_frames.items[entity];
@@ -552,7 +543,7 @@ pub const Scene = struct {
         }
 
         self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
-            self.lights.items[light_id].power(average_radiance, self.aabb(), self),
+            self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
 
@@ -646,11 +637,6 @@ pub const Scene = struct {
         return .{ .offset = light_id, .pdf = pdf };
     }
 
-    pub fn lightArea(self: *const Scene, entity: u32, part: u32) f32 {
-        const p = self.prop_parts.items[entity] + part;
-        return self.part_extents.items[p];
-    }
-
     pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {
         _ = variant;
         return self.lights.items[light_id].two_sided;
@@ -679,14 +665,7 @@ pub const Scene = struct {
         return @intCast(u32, self.props.items.len - 1);
     }
 
-    fn allocateLight(
-        self: *Scene,
-        alloc: Allocator,
-        class: Light.Class,
-        two_sided: bool,
-        entity: u32,
-        part: u32,
-    ) !void {
+    fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
@@ -746,58 +725,41 @@ pub const Scene = struct {
         return @intCast(u32, self.materials.items.len - 1);
     }
 
-    fn propCalculateWorldBounds(self: *Scene, entity: u32, camera_pos: Vec4f, time: u64) void {
-        const f = self.prop_frames.items[entity];
+    fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
+        for (self.prop_frames.items) |f, entity| {
+            const shape_aabb = self.propShape(entity).aabb();
 
-        const shape_aabb = self.propShape(entity).aabb();
+            var bounds: AABB = undefined;
 
-        var bounds: AABB = undefined;
+            if (Null == f) {
+                const trafo = self.prop_world_transformations.items[entity];
 
-        if (Null == f) {
-            const trafo = self.prop_world_transformations.items[entity];
+                bounds = shape_aabb.transform(trafo.objectToWorld());
+            } else {
+                const frames = self.keyframes.items.ptr + f;
 
-            bounds = shape_aabb.transform(trafo.objectToWorld());
-        } else if (Null != f) {
-            const frames = self.keyframes.items.ptr + f;
+                bounds = shape_aabb.transform(frames[0].toMat4x4());
 
-            bounds = shape_aabb.transform(frames[0].toMat4x4());
+                var i: u32 = 0;
+                const len = self.num_interpolation_frames - 1;
+                while (i < len) : (i += 1) {
+                    const a = frames[i];
+                    const b = frames[i + 1];
 
-            var i: u32 = 0;
-            const len = self.num_interpolation_frames - 1;
-            while (i < len) : (i += 1) {
-                const a = frames[i];
-                const b = frames[i + 1];
-
-                var t = Interval;
-                var j: u32 = Num_steps - 1;
-                while (j > 0) : (j -= 1) {
-                    const inter = a.lerp(b, t);
-                    bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
-                    t += Interval;
+                    var t = Interval;
+                    var j: u32 = Num_steps - 1;
+                    while (j > 0) : (j -= 1) {
+                        const inter = a.lerp(b, t);
+                        bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
+                        t += Interval;
+                    }
                 }
+
+                bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
             }
 
-            bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
-        }
-
-        bounds.translate(-camera_pos);
-        self.prop_aabbs.items[entity] = bounds;
-
-        const trafo = self.propTransformationAt(entity, time);
-        const scale = trafo.scale();
-
-        const shape_inst = self.propShape(entity);
-        const num_parts = shape_inst.numParts();
-
-        var i: u32 = 0;
-        while (i < num_parts) : (i += 1) {
-            const mat = self.propMaterial(entity, i);
-            const volume = mat.scatteringVolume();
-
-            const p = self.prop_parts.items[entity] + i;
-
-            const extent = if (volume) shape_inst.volume(i, scale) else shape_inst.area(i, scale);
-            self.part_extents.items[p] = extent;
+            bounds.translate(-camera_pos);
+            self.prop_aabbs.items[entity] = bounds;
         }
     }
 

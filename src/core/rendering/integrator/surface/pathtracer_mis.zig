@@ -339,7 +339,7 @@ pub const PathtracerMIS = struct {
             history.time,
             mat_sample.isTranslucent(),
             sampler,
-            worker,
+            worker.scene,
         ) orelse return @splat(4, @as(f32, 0.0));
 
         var shadow_ray = Ray.init(

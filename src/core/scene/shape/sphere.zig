@@ -178,7 +178,7 @@ pub const Sphere = struct {
         return null;
     }
 
-    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32) ?SampleTo {
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo) ?SampleTo {
         const phi = (uv[0] + 0.75) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -202,6 +202,9 @@ pub const Sphere = struct {
             return null;
         }
 
+        const r = trafo.scaleX();
+        const area = (4.0 * std.math.pi) * (r * r);
+
         return SampleTo.init(
             dir,
             wn,
@@ -212,13 +215,16 @@ pub const Sphere = struct {
         );
     }
 
-    pub fn sampleFrom(trafo: Trafo, area: f32, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
         const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
 
         const wn = math.normalize3(ws - trafo.position);
         const xy = math.orthonormalBasis3(ls);
         const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], ls);
+
+        const r = trafo.scaleX();
+        const area = (4.0 * std.math.pi) * (r * r);
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -241,13 +247,17 @@ pub const Sphere = struct {
         return math.smpl.conePdfUniform(cos_theta_max);
     }
 
-    pub fn pdfUv(ray: Ray, isec: Intersection, area: f32) f32 {
+    pub fn pdfUv(ray: Ray, isec: Intersection) f32 {
         // avoid singularity at poles
         const sin_theta = std.math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
 
         const max_t = ray.maxT();
         const sl = max_t * max_t;
         const c = -math.dot3(isec.geo_n, ray.direction);
+
+        const r = isec.trafo.scaleX();
+        const area = (4.0 * std.math.pi) * (r * r);
+
         return sl / (c * area * sin_theta);
     }
 };

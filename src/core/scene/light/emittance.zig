@@ -70,7 +70,8 @@ pub const Emittance = struct {
         shading_p: Vec4f,
         wi: Vec4f,
         trafo: Trafo,
-        area: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
@@ -93,6 +94,7 @@ pub const Emittance = struct {
         }
 
         if (self.quantity == .Intensity) {
+            const area = scene.propShape(prop).area(part, trafo.scale());
             return @splat(4, pf / area) * self.value;
         }
 

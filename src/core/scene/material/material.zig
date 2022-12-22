@@ -196,14 +196,15 @@ pub const Material = union(enum) {
         n: Vec4f,
         uvw: Vec4f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
+            .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, scene),
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, filter, scene),
-            .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
+            .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, scene),
             else => @splat(4, @as(f32, 0.0)),
         };

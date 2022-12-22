@@ -88,6 +88,7 @@ pub const Part = struct {
     pub fn configure(
         self: *Part,
         alloc: Allocator,
+        prop: u32,
         part: u32,
         material: u32,
         tree: *const Tree,
@@ -137,7 +138,6 @@ pub const Part = struct {
             }
 
             self.num_alloc = num;
-            self.area = total_area;
             self.triangle_mapping = triangle_mapping;
             self.aabbs = aabbs;
             self.cones = cones;
@@ -162,6 +162,8 @@ pub const Part = struct {
             .m = m,
             .tree = tree,
             .scene = scene,
+            .prop_id = prop,
+            .part_id = part,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
@@ -245,6 +247,8 @@ pub const Part = struct {
         tree: *const Tree,
         scene: *const Scene,
         estimate_area: f32,
+        prop_id: u32,
+        part_id: u32,
 
         const Pos = Vec4f{ 0.0, 0.0, 0.0, 0.0 };
         const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
@@ -285,7 +289,8 @@ pub const Part = struct {
                             Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             IdTrafo,
-                            1.0,
+                            self.prop_id,
+                            self.part_id,
                             null,
                             self.scene,
                         );
@@ -530,7 +535,6 @@ pub const Mesh = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
@@ -566,6 +570,8 @@ pub const Mesh = struct {
             return null;
         }
 
+        const extent = self.area(part, trafo.scale());
+
         const angle_pdf = sl / (c * extent);
 
         return SampleTo.init(
@@ -583,7 +589,6 @@ pub const Mesh = struct {
         part: u32,
         variant: u32,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         sampler: *Sampler,
         uv: Vec2f,
@@ -607,6 +612,8 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * self.area(part, trafo.scale());
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
@@ -620,11 +627,11 @@ pub const Mesh = struct {
 
     pub fn pdf(
         self: Mesh,
+        part: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
@@ -633,6 +640,8 @@ pub const Mesh = struct {
         if (two_sided) {
             c = @fabs(c);
         }
+
+        const extent = self.area(part, isec.trafo.scale());
 
         const sl = ray.maxT() * ray.maxT();
         const angle_pdf = sl / (c * extent);
@@ -663,6 +672,7 @@ pub const Mesh = struct {
     pub fn prepareSampling(
         self: *Mesh,
         alloc: Allocator,
+        prop: u32,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
@@ -687,7 +697,7 @@ pub const Mesh = struct {
             self.primitive_mapping = primitive_mapping;
         }
 
-        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, prop, part, material, &self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {

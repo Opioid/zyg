@@ -95,8 +95,6 @@ pub const Intersection = struct {
             return null;
         }
 
-        const extent = scene.lightArea(self.prop, self.geo.part);
-
         const uv = self.geo.uv;
         return m.evaluateRadiance(
             shading_p,
@@ -104,7 +102,8 @@ pub const Intersection = struct {
             self.geo.geo_n,
             .{ uv[0], uv[1], 0.0, 0.0 },
             self.geo.trafo,
-            extent,
+            self.prop,
+            self.geo.part,
             filter,
             scene,
         );
@@ -116,8 +115,8 @@ pub const Intersection = struct {
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
-
-        return ro.offsetRay(p, if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n);
+        const n = self.geo.geo_n;
+        return ro.offsetRay(p, if (self.sameHemisphere(v)) n else -n);
     }
 
     pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {

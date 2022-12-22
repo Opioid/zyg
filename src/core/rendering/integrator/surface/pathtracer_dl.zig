@@ -244,7 +244,7 @@ pub const PathtracerDL = struct {
                 ray.time,
                 translucent,
                 sampler,
-                worker,
+                worker.scene,
             ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi);

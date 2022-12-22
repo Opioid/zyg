@@ -232,7 +232,7 @@ pub const Lighttracer = struct {
         const time = worker.absoluteTime(frame, s2[1]);
 
         const light = worker.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, sampler, bounds, worker) orelse return null;
+        light_sample.* = light.sampleFrom(time, sampler, bounds, worker.scene) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
