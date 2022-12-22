@@ -92,9 +92,7 @@ pub const Graph = struct {
             a.update(self);
         }
 
-        for (self.prop_properties.items) |_, i| {
-            self.propCalculateWorldTransformation(i);
-        }
+        self.calculateWorldTransformations();
     }
 
     pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
@@ -171,24 +169,26 @@ pub const Graph = struct {
         self.animations.items[animation].set(index, keyframe);
     }
 
-    fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
-        if (!self.prop_properties.items[entity].has_parent) {
-            const f = self.prop_frames.items[entity];
-            const frames = self.keyframes.items.ptr + f;
+    fn calculateWorldTransformations(self: *Self) void {
+        for (self.prop_properties.items) |p, entity| {
+            if (!p.has_parent) {
+                const f = self.prop_frames.items[entity];
+                const frames = self.keyframes.items.ptr + f;
 
-            const animation = self.prop_properties.items[entity].local_animation;
+                const animation = p.local_animation;
 
-            const render_id = self.prop_props.items[entity];
-            if (Null != render_id) {
-                if (animation) {
-                    self.scene.propSetFrames(render_id, frames);
-                } else {
-                    self.scene.propSetWorldTransformation(render_id, frames[0]);
+                const render_id = self.prop_props.items[entity];
+                if (Null != render_id) {
+                    if (animation) {
+                        self.scene.propSetFrames(render_id, frames);
+                    } else {
+                        self.scene.propSetWorldTransformation(render_id, frames[0]);
+                    }
                 }
-            }
 
-            const num_frames = if (animation) self.scene.num_interpolation_frames else 1;
-            self.propPropagateTransformation(entity, num_frames, frames);
+                const num_frames = if (animation) self.scene.num_interpolation_frames else 1;
+                self.propPropagateTransformation(entity, num_frames, frames);
+            }
         }
     }
 
