@@ -15,6 +15,7 @@ pub fn load(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
+    parent_trafo: ?Transformation,
     graph: *Graph,
 ) !u32 {
     var start_time: u64 = 0;
@@ -29,6 +30,7 @@ pub fn load(
                 alloc,
                 entry.value_ptr.*,
                 default_trafo,
+                parent_trafo,
                 start_time,
                 frame_step,
                 graph,
@@ -43,6 +45,7 @@ pub fn loadKeyframes(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
+    parent_trafo: ?Transformation,
     start_time: u64,
     frame_step: u64,
     graph: *Graph,
@@ -62,6 +65,9 @@ pub fn loadKeyframes(
                         keyframe.time = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                         json.readTransformation(entry.value_ptr.*, &keyframe.k);
+                        if (parent_trafo) |pt| {
+                            keyframe.k = pt.transform(keyframe.k);
+                        }
                     }
                 }
 

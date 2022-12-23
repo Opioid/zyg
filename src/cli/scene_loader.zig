@@ -63,15 +63,38 @@ pub const Loader = struct {
         const camera = take.view.camera;
         graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
-        const fs = &self.resources.fs;
-
         const take_mount_folder = string.parentDirectory(take.resolved_filename);
+
+        const parent_id: u32 = Prop.Null;
+
+        const parent_trafo = Transformation{
+            .position = @splat(4, @as(f32, 0.0)),
+            .scale = @splat(4, @as(f32, 1.0)),
+            .rotation = math.quaternion.identity,
+        };
+
+        try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+
+        self.resources.commitAsync();
+    }
+
+    fn loadFile(
+        self: *Loader,
+        alloc: Allocator,
+        filename: []const u8,
+        take_mount_folder: []const u8,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        animated: bool,
+        graph: *Graph,
+    ) !void {
+        const fs = &self.resources.fs;
 
         if (take_mount_folder.len > 0) {
             try fs.pushMount(alloc, take_mount_folder);
         }
 
-        var stream = try fs.readStream(alloc, take.scene_filename);
+        var stream = try fs.readStream(alloc, filename);
 
         if (take_mount_folder.len > 0) {
             fs.popMount(alloc);
@@ -98,14 +121,6 @@ pub const Loader = struct {
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
-        const parent_id: u32 = Prop.Null;
-
-        const parent_trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = @splat(4, @as(f32, 1.0)),
-            .rotation = math.quaternion.identity,
-        };
-
         var iter = root.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
@@ -114,7 +129,7 @@ pub const Loader = struct {
                     entry.value_ptr.*,
                     parent_id,
                     parent_trafo,
-                    false,
+                    animated,
                     local_materials,
                     graph,
                 );
@@ -122,8 +137,6 @@ pub const Loader = struct {
         }
 
         fs.popMount(alloc);
-
-        self.resources.commitAsync();
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
@@ -147,10 +160,17 @@ pub const Loader = struct {
         const scene = &graph.scene;
 
         for (value.Array.items) |entity| {
+            if (entity.Object.get("file")) |file_node| {
+                const filename = file_node.String;
+                self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+                    log.err("Loading scene \"{s}\": {}", .{ filename, e });
+                };
+                continue;
+            }
+
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;
 
-            var graph_id: u32 = Prop.Null;
             var entity_id: u32 = Prop.Null;
             var is_light = false;
 
@@ -159,14 +179,8 @@ pub const Loader = struct {
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
                 entity_id = try self.loadProp(alloc, entity, local_materials, graph);
-            } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                graph_id = try graph.createEntity(alloc, Prop.Null);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = try loadSky(alloc, entity, graph);
-            }
-
-            if (Prop.Null == entity_id and Prop.Null == graph_id) {
-                continue;
             }
 
             var trafo = Transformation{
@@ -211,25 +225,27 @@ pub const Loader = struct {
             }
 
             const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, graph)
+                try anim.load(alloc, animation.*, trafo, if (Prop.Null == parent_id) parent_trafo else null, graph)
             else
                 Prop.Null;
 
             const local_animation = Prop.Null != animation;
             const world_animation = animated or local_animation;
 
-            if (Prop.Null == graph_id and (world_animation or Prop.Null != parent_id)) {
+            var graph_id: u32 = Prop.Null;
+
+            if (world_animation) {
                 graph_id = try graph.createEntity(alloc, entity_id);
-            }
 
-            try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
+                try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
 
-            if (local_animation) {
-                graph.animationSetEntity(animation, graph_id);
-            }
+                if (local_animation) {
+                    graph.animationSetEntity(animation, graph_id);
+                }
 
-            if (Prop.Null != parent_id) {
-                graph.propSerializeChild(parent_id, graph_id);
+                if (Prop.Null != parent_id) {
+                    graph.propSerializeChild(parent_id, graph_id);
+                }
             }
 
             const world_trafo = parent_trafo.transform(trafo);

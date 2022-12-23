@@ -60,8 +60,8 @@ pub fn build(b: *std.build.Builder) void {
     cli.setBuildMode(mode);
     cli.linkLibC();
 
-    //cli.sanitize_thread = true;
-    cli.strip = true;
+    // cli.sanitize_thread = true;
+    // cli.strip = true;
 
     cli.install();
 
@@ -104,13 +104,14 @@ pub fn build(b: *std.build.Builder) void {
             //"takes/model_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
-            "takes/whirligig.take",
+            //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
             //"takes/rene.take",
             //"takes/flakes.take",
             //"takes/embergen.take",
             //"takes/intel_sponza.take",
+            "scenes/island/shot_cam.take",
             "-t",
             "-4",
             //"--no-tex",
@@ -119,7 +120,7 @@ pub fn build(b: *std.build.Builder) void {
             "-f",
             "0",
             "-n",
-            "2",
+            "1",
         });
     }
 
