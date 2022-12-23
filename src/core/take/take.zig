@@ -261,6 +261,7 @@ pub const View = struct {
 };
 
 pub const Take = struct {
+    resolved_filename: []u8 = &.{},
     scene_filename: []u8 = &.{},
 
     view: View = .{},
@@ -275,6 +276,7 @@ pub const Take = struct {
 
     pub fn clear(self: *Take, alloc: Allocator) void {
         self.clearExporters(alloc);
+        alloc.free(self.resolved_filename);
         alloc.free(self.scene_filename);
     }
 

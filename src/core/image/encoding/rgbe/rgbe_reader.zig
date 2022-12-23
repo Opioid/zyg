@@ -115,7 +115,14 @@ pub const Reader = struct {
             if (rgbe[0] != 2 or rgbe[1] != 2 or (rgbe[2] & 0x80) != 0) {
                 // this file is not run length encoded
 
-                return;
+                const color = rgbeTofloat3(rgbe);
+                image.pixels[offset] = Pack3h.init3(
+                    @floatCast(f16, color.v[0]),
+                    @floatCast(f16, color.v[1]),
+                    @floatCast(f16, color.v[2]),
+                );
+
+                return try readPixels(stream, scanline_width * num_scanlines - 1, image, 1);
             }
 
             if ((@as(u32, rgbe[2]) << 8 | @as(u32, rgbe[3])) != scanline_width) {

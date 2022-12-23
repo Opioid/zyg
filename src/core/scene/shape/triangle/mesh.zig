@@ -117,7 +117,7 @@ pub const Part = struct {
 
                     const vabc = tree.data.triangleP(t);
 
-                    var box = math.aabb.empty;
+                    var box = math.aabb.Empty;
                     box.insert(vabc[0]);
                     box.insert(vabc[1]);
                     box.insert(vabc[2]);
@@ -234,7 +234,7 @@ pub const Part = struct {
     }
 
     const Temp = struct {
-        bb: AABB = math.aabb.empty,
+        bb: AABB = math.aabb.Empty,
         dominant_axis: Vec4f = @splat(4, @as(f32, 0.0)),
         total_power: f32 = 0.0,
     };

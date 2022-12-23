@@ -61,7 +61,7 @@ pub const Light = struct {
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
         const radiance = @splat(4, extent) * average_radiance;
 
-        if (scene.propShape(self.prop).finite()) {
+        if (scene.propShape(self.prop).finite() or scene_bb.empty()) {
             return radiance;
         }
 

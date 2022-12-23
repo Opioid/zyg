@@ -93,7 +93,7 @@ pub fn main() !void {
 
         const loading_start = std.time.milliTimestamp();
 
-        if (loadTakeAndScene(
+        if (try loadTakeAndScene(
             alloc,
             options.take,
             options.start_frame,
@@ -153,13 +153,15 @@ fn loadTakeAndScene(
     graph: *Graph,
     scene_loader: *SceneLoader,
     resources: *resource.Manager,
-) bool {
+) !bool {
     resources.fs.frame = frame;
 
     var stream = resources.fs.readStream(alloc, take_text) catch |err| {
         log.err("Open stream \"{s}\": {}", .{ take_text, err });
         return false;
     };
+
+    take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
 
     TakeLoader.load(alloc, stream, take, graph, resources) catch |err| {
         log.err("Loading take: {}", .{err});
@@ -168,7 +170,7 @@ fn loadTakeAndScene(
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take, graph) catch |err| {
+    scene_loader.load(alloc, take, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return false;
     };
@@ -209,6 +211,8 @@ fn reloadFrameDependant(
         return err;
     };
 
+    take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
+
     TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, graph) catch |err| {
         log.err("Loading take: {}", .{err});
         return err;
@@ -216,7 +220,7 @@ fn reloadFrameDependant(
 
     stream.deinit();
 
-    scene_loader.load(alloc, take.scene_filename, take, graph) catch |err| {
+    scene_loader.load(alloc, take, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return err;
     };

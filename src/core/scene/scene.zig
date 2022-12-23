@@ -246,7 +246,7 @@ pub const Scene = struct {
 
         self.has_volumes = self.volumes.items.len > 0;
 
-        var caustic_aabb = math.aabb.empty;
+        var caustic_aabb = math.aabb.Empty;
 
         for (self.finite_props.items) |i| {
             if (self.propHasCausticMaterial(i)) {

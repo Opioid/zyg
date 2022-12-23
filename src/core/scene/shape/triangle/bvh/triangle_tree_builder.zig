@@ -42,7 +42,7 @@ pub const Builder = struct {
 
         const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len), @sizeOf(Reference));
 
-        var bounds = math.aabb.empty;
+        var bounds = math.aabb.Empty;
         for (context.aabbs[0..num]) |b| {
             bounds.mergeAssign(b);
         }
@@ -68,7 +68,7 @@ pub const Builder = struct {
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @intToPtr(*ReferencesContext, context);
 
-            var bounds = math.aabb.empty;
+            var bounds = math.aabb.Empty;
 
             for (self.triangles[begin..end]) |t, i| {
                 const a = self.vertices.position(t.i[0]);

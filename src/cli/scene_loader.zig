@@ -59,12 +59,24 @@ pub const Loader = struct {
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: *const Take, graph: *Graph) !void {
+    pub fn load(self: *Loader, alloc: Allocator, take: *const Take, graph: *Graph) !void {
         const camera = take.view.camera;
         graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
         const fs = &self.resources.fs;
-        var stream = try fs.readStream(alloc, filename);
+
+        const take_mount_folder = string.parentDirectory(take.resolved_filename);
+
+        if (take_mount_folder.len > 0) {
+            try fs.pushMount(alloc, take_mount_folder);
+        }
+
+        var stream = try fs.readStream(alloc, take.scene_filename);
+
+        if (take_mount_folder.len > 0) {
+            fs.popMount(alloc);
+        }
+
         const buffer = try stream.readAll(alloc);
         stream.deinit();
         defer alloc.free(buffer);
