@@ -484,7 +484,7 @@ pub const Scene = struct {
         const trafo = self.propTransformationAt(entity, time);
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
-        const average_radiance = mat.prepareSampling(alloc, shape_inst.*, part, trafo, extent, self, threads);
+        const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
 
         const f = self.prop_frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);

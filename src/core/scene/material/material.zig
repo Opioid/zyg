@@ -62,7 +62,7 @@ pub const Material = union(enum) {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: Shape,
+        shape: *const Shape,
         part: u32,
         trafo: Trafo,
         extent: f32,

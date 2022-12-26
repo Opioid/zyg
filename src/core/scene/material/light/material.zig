@@ -43,7 +43,7 @@ pub const Material = struct {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: Shape,
+        shape: *const Shape,
         area: f32,
         scene: *const Scene,
         threads: *Threads,
@@ -70,7 +70,7 @@ pub const Material = struct {
         {
             var context = LuminanceContext{
                 .scene = scene,
-                .shape = &shape,
+                .shape = shape,
                 .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
