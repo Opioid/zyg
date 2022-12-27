@@ -311,19 +311,13 @@ pub const Scene = struct {
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
-        // This calls a very simple test to check whether the prop added just before this one
-        // has the same shape, same materials, and is not a light.
-        if (self.propIsInstance(shape_id, materials, num_parts)) {
-            self.prop_parts.items[p] = self.prop_parts.items[self.props.items.len - 2];
-        } else {
-            const parts_start = @intCast(u32, self.material_ids.items.len);
-            self.prop_parts.items[p] = parts_start;
+        const parts_start = @intCast(u32, self.material_ids.items.len);
+        self.prop_parts.items[p] = parts_start;
 
-            var i: u32 = 0;
-            while (i < num_parts) : (i += 1) {
-                try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
-                try self.light_ids.append(alloc, Null);
-            }
+        var i: u32 = 0;
+        while (i < num_parts) : (i += 1) {
+            try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
+            try self.light_ids.append(alloc, Null);
         }
 
         if (shape_inst.finite()) {
@@ -334,6 +328,31 @@ pub const Scene = struct {
 
         // Shape has no surface
         if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
+            if (shape_inst.finite()) {
+                try self.volumes.append(alloc, p);
+            }
+        }
+
+        return p;
+    }
+
+    pub fn createPropInstance(self: *Scene, alloc: Allocator, entity: u32) !u32 {
+        const p = self.allocateProp(alloc) catch return Null;
+
+        self.props.items[p] = self.props.items[entity];
+        self.prop_parts.items[p] = self.prop_parts.items[entity];
+
+        const shape_inst = self.propShape(p);
+        const num_parts = shape_inst.numParts();
+
+        if (shape_inst.finite()) {
+            try self.finite_props.append(alloc, p);
+        } else {
+            try self.infinite_props.append(alloc, p);
+        }
+
+        // Shape has no surface
+        if (1 == num_parts and 1.0 == self.propMaterial(p, 0).ior()) {
             if (shape_inst.finite()) {
                 try self.volumes.append(alloc, p);
             }
@@ -669,31 +688,6 @@ pub const Scene = struct {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
-    }
-
-    fn propIsInstance(self: *const Scene, shape_id: u32, materials: []const u32, num_parts: u32) bool {
-        const num_props = self.props.items.len;
-        if (num_props < 2 or self.props.items[num_props - 2].shape != shape_id) {
-            return false;
-        }
-
-        const shape_inst = self.shape(shape_id);
-
-        const p = self.prop_parts.items[num_props - 2];
-        var i: u32 = 0;
-        while (i < num_parts) : (i += 1) {
-            const m = materials[shape_inst.partIdToMaterialId(i)];
-
-            if (m != self.material_ids.items[p + i]) {
-                return false;
-            }
-
-            if (self.materials.items[m].emissive()) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     fn propHasCausticMaterial(self: *const Scene, entity: usize) bool {

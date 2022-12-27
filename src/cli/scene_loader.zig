@@ -22,6 +22,62 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const List = std.ArrayListUnmanaged;
+
+const Key = struct {
+    shape: u32,
+    materials: []u32 = &.{},
+
+    const Self = @This();
+
+    pub fn clone(self: Self, alloc: Allocator) !Self {
+        return Self{
+            .shape = self.shape,
+            .materials = try alloc.dupe(u32, self.materials),
+        };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        alloc.free(self.materials);
+    }
+};
+
+const KeyContext = struct {
+    const Self = @This();
+
+    pub fn hash(self: Self, k: Key) u64 {
+        _ = self;
+        var hasher = std.hash.Wyhash.init(0);
+
+        hasher.update(std.mem.asBytes(&k.shape));
+
+        for (k.materials) |m| {
+            hasher.update(std.mem.asBytes(&m));
+        }
+
+        return hasher.final();
+    }
+
+    pub fn eql(self: Self, a: Key, b: Key) bool {
+        _ = self;
+
+        if (a.shape != b.shape) {
+            return false;
+        }
+
+        if (a.materials.len != b.materials.len) {
+            return false;
+        }
+
+        for (a.materials) |m, i| {
+            if (m != b.materials[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
 
 pub const Loader = struct {
     pub const Error = error{
@@ -32,7 +88,9 @@ pub const Loader = struct {
 
     fallback_material: u32,
 
-    materials: std.ArrayListUnmanaged(u32) = .{},
+    materials: List(u32) = .{},
+
+    instances: std.HashMapUnmanaged(Key, u32, KeyContext, 80) = .{},
 
     const Null = resource.Null;
 
@@ -49,13 +107,14 @@ pub const Loader = struct {
     };
 
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
-        return Loader{
+        return .{
             .resources = resources,
             .fallback_material = resources.materials.store(alloc, Null, fallback_material) catch Null,
         };
     }
 
     pub fn deinit(self: *Loader, alloc: Allocator) void {
+        self.instances.deinit(alloc);
         self.materials.deinit(alloc);
     }
 
@@ -74,6 +133,8 @@ pub const Loader = struct {
         };
 
         try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+
+        self.instances.clearAndFree(alloc);
 
         self.resources.commitAsync();
     }
@@ -175,10 +236,10 @@ pub const Loader = struct {
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph, false);
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph, true);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = try loadSky(alloc, entity, graph);
             }
@@ -288,6 +349,7 @@ pub const Loader = struct {
         value: std.json.Value,
         local_materials: LocalMaterials,
         graph: *Graph,
+        instancing: bool,
     ) !u32 {
         const scene = &graph.scene;
 
@@ -302,14 +364,26 @@ pub const Loader = struct {
         self.materials.clearRetainingCapacity();
 
         if (value.Object.get("materials")) |m| {
-            try self.loadMaterials(alloc, m, local_materials);
+            self.loadMaterials(alloc, m, num_materials, local_materials);
         }
 
         while (self.materials.items.len < num_materials) {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        return try scene.createProp(alloc, shape, self.materials.items);
+        if (instancing) {
+            const key = Key{ .shape = shape, .materials = self.materials.items };
+
+            if (self.instances.get(key)) |instance| {
+                return try scene.createPropInstance(alloc, instance);
+            }
+
+            const entity = try scene.createProp(alloc, shape, self.materials.items);
+            try self.instances.put(alloc, try key.clone(alloc), entity);
+            return entity;
+        } else {
+            return try scene.createProp(alloc, shape, self.materials.items);
+        }
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
@@ -371,12 +445,13 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
+        num_materials: usize,
         local_materials: LocalMaterials,
-    ) !void {
-        for (value.Array.items) |m| {
-            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials));
+    ) void {
+        for (value.Array.items) |m, i| {
+            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.String, local_materials));
 
-            if (self.materials.capacity == self.materials.items.len) {
+            if (i == num_materials - 1) {
                 return;
             }
         }
