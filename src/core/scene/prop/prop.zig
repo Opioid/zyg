@@ -15,6 +15,7 @@ pub const Prop = struct {
         visible_in_reflection: bool = true,
         visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
+        caustic: bool = false,
         test_AABB: bool = false,
         static: bool = true,
     };
@@ -47,6 +48,10 @@ pub const Prop = struct {
         return self.properties.evaluate_visibility;
     }
 
+    pub fn caustic(self: Prop) bool {
+        return self.properties.caustic;
+    }
+
     pub fn setVisibleInShadow(self: *Prop, value: bool) void {
         self.properties.visible_in_shadow = value;
     }
@@ -67,7 +72,10 @@ pub const Prop = struct {
             const m = scene.material(mid);
             if (m.evaluateVisibility()) {
                 self.properties.evaluate_visibility = true;
-                break;
+            }
+
+            if (m.caustic()) {
+                self.properties.caustic = true;
             }
         }
     }

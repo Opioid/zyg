@@ -247,9 +247,8 @@ pub const Scene = struct {
         self.has_volumes = self.volumes.items.len > 0;
 
         var caustic_aabb = math.aabb.Empty;
-
         for (self.finite_props.items) |i| {
-            if (self.propHasCausticMaterial(i)) {
+            if (self.props.items[i].caustic()) {
                 caustic_aabb.mergeAssign(self.prop_aabbs.items[i]);
             }
         }
@@ -366,7 +365,6 @@ pub const Scene = struct {
         const num_parts = shape_inst.numParts();
 
         var i: u32 = 0;
-
         while (i < num_parts) : (i += 1) {
             const mat = self.propMaterial(entity, i);
             if (!mat.emissive()) {
@@ -688,20 +686,6 @@ pub const Scene = struct {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
         try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
-    }
-
-    fn propHasCausticMaterial(self: *const Scene, entity: usize) bool {
-        const shape_inst = self.propShape(entity);
-
-        var i: u32 = 0;
-        const len = shape_inst.numParts();
-        while (i < len) : (i += 1) {
-            if (!self.propMaterial(entity, i).caustic()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {
