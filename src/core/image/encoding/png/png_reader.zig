@@ -400,44 +400,46 @@ pub const Reader = struct {
     fn filter(byte: u8, f: Filter, info: *const Info) u8 {
         return switch (f) {
             .None => byte,
-            .Sub => @truncate(u8, @as(u32, byte) + raw(@intCast(i32, info.current_byte) -
-                @intCast(i32, info.bytes_per_pixel), info)),
-            .Up => @truncate(u8, @as(u32, byte) +
-                @as(u32, prior(@intCast(i32, info.current_byte), info))),
-            .Average => @truncate(u8, @as(u32, byte) +
-                @as(u32, average(
-                raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-                prior(@intCast(i32, info.current_byte), info),
-            ))),
-            .Paeth => @truncate(u8, @as(u32, byte) + paethPredictor(
-                raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-                prior(@intCast(i32, info.current_byte), info),
-                prior(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-            )),
+            .Sub => byte +% raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
+            .Up => byte +% info.previous_row_data[info.current_byte],
+            .Average => byte +% average(info),
+            .Paeth => byte +% paeth(info),
         };
     }
 
-    fn raw(column: i32, info: *const Info) u32 {
+    fn raw(column: i32, info: *const Info) u8 {
         if (column < 0) {
             return 0;
         }
 
-        return @as(u32, info.current_row_data[@intCast(u32, column)]);
+        return info.current_row_data[@intCast(u32, column)];
     }
 
-    fn prior(column: i32, info: *const Info) u8 {
-        if (column < 0) {
-            return 0;
-        }
+    fn average(info: *const Info) u8 {
+        const b = @as(u32, info.previous_row_data[info.current_byte]);
 
-        return info.previous_row_data[@intCast(u32, column)];
-    }
+        const column = @intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel);
+        const a: u32 = if (column < 0) 0 else info.current_row_data[@intCast(u32, column)];
 
-    fn average(a: u32, b: u32) u8 {
         return @truncate(u8, (a + b) >> 1);
     }
 
-    fn paethPredictor(a: u32, b: u32, c: u32) u32 {
+    fn paeth(info: *const Info) u8 {
+        const b = info.previous_row_data[info.current_byte];
+
+        const column = @intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel);
+        if (column < 0) {
+            return b;
+        }
+
+        return paethPredictor(
+            info.current_row_data[@intCast(u32, column)],
+            b,
+            info.previous_row_data[@intCast(u32, column)],
+        );
+    }
+
+    fn paethPredictor(a: u8, b: u8, c: u8) u8 {
         const A = @intCast(i32, a);
         const B = @intCast(i32, b);
         const C = @intCast(i32, c);
