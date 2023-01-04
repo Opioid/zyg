@@ -149,9 +149,7 @@ pub const Sky = struct {
             .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
         };
 
-        //_ = threads.runRange(&context, SkyContext.bakeSky, 0, @intCast(u32, Bake_dimensions[1]), 0);
-
-        threads.runParallel(&context, SkyContext.bakeSkyParallel, 0);
+        threads.runParallel(&context, SkyContext.bakeSky, 0);
 
         // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
     }
@@ -164,35 +162,7 @@ const SkyContext = struct {
     trafo: ComposedTransformation,
     current: u32 = 0,
 
-    pub fn bakeSky(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        _ = id;
-
-        const self = @intToPtr(*SkyContext, context);
-
-        var rng = RNG{};
-
-        const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
-
-        var y = begin;
-        while (y < end) : (y += 1) {
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
-
-            var x: u32 = 0;
-            while (x < Sky.Bake_dimensions[0]) : (x += 1) {
-                rng.start(0, @intCast(u64, y * Sky.Bake_dimensions[0] + x));
-
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
-                const uv = Vec2f{ u, v };
-                const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
-
-                const li = self.model.evaluateSky(math.normalize3(wi), &rng);
-
-                self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
-            }
-        }
-    }
-
-    pub fn bakeSkyParallel(context: Threads.Context, id: u32) void {
+    pub fn bakeSky(context: Threads.Context, id: u32) void {
         _ = id;
 
         const self = @intToPtr(*SkyContext, context);
