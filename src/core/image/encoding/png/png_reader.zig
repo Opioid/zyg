@@ -362,6 +362,8 @@ pub const Reader = struct {
 
         const row_size = @intCast(u32, info.width) * info.num_channels;
 
+        var current_byte = info.current_byte;
+
         var cond = true;
         while (cond) {
             info.stream.next_out = &buffer;
@@ -378,15 +380,14 @@ pub const Reader = struct {
                     info.current_filter = @intToEnum(Filter, b);
                     info.filter_byte = false;
                 } else {
-                    const r = filter(b, info.current_filter, info);
-                    info.current_row_data[info.current_byte] = r;
-                    info.buffer[info.current_byte_total] = r;
+                    info.current_row_data[current_byte] = b;
 
-                    info.current_byte += 1;
-                    info.current_byte_total += 1;
+                    current_byte += 1;
 
-                    if (row_size == info.current_byte) {
-                        info.current_byte = 0;
+                    if (row_size == current_byte) {
+                        filterRow(info);
+
+                        current_byte = 0;
                         std.mem.swap([*]u8, &info.current_row_data, &info.previous_row_data);
                         info.filter_byte = true;
                     }
@@ -395,16 +396,46 @@ pub const Reader = struct {
 
             cond = info.stream.avail_in > 0 or 0 == info.stream.avail_out;
         }
+
+        info.current_byte = current_byte;
     }
 
-    fn filter(byte: u8, f: Filter, info: *const Info) u8 {
-        return switch (f) {
-            .None => byte,
-            .Sub => byte +% raw(@intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel), info),
-            .Up => byte +% info.previous_row_data[info.current_byte],
-            .Average => byte +% average(info),
-            .Paeth => byte +% paeth(info),
-        };
+    fn filterRow(info: *Info) void {
+        const row_size = @intCast(u32, info.width) * info.num_channels;
+
+        const total = info.current_byte_total;
+
+        switch (info.current_filter) {
+            .None => {},
+            .Sub => {
+                for (info.current_row_data[0..row_size]) |b, i| {
+                    const r = b +% raw(@intCast(i32, i) - @intCast(i32, info.bytes_per_pixel), info);
+                    info.current_row_data[i] = r;
+                }
+            },
+            .Up => {
+                for (info.current_row_data[0..row_size]) |b, i| {
+                    const r = b +% info.previous_row_data[i];
+                    info.current_row_data[i] = r;
+                }
+            },
+            .Average => {
+                for (info.current_row_data[0..row_size]) |b, i| {
+                    const r = b +% average(@intCast(u32, i), info);
+                    info.current_row_data[i] = r;
+                }
+            },
+            .Paeth => {
+                for (info.current_row_data[0..row_size]) |b, i| {
+                    const r = b +% paeth(@intCast(u32, i), info);
+                    info.current_row_data[i] = r;
+                }
+            },
+        }
+
+        std.mem.copy(u8, info.buffer[total .. total + row_size], info.current_row_data[0..row_size]);
+
+        info.current_byte_total = total + row_size;
     }
 
     fn raw(column: i32, info: *const Info) u8 {
@@ -415,19 +446,19 @@ pub const Reader = struct {
         return info.current_row_data[@intCast(u32, column)];
     }
 
-    fn average(info: *const Info) u8 {
-        const b = @as(u32, info.previous_row_data[info.current_byte]);
+    fn average(current: u32, info: *const Info) u8 {
+        const b = @as(u32, info.previous_row_data[current]);
 
-        const column = @intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel);
+        const column = @intCast(i32, current) - @intCast(i32, info.bytes_per_pixel);
         const a: u32 = if (column < 0) 0 else info.current_row_data[@intCast(u32, column)];
 
         return @truncate(u8, (a + b) >> 1);
     }
 
-    fn paeth(info: *const Info) u8 {
-        const b = info.previous_row_data[info.current_byte];
+    fn paeth(current: u32, info: *const Info) u8 {
+        const b = info.previous_row_data[current];
 
-        const column = @intCast(i32, info.current_byte) - @intCast(i32, info.bytes_per_pixel);
+        const column = @intCast(i32, current) - @intCast(i32, info.bytes_per_pixel);
         if (column < 0) {
             return b;
         }
