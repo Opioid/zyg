@@ -132,7 +132,10 @@ pub const Loader = struct {
             .rotation = math.quaternion.identity,
         };
 
-        try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+        var parser = std.json.Parser.init(alloc, false);
+        defer parser.deinit();
+
+        try self.loadFile(alloc, &parser, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
         self.instances.clearAndFree(alloc);
 
@@ -142,6 +145,7 @@ pub const Loader = struct {
     fn loadFile(
         self: *Loader,
         alloc: Allocator,
+        parser: *std.json.Parser,
         filename: []const u8,
         take_mount_folder: []const u8,
         parent_id: u32,
@@ -164,9 +168,6 @@ pub const Loader = struct {
         const buffer = try stream.readAll(alloc);
         stream.deinit();
         defer alloc.free(buffer);
-
-        var parser = std.json.Parser.init(alloc, false);
-        defer parser.deinit();
 
         var document = try parser.parse(buffer);
         defer document.deinit();
@@ -220,12 +221,16 @@ pub const Loader = struct {
     ) Error!void {
         const scene = &graph.scene;
 
+        var parser = std.json.Parser.init(alloc, false);
+        defer parser.deinit();
+
         for (value.Array.items) |entity| {
             if (entity.Object.get("file")) |file_node| {
                 const filename = file_node.String;
-                self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+                self.loadFile(alloc, &parser, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
                 };
+                parser.reset();
                 continue;
             }
 
