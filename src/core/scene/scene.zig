@@ -474,7 +474,7 @@ pub const Scene = struct {
         self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }
 
-    pub fn propPrepareSampling(
+    fn propPrepareSampling(
         self: *Scene,
         alloc: Allocator,
         entity: u32,
