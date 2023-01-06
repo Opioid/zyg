@@ -97,8 +97,7 @@ pub const Multi = struct {
                         }
                     }
 
-                    local_ray.setMinT(ro.offsetF(local_ray.maxT()));
-                    local_ray.setMaxT(d);
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
                 }
             } else {
                 while (local_ray.minT() < d) {
@@ -114,8 +113,7 @@ pub const Multi = struct {
                         }
                     }
 
-                    local_ray.setMinT(ro.offsetF(local_ray.maxT()));
-                    local_ray.setMaxT(d);
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
                 }
             }
 

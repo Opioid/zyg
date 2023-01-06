@@ -154,8 +154,7 @@ pub const Lighttracer = struct {
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-                ray.ray.setMaxT(ro.Ray_max_t);
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
 
                 if (!sample_result.class.transmission) {
                     ray.depth += 1;

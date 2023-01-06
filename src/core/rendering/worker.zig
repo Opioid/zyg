@@ -297,12 +297,12 @@ pub const Worker = struct {
                 self.interface_stack.push(isec);
             }
 
-            tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
-            tray.ray.setMaxT(ray_max_t);
-
-            if (tray.ray.minT() > tray.ray.maxT()) {
+            const ray_min_t = ro.offsetF(tray.ray.maxT());
+            if (ray_min_t > ray_max_t) {
                 break;
             }
+
+            tray.ray.setMinMaxT(ray_min_t, ray_max_t);
         }
 
         self.interface_stack.copy(&temp_stack);
@@ -325,8 +325,7 @@ pub const Worker = struct {
             var nisec: Intersection = .{};
             if (self.scene.intersectShadow(ray, &nisec)) {
                 if (self.volume_integrator.transmittance(ray.*, filter, self)) |tr| {
-                    ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-                    ray.ray.setMaxT(ray_max_t);
+                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
 
                     if (self.scene.visibility(ray.*, filter)) |tv| {
                         const wi = ray.ray.direction;
@@ -353,28 +352,22 @@ pub const Worker = struct {
             return false;
         }
 
-        const start_min_t = ray.ray.minT();
-
         var o = isec.opacity(filter, self.scene);
 
         while (o < 1.0) {
             if (o > 0.0 and o > self.rng.randomFloat()) {
-                ray.ray.setMinT(start_min_t);
                 return true;
             }
 
             // Slide along ray until opaque surface is found
-            ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-            ray.ray.setMaxT(ro.Ray_max_t);
+            ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             if (!self.scene.intersect(ray, .All, isec)) {
-                ray.ray.setMinT(start_min_t);
                 return false;
             }
 
             o = isec.opacity(filter, self.scene);
         }
 
-        ray.ray.setMinT(start_min_t);
         return true;
     }
 

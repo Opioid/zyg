@@ -19,7 +19,6 @@ pub const Ray = struct {
 
     pub fn setDirection(self: *Ray, direction: Vec4f, max_t: f32) void {
         const id = math.reciprocal3(.{ direction[0], direction[1], direction[2], 1.0 });
-
         self.direction = .{ direction[0], direction[1], direction[2], max_t };
         self.inv_direction = id;
     }
@@ -28,16 +27,17 @@ pub const Ray = struct {
         return self.origin[3];
     }
 
-    pub fn setMinT(self: *Ray, t: f32) void {
-        self.origin[3] = t;
-    }
-
     pub fn maxT(self: Ray) f32 {
         return self.direction[3];
     }
 
     pub fn setMaxT(self: *Ray, t: f32) void {
         self.direction[3] = t;
+    }
+
+    pub fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
+        self.origin[3] = min_t;
+        self.direction[3] = max_t;
     }
 
     pub fn clipMaxT(self: *Ray, t: f32) void {

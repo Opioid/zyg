@@ -50,8 +50,7 @@ pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
                 }
             }
 
-            local_ray.setMinT(ro.offsetF(local_ray.maxT()));
-            local_ray.setMaxT(d);
+            local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
         }
 
         return w;
