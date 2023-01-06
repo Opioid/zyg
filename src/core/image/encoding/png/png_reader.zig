@@ -68,9 +68,8 @@ pub const Reader = struct {
         current_byte: u32 = undefined,
         current_byte_total: u32 = undefined,
 
-        buffer: []u8 = &.{},
-        current_row_data: [*]u8 = undefined,
-        previous_row_data: [*]u8 = undefined,
+        buffer_data: []u8 = &.{},
+        buffer: [*]u8 = undefined,
 
         // miniz
         stream: mz.mz_stream = undefined,
@@ -89,20 +88,19 @@ pub const Reader = struct {
                 _ = mz.mz_inflateEnd(&self.stream);
             }
 
-            alloc.free(self.buffer);
+            alloc.free(self.buffer_data);
         }
 
         pub fn allocate(self: *Info, alloc: Allocator) !void {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             const buffer_size = row_size * @intCast(u32, self.height);
-            const num_bytes = buffer_size + 2 * row_size;
+            const num_bytes = buffer_size + row_size;
 
-            if (self.buffer.len < num_bytes) {
-                self.buffer = try alloc.realloc(self.buffer, num_bytes);
+            if (self.buffer_data.len < num_bytes) {
+                self.buffer_data = try alloc.realloc(self.buffer_data, num_bytes);
             }
 
-            self.current_row_data = self.buffer.ptr + buffer_size;
-            self.previous_row_data = self.current_row_data + row_size;
+            self.buffer = self.buffer_data.ptr + row_size;
 
             if (self.stream.zalloc) |_| {
                 if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
@@ -362,7 +360,9 @@ pub const Reader = struct {
 
         const row_size = @intCast(u32, info.width) * info.num_channels;
 
+        var filter_byte = info.filter_byte;
         var current_byte = info.current_byte;
+        var current_byte_total = info.current_byte_total;
 
         var cond = true;
         while (cond) {
@@ -376,20 +376,22 @@ pub const Reader = struct {
 
             const decompressed = buffer_size - info.stream.avail_out;
             for (buffer[0..decompressed]) |b| {
-                if (info.filter_byte) {
+                if (filter_byte) {
                     info.current_filter = @intToEnum(Filter, b);
-                    info.filter_byte = false;
+                    filter_byte = false;
                 } else {
-                    info.current_row_data[current_byte] = b;
+                    //    info.current_row_data[current_byte] = b;
+
+                    info.buffer[current_byte_total] = b;
 
                     current_byte += 1;
+                    current_byte_total += 1;
 
                     if (row_size == current_byte) {
-                        filterRow(info);
+                        filterRow(info, current_byte_total);
 
                         current_byte = 0;
-                        std.mem.swap([*]u8, &info.current_row_data, &info.previous_row_data);
-                        info.filter_byte = true;
+                        filter_byte = true;
                     }
                 }
             }
@@ -397,77 +399,53 @@ pub const Reader = struct {
             cond = info.stream.avail_in > 0 or 0 == info.stream.avail_out;
         }
 
+        info.filter_byte = filter_byte;
         info.current_byte = current_byte;
+        info.current_byte_total = current_byte_total;
     }
 
-    fn filterRow(info: *Info) void {
+    fn filterRow(info: *Info, total: u32) void {
         const row_size = @intCast(u32, info.width) * info.num_channels;
 
-        const total = info.current_byte_total;
+        const current_row_data = info.buffer + total - row_size;
+        const previous_row_data = current_row_data - row_size;
+
+        const bpp = info.bytes_per_pixel;
 
         switch (info.current_filter) {
             .None => {},
             .Sub => {
-                for (info.current_row_data[0..row_size]) |b, i| {
-                    const r = b +% raw(@intCast(i32, i) - @intCast(i32, info.bytes_per_pixel), info);
-                    info.current_row_data[i] = r;
+                for (current_row_data[bpp..row_size]) |*b, i| {
+                    b.* +%= current_row_data[i];
                 }
             },
             .Up => {
-                for (info.current_row_data[0..row_size]) |b, i| {
-                    const r = b +% info.previous_row_data[i];
-                    info.current_row_data[i] = r;
+                for (current_row_data[0..row_size]) |*b, i| {
+                    b.* +%= previous_row_data[i];
                 }
             },
             .Average => {
-                for (info.current_row_data[0..row_size]) |b, i| {
-                    const r = b +% average(@intCast(u32, i), info);
-                    info.current_row_data[i] = r;
+                for (current_row_data[0..bpp]) |*b, i| {
+                    b.* +%= previous_row_data[i] >> 1;
+                }
+
+                for (current_row_data[bpp..row_size]) |*b, i| {
+                    const p = @as(u32, previous_row_data[i + bpp]);
+                    const a = @as(u32, current_row_data[i]);
+                    b.* +%= @truncate(u8, (a + p) >> 1);
                 }
             },
             .Paeth => {
-                for (info.current_row_data[0..row_size]) |b, i| {
-                    const r = b +% paeth(@intCast(u32, i), info);
-                    info.current_row_data[i] = r;
+                for (current_row_data[0..bpp]) |*b, i| {
+                    b.* +%= previous_row_data[i];
+                }
+
+                for (current_row_data[bpp..row_size]) |*b, i| {
+                    const p = previous_row_data[i + bpp];
+                    b.* +%= paethPredictor(current_row_data[i], p, previous_row_data[i]);
                 }
             },
         }
-
-        std.mem.copy(u8, info.buffer[total .. total + row_size], info.current_row_data[0..row_size]);
-
-        info.current_byte_total = total + row_size;
-    }
-
-    fn raw(column: i32, info: *const Info) u8 {
-        if (column < 0) {
-            return 0;
-        }
-
-        return info.current_row_data[@intCast(u32, column)];
-    }
-
-    fn average(current: u32, info: *const Info) u8 {
-        const b = @as(u32, info.previous_row_data[current]);
-
-        const column = @intCast(i32, current) - @intCast(i32, info.bytes_per_pixel);
-        const a: u32 = if (column < 0) 0 else info.current_row_data[@intCast(u32, column)];
-
-        return @truncate(u8, (a + b) >> 1);
-    }
-
-    fn paeth(current: u32, info: *const Info) u8 {
-        const b = info.previous_row_data[current];
-
-        const column = @intCast(i32, current) - @intCast(i32, info.bytes_per_pixel);
-        if (column < 0) {
-            return b;
-        }
-
-        return paethPredictor(
-            info.current_row_data[@intCast(u32, column)],
-            b,
-            info.previous_row_data[@intCast(u32, column)],
-        );
     }
 
     fn paethPredictor(a: u8, b: u8, c: u8) u8 {
