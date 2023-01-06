@@ -375,17 +375,21 @@ pub const Reader = struct {
             }
 
             const decompressed = buffer_size - info.stream.avail_out;
-            for (buffer[0..decompressed]) |b| {
+
+            var i: u32 = 0;
+            while (i < decompressed) {
                 if (filter_byte) {
-                    info.current_filter = @intToEnum(Filter, b);
+                    info.current_filter = @intToEnum(Filter, buffer[i]);
                     filter_byte = false;
+                    i += 1;
                 } else {
-                    //    info.current_row_data[current_byte] = b;
+                    const len = @min(decompressed - i, row_size - current_byte);
 
-                    info.buffer[current_byte_total] = b;
+                    std.mem.copy(u8, info.buffer[current_byte_total .. current_byte_total + len], buffer[i .. i + len]);
 
-                    current_byte += 1;
-                    current_byte_total += 1;
+                    current_byte += len;
+                    current_byte_total += len;
+                    i += len;
 
                     if (row_size == current_byte) {
                         filterRow(info, current_byte_total);
@@ -406,11 +410,10 @@ pub const Reader = struct {
 
     fn filterRow(info: *Info, total: u32) void {
         const row_size = @intCast(u32, info.width) * info.num_channels;
+        const bpp = info.bytes_per_pixel;
 
         const current_row_data = info.buffer + total - row_size;
         const previous_row_data = current_row_data - row_size;
-
-        const bpp = info.bytes_per_pixel;
 
         switch (info.current_filter) {
             .None => {},
