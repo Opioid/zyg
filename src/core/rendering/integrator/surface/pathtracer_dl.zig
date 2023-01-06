@@ -144,15 +144,14 @@ pub const PathtracerDL = struct {
 
             if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                ray.ray.setMaxT(ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
             }
-
-            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
@@ -247,8 +246,7 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
-            shadow_ray.ray.setDirection(light_sample.wi);
-            shadow_ray.ray.setMaxT(light_sample.offset());
+            shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
             const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);

@@ -155,13 +155,14 @@ pub const Lighttracer = struct {
 
             if (sample_result.class.straight) {
                 ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                ray.ray.setMaxT(ro.Ray_max_t);
 
                 if (!sample_result.class.transmission) {
                     ray.depth += 1;
                 }
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                 ray.depth += 1;
 
                 if (!sample_result.class.specular and
@@ -181,8 +182,6 @@ pub const Lighttracer = struct {
             if (ray.depth >= self.settings.max_bounces) {
                 break;
             }
-
-            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
