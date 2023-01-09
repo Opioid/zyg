@@ -63,13 +63,15 @@ pub const Reader = struct {
         bytes_per_pixel: u32 = 0,
 
         // parsing state
-        current_filter: Filter = undefined,
         filter_byte: bool = undefined,
+        current_row: u32 = undefined,
         current_byte: u32 = undefined,
         current_byte_total: u32 = undefined,
 
         buffer_data: []u8 = &.{},
         buffer: [*]u8 = undefined,
+
+        filters: []Filter = &.{},
 
         // miniz
         stream: mz.mz_stream = undefined,
@@ -92,8 +94,9 @@ pub const Reader = struct {
         }
 
         pub fn allocate(self: *Info, alloc: Allocator) !void {
+            const height = @intCast(u32, self.height);
             const row_size = @intCast(u32, self.width) * self.num_channels;
-            const buffer_size = row_size * @intCast(u32, self.height);
+            const buffer_size = row_size * height;
             const num_bytes = buffer_size + row_size;
 
             if (self.buffer_data.len < num_bytes) {
@@ -101,6 +104,10 @@ pub const Reader = struct {
             }
 
             self.buffer = self.buffer_data.ptr + row_size;
+
+            if (self.filters.len < height) {
+                self.filters = try alloc.realloc(self.filters, height);
+            }
 
             if (self.stream.zalloc) |_| {
                 if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
@@ -137,6 +144,8 @@ pub const Reader = struct {
         }
 
         while (handleChunk(alloc, stream, &self.chunk, &self.info)) {}
+
+        resolveFilter(&self.info);
 
         return try createImage(alloc, &self.info, swizzle, invert);
     }
@@ -343,8 +352,8 @@ pub const Reader = struct {
             return Error.InterlacedPNGNotSupported;
         }
 
-        info.current_filter = .None;
         info.filter_byte = true;
+        info.current_row = 0;
         info.current_byte = 0;
         info.current_byte_total = 0;
 
@@ -361,6 +370,7 @@ pub const Reader = struct {
         const row_size = @intCast(u32, info.width) * info.num_channels;
 
         var filter_byte = info.filter_byte;
+        var current_row = info.current_row;
         var current_byte = info.current_byte;
         var current_byte_total = info.current_byte_total;
 
@@ -379,7 +389,7 @@ pub const Reader = struct {
             var i: u32 = 0;
             while (i < decompressed) {
                 if (filter_byte) {
-                    info.current_filter = @intToEnum(Filter, buffer[i]);
+                    info.filters[current_row] = @intToEnum(Filter, buffer[i]);
                     filter_byte = false;
                     i += 1;
                 } else {
@@ -392,8 +402,7 @@ pub const Reader = struct {
                     i += len;
 
                     if (row_size == current_byte) {
-                        filterRow(info, current_byte_total);
-
+                        current_row += 1;
                         current_byte = 0;
                         filter_byte = true;
                     }
@@ -404,50 +413,60 @@ pub const Reader = struct {
         }
 
         info.filter_byte = filter_byte;
+        info.current_row = current_row;
         info.current_byte = current_byte;
         info.current_byte_total = current_byte_total;
     }
 
-    fn filterRow(info: *Info, total: u32) void {
+    fn resolveFilter(info: *Info) void {
+        const height = @intCast(u32, info.height);
         const row_size = @intCast(u32, info.width) * info.num_channels;
         const bpp = info.bytes_per_pixel;
 
-        const current_row_data = info.buffer + total - row_size;
-        const previous_row_data = current_row_data - row_size;
+        var current_row_data = info.buffer;
 
-        switch (info.current_filter) {
-            .None => {},
-            .Sub => {
-                for (current_row_data[bpp..row_size]) |*b, i| {
-                    b.* +%= current_row_data[i];
-                }
-            },
-            .Up => {
-                for (current_row_data[0..row_size]) |*b, i| {
-                    b.* +%= previous_row_data[i];
-                }
-            },
-            .Average => {
-                for (current_row_data[0..bpp]) |*b, i| {
-                    b.* +%= previous_row_data[i] >> 1;
-                }
+        var row: u32 = 0;
+        while (row < height) : (row += 1) {
+            const filter = info.filters[row];
 
-                for (current_row_data[bpp..row_size]) |*b, i| {
-                    const p = @as(u32, previous_row_data[i + bpp]);
-                    const a = @as(u32, current_row_data[i]);
-                    b.* +%= @truncate(u8, (a + p) >> 1);
-                }
-            },
-            .Paeth => {
-                for (current_row_data[0..bpp]) |*b, i| {
-                    b.* +%= previous_row_data[i];
-                }
+            const previous_row_data = current_row_data - row_size;
 
-                for (current_row_data[bpp..row_size]) |*b, i| {
-                    const p = previous_row_data[i + bpp];
-                    b.* +%= paethPredictor(current_row_data[i], p, previous_row_data[i]);
-                }
-            },
+            switch (filter) {
+                .None => {},
+                .Sub => {
+                    for (current_row_data[bpp..row_size]) |*b, i| {
+                        b.* +%= current_row_data[i];
+                    }
+                },
+                .Up => {
+                    for (current_row_data[0..row_size]) |*b, i| {
+                        b.* +%= previous_row_data[i];
+                    }
+                },
+                .Average => {
+                    for (current_row_data[0..bpp]) |*b, i| {
+                        b.* +%= previous_row_data[i] >> 1;
+                    }
+
+                    for (current_row_data[bpp..row_size]) |*b, i| {
+                        const p = @as(u32, previous_row_data[i + bpp]);
+                        const a = @as(u32, current_row_data[i]);
+                        b.* +%= @truncate(u8, (a + p) >> 1);
+                    }
+                },
+                .Paeth => {
+                    for (current_row_data[0..bpp]) |*b, i| {
+                        b.* +%= previous_row_data[i];
+                    }
+
+                    for (current_row_data[bpp..row_size]) |*b, i| {
+                        const p = previous_row_data[i + bpp];
+                        b.* +%= paethPredictor(current_row_data[i], p, previous_row_data[i]);
+                    }
+                },
+            }
+
+            current_row_data += row_size;
         }
     }
 
