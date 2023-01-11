@@ -41,6 +41,7 @@ pub const Pool = struct {
     program: Program = undefined,
 
     running_parallel: bool = false,
+    running_async: bool = false,
 
     pub fn availableCores(request: i32) u32 {
         const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
@@ -158,6 +159,10 @@ pub const Pool = struct {
         self.asyncp.program = program;
         self.asyncp.signal.store(SIGNAL_WAKE, .Release);
         std.Thread.Futex.wake(&self.asyncp.signal, 1);
+    }
+
+    pub fn runningAsync(self: *const Pool) bool {
+        return SIGNAL_DONE != self.asyncp.signal.load(.Acquire);
     }
 
     fn quitAll(self: *Pool) void {
