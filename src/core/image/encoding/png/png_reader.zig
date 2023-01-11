@@ -172,28 +172,28 @@ pub const Reader = struct {
 
             if (byte_compatible) {
                 std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), info.buffer[0..info.numPixelBytes()]);
-            }
+            } else {
+                var c: u32 = switch (swizzle) {
+                    .W => 3,
+                    else => 0,
+                };
 
-            var c: u32 = switch (swizzle) {
-                .W => 3,
-                else => 0,
-            };
-
-            if (c >= info.num_channels) {
-                c = 0;
-            }
-
-            var i: u32 = 0;
-            const len = @intCast(u32, info.width * info.height);
-            while (i < len) : (i += 1) {
-                const o = i * info.num_channels;
-
-                var color = info.buffer[o + c];
-                if (invert) {
-                    color = 255 - color;
+                if (c >= info.num_channels) {
+                    c = 0;
                 }
 
-                image.pixels[i] = color;
+                var i: u32 = 0;
+                const len = @intCast(u32, info.width * info.height);
+                while (i < len) : (i += 1) {
+                    const o = i * info.num_channels;
+
+                    var color = info.buffer[o + c];
+                    if (invert) {
+                        color = 255 - color;
+                    }
+
+                    image.pixels[i] = color;
+                }
             }
 
             return Image{ .Byte1 = image };
@@ -246,10 +246,6 @@ pub const Reader = struct {
                     while (c < num_channels) : (c += 1) {
                         color.v[c] = info.buffer[o + c];
                     }
-
-                    // if (swap_xy) {
-                    //     std.mem.swap(u8, &color.v[0], &color.v[1]);
-                    // }
 
                     image.pixels[i] = color;
                 }
