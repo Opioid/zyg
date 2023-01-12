@@ -114,37 +114,41 @@ pub const Prop = struct {
     }
 
     pub fn intersectShadow(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
-        if (!self.visibleInShadow()) {
+        const properties = self.properties;
+
+        if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         return scene.shape(self.shape).intersect(ray, trafo, .Normal, isec);
     }
 
     pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
-        if (!self.visibleInShadow()) {
+        const properties = self.properties;
+
+        if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         return scene.shape(self.shape).intersectP(ray, trafo);
     }
 
     pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
-        if (!self.evaluateVisibility()) {
+        const properties = self.properties;
+
+        if (!properties.evaluate_visibility) {
             if (self.intersectP(entity, ray, scene)) {
                 return null;
             }
@@ -152,16 +156,15 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        if (!self.visibleInShadow()) {
+        if (!properties.visible_in_shadow) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
     }

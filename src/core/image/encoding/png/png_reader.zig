@@ -65,6 +65,12 @@ pub const Reader = struct {
         num_channels: u32 = 0,
         bytes_per_pixel: u32 = 0,
 
+        // miniz
+        stream: mz.mz_stream = undefined,
+
+        data_chunks: std.ArrayListUnmanaged(Chunk) = .{},
+        num_chunks: u32 = 0,
+
         buffer_data: []u8 = &.{},
         buffer: [*]u8 = undefined,
 
@@ -75,8 +81,27 @@ pub const Reader = struct {
         invert: bool = undefined,
         byte_compatible: bool = undefined,
 
+        pub fn init() Info {
+            var info = Info{};
+
+            info.stream.zalloc = null;
+            info.stream.zfree = null;
+
+            return info;
+        }
+
         pub fn deinit(self: *Info, alloc: Allocator) void {
             alloc.free(self.buffer_data);
+
+            for (self.data_chunks.items) |*c| {
+                c.deinit(alloc);
+            }
+
+            self.data_chunks.deinit(alloc);
+
+            if (self.stream.zfree) |_| {
+                _ = mz.mz_inflateEnd(&self.stream);
+            }
         }
 
         pub fn allocate(self: *Info, alloc: Allocator) !void {
@@ -93,6 +118,18 @@ pub const Reader = struct {
 
             if (self.filters.len < height) {
                 self.filters = try alloc.realloc(self.filters, height);
+            }
+
+            self.num_chunks = 0;
+
+            if (self.stream.zalloc) |_| {
+                if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
+                    return Error.InitMZStreamFailed;
+                }
+            } else {
+                if (mz.MZ_OK != mz.mz_inflateInit(&self.stream)) {
+                    return Error.InitMZStreamFailed;
+                }
             }
         }
 
@@ -130,7 +167,70 @@ pub const Reader = struct {
             return self.image;
         }
 
-        pub fn fillImage(self: *const Info) void {
+        pub fn process(self: *const Info) !void {
+            try self.parseData();
+            self.resolveFilter();
+            self.fillImage();
+        }
+
+        fn parseData(self: *const Info) !void {
+            const buffer_size = 8192;
+            var buffer: [buffer_size]u8 = undefined;
+
+            const row_size = @intCast(u32, self.width) * self.num_channels;
+
+            var filter_byte = true;
+            var current_row: u32 = 0;
+            var current_byte: u32 = 0;
+            var current_byte_total: u32 = 0;
+
+            var stream = self.stream;
+
+            for (self.data_chunks.items[0..self.num_chunks]) |c| {
+                stream.next_in = c.data.ptr;
+                stream.avail_in = c.length;
+
+                var cond = true;
+                while (cond) {
+                    stream.next_out = &buffer;
+                    stream.avail_out = buffer_size;
+
+                    const status = mz.mz_inflate(&stream, mz.MZ_NO_FLUSH);
+                    if (status != mz.MZ_OK and status != mz.MZ_STREAM_END and status != mz.MZ_BUF_ERROR and status != mz.MZ_NEED_DICT) {
+                        return Error.InflateMZStreamFailed;
+                    }
+
+                    const decompressed = buffer_size - stream.avail_out;
+
+                    var i: u32 = 0;
+                    while (i < decompressed) {
+                        if (filter_byte) {
+                            self.filters[current_row] = @intToEnum(Filter, buffer[i]);
+                            filter_byte = false;
+                            i += 1;
+                        } else {
+                            const len = @min(decompressed - i, row_size - current_byte);
+
+                            std.mem.copy(u8, self.buffer[current_byte_total .. current_byte_total + len], buffer[i .. i + len]);
+
+                            current_byte += len;
+                            current_byte_total += len;
+                            i += len;
+
+                            if (row_size == current_byte) {
+                                current_row += 1;
+                                current_byte = 0;
+                                filter_byte = true;
+                            }
+                        }
+                    }
+
+                    cond = stream.avail_in > 0 or 0 == stream.avail_out;
+                }
+            }
+        }
+
+        fn fillImage(self: *const Info) void {
             const swizzle = self.swizzle;
             const invert = self.invert;
             const byte_compatible = self.byte_compatible;
@@ -213,12 +313,12 @@ pub const Reader = struct {
             }
         }
 
-        pub fn numPixelBytes(self: *const Info) u32 {
+        fn numPixelBytes(self: *const Info) u32 {
             const row_size = @intCast(u32, self.width) * self.num_channels;
             return row_size * @intCast(u32, self.height);
         }
 
-        pub fn resolveFilter(self: *Info) void {
+        fn resolveFilter(self: *const Info) void {
             const height = @intCast(u32, self.height);
             const row_size = @intCast(u32, self.width) * self.num_channels;
             const bpp = self.bytes_per_pixel;
@@ -291,37 +391,16 @@ pub const Reader = struct {
         }
     };
 
-    // parsing state
-    filter_byte: bool = undefined,
-    current_row: u32 = undefined,
-    current_byte: u32 = undefined,
-    current_byte_total: u32 = undefined,
-    current_info: u32 = 0,
-
-    // miniz
-    stream: mz.mz_stream = undefined,
-
     chunk: Chunk = .{},
 
-    infos: [2]Info = .{ .{}, .{} },
+    infos: [2]Info = .{ Info.init(), Info.init() },
 
-    pub fn init() Reader {
-        var reader = Reader{};
-
-        reader.stream.zalloc = null;
-        reader.stream.zfree = null;
-
-        return reader;
-    }
+    current_info: u32 = 0,
 
     pub fn deinit(self: *Reader, alloc: Allocator) void {
         self.infos[0].deinit(alloc);
         self.infos[1].deinit(alloc);
         self.chunk.deinit(alloc);
-
-        if (self.stream.zfree) |_| {
-            _ = mz.mz_inflateEnd(&self.stream);
-        }
     }
 
     pub fn read(self: *Reader, alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
@@ -339,8 +418,7 @@ pub const Reader = struct {
         const image = try info.allocateImage(alloc, swizzle, invert);
 
         if (threads.runningAsync()) {
-            info.resolveFilter();
-            info.fillImage();
+            try info.process();
         } else {
             self.current_info = if (0 == self.current_info) 1 else 0;
             threads.runAsync(info, createImageAsync);
@@ -352,8 +430,7 @@ pub const Reader = struct {
     fn createImageAsync(context: ThreadContext) void {
         const info = @intToPtr(*Info, context);
 
-        info.resolveFilter();
-        info.fillImage();
+        info.process() catch {};
     }
 
     fn handleChunk(self: *Reader, alloc: Allocator, stream: *ReadStream, info: *Info) bool {
@@ -384,8 +461,15 @@ pub const Reader = struct {
 
         // IDAT: 0x54414449
         if (0x54414449 == chunk_type) {
-            readChunk(alloc, stream, chunk) catch return false;
-            self.parseData(info) catch return false;
+            if (info.num_chunks >= info.data_chunks.items.len) {
+                info.data_chunks.append(alloc, .{}) catch return false;
+            }
+
+            const data_chunk = &info.data_chunks.items[info.num_chunks];
+            data_chunk.length = length;
+            readChunk(alloc, stream, data_chunk) catch return false;
+
+            info.num_chunks += 1;
 
             return true;
         }
@@ -441,81 +525,6 @@ pub const Reader = struct {
             return Error.InterlacedPNGNotSupported;
         }
 
-        self.filter_byte = true;
-        self.current_row = 0;
-        self.current_byte = 0;
-        self.current_byte_total = 0;
-
         try info.allocate(alloc);
-
-        if (self.stream.zalloc) |_| {
-            if (mz.MZ_OK != mz.mz_inflateReset(&self.stream)) {
-                return Error.InitMZStreamFailed;
-            }
-        } else {
-            if (mz.MZ_OK != mz.mz_inflateInit(&self.stream)) {
-                return Error.InitMZStreamFailed;
-            }
-        }
-    }
-
-    fn parseData(self: *Reader, info: *Info) !void {
-        const chunk = self.chunk;
-
-        const buffer_size = 8192;
-        var buffer: [buffer_size]u8 = undefined;
-
-        self.stream.next_in = chunk.data.ptr;
-        self.stream.avail_in = chunk.length;
-
-        const row_size = @intCast(u32, info.width) * info.num_channels;
-
-        var filter_byte = self.filter_byte;
-        var current_row = self.current_row;
-        var current_byte = self.current_byte;
-        var current_byte_total = self.current_byte_total;
-
-        var cond = true;
-        while (cond) {
-            self.stream.next_out = &buffer;
-            self.stream.avail_out = buffer_size;
-
-            const status = mz.mz_inflate(&self.stream, mz.MZ_NO_FLUSH);
-            if (status != mz.MZ_OK and status != mz.MZ_STREAM_END and status != mz.MZ_BUF_ERROR and status != mz.MZ_NEED_DICT) {
-                return Error.InflateMZStreamFailed;
-            }
-
-            const decompressed = buffer_size - self.stream.avail_out;
-
-            var i: u32 = 0;
-            while (i < decompressed) {
-                if (filter_byte) {
-                    info.filters[current_row] = @intToEnum(Filter, buffer[i]);
-                    filter_byte = false;
-                    i += 1;
-                } else {
-                    const len = @min(decompressed - i, row_size - current_byte);
-
-                    std.mem.copy(u8, info.buffer[current_byte_total .. current_byte_total + len], buffer[i .. i + len]);
-
-                    current_byte += len;
-                    current_byte_total += len;
-                    i += len;
-
-                    if (row_size == current_byte) {
-                        current_row += 1;
-                        current_byte = 0;
-                        filter_byte = true;
-                    }
-                }
-            }
-
-            cond = self.stream.avail_in > 0 or 0 == self.stream.avail_out;
-        }
-
-        self.filter_byte = filter_byte;
-        self.current_row = current_row;
-        self.current_byte = current_byte;
-        self.current_byte_total = current_byte_total;
     }
 };
