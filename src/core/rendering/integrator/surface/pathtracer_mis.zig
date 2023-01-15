@@ -1,3 +1,5 @@
+const vrt = @import("vertex.zig");
+const Vertex = vrt.Vertex;
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
@@ -32,15 +34,6 @@ pub const PathtracerMIS = struct {
 
         avoid_caustics: bool,
         photons_not_only_through_specular: bool,
-    };
-
-    const PathState = packed struct {
-        primary_ray: bool = true,
-        treat_as_singular: bool = true,
-        is_translucent: bool = false,
-        split_photon: bool = false,
-        direct: bool = true,
-        from_subsurface: bool = false,
     };
 
     settings: Settings,
@@ -96,7 +89,7 @@ pub const PathtracerMIS = struct {
 
         var sample_result = BxdfSample{};
 
-        var state = PathState{};
+        var vertex = Vertex{ .ray = ray.* };
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -122,16 +115,16 @@ pub const PathtracerMIS = struct {
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
+            const wo = -vertex.ray.ray.direction;
 
-            const pr = state.primary_ray;
+            const pr = vertex.state.primary_ray;
 
-            const filter: ?Filter = if (ray.depth <= 1 or pr) null else .Nearest;
+            const filter: ?Filter = if (vertex.ray.depth <= 1 or pr) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and !pr;
-            const straight_border = state.from_subsurface;
+            const straight_border = vertex.state.from_subsurface;
 
             const mat_sample = worker.sampleMaterial(
-                ray.*,
+                vertex.ray,
                 wo,
                 wo1,
                 isec.*,
@@ -142,14 +135,14 @@ pub const PathtracerMIS = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, pr);
+                worker.commonAOV(throughput, vertex.ray, isec.*, &mat_sample, pr);
             }
 
             wo1 = wo;
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = self.pickSampler(vertex.ray.depth);
 
-            result += throughput * self.sampleLights(ray.*, isec.*, &mat_sample, filter, sampler, worker);
+            result += throughput * self.sampleLights(vertex.ray, isec.*, &mat_sample, filter, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
@@ -163,16 +156,16 @@ pub const PathtracerMIS = struct {
                     break;
                 }
 
-                state.treat_as_singular = true;
+                vertex.state.treat_as_singular = true;
             } else if (!sample_result.class.straight) {
-                state.treat_as_singular = false;
+                vertex.state.treat_as_singular = false;
 
                 effective_bxdf_pdf = sample_result.pdf;
 
                 if (pr) {
-                    state.primary_ray = false;
+                    vertex.state.primary_ray = false;
 
-                    const indirect = !state.direct and 0 != ray.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.ray.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
                         worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
                     }
@@ -180,21 +173,21 @@ pub const PathtracerMIS = struct {
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                ray.depth += 1;
+                vertex.ray.depth += 1;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
             } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.ray.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                state.direct = false;
-                state.from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
-            if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.ray.wavelength) {
+                vertex.ray.wavelength = sample_result.wavelength;
             }
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
@@ -203,29 +196,28 @@ pub const PathtracerMIS = struct {
                 worker.interfaceChange(sample_result.wi, isec.*);
             }
 
-            state.from_subsurface = state.from_subsurface or isec.subsurface;
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface;
 
-            if (sample_result.class.straight and !state.treat_as_singular) {
+            if (sample_result.class.straight and !vertex.state.treat_as_singular) {
                 sample_result.pdf = effective_bxdf_pdf;
             } else {
-                state.is_translucent = mat_sample.isTranslucent();
+                vertex.state.is_translucent = mat_sample.isTranslucent();
                 geo_n = mat_sample.super().geometricNormal();
             }
 
             if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+                const vr = worker.volume(&vertex.ray, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
-                    if (0 == ray.depth) {
+                    if (0 == vertex.ray.depth) {
                         // This is the direct eye-light connection for the volume case.
                         result += vr.li;
                     } else {
                         const w = self.connectVolumeLight(
-                            ray.*,
+                            vertex,
                             geo_n,
                             isec.*,
                             effective_bxdf_pdf,
-                            state,
                             worker.scene,
                         );
 
@@ -243,20 +235,19 @@ pub const PathtracerMIS = struct {
                     break;
                 }
 
-                if (.Scatter == vr.event and ray.depth >= max_bounces) {
+                if (.Scatter == vr.event and vertex.ray.depth >= max_bounces) {
                     break;
                 }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, isec)) {
                 break;
             }
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(
-                ray.*,
+                vertex,
                 geo_n,
                 isec.*,
                 sample_result,
-                state,
                 filter,
                 worker.scene,
                 &pure_emissive,
@@ -265,15 +256,15 @@ pub const PathtracerMIS = struct {
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.direct = state.direct and (!isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t);
+                vertex.state.direct = vertex.state.direct and (!isec.visibleInCamera(worker.scene) and vertex.ray.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (vertex.ray.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            if (ray.depth >= self.settings.min_bounces) {
+            if (vertex.ray.depth >= self.settings.min_bounces) {
                 if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
                     break;
                 }
@@ -282,7 +273,7 @@ pub const PathtracerMIS = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
     fn sampleLights(
@@ -369,18 +360,17 @@ pub const PathtracerMIS = struct {
 
     fn connectLight(
         self: *const Self,
-        ray: Ray,
+        vertex: Vertex,
         geo_n: Vec4f,
         isec: Intersection,
         sample_result: BxdfSample,
-        state: PathState,
         filter: ?Filter,
         scene: *const Scene,
         pure_emissive: *bool,
     ) Vec4f {
         const wo = -sample_result.wi;
         const energy = isec.evaluateRadiance(
-            ray.ray.origin,
+            vertex.ray.ray.origin,
             wo,
             filter,
             scene,
@@ -388,17 +378,17 @@ pub const PathtracerMIS = struct {
         ) orelse return @splat(4, @as(f32, 0.0));
 
         const light_id = isec.lightId(scene);
-        if (state.treat_as_singular or !Light.isAreaLight(light_id)) {
+        if (vertex.state.treat_as_singular or !Light.isAreaLight(light_id)) {
             return energy;
         }
 
-        const translucent = state.is_translucent;
-        const split = self.splitting(ray.depth);
+        const translucent = vertex.state.is_translucent;
+        const split = self.splitting(vertex.ray.depth);
 
-        const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light_pick = scene.lightPdfSpatial(light_id, vertex.ray.ray.origin, geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
+        const pdf = light.pdf(vertex.ray, geo_n, isec, translucent, scene);
         const weight = hlp.powerHeuristic(sample_result.pdf, pdf * light_pick.pdf);
 
         return @splat(4, weight) * energy;
@@ -406,26 +396,25 @@ pub const PathtracerMIS = struct {
 
     fn connectVolumeLight(
         self: *const Self,
-        ray: Ray,
+        vertex: Vertex,
         geo_n: Vec4f,
         isec: Intersection,
         bxdf_pdf: f32,
-        state: PathState,
         scene: *const Scene,
     ) f32 {
         const light_id = isec.lightId(scene);
 
-        if (state.treat_as_singular or !Light.isLight(light_id)) {
+        if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
             return 1.0;
         }
 
-        const translucent = state.is_translucent;
-        const split = self.splitting(ray.depth);
+        const translucent = vertex.state.is_translucent;
+        const split = self.splitting(vertex.ray.depth);
 
-        const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
+        const light_pick = scene.lightPdfSpatial(light_id, vertex.ray.ray.origin, geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
+        const pdf = light.pdf(vertex.ray, geo_n, isec, translucent, scene);
 
         return hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
     }
