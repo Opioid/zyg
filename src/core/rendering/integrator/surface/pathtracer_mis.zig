@@ -1,7 +1,6 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Scene = @import("../../../scene/scene.zig").Scene;
-const vrt = @import("../../../scene/vertex.zig");
-const Vertex = vrt.Vertex;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -87,8 +86,6 @@ pub const PathtracerMIS = struct {
     fn integrate(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
-        var sample_result = BxdfSample{};
-
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
@@ -143,129 +140,135 @@ pub const PathtracerMIS = struct {
 
                 result += throughput * self.sampleLights(vertex, &mat_sample, filter, sampler, worker);
 
-                var effective_bxdf_pdf = sample_result.pdf;
+                var effective_bxdf_pdf = vertex.bxdf_pdf;
 
-                sample_result = mat_sample.sample(sampler);
-                if (0.0 == sample_result.pdf) {
-                    continue;
-                }
-
-                if (sample_result.class.specular) {
-                    if (avoid_caustics) {
+                for (mat_sample.sample(sampler, false, &worker.bxdfs)) |sr| {
+                    var sample_result = sr;
+                    if (0.0 == sample_result.pdf) {
                         continue;
                     }
 
-                    vertex.state.treat_as_singular = true;
-                } else if (!sample_result.class.straight) {
-                    vertex.state.treat_as_singular = false;
+                    var next_vertex = vertex;
 
-                    effective_bxdf_pdf = sample_result.pdf;
+                    next_vertex.bxdf_pdf = sample_result.pdf;
 
-                    if (pr) {
-                        vertex.state.primary_ray = false;
-
-                        const indirect = !vertex.state.direct and 0 != vertex.ray.depth;
-                        if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                            worker.addPhoton(throughput * worker.photonLi(vertex.isec, &mat_sample));
-                        }
-                    }
-                }
-
-                if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                    vertex.ray.depth += 1;
-                }
-
-                if (sample_result.class.straight) {
-                    vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
-                } else {
-                    vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                    vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
-                    vertex.state.direct = false;
-                    vertex.state.from_subsurface = false;
-                }
-
-                if (0.0 == vertex.ray.wavelength) {
-                    vertex.ray.wavelength = sample_result.wavelength;
-                }
-
-                throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
-
-                if (sample_result.class.transmission) {
-                    worker.interfaceChange(sample_result.wi, vertex.isec);
-                }
-
-                vertex.state.from_subsurface = vertex.state.from_subsurface or vertex.isec.subsurface;
-
-                if (sample_result.class.straight and !vertex.state.treat_as_singular) {
-                    sample_result.pdf = effective_bxdf_pdf;
-                } else {
-                    vertex.state.is_translucent = mat_sample.isTranslucent();
-                    vertex.geo_n = mat_sample.super().geometricNormal();
-                }
-
-                if (!worker.interface_stack.empty()) {
-                    const vr = worker.volume(&vertex.ray, &vertex.isec, filter, sampler);
-
-                    if (.Absorb == vr.event) {
-                        if (0 == vertex.ray.depth) {
-                            // This is the direct eye-light connection for the volume case.
-                            result += vr.li;
-                        } else {
-                            const w = self.connectVolumeLight(
-                                vertex,
-                                effective_bxdf_pdf,
-                                worker.scene,
-                            );
-
-                            result += @splat(4, w) * (throughput * vr.li);
+                    if (sample_result.class.specular) {
+                        if (avoid_caustics) {
+                            continue;
                         }
 
+                        next_vertex.state.treat_as_singular = true;
+                    } else if (!sample_result.class.straight) {
+                        next_vertex.state.treat_as_singular = false;
+
+                        effective_bxdf_pdf = sample_result.pdf;
+
+                        if (pr) {
+                            next_vertex.state.primary_ray = false;
+
+                            const indirect = !next_vertex.state.direct and 0 != next_vertex.ray.depth;
+                            if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
+                                worker.addPhoton(throughput * worker.photonLi(next_vertex.isec, &mat_sample));
+                            }
+                        }
+                    }
+
+                    if (!(sample_result.class.straight and sample_result.class.transmission)) {
+                        next_vertex.ray.depth += 1;
+                    }
+
+                    if (sample_result.class.straight) {
+                        next_vertex.ray.ray.setMinMaxT(ro.offsetF(next_vertex.ray.ray.maxT()), ro.Ray_max_t);
+                    } else {
+                        next_vertex.ray.ray.origin = next_vertex.isec.offsetP(sample_result.wi);
+                        next_vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+
+                        next_vertex.state.direct = false;
+                        next_vertex.state.from_subsurface = false;
+                    }
+
+                    if (0.0 == next_vertex.ray.wavelength) {
+                        next_vertex.ray.wavelength = sample_result.wavelength;
+                    }
+
+                    throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+
+                    if (sample_result.class.transmission) {
+                        worker.interfaceChange(sample_result.wi, next_vertex.isec);
+                    }
+
+                    next_vertex.state.from_subsurface = next_vertex.state.from_subsurface or next_vertex.isec.subsurface;
+
+                    if (sample_result.class.straight and !next_vertex.state.treat_as_singular) {
+                        sample_result.pdf = effective_bxdf_pdf;
+                    } else {
+                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
+                        next_vertex.geo_n = mat_sample.super().geometricNormal();
+                    }
+
+                    if (!worker.interface_stack.empty()) {
+                        const vr = worker.volume(&next_vertex.ray, &next_vertex.isec, filter, sampler);
+
+                        if (.Absorb == vr.event) {
+                            if (0 == next_vertex.ray.depth) {
+                                // This is the direct eye-light connection for the volume case.
+                                result += vr.li;
+                            } else {
+                                const w = self.connectVolumeLight(
+                                    next_vertex,
+                                    effective_bxdf_pdf,
+                                    worker.scene,
+                                );
+
+                                result += @splat(4, w) * (throughput * vr.li);
+                            }
+
+                            continue;
+                        }
+
+                        // This is only needed for Tracking_single at the moment...
+                        result += throughput * vr.li;
+                        throughput *= vr.tr;
+
+                        if (.Abort == vr.event) {
+                            continue;
+                        }
+
+                        if (.Scatter == vr.event and next_vertex.ray.depth >= max_bounces) {
+                            continue;
+                        }
+                    } else if (!worker.intersectAndResolveMask(&next_vertex.ray, filter, &next_vertex.isec)) {
                         continue;
                     }
 
-                    // This is only needed for Tracking_single at the moment...
-                    result += throughput * vr.li;
-                    throughput *= vr.tr;
+                    var pure_emissive: bool = undefined;
+                    const radiance = self.connectLight(
+                        next_vertex,
+                        sample_result,
+                        filter,
+                        worker.scene,
+                        &pure_emissive,
+                    );
 
-                    if (.Abort == vr.event) {
+                    result += throughput * radiance;
+
+                    if (pure_emissive) {
+                        next_vertex.state.direct = next_vertex.state.direct and (!next_vertex.isec.visibleInCamera(worker.scene) and next_vertex.ray.ray.maxT() >= ro.Ray_max_t);
                         continue;
                     }
 
-                    if (.Scatter == vr.event and vertex.ray.depth >= max_bounces) {
+                    if (next_vertex.ray.depth >= self.settings.max_bounces) {
                         continue;
                     }
-                } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
-                    continue;
-                }
 
-                var pure_emissive: bool = undefined;
-                const radiance = self.connectLight(
-                    vertex,
-                    sample_result,
-                    filter,
-                    worker.scene,
-                    &pure_emissive,
-                );
-
-                result += throughput * radiance;
-
-                if (pure_emissive) {
-                    vertex.state.direct = vertex.state.direct and (!vertex.isec.visibleInCamera(worker.scene) and vertex.ray.ray.maxT() >= ro.Ray_max_t);
-                    continue;
-                }
-
-                if (vertex.ray.depth >= self.settings.max_bounces) {
-                    continue;
-                }
-
-                if (vertex.ray.depth >= self.settings.min_bounces) {
-                    if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
-                        continue;
+                    if (next_vertex.ray.depth >= self.settings.min_bounces) {
+                        if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                            continue;
+                        }
                     }
-                }
 
-                worker.vertices.push(vertex);
+                    worker.vertices.push(next_vertex);
+                }
 
                 sampler.incrementPadding();
             }

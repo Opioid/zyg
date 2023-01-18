@@ -158,7 +158,7 @@ pub const Mapper = struct {
                     break;
                 }
 
-                const sample_result = mat_sample.sample(&self.sampler);
+                const sample_result = mat_sample.sample(&self.sampler, false, &worker.bxdfs)[0];
                 if (0.0 == sample_result.pdf) {
                     break;
                 }

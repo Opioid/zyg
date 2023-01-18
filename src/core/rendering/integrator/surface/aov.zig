@@ -156,7 +156,7 @@ pub const AOV = struct {
 
             var sampler = self.pickSampler(ray.depth);
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &worker.bxdfs)[0];
             if (0.0 == sample_result.pdf) {
                 break;
             }

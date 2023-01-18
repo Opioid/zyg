@@ -22,6 +22,8 @@ pub const Vertex = struct {
     geo_n: Vec4f = @splat(4, @as(f32, 0.0)),
     wo1: Vec4f = @splat(4, @as(f32, 0.0)),
 
+    bxdf_pdf: f32 = 0.0,
+
     state: PathState = .{},
 };
 

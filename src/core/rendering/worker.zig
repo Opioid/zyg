@@ -7,6 +7,7 @@ const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/material_helper.zig");
+const BxdfSample = @import("../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
@@ -57,6 +58,7 @@ pub const Worker = struct {
     lighttracer: lt.Lighttracer = undefined,
 
     vertices: VertexPool = undefined,
+    bxdfs: [2]BxdfSample = undefined,
 
     aov: aov.Value = undefined,
 

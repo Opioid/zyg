@@ -122,7 +122,7 @@ pub const PathtracerDL = struct {
 
             result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &worker.bxdfs)[0];
             if (0.0 == sample_result.pdf) {
                 break;
             }

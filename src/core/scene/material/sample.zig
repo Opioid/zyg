@@ -13,6 +13,8 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 
 pub const Sample = union(enum) {
+    pub const BxdfSamples = [2]bxdf.Sample;
+
     Debug: Debug,
     Glass: Glass,
     Light: Light,
@@ -55,11 +57,15 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        return switch (self.*) {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *BxdfSamples) []bxdf.Sample {
+        _ = split;
+
+        buffer[0] = switch (self.*) {
             .Light => Light.sample(),
             .Null => |*s| s.sample(),
             inline else => |*s| s.sample(sampler),
         };
+
+        return buffer[0..1];
     }
 };
