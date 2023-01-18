@@ -14,6 +14,7 @@ const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Interpolation = shp.Interpolation;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
+const VertexPool = @import("../scene/vertex.zig").Pool;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
@@ -54,6 +55,8 @@ pub const Worker = struct {
     surface_integrator: surface.Integrator = undefined,
     volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
+
+    vertices: VertexPool = undefined,
 
     aov: aov.Value = undefined,
 
