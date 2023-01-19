@@ -86,7 +86,6 @@ pub const PathtracerMIS = struct {
     fn integrate(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
-        var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
         {
@@ -100,7 +99,7 @@ pub const PathtracerMIS = struct {
             ) orelse @splat(4, @as(f32, 0.0));
 
             if (pure_emissive) {
-                return hlp.composeAlpha(energy, throughput, false);
+                return hlp.composeAlpha(energy, @splat(4, @as(f32, 1.0)), false);
             }
 
             result += energy;
@@ -111,6 +110,8 @@ pub const PathtracerMIS = struct {
         while (!worker.vertices.empty()) {
             for (worker.vertices.consume()) |v| {
                 var vertex = v;
+
+                const throughput = vertex.throughput;
 
                 const wo = -vertex.ray.ray.direction;
                 const pr = vertex.state.primary_ray;
@@ -142,13 +143,19 @@ pub const PathtracerMIS = struct {
 
                 var effective_bxdf_pdf = vertex.bxdf_pdf;
 
-                for (mat_sample.sample(sampler, false, &worker.bxdfs)) |sr| {
+                const sample_results = mat_sample.sample(sampler, false, &worker.bxdfs);
+
+                const weight = @splat(4, @intToFloat(f32, sample_results.len));
+
+                for (sample_results) |sr| {
                     var sample_result = sr;
                     if (0.0 == sample_result.pdf) {
                         continue;
                     }
 
                     var next_vertex = vertex;
+
+                    var next_throughput = vertex.throughput / weight;
 
                     next_vertex.bxdf_pdf = sample_result.pdf;
 
@@ -191,7 +198,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.ray.wavelength = sample_result.wavelength;
                     }
 
-                    throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+                    next_throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
                     if (sample_result.class.transmission) {
                         worker.interfaceChange(sample_result.wi, next_vertex.isec);
@@ -220,15 +227,15 @@ pub const PathtracerMIS = struct {
                                     worker.scene,
                                 );
 
-                                result += @splat(4, w) * (throughput * vr.li);
+                                result += @splat(4, w) * (next_throughput * vr.li);
                             }
 
                             continue;
                         }
 
                         // This is only needed for Tracking_single at the moment...
-                        result += throughput * vr.li;
-                        throughput *= vr.tr;
+                        result += next_throughput * vr.li;
+                        next_throughput *= vr.tr;
 
                         if (.Abort == vr.event) {
                             continue;
@@ -250,7 +257,7 @@ pub const PathtracerMIS = struct {
                         &pure_emissive,
                     );
 
-                    result += throughput * radiance;
+                    result += next_throughput * radiance;
 
                     if (pure_emissive) {
                         next_vertex.state.direct = next_vertex.state.direct and (!next_vertex.isec.visibleInCamera(worker.scene) and next_vertex.ray.ray.maxT() >= ro.Ray_max_t);
@@ -262,11 +269,12 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (next_vertex.ray.depth >= self.settings.min_bounces) {
-                        if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                        if (hlp.russianRoulette(&next_throughput, sampler.sample1D())) {
                             continue;
                         }
                     }
 
+                    next_vertex.throughput = next_throughput;
                     worker.vertices.push(next_vertex);
                 }
 
@@ -278,7 +286,7 @@ pub const PathtracerMIS = struct {
 
         //  return hlp.composeAlpha(result, throughput, vertex.state.direct);
 
-        return hlp.composeAlpha(result, throughput, true);
+        return hlp.composeAlpha(result, @splat(4, @as(f32, 1.0)), true);
     }
 
     fn sampleLights(

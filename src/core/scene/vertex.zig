@@ -19,6 +19,7 @@ pub const Vertex = struct {
 
     isec: Intersection,
 
+    throughput: Vec4f = @splat(4, @as(f32, 1.0)),
     geo_n: Vec4f = @splat(4, @as(f32, 0.0)),
     wo1: Vec4f = @splat(4, @as(f32, 0.0)),
 
