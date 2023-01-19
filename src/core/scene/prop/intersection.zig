@@ -4,6 +4,7 @@ const Ray = @import("../ray.zig").Ray;
 const ro = @import("../ray_offset.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
+const Vertex = @import("../vertex.zig").Vertex;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const mat = @import("../material/material.zig");
@@ -44,6 +45,7 @@ pub const Intersection = struct {
         ray: Ray,
         filter: ?Filter,
         avoid_caustics: bool,
+        vertex: *const Vertex,
         worker: *const Worker,
     ) mat.Sample {
         const m = self.material(worker.scene);
@@ -52,7 +54,7 @@ pub const Intersection = struct {
 
         var rs: Renderstate = undefined;
         rs.trafo = self.geo.trafo;
-        rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
+        rs.p = .{ p[0], p[1], p[2], vertex.iorOutside(wo, self, worker.scene) };
         rs.t = self.geo.t;
         rs.b = .{ b[0], b[1], b[2], ray.wavelength };
 

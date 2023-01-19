@@ -1,4 +1,6 @@
 const scn = @import("../../../scene/ray.zig");
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Result = @import("result.zig").Result;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
@@ -23,8 +25,7 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittance(ray: scn.Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-    const interface = worker.interface_stack.top();
+pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker: *Worker) ?Vec4f {
     const material = interface.material(worker.scene);
 
     const d = ray.ray.maxT();

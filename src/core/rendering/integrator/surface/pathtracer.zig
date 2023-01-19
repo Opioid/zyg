@@ -1,4 +1,5 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -51,12 +52,7 @@ pub const Pathtracer = struct {
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            worker.resetInterfaceStack(initial_stack);
-
-            var split_ray = ray.*;
-            var split_isec = isec.*;
-
-            result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
+            result += @splat(4, num_samples_reciprocal) * self.integrate(ray.*, isec.*, initial_stack, worker);
 
             for (self.samplers) |*s| {
                 s.incrementSample();
@@ -66,25 +62,33 @@ pub const Pathtracer = struct {
         return result;
     }
 
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    fn integrate(
+        self: *Self,
+        ray: Ray,
+        isec: Intersection,
+        initial_stack: *const InterfaceStack,
+        worker: *Worker,
+    ) Vec4f {
         var primary_ray = true;
         var transparent = true;
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
+
+        var vertex: Vertex = undefined;
+        vertex.start(ray, isec, initial_stack);
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
+            const wo = -vertex.ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            const filter: ?Filter = if (vertex.ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
             var pure_emissive: bool = undefined;
             const energy = isec.evaluateRadiance(
-                ray.ray.origin,
+                vertex.ray.ray.origin,
                 wo,
                 filter,
                 worker.scene,
@@ -94,15 +98,13 @@ pub const Pathtracer = struct {
             result += throughput * energy;
 
             if (pure_emissive) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                transparent = transparent and !vertex.isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
                 break;
             }
 
             const mat_sample = worker.sampleMaterial(
-                ray.*,
+                &vertex,
                 wo,
-                wo1,
-                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -110,18 +112,18 @@ pub const Pathtracer = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, vertex.ray, vertex.isec, &mat_sample, primary_ray);
             }
 
-            wo1 = wo;
+            vertex.wo1 = wo;
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (vertex.ray.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = self.pickSampler(vertex.ray.depth);
 
-            if (ray.depth >= self.settings.min_bounces) {
+            if (vertex.ray.depth >= self.settings.min_bounces) {
                 if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
                     break;
                 }
@@ -141,33 +143,33 @@ pub const Pathtracer = struct {
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                ray.depth += 1;
+                vertex.ray.depth += 1;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
+                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
             }
 
             if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
+                vertex.ray.wavelength = sample_result.wavelength;
             }
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*);
+                vertex.interfaceChange(sample_result.wi, vertex.isec, worker.scene);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or vertex.isec.subsurface;
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+            if (!vertex.interface_stack.empty()) {
+                const vr = worker.volume(&vertex, filter, sampler);
 
                 result += throughput * vr.li;
                 throughput *= vr.tr;
@@ -175,7 +177,7 @@ pub const Pathtracer = struct {
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     break;
                 }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
                 break;
             }
 

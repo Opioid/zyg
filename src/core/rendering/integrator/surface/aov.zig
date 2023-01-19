@@ -1,4 +1,5 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -51,28 +52,29 @@ pub const AOV = struct {
     }
 
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
-        worker.resetInterfaceStack(initial_stack);
+        var vertex: Vertex = undefined;
+        vertex.start(ray.*, isec.*, initial_stack);
 
         return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec.*, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
-            .Photons => self.photons(ray, isec, worker),
+            .AO => self.ao(&vertex, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(&vertex, worker),
+            .Photons => self.photons(&vertex, worker),
         };
     }
 
-    fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *Self, vertex: *const Vertex, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
         const radius = self.settings.radius;
 
         var result: f32 = 0.0;
 
-        const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker);
+        const wo = -vertex.ray.ray.direction;
+        const mat_sample = vertex.isec.sample(wo, vertex.ray, null, false, vertex, worker);
 
         var occlusion_ray: Ray = undefined;
 
-        occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
-        occlusion_ray.time = ray.time;
+        occlusion_ray.ray.origin = vertex.isec.offsetPN(mat_sample.super().geometricNormal(), false);
+        occlusion_ray.time = vertex.ray.time;
 
         var sampler = &self.samplers[0];
 
@@ -98,16 +100,16 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
-        const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker);
+    fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+        const wo = -vertex.ray.ray.direction;
+        const mat_sample = vertex.isec.sample(wo, vertex.ray, null, false, vertex, worker);
 
         var vec: Vec4f = undefined;
 
         switch (self.settings.value) {
-            .Tangent => vec = isec.geo.t,
-            .Bitangent => vec = isec.geo.b,
-            .GeometricNormal => vec = isec.geo.geo_n,
+            .Tangent => vec = vertex.isec.geo.t,
+            .Bitangent => vec = vertex.isec.geo.b,
+            .GeometricNormal => vec = vertex.isec.geo.geo_n,
             .ShadingNormal => {
                 if (!mat_sample.super().sameHemisphere(wo)) {
                     return .{ 0.0, 0.0, 0.0, 1.0 };
@@ -123,38 +125,35 @@ pub const AOV = struct {
         return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
     }
 
-    fn photons(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    fn photons(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
         var primary_ray = true;
         var direct = true;
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
+            const wo = -vertex.ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            const filter: ?Filter = if (vertex.ray.depth <= 1 or primary_ray) null else .Nearest;
 
             const mat_sample = worker.sampleMaterial(
-                ray.*,
+                vertex,
                 wo,
-                wo1,
-                isec.*,
                 filter,
                 0.0,
                 true,
                 from_subsurface,
             );
 
-            wo1 = wo;
+            vertex.wo1 = wo;
 
             if (mat_sample.isPureEmissive()) {
                 break;
             }
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = self.pickSampler(vertex.ray.depth);
 
             const sample_result = mat_sample.sample(sampler, false, &worker.bxdfs)[0];
             if (0.0 == sample_result.pdf) {
@@ -165,53 +164,53 @@ pub const AOV = struct {
                 if (primary_ray) {
                     primary_ray = false;
 
-                    const indirect = !direct and 0 != ray.depth;
+                    const indirect = !direct and 0 != vertex.ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(vertex.isec, &mat_sample));
                         break;
                     }
                 }
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                ray.depth += 1;
+                vertex.ray.depth += 1;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (vertex.ray.depth >= self.settings.max_bounces) {
                 break;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
             } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
+                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 direct = false;
                 from_subsurface = false;
             }
 
-            if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.ray.wavelength) {
+                vertex.ray.wavelength = sample_result.wavelength;
             }
 
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*);
+                vertex.interfaceChange(sample_result.wi, vertex.isec, worker.scene);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or vertex.isec.subsurface;
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+            if (!vertex.interface_stack.empty()) {
+                const vr = worker.volume(vertex, filter, sampler);
 
                 throughput *= vr.tr;
 
                 if (.Abort == vr.event) {
                     break;
                 }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
                 break;
             }
 

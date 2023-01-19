@@ -4,13 +4,13 @@ const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
 const RayDif = sr.RayDif;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
+const Vertex = @import("../scene/vertex.zig").Vertex;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/material_helper.zig");
 const BxdfSample = @import("../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/sample.zig").Sample;
-const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Interpolation = shp.Interpolation;
@@ -46,8 +46,6 @@ pub const Worker = struct {
     scene: *Scene = undefined,
 
     rng: RNG = undefined,
-
-    interface_stack: InterfaceStack = undefined,
 
     lights: Scene.Lights = undefined,
 
@@ -245,9 +243,9 @@ pub const Worker = struct {
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
-        if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
-            if (self.transmittance(ray.*, filter)) |b| {
+    pub fn transmitted(self: *Worker, ray: Ray, vertex: *const Vertex, wo: Vec4f, filter: ?Filter) ?Vec4f {
+        if (self.subsurfaceVisibility(ray, vertex, wo, filter)) |a| {
+            if (self.transmittance(ray, vertex, filter)) |b| {
                 return a * b;
             }
         }
@@ -255,27 +253,27 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
+    pub fn volume(self: *Worker, vertex: *Vertex, filter: ?Filter, sampler: *Sampler) VolumeResult {
+        return self.volume_integrator.integrate(vertex, filter, sampler, self);
     }
 
-    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
+    fn transmittance(self: *Worker, ray: Ray, vertex: *const Vertex, filter: ?Filter) ?Vec4f {
         if (!self.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(&self.interface_stack);
+        var stack: InterfaceStack = undefined;
+        stack.copy(&vertex.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.interface_stack.straight(self.scene)) {
-            self.interface_stack.pop();
+        if (!stack.straight(self.scene)) {
+            stack.pop();
         }
 
-        const ray_max_t = ray.ray.maxT();
         var tray = ray;
+        const ray_max_t = tray.ray.maxT();
 
         var isec: Intersection = undefined;
 
@@ -284,8 +282,8 @@ pub const Worker = struct {
         while (true) {
             const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!self.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, self)) |tr| {
+            if (!vertex.interface_stack.empty()) {
+                if (self.volume_integrator.transmittance(tray, stack.top(), filter, self)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -297,9 +295,9 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.interface_stack.remove(isec);
+                _ = stack.remove(isec);
             } else {
-                self.interface_stack.push(isec);
+                stack.push(isec);
             }
 
             const ray_min_t = ro.offsetF(tray.ray.maxT());
@@ -310,32 +308,29 @@ pub const Worker = struct {
             tray.ray.setMinMaxT(ray_min_t, ray_max_t);
         }
 
-        self.interface_stack.copy(&temp_stack);
-
         return w;
     }
 
     fn subsurfaceVisibility(
         self: *Worker,
-        ray: *Ray,
+        ray: Ray,
+        vertex: *const Vertex,
         wo: Vec4f,
-        isec: Intersection,
         filter: ?Filter,
     ) ?Vec4f {
-        const material = isec.material(self.scene);
+        var tray = ray;
+        const material = vertex.isec.material(self.scene);
+        if (vertex.isec.subsurface and material.ior() > 1.0) {
+            const ray_max_t = tray.ray.maxT();
+            var tisec: Intersection = .{};
+            if (self.scene.intersectShadow(&tray, &tisec)) {
+                if (self.volume_integrator.transmittance(tray, vertex.interface_stack.top(), filter, self)) |tr| {
+                    tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
 
-        if (isec.subsurface and material.ior() > 1.0) {
-            const ray_max_t = ray.ray.maxT();
-
-            var nisec: Intersection = .{};
-            if (self.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, self)) |tr| {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
-
-                    if (self.scene.visibility(ray.*, filter)) |tv| {
-                        const wi = ray.ray.direction;
-                        const vbh = material.super().border(wi, nisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
+                    if (self.scene.visibility(tray, filter)) |tv| {
+                        const wi = tray.ray.direction;
+                        const vbh = material.super().border(wi, tisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wo, wi, tisec.geo.geo_n, tisec.geo.n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
@@ -345,7 +340,7 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(ray.*, filter);
+        return self.scene.visibility(tray, filter);
     }
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
@@ -376,73 +371,31 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
-        self.interface_stack.copy(stack);
-    }
-
-    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: Intersection) f32 {
-        if (isec.sameHemisphere(wo)) {
-            return self.interface_stack.topIor(self.scene);
-        }
-
-        return self.interface_stack.peekIor(isec, self.scene);
-    }
-
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
-        const leave = isec.sameHemisphere(dir);
-        if (leave) {
-            _ = self.interface_stack.remove(isec);
-        } else if (self.interface_stack.straight(self.scene) or isec.material(self.scene).ior() > 1.0) {
-            self.interface_stack.push(isec);
-        }
-    }
-
-    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
-        const inter_ior = isec.material(self.scene).ior();
-
-        const leave = isec.sameHemisphere(dir);
-        if (leave) {
-            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.scene), .eta_i = inter_ior };
-            _ = self.interface_stack.remove(isec);
-            return ior;
-        }
-
-        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
-
-        if (self.interface_stack.straight(self.scene) or inter_ior > 1.0) {
-            self.interface_stack.push(isec);
-        }
-
-        return ior;
-    }
-
     pub fn sampleMaterial(
         self: *const Worker,
-        ray: Ray,
+        vertex: *const Vertex,
         wo: Vec4f,
-        wo1: Vec4f,
-        isec: Intersection,
         filter: ?Filter,
         alpha: f32,
         avoid_caustics: bool,
         straight_border: bool,
     ) MaterialSample {
-        const material = isec.material(self.scene);
+        const material = vertex.isec.material(self.scene);
 
-        const wi = ray.ray.direction;
+        const wi = vertex.ray.ray.direction;
 
-        if (!isec.subsurface and straight_border and material.ior() > 1.0 and isec.sameHemisphere(wi)) {
-            const geo_n = isec.geo.geo_n;
-            const n = isec.geo.n;
+        if (!vertex.isec.subsurface and straight_border and material.ior() > 1.0 and vertex.isec.sameHemisphere(wi)) {
+            const geo_n = vertex.isec.geo.geo_n;
+            const n = vertex.isec.geo.n;
 
             const vbh = material.super().border(wi, n);
-            const nsc = mat.nonSymmetryCompensation(wo1, wi, geo_n, n);
+            const nsc = mat.nonSymmetryCompensation(vertex.wo1, wi, geo_n, n);
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
         }
 
-        return isec.sample(wo, ray, filter, avoid_caustics, self);
+        return vertex.isec.sample(wo, vertex.ray, filter, avoid_caustics, vertex, self);
     }
 
     pub fn randomLightSpatial(

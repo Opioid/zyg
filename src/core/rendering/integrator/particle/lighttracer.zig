@@ -1,4 +1,5 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
@@ -45,8 +46,6 @@ pub const Lighttracer = struct {
     }
 
     pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const InterfaceStack) void {
-        _ = initial_stack;
-
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
         const frustum_bounds = world_bounds;
 
@@ -63,41 +62,46 @@ pub const Lighttracer = struct {
         const light = worker.scene.light(light_id);
         const volumetric = light.volumetric();
 
-        worker.interface_stack.clear();
+        var vertex: Vertex = undefined;
+        vertex.start(ray, .{}, initial_stack);
+
+        vertex.interface_stack.clear();
         if (volumetric) {
-            worker.interface_stack.pushVolumeLight(light);
+            vertex.interface_stack.pushVolumeLight(light);
         }
 
         var throughput = @splat(4, @as(f32, 1.0));
 
         var sampler = self.pickSampler(0);
 
-        var isec = Intersection{};
-        if (!worker.interface_stack.empty()) {
-            const vr = worker.volume(&ray, &isec, null, sampler);
+        if (!vertex.interface_stack.empty()) {
+            const vr = worker.volume(&vertex, null, sampler);
             throughput = vr.tr;
 
             if (.Abort == vr.event or .Absorb == vr.event) {
                 return;
             }
-        } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+        } else if (!worker.intersectAndResolveMask(&vertex.ray, null, &vertex.isec)) {
             return;
         }
 
-        const initrad = light.evaluateFrom(isec.geo.p, light_sample, null, worker.scene) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(vertex.isec.geo.p, light_sample, null, worker.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
+
+        const start_ray = vertex.ray;
+        const start_isec = vertex.isec;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
-            worker.interface_stack.clear();
+            vertex.interface_stack.clear();
             if (volumetric) {
-                worker.interface_stack.pushVolumeLight(light);
+                vertex.interface_stack.pushVolumeLight(light);
             }
 
-            var split_ray = ray;
-            var split_isec = isec;
+            vertex.ray = start_ray;
+            vertex.isec = start_isec;
 
-            self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
+            self.integrate(radiance, &vertex, worker, light_id, light_sample.xy);
 
             for (self.samplers) |*s| {
                 s.incrementSample();
@@ -108,8 +112,7 @@ pub const Lighttracer = struct {
     fn integrate(
         self: *Self,
         radiance_: Vec4f,
-        ray: *Ray,
-        isec: *Intersection,
+        vertex: *Vertex,
         worker: *Worker,
         light_id: u32,
         light_sample_xy: Vec2f,
@@ -123,24 +126,25 @@ pub const Lighttracer = struct {
         var caustic_path = false;
         var from_subsurface = false;
 
-        var wo1 = @splat(4, @as(f32, 0.0));
+        vertex.wo1 = @splat(4, @as(f32, 0.0));
+
+        const ray = &vertex.ray;
+        const isec = &vertex.isec;
 
         while (true) {
             const wo = -ray.ray.direction;
 
             const filter: ?Filter = if (ray.depth <= 1 or caustic_path) null else .Nearest;
             const mat_sample = worker.sampleMaterial(
-                ray.*,
+                vertex,
                 wo,
-                wo1,
-                isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
                 from_subsurface,
             );
 
-            wo1 = wo;
+            vertex.wo1 = wo;
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -168,7 +172,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray.*, isec.*, &mat_sample, filter, sampler, worker);
+                    _ = directCamera(camera, radiance, vertex, &mat_sample, filter, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -189,15 +193,15 @@ pub const Lighttracer = struct {
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                const ior = worker.interfaceChangeIor(sample_result.wi, isec.*);
+                const ior = vertex.interfaceChangeIor(sample_result.wi, isec.*, worker.scene);
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+            if (!vertex.interface_stack.empty()) {
+                const vr = worker.volume(vertex, filter, sampler);
 
                 // result += throughput * vr.li;
                 radiance *= vr.tr;
@@ -243,14 +247,13 @@ pub const Lighttracer = struct {
     fn directCamera(
         camera: *Camera,
         radiance: Vec4f,
-        history: Ray,
-        isec: Intersection,
+        vertex: *const Vertex,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!isec.visibleInCamera(worker.scene)) {
+        if (!vertex.isec.visibleInCamera(worker.scene)) {
             return false;
         }
 
@@ -261,7 +264,9 @@ pub const Lighttracer = struct {
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        const p = isec.offsetPN(mat_sample.super().geometricNormal(), mat_sample.isTranslucent());
+        const p = vertex.isec.offsetPN(mat_sample.super().geometricNormal(), mat_sample.isTranslucent());
+
+        const history = vertex.ray;
 
         const camera_sample = camera.sampleTo(
             filter_crop,
@@ -272,19 +277,19 @@ pub const Lighttracer = struct {
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
+        const ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
 
         const wo = mat_sample.super().wo;
-        const tr = worker.transmitted(&ray, wo, isec, filter) orelse return false;
+        const tr = worker.transmitted(ray, vertex, wo, filter) orelse return false;
 
         const bxdf = mat_sample.evaluate(wi);
 
         const n = mat_sample.super().interpolatedNormal();
-        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
+        var nsc = mat.nonSymmetryCompensation(wi, wo, vertex.isec.geo.geo_n, n);
 
-        const material_ior = isec.material(worker.scene).ior();
-        if (isec.subsurface and material_ior > 1.0) {
-            const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
+        const material_ior = vertex.isec.material(worker.scene).ior();
+        if (vertex.isec.subsurface and material_ior > 1.0) {
+            const ior_t = vertex.interface_stack.nextToBottomIor(worker.scene);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }

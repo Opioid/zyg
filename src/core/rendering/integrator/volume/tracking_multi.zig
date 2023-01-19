@@ -1,6 +1,7 @@
 const Result = @import("result.zig").Result;
 const tracking = @import("tracking.zig");
 const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
@@ -17,8 +18,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
-        if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+    pub fn integrate(vertex: *Vertex, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
+        if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),
@@ -26,7 +27,9 @@ pub const Multi = struct {
             };
         }
 
-        const interface = worker.interface_stack.top();
+        const ray = &vertex.ray;
+        const isec = &vertex.isec;
+        const interface = vertex.interface_stack.top();
 
         const d = ray.ray.maxT();
 
@@ -39,7 +42,7 @@ pub const Multi = struct {
         } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
             const v = -ray.ray.direction;
 
-            var tray = Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
+            var tray = Ray.init(vertex.isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
             var nisec = shp.Intersection{};
             if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
                 missed = math.dot3(nisec.geo_n, v) <= 0.0;
@@ -49,7 +52,7 @@ pub const Multi = struct {
         }
 
         if (missed) {
-            worker.interface_stack.pop();
+            vertex.interface_stack.pop();
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = @splat(4, @as(f32, 1.0)),

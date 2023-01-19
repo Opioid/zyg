@@ -1,6 +1,7 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
 const Ray = @import("../../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
@@ -95,6 +96,9 @@ pub const Mapper = struct {
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
+        var stack: InterfaceStack = undefined;
+        stack.clear();
+
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
             var filter: ?Filter = null;
@@ -114,38 +118,37 @@ pub const Mapper = struct {
 
             const light = worker.scene.light(light_id);
 
-            worker.interface_stack.clear();
+            var vertex: Vertex = undefined;
+            vertex.start(ray, .{}, &stack);
+
             if (light.volumetric()) {
-                worker.interface_stack.pushVolumeLight(light);
+                vertex.interface_stack.pushVolumeLight(light);
             }
 
             var throughput = @splat(4, @as(f32, 1.0));
 
-            var isec = Intersection{};
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(&ray, &isec, null, &self.sampler);
+            if (!vertex.interface_stack.empty()) {
+                const vr = worker.volume(&vertex, null, &self.sampler);
                 throughput = vr.tr;
 
                 if (.Abort == vr.event or .Absorb == vr.event) {
                     continue;
                 }
-            } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+            } else if (!worker.intersectAndResolveMask(&vertex.ray, null, &vertex.isec)) {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(vertex.isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             var wo1 = @splat(4, @as(f32, 0.0));
 
-            while (ray.depth < self.settings.max_bounces) {
-                const wo = -ray.ray.direction;
+            while (vertex.ray.depth < self.settings.max_bounces) {
+                const wo = -vertex.ray.ray.direction;
 
                 const mat_sample = worker.sampleMaterial(
-                    ray,
+                    &vertex,
                     wo,
-                    wo1,
-                    isec,
                     filter,
                     0.0,
                     Avoid_caustics,
@@ -165,24 +168,24 @@ pub const Mapper = struct {
 
                 if (!sample_result.class.straight) {
                     if (!sample_result.class.specular and
-                        (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
+                        (vertex.isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or bounds.pointInside(isec.geo.p)) {
+                        if (finite_world or bounds.pointInside(vertex.isec.geo.p)) {
                             var radi = radiance;
 
-                            const material_ior = isec.material(worker.scene).ior();
-                            if (isec.subsurface and material_ior > 1.0) {
-                                const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
+                            const material_ior = vertex.isec.material(worker.scene).ior();
+                            if (vertex.isec.subsurface and material_ior > 1.0) {
+                                const ior_t = vertex.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
                             }
 
                             self.photons[num_photons] = Photon{
-                                .p = isec.geo.p,
+                                .p = vertex.isec.geo.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
-                                .volumetric = isec.subsurface,
+                                .volumetric = vertex.isec.subsurface,
                             };
 
                             iteration = i + 1;
@@ -213,33 +216,33 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.straight) {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                    vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
-                        ray.depth += 1;
+                        vertex.ray.depth += 1;
                     }
                 } else {
-                    ray.ray.origin = isec.offsetP(sample_result.wi);
-                    ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    ray.depth += 1;
+                    vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
+                    vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.ray.depth += 1;
 
                     from_subsurface = false;
                 }
 
                 if (0.0 == ray.wavelength) {
-                    ray.wavelength = sample_result.wavelength;
+                    vertex.ray.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.interfaceChangeIor(sample_result.wi, isec);
+                    const ior = vertex.interfaceChangeIor(sample_result.wi, vertex.isec, worker.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }
 
-                from_subsurface = from_subsurface or isec.subsurface;
+                from_subsurface = from_subsurface or vertex.isec.subsurface;
 
-                if (!worker.interface_stack.empty()) {
-                    const vr = worker.volume(&ray, &isec, filter, &self.sampler);
+                if (!vertex.interface_stack.empty()) {
+                    const vr = worker.volume(&vertex, filter, &self.sampler);
 
                     // result += throughput * vr.li;
                     radiance *= vr.tr;
@@ -247,7 +250,7 @@ pub const Mapper = struct {
                     if (.Abort == vr.event or .Absorb == vr.event) {
                         break;
                     }
-                } else if (!worker.intersectAndResolveMask(&ray, filter, &isec)) {
+                } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
                     break;
                 }
 

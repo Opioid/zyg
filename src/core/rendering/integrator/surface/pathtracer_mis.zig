@@ -63,14 +63,10 @@ pub const PathtracerMIS = struct {
 
         var i = num_samples;
         while (i > 0) : (i -= 1) {
-            worker.resetInterfaceStack(initial_stack);
-
-            var split_ray = ray.*;
-            var split_isec = isec.*;
-
             result += @splat(4, num_samples_reciprocal) * self.integrate(
-                &split_ray,
-                &split_isec,
+                ray.*,
+                isec.*,
+                initial_stack,
                 num_samples == i and gather_photons,
                 worker,
             );
@@ -83,7 +79,14 @@ pub const PathtracerMIS = struct {
         return result;
     }
 
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
+    fn integrate(
+        self: *Self,
+        ray: Ray,
+        isec: Intersection,
+        initial_stack: *const InterfaceStack,
+        gather_photons: bool,
+        worker: *Worker,
+    ) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var result = @splat(4, @as(f32, 0.0));
@@ -105,12 +108,10 @@ pub const PathtracerMIS = struct {
             result += energy;
         }
 
-        worker.vertices.start(.{ .ray = ray.*, .isec = isec.* });
+        worker.vertices.start(ray, isec, initial_stack);
 
         while (!worker.vertices.empty()) {
-            for (worker.vertices.consume()) |v| {
-                var vertex = v;
-
+            for (worker.vertices.consume()) |*vertex| {
                 const throughput = vertex.throughput;
 
                 const wo = -vertex.ray.ray.direction;
@@ -121,10 +122,8 @@ pub const PathtracerMIS = struct {
                 const straight_border = vertex.state.from_subsurface;
 
                 const mat_sample = worker.sampleMaterial(
-                    vertex.ray,
+                    vertex,
                     wo,
-                    vertex.wo1,
-                    vertex.isec,
                     filter,
                     0.0,
                     avoid_caustics,
@@ -153,9 +152,8 @@ pub const PathtracerMIS = struct {
                         continue;
                     }
 
-                    var next_vertex = vertex;
-
-                    var next_throughput = vertex.throughput / weight;
+                    var next_vertex = vertex.*;
+                    var next_throughput = next_vertex.throughput / weight;
 
                     next_vertex.bxdf_pdf = sample_result.pdf;
 
@@ -201,7 +199,7 @@ pub const PathtracerMIS = struct {
                     next_throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
                     if (sample_result.class.transmission) {
-                        worker.interfaceChange(sample_result.wi, next_vertex.isec);
+                        next_vertex.interfaceChange(sample_result.wi, next_vertex.isec, worker.scene);
                     }
 
                     next_vertex.state.from_subsurface = next_vertex.state.from_subsurface or next_vertex.isec.subsurface;
@@ -213,8 +211,8 @@ pub const PathtracerMIS = struct {
                         next_vertex.geo_n = mat_sample.super().geometricNormal();
                     }
 
-                    if (!worker.interface_stack.empty()) {
-                        const vr = worker.volume(&next_vertex.ray, &next_vertex.isec, filter, sampler);
+                    if (!next_vertex.interface_stack.empty()) {
+                        const vr = worker.volume(&next_vertex, filter, sampler);
 
                         if (.Absorb == vr.event) {
                             if (0 == next_vertex.ray.depth) {
@@ -291,7 +289,7 @@ pub const PathtracerMIS = struct {
 
     fn sampleLights(
         self: *const Self,
-        vertex: Vertex,
+        vertex: *const Vertex,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
@@ -316,7 +314,7 @@ pub const PathtracerMIS = struct {
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
 
-            result += evaluateLight(light, l.pdf, vertex.ray, p, vertex.isec, mat_sample, filter, sampler, worker);
+            result += evaluateLight(light, l.pdf, vertex, p, mat_sample, filter, sampler, worker);
         }
 
         return result;
@@ -325,14 +323,15 @@ pub const PathtracerMIS = struct {
     fn evaluateLight(
         light: Light,
         light_weight: f32,
-        history: Ray,
+        vertex: *const Vertex,
         p: Vec4f,
-        isec: Intersection,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
+        const history = vertex.ray;
+
         // Light source importance sample
         const light_sample = light.sampleTo(
             p,
@@ -343,7 +342,7 @@ pub const PathtracerMIS = struct {
             worker.scene,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        var shadow_ray = Ray.init(
+        const shadow_ray = Ray.init(
             p,
             light_sample.wi,
             p[3],
@@ -354,9 +353,9 @@ pub const PathtracerMIS = struct {
         );
 
         const tr = worker.transmitted(
-            &shadow_ray,
+            shadow_ray,
+            vertex,
             mat_sample.super().wo,
-            isec,
             filter,
         ) orelse return @splat(4, @as(f32, 0.0));
 
