@@ -593,7 +593,7 @@ pub const Sample = struct {
                 result1.* = bxdf.Sample{ .wavelength = 0.0 };
 
                 const r_wo_dot_h = -wo_dot_h;
-                _ = ggx.Iso.refractNoFresnel(
+                const r_n_dot_wi = ggx.Iso.refractNoFresnel(
                     wo,
                     h,
                     n_dot_wo,
@@ -607,7 +607,7 @@ pub const Sample = struct {
                 );
 
                 const omf = 1.0 - f;
-                result1.reflection *= @splat(4, omf * n_dot_wi);
+                result1.reflection *= @splat(4, omf * r_n_dot_wi);
                 //  result1.pdf *= omf;
 
                 return buffer[0..2];

@@ -146,7 +146,6 @@ pub const PathtracerMIS = struct {
 
                 const sample_results = mat_sample.sample(sampler, split, &worker.bxdfs);
                 const path_count = @truncate(u32, sample_results.len);
-                const weight = @splat(4, @intToFloat(f32, path_count));
 
                 for (sample_results) |sr| {
                     var sample_result = sr;
@@ -156,7 +155,7 @@ pub const PathtracerMIS = struct {
 
                     var next_vertex = vertex.*;
                     next_vertex.path_count *= path_count;
-                    var next_throughput = next_vertex.throughput / weight;
+                    var next_throughput = next_vertex.throughput;
 
                     next_vertex.bxdf_pdf = sample_result.pdf;
 
