@@ -43,10 +43,6 @@ pub inline fn length3(v: Vec4f) f32 {
     return @sqrt(dot3(v, v));
 }
 
-pub inline fn rlength3(v: Vec4f) f32 {
-    return @sqrt(1.0 / dot3(v, v));
-}
-
 pub inline fn squaredDistance3(a: Vec4f, b: Vec4f) f32 {
     return squaredLength3(a - b);
 }
@@ -56,8 +52,7 @@ pub inline fn distance3(a: Vec4f, b: Vec4f) f32 {
 }
 
 pub inline fn normalize3(v: Vec4f) Vec4f {
-    const i = rlength3(v);
-    return @splat(4, i) * v;
+    return v / @splat(4, length3(v));
 }
 
 pub inline fn reciprocal3(v: Vec4f) Vec4f {
