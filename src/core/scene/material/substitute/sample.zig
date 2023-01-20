@@ -571,80 +571,26 @@ pub const Sample = struct {
         const p = s3[0];
         if (same_side) {
             if (split) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    wi_dot_h,
-                    wo_dot_h,
-                    alpha,
-                    frame,
-                    result,
-                );
-
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-                const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
-
-                result.reflection = reflection;
-                //   result.pdf *= f;
+                result.reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                 const result1 = &buffer[1];
                 result1.* = bxdf.Sample{ .wavelength = 0.0 };
-
                 const r_wo_dot_h = -wo_dot_h;
-                const r_n_dot_wi = ggx.Iso.refractNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    -wi_dot_h,
-                    r_wo_dot_h,
-                    alpha[0],
-                    ior,
-                    frame,
-                    result1,
-                );
-
-                const omf = 1.0 - f;
-                result1.reflection *= @splat(4, omf * r_n_dot_wi);
-                //  result1.pdf *= omf;
+                const r_n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result1);
+                result1.reflection *= @splat(4, (1.0 - f) * r_n_dot_wi);
 
                 return buffer[0..2];
             } else {
                 if (p <= f) {
-                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        wi_dot_h,
-                        wo_dot_h,
-                        alpha,
-                        frame,
-                        result,
-                    );
-
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
-
-                    result.reflection = reflection;
+                    result.reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
                     result.pdf *= f;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
-                    const n_dot_wi = ggx.Iso.refractNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        -wi_dot_h,
-                        r_wo_dot_h,
-                        alpha[0],
-                        ior,
-                        frame,
-                        result,
-                    );
-
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
                     const omf = 1.0 - f;
                     result.reflection *= @splat(4, omf * n_dot_wi);
                     result.pdf *= omf;
@@ -652,35 +598,12 @@ pub const Sample = struct {
             }
         } else {
             if (p <= f) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    wi_dot_h,
-                    wo_dot_h,
-                    alpha,
-                    frame,
-                    result,
-                );
-
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                 result.reflection *= @splat(4, f * n_dot_wi);
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    -wi_dot_h,
-                    r_wo_dot_h,
-                    alpha[0],
-                    ior,
-                    frame,
-                    result,
-                );
-
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
                 const omf = 1.0 - f;
                 result.reflection *= @splat(4, omf * n_dot_wi);
                 result.pdf *= omf;
