@@ -28,6 +28,7 @@ pub const Vertex = struct {
     geo_n: Vec4f,
     wo1: Vec4f,
 
+    path_count: u32,
     bxdf_pdf: f32,
 
     state: PathState,
@@ -39,6 +40,7 @@ pub const Vertex = struct {
         self.throughput = @splat(4, @as(f32, 1.0));
         self.geo_n = @splat(4, @as(f32, 0.0));
         self.wo1 = @splat(4, @as(f32, 0.0));
+        self.path_count = 1;
         self.bxdf_pdf = 0.0;
         self.state = .{};
     }

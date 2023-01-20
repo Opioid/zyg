@@ -1,4 +1,5 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const bxdf = @import("bxdf.zig");
 const hlp = @import("sample_helper.zig");
 
 const base = @import("base");
@@ -93,6 +94,8 @@ pub const Frame = struct {
 };
 
 pub const SampleBase = struct {
+    pub const BxdfSamples = [2]bxdf.Sample;
+
     pub const Properties = packed struct {
         translucent: bool = false,
         can_evaluate: bool = false,

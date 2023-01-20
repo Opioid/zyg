@@ -13,8 +13,6 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 
 pub const Sample = union(enum) {
-    pub const BxdfSamples = [2]bxdf.Sample;
-
     Debug: Debug,
     Glass: Glass,
     Light: Light,
@@ -50,22 +48,31 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         return switch (self.*) {
             .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),
+            .Substitute => |*s| s.evaluate(wi, split),
             inline else => |*s| s.evaluate(wi),
         };
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *BxdfSamples) []bxdf.Sample {
-        _ = split;
-
-        buffer[0] = switch (self.*) {
-            .Light => Light.sample(),
-            .Null => |*s| s.sample(),
-            inline else => |*s| s.sample(sampler),
-        };
-
-        return buffer[0..1];
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+        switch (self.*) {
+            .Light => {
+                buffer[0] = Light.sample();
+                return buffer[0..1];
+            },
+            .Null => |*s| {
+                buffer[0] = s.sample();
+                return buffer[0..1];
+            },
+            .Substitute => |*s| {
+                return s.sample(sampler, split, buffer);
+            },
+            inline else => |*s| {
+                buffer[0] = s.sample(sampler);
+                return buffer[0..1];
+            },
+        }
     }
 };

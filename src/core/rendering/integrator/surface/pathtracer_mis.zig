@@ -138,13 +138,15 @@ pub const PathtracerMIS = struct {
 
                 var sampler = self.pickSampler(vertex.ray.depth);
 
-                result += throughput * self.sampleLights(vertex, &mat_sample, filter, sampler, worker);
+                const split = vertex.path_count <= 1 and vertex.ray.depth < Num_dedicated_samplers;
+
+                result += throughput * self.sampleLights(vertex, &mat_sample, filter, split, sampler, worker);
 
                 var effective_bxdf_pdf = vertex.bxdf_pdf;
 
-                const sample_results = mat_sample.sample(sampler, false, &worker.bxdfs);
-
-                const weight = @splat(4, @intToFloat(f32, sample_results.len));
+                const sample_results = mat_sample.sample(sampler, split, &worker.bxdfs);
+                const path_count = @truncate(u32, sample_results.len);
+                const weight = @splat(4, @intToFloat(f32, path_count));
 
                 for (sample_results) |sr| {
                     var sample_result = sr;
@@ -153,6 +155,7 @@ pub const PathtracerMIS = struct {
                     }
 
                     var next_vertex = vertex.*;
+                    next_vertex.path_count *= path_count;
                     var next_throughput = next_vertex.throughput / weight;
 
                     next_vertex.bxdf_pdf = sample_result.pdf;
@@ -292,6 +295,7 @@ pub const PathtracerMIS = struct {
         vertex: *const Vertex,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
+        material_split: bool,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
@@ -314,7 +318,7 @@ pub const PathtracerMIS = struct {
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
 
-            result += evaluateLight(light, l.pdf, vertex, p, mat_sample, filter, sampler, worker);
+            result += evaluateLight(light, l.pdf, vertex, p, mat_sample, filter, material_split, sampler, worker);
         }
 
         return result;
@@ -327,6 +331,7 @@ pub const PathtracerMIS = struct {
         p: Vec4f,
         mat_sample: *const MaterialSample,
         filter: ?Filter,
+        split: bool,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
@@ -359,7 +364,7 @@ pub const PathtracerMIS = struct {
             filter,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        const bxdf = mat_sample.evaluate(light_sample.wi);
+        const bxdf = mat_sample.evaluate(light_sample.wi, split);
 
         const radiance = light.evaluateTo(p, light_sample, filter, worker.scene);
 

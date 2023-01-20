@@ -565,7 +565,7 @@ pub const Grid = struct {
 
                             const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi);
+                            const bxdf = sample.evaluate(p.wi, false);
 
                             result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
@@ -573,7 +573,7 @@ pub const Grid = struct {
 
                             const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi);
+                            const bxdf = sample.evaluate(p.wi, false);
 
                             result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         }
@@ -627,7 +627,7 @@ pub const Grid = struct {
                 for (buffer.entries[0..used_entries]) |entry| {
                     const p = self.photons[entry.id];
 
-                    const bxdf = sample.evaluate(p.wi);
+                    const bxdf = sample.evaluate(p.wi, false);
 
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
@@ -648,7 +648,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi);
+                        const bxdf = sample.evaluate(p.wi, false);
 
                         result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
@@ -656,7 +656,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi);
+                        const bxdf = sample.evaluate(p.wi, false);
 
                         result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }

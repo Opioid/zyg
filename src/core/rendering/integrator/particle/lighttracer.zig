@@ -282,7 +282,7 @@ pub const Lighttracer = struct {
         const wo = mat_sample.super().wo;
         const tr = worker.transmitted(ray, vertex, wo, filter) orelse return false;
 
-        const bxdf = mat_sample.evaluate(wi);
+        const bxdf = mat_sample.evaluate(wi, false);
 
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, vertex.isec.geo.geo_n, n);

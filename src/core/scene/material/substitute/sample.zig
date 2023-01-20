@@ -67,9 +67,9 @@ pub const Sample = struct {
         self.opacity = 1.0 - transparency;
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         if (self.super.properties.volumetric) {
-            return self.volumetricEvaluate(wi);
+            return self.volumetricEvaluate(wi, split);
         }
 
         const wo = self.super.wo;
@@ -117,8 +117,9 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        var result = bxdf.Sample{ .wavelength = 0.0 };
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+        var result = &buffer[0]; // bxdf.Sample{ .wavelength = 0.0 };
+        result.* = bxdf.Sample{ .wavelength = 0.0 };
 
         const th = self.super.thickness;
         if (th > 0.0) {
@@ -129,7 +130,7 @@ pub const Sample = struct {
             const p = s3[0];
             if (p < tr) {
                 const frame = self.super.frame;
-                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, &result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
                 const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
@@ -144,31 +145,30 @@ pub const Sample = struct {
                 const xi = Vec2f{ s3[1], s3[2] };
 
                 if (p < tr + 0.5 * op) {
-                    self.diffuseSample(xi, &result);
+                    self.diffuseSample(xi, result);
                 } else {
-                    self.glossSample(xi, &result);
+                    self.glossSample(xi, result);
                 }
 
                 result.pdf *= op;
             }
         } else {
             if (self.super.properties.volumetric) {
-                self.volumetricSample(sampler, &result);
-                return result;
+                return self.volumetricSample(sampler, split, buffer);
             }
 
             if (!self.super.sameHemisphere(self.super.wo)) {
-                return result;
+                return buffer[0..1];
             }
 
             if (self.coating.thickness > 0.0) {
-                self.coatingSample(sampler, &result);
+                self.coatingSample(sampler, result);
             } else {
-                self.baseSample(sampler, &result);
+                self.baseSample(sampler, result);
             }
         }
 
-        return result;
+        return buffer[0..1];
     }
 
     fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
@@ -433,7 +433,7 @@ pub const Sample = struct {
         return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
     }
 
-    fn volumetricEvaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    fn volumetricEvaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return bxdf.Result.empty();
@@ -512,7 +512,7 @@ pub const Sample = struct {
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @splat(4, n_dot_wi) * (gg.r.reflection + mms);
-        const base_pdf = gg.f[0] * gg.r.pdf();
+        const base_pdf = (if (split) 1.0 else gg.f[0]) * gg.r.pdf();
 
         if (self.coating.thickness > 0.0) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
@@ -523,10 +523,12 @@ pub const Sample = struct {
         return bxdf.Result.init(base_reflection, base_pdf);
     }
 
-    fn volumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+    fn volumetricSample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+        const result = &buffer[0];
+
         if (self.coating.thickness > 0.0) {
             self.coatedVolumetricSample(sampler, result);
-            return;
+            return buffer[0..1];
         }
 
         const wo = self.super.wo;
@@ -536,7 +538,7 @@ pub const Sample = struct {
             result.wi = -wo;
             result.pdf = 1.0;
             result.class = .{ .specular = true, .transmission = true };
-            return;
+            return buffer[0..1];
         }
 
         const alpha = self.super.alpha;
@@ -568,7 +570,7 @@ pub const Sample = struct {
 
         const p = s3[0];
         if (same_side) {
-            if (p <= f) {
+            if (split) {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                     wo,
                     h,
@@ -585,10 +587,13 @@ pub const Sample = struct {
                 const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
 
                 result.reflection = reflection;
-                result.pdf *= f;
-            } else {
+                //   result.pdf *= f;
+
+                const result1 = &buffer[1];
+                result1.* = bxdf.Sample{ .wavelength = 0.0 };
+
                 const r_wo_dot_h = -wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(
+                _ = ggx.Iso.refractNoFresnel(
                     wo,
                     h,
                     n_dot_wo,
@@ -598,12 +603,52 @@ pub const Sample = struct {
                     alpha[0],
                     ior,
                     frame,
-                    result,
+                    result1,
                 );
 
                 const omf = 1.0 - f;
-                result.reflection *= @splat(4, omf * n_dot_wi);
-                result.pdf *= omf;
+                result1.reflection *= @splat(4, omf * n_dot_wi);
+                //  result1.pdf *= omf;
+
+                return buffer[0..2];
+            } else {
+                if (p <= f) {
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(
+                        wo,
+                        h,
+                        n_dot_wo,
+                        n_dot_h,
+                        wi_dot_h,
+                        wo_dot_h,
+                        alpha,
+                        frame,
+                        result,
+                    );
+
+                    const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
+                    const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
+
+                    result.reflection = reflection;
+                    result.pdf *= f;
+                } else {
+                    const r_wo_dot_h = -wo_dot_h;
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(
+                        wo,
+                        h,
+                        n_dot_wo,
+                        n_dot_h,
+                        -wi_dot_h,
+                        r_wo_dot_h,
+                        alpha[0],
+                        ior,
+                        frame,
+                        result,
+                    );
+
+                    const omf = 1.0 - f;
+                    result.reflection *= @splat(4, omf * n_dot_wi);
+                    result.pdf *= omf;
+                }
             }
         } else {
             if (p <= f) {
@@ -643,9 +688,11 @@ pub const Sample = struct {
 
             result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
         }
+
+        return buffer[0..1];
     }
 
-    fn coatedVolumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+    fn coatedVolumetricSample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
