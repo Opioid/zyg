@@ -259,14 +259,14 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(&self.interface_stack);
+        var stack: InterfaceStack = undefined;
+        stack.copy(&self.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.interface_stack.straight(self.scene)) {
-            self.interface_stack.pop();
+        if (!stack.straight(self.scene)) {
+            stack.pop();
         }
 
         const ray_max_t = ray.ray.maxT();
@@ -279,8 +279,8 @@ pub const Worker = struct {
         while (true) {
             const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!self.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, self)) |tr| {
+            if (!stack.empty()) {
+                if (self.volume_integrator.transmittance(tray, stack.top(), filter, self)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -292,9 +292,9 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.interface_stack.remove(isec);
+                _ = stack.remove(isec);
             } else {
-                self.interface_stack.push(isec);
+                stack.push(isec);
             }
 
             const ray_min_t = ro.offsetF(tray.ray.maxT());
@@ -304,8 +304,6 @@ pub const Worker = struct {
 
             tray.ray.setMinMaxT(ray_min_t, ray_max_t);
         }
-
-        self.interface_stack.copy(&temp_stack);
 
         return w;
     }
@@ -324,7 +322,7 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, self)) |tr| {
+                if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
                     ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
 
                     if (self.scene.visibility(ray.*, filter)) |tv| {
