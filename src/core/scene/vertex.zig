@@ -83,7 +83,7 @@ pub const Vertex = struct {
 };
 
 pub const Pool = struct {
-    const Num_vertices = 2;
+    const Num_vertices = 4;
 
     buffer: [2 * Num_vertices]Vertex,
 

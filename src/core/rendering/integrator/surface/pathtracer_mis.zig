@@ -22,8 +22,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const PathtracerMIS = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
         num_samples: u32,
         min_bounces: u32,
@@ -138,7 +136,7 @@ pub const PathtracerMIS = struct {
 
                 var sampler = self.pickSampler(vertex.ray.depth);
 
-                const split = vertex.path_count <= 1 and vertex.ray.depth < Num_dedicated_samplers;
+                const split = vertex.path_count <= 2 and vertex.ray.depth < 3;
 
                 result += throughput * self.sampleLights(vertex, &mat_sample, filter, split, sampler, worker);
 
@@ -431,7 +429,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
     fn pickSampler(self: *Self, bounce: u32) *Sampler {
