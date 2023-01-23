@@ -1,5 +1,4 @@
 const scn = @import("../../../scene/ray.zig");
-const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Result = @import("result.zig").Result;
 const Worker = @import("../../../rendering/worker.zig").Worker;
