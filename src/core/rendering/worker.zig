@@ -282,7 +282,7 @@ pub const Worker = struct {
         while (true) {
             const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!vertex.interface_stack.empty()) {
+            if (!stack.empty()) {
                 if (self.volume_integrator.transmittance(tray, stack.top(), filter, self)) |tr| {
                     w *= tr;
                 } else {
