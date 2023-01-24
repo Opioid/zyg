@@ -55,6 +55,7 @@ pub fn mapRoughness(roughness: f32) f32 {
 }
 
 const ResultF = struct { r: bxdf.Result, f: Vec4f };
+const ResultF1 = struct { r: bxdf.Result, f: f32 };
 
 pub const Iso = struct {
     pub inline fn reflection(
@@ -85,8 +86,6 @@ pub const Iso = struct {
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
-
-        //   fresnel_result.* = f;
 
         const refl = @splat(4, d * g[0]) * f;
         const pdf = pdfVisible(d, g[1]);
@@ -135,7 +134,7 @@ pub const Iso = struct {
         alpha: f32,
         ior: IoR,
         fresnel: anytype,
-    ) bxdf.Result {
+    ) ResultF1 {
         const alpha2 = alpha * alpha;
 
         const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
@@ -157,7 +156,7 @@ pub const Iso = struct {
 
         const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
 
-        return bxdf.Result.init(@splat(4, refl), pdf * f * (abs_wi_dot_h * sqr_eta_t / denom));
+        return .{ .r = bxdf.Result.init(@splat(4, refl), pdf * (abs_wi_dot_h * sqr_eta_t / denom)), .f = f };
     }
 
     pub fn reflectNoFresnel(

@@ -2,9 +2,7 @@ const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
 const Ray = @import("../ray.zig").Ray;
 const ro = @import("../ray_offset.zig");
-const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
-const Vertex = @import("../vertex.zig").Vertex;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const mat = @import("../material/material.zig");
@@ -37,48 +35,6 @@ pub const Intersection = struct {
 
     pub fn opacity(self: Self, filter: ?Filter, scene: *const Scene) f32 {
         return self.material(scene).opacity(self.geo.uv, filter, scene);
-    }
-
-    pub fn sample(
-        self: Self,
-        wo: Vec4f,
-        ray: Ray,
-        filter: ?Filter,
-        avoid_caustics: bool,
-        vertex: *const Vertex,
-        worker: *const Worker,
-    ) mat.Sample {
-        const m = self.material(worker.scene);
-        const p = self.geo.p;
-        const b = self.geo.b;
-
-        var rs: Renderstate = undefined;
-        rs.trafo = self.geo.trafo;
-        rs.p = .{ p[0], p[1], p[2], vertex.iorOutside(wo, self, worker.scene) };
-        rs.t = self.geo.t;
-        rs.b = .{ b[0], b[1], b[2], ray.wavelength };
-
-        if (m.twoSided() and !self.sameHemisphere(wo)) {
-            rs.geo_n = -self.geo.geo_n;
-            rs.n = -self.geo.n;
-        } else {
-            rs.geo_n = self.geo.geo_n;
-            rs.n = self.geo.n;
-        }
-
-        rs.ray_p = ray.ray.origin;
-
-        rs.uv = self.geo.uv;
-        rs.prop = self.prop;
-        rs.part = self.geo.part;
-        rs.primitive = self.geo.primitive;
-        rs.depth = ray.depth;
-        rs.time = ray.time;
-        rs.filter = filter;
-        rs.subsurface = self.subsurface;
-        rs.avoid_caustics = avoid_caustics;
-
-        return m.sample(wo, rs, worker);
     }
 
     pub fn evaluateRadiance(

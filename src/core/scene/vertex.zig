@@ -1,8 +1,12 @@
 const Ray = @import("ray.zig").Ray;
 const Scene = @import("scene.zig").Scene;
+const Renderstate = @import("renderstate.zig").Renderstate;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const InterfaceStack = @import("prop/interface.zig").Stack;
 const IoR = @import("material/sample_base.zig").IoR;
+const mat = @import("material/material.zig");
+const Filter = @import("../image/texture/texture_sampler.zig").Filter;
+const Worker = @import("../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -45,40 +49,73 @@ pub const Vertex = struct {
         self.state = .{};
     }
 
-    pub fn iorOutside(self: *const Vertex, wo: Vec4f, isec: Intersection, scene: *const Scene) f32 {
-        if (isec.sameHemisphere(wo)) {
+    pub fn iorOutside(self: *const Vertex, wo: Vec4f, scene: *const Scene) f32 {
+        if (self.isec.sameHemisphere(wo)) {
             return self.interface_stack.topIor(scene);
         }
 
-        return self.interface_stack.peekIor(isec, scene);
+        return self.interface_stack.peekIor(self.isec, scene);
     }
 
-    pub fn interfaceChange(self: *Vertex, dir: Vec4f, isec: Intersection, scene: *const Scene) void {
-        const leave = isec.sameHemisphere(dir);
+    pub fn interfaceChange(self: *Vertex, dir: Vec4f, scene: *const Scene) void {
+        const leave = self.isec.sameHemisphere(dir);
         if (leave) {
-            _ = self.interface_stack.remove(isec);
-        } else if (self.interface_stack.straight(scene) or isec.material(scene).ior() > 1.0) {
-            self.interface_stack.push(isec);
+            _ = self.interface_stack.remove(self.isec);
+        } else if (self.interface_stack.straight(scene) or self.isec.material(scene).ior() > 1.0) {
+            self.interface_stack.push(self.isec);
         }
     }
 
-    pub fn interfaceChangeIor(self: *Vertex, dir: Vec4f, isec: Intersection, scene: *const Scene) IoR {
-        const inter_ior = isec.material(scene).ior();
+    pub fn interfaceChangeIor(self: *Vertex, dir: Vec4f, scene: *const Scene) IoR {
+        const inter_ior = self.isec.material(scene).ior();
 
-        const leave = isec.sameHemisphere(dir);
+        const leave = self.isec.sameHemisphere(dir);
         if (leave) {
-            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, scene), .eta_i = inter_ior };
-            _ = self.interface_stack.remove(isec);
+            const ior = IoR{ .eta_t = self.interface_stack.peekIor(self.isec, scene), .eta_i = inter_ior };
+            _ = self.interface_stack.remove(self.isec);
             return ior;
         }
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(scene) };
 
         if (self.interface_stack.straight(scene) or inter_ior > 1.0) {
-            self.interface_stack.push(isec);
+            self.interface_stack.push(self.isec);
         }
 
         return ior;
+    }
+
+    pub fn sample(self: *const Vertex, wo: Vec4f, filter: ?Filter, avoid_caustics: bool, worker: *const Worker) mat.Sample {
+        const m = self.isec.material(worker.scene);
+        const p = self.isec.geo.p;
+        const b = self.isec.geo.b;
+
+        var rs: Renderstate = undefined;
+        rs.trafo = self.isec.geo.trafo;
+        rs.p = .{ p[0], p[1], p[2], self.iorOutside(wo, worker.scene) };
+        rs.t = self.isec.geo.t;
+        rs.b = .{ b[0], b[1], b[2], self.ray.wavelength };
+
+        if (m.twoSided() and !self.isec.sameHemisphere(wo)) {
+            rs.geo_n = -self.isec.geo.geo_n;
+            rs.n = -self.isec.geo.n;
+        } else {
+            rs.geo_n = self.isec.geo.geo_n;
+            rs.n = self.isec.geo.n;
+        }
+
+        rs.ray_p = self.ray.ray.origin;
+        rs.uv = self.isec.geo.uv;
+        rs.prop = self.isec.prop;
+        rs.part = self.isec.geo.part;
+        rs.primitive = self.isec.geo.primitive;
+        rs.depth = self.ray.depth;
+        rs.time = self.ray.time;
+        rs.filter = filter;
+        rs.subsurface = self.isec.subsurface;
+        rs.avoid_caustics = avoid_caustics;
+
+        return m.sample(wo, rs, worker);
     }
 };
 

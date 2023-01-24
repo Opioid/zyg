@@ -193,7 +193,7 @@ pub const Lighttracer = struct {
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                const ior = vertex.interfaceChangeIor(sample_result.wi, isec.*, worker.scene);
+                const ior = vertex.interfaceChangeIor(sample_result.wi, worker.scene);
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }

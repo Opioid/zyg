@@ -69,7 +69,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
 
         const wo = -vertex.ray.ray.direction;
-        const mat_sample = vertex.isec.sample(wo, vertex.ray, null, false, vertex, worker);
+        const mat_sample = vertex.sample(wo, null, false, worker);
 
         var occlusion_ray: Ray = undefined;
 
@@ -102,7 +102,7 @@ pub const AOV = struct {
 
     fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
         const wo = -vertex.ray.ray.direction;
-        const mat_sample = vertex.isec.sample(wo, vertex.ray, null, false, vertex, worker);
+        const mat_sample = vertex.sample(wo, null, false, worker);
 
         var vec: Vec4f = undefined;
 
@@ -197,7 +197,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, vertex.isec, worker.scene);
+                vertex.interfaceChange(sample_result.wi, worker.scene);
             }
 
             from_subsurface = from_subsurface or vertex.isec.subsurface;

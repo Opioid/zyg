@@ -8,7 +8,7 @@ const Vertex = @import("../scene/vertex.zig").Vertex;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/material_helper.zig");
-const BxdfSample = @import("../scene/material/bxdf.zig").Sample;
+const bxdf = @import("../scene/material/bxdf.zig");
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/sample.zig").Sample;
 const ro = @import("../scene/ray_offset.zig");
@@ -56,7 +56,7 @@ pub const Worker = struct {
     lighttracer: lt.Lighttracer = undefined,
 
     vertices: VertexPool = undefined,
-    bxdfs: [2]BxdfSample = undefined,
+    bxdfs: bxdf.Samples = undefined,
 
     aov: aov.Value = undefined,
 
@@ -395,7 +395,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
         }
 
-        return vertex.isec.sample(wo, vertex.ray, filter, avoid_caustics, vertex, self);
+        return vertex.sample(wo, filter, avoid_caustics, self);
     }
 
     pub fn randomLightSpatial(

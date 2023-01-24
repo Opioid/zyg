@@ -32,8 +32,8 @@ pub inline fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
     return f_pdf / (f_pdf * f_pdf + g_pdf * g_pdf);
 }
 
-pub inline fn russianRoulette(throughput: *Vec4f, r: f32) bool {
-    const continuation_probability = math.maxComponent3(throughput.*);
+pub inline fn russianRoulette(throughput: *Vec4f, path_count: u32, r: f32) bool {
+    const continuation_probability = math.maxComponent3(throughput.*) * @intToFloat(f32, path_count);
 
     if (r >= continuation_probability) {
         return true;

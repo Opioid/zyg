@@ -114,8 +114,8 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             return bxdf.Result.init(
-                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
-                gg.pdf(),
+                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.r.reflection,
+                gg.f * gg.r.pdf(),
             );
         } else {
             const n_dot_wi = frame.clampNdot(wi);
@@ -134,7 +134,7 @@ pub const Sample = struct {
         }
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
@@ -226,7 +226,7 @@ pub const Sample = struct {
         }
     }
 
-    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         // Thin material is always double sided, so no need to check hemisphere.
         const eta_i = self.ior_outside;
         const eta_t = ior;

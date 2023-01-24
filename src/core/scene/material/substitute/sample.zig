@@ -117,7 +117,7 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         var result = &buffer[0]; // bxdf.Sample{ .wavelength = 0.0 };
         result.* = bxdf.Sample{ .wavelength = 0.0 };
 
@@ -468,22 +468,13 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick.init(self.f0);
 
-            const gg = ggx.Iso.refraction(
-                n_dot_wi,
-                n_dot_wo,
-                wi_dot_h,
-                wo_dot_h,
-                n_dot_h,
-                alpha[0],
-                ior,
-                schlick,
-            );
+            const gg = ggx.Iso.refraction(n_dot_wi, n_dot_wo, wi_dot_h, wo_dot_h, n_dot_h, alpha[0], ior, schlick);
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
             return bxdf.Result.init(
-                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
-                gg.pdf(),
+                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.r.reflection,
+                (if (splitCondition(split, 1.0 - gg.f)) 1.0 else gg.f) * gg.r.pdf(),
             );
         }
 
@@ -498,21 +489,11 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        var gg = ggx.Aniso.reflectionF(
-            wi,
-            wo,
-            h,
-            n_dot_wi,
-            n_dot_wo,
-            wo_dot_h,
-            alpha,
-            schlick,
-            frame,
-        );
+        var gg = ggx.Aniso.reflectionF(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, frame);
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @splat(4, n_dot_wi) * (gg.r.reflection + mms);
-        const base_pdf = (if (split) 1.0 else gg.f[0]) * gg.r.pdf();
+        const base_pdf = (if (splitCondition(split, gg.f[0])) 1.0 else gg.f[0]) * gg.r.pdf();
 
         if (self.coating.thickness > 0.0) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
@@ -523,7 +504,13 @@ pub const Sample = struct {
         return bxdf.Result.init(base_reflection, base_pdf);
     }
 
-    fn volumetricSample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *Base.BxdfSamples) []bxdf.Sample {
+    fn splitCondition(split: bool, f: f32) bool {
+        _ = split;
+        _ = f;
+        return false; //split and f < 0.5;
+    }
+
+    fn volumetricSample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         const result = &buffer[0];
 
         if (self.coating.thickness > 0.0) {
@@ -568,9 +555,11 @@ pub const Sample = struct {
             f = fresnel.schlick1(cos_x, self.f0[0]);
         }
 
+        const sc = splitCondition(split, f);
+
         const p = s3[0];
         if (same_side) {
-            if (split) {
+            if (sc) {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                 result.reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
@@ -597,19 +586,33 @@ pub const Sample = struct {
                 }
             }
         } else {
-            if (p <= f) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
-                result.reflection *= @splat(4, f * n_dot_wi);
-                result.pdf *= f;
-            } else {
-                const r_wo_dot_h = wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
-                const omf = 1.0 - f;
-                result.reflection *= @splat(4, omf * n_dot_wi);
-                result.pdf *= omf;
-            }
+            if (sc) {
+                const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
-            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
+                result.reflection *= @splat(4, ep * f * n_dot_wi);
+
+                const result1 = &buffer[1];
+                const r_wo_dot_h = wo_dot_h;
+                const r_n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result1);
+                result1.reflection *= @splat(4, ep * (1.0 - f) * r_n_dot_wi);
+
+                return buffer[0..2];
+            } else {
+                if (p <= f) {
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
+                    result.reflection *= @splat(4, f * n_dot_wi);
+                    result.pdf *= f;
+                } else {
+                    const r_wo_dot_h = wo_dot_h;
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
+                    const omf = 1.0 - f;
+                    result.reflection *= @splat(4, omf * n_dot_wi);
+                    result.pdf *= omf;
+                }
+
+                result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
+            }
         }
 
         return buffer[0..1];
@@ -662,47 +665,20 @@ pub const Sample = struct {
                 }
 
                 if (p <= f) {
-                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        wi_dot_h,
-                        wo_dot_h,
-                        alpha,
-                        frame,
-                        result,
-                    );
-
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                     const reflection = @splat(4, n_dot_wi) * (@splat(4, f) * result.reflection + mms);
-
                     result.reflection = reflection;
                     result.pdf *= f;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
-                    const n_dot_wi = ggx.Iso.refractNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        -wi_dot_h,
-                        r_wo_dot_h,
-                        alpha[1],
-                        ior,
-                        frame,
-                        result,
-                    );
-
-                    const omf = 1.0 - f;
-
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
                     const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
-
                     // Approximating the full coating attenuation at entrance, for the benefit of SSS,
                     // which will ignore the border later.
                     // This will probably cause problems for shapes intersecting such materials.
                     const attenuation = self.coating.attenuation(0.5, coat_n_dot_wo);
-
+                    const omf = 1.0 - f;
                     result.reflection *= @splat(4, omf * n_dot_wi) * attenuation;
                     result.pdf *= omf;
                 }
@@ -730,40 +706,15 @@ pub const Sample = struct {
             }
 
             if (p <= f) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    wi_dot_h,
-                    wo_dot_h,
-                    alpha,
-                    frame,
-                    result,
-                );
-
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
                 result.reflection *= @splat(4, f * n_dot_wi);
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    -wi_dot_h,
-                    r_wo_dot_h,
-                    alpha[1],
-                    ior,
-                    frame,
-                    result,
-                );
-
-                const omf = 1.0 - f;
-
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
                 const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
-
+                const omf = 1.0 - f;
                 result.reflection *= @splat(4, omf * n_dot_wi) * attenuation;
                 result.pdf *= omf;
             }

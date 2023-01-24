@@ -161,7 +161,7 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, vertex.isec, worker.scene);
+                vertex.interfaceChange(sample_result.wi, worker.scene);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
@@ -194,7 +194,7 @@ pub const PathtracerDL = struct {
             }
 
             if (vertex.ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                if (hlp.russianRoulette(&throughput, 1, sampler.sample1D())) {
                     break;
                 }
             }

@@ -140,8 +140,6 @@ pub const PathtracerMIS = struct {
 
                 result += throughput * self.sampleLights(vertex, &mat_sample, filter, split, sampler, worker);
 
-                var effective_bxdf_pdf = vertex.bxdf_pdf;
-
                 const sample_results = mat_sample.sample(sampler, split, &worker.bxdfs);
                 const path_count = @truncate(u32, sample_results.len);
 
@@ -155,7 +153,7 @@ pub const PathtracerMIS = struct {
                     next_vertex.path_count *= path_count;
                     var next_throughput = next_vertex.throughput;
 
-                    next_vertex.bxdf_pdf = sample_result.pdf;
+                    var effective_bxdf_pdf = next_vertex.bxdf_pdf;
 
                     if (sample_result.class.specular) {
                         if (avoid_caustics) {
@@ -199,7 +197,7 @@ pub const PathtracerMIS = struct {
                     next_throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
                     if (sample_result.class.transmission) {
-                        next_vertex.interfaceChange(sample_result.wi, next_vertex.isec, worker.scene);
+                        next_vertex.interfaceChange(sample_result.wi, worker.scene);
                     }
 
                     next_vertex.state.from_subsurface = next_vertex.state.from_subsurface or next_vertex.isec.subsurface;
@@ -267,11 +265,12 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (next_vertex.ray.depth >= self.settings.min_bounces) {
-                        if (hlp.russianRoulette(&next_throughput, sampler.sample1D())) {
+                        if (hlp.russianRoulette(&next_throughput, next_vertex.path_count, sampler.sample1D())) {
                             continue;
                         }
                     }
 
+                    next_vertex.bxdf_pdf = sample_result.pdf;
                     next_vertex.throughput = next_throughput;
                     worker.vertices.push(next_vertex);
                 }

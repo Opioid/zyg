@@ -46,3 +46,5 @@ pub const Sample = struct {
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     class: Class = undefined,
 };
+
+pub const Samples = [2]Sample;
