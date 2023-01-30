@@ -505,9 +505,9 @@ pub const Sample = struct {
     }
 
     fn splitCondition(split: bool, f: f32) bool {
-        _ = split;
-        _ = f;
-        return false; //split and f < 0.5;
+        // _ = split;
+        // _ = f;
+        return split and f < 1.0;
     }
 
     fn volumetricSample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
