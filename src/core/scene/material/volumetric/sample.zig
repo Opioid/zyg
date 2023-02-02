@@ -37,6 +37,9 @@ pub const Sample = struct {
 
         const phase = phaseHg(wo_dot_wi, g);
 
+        // _ = split;
+        // return bxdf.Result.init(@splat(4, phase), phase);
+
         return bxdf.Result.init(@splat(4, phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
     }
 

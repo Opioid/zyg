@@ -47,4 +47,4 @@ pub const Sample = struct {
     class: Class = undefined,
 };
 
-pub const Samples = [2]Sample;
+pub const Samples = [4]Sample;

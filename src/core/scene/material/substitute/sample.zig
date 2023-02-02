@@ -474,7 +474,8 @@ pub const Sample = struct {
 
             return bxdf.Result.init(
                 @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.r.reflection,
-                (if (splitCondition(split, 1.0 - gg.f)) 1.0 else gg.f) * gg.r.pdf(),
+                //     (if (splitCondition(split, 1.0 - gg.f)) 1.0 else gg.f) * gg.r.pdf(),
+                gg.f * gg.r.pdf(),
             );
         }
 
@@ -507,7 +508,9 @@ pub const Sample = struct {
     fn splitCondition(split: bool, f: f32) bool {
         // _ = split;
         // _ = f;
-        return split and f < 1.0;
+        // return false;
+        //return split and f < 1.0;
+        return split and f < 1.0 and (f < 0.1);
     }
 
     fn volumetricSample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
@@ -586,33 +589,33 @@ pub const Sample = struct {
                 }
             }
         } else {
-            if (sc) {
-                const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
+            // if (sc) {
+            //     const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
+            //     const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
+            //     result.reflection *= @splat(4, ep * f * n_dot_wi);
+
+            //     const result1 = &buffer[1];
+            //     const r_wo_dot_h = wo_dot_h;
+            //     const r_n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result1);
+            //     result1.reflection *= @splat(4, ep * (1.0 - f) * r_n_dot_wi);
+
+            //     return buffer[0..2];
+            // } else {
+            if (p <= f) {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
-                result.reflection *= @splat(4, ep * f * n_dot_wi);
-
-                const result1 = &buffer[1];
-                const r_wo_dot_h = wo_dot_h;
-                const r_n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result1);
-                result1.reflection *= @splat(4, ep * (1.0 - f) * r_n_dot_wi);
-
-                return buffer[0..2];
+                result.reflection *= @splat(4, f * n_dot_wi);
+                result.pdf *= f;
             } else {
-                if (p <= f) {
-                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wi_dot_h, wo_dot_h, alpha, frame, result);
-                    result.reflection *= @splat(4, f * n_dot_wi);
-                    result.pdf *= f;
-                } else {
-                    const r_wo_dot_h = wo_dot_h;
-                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
-                    const omf = 1.0 - f;
-                    result.reflection *= @splat(4, omf * n_dot_wi);
-                    result.pdf *= omf;
-                }
-
-                result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
+                const r_wo_dot_h = wo_dot_h;
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
+                const omf = 1.0 - f;
+                result.reflection *= @splat(4, omf * n_dot_wi);
+                result.pdf *= omf;
             }
+
+            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
+            //    }
         }
 
         return buffer[0..1];
