@@ -74,6 +74,7 @@ pub const Pathtracer = struct {
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
+        var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
         var vertex: Vertex = undefined;
@@ -123,8 +124,8 @@ pub const Pathtracer = struct {
 
             var sampler = self.pickSampler(vertex.ray.depth);
 
-            if (vertex.ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, 1, sampler.sample1D())) {
+            if (ray.depth >= self.settings.min_bounces) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
             }
@@ -160,6 +161,7 @@ pub const Pathtracer = struct {
                 vertex.ray.wavelength = sample_result.wavelength;
             }
 
+            old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
