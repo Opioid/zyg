@@ -197,6 +197,7 @@ pub const PathtracerMIS = struct {
                 ray.wavelength = sample_result.wavelength;
             }
 
+            const old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
@@ -274,7 +275,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
             }
