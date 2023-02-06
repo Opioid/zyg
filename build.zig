@@ -1,19 +1,37 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    // Standard optimization options allow the person running `zig build` to select
+    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
+    // set a preferred release mode, allowing the user to decide how to optimize.
+    const optimize = b.standardOptimizeOption(.{});
 
-    const cli = b.addExecutable("zyg", "src/cli/main.zig");
-    const capi = b.addSharedLibrary("zyg", "src/capi/capi.zig", .{ .unversioned = {} });
-    const it = b.addExecutable("it", "src/it/main.zig");
+    const cli = b.addExecutable(.{
+        .name = "zyg",
+        .root_source_file = .{ .path = "src/cli/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const capi = b.addSharedLibrary(.{
+        .name = "zyg",
+        .root_source_file = .{ .path = "src/capi/capi.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const it = b.addExecutable(.{
+        .name = "it",
+        .root_source_file = .{ .path = "src/it/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
     cli.addIncludePath("thirdparty/include");
     cli.addIncludePath("src/cli");
@@ -40,52 +58,36 @@ pub fn build(b: *std.build.Builder) void {
 
     it.addCSourceFile(csources[0], &cflags);
 
-    const base = std.build.Pkg{
-        .name = "base",
-        .source = .{ .path = "src/base/base.zig" },
-    };
+    const base = b.createModule(.{
+        .source_file = .{ .path = "src/base/base.zig" },
+    });
 
-    const core = std.build.Pkg{
-        .name = "core",
-        .source = .{ .path = "src/core/core.zig" },
-        .dependencies = &[_]std.build.Pkg{
-            base,
-        },
-    };
+    const core = b.createModule(.{
+        .source_file = .{ .path = "src/core/core.zig" },
+        .dependencies = &.{.{ .name = "base", .module = base }},
+    });
 
-    cli.addPackage(base);
-    cli.addPackage(core);
+    cli.addModule("base", base);
+    cli.addModule("core", core);
 
-    cli.setTarget(target);
-    cli.setBuildMode(mode);
     cli.linkLibC();
-
     // cli.sanitize_thread = true;
     cli.strip = true;
-
     cli.install();
 
-    capi.addPackage(base);
-    capi.addPackage(core);
+    capi.addModule("base", base);
+    capi.addModule("core", core);
 
-    capi.setTarget(target);
-    capi.setBuildMode(mode);
     capi.linkLibC();
-
     capi.strip = true;
-
     capi.install();
 
-    it.addPackage(base);
-    it.addPackage(core);
+    it.addModule("base", base);
+    it.addModule("core", core);
 
-    it.setTarget(target);
-    it.setBuildMode(mode);
     it.linkLibC();
-
     // it.sanitize_thread = true;
     it.strip = true;
-
     it.install();
 
     const run_cmd = cli.run();
