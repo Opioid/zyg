@@ -47,12 +47,7 @@ pub const Indexed_data = struct {
         self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
-        var i: u32 = 0;
-        while (i < num_vertices) : (i += 1) {
-            self.positions[i] = vertices.position(i);
-            self.frames[i] = vertices.frame(i);
-            self.uvs[i] = vertices.uv(i);
-        }
+        vertices.copy(self.positions, self.frames, self.uvs, num_vertices);
     }
 
     pub fn setTriangle(
@@ -79,7 +74,7 @@ pub const Indexed_data = struct {
         };
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, index: usize) ?triangle.Intersection {
+    pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Intersection {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];
@@ -89,7 +84,7 @@ pub const Indexed_data = struct {
         return triangle.intersect(ray, ap, bp, cp);
     }
 
-    pub fn intersectP(self: *const Self, ray: Ray, index: usize) bool {
+    pub fn intersectP(self: *const Self, ray: Ray, index: u32) bool {
         const tri = self.triangles[index];
 
         const ap = self.positions[tri.a];

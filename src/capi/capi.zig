@@ -497,6 +497,20 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
     return -1;
 }
 
+export fn su_prop_create_instance(entity: u32) i32 {
+    if (engine) |*e| {
+        if (entity >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        const prop = e.scene.createPropInstance(e.alloc, entity) catch return -1;
+
+        return @intCast(i32, prop);
+    }
+
+    return -1;
+}
+
 export fn su_light_create(prop: u32) i32 {
     if (engine) |*e| {
         if (prop >= e.scene.props.items.len) {

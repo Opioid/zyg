@@ -62,6 +62,7 @@ pub const Material = struct {
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
             math.anyGreaterZero3(self.super.emittance.value);
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
 
         if (self.density_map.valid()) {

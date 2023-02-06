@@ -13,6 +13,8 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
+const std = @import("std");
+
 pub const DistantSphere = struct {
     pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const n = trafo.rotation.r[2];
@@ -63,7 +65,7 @@ pub const DistantSphere = struct {
         return det >= 0.0;
     }
 
-    pub fn sampleTo(trafo: Trafo, extent: f32, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
@@ -71,17 +73,19 @@ pub const DistantSphere = struct {
         const radius = trafo.scaleX();
         const ws = @splat(4, radius) * trafo.rotation.transformVector(ls);
 
+        const solid_angle = solidAngle(radius);
+
         return SampleTo.init(
             math.normalize3(ws - trafo.rotation.r[2]),
             @splat(4, @as(f32, 0.0)),
             @splat(4, @as(f32, 0.0)),
             trafo,
-            1.0 / extent,
+            1.0 / solid_angle,
             ro.Almost_ray_max_t,
         );
     }
 
-    pub fn sampleFrom(trafo: Trafo, extent: f32, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {
         const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
@@ -98,6 +102,8 @@ pub const DistantSphere = struct {
         const offset = @splat(4, ls_extent[2]) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
+        const solid_angle = solidAngle(radius);
+
         return SampleFrom.init(
             p,
             trafo.rotation.r[2],
@@ -105,7 +111,15 @@ pub const DistantSphere = struct {
             .{ uv[0], uv[1], 0.0, 0.0 },
             importance_uv,
             trafo,
-            1.0 / (extent * ls_extent[0] * ls_extent[1]),
+            1.0 / (solid_angle * ls_extent[0] * ls_extent[1]),
         );
+    }
+
+    pub fn pdf(trafo: Trafo) f32 {
+        return 1.0 / solidAngle(trafo.scaleX());
+    }
+
+    pub fn solidAngle(radius: f32) f32 {
+        return (2.0 * std.math.pi) * (1.0 - @sqrt(1.0 / (radius * radius + 1.0)));
     }
 };

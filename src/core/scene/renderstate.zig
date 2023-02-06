@@ -13,6 +13,8 @@ pub const Renderstate = struct {
     t: Vec4f = undefined,
     b: Vec4f = undefined,
     n: Vec4f = undefined,
+    ray_p: Vec4f = undefined,
+
     uv: Vec2f = undefined,
 
     prop: u32 = undefined,

@@ -51,22 +51,18 @@ pub const Tree = struct {
 
     pub fn aabb(self: Tree) AABB {
         if (0 == self.num_nodes) {
-            return math.aabb.empty;
+            return math.aabb.Empty;
         }
 
         return self.nodes[0].aabb();
     }
 
     pub fn intersect(self: Tree, ray: *Ray, scene: *const Scene, ipo: Interpolation, isec: *Intersection) bool {
-        if (0 == self.num_nodes) {
-            return false;
-        }
-
         var stack = NodeStack{};
 
         var hit = false;
         var prop = Prop.Null;
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
         const props = self.props;
@@ -121,15 +117,11 @@ pub const Tree = struct {
     }
 
     pub fn intersectShadow(self: Tree, ray: *Ray, scene: *const Scene, isec: *Intersection) bool {
-        if (0 == self.num_nodes) {
-            return false;
-        }
-
         var stack = NodeStack{};
 
         var hit = false;
         var prop = Prop.Null;
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
         const props = self.props;
@@ -184,13 +176,9 @@ pub const Tree = struct {
     }
 
     pub fn intersectP(self: Tree, ray: Ray, scene: *const Scene) bool {
-        if (0 == self.num_nodes) {
-            return false;
-        }
-
         var stack = NodeStack{};
 
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
         const props = self.props;
@@ -241,14 +229,10 @@ pub const Tree = struct {
     }
 
     pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
-        if (0 == self.num_nodes) {
-            return @splat(4, @as(f32, 1.0));
-        }
-
         var stack = NodeStack{};
 
         var vis = @splat(4, @as(f32, 1.0));
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
         const props = self.props;

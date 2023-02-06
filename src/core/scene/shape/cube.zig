@@ -78,7 +78,7 @@ pub const Cube = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, volume: f32, sampler: *Sampler) SampleTo {
+    pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
         const r3 = sampler.sample3D();
         const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
@@ -86,6 +86,9 @@ pub const Cube = struct {
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
+
+        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
             axis / @splat(4, t),
@@ -97,13 +100,16 @@ pub const Cube = struct {
         );
     }
 
-    pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo, volume: f32) SampleTo {
+    pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo) SampleTo {
         const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
+
+        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
             axis / @splat(4, t),
@@ -115,11 +121,14 @@ pub const Cube = struct {
         );
     }
 
-    pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, volume: f32, importance_uv: Vec2f) SampleFrom {
+    pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) SampleFrom {
         const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
 
         const dir = math.smpl.sphereUniform(importance_uv);
+
+        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const volume = d[0] * d[1] * d[2];
 
         return SampleFrom.init(
             wp,
@@ -132,7 +141,10 @@ pub const Cube = struct {
         );
     }
 
-    pub fn volumePdf(ray: Ray, volume: f32) f32 {
+    pub fn volumePdf(ray: Ray, scale: Vec4f) f32 {
+        const d = @splat(4, @as(f32, 2.0)) * scale;
+        const volume = d[0] * d[1] * d[2];
+
         const t = ray.maxT();
         return (t * t) / volume;
     }

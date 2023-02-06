@@ -10,7 +10,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Interface = struct {
-    prop: u32,
+    prop: u32 align(16),
     part: u32,
     uv: Vec2f,
 
@@ -24,18 +24,18 @@ pub const Interface = struct {
 };
 
 pub const Stack = struct {
-    const Num_entries = 16;
+    const Num_entries = 14;
 
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
 
-    pub fn copy(self: *Stack, other: Stack) void {
+    pub fn copy(self: *Stack, other: *const Stack) void {
         const index = other.index;
         self.index = index;
         std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
     }
 
-    pub fn empty(self: Stack) bool {
+    pub fn empty(self: *const Stack) bool {
         return 0 == self.index;
     }
 
@@ -43,11 +43,11 @@ pub const Stack = struct {
         self.index = 0;
     }
 
-    pub fn top(self: Stack) Interface {
+    pub fn top(self: *const Stack) Interface {
         return self.stack[self.index - 1];
     }
 
-    pub fn topIor(self: Stack, scene: *const Scene) f32 {
+    pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
             return self.stack[index - 1].material(scene).ior();
@@ -56,7 +56,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: Stack, scene: *const Scene) f32 {
+    pub fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
             return self.stack[1].material(scene).ior();
@@ -65,7 +65,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn peekIor(self: Stack, isec: Intersection, scene: *const Scene) f32 {
+    pub fn peekIor(self: *const Stack, isec: Intersection, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -79,7 +79,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn straight(self: Stack, scene: *const Scene) bool {
+    pub fn straight(self: *const Stack, scene: *const Scene) bool {
         const index = self.index;
         if (index > 0) {
             return 1.0 == self.stack[index - 1].material(scene).ior();

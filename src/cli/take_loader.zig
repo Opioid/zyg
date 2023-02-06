@@ -1,3 +1,5 @@
+const Graph = @import("scene_graph.zig").Graph;
+
 const core = @import("core");
 const tk = core.tk;
 const Take = tk.Take;
@@ -5,7 +7,6 @@ const View = tk.View;
 const cam = core.camera;
 const snsr = core.rendering.snsr;
 const Tonemapper = snsr.Tonemapper;
-const Scene = core.scn.Scene;
 const ReadStream = core.file.ReadStream;
 const Resources = core.resource.Manager;
 
@@ -24,7 +25,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene, resources: *Resources) !void {
+pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, resources: *Resources) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
@@ -53,7 +54,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene, re
         if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
             take.view.loadAOV(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, scene, resources);
+            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, graph, resources);
         } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
             exporter_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
@@ -80,7 +81,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, scene: *Scene, re
     take.view.configure();
 }
 
-pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *cam.Perspective, scene: *Scene) !void {
+pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *cam.Perspective, graph: *Graph) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
@@ -105,14 +106,15 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
                 json.readTransformation(trafo_node, &trafo);
             }
 
-            const prop_id = try scene.createEntity(alloc);
-            scene.propSetWorldTransformation(prop_id, trafo);
+            const prop_id = try graph.scene.createEntity(alloc);
+            graph.scene.propSetWorldTransformation(prop_id, trafo);
+            //_ = try graph.createEntity(alloc, prop_id);
             camera.entity = prop_id;
         }
     }
 }
 
-fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, scene: *Scene, resources: *Resources) !void {
+fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -160,11 +162,12 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     }
 
     if (param_value_ptr) |param_value| {
-        try camera.setParameters(alloc, param_value.*, scene, resources);
+        try camera.setParameters(alloc, param_value.*, &graph.scene, resources);
     }
 
-    const prop_id = try scene.createEntity(alloc);
-    scene.propSetWorldTransformation(prop_id, trafo);
+    const prop_id = try graph.scene.createEntity(alloc);
+    graph.scene.propSetWorldTransformation(prop_id, trafo);
+    // _ = try graph.createEntity(alloc, prop_id);
     camera.entity = prop_id;
 }
 

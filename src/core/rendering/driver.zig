@@ -58,9 +58,7 @@ pub const Driver = struct {
 
     pub fn init(alloc: Allocator, threads: *Threads, fs: *Filesystem, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
-        for (workers) |*w| {
-            w.* = .{};
-        }
+        std.mem.set(Worker, workers, .{});
 
         return Driver{
             .threads = threads,

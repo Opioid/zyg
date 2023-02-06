@@ -8,12 +8,11 @@ const Vec4f = math.Vec4f;
 pub const Sample = struct {
     super: Base,
 
-    pub fn init(rs: Renderstate, wo: Vec4f, radiance: Vec4f) Sample {
+    pub fn init(rs: Renderstate, wo: Vec4f) Sample {
         return .{ .super = Base.init(
             rs,
             wo,
-            radiance,
-            radiance,
+            @splat(4, @as(f32, 0.0)),
             @splat(2, @as(f32, 1.0)),
             0.0,
         ) };

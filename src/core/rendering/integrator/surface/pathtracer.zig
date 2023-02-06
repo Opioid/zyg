@@ -43,7 +43,7 @@ pub const Pathtracer = struct {
         ray: *Ray,
         isec: *Intersection,
         worker: *Worker,
-        initial_stack: InterfaceStack,
+        initial_stack: *const InterfaceStack,
     ) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
@@ -72,6 +72,7 @@ pub const Pathtracer = struct {
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
+        var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
         var wo1 = @splat(4, @as(f32, 0.0));
 
@@ -81,6 +82,22 @@ pub const Pathtracer = struct {
 
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+
+            var pure_emissive: bool = undefined;
+            const energy = isec.evaluateRadiance(
+                ray.ray.origin,
+                wo,
+                filter,
+                worker.scene,
+                &pure_emissive,
+            ) orelse @splat(4, @as(f32, 0.0));
+
+            result += throughput * energy;
+
+            if (pure_emissive) {
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                break;
+            }
 
             const mat_sample = worker.sampleMaterial(
                 ray.*,
@@ -99,15 +116,6 @@ pub const Pathtracer = struct {
 
             wo1 = wo;
 
-            if (mat_sample.super().sameHemisphere(wo)) {
-                result += throughput * mat_sample.super().radiance;
-            }
-
-            if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
-                break;
-            }
-
             if (ray.depth >= self.settings.max_bounces) {
                 break;
             }
@@ -115,7 +123,7 @@ pub const Pathtracer = struct {
             var sampler = self.pickSampler(ray.depth);
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
             }
@@ -138,21 +146,20 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
             }
 
-            ray.ray.setMaxT(ro.Ray_max_t);
-
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
             }
 
+            old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {

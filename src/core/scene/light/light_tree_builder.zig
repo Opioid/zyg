@@ -1,4 +1,4 @@
-const tr = @import("tree.zig");
+const tr = @import("light_tree.zig");
 const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
@@ -88,7 +88,7 @@ const SplitCandidate = struct {
 
     fn evaluateScene(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, scene: *const Scene) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var boxs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
+        var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
         var cones: [2]Vec4f = .{ @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 1.0)) };
         var two_sideds: [2]bool = .{ false, false };
         var powers: [2]f32 = .{ 0.0, 0.0 };
@@ -142,7 +142,7 @@ const SplitCandidate = struct {
 
     fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const Part, variant: u32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var boxs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
+        var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
         var dominant_axis: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
@@ -291,7 +291,7 @@ pub const Builder = struct {
 
             self.current_node = 1;
 
-            var bounds = math.aabb.empty;
+            var bounds = math.aabb.Empty;
             var cone = @splat(4, @as(f32, 1.0));
             var two_sided = false;
             var total_power: f32 = 0.0;

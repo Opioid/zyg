@@ -213,20 +213,18 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.straight) {
-                    ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
                         ray.depth += 1;
                     }
                 } else {
                     ray.ray.origin = isec.offsetP(sample_result.wi);
-                    ray.ray.setDirection(sample_result.wi);
+                    ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     ray.depth += 1;
 
                     from_subsurface = false;
                 }
-
-                ray.ray.setMaxT(ro.Ray_max_t);
 
                 if (0.0 == ray.wavelength) {
                     ray.wavelength = sample_result.wavelength;
@@ -280,7 +278,7 @@ pub const Mapper = struct {
         const time = worker.absoluteTime(frame, self.sampler.sample1D());
 
         const light = worker.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker) orelse return null;
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker.scene) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;

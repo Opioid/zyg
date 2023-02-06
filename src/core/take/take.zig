@@ -3,7 +3,7 @@ const surface = @import("../rendering/integrator/surface/integrator.zig");
 const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
-const LightTree = @import("../scene/light/tree.zig");
+const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
@@ -265,6 +265,7 @@ pub const View = struct {
 };
 
 pub const Take = struct {
+    resolved_filename: []u8 = &.{},
     scene_filename: []u8 = &.{},
 
     view: View = .{},
@@ -279,6 +280,7 @@ pub const Take = struct {
 
     pub fn clear(self: *Take, alloc: Allocator) void {
         self.clearExporters(alloc);
+        alloc.free(self.resolved_filename);
         alloc.free(self.scene_filename);
     }
 

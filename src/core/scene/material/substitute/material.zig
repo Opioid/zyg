@@ -56,6 +56,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.evaluate_visibility = self.super.mask.valid();
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.emission_map.valid();
         self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
 
@@ -140,18 +141,6 @@ pub const Material = struct {
             worker.scene,
         ) else self.color;
 
-        var rad = self.super.emittance.radiance(
-            rs.p,
-            -wo,
-            rs.trafo,
-            worker.scene.lightArea(rs.prop, rs.part),
-            rs.filter,
-            worker.scene,
-        );
-        if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, rs.uv, worker.scene);
-        }
-
         var roughness: f32 = undefined;
         var metallic: f32 = undefined;
 
@@ -192,7 +181,6 @@ pub const Material = struct {
             rs,
             wo,
             color,
-            rad,
             alpha,
             ior,
             ior_outer,
@@ -215,12 +203,12 @@ pub const Material = struct {
 
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating_normal_map)) {
-                result.coating.frame = result.super.frame;
+                result.coating.n = result.super.frame.n;
             } else if (self.coating_normal_map.valid()) {
                 const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, worker.scene);
-                result.coating.frame.setNormal(n);
+                result.coating.n = n;
             } else {
-                result.coating.frame.setTangentFrame(rs.t, rs.b, rs.n);
+                result.coating.n = rs.n;
             }
 
             const r = if (self.coating_roughness_map.valid())
@@ -230,13 +218,9 @@ pub const Material = struct {
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
-            result.coating.ior = coating_ior;
-            result.coating.f0 = fresnel.Schlick.F0(coating_ior, rs.ior());
+            result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior());
             result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
-
-            const n_dot_wo = result.coating.frame.clampAbsNdot(wo);
-            result.super.radiance *= result.coating.singleAttenuation(n_dot_wo);
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
@@ -338,13 +322,14 @@ pub const Material = struct {
         n: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
         const key = ts.resolveKey(self.super.sampler_key, .Nearest);
 
-        var rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, scene);
+        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, filter, scene);
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
         }

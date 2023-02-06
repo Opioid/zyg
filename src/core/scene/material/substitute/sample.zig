@@ -36,7 +36,6 @@ pub const Sample = struct {
         rs: Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
-        radiance: Vec4f,
         alpha: Vec2f,
         ior: f32,
         ior_outer: f32,
@@ -46,11 +45,11 @@ pub const Sample = struct {
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
 
-        var super = Base.init(rs, wo, color, radiance, alpha, 0.0);
+        var super = Base.init(rs, wo, color, alpha, 0.0);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 
-        const f0 = fresnel.Schlick.F0(ior, ior_outer);
+        const f0 = fresnel.Schlick.IorToF0(ior, ior_outer);
 
         return .{
             .super = super,
@@ -385,7 +384,8 @@ pub const Sample = struct {
 
     fn coatingReflect(self: *const Sample, f: f32, n_dot_h: f32, result: *bxdf.Sample) void {
         const wo = self.super.wo;
-        const n_dot_wo = self.coating.frame.clampAbsNdot(self.super.wo);
+        //    const n_dot_wo = self.coating.frame.clampAbsNdot(wo);
+        const n_dot_wo = hlp.clampAbsDot(self.coating.n, wo); // self.coating.frame.clampAbsNdot(wo);
 
         const coating_attenuation = self.coating.reflect(
             wo,
@@ -466,7 +466,7 @@ pub const Sample = struct {
             const n_dot_wo = frame.clampAbsNdot(wo);
             const n_dot_h = math.saturate(frame.nDot(h));
 
-            const schlick = fresnel.Schlick1.init(self.f0[0]);
+            const schlick = fresnel.Schlick.init(self.f0);
 
             const gg = ggx.Iso.refraction(
                 n_dot_wi,
@@ -479,7 +479,7 @@ pub const Sample = struct {
                 schlick,
             );
 
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], quo_ior.eta_t);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
             return bxdf.Result.init(
                 @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
@@ -641,7 +641,7 @@ pub const Sample = struct {
                 result.pdf *= omf;
             }
 
-            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], quo_ior.eta_t));
+            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
         }
     }
 
@@ -726,7 +726,7 @@ pub const Sample = struct {
 
                     const omf = 1.0 - f;
 
-                    const coat_n_dot_wo = self.coating.frame.clampAbsNdot(wo);
+                    const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
 
                     // Approximating the full coating attenuation at entrance, for the benefit of SSS,
                     // which will ignore the border later.
@@ -791,14 +791,14 @@ pub const Sample = struct {
 
                 const omf = 1.0 - f;
 
-                const coat_n_dot_wo = self.coating.frame.clampAbsNdot(wo);
+                const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                 result.reflection *= @splat(4, omf * n_dot_wi) * attenuation;
                 result.pdf *= omf;
             }
 
-            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], quo_ior.eta_t));
+            result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
         }
     }
 };

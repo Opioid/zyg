@@ -49,6 +49,7 @@ pub const Base = struct {
         two_sided: bool = false,
         evaluate_visibility: bool = false,
         caustic: bool = false,
+        emissive: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
         heterogeneous_volume: bool = false,
@@ -89,7 +90,7 @@ pub const Base = struct {
         self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {
+    pub fn opacity(self: *const Base, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
@@ -100,7 +101,7 @@ pub const Base = struct {
     }
 
     pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
-        const f0 = fresnel.Schlick.F0(self.ior, 1.0);
+        const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
         const n_dot_wi = std.math.max(math.dot3(n, wi), 0.0);
         return 1.0 - fresnel.schlick1(n_dot_wi, f0);
     }

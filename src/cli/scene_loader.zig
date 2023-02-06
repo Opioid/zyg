@@ -22,6 +22,62 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const List = std.ArrayListUnmanaged;
+
+const Key = struct {
+    shape: u32,
+    materials: []u32 = &.{},
+
+    const Self = @This();
+
+    pub fn clone(self: Self, alloc: Allocator) !Self {
+        return Self{
+            .shape = self.shape,
+            .materials = try alloc.dupe(u32, self.materials),
+        };
+    }
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        alloc.free(self.materials);
+    }
+};
+
+const KeyContext = struct {
+    const Self = @This();
+
+    pub fn hash(self: Self, k: Key) u64 {
+        _ = self;
+        var hasher = std.hash.Wyhash.init(0);
+
+        hasher.update(std.mem.asBytes(&k.shape));
+
+        for (k.materials) |m| {
+            hasher.update(std.mem.asBytes(&m));
+        }
+
+        return hasher.final();
+    }
+
+    pub fn eql(self: Self, a: Key, b: Key) bool {
+        _ = self;
+
+        if (a.shape != b.shape) {
+            return false;
+        }
+
+        if (a.materials.len != b.materials.len) {
+            return false;
+        }
+
+        for (a.materials) |m, i| {
+            if (m != b.materials[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
 
 pub const Loader = struct {
     pub const Error = error{
@@ -32,7 +88,9 @@ pub const Loader = struct {
 
     fallback_material: u32,
 
-    materials: std.ArrayListUnmanaged(u32) = .{},
+    materials: List(u32) = .{},
+
+    instances: std.HashMapUnmanaged(Key, u32, KeyContext, 80) = .{},
 
     const Null = resource.Null;
 
@@ -49,35 +107,67 @@ pub const Loader = struct {
     };
 
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
-        return Loader{
+        return .{
             .resources = resources,
             .fallback_material = resources.materials.store(alloc, Null, fallback_material) catch Null,
         };
     }
 
     pub fn deinit(self: *Loader, alloc: Allocator) void {
+        self.instances.deinit(alloc);
         self.materials.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: Allocator, filename: []const u8, take: *const Take, graph: *Graph) !void {
-        try graph.bumpProps(alloc);
-
+    pub fn load(self: *Loader, alloc: Allocator, take: *const Take, graph: *Graph) !void {
         const camera = take.view.camera;
-
         graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
-        const fs = &self.resources.fs;
+        const take_mount_folder = string.parentDirectory(take.resolved_filename);
 
-        var stream = try fs.readStream(alloc, filename);
+        const parent_id: u32 = Prop.Null;
 
-        const buffer = try stream.readAll(alloc);
-
-        stream.deinit();
-
-        defer alloc.free(buffer);
+        const parent_trafo = Transformation{
+            .position = @splat(4, @as(f32, 0.0)),
+            .scale = @splat(4, @as(f32, 1.0)),
+            .rotation = math.quaternion.identity,
+        };
 
         var parser = std.json.Parser.init(alloc, false);
         defer parser.deinit();
+
+        try self.loadFile(alloc, &parser, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+
+        self.instances.clearAndFree(alloc);
+
+        self.resources.commitAsync();
+    }
+
+    fn loadFile(
+        self: *Loader,
+        alloc: Allocator,
+        parser: *std.json.Parser,
+        filename: []const u8,
+        take_mount_folder: []const u8,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        animated: bool,
+        graph: *Graph,
+    ) !void {
+        const fs = &self.resources.fs;
+
+        if (take_mount_folder.len > 0) {
+            try fs.pushMount(alloc, take_mount_folder);
+        }
+
+        var stream = try fs.readStream(alloc, filename);
+
+        if (take_mount_folder.len > 0) {
+            fs.popMount(alloc);
+        }
+
+        const buffer = try stream.readAll(alloc);
+        stream.deinit();
+        defer alloc.free(buffer);
 
         var document = try parser.parse(buffer);
         defer document.deinit();
@@ -93,14 +183,6 @@ pub const Loader = struct {
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
-        const parent_id: u32 = Prop.Null;
-
-        const parent_trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = @splat(4, @as(f32, 1.0)),
-            .rotation = math.quaternion.identity,
-        };
-
         var iter = root.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
@@ -109,6 +191,7 @@ pub const Loader = struct {
                     entry.value_ptr.*,
                     parent_id,
                     parent_trafo,
+                    animated,
                     local_materials,
                     graph,
                 );
@@ -116,8 +199,6 @@ pub const Loader = struct {
         }
 
         fs.popMount(alloc);
-
-        self.resources.commitAsync();
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
@@ -134,12 +215,25 @@ pub const Loader = struct {
         value: std.json.Value,
         parent_id: u32,
         parent_trafo: Transformation,
+        animated: bool,
         local_materials: LocalMaterials,
         graph: *Graph,
     ) Error!void {
         const scene = &graph.scene;
 
+        var parser = std.json.Parser.init(alloc, false);
+        defer parser.deinit();
+
         for (value.Array.items) |entity| {
+            if (entity.Object.get("file")) |file_node| {
+                const filename = file_node.String;
+                self.loadFile(alloc, &parser, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+                    log.err("Loading scene \"{s}\": {}", .{ filename, e });
+                };
+                parser.reset();
+                continue;
+            }
+
             const type_node = entity.Object.get("type") orelse continue;
             const type_name = type_node.String;
 
@@ -147,18 +241,12 @@ pub const Loader = struct {
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph, false);
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph);
-            } else if (std.mem.eql(u8, "Dummy", type_name)) {
-                entity_id = try graph.createEntity(alloc);
+                entity_id = try self.loadProp(alloc, entity, local_materials, graph, true);
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = try loadSky(alloc, entity, graph);
-            }
-
-            if (Prop.Null == entity_id) {
-                continue;
             }
 
             var trafo = Transformation{
@@ -203,23 +291,38 @@ pub const Loader = struct {
             }
 
             const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, entity_id, graph)
+                try anim.load(alloc, animation.*, trafo, if (Prop.Null == parent_id) parent_trafo else null, graph)
             else
-                false;
+                Prop.Null;
 
-            if (Prop.Null != parent_id) {
-                try graph.propSerializeChild(alloc, parent_id, entity_id);
+            const local_animation = Prop.Null != animation;
+            const world_animation = animated or local_animation;
+
+            var graph_id: u32 = Prop.Null;
+
+            if (world_animation) {
+                graph_id = try graph.createEntity(alloc, entity_id);
+
+                try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
+
+                if (local_animation) {
+                    graph.animationSetEntity(animation, graph_id);
+                }
+
+                if (Prop.Null != parent_id) {
+                    graph.propSerializeChild(parent_id, graph_id);
+                }
             }
 
-            if (!animation) {
-                if (scene.propHasAnimatedFrames(entity_id)) {
-                    graph.propSetTransformation(entity_id, trafo);
-                } else {
-                    if (Prop.Null != parent_id) {
-                        trafo = parent_trafo.transform(trafo);
-                    }
+            const world_trafo = parent_trafo.transform(trafo);
 
-                    scene.propSetWorldTransformation(entity_id, trafo);
+            if (!local_animation) {
+                if (Prop.Null != graph_id) {
+                    graph.propSetTransformation(graph_id, trafo);
+                }
+
+                if (Prop.Null != entity_id) {
+                    scene.propSetWorldTransformation(entity_id, world_trafo);
                 }
             }
 
@@ -235,8 +338,9 @@ pub const Loader = struct {
                 try self.loadEntities(
                     alloc,
                     children.*,
-                    entity_id,
-                    trafo,
+                    graph_id,
+                    world_trafo,
+                    world_animation,
                     local_materials,
                     graph,
                 );
@@ -250,6 +354,7 @@ pub const Loader = struct {
         value: std.json.Value,
         local_materials: LocalMaterials,
         graph: *Graph,
+        instancing: bool,
     ) !u32 {
         const scene = &graph.scene;
 
@@ -264,14 +369,26 @@ pub const Loader = struct {
         self.materials.clearRetainingCapacity();
 
         if (value.Object.get("materials")) |m| {
-            try self.loadMaterials(alloc, m, local_materials);
+            self.loadMaterials(alloc, m, num_materials, local_materials);
         }
 
         while (self.materials.items.len < num_materials) {
             self.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        return try graph.createProp(alloc, shape, self.materials.items);
+        if (instancing) {
+            const key = Key{ .shape = shape, .materials = self.materials.items };
+
+            if (self.instances.get(key)) |instance| {
+                return try scene.createPropInstance(alloc, instance);
+            }
+
+            const entity = try scene.createProp(alloc, shape, self.materials.items);
+            try self.instances.put(alloc, try key.clone(alloc), entity);
+            return entity;
+        } else {
+            return try scene.createProp(alloc, shape, self.materials.items);
+        }
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
@@ -333,12 +450,13 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
+        num_materials: usize,
         local_materials: LocalMaterials,
-    ) !void {
-        for (value.Array.items) |m| {
-            try self.materials.append(alloc, self.loadMaterial(alloc, m.String, local_materials));
+    ) void {
+        for (value.Array.items) |m, i| {
+            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.String, local_materials));
 
-            if (self.materials.capacity == self.materials.items.len) {
+            if (i == num_materials - 1) {
                 return;
             }
         }
@@ -376,18 +494,14 @@ pub const Loader = struct {
     }
 
     fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
-        const scene = &graph.scene;
+        const sky = try graph.scene.createSky(alloc);
 
-        const sky = try scene.createSky(alloc);
-
-        try sky.configure(alloc, scene);
-
-        try graph.bumpProps(alloc);
+        // try graph.bumpProps(alloc);
 
         if (value.Object.get("parameters")) |parameters| {
-            sky.setParameters(parameters, scene);
+            sky.setParameters(parameters);
         }
 
-        return sky.prop;
+        return sky.sun;
     }
 };

@@ -50,7 +50,7 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: InterfaceStack) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
         worker.resetInterfaceStack(initial_stack);
 
         return switch (self.settings.value) {
@@ -62,6 +62,7 @@ pub const AOV = struct {
 
     fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+        const radius = self.settings.radius;
 
         var result: f32 = 0.0;
 
@@ -71,7 +72,6 @@ pub const AOV = struct {
         var occlusion_ray: Ray = undefined;
 
         occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
-        occlusion_ray.ray.setMaxT(self.settings.radius);
         occlusion_ray.time = ray.time;
 
         var sampler = &self.samplers[0];
@@ -86,7 +86,7 @@ pub const AOV = struct {
 
             const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
 
-            occlusion_ray.ray.setDirection(ws);
+            occlusion_ray.ray.setDirection(ws, radius);
 
             if (worker.scene.visibility(occlusion_ray, null)) |_| {
                 result += num_samples_reciprocal;
@@ -182,16 +182,14 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 direct = false;
                 from_subsurface = false;
             }
-
-            ray.ray.setMaxT(ro.Ray_max_t);
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;

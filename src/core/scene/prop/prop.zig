@@ -11,17 +11,18 @@ pub const Prop = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
     const Properties = packed struct {
-        visible_in_camera: bool = false,
-        visible_in_reflection: bool = false,
-        visible_in_shadow: bool = false,
+        visible_in_camera: bool = true,
+        visible_in_reflection: bool = true,
+        visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
+        caustic: bool = false,
         test_AABB: bool = false,
-        static: bool = false,
+        static: bool = true,
     };
 
     shape: u32 = Null,
 
-    properties: Properties = undefined,
+    properties: Properties = .{},
 
     fn visible(self: Prop, ray_depth: u32) bool {
         if (0 == ray_depth) {
@@ -47,6 +48,10 @@ pub const Prop = struct {
         return self.properties.evaluate_visibility;
     }
 
+    pub fn caustic(self: Prop) bool {
+        return self.properties.caustic;
+    }
+
     pub fn setVisibleInShadow(self: *Prop, value: bool) void {
         self.properties.visible_in_shadow = value;
     }
@@ -60,35 +65,30 @@ pub const Prop = struct {
     pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
         self.shape = shape;
 
-        self.properties = Properties{};
-        self.properties.visible_in_camera = true;
-        self.properties.visible_in_reflection = true;
-        self.properties.visible_in_shadow = true;
-
         const shape_inst = scene.shape(shape);
         self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
-
-        self.properties.static = true;
 
         for (materials) |mid| {
             const m = scene.material(mid);
             if (m.evaluateVisibility()) {
                 self.properties.evaluate_visibility = true;
-                break;
+            }
+
+            if (m.caustic()) {
+                self.properties.caustic = true;
             }
         }
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
         const shape_inst = scene.shape(self.shape);
-
         self.properties.test_AABB = shape_inst.finite();
         self.properties.static = false;
     }
 
     pub fn intersect(
         self: Prop,
-        entity: usize,
+        entity: u32,
         ray: *Ray,
         scene: *const Scene,
         ipo: shp.Interpolation,
@@ -105,7 +105,7 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        if (scene.propShape(entity).intersect(ray, trafo, ipo, isec)) {
+        if (scene.shape(self.shape).intersect(ray, trafo, ipo, isec)) {
             isec.trafo = trafo;
             return true;
         }
@@ -113,49 +113,42 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectShadow(
-        self: Prop,
-        entity: usize,
-        ray: *Ray,
-        scene: *const Scene,
-        isec: *shp.Intersection,
-    ) bool {
-        if (!self.visibleInShadow()) {
+    pub fn intersectShadow(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
+        const properties = self.properties;
+
+        if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
             return false;
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.propShape(entity).intersect(ray, trafo, .Normal, isec);
+        return scene.shape(self.shape).intersect(ray, trafo, .Normal, isec);
     }
 
-    pub fn intersectP(
-        self: Prop,
-        entity: usize,
-        ray: Ray,
-        scene: *const Scene,
-    ) bool {
-        if (!self.visibleInShadow()) {
+    pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
+        const properties = self.properties;
+
+        if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return false;
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.propShape(entity).intersectP(ray, trafo);
+        return scene.shape(self.shape).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: usize, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
-        if (!self.evaluateVisibility()) {
+    pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+        const properties = self.properties;
+
+        if (!properties.evaluate_visibility) {
             if (self.intersectP(entity, ray, scene)) {
                 return null;
             }
@@ -163,17 +156,16 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        if (!self.visibleInShadow()) {
+        if (!properties.visible_in_shadow) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.propShape(entity).visibility(ray, trafo, entity, filter, scene);
+        return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
     }
 };

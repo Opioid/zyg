@@ -40,8 +40,8 @@ pub const Manager = struct {
             .scene = scene,
             .threads = threads,
             .fs = try Filesystem.init(alloc),
-            .images = Images.init(try ImageProvider.init(alloc), &scene.images),
-            .materials = Materials.init(MaterialProvider{}, &scene.materials),
+            .images = Images.init(ImageProvider{}, &scene.images),
+            .materials = Materials.init(MaterialProvider.init(alloc), &scene.materials),
             .shapes = Shapes.init(TriangleMeshProvider{}, &scene.shapes),
         };
     }

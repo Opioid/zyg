@@ -10,9 +10,9 @@ const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-const bvh = @import("bvh/tree.zig");
-const LightTree = @import("../../light/tree.zig").PrimitiveTree;
-const LightTreeBuilder = @import("../../light/tree_builder.zig").Builder;
+const Tree = @import("bvh/triangle_tree.zig").Tree;
+const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
+const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -63,11 +63,12 @@ pub const Part = struct {
 
     material: u32 = 0,
     num_triangles: u32 = 0,
+    num_alloc: u32 = 0,
     area: f32 = undefined,
 
-    triangle_mapping: []u32 = &.{},
-    aabbs: []AABB = &.{},
-    cones: []Vec4f = &.{},
+    triangle_mapping: [*]u32 = undefined,
+    aabbs: [*]AABB = undefined,
+    cones: [*]Vec4f = undefined,
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
@@ -78,29 +79,31 @@ pub const Part = struct {
 
         self.variants.deinit(alloc);
 
-        alloc.free(self.cones);
-        alloc.free(self.aabbs);
-        alloc.free(self.triangle_mapping);
+        const num = self.num_alloc;
+        alloc.free(self.cones[0..num]);
+        alloc.free(self.aabbs[0..num]);
+        alloc.free(self.triangle_mapping[0..num]);
     }
 
     pub fn configure(
         self: *Part,
         alloc: Allocator,
+        prop: u32,
         part: u32,
         material: u32,
-        tree: *const bvh.Tree,
+        tree: *const Tree,
         builder: *LightTreeBuilder,
         scene: *const Scene,
         threads: *Threads,
     ) !u32 {
         const num = self.num_triangles;
 
-        if (0 == self.triangle_mapping.len) {
+        if (0 == self.num_alloc) {
             var total_area: f32 = 0.0;
 
-            const triangle_mapping = try alloc.alloc(u32, num);
-            const aabbs = try alloc.alloc(AABB, num);
-            const cones = try alloc.alloc(Vec4f, num);
+            const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
+            const aabbs = (try alloc.alloc(AABB, num)).ptr;
+            const cones = (try alloc.alloc(Vec4f, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
@@ -114,7 +117,7 @@ pub const Part = struct {
 
                     const vabc = tree.data.triangleP(t);
 
-                    var box = math.aabb.empty;
+                    var box = math.aabb.Empty;
                     box.insert(vabc[0]);
                     box.insert(vabc[1]);
                     box.insert(vabc[2]);
@@ -130,11 +133,11 @@ pub const Part = struct {
                 }
             }
 
-            for (aabbs) |*b| {
+            for (aabbs[0..num]) |*b| {
                 b.bounds[1][3] = total_area / b.bounds[1][3];
             }
 
-            self.area = total_area;
+            self.num_alloc = num;
             self.triangle_mapping = triangle_mapping;
             self.aabbs = aabbs;
             self.cones = cones;
@@ -159,6 +162,8 @@ pub const Part = struct {
             .m = m,
             .tree = tree,
             .scene = scene,
+            .prop_id = prop,
+            .part_id = part,
             .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
@@ -178,7 +183,7 @@ pub const Part = struct {
         const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
 
         var angle: f32 = 0.0;
-        for (self.cones) |n| {
+        for (self.cones[0..self.num_alloc]) |n| {
             const c = math.dot3(da, n);
             angle = std.math.max(angle, std.math.acos(c));
         }
@@ -229,7 +234,7 @@ pub const Part = struct {
     }
 
     const Temp = struct {
-        bb: AABB = math.aabb.empty,
+        bb: AABB = math.aabb.Empty,
         dominant_axis: Vec4f = @splat(4, @as(f32, 0.0)),
         total_power: f32 = 0.0,
     };
@@ -239,9 +244,11 @@ pub const Part = struct {
         powers: []f32,
         part: *const Part,
         m: *const Material,
-        tree: *const bvh.Tree,
+        tree: *const Tree,
         scene: *const Scene,
         estimate_area: f32,
+        prop_id: u32,
+        part_id: u32,
 
         const Pos = Vec4f{ 0.0, 0.0, 0.0, 0.0 };
         const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
@@ -282,7 +289,8 @@ pub const Part = struct {
                             Dir,
                             .{ uv[0], uv[1], 0.0, 0.0 },
                             IdTrafo,
-                            1.0,
+                            self.prop_id,
+                            self.part_id,
                             null,
                             self.scene,
                         );
@@ -371,38 +379,42 @@ pub const Part = struct {
 };
 
 pub const Mesh = struct {
-    tree: bvh.Tree = .{},
+    tree: Tree = .{},
 
-    parts: []Part,
+    num_parts: u32 = 0,
+    num_primitives: u32 = 0,
 
-    primitive_mapping: []u32 = &.{},
+    parts: [*]Part = undefined,
+    primitive_mapping: [*]u32 = undefined,
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
         std.mem.set(Part, parts, .{});
 
-        return Mesh{ .parts = parts };
+        return Mesh{ .num_parts = num_parts, .parts = parts.ptr };
     }
 
     pub fn deinit(self: *Mesh, alloc: Allocator) void {
-        alloc.free(self.primitive_mapping);
+        alloc.free(self.primitive_mapping[0..self.num_primitives]);
 
-        for (self.parts) |*p| {
+        var parts = self.parts[0..self.num_parts];
+
+        for (parts) |*p| {
             p.deinit(alloc);
         }
 
-        alloc.free(self.parts);
+        alloc.free(parts);
         self.tree.deinit(alloc);
     }
 
     pub fn numParts(self: Mesh) u32 {
-        return @intCast(u32, self.parts.len);
+        return self.num_parts;
     }
 
     pub fn numMaterials(self: Mesh) u32 {
         var id: u32 = 0;
 
-        for (self.parts) |p| {
+        for (self.parts[0..self.num_parts]) |p| {
             id = std.math.max(id, p.material);
         }
 
@@ -445,36 +457,38 @@ pub const Mesh = struct {
         );
 
         if (self.tree.intersect(tray)) |hit| {
+            const data = self.tree.data;
+
             ray.setMaxT(hit.t);
 
-            const p = self.tree.data.interpolateP(hit.u, hit.v, hit.index);
+            const p = data.interpolateP(hit.u, hit.v, hit.index);
             isec.p = trafo.objectToWorldPoint(p);
 
-            const geo_n = self.tree.data.normal(hit.index);
+            const geo_n = data.normal(hit.index);
             isec.geo_n = trafo.rotation.transformVector(geo_n);
 
-            isec.part = self.tree.data.part(hit.index);
+            isec.part = data.part(hit.index);
             isec.primitive = hit.index;
 
             if (.All == ipo) {
                 var t: Vec4f = undefined;
                 var n: Vec4f = undefined;
                 var uv: Vec2f = undefined;
-                self.tree.data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
+                data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
 
                 const t_w = trafo.rotation.transformVector(t);
                 const n_w = trafo.rotation.transformVector(n);
-                const b_w = @splat(4, self.tree.data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
+                const b_w = @splat(4, data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
 
                 isec.t = t_w;
                 isec.b = b_w;
                 isec.n = n_w;
                 isec.uv = uv;
             } else if (.NoTangentSpace == ipo) {
-                const uv = self.tree.data.interpolateUv(hit.u, hit.v, hit.index);
+                const uv = data.interpolateUv(hit.u, hit.v, hit.index);
                 isec.uv = uv;
             } else {
-                const n = self.tree.data.interpolateShadingNormal(hit.u, hit.v, hit.index);
+                const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);
                 isec.n = n_w;
             }
@@ -521,7 +535,6 @@ pub const Mesh = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
@@ -557,6 +570,8 @@ pub const Mesh = struct {
             return null;
         }
 
+        const extent = self.area(part, trafo.scale());
+
         const angle_pdf = sl / (c * extent);
 
         return SampleTo.init(
@@ -574,7 +589,6 @@ pub const Mesh = struct {
         part: u32,
         variant: u32,
         trafo: Trafo,
-        extent: f32,
         two_sided: bool,
         sampler: *Sampler,
         uv: Vec2f,
@@ -598,6 +612,8 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * self.area(part, trafo.scale());
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
@@ -611,11 +627,11 @@ pub const Mesh = struct {
 
     pub fn pdf(
         self: Mesh,
+        part: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
         isec: Intersection,
-        extent: f32,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
@@ -624,6 +640,8 @@ pub const Mesh = struct {
         if (two_sided) {
             c = @fabs(c);
         }
+
+        const extent = self.area(part, isec.trafo.scale());
 
         const sl = ray.maxT() * ray.maxT();
         const angle_pdf = sl / (c * extent);
@@ -637,9 +655,24 @@ pub const Mesh = struct {
         return angle_pdf * tri_pdf;
     }
 
+    pub fn calculateAreas(self: *Mesh) void {
+        var p: u32 = 0;
+        const np = self.num_parts;
+        while (p < np) : (p += 1) {
+            self.parts[p].area = 0.0;
+        }
+
+        var t: u32 = 0;
+        const nt = self.tree.numTriangles();
+        while (t < nt) : (t += 1) {
+            self.parts[self.tree.data.part(t)].area += self.tree.data.area(t);
+        }
+    }
+
     pub fn prepareSampling(
         self: *Mesh,
         alloc: Allocator,
+        prop: u32,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
@@ -647,21 +680,24 @@ pub const Mesh = struct {
         threads: *Threads,
     ) !u32 {
         // This counts the triangles for _every_ part as an optimization
-        if (0 == self.primitive_mapping.len) {
+        if (0 == self.num_primitives) {
             const num_triangles = self.tree.numTriangles();
 
-            self.primitive_mapping = try alloc.alloc(u32, num_triangles);
+            self.num_primitives = num_triangles;
+            var primitive_mapping = (try alloc.alloc(u32, num_triangles)).ptr;
 
             var i: u32 = 0;
             while (i < num_triangles) : (i += 1) {
                 const p = &self.parts[self.tree.data.part(i)];
                 const pm = p.num_triangles;
                 p.num_triangles = pm + 1;
-                self.primitive_mapping[i] = pm;
+                primitive_mapping[i] = pm;
             }
+
+            self.primitive_mapping = primitive_mapping;
         }
 
-        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, prop, part, material, &self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {

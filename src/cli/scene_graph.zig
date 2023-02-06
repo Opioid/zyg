@@ -15,18 +15,22 @@ const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
 
 pub const Graph = struct {
+    pub const Null = Scene.Null;
+
     const Topology = struct {
-        next: u32 = Scene.Null,
-        child: u32 = Scene.Null,
+        next: u32 = Null,
+        child: u32 = Null,
     };
 
     const Properties = packed struct {
         has_parent: bool = false,
+        animation: bool = false,
         local_animation: bool = false,
     };
 
     scene: Scene,
 
+    prop_props: List(u32),
     prop_properties: List(Properties),
     prop_frames: List(u32),
     prop_topology: List(Topology),
@@ -40,6 +44,7 @@ pub const Graph = struct {
     pub fn init(alloc: Allocator) !Self {
         return Graph{
             .scene = try Scene.init(alloc),
+            .prop_props = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_properties = try List(Properties).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_frames = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
             .prop_topology = try List(Topology).initCapacity(alloc, Scene.Num_reserved_props),
@@ -57,6 +62,7 @@ pub const Graph = struct {
         self.prop_topology.deinit(alloc);
         self.prop_frames.deinit(alloc);
         self.prop_properties.deinit(alloc);
+        self.prop_props.deinit(alloc);
 
         self.scene.deinit(alloc);
     }
@@ -71,6 +77,7 @@ pub const Graph = struct {
         self.prop_topology.clearRetainingCapacity();
         self.prop_frames.clearRetainingCapacity();
         self.prop_properties.clearRetainingCapacity();
+        self.prop_props.clearRetainingCapacity();
 
         self.scene.clear();
     }
@@ -85,60 +92,54 @@ pub const Graph = struct {
             a.update(self);
         }
 
-        for (self.prop_properties.items) |_, i| {
-            self.propCalculateWorldTransformation(i);
-        }
+        self.calculateWorldTransformations();
     }
 
-    pub fn createEntity(self: *Self, alloc: Allocator) !u32 {
-        try self.allocateProp(alloc);
+    pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
+        try self.prop_props.append(alloc, render_id);
+        try self.prop_properties.append(alloc, .{});
+        try self.prop_frames.append(alloc, @intCast(u32, self.keyframes.items.len));
+        try self.prop_topology.append(alloc, .{});
 
-        return try self.scene.createEntity(alloc);
+        return @intCast(u32, self.prop_props.items.len - 1);
     }
 
-    pub fn createProp(self: *Self, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
-        try self.allocateProp(alloc);
-
-        return try self.scene.createProp(alloc, shape_id, materials);
-    }
-
-    pub fn bumpProps(self: *Self, alloc: Allocator) !void {
-        const d = self.scene.props.items.len - self.prop_properties.items.len;
-        var i: usize = 0;
-        while (i < d) : (i += 1) {
-            try self.allocateProp(alloc);
-        }
-    }
-
-    pub fn propSerializeChild(self: *Self, alloc: Allocator, parent_id: u32, child_id: u32) !void {
+    pub fn propSerializeChild(self: *Self, parent_id: u32, child_id: u32) void {
         self.prop_properties.items[child_id].has_parent = true;
 
-        if (self.scene.propHasAnimatedFrames(parent_id) and !self.scene.propHasAnimatedFrames(child_id)) {
-            // This is the case if child has no animation attached to it directly
-            try self.propAllocateFrames(alloc, child_id, false);
-        }
-
         const pt = &self.prop_topology.items[parent_id];
-        if (Scene.Null == pt.child) {
+        if (Null == pt.child) {
             pt.child = child_id;
         } else {
             self.prop_topology.items[self.prop_topology.items.len - 2].next = child_id;
         }
     }
 
-    pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, local_animation: bool) !void {
-        self.prop_frames.items[entity] = @intCast(u32, self.keyframes.items.len);
-
-        const num_frames = if (local_animation) self.scene.num_interpolation_frames else 1;
-
-        var i: u32 = 0;
-        while (i < num_frames) : (i += 1) {
-            try self.keyframes.append(alloc, .{});
+    pub fn propAllocateFrames(self: *Self, alloc: Allocator, entity: u32, world_animation: bool, local_animation: bool) !void {
+        if (Null == entity) {
+            return;
         }
 
-        self.prop_properties.items[entity].local_animation = local_animation;
+        const render_id = self.prop_props.items[entity];
+        const render_entity = Null != render_id;
 
-        try self.scene.propAllocateFrames(alloc, entity);
+        const current_len = @intCast(u32, self.keyframes.items.len);
+
+        if (world_animation) {
+            const nif = self.scene.num_interpolation_frames;
+            const num_frames = if (local_animation) (if (render_entity) nif else 2 * nif) else (if (render_entity) 1 else 1 + nif);
+            try self.keyframes.resize(alloc, current_len + num_frames);
+
+            if (render_entity) {
+                try self.scene.propAllocateFrames(alloc, render_id);
+            }
+        } else {
+            const num_frames: u32 = if (render_entity) 2 else 1;
+            try self.keyframes.resize(alloc, current_len + num_frames);
+        }
+
+        self.prop_properties.items[entity].animation = world_animation;
+        self.prop_properties.items[entity].local_animation = local_animation;
     }
 
     pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
@@ -154,98 +155,83 @@ pub const Graph = struct {
         std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
     }
 
-    pub fn createAnimation(self: *Self, alloc: Allocator, entity: u32, count: u32) !u32 {
-        try self.animations.append(alloc, try Animation.init(alloc, entity, count, self.scene.num_interpolation_frames));
-
-        try self.propAllocateFrames(alloc, entity, true);
+    pub fn createAnimation(self: *Self, alloc: Allocator, count: u32) !u32 {
+        try self.animations.append(alloc, try Animation.init(alloc, count, self.scene.num_interpolation_frames));
 
         return @intCast(u32, self.animations.items.len - 1);
+    }
+
+    pub fn animationSetEntity(self: *Self, animation: u32, entity: u32) void {
+        self.animations.items[animation].entity = entity;
     }
 
     pub fn animationSetFrame(self: *Self, animation: u32, index: usize, keyframe: Keyframe) void {
         self.animations.items[animation].set(index, keyframe);
     }
 
-    fn allocateProp(self: *Self, alloc: Allocator) !void {
-        try self.prop_properties.append(alloc, .{});
-        try self.prop_frames.append(alloc, Scene.Null);
-        try self.prop_topology.append(alloc, .{});
-    }
-
-    fn propCalculateWorldTransformation(self: *Self, entity: usize) void {
-        if (!self.prop_properties.items[entity].has_parent) {
-            const f = self.prop_frames.items[entity];
-
-            if (Scene.Null != f) {
+    fn calculateWorldTransformations(self: *Self) void {
+        for (self.prop_properties.items) |p, entity| {
+            if (!p.has_parent) {
+                const f = self.prop_frames.items[entity];
                 const frames = self.keyframes.items.ptr + f;
 
-                self.scene.propSetFrames(@intCast(u32, entity), frames);
-            }
+                const animation = p.local_animation;
 
-            self.propPropagateTransformation(entity);
-        }
-    }
+                const render_id = self.prop_props.items[entity];
+                if (Null != render_id) {
+                    if (animation) {
+                        self.scene.propSetFrames(render_id, frames);
+                    } else {
+                        self.scene.propSetWorldTransformation(render_id, frames[0]);
+                    }
+                }
 
-    fn propPropagateTransformation(self: *Self, entity: usize) void {
-        const f = self.prop_frames.items[entity];
-
-        if (Scene.Null == f) {
-            const trafo = self.scene.prop_world_transformations.items[entity];
-
-            var child = self.prop_topology.items[entity].child;
-            while (Scene.Null != child) {
-                self.propInheritTransformation(child, trafo);
-
-                child = self.prop_topology.items[child].next;
-            }
-        } else {
-            //    const frames = self.keyframes.items.ptr + f;
-            const frames = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
-
-            var child = self.prop_topology.items[entity].child;
-            while (Scene.Null != child) {
-                self.propInheritTransformations(child, frames);
-
-                child = self.prop_topology.items[child].next;
+                const num_frames = if (animation) self.scene.num_interpolation_frames else 1;
+                self.propPropagateTransformation(entity, num_frames, frames);
             }
         }
     }
 
-    fn propInheritTransformation(self: *Self, entity: u32, trafo: Transformation) void {
-        const f = self.prop_frames.items[entity];
+    fn propPropagateTransformation(self: *Self, entity: usize, num_frames: u32, frames: [*]const math.Transformation) void {
+        var child = self.prop_topology.items[entity].child;
+        while (Null != child) {
+            self.propInheritTransformations(child, num_frames, frames);
 
-        if (Scene.Null != f) {
-            const frames = self.keyframes.items.ptr + f;
-
-            // Logically this has to be true here, maybe assert instead?
-            const local_animation = self.prop_properties.items[entity].local_animation;
-
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
-
-            var i: u32 = 0;
-            const len = self.scene.num_interpolation_frames;
-            while (i < len) : (i += 1) {
-                const lf = if (local_animation) i else 0;
-                df[i] = trafo.transform(frames[lf]);
-            }
+            child = self.prop_topology.items[child].next;
         }
-
-        self.propPropagateTransformation(entity);
     }
 
-    fn propInheritTransformations(self: *Self, entity: u32, frames: [*]const math.Transformation) void {
-        const local_animation = self.prop_properties.items[entity].local_animation;
+    fn propInheritTransformations(self: *Self, entity: u32, num_frames: u32, frames: [*]const math.Transformation) void {
+        const animation = self.prop_properties.items[entity].local_animation;
 
         const sf = self.keyframes.items.ptr + self.prop_frames.items[entity];
-        const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[entity];
 
-        var i: u32 = 0;
         const len = self.scene.num_interpolation_frames;
-        while (i < len) : (i += 1) {
-            const lf = if (local_animation) i else 0;
-            df[i] = frames[i].transform(sf[lf]);
-        }
 
-        self.propPropagateTransformation(entity);
+        const render_id = self.prop_props.items[entity];
+
+        if (Null != render_id) {
+            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
+
+            var i: u32 = 0;
+            while (i < len) : (i += 1) {
+                const lf = if (1 == num_frames) 0 else i;
+                const lsf = if (animation) i else 0;
+                df[i] = frames[lf].transform(sf[lsf]);
+            }
+
+            self.propPropagateTransformation(entity, len, df);
+        } else {
+            const df = sf + if (animation) 1 else len;
+
+            var i: u32 = 0;
+            while (i < len) : (i += 1) {
+                const lf = if (1 == num_frames) 0 else i;
+                const lsf = if (animation) i else 0;
+                df[i] = frames[lf].transform(sf[lsf]);
+            }
+
+            self.propPropagateTransformation(entity, len, df);
+        }
     }
 };

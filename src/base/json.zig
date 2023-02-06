@@ -4,6 +4,7 @@ const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
+const Mat4x4 = math.Mat4x4;
 const Transformation = math.Transformation;
 const Quaternion = math.Quaternion;
 const quaternion = math.quaternion;
@@ -142,6 +143,11 @@ fn readRotation(value: Value) Quaternion {
 pub fn readTransformation(value: Value, trafo: *Transformation) void {
     switch (value) {
         .Object => |object| {
+            var up = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
+            var look_at = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
+
+            var look = false;
+
             var iter = object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "position", entry.key_ptr.*)) {
@@ -150,8 +156,46 @@ pub fn readTransformation(value: Value, trafo: *Transformation) void {
                     trafo.scale = readVec4f3(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "rotation", entry.key_ptr.*)) {
                     trafo.rotation = readRotation(entry.value_ptr.*);
+                } else if (std.mem.eql(u8, "look_at", entry.key_ptr.*)) {
+                    look_at = readVec4f3(entry.value_ptr.*);
+                    look = true;
+                } else if (std.mem.eql(u8, "up", entry.key_ptr.*)) {
+                    up = readVec4f3(entry.value_ptr.*);
                 }
             }
+
+            if (look) {
+                const dir = math.normalize3(look_at - trafo.position);
+                const right = -math.cross3(dir, up);
+
+                const r = Mat3x3.init3(right, up, dir);
+
+                trafo.rotation = quaternion.initFromMat3x3(r);
+            }
+        },
+        .Array => |array| {
+            const m = Mat4x4.init16(
+                readFloat(f32, array.items[0]),
+                readFloat(f32, array.items[1]),
+                readFloat(f32, array.items[2]),
+                readFloat(f32, array.items[3]),
+                readFloat(f32, array.items[4]),
+                readFloat(f32, array.items[5]),
+                readFloat(f32, array.items[6]),
+                readFloat(f32, array.items[7]),
+                readFloat(f32, array.items[8]),
+                readFloat(f32, array.items[9]),
+                readFloat(f32, array.items[10]),
+                readFloat(f32, array.items[11]),
+                readFloat(f32, array.items[12]),
+                readFloat(f32, array.items[13]),
+                readFloat(f32, array.items[14]),
+                readFloat(f32, array.items[15]),
+            );
+
+            var rotation: Mat3x3 = undefined;
+            m.decompose(&rotation, &trafo.scale, &trafo.position);
+            trafo.rotation = quaternion.initFromMat3x3(rotation);
         },
         else => return,
     }

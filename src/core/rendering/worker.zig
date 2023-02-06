@@ -13,7 +13,7 @@ const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Interpolation = shp.Interpolation;
-const LightTree = @import("../scene/light/tree.zig").Tree;
+const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
@@ -40,7 +40,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    camera: *cam.Perspective = undefined,
+    camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
 
     rng: RNG = undefined,
@@ -318,19 +318,13 @@ pub const Worker = struct {
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         var isec = Intersection{};
         if (self.intersectAndResolveMask(ray, null, &isec)) {
-            return self.surface_integrator.li(ray, &isec, gather_photons, self, interface_stack);
+            return self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
         }
 
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(
-        self: *Worker,
-        ray: *Ray,
-        wo: Vec4f,
-        isec: Intersection,
-        filter: ?Filter,
-    ) ?Vec4f {
+    pub fn transmitted(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
         if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
             if (self.transmittance(ray.*, filter)) |b| {
                 return a * b;
@@ -349,14 +343,14 @@ pub const Worker = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        var temp_stack: InterfaceStack = undefined;
-        temp_stack.copy(self.interface_stack);
+        var stack: InterfaceStack = undefined;
+        stack.copy(&self.interface_stack);
 
         // This is the typical SSS case:
         // A medium is on the stack but we already considered it during shadow calculation,
         // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!self.interface_stack.straight(self.scene)) {
-            self.interface_stack.pop();
+        if (!stack.straight(self.scene)) {
+            stack.pop();
         }
 
         const ray_max_t = ray.ray.maxT();
@@ -369,8 +363,8 @@ pub const Worker = struct {
         while (true) {
             const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!self.interface_stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, filter, self)) |tr| {
+            if (!stack.empty()) {
+                if (self.volume_integrator.transmittance(tray, stack.top(), filter, self)) |tr| {
                     w *= tr;
                 } else {
                     return null;
@@ -382,20 +376,18 @@ pub const Worker = struct {
             }
 
             if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = self.interface_stack.remove(isec);
+                _ = stack.remove(isec);
             } else {
-                self.interface_stack.push(isec);
+                stack.push(isec);
             }
 
-            tray.ray.setMinT(ro.offsetF(tray.ray.maxT()));
-            tray.ray.setMaxT(ray_max_t);
-
-            if (tray.ray.minT() > tray.ray.maxT()) {
+            const ray_min_t = ro.offsetF(tray.ray.maxT());
+            if (ray_min_t > ray_max_t) {
                 break;
             }
-        }
 
-        self.interface_stack.copy(temp_stack);
+            tray.ray.setMinMaxT(ray_min_t, ray_max_t);
+        }
 
         return w;
     }
@@ -414,9 +406,8 @@ pub const Worker = struct {
 
             var nisec: Intersection = .{};
             if (self.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, filter, self)) |tr| {
-                    ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-                    ray.ray.setMaxT(ray_max_t);
+                if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
+                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
 
                     if (self.scene.visibility(ray.*, filter)) |tv| {
                         const wi = ray.ray.direction;
@@ -443,32 +434,26 @@ pub const Worker = struct {
             return false;
         }
 
-        const start_min_t = ray.ray.minT();
-
         var o = isec.opacity(filter, self.scene);
 
         while (o < 1.0) {
             if (o > 0.0 and o > self.rng.randomFloat()) {
-                ray.ray.setMinT(start_min_t);
                 return true;
             }
 
             // Slide along ray until opaque surface is found
-            ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
-            ray.ray.setMaxT(ro.Ray_max_t);
+            ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             if (!self.scene.intersect(ray, .All, isec)) {
-                ray.ray.setMinT(start_min_t);
                 return false;
             }
 
             o = isec.opacity(filter, self.scene);
         }
 
-        ray.ray.setMinT(start_min_t);
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: InterfaceStack) void {
+    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
         self.interface_stack.copy(stack);
     }
 

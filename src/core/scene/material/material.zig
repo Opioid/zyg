@@ -62,7 +62,7 @@ pub const Material = union(enum) {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: Shape,
+        shape: *const Shape,
         part: u32,
         trafo: Trafo,
         extent: f32,
@@ -94,13 +94,7 @@ pub const Material = union(enum) {
     }
 
     pub fn emissive(self: *const Material) bool {
-        return switch (self.*) {
-            .Sky => true,
-            .Light => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Substitute => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Volumetric => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            else => false,
-        };
+        return self.super().properties.emissive;
     }
 
     pub fn emissionMapped(self: *const Material) bool {
@@ -188,8 +182,8 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, worker.scene) },
-            .Light => |*l| .{ .Light = l.sample(wo, rs, worker.scene) },
-            .Sky => |*s| .{ .Light = s.sample(wo, rs, worker.scene) },
+            .Light => .{ .Light = Light.sample(wo, rs) },
+            .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, worker),
             .Volumetric => |*v| v.sample(wo, rs),
         };
@@ -197,19 +191,20 @@ pub const Material = union(enum) {
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
+        shading_p: Vec4f,
         wi: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(p, wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
-            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, .Nearest, scene),
-            .Substitute => |*m| m.evaluateRadiance(p, wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, scene),
+            .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, scene),
+            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, filter, scene),
+            .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, scene),
             else => @splat(4, @as(f32, 0.0)),
         };

@@ -9,31 +9,14 @@ const mz = @cImport({
 
 pub const GzipReadStream = struct {
     const Error = error{
-        InputOutput,
-        SystemResources,
-        IsDir,
-        OperationAborted,
-        BrokenPipe,
-        ConnectionResetByPeer,
-        ConnectionTimedOut,
-        NotOpenForReading,
-        WouldBlock,
-        AccessDenied,
-        EndOfStream,
-        Unexpected,
-        StreamTooLong,
-        OutOfMemory,
         InvalidGzipHeader,
         UnknownGzipCompressionAlgorithm,
         InitMZStreamFailed,
         InflateMZStreamFailed,
-    };
+    } || std.os.ReadError;
 
     const SeekError = error{
         Unseekable,
-        AccessDenied,
-        Unexpected,
-        SystemResources,
         ResetMZStreamFailed,
     } || Error;
 
@@ -110,7 +93,7 @@ pub const GzipReadStream = struct {
         return try self.initZstream();
     }
 
-    pub fn read(self: *Self, dest: []u8) Error!usize {
+    pub fn read(self: *Self, dest: []u8) !usize {
         var dest_cur: u64 = 0;
 
         while (dest_cur < dest.len) {
@@ -172,7 +155,7 @@ pub const GzipReadStream = struct {
         }
     }
 
-    pub fn seekBy(self: *Self, count: u64) SeekError!void {
+    pub fn seekBy(self: *Self, count: u64) !void {
         const cur = self.z_stream.total_out - self.buffer_count;
         try self.stream.seekTo(cur + count);
     }
@@ -189,7 +172,7 @@ pub const GzipReadStream = struct {
         self.z_stream.avail_out = 0;
     }
 
-    fn underflow(self: *Self) !bool {
+    fn underflow(self: *Self) Error!bool {
         var uncompressed_bytes: u32 = 0;
 
         while (0 == uncompressed_bytes) {

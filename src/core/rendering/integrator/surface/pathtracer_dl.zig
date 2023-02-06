@@ -3,7 +3,8 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
-const Max_lights = @import("../../../scene/light/tree.zig").Tree.Max_lights;
+const Light = @import("../../../scene/light/light.zig").Light;
+const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const ro = @import("../../../scene/ray_offset.zig");
@@ -43,13 +44,7 @@ pub const PathtracerDL = struct {
         }
     }
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        worker: *Worker,
-        initial_stack: InterfaceStack,
-    ) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
         const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
 
         var result = @splat(4, @as(f32, 0.0));
@@ -88,6 +83,24 @@ pub const PathtracerDL = struct {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
+            var pure_emissive: bool = undefined;
+            const energy = isec.evaluateRadiance(
+                ray.ray.origin,
+                wo,
+                filter,
+                worker.scene,
+                &pure_emissive,
+            ) orelse @splat(4, @as(f32, 0.0));
+
+            if (treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
+                result += throughput * energy;
+            }
+
+            if (pure_emissive) {
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                break;
+            }
+
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
@@ -104,17 +117,6 @@ pub const PathtracerDL = struct {
             }
 
             wo1 = wo;
-
-            if (mat_sample.super().sameHemisphere(wo)) {
-                if (treat_as_singular) {
-                    result += throughput * mat_sample.super().radiance;
-                }
-            }
-
-            if (mat_sample.isPureEmissive()) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
-                break;
-            }
 
             var sampler = self.pickSampler(ray.depth);
 
@@ -141,21 +143,20 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinT(ro.offsetF(ray.ray.maxT()));
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
             }
 
-            ray.ray.setMaxT(ro.Ray_max_t);
-
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
             }
 
+            const old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
@@ -192,7 +193,7 @@ pub const PathtracerDL = struct {
             }
 
             if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, sampler.sample1D())) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
             }
@@ -242,11 +243,10 @@ pub const PathtracerDL = struct {
                 ray.time,
                 translucent,
                 sampler,
-                worker,
+                worker.scene,
             ) orelse continue;
 
-            shadow_ray.ray.setDirection(light_sample.wi);
-            shadow_ray.ray.setMaxT(light_sample.offset());
+            shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
             const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);

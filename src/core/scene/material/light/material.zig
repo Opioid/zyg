@@ -36,13 +36,14 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.emission_map.valid();
     }
 
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: Shape,
+        shape: *const Shape,
         area: f32,
         scene: *const Scene,
         threads: *Threads,
@@ -69,7 +70,7 @@ pub const Material = struct {
         {
             var context = LuminanceContext{
                 .scene = scene,
-                .shape = &shape,
+                .shape = shape,
                 .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
@@ -107,26 +108,24 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
-        const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(rs.p, -wo, rs.uv, rs.trafo, area, rs.filter, scene);
-
-        var result = Sample.init(rs, wo, rad);
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
+        var result = Sample.init(rs, wo);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
+        shading_p: Vec4f,
         wi: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, scene);
+        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, filter, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, scene);

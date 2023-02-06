@@ -33,13 +33,19 @@ pub const Provider = struct {
 
     const Tex = enum { All, No, DWIM };
 
+    parser: std.json.Parser,
+
     tex: Tex = .All,
 
     force_debug_material: bool = false,
 
+    pub fn init(alloc: Allocator) Provider {
+        return .{ .parser = std.json.Parser.init(alloc, false) };
+    }
+
     pub fn deinit(self: *Provider, alloc: Allocator) void {
-        _ = self;
         _ = alloc;
+        self.parser.deinit();
     }
 
     pub fn setSettings(self: *Provider, no_tex: bool, no_tex_dwim: bool, force_debug_material: bool) void {
@@ -55,7 +61,7 @@ pub const Provider = struct {
     }
 
     pub fn loadFile(
-        self: Provider,
+        self: *Provider,
         alloc: Allocator,
         name: []const u8,
         options: Variants,
@@ -70,10 +76,8 @@ pub const Provider = struct {
 
         stream.deinit();
 
-        var parser = std.json.Parser.init(alloc, false);
-        defer parser.deinit();
-
-        var document = try parser.parse(buffer);
+        defer self.parser.reset();
+        var document = try self.parser.parse(buffer);
         defer document.deinit();
 
         const root = document.root;
@@ -85,7 +89,7 @@ pub const Provider = struct {
     }
 
     pub fn loadData(
-        self: Provider,
+        self: *Provider,
         alloc: Allocator,
         data: usize,
         options: Variants,
@@ -101,7 +105,7 @@ pub const Provider = struct {
     }
 
     pub fn updateMaterial(
-        self: Provider,
+        self: *Provider,
         alloc: Allocator,
         material: *Material,
         value: std.json.Value,
@@ -122,7 +126,7 @@ pub const Provider = struct {
         return Material{ .Debug = mat.Debug.init() };
     }
 
-    fn loadMaterial(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadMaterial(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         const rendering_node = value.Object.get("rendering") orelse {
             return Error.NoRenderNode;
         };
@@ -153,7 +157,7 @@ pub const Provider = struct {
         return Error.UnknownMaterial;
     }
 
-    fn loadGlass(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
+    fn loadGlass(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Glass{ .super = .{
             .ior = 1.46,
             .attenuation_distance = 1.0,
@@ -164,7 +168,7 @@ pub const Provider = struct {
         return Material{ .Glass = material };
     }
 
-    fn updateGlass(self: Provider, alloc: Allocator, material: *mat.Glass, value: std.json.Value, resources: *Resources) void {
+    fn updateGlass(self: *Provider, alloc: Allocator, material: *mat.Glass, value: std.json.Value, resources: *Resources) void {
         var attenuation_color = @splat(4, @as(f32, 1.0));
 
         var iter = value.Object.iterator();
@@ -193,7 +197,7 @@ pub const Provider = struct {
         material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), material.super.attenuation_distance, 0.0);
     }
 
-    fn loadLight(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
+    fn loadLight(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
         self.updateLight(alloc, &material, value, resources);
@@ -201,7 +205,7 @@ pub const Provider = struct {
         return Material{ .Light = material };
     }
 
-    fn updateLight(self: Provider, alloc: Allocator, material: *mat.Light, value: std.json.Value, resources: *Resources) void {
+    fn updateLight(self: *Provider, alloc: Allocator, material: *mat.Light, value: std.json.Value, resources: *Resources) void {
         var iter = value.Object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -218,7 +222,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadSubstitute(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
+    fn loadSubstitute(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Substitute{ .super = .{ .ior = 1.46 } };
 
         self.updateSubstitute(alloc, &material, value, resources);
@@ -226,7 +230,7 @@ pub const Provider = struct {
         return Material{ .Substitute = material };
     }
 
-    fn updateSubstitute(self: Provider, alloc: Allocator, material: *mat.Substitute, value: std.json.Value, resources: *Resources) void {
+    fn updateSubstitute(self: *Provider, alloc: Allocator, material: *mat.Substitute, value: std.json.Value, resources: *Resources) void {
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
@@ -349,7 +353,7 @@ pub const Provider = struct {
         );
     }
 
-    fn loadVolumetric(self: Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
+    fn loadVolumetric(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
         var material = mat.Volumetric.init();
 
         self.updateVolumetric(alloc, &material, value, resources);
@@ -357,7 +361,7 @@ pub const Provider = struct {
         return Material{ .Volumetric = material };
     }
 
-    fn updateVolumetric(self: Provider, alloc: Allocator, material: *mat.Volumetric, value: std.json.Value, resources: *Resources) void {
+    fn updateVolumetric(self: *Provider, alloc: Allocator, material: *mat.Volumetric, value: std.json.Value, resources: *Resources) void {
         var color = @splat(4, @as(f32, 0.5));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));

@@ -5,8 +5,8 @@ const Resources = @import("../../../resource/manager.zig").Manager;
 const Result = @import("../../../resource/result.zig").Result;
 const vs = @import("vertex_stream.zig");
 const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const bvh = @import("bvh/tree.zig");
-const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
+const Tree = @import("bvh/triangle_tree.zig").Tree;
+const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
@@ -87,7 +87,7 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: bvh.Tree = .{},
+    tree: Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
@@ -107,7 +107,10 @@ pub const Provider = struct {
 
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
-                .TriangleMesh => |*m| std.mem.swap(bvh.Tree, &m.tree, &self.tree),
+                .TriangleMesh => |*m| {
+                    std.mem.swap(Tree, &m.tree, &self.tree);
+                    m.calculateAreas();
+                },
                 else => {},
             }
         }
@@ -223,13 +226,13 @@ pub const Provider = struct {
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Json = .{
-            .positions = handler.positions.items,
-            .normals = handler.normals.items,
-            .tangents = handler.tangents.items,
-            .uvs = handler.uvs.items,
-            .bts = handler.bitangent_signs.items,
-        } };
+        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+            handler.positions.items,
+            handler.normals.items,
+            handler.tangents.items,
+            handler.uvs.items,
+            handler.bitangent_signs.items,
+        ) };
 
         buildBVH(self.alloc, &self.tree, self.handler.triangles.items, vertices, self.threads) catch {};
 
@@ -533,7 +536,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
@@ -541,7 +544,13 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Compact = vs.Compact.init(positions, normals) };
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                        positions,
+                        normals,
+                        &.{},
+                        &.{},
+                        &.{},
+                    ) };
                 }
             }
         }
@@ -681,7 +690,7 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *bvh.Tree,
+        tree: *Tree,
         triangles: []const IndexTriangle,
         vertices: vs.VertexStream,
         threads: *Threads,
