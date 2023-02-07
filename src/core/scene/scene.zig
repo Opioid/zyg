@@ -559,7 +559,7 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
-        self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
+        self.light_aabbs.items[light_id].bounds[1][3] = math.hmax3(
             self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }

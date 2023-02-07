@@ -416,7 +416,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         inline fn clamp(self: *const Self, color: Vec4f) Vec4f {
-            const mc = math.maxComponent3(color);
+            const mc = math.hmax3(color);
             const max = self.clamp_max;
 
             if (mc > max) {

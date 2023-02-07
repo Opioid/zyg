@@ -179,7 +179,7 @@ fn residualRatioTrackingTransmitted(
 pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
     const mu_t = mu.a + mu.s;
 
-    const mt = math.maxComponent3(mu_t);
+    const mt = math.hmax3(mu_t);
     const imt = 1.0 / mt;
 
     const mu_n = @splat(4, mt) - mu_t;
@@ -229,7 +229,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
 
     const mu_t = mu.a + mu.s;
 
-    const mt = math.maxComponent3(mu_t);
+    const mt = math.hmax3(mu_t);
     const imt = 1.0 / mt;
 
     const mu_n = @splat(4, mt) - mu_t;
