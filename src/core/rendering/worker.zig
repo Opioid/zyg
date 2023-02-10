@@ -320,6 +320,8 @@ pub const Worker = struct {
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
 
+            ray.ray.setMaxT(2.0 * self.scene.propRadius(isec.prop));
+
             var nisec: Intersection = .{};
             if (self.scene.intersectShadow(ray, &nisec)) {
                 if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {

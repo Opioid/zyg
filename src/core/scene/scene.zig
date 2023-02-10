@@ -568,6 +568,10 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
+    pub fn propRadius(self: *const Scene, entity: u32) f32 {
+        return self.prop_aabbs.items[entity].cachedRadius();
+    }
+
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
     }
@@ -737,6 +741,7 @@ pub const Scene = struct {
             }
 
             bounds.translate(-camera_pos);
+            bounds.cacheRadius();
             self.prop_aabbs.items[entity] = bounds;
         }
     }
