@@ -204,7 +204,7 @@ pub const Worker = struct {
                                 const value = clamped.last;
 
                                 new_m = clamped.mean;
-                                new_s = old_s + math.maxComponent3((value - old_m) * (value - new_m));
+                                new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
 
                                 // set up for next iteration
                                 old_m = new_m;
@@ -215,7 +215,7 @@ pub const Worker = struct {
                             old_ss[c] = old_s;
 
                             const variance = new_s * new_m[3];
-                            const mam = math.maxComponent3(new_m);
+                            const mam = math.hmax3(new_m);
 
                             // c0
                             //   const em = @sqrt(variance) / std.math.max(mam, 0.0001);
