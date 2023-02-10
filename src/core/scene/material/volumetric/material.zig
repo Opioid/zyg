@@ -158,7 +158,7 @@ pub const Material = struct {
         self.average_emission = average_emission;
 
         const cca = self.super.cc.a;
-        const majorant_a = math.maxComponent3(cca);
+        const majorant_a = math.hmax3(cca);
         self.a_norm = @splat(4, majorant_a) / cca;
         self.pdf_factor = num_pixels / majorant_a;
 

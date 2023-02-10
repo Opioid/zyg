@@ -296,7 +296,7 @@ pub const Part = struct {
                         );
                     }
 
-                    const weight = math.maxComponent3(radiance) / @intToFloat(f32, num_samples);
+                    const weight = math.hmax3(radiance) / @intToFloat(f32, num_samples);
                     pow = weight * area;
                 } else {
                     pow = area;

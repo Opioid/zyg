@@ -113,7 +113,7 @@ const SplitCandidate = struct {
         }
 
         const extent = bounds.extent();
-        const reg = math.maxComponent3(extent) / extent[self.axis];
+        const reg = math.hmax3(extent) / extent[self.axis];
         const surface_area = bounds.surfaceArea();
 
         self.aabbs = boxs;
@@ -190,7 +190,7 @@ const SplitCandidate = struct {
         };
 
         const extent = bounds.extent();
-        const reg = math.maxComponent3(extent) / extent[self.axis];
+        const reg = math.hmax3(extent) / extent[self.axis];
         const surface_area = bounds.surfaceArea();
 
         const two_sided = part.lightTwoSided(variant, 0);

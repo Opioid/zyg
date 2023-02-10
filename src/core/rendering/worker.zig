@@ -322,6 +322,7 @@ pub const Worker = struct {
         const material = vertex.isec.material(self.scene);
         if (vertex.isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = tray.ray.maxT();
+            tray.ray.setMaxT(2.0 * self.scene.propRadius(vertex.isec.prop));
             var tisec: Intersection = .{};
             if (self.scene.intersectShadow(&tray, &tisec)) {
                 if (self.volume_integrator.transmittance(tray, vertex.interface_stack.top(), filter, self)) |tr| {

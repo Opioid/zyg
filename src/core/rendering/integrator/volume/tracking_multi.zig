@@ -36,10 +36,7 @@ pub const Multi = struct {
         // This test is intended to catch corner cases where we actually left the scattering medium,
         // but the intersection point was too close to detect.
         var missed = false;
-
-        if (ro.Almost_ray_max_t <= d) {
-            missed = true;
-        } else if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
+        if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
             const v = -ray.ray.direction;
 
             var tray = Ray.init(vertex.isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);

@@ -93,13 +93,11 @@ fn trackingTransmitted(
 
     var rng = &worker.rng;
 
-    const imt = 1.0 / mt;
-
     const d = ray.maxT();
     var t = ray.minT();
     while (true) {
         const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return true;
         }
@@ -112,7 +110,7 @@ fn trackingTransmitted(
         const mu_t = mu.a + mu.s;
         const mu_n = @splat(4, mt) - mu_t;
 
-        transmitted.* *= @splat(4, imt) * mu_n;
+        transmitted.* *= mu_n / @splat(4, mt);
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
@@ -149,13 +147,11 @@ fn residualRatioTrackingTransmitted(
     var rng = &worker.rng;
 
     // Transmittance of the residual medium
-    const imt = 1.0 / mt;
-
     const d = ray.maxT();
     var t = ray.minT();
     while (true) {
         const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return true;
         }
@@ -168,7 +164,7 @@ fn residualRatioTrackingTransmitted(
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
         const mu_n = @splat(4, mt) - mu_t;
 
-        transmitted.* *= @splat(4, imt) * mu_n;
+        transmitted.* *= mu_n / @splat(4, mt);
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
@@ -178,10 +174,7 @@ fn residualRatioTrackingTransmitted(
 
 pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
     const mu_t = mu.a + mu.s;
-
-    const mt = math.maxComponent3(mu_t);
-    const imt = 1.0 / mt;
-
+    const mt = math.hmax3(mu_t);
     const mu_n = @splat(4, mt) - mu_t;
 
     var w = @splat(4, @as(f32, 1.0));
@@ -190,21 +183,19 @@ pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
     var t = ray.minT();
     while (true) {
         const r = sampler.sample2D();
-        t -= @log(1.0 - r[0]) * imt;
+        t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
             return Result.initPass(w);
         }
 
         const ms = math.average3(mu.s * w);
         const mn = math.average3(mu_n * w);
-
         const mc = ms + mn;
         if (mc < 1.0e-10) {
             return Result.initPass(w);
         }
 
         const c = 1.0 / mc;
-
         const ps = ms * c;
         const pn = mn * c;
 
@@ -226,12 +217,8 @@ pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
 
 pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
     const mu = cce.cc;
-
     const mu_t = mu.a + mu.s;
-
-    const mt = math.maxComponent3(mu_t);
-    const imt = 1.0 / mt;
-
+    const mt = math.hmax3(mu_t);
     const mu_n = @splat(4, mt) - mu_t;
 
     var w = @splat(4, @as(f32, 1.0));
@@ -240,7 +227,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
     var t = ray.minT();
     while (true) {
         const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return Result.initPass(w);
         }
@@ -248,14 +235,12 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
         const ma = math.average3(mu.a * w);
         const ms = math.average3(mu.s * w);
         const mn = math.average3(mu_n * w);
-
         const mc = ma + ms + mn;
         if (mc < 1.0e-10) {
             return Result.initPass(w);
         }
 
         const c = 1.0 / mc;
-
         const pa = ma * c;
         const ps = ms * c;
         const pn = mn * c;
@@ -305,13 +290,11 @@ pub fn trackingHetero(
 
     var lw = w;
 
-    const imt = 1.0 / mt;
-
     const d = ray.maxT();
     var t = ray.minT();
     while (true) {
         const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return Result.initPass(lw);
         }
@@ -323,11 +306,10 @@ pub fn trackingHetero(
 
         const mu_t = mu.a + mu.s;
         const mu_n = @splat(4, mt) - mu_t;
-
         const ms = math.average3(mu.s * lw);
         const mn = math.average3(mu_n * lw);
-        const c = 1.0 / (ms + mn);
 
+        const c = 1.0 / (ms + mn);
         const ps = ms * c;
         const pn = mn * c;
 
@@ -365,13 +347,11 @@ pub fn trackingHeteroEmission(
 
     var lw = w;
 
-    const imt = 1.0 / mt;
-
     const d = ray.maxT();
     var t = ray.minT();
     while (true) {
         const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) * imt;
+        t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return Result.initPass(lw);
         }
@@ -388,8 +368,8 @@ pub fn trackingHeteroEmission(
         const ma = math.average3(mu.a * lw);
         const ms = math.average3(mu.s * lw);
         const mn = math.average3(mu_n * lw);
-        const c = 1.0 / (ma + ms + mn);
 
+        const c = 1.0 / (ma + ms + mn);
         const pa = ma * c;
         const ps = ms * c;
         const pn = mn * c;
