@@ -142,7 +142,7 @@ pub const PathtracerMIS = struct {
 
                 //   const split = ((vertex.isec.subsurface and vertex.ray.depth < 2) or pr) and vertex.path_count <= 1;
 
-                const split = vertex.path_count <= 1 and vertex.ray.depth < 2;
+                const split = vertex.path_count == 1 and vertex.ray.depth < 2;
 
                 result += throughput * self.sampleLights(vertex, &mat_sample, filter, split, sampler, worker);
 

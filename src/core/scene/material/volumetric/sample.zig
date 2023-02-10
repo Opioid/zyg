@@ -37,10 +37,10 @@ pub const Sample = struct {
 
         const phase = phaseHg(wo_dot_wi, g);
 
-        _ = split;
-        return bxdf.Result.init(@splat(4, phase), phase);
+        // _ = split;
+        // return bxdf.Result.init(@splat(4, phase), phase);
 
-        //return bxdf.Result.init(@splat(4, phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
+        return bxdf.Result.init(@splat(4, phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
@@ -48,7 +48,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const tb = math.orthonormalBasis3(wo);
 
-        const num: u32 = if (split) 1 else 1;
+        const num: u32 = if (split) 2 else 1;
         var i: u32 = 0;
         while (i < num) : (i += 1) {
             const r2 = sampler.sample2D();
