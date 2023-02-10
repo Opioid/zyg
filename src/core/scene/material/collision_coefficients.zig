@@ -19,10 +19,10 @@ pub const CM = struct {
 
     pub fn initCC(cc: CC) CM {
         return .{
-            .minorant_mu_a = math.minComponent3(cc.a),
-            .minorant_mu_s = math.minComponent3(cc.s),
-            .majorant_mu_a = math.maxComponent3(cc.a),
-            .majorant_mu_s = math.maxComponent3(cc.s),
+            .minorant_mu_a = math.hmin3(cc.a),
+            .minorant_mu_s = math.hmin3(cc.s),
+            .majorant_mu_a = math.hmax3(cc.a),
+            .majorant_mu_s = math.hmax3(cc.s),
         };
     }
 

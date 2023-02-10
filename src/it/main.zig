@@ -138,7 +138,7 @@ fn write(
         defer alloc.free(buffer);
 
         for (target.pixels) |p, i| {
-            const v = math.maxComponent3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
+            const v = math.hmax3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
 
             buffer[i] = v;
 

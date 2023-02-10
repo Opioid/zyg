@@ -559,13 +559,17 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
-        self.light_aabbs.items[light_id].bounds[1][3] = math.maxComponent3(
+        self.light_aabbs.items[light_id].bounds[1][3] = math.hmax3(
             self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
 
     pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: Ray) bool {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
+    }
+
+    pub fn propRadius(self: *const Scene, entity: u32) f32 {
+        return self.prop_aabbs.items[entity].cachedRadius();
     }
 
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
@@ -737,6 +741,7 @@ pub const Scene = struct {
             }
 
             bounds.translate(-camera_pos);
+            bounds.cacheRadius();
             self.prop_aabbs.items[entity] = bounds;
         }
     }
