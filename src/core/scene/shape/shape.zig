@@ -8,6 +8,7 @@ pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
+const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -77,6 +78,14 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => false,
             else => true,
+        };
+    }
+
+    pub fn infiniteTMax(self: Shape) f32 {
+        return switch (self) {
+            .Canopy, .InfiniteSphere => ro.Ray_max_t,
+            .DistantSphere => ro.Almost_ray_max_t,
+            else => 0.0,
         };
     }
 
