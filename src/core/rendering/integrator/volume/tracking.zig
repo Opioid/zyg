@@ -172,7 +172,7 @@ fn residualRatioTrackingTransmitted(
     }
 }
 
-pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
+pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
     const mu_n = @splat(4, mt) - mu_t;
@@ -188,8 +188,9 @@ pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
             return Result.initPass(w);
         }
 
-        const ms = math.average3(mu.s * w);
-        const mn = math.average3(mu_n * w);
+        const wt = w * throughput;
+        const ms = math.average3(mu.s * wt);
+        const mn = math.average3(mu_n * wt);
         const mc = ms + mn;
         if (mc < 1.0e-10) {
             return Result.initPass(w);
@@ -215,7 +216,7 @@ pub fn tracking(ray: Ray, mu: CC, sampler: *Sampler) Result {
     }
 }
 
-pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
+pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result {
     const mu = cce.cc;
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
@@ -232,9 +233,10 @@ pub fn trackingEmission(ray: Ray, cce: CCE, rng: *RNG) Result {
             return Result.initPass(w);
         }
 
-        const ma = math.average3(mu.a * w);
-        const ms = math.average3(mu.s * w);
-        const mn = math.average3(mu_n * w);
+        const wt = w * throughput;
+        const ma = math.average3(mu.a * wt);
+        const ms = math.average3(mu.s * wt);
+        const mn = math.average3(mu_n * wt);
         const mc = ma + ms + mn;
         if (mc < 1.0e-10) {
             return Result.initPass(w);
@@ -278,6 +280,7 @@ pub fn trackingHetero(
     material: *const Material,
     srs: f32,
     w: Vec4f,
+    throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
 ) Result {
@@ -306,8 +309,10 @@ pub fn trackingHetero(
 
         const mu_t = mu.a + mu.s;
         const mu_n = @splat(4, mt) - mu_t;
-        const ms = math.average3(mu.s * lw);
-        const mn = math.average3(mu_n * lw);
+
+        const wt = lw * throughput;
+        const ms = math.average3(mu.s * wt);
+        const mn = math.average3(mu_n * wt);
 
         const c = 1.0 / (ms + mn);
         const ps = ms * c;
@@ -335,6 +340,7 @@ pub fn trackingHeteroEmission(
     material: *const Material,
     srs: f32,
     w: Vec4f,
+    throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
 ) Result {
@@ -365,9 +371,10 @@ pub fn trackingHeteroEmission(
         const mu_t = mu.a + mu.s;
         const mu_n = @splat(4, mt) - mu_t;
 
-        const ma = math.average3(mu.a * lw);
-        const ms = math.average3(mu.s * lw);
-        const mn = math.average3(mu_n * lw);
+        const wt = lw * throughput;
+        const ma = math.average3(mu.a * wt);
+        const ms = math.average3(mu.s * wt);
+        const mn = math.average3(mu_n * wt);
 
         const c = 1.0 / (ma + ms + mn);
         const pa = ma * c;

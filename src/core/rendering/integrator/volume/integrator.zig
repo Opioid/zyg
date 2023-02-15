@@ -21,13 +21,14 @@ pub const Integrator = union(enum) {
     pub fn integrate(
         self: *Integrator,
         ray: *Ray,
+        throughput: Vec4f,
         isec: *Intersection,
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Result {
         return switch (self.*) {
-            .Multi => Multi.integrate(ray, isec, filter, sampler, worker),
+            .Multi => Multi.integrate(ray, throughput, isec, filter, sampler, worker),
         };
     }
 

@@ -215,7 +215,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+                const vr = worker.volume(ray, throughput, isec, filter, sampler);
 
                 if (.Absorb == vr.event) {
                     if (0 == ray.depth) {

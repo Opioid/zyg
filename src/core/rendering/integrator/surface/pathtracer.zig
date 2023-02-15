@@ -170,7 +170,7 @@ pub const Pathtracer = struct {
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+                const vr = worker.volume(ray, throughput, isec, filter, sampler);
 
                 result += throughput * vr.li;
                 throughput *= vr.tr;
