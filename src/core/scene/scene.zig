@@ -568,6 +568,10 @@ pub const Scene = struct {
         return self.prop_aabbs.items[entity].intersect(ray.ray);
     }
 
+    pub fn propAabbIntersectP(self: *const Scene, entity: u32, ray: Ray) ?f32 {
+        return self.prop_aabbs.items[entity].intersectP(ray.ray);
+    }
+
     pub fn propRadius(self: *const Scene, entity: u32) f32 {
         return self.prop_aabbs.items[entity].cachedRadius();
     }

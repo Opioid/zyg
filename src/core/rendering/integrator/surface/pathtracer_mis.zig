@@ -187,8 +187,7 @@ pub const PathtracerMIS = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                const max_t = if (isec.subsurface) 2.0 * worker.scene.propRadius(isec.prop) else ro.Ray_max_t;
-                ray.ray.setDirection(sample_result.wi, max_t);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 state.direct = false;
                 state.from_subsurface = false;

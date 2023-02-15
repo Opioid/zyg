@@ -308,26 +308,21 @@ pub const Worker = struct {
         return w;
     }
 
-    fn subsurfaceVisibility(
-        self: *Worker,
-        ray: *Ray,
-        wo: Vec4f,
-        isec: Intersection,
-        filter: ?Filter,
-    ) ?Vec4f {
+    fn subsurfaceVisibility(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
-
-            ray.ray.setMaxT(2.0 * self.scene.propRadius(isec.prop));
+            ray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(isec.prop, ray.*) orelse ray_max_t), ray_max_t));
 
             var nisec: Intersection = .{};
             if (self.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
-
-                    if (self.scene.visibility(ray.*, filter)) |tv| {
+                const sss_min_t = ray.ray.minT();
+                const sss_max_t = ray.ray.maxT();
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
+                if (self.scene.visibility(ray.*, filter)) |tv| {
+                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                    if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);

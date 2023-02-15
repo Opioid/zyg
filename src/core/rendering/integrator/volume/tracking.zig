@@ -202,7 +202,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
 
         if (r[1] <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
-            return Result{
+            return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = w * ws,
                 .t = t,
@@ -211,7 +211,6 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
         }
 
         const wn = mu_n / @splat(4, mt * pn);
-
         w *= wn;
     }
 }
@@ -250,7 +249,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         const r1 = rng.randomFloat();
         if (r1 < pa) {
             const wa = mu.a / @splat(4, mt * pa);
-            return Result{
+            return .{
                 .li = w * wa * cce.e,
                 .tr = @splat(4, @as(f32, 0.0)),
                 .t = t,
@@ -260,7 +259,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
 
         if (r1 <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
-            return Result{
+            return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = w * ws,
                 .t = t,
@@ -269,7 +268,6 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         }
 
         const wn = mu_n / @splat(4, mt * pn);
-
         w *= wn;
     }
 }
@@ -321,7 +319,7 @@ pub fn trackingHetero(
         const r1 = rng.randomFloat();
         if (r1 <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
-            return Result{
+            return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = lw * ws,
                 .t = t,
@@ -384,7 +382,7 @@ pub fn trackingHeteroEmission(
         const r1 = rng.randomFloat();
         if (r1 < pa) {
             const wa = mu.a / @splat(4, mt * pa);
-            return Result{
+            return .{
                 .li = w * wa * cce.e,
                 .tr = @splat(4, @as(f32, 0.0)),
                 .t = t,
@@ -394,7 +392,7 @@ pub fn trackingHeteroEmission(
 
         if (r1 <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @splat(4, mt * ps);
-            return Result{
+            return .{
                 .li = @splat(4, @as(f32, 0.0)),
                 .tr = lw * ws,
                 .t = t,
