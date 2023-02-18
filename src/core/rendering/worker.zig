@@ -323,6 +323,7 @@ pub const Worker = struct {
                 if (self.scene.visibility(ray.*, filter)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
                     if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
+                        ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);

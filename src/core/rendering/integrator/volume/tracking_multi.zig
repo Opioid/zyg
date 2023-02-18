@@ -18,8 +18,10 @@ const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
+        const interface = worker.interface_stack.top();
+
         const ray_max_t = ray.ray.maxT();
-        ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(isec.prop, ray.*) orelse ray_max_t), ray_max_t));
+        ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
         if (!worker.intersectAndResolveMask(ray, filter, isec)) {
             return .{
                 .li = @splat(4, @as(f32, 0.0)),
@@ -27,8 +29,6 @@ pub const Multi = struct {
                 .event = .Abort,
             };
         }
-
-        const interface = worker.interface_stack.top();
 
         const d = ray.ray.maxT();
 
