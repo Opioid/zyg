@@ -18,6 +18,7 @@ pub const Tree = struct {
     num_nodes: u32 = 0,
     num_indices: u32 = 0,
     num_infinite_props: u32 = 0,
+    infinite_t_max: f32 = 0.0,
 
     nodes: [*]Node = undefined,
     indices: [*]u32 = undefined,
@@ -43,10 +44,16 @@ pub const Tree = struct {
         }
     }
 
-    pub fn setProps(self: *Tree, infinite_props: []const u32, props: []const Prop) void {
+    pub fn setProps(self: *Tree, infinite_props: []const u32, props: []const Prop, scene: *const Scene) void {
         self.num_infinite_props = @intCast(u32, infinite_props.len);
         self.infinite_props = infinite_props.ptr;
         self.props = props.ptr;
+
+        var t_max: f32 = std.math.f32_max;
+        for (infinite_props) |i| {
+            t_max = std.math.min(t_max, scene.propShape(i).infiniteTMax());
+        }
+        self.infinite_t_max = t_max;
     }
 
     pub fn aabb(self: Tree) AABB {
@@ -104,10 +111,12 @@ pub const Tree = struct {
             }
         }
 
-        for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersect(p, ray, scene, ipo, &isec.geo)) {
-                prop = p;
-                hit = true;
+        if (ray.ray.maxT() >= self.infinite_t_max) {
+            for (self.infinite_props[0..self.num_infinite_props]) |p| {
+                if (props[p].intersect(p, ray, scene, ipo, &isec.geo)) {
+                    prop = p;
+                    hit = true;
+                }
             }
         }
 
@@ -163,10 +172,12 @@ pub const Tree = struct {
             }
         }
 
-        for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
-                prop = p;
-                hit = true;
+        if (ray.ray.maxT() >= self.infinite_t_max) {
+            for (self.infinite_props[0..self.num_infinite_props]) |p| {
+                if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
+                    prop = p;
+                    hit = true;
+                }
             }
         }
 
@@ -219,9 +230,11 @@ pub const Tree = struct {
             }
         }
 
-        for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            if (props[p].intersectP(p, ray, scene)) {
-                return true;
+        if (ray.ray.maxT() >= self.infinite_t_max) {
+            for (self.infinite_props[0..self.num_infinite_props]) |p| {
+                if (props[p].intersectP(p, ray, scene)) {
+                    return true;
+                }
             }
         }
 
@@ -272,9 +285,11 @@ pub const Tree = struct {
             }
         }
 
-        for (self.infinite_props[0..self.num_infinite_props]) |p| {
-            const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
-            vis *= tv;
+        if (ray.ray.maxT() >= self.infinite_t_max) {
+            for (self.infinite_props[0..self.num_infinite_props]) |p| {
+                const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
+                vis *= tv;
+            }
         }
 
         return vis;

@@ -55,16 +55,20 @@ pub const Material = struct {
     flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
-        self.super.properties.evaluate_visibility = self.super.mask.valid();
-        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
-        self.super.properties.emission_map = self.emission_map.valid();
-        self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
+        const properties = &self.super.properties;
+
+        properties.evaluate_visibility = self.super.mask.valid();
+        properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
+        properties.emission_map = self.emission_map.valid();
+        properties.caustic = self.roughness <= ggx.Min_roughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
         const attenuation_distance = self.super.attenuation_distance;
-        self.super.properties.two_sided = self.super.properties.two_sided or transparent;
+        properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
+
+        properties.dense_sss_optimization = attenuation_distance <= 0.01 and properties.scattering_volume;
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {

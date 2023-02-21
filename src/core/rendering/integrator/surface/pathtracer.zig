@@ -149,8 +149,7 @@ pub const Pathtracer = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
-                const max_t = if (isec.subsurface) 2.0 * worker.scene.propRadius(isec.prop) else ro.Ray_max_t;
-                ray.ray.setDirection(sample_result.wi, max_t);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
@@ -164,13 +163,13 @@ pub const Pathtracer = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*);
+                worker.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
 
             if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, isec, filter, sampler);
+                const vr = worker.volume(ray, throughput, isec, filter, sampler);
 
                 result += throughput * vr.li;
                 throughput *= vr.tr;

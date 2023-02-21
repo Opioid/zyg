@@ -334,8 +334,8 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return self.volume_integrator.integrate(ray, isec, filter, sampler, self);
+    pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
+        return self.volume_integrator.integrate(ray, throughput, isec, filter, sampler, self);
     }
 
     fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
@@ -392,26 +392,59 @@ pub const Worker = struct {
         return w;
     }
 
-    fn subsurfaceVisibility(
-        self: *Worker,
-        ray: *Ray,
-        wo: Vec4f,
-        isec: Intersection,
-        filter: ?Filter,
-    ) ?Vec4f {
+    pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, time: u64) void {
+        var isec: Intersection = undefined;
+
+        const axis = b - a;
+        const ray_max_t = math.length3(axis);
+
+        var ray = Ray.init(a, axis / @splat(4, ray_max_t), 0.0, ray_max_t, 0, 0.0, time);
+
+        while (true) {
+            const hit = self.scene.intersectVolume(&ray, &isec);
+
+            if (!hit) {
+                break;
+            }
+
+            if (isec.sameHemisphere(ray.ray.direction)) {
+                _ = self.interface_stack.remove(isec);
+            } else {
+                self.interface_stack.push(isec);
+            }
+
+            const ray_min_t = ro.offsetF(ray.ray.maxT());
+            if (ray_min_t > ray_max_t) {
+                break;
+            }
+
+            ray.ray.setMinMaxT(ray_min_t, ray_max_t);
+        }
+    }
+
+    fn subsurfaceVisibility(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
         if (isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = ray.ray.maxT();
-
-            ray.ray.setMaxT(2.0 * self.scene.propRadius(isec.prop));
-
             var nisec: Intersection = .{};
-            if (self.scene.intersectShadow(ray, &nisec)) {
-                if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
 
-                    if (self.scene.visibility(ray.*, filter)) |tv| {
+            var hit: bool = false;
+            if (material.denseSSSOptimization()) {
+                hit = self.intersectPropShadow(isec.prop, ray, &nisec.geo);
+            } else {
+                ray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(isec.prop, ray.*) orelse ray_max_t), ray_max_t));
+                hit = self.scene.intersectShadow(ray, &nisec);
+            }
+
+            if (hit) {
+                const sss_min_t = ray.ray.minT();
+                const sss_max_t = ray.ray.maxT();
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
+                if (self.scene.visibility(ray.*, filter)) |tv| {
+                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                    if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
+                        ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
@@ -429,6 +462,10 @@ pub const Worker = struct {
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
         return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
+    }
+
+    pub fn intersectPropShadow(self: *Worker, entity: u32, ray: *Ray, isec: *shp.Intersection) bool {
+        return self.scene.prop(entity).intersectShadow(entity, ray, self.scene, isec);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
@@ -467,12 +504,13 @@ pub const Worker = struct {
         return self.interface_stack.peekIor(isec, self.scene);
     }
 
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection) void {
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *Intersection) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
-            _ = self.interface_stack.remove(isec);
+            _ = self.interface_stack.remove(isec.*);
         } else if (self.interface_stack.straight(self.scene) or isec.material(self.scene).ior() > 1.0) {
-            self.interface_stack.push(isec);
+            isec.volume_entry = isec.geo.p;
+            self.interface_stack.push(isec.*);
         }
     }
 
