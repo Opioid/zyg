@@ -337,7 +337,7 @@ pub const Driver = struct {
         log.info("Baking photons...", .{});
         const start = std.time.milliTimestamp();
 
-        for (self.workers) |*w, i| {
+        for (self.workers, 0..) |*w, i| {
             w.rng.start(0, i);
         }
 

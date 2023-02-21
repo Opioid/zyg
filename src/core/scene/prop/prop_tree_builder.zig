@@ -43,7 +43,7 @@ pub const Builder = struct {
 
         var bounds = math.aabb.Empty;
 
-        for (indices) |prop, i| {
+        for (indices, 0..) |prop, i| {
             const b = aabbs[prop];
 
             references[i].set(b.bounds[0], b.bounds[1], prop);

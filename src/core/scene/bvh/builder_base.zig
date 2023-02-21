@@ -202,7 +202,7 @@ const Kernel = struct {
         var sc: usize = 0;
         var min_cost = self.split_candidates.items[0].cost;
 
-        for (self.split_candidates.items[1..]) |c, i| {
+        for (self.split_candidates.items[1..], 0..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
                 sc = i + 1;

@@ -45,7 +45,7 @@ pub const AOV = struct {
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
         const os = sample *% self.settings.num_samples;
-        for (self.samplers) |*s| {
+        for (&self.samplers) |*s| {
             s.startPixel(os, seed);
         }
     }
@@ -218,7 +218,7 @@ pub const AOV = struct {
             sampler.incrementPadding();
         }
 
-        for (self.samplers) |*s| {
+        for (&self.samplers) |*s| {
             s.incrementSample();
         }
 

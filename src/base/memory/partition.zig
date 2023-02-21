@@ -7,7 +7,7 @@ pub fn partition(
     comptime lessThan: fn (context: @TypeOf(context), x: T) bool,
 ) usize {
     var first: usize = data.len;
-    for (data) |d, i| {
+    for (data, 0..) |d, i| {
         if (!lessThan(context, d)) {
             first = i;
             break;

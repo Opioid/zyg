@@ -69,7 +69,7 @@ const KeyContext = struct {
             return false;
         }
 
-        for (a.materials) |m, i| {
+        for (a.materials, 0..) |m, i| {
             if (m != b.materials[i]) {
                 return false;
             }
@@ -453,7 +453,7 @@ pub const Loader = struct {
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
-        for (value.Array.items) |m, i| {
+        for (value.Array.items, 0..) |m, i| {
             self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.String, local_materials));
 
             if (i == num_materials - 1) {

@@ -170,7 +170,7 @@ pub const Graph = struct {
     }
 
     fn calculateWorldTransformations(self: *Self) void {
-        for (self.prop_properties.items) |p, entity| {
+        for (self.prop_properties.items, 0..) |p, entity| {
             if (!p.has_parent) {
                 const f = self.prop_frames.items[entity];
                 const frames = self.keyframes.items.ptr + f;

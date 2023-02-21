@@ -31,7 +31,7 @@ pub fn DiscreteSpectralPowerDistribution(
             const cie_y = Self.initInterpolated(CIE_Y);
             const cie_z = Self.initInterpolated(CIE_Z);
 
-            for (Cie) |*c, i| {
+            for (&Cie, 0..) |*c, i| {
                 c.* = Vec4f{ cie_x.values[i], cie_y.values[i], cie_z.values[i], 0.0 };
             }
         }
@@ -65,7 +65,7 @@ pub fn DiscreteSpectralPowerDistribution(
         pub fn initInterpolated(interpolated: Interpolated) Self {
             var result = Self{};
 
-            for (result.values) |*v, i| {
+            for (&result.values, 0..) |*v, i| {
                 const a = WL_start + @intToFloat(f32, i) * Step;
                 const b = a + Step;
 
@@ -77,7 +77,7 @@ pub fn DiscreteSpectralPowerDistribution(
 
         pub fn XYZ(self: Self) Vec4f {
             var tri = @splat(4, @as(f32, 0.0));
-            for (self.values) |v, i| {
+            for (self.values, 0..) |v, i| {
                 tri += @splat(4, Step * v) * Cie[i];
             }
 
