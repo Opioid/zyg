@@ -271,7 +271,7 @@ pub const Builder = struct {
         try tree.allocate(alloc, num_infinite_lights);
 
         var infinite_total_power: f32 = 0.0;
-        for (tree.light_mapping[0..num_infinite_lights]) |l, i| {
+        for (tree.light_mapping[0..num_infinite_lights], 0..) |l, i| {
             const power = scene.lightPower(0, l);
             tree.infinite_light_powers[i] = power;
             tree.light_orders[l] = self.light_order;
@@ -557,7 +557,7 @@ pub const Builder = struct {
     }
 
     fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
-        for (self.build_nodes[0..self.current_node]) |source, i| {
+        for (self.build_nodes[0..self.current_node], 0..) |source, i| {
             var dest = &nodes[i];
             const bounds = source.bounds;
             const p = bounds.position();
@@ -670,7 +670,7 @@ pub const Builder = struct {
 
         var min_cost = candidates[0].cost;
         var sc: usize = 0;
-        for (candidates[1..num_candidates]) |c, i| {
+        for (candidates[1..num_candidates], 0..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
                 sc = i + 1;

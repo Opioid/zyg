@@ -45,7 +45,7 @@ pub const Distribution2D = struct {
         var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
-        for (self.conditional) |c, i| {
+        for (self.conditional, 0..) |c, i| {
             integrals[i] = c.integral;
         }
 
@@ -90,7 +90,7 @@ pub fn Distribution2DN(comptime N: u32) type {
         pub fn configure(self: *Self) void {
             var integrals: [N]f32 = undefined;
 
-            for (self.conditional) |c, i| {
+            for (self.conditional, 0..) |c, i| {
                 integrals[i] = c.integral;
             }
 

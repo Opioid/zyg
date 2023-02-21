@@ -51,7 +51,7 @@ pub const PathtracerMIS = struct {
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
         const os = sample *% self.settings.num_samples;
-        for (self.samplers) |*s| {
+        for (&self.samplers) |*s| {
             s.startPixel(os, seed);
         }
     }
@@ -83,7 +83,7 @@ pub const PathtracerMIS = struct {
                 worker,
             );
 
-            for (self.samplers) |*s| {
+            for (&self.samplers) |*s| {
                 s.incrementSample();
             }
         }

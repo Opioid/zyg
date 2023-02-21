@@ -548,7 +548,7 @@ fn writeImage(alloc: Allocator, dimensions: u32, data: []f32, threads: *Threads)
     var image = try Float4.init(alloc, img.Description.init2D(.{ d, d }));
     defer image.deinit(alloc);
 
-    for (image.pixels) |*p, i| {
+    for (image.pixels, 0..) |*p, i| {
         p.* = Pack4f.init1(data[i]);
     }
 

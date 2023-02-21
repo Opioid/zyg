@@ -57,13 +57,13 @@ pub fn Filtered(comptime T: type) type {
                 const Num: u32 = comptime result.distribution.conditional.len;
                 const interval = (2.0 * radius) / @intToFloat(f32, Num - 1);
 
-                for (result.distribution.conditional) |*c, y| {
+                for (&result.distribution.conditional, 0..) |*c, y| {
                     const sy = -radius + @intToFloat(f32, y) * interval;
                     const fy = f.eval(@fabs(sy));
 
                     var data: [Num]f32 = undefined;
 
-                    for (data) |*d, x| {
+                    for (&data, 0..) |*d, x| {
                         const sx = -radius + @intToFloat(f32, x) * interval;
                         d.* = @fabs(fy * f.eval(@fabs(sx)));
                     }

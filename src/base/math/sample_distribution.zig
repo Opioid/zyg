@@ -39,7 +39,7 @@ pub fn goldenRatio2D(samples: []Vec2f, r: Vec2f) void {
     var min = x;
     var idx: u32 = 0;
     // set the first coordinates
-    for (samples) |*s, i| {
+    for (samples, 0..) |*s, i| {
         s.*[1] = x;
         // keep the minimum
         if (x < min) {

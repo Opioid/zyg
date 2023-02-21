@@ -63,7 +63,7 @@ pub const Writer = struct {
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 
-        for (image.pixels) |p, i| {
+        for (image.pixels, 0..) |p, i| {
             const srgb = @splat(4, factor) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
 
             buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
@@ -98,7 +98,7 @@ pub const Writer = struct {
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 
-        for (image.pixels) |p, i| {
+        for (image.pixels, 0..) |p, i| {
             buffer[i * 3 + 0] = enc.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
             buffer[i * 3 + 1] = enc.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
             buffer[i * 3 + 2] = enc.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
@@ -138,7 +138,7 @@ pub const Writer = struct {
 
         const range = max - min;
 
-        for (data) |p, i| {
+        for (data, 0..) |p, i| {
             const turbo = spectrum.turbo((p - min) / range);
 
             buffer[i * 3 + 0] = turbo[0];

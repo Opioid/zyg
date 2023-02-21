@@ -236,7 +236,7 @@ pub const Worker = struct {
                         }
                     }
 
-                    inline for (cell_ems) |*c, i| {
+                    inline for (&cell_ems, 0..) |*c, i| {
                         const id = ((i >> 1) << 2) + (i << 1);
                         const em0 = std.math.max(ems[id + 0], ems[id + 1]);
                         const em1 = std.math.max(ems[id + 4], ems[id + 5]);

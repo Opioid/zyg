@@ -23,7 +23,7 @@ pub const Buffer = struct {
     pub fn resize(self: *Self, alloc: Allocator, len: usize, factory: aov.Factory) !void {
         self.slots = factory.slots;
 
-        for (self.buffers) |*b, i| {
+        for (&self.buffers, 0..) |*b, i| {
             if (factory.activeClass(@intToEnum(aov.Value.Class, i)) and len > b.len) {
                 b.* = try alloc.realloc(b.*, len);
             }
@@ -31,7 +31,7 @@ pub const Buffer = struct {
     }
 
     pub fn clear(self: *Self) void {
-        for (self.buffers) |*b, i| {
+        for (&self.buffers, 0..) |*b, i| {
             const class = @intToEnum(aov.Value.Class, i);
             if (class.activeIn(self.slots)) {
                 for (b.*) |*p| {
@@ -50,12 +50,12 @@ pub const Buffer = struct {
         const pixels = self.buffers[@enumToInt(class)];
 
         if (.Albedo == class or .ShadingNormal == class) {
-            for (pixels[begin..end]) |p, i| {
+            for (pixels[begin..end], 0..) |p, i| {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
             }
         } else {
-            for (pixels[begin..end]) |p, i| {
+            for (pixels[begin..end], 0..) |p, i| {
                 target[i + begin].v = Vec4f{ p.v[0], 0.0, 0.0, 1.0 };
             }
         }

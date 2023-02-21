@@ -56,7 +56,7 @@ pub fn loadKeyframes(
 
             var current_time = start_time;
 
-            for (array.items) |n, i| {
+            for (array.items, 0..) |n, i| {
                 var keyframe = Keyframe{ .k = default_trafo, .time = current_time };
 
                 var iter = n.Object.iterator();

@@ -67,7 +67,7 @@ pub fn main() !void {
 
     var bytes_per_channel: u32 = 0;
 
-    for (options.inputs.items) |input, i| {
+    for (options.inputs.items, 0..) |input, i| {
         log.info("Loading file {s}", .{input});
 
         const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
@@ -137,7 +137,7 @@ fn write(
         const buffer = try alloc.alloc(f32, desc.numPixels());
         defer alloc.free(buffer);
 
-        for (target.pixels) |p, i| {
+        for (target.pixels, 0..) |p, i| {
             const v = math.hmax3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
 
             buffer[i] = v;

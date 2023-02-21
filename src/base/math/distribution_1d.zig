@@ -200,7 +200,7 @@ pub fn Distribution1DN(comptime N: u32) type {
 }
 
 fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
-    for (buffer[begin..end]) |b, i| {
+    for (buffer[begin..end], 0..) |b, i| {
         if (b >= key) {
             return begin + @intCast(u32, i);
         }

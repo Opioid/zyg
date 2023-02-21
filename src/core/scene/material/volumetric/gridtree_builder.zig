@@ -83,7 +83,7 @@ pub const Builder = struct {
         var next = cell_len;
         var data_id: u32 = 0;
 
-        for (context.grid) |c, i| {
+        for (context.grid, 0..) |c, i| {
             serialize(c, i, &next, &data_id, nodes, data);
         }
     }
@@ -97,7 +97,7 @@ pub const Builder = struct {
             const cn = next.*;
             next.* += 8;
 
-            for (node.children) |c, i| {
+            for (node.children, 0..) |c, i| {
                 serialize(c, cn + i, next, data_id, nodes, data);
             }
         } else if (!node.data.isEmpty()) {
