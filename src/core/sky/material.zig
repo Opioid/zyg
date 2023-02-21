@@ -66,7 +66,7 @@ pub const Material = struct {
 
         var rng = RNG.init(0, 0);
 
-        for (self.sun_radiance.samples) |*s, i| {
+        for (self.sun_radiance.samples, 0..) |*s, i| {
             const v = @intToFloat(f32, i) / n;
             var wi = sunWi(rotation, v);
             wi[1] = std.math.max(wi[1], 0.0);

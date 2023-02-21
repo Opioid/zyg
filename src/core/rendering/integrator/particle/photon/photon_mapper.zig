@@ -68,7 +68,7 @@ pub const Mapper = struct {
             const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
 
             if (result.num_iterations > 0) {
-                for (self.photons[0..result.num_photons]) |p, j| {
+                for (self.photons[0..result.num_photons], 0..) |p, j| {
                     map.insert(p, i + j);
                 }
 

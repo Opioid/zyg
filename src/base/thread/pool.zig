@@ -58,7 +58,7 @@ pub const Pool = struct {
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
         self.uniques = try alloc.alloc(Unique, num_threads);
 
-        for (self.uniques) |*u, i| {
+        for (self.uniques, 0..) |*u, i| {
             // Initializing u first, seems to get rid of one data race
             u.* = .{};
             u.thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
@@ -128,7 +128,7 @@ pub const Pool = struct {
 
         var num_tasks = self.uniques.len;
 
-        for (self.uniques) |*u, i| {
+        for (self.uniques, 0..) |*u, i| {
             if (e >= end) {
                 num_tasks = i;
                 break;

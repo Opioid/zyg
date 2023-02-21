@@ -90,7 +90,7 @@ pub const Model = struct {
 
         var radiance: Spectrum = undefined;
 
-        for (radiance.values) |*bin, i| {
+        for (&radiance.values, 0..) |*bin, i| {
             math.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;
@@ -120,7 +120,7 @@ pub const Model = struct {
 
         var radiance: Spectrum = undefined;
 
-        for (radiance.values) |*bin, i| {
+        for (&radiance.values, 0..) |*bin, i| {
             math.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;

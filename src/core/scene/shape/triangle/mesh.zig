@@ -148,7 +148,7 @@ pub const Part = struct {
         const emission_map = m.emissionMapped();
         const two_sided = m.twoSided();
 
-        for (self.variants.items) |v, i| {
+        for (self.variants.items, 0..) |v, i| {
             if (v.matches(material, emission_map, two_sided, scene)) {
                 return @intCast(u32, i);
             }

@@ -40,7 +40,7 @@ pub const Lighttracer = struct {
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
         self.light_sampler.startPixel(sample, seed);
 
-        for (self.samplers) |*s| {
+        for (&self.samplers) |*s| {
             s.startPixel(sample, seed + 1);
         }
     }
@@ -103,7 +103,7 @@ pub const Lighttracer = struct {
 
             self.integrate(radiance, &vertex, worker, light_id, light_sample.xy);
 
-            for (self.samplers) |*s| {
+            for (&self.samplers) |*s| {
                 s.incrementSample();
             }
         }

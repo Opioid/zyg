@@ -344,7 +344,7 @@ pub const Grid = struct {
         std.sort.sort(Photon, photons, self, compareByMap);
 
         var current: u32 = 0;
-        for (self.grid) |*cell, c| {
+        for (self.grid, 0..) |*cell, c| {
             cell.* = current;
             while (current < photons.len) : (current += 1) {
                 if (self.map1(self.photons[current].p) != c) {
@@ -508,7 +508,7 @@ pub const Grid = struct {
         var result: Adjacency = undefined;
         result.num_cells = adjacency.num_cells;
 
-        for (adjacency.cells[0..adjacency.num_cells]) |cell, i| {
+        for (adjacency.cells[0..adjacency.num_cells], 0..) |cell, i| {
             result.cells[i][0] = self.grid[@intCast(usize, @as(i64, cell[0]) + ic)];
             result.cells[i][1] = self.grid[@intCast(usize, @as(i64, cell[1]) + ic + 1)];
         }
@@ -605,7 +605,7 @@ pub const Grid = struct {
         const subsurface = isec.subsurface;
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-            for (self.photons[cell[0]..cell[1]]) |p, i| {
+            for (self.photons[cell[0]..cell[1]], 0..) |p, i| {
                 if (subsurface != p.volumetric) {
                     continue;
                 }

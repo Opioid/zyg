@@ -76,7 +76,7 @@ pub const Transparent = struct {
     }
 
     pub fn resolve(self: *const Transparent, target: [*]Pack4f, begin: u32, end: u32) void {
-        for (self.pixels[begin..end]) |p, i| {
+        for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
             const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
@@ -86,7 +86,7 @@ pub const Transparent = struct {
 
     pub fn resolveTonemap(self: *const Transparent, tonemapper: Tonemapper, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
-        for (self.pixels[begin..end]) |p, i| {
+        for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = weights[j];
             const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
@@ -97,7 +97,7 @@ pub const Transparent = struct {
 
     pub fn resolveAccumulateTonemap(self: *const Transparent, tonemapper: Tonemapper, target: [*]Pack4f, begin: u32, end: u32) void {
         const weights = self.pixel_weights;
-        for (self.pixels[begin..end]) |p, i| {
+        for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = weights[j];
             const color = @as(Vec4f, p.v) / @splat(4, weight);

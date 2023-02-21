@@ -70,7 +70,7 @@ pub const Builder = struct {
 
             var bounds = math.aabb.Empty;
 
-            for (self.triangles[begin..end]) |t, i| {
+            for (self.triangles[begin..end], 0..) |t, i| {
                 const a = self.vertices.position(t.i[0]);
                 const b = self.vertices.position(t.i[1]);
                 const c = self.vertices.position(t.i[2]);

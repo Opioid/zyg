@@ -22,7 +22,7 @@ pub fn integrate(alloc: Allocator) !void {
 
     var sum_rgb = @splat(4, @as(f32, 0.0));
 
-    for (rainbow) |*r, i| {
+    for (rainbow, 0..) |*r, i| {
         var color = @splat(4, @as(f32, 0.0));
 
         var sub: u32 = 0;

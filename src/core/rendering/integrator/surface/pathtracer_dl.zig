@@ -40,7 +40,7 @@ pub const PathtracerDL = struct {
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
         const os = sample *% self.settings.num_samples;
-        for (self.samplers) |*s| {
+        for (&self.samplers) |*s| {
             s.startPixel(os, seed);
         }
     }
@@ -54,7 +54,7 @@ pub const PathtracerDL = struct {
         while (i > 0) : (i -= 1) {
             result += @splat(4, num_samples_reciprocal) * self.integrate(ray.*, isec.*, initial_stack, worker);
 
-            for (self.samplers) |*s| {
+            for (&self.samplers) |*s| {
                 s.incrementSample();
             }
         }

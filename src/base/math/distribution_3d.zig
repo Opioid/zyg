@@ -40,7 +40,7 @@ pub const Distribution3D = struct {
         var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
-        for (self.conditional) |c, i| {
+        for (self.conditional, 0..) |c, i| {
             integrals[i] = c.integral();
         }
 

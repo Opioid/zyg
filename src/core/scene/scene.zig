@@ -234,7 +234,7 @@ pub const Scene = struct {
 
         self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
 
-        for (self.lights.items) |l, i| {
+        for (self.lights.items, 0..) |l, i| {
             self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
 
             self.light_temp_powers[i] = self.lightPower(0, i);
@@ -712,7 +712,7 @@ pub const Scene = struct {
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
-        for (self.prop_frames.items) |f, entity| {
+        for (self.prop_frames.items, 0..) |f, entity| {
             const shape_aabb = self.propShape(entity).aabb();
 
             var bounds: AABB = undefined;

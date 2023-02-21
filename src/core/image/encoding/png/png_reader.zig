@@ -334,32 +334,32 @@ pub const Reader = struct {
                 switch (filter) {
                     .None => {},
                     .Sub => {
-                        for (current_row_data[bpp..row_size]) |*b, i| {
+                        for (current_row_data[bpp..row_size], 0..) |*b, i| {
                             b.* +%= current_row_data[i];
                         }
                     },
                     .Up => {
-                        for (current_row_data[0..row_size]) |*b, i| {
+                        for (current_row_data[0..row_size], 0..) |*b, i| {
                             b.* +%= previous_row_data[i];
                         }
                     },
                     .Average => {
-                        for (current_row_data[0..bpp]) |*b, i| {
+                        for (current_row_data[0..bpp], 0..) |*b, i| {
                             b.* +%= previous_row_data[i] >> 1;
                         }
 
-                        for (current_row_data[bpp..row_size]) |*b, i| {
+                        for (current_row_data[bpp..row_size], 0..) |*b, i| {
                             const p = @as(u32, previous_row_data[i + bpp]);
                             const a = @as(u32, current_row_data[i]);
                             b.* +%= @truncate(u8, (a + p) >> 1);
                         }
                     },
                     .Paeth => {
-                        for (current_row_data[0..bpp]) |*b, i| {
+                        for (current_row_data[0..bpp], 0..) |*b, i| {
                             b.* +%= previous_row_data[i];
                         }
 
-                        for (current_row_data[bpp..row_size]) |*b, i| {
+                        for (current_row_data[bpp..row_size], 0..) |*b, i| {
                             const p = previous_row_data[i + bpp];
                             b.* +%= paethPredictor(current_row_data[i], p, previous_row_data[i]);
                         }
