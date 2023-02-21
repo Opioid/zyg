@@ -19,44 +19,58 @@ const Allocator = std.mem.Allocator;
 pub const Multi = struct {
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
         const interface = worker.interface_stack.top();
+        const material = interface.material(worker.scene);
 
-        const ray_max_t = ray.ray.maxT();
-        ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
-        if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-            return .{
-                .li = @splat(4, @as(f32, 0.0)),
-                .tr = @splat(4, @as(f32, 1.0)),
-                .event = .Abort,
-            };
-        }
+        const densesss = material.denseSSSOptimization();
 
-        const d = ray.ray.maxT();
+        if (densesss) {
+            isec.subsurface = false;
+            if (!worker.intersectProp(isec.prop, ray, .All, &isec.geo)) {
+                worker.interface_stack.pop();
 
-        // This test is intended to catch corner cases where we actually left the scattering medium,
-        // but the intersection point was too close to detect.
-        var missed = false;
-        if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
-            const v = -ray.ray.direction;
+                return .{
+                    .li = @splat(4, @as(f32, 0.0)),
+                    .tr = @splat(4, @as(f32, 1.0)),
+                    .event = if (worker.intersectAndResolveMask(ray, filter, isec)) .Pass else .Abort,
+                };
+            }
+        } else {
+            const ray_max_t = ray.ray.maxT();
+            ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
+            if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+                return .{
+                    .li = @splat(4, @as(f32, 0.0)),
+                    .tr = @splat(4, @as(f32, 1.0)),
+                    .event = .Abort,
+                };
+            }
 
-            var tray = Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
-            var nisec = shp.Intersection{};
-            if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
-                missed = math.dot3(nisec.geo_n, v) <= 0.0;
-            } else {
-                missed = true;
+            // This test is intended to catch corner cases where we actually left the scattering medium,
+            // but the intersection point was too close to detect.
+            var missed = false;
+            if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
+                const v = -ray.ray.direction;
+
+                var tray = Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
+                var nisec = shp.Intersection{};
+                if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
+                    missed = math.dot3(nisec.geo_n, v) <= 0.0;
+                } else {
+                    missed = true;
+                }
+            }
+
+            if (missed) {
+                worker.interface_stack.pop();
+                return .{
+                    .li = @splat(4, @as(f32, 0.0)),
+                    .tr = @splat(4, @as(f32, 1.0)),
+                    .event = .Pass,
+                };
             }
         }
 
-        if (missed) {
-            worker.interface_stack.pop();
-            return .{
-                .li = @splat(4, @as(f32, 0.0)),
-                .tr = @splat(4, @as(f32, 1.0)),
-                .event = .Pass,
-            };
-        }
-
-        const material = interface.material(worker.scene);
+        const d = ray.ray.maxT();
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
@@ -120,6 +134,10 @@ pub const Multi = struct {
                 result.event = .Abort;
             }
 
+            if (.Pass == result.event and densesss) {
+                worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
+            }
+
             return result;
         }
 
@@ -141,6 +159,8 @@ pub const Multi = struct {
         const result = tracking.tracking(ray.ray, mu, throughput, sampler);
         if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
+        } else if (.Pass == result.event and densesss) {
+            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
         }
 
         return result;

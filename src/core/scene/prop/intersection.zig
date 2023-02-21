@@ -13,6 +13,7 @@ const Vec4f = math.Vec4f;
 
 pub const Intersection = struct {
     geo: shp.Intersection = undefined,
+    volume_entry: Vec4f = undefined,
     prop: u32 = undefined,
     subsurface: bool = undefined,
 

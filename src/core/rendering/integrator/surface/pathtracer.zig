@@ -163,7 +163,7 @@ pub const Pathtracer = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*);
+                worker.interfaceChange(sample_result.wi, isec);
             }
 
             from_subsurface = from_subsurface or isec.subsurface;
