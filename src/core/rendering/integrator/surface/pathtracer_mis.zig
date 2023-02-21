@@ -190,8 +190,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.ray.ray.setMinMaxT(ro.offsetF(next_vertex.ray.ray.maxT()), ro.Ray_max_t);
                     } else {
                         next_vertex.ray.ray.origin = next_vertex.isec.offsetP(sample_result.wi);
-                        const max_t = if (next_vertex.isec.subsurface) 2.0 * worker.scene.propRadius(next_vertex.isec.prop) else ro.Ray_max_t;
-                        next_vertex.ray.ray.setDirection(sample_result.wi, max_t);
+                        next_vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                         next_vertex.state.direct = false;
                         next_vertex.state.from_subsurface = false;

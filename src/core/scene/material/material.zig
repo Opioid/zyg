@@ -119,6 +119,10 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn denseSSSOptimization(self: *const Material) bool {
+        return self.super().properties.dense_sss_optimization;
+    }
+
     pub fn volumetricTree(self: *const Material) ?Gridtree {
         return switch (self.*) {
             .Volumetric => |*m| if (m.density_map.valid()) m.tree else null,

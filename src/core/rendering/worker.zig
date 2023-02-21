@@ -322,16 +322,27 @@ pub const Worker = struct {
         const material = vertex.isec.material(self.scene);
         if (vertex.isec.subsurface and material.ior() > 1.0) {
             const ray_max_t = tray.ray.maxT();
-            tray.ray.setMaxT(2.0 * self.scene.propRadius(vertex.isec.prop));
-            var tisec: Intersection = .{};
-            if (self.scene.intersectShadow(&tray, &tisec)) {
-                if (self.volume_integrator.transmittance(tray, vertex.interface_stack.top(), filter, self)) |tr| {
-                    tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
+            var nisec: Intersection = .{};
 
-                    if (self.scene.visibility(tray, filter)) |tv| {
+            var hit: bool = false;
+            if (material.denseSSSOptimization()) {
+                hit = self.intersectPropShadow(vertex.isec.prop, &tray, &nisec.geo);
+            } else {
+                tray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(vertex.isec.prop, tray) orelse ray_max_t), ray_max_t));
+                hit = self.scene.intersectShadow(&tray, &nisec);
+            }
+
+            if (hit) {
+                const sss_min_t = tray.ray.minT();
+                const sss_max_t = tray.ray.maxT();
+                tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
+                if (self.scene.visibility(tray, filter)) |tv| {
+                    tray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                    if (self.volume_integrator.transmittance(tray, vertex.interface_stack.top(), filter, self)) |tr| {
+                        tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
                         const wi = tray.ray.direction;
-                        const vbh = material.super().border(wi, tisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wo, wi, tisec.geo.geo_n, tisec.geo.n);
+                        const vbh = material.super().border(wi, nisec.geo.n);
+                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
@@ -346,6 +357,10 @@ pub const Worker = struct {
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
         return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
+    }
+
+    pub fn intersectPropShadow(self: *Worker, entity: u32, ray: *Ray, isec: *shp.Intersection) bool {
+        return self.scene.prop(entity).intersectShadow(entity, ray, self.scene, isec);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {

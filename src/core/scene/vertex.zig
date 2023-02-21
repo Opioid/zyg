@@ -1,6 +1,7 @@
 const Ray = @import("ray.zig").Ray;
 const Scene = @import("scene.zig").Scene;
 const Renderstate = @import("renderstate.zig").Renderstate;
+const ro = @import("ray_offset.zig");
 const Intersection = @import("prop/intersection.zig").Intersection;
 const InterfaceStack = @import("prop/interface.zig").Stack;
 const IoR = @import("material/sample_base.zig").IoR;
@@ -31,6 +32,7 @@ pub const Vertex = struct {
     throughput: Vec4f,
     geo_n: Vec4f,
     wo1: Vec4f,
+    volume_entry: Vec4f,
 
     path_count: u32,
     bxdf_pdf: f32,
@@ -44,6 +46,7 @@ pub const Vertex = struct {
         self.throughput = @splat(4, @as(f32, 1.0));
         self.geo_n = @splat(4, @as(f32, 0.0));
         self.wo1 = @splat(4, @as(f32, 0.0));
+        self.volume_entry = @splat(4, @as(f32, 0.0));
         self.path_count = 1;
         self.bxdf_pdf = 0.0;
         self.state = .{};
@@ -62,6 +65,7 @@ pub const Vertex = struct {
         if (leave) {
             _ = self.interface_stack.remove(self.isec);
         } else if (self.interface_stack.straight(scene) or self.isec.material(scene).ior() > 1.0) {
+            self.volume_entry = self.isec.geo.p;
             self.interface_stack.push(self.isec);
         }
     }
@@ -83,6 +87,36 @@ pub const Vertex = struct {
         }
 
         return ior;
+    }
+
+    pub fn correctVolumeInterfaceStack(self: *Vertex, scene: *const Scene) void {
+        var isec: Intersection = undefined;
+
+        const axis = self.isec.geo.p - self.volume_entry;
+        const ray_max_t = math.length3(axis);
+
+        var ray = Ray.init(self.volume_entry, axis / @splat(4, ray_max_t), 0.0, ray_max_t, 0, 0.0, self.ray.time);
+
+        while (true) {
+            const hit = scene.intersectVolume(&ray, &isec);
+
+            if (!hit) {
+                break;
+            }
+
+            if (isec.sameHemisphere(ray.ray.direction)) {
+                _ = self.interface_stack.remove(isec);
+            } else {
+                self.interface_stack.push(isec);
+            }
+
+            const ray_min_t = ro.offsetF(ray.ray.maxT());
+            if (ray_min_t > ray_max_t) {
+                break;
+            }
+
+            ray.ray.setMinMaxT(ray_min_t, ray_max_t);
+        }
     }
 
     pub fn sample(self: *const Vertex, wo: Vec4f, filter: ?Filter, avoid_caustics: bool, worker: *const Worker) mat.Sample {

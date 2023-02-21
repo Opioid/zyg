@@ -151,8 +151,7 @@ pub const Pathtracer = struct {
                 vertex.ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                const max_t = if (vertex.isec.subsurface) 2.0 * worker.scene.propRadius(vertex.isec.prop) else ro.Ray_max_t;
-                vertex.ray.ray.setDirection(sample_result.wi, max_t);
+                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
