@@ -142,7 +142,9 @@ pub const PathtracerMIS = struct {
 
                 //   const split = ((vertex.isec.subsurface and vertex.ray.depth < 2) or pr) and vertex.path_count <= 1;
 
-                const split = vertex.path_count == 1 and vertex.ray.depth < 2;
+                // const split = vertex.path_count == 1 and vertex.ray.depth < 2;
+
+                const split = false;
 
                 result += throughput * self.sampleLights(vertex, &mat_sample, filter, split, sampler, worker);
 
@@ -157,7 +159,6 @@ pub const PathtracerMIS = struct {
 
                     var next_vertex = vertex.*;
                     next_vertex.path_count *= path_count;
-                    var next_throughput = next_vertex.throughput;
 
                     var effective_bxdf_pdf = next_vertex.bxdf_pdf;
 
@@ -200,7 +201,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.ray.wavelength = sample_result.wavelength;
                     }
 
-                    next_throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+                    next_vertex.throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
                     if (sample_result.class.transmission) {
                         next_vertex.interfaceChange(sample_result.wi, worker.scene);
@@ -229,15 +230,15 @@ pub const PathtracerMIS = struct {
                                     worker.scene,
                                 );
 
-                                result += @splat(4, w) * (next_throughput * vr.li);
+                                result += @splat(4, w) * (next_vertex.throughput * vr.li);
                             }
 
                             continue;
                         }
 
                         // This is only needed for Tracking_single at the moment...
-                        result += next_throughput * vr.li;
-                        next_throughput *= vr.tr;
+                        result += next_vertex.throughput * vr.li;
+                        next_vertex.throughput *= vr.tr;
 
                         if (.Abort == vr.event) {
                             continue;
@@ -259,7 +260,7 @@ pub const PathtracerMIS = struct {
                         &pure_emissive,
                     );
 
-                    result += next_throughput * radiance;
+                    result += next_vertex.throughput * radiance;
 
                     if (pure_emissive) {
                         next_vertex.state.direct = next_vertex.state.direct and (!next_vertex.isec.visibleInCamera(worker.scene) and next_vertex.ray.ray.maxT() >= ro.Ray_max_t);
@@ -271,13 +272,12 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (next_vertex.ray.depth >= self.settings.min_bounces) {
-                        if (hlp.russianRoulette(&next_throughput, vertex.throughput, sampler.sample1D())) {
+                        if (hlp.russianRoulette(&next_vertex.throughput, vertex.throughput, sampler.sample1D())) {
                             continue;
                         }
                     }
 
                     next_vertex.bxdf_pdf = sample_result.pdf;
-                    next_vertex.throughput = next_throughput;
                     worker.vertices.push(next_vertex);
                 }
 
@@ -349,7 +349,7 @@ pub const PathtracerMIS = struct {
             worker.scene,
         ) orelse return @splat(4, @as(f32, 0.0));
 
-        const shadow_ray = Ray.init(
+        var shadow_ray = Ray.init(
             p,
             light_sample.wi,
             p[3],
@@ -360,7 +360,7 @@ pub const PathtracerMIS = struct {
         );
 
         const tr = worker.transmitted(
-            shadow_ray,
+            &shadow_ray,
             vertex,
             mat_sample.super().wo,
             filter,

@@ -277,10 +277,10 @@ pub const Lighttracer = struct {
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        const ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
+        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
 
         const wo = mat_sample.super().wo;
-        const tr = worker.transmitted(ray, vertex, wo, filter) orelse return false;
+        const tr = worker.transmitted(&ray, vertex, wo, filter) orelse return false;
 
         const bxdf = mat_sample.evaluate(wi, false);
 

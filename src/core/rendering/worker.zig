@@ -243,9 +243,9 @@ pub const Worker = struct {
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(self: *Worker, ray: Ray, vertex: *const Vertex, wo: Vec4f, filter: ?Filter) ?Vec4f {
+    pub fn transmitted(self: *Worker, ray: *Ray, vertex: *const Vertex, wo: Vec4f, filter: ?Filter) ?Vec4f {
         if (self.subsurfaceVisibility(ray, vertex, wo, filter)) |a| {
-            if (self.transmittance(ray, vertex, filter)) |b| {
+            if (self.transmittance(ray.*, vertex, filter)) |b| {
                 return a * b;
             }
         }
@@ -313,34 +313,33 @@ pub const Worker = struct {
 
     fn subsurfaceVisibility(
         self: *Worker,
-        ray: Ray,
+        ray: *Ray,
         vertex: *const Vertex,
         wo: Vec4f,
         filter: ?Filter,
     ) ?Vec4f {
-        var tray = ray;
         const material = vertex.isec.material(self.scene);
         if (vertex.isec.subsurface and material.ior() > 1.0) {
-            const ray_max_t = tray.ray.maxT();
+            const ray_max_t = ray.ray.maxT();
             var nisec: Intersection = .{};
 
             var hit: bool = false;
             if (material.denseSSSOptimization()) {
-                hit = self.intersectPropShadow(vertex.isec.prop, &tray, &nisec.geo);
+                hit = self.intersectPropShadow(vertex.isec.prop, ray, &nisec.geo);
             } else {
-                tray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(vertex.isec.prop, tray) orelse ray_max_t), ray_max_t));
-                hit = self.scene.intersectShadow(&tray, &nisec);
+                ray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(vertex.isec.prop, ray.*) orelse ray_max_t), ray_max_t));
+                hit = self.scene.intersectShadow(ray, &nisec);
             }
 
             if (hit) {
-                const sss_min_t = tray.ray.minT();
-                const sss_max_t = tray.ray.maxT();
-                tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
-                if (self.scene.visibility(tray, filter)) |tv| {
-                    tray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    if (self.volume_integrator.transmittance(tray, vertex.interface_stack.top(), filter, self)) |tr| {
-                        tray.ray.setMinMaxT(ro.offsetF(tray.ray.maxT()), ray_max_t);
-                        const wi = tray.ray.direction;
+                const sss_min_t = ray.ray.minT();
+                const sss_max_t = ray.ray.maxT();
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
+                if (self.scene.visibility(ray.*, filter)) |tv| {
+                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                    if (self.volume_integrator.transmittance(ray.*, vertex.interface_stack.top(), filter, self)) |tr| {
+                        ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
+                        const wi = ray.ray.direction;
                         const vbh = material.super().border(wi, nisec.geo.n);
                         const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
 
@@ -352,7 +351,7 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(tray, filter);
+        return self.scene.visibility(ray.*, filter);
     }
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {

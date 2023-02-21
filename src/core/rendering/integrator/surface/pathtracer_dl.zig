@@ -248,7 +248,7 @@ pub const PathtracerDL = struct {
             ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.transmitted(shadow_ray, vertex, mat_sample.super().wo, filter) orelse continue;
+            const tr = worker.transmitted(&shadow_ray, vertex, mat_sample.super().wo, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi, false);
 
