@@ -105,12 +105,13 @@ pub const Distribution1D = struct {
 
         var p: f32 = 0.0;
         self.cdf[0] = 0.0;
-        var i: usize = 1;
-        while (i < data.len) : (i += 1) {
-            const c = @mulAdd(f32, data[i - 1], ii, p);
-            self.cdf[i] = c;
+
+        for (data[0 .. data.len - 1], self.cdf[1..data.len]) |d, *cdf| {
+            const c = @mulAdd(f32, d, ii, p);
+            cdf.* = c;
             p = c;
         }
+
         self.cdf[data.len] = 1.0;
         self.integral = integral;
     }
@@ -127,17 +128,13 @@ pub const Distribution1D = struct {
         self.lut[0] = 1;
 
         var border: u32 = 0;
-
-        const len = self.size;
-        var i: u32 = 1;
-        while (i < len) : (i += 1) {
-            const mapped = self.map(self.cdf[i]);
+        for (self.cdf, 1..self.size) |cdf, i| {
+            const mapped = self.map(cdf);
             if (mapped > border) {
-                const last = i;
+                const last = @intCast(u32, i);
 
-                var j = border + 1;
-                while (j <= mapped) : (j += 1) {
-                    self.lut[j] = last;
+                for (self.lut[border + 1 .. mapped + 1]) |*lut| {
+                    lut.* = last;
                 }
 
                 border = mapped;
@@ -150,9 +147,9 @@ pub const Distribution1D = struct {
     }
 
     fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
-        for (buffer[begin..end], 0..) |b, i| {
+        for (buffer[begin..end], begin..) |b, i| {
             if (b >= key) {
-                return begin + @intCast(u32, i);
+                return @intCast(u32, i);
             }
         }
 
