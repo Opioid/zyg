@@ -167,10 +167,6 @@ pub fn Distribution1DN(comptime N: u32) type {
 
             var p: f32 = 0.0;
             self.cdf[0] = 0.0;
-            // var i: usize = 1;
-            // while (i < data.len) : (i += 1) {
-            //     self.cdf[i] = @mulAdd(f32, data[i - 1], ii, self.cdf[i - 1]);
-            // }
 
             for (data[0 .. data.len - 1], self.cdf[1..data.len]) |d, *cdf| {
                 const c = @mulAdd(f32, d, ii, p);
