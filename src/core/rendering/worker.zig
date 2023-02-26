@@ -123,8 +123,8 @@ pub const Worker = struct {
         const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
 
         const r = camera.resolution;
-        const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
-        const o = @as(u64, iteration) * a;
+        //const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
+        //const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
         const yy_back = tile[3];
@@ -166,12 +166,11 @@ pub const Worker = struct {
 
                             const pixel_id = pixel_n + @intCast(u32, x);
 
-                            rng.start(0, @as(u64, pixel_id) + o);
-
                             const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
                             const tsi = @truncate(u32, sample_index);
                             const seed = @truncate(u32, sample_index >> 32) + so;
 
+                            rng.start(0, sample_index);
                             self.sampler.startPixel(tsi, seed);
                             self.surface_integrator.startPixel(tsi, seed + 1);
 
