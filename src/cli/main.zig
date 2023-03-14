@@ -14,15 +14,68 @@ const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
 
+const Vec2i = base.math.Vec2i;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const c = @cImport({
     @cInclude("any_key.h");
 });
+// https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/
+
+// "Insert" a 0 bit after each of the 16 low bits of x
+fn part1By1(v: u32) u32 {
+    var x = v & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
+    x = (x ^ (x << 8)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
+    x = (x ^ (x << 4)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
+    x = (x ^ (x << 2)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
+    x = (x ^ (x << 1)) & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
+    return x;
+}
+
+// Inverse of Part1By1 - "delete" all odd-indexed bits
+fn compact1By1(v: u32) u32 {
+    var x = v & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
+    x = (x ^ (x >> 1)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
+    x = (x ^ (x >> 2)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
+    x = (x ^ (x >> 4)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
+    x = (x ^ (x >> 8)) & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
+    return x;
+}
+
+fn coordToZorder(v: Vec2i) u32 {
+    return (part1By1(@intCast(u32, v[1])) << 1) + part1By1(@intCast(u32, v[0]));
+}
+
+fn zorderToCoord(z: u32) Vec2i {
+    return .{ @intCast(i32, compact1By1(z >> 0)), @intCast(i32, compact1By1(z >> 1)) };
+}
+
+fn mortonLoop(tile: u32) void {
+    _ = tile;
+
+    const num_total = 16;
+
+    //  var subregion = 0;
+
+    var i: u32 = 0;
+    while (i < num_total) : (i += 1) {
+        const coord = zorderToCoord(i);
+
+        const coord_l1 = Vec2i{ coord[0] >> 1, coord[1] >> 1 };
+        const z1 = coordToZorder(coord_l1);
+
+        std.debug.print("{}, {}, {}\n", .{ coord, coord_l1, z1 });
+
+        //    const sr = i << 2
+    }
+}
 
 pub fn main() !void {
     // core.size_test.testSize();
+
+    //  mortonLoop(16);
 
     log.info("Welcome to zyg!", .{});
 

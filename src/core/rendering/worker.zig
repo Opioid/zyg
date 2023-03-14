@@ -127,133 +127,204 @@ pub const Worker = struct {
         //const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
-        const yy_back = tile[3];
-        var yy: i32 = tile[1];
-        while (yy <= yy_back) : (yy += 4) {
-            const xx_back = tile[2];
-            var xx: i32 = tile[0];
-            while (xx <= xx_back) : (xx += 4) {
-                var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
-                var old_ss = [_]f32{0.0} ** 16;
-                var ems = [_]f32{0.0} ** 16;
-                var cell_ems: [4]f32 = undefined;
+        _ = em_threshold;
 
-                var ss: u32 = 0;
-                while (ss < num_samples) {
-                    var cc: u32 = 0;
+        var ss: u32 = 0;
+        while (ss < num_samples) {
+            const s_end = @min(ss + step, num_samples);
 
-                    const s_end = @min(ss + step, num_samples);
-                    const y_back = @min(yy + 3, yy_back);
-                    var y = yy;
-                    while (y <= y_back) : (y += 1) {
-                        const pixel_n = @intCast(u32, y * r[0]);
+            const y_back = tile[3];
+            var y: i32 = tile[1];
+            var yy: u32 = 0;
+            while (y <= y_back) : (y += 1) {
+                const x_back = tile[2];
+                var x: i32 = tile[0];
+                var xx: u32 = 0;
+                const pixel_n = @intCast(u32, y * r[0]);
+                while (x <= x_back) : (x += 1) {
+                    const pixel_id = pixel_n + @intCast(u32, x);
 
-                        const x_back = @min(xx + 3, xx_back);
-                        var x = xx;
-                        while (x <= x_back) : (x += 1) {
-                            const c = cc;
-                            cc += 1;
+                    const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
+                    const tsi = @truncate(u32, sample_index);
+                    const seed = @truncate(u32, sample_index >> 32) + so;
 
-                            if (ss >= num_samples / 2) {
-                                if (ems[c] < em_threshold) continue;
-                            } else if (ss >= num_samples / 4) {
-                                const cx = (x - xx) >> 1;
-                                const cy = (y - yy) >> 1;
-                                const cid = @intCast(u32, (cy << 1) | cx);
+                    rng.start(0, sample_index);
+                    self.sampler.startPixel(tsi, seed);
+                    self.surface_integrator.startPixel(tsi, seed + 1);
 
-                                if (cell_ems[cid] < em_threshold) continue;
-                            }
+                    self.photon = @splat(4, @as(f32, 0.0));
 
-                            const pixel_id = pixel_n + @intCast(u32, x);
+                    const pixel = Vec2i{ x, y };
 
-                            const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
-                            const tsi = @truncate(u32, sample_index);
-                            const seed = @truncate(u32, sample_index >> 32) + so;
+                    // var old_m = old_ms[c];
+                    // var old_s = old_ss[c];
 
-                            rng.start(0, sample_index);
-                            self.sampler.startPixel(tsi, seed);
-                            self.surface_integrator.startPixel(tsi, seed + 1);
+                    // var new_m: Vec4f = undefined;
+                    // var new_s: f32 = undefined;
 
-                            self.photon = @splat(4, @as(f32, 0.0));
+                    var s = ss;
+                    while (s < s_end) : (s += 1) {
+                        self.aov.clear();
 
-                            const pixel = Vec2i{ x, y };
+                        var sample = self.sampler.cameraSample(pixel);
+                        var ray = camera.generateRay(&sample, frame, scene);
 
-                            var old_m = old_ms[c];
-                            var old_s = old_ss[c];
+                        const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
 
-                            var new_m: Vec4f = undefined;
-                            var new_s: f32 = undefined;
-
-                            var s = ss;
-                            while (s < s_end) : (s += 1) {
-                                self.aov.clear();
-
-                                var sample = self.sampler.cameraSample(pixel);
-                                var ray = camera.generateRay(&sample, frame, scene);
-
-                                const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
-
-                                var photon = self.photon;
-                                if (photon[3] > 0.0) {
-                                    photon /= @splat(4, photon[3]);
-                                    photon[3] = 0.0;
-                                }
-
-                                const clamped = sensor.addSample(sample, color + photon, self.aov);
-                                const value = clamped.last;
-
-                                new_m = clamped.mean;
-                                new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
-
-                                // set up for next iteration
-                                old_m = new_m;
-                                old_s = new_s;
-                            }
-
-                            old_ms[c] = old_m;
-                            old_ss[c] = old_s;
-
-                            const variance = new_s * new_m[3];
-                            const mam = math.hmax3(new_m);
-
-                            // c0
-                            //   const em = @sqrt(variance) / std.math.max(mam, 0.0001);
-
-                            // csw
-                            //  const em = @sqrt(variance / std.math.max(mam, 0.0001));
-
-                            //  const em = @sqrt(variance) / (if (mam < 1.0) std.math.max(@sqrt(mam), 0.0001) else mam);
-                            const em = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
-
-                            // cg
-                            // const em = std.math.pow(f32, variance, 0.16);
-
-                            // cw
-                            // const em = std.math.pow(f32, variance / std.math.max(mam, 1.0), 0.16);
-
-                            ems[c] = em;
+                        var photon = self.photon;
+                        if (photon[3] > 0.0) {
+                            photon /= @splat(4, photon[3]);
+                            photon[3] = 0.0;
                         }
+
+                        const clamped = sensor.addSample(sample, color + photon, self.aov);
+                        _ = clamped;
+                        // const value = clamped.last;
+
+                        // new_m = clamped.mean;
+                        // new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
+
+                        // // set up for next iteration
+                        // old_m = new_m;
+                        // old_s = new_s;
                     }
 
-                    inline for (&cell_ems, 0..) |*c, i| {
-                        const id = ((i >> 1) << 2) + (i << 1);
-                        const em0 = std.math.max(ems[id + 0], ems[id + 1]);
-                        const em1 = std.math.max(ems[id + 4], ems[id + 5]);
-                        c.* = std.math.max(em0, em1);
-                    }
-
-                    const em0 = std.math.max(cell_ems[0], cell_ems[1]);
-                    const em1 = std.math.max(cell_ems[2], cell_ems[3]);
-                    const max_em = std.math.max(em0, em1);
-
-                    if (0.0 == max_em or (ss >= step * 4 and max_em < em_threshold)) {
-                        break;
-                    }
-
-                    ss += step;
+                    xx += 1;
                 }
+
+                yy += 1;
             }
+
+            ss += step;
         }
+
+        // const yy_back = tile[3];
+        // var yy: i32 = tile[1];
+        // while (yy <= yy_back) : (yy += 4) {
+        //     const xx_back = tile[2];
+        //     var xx: i32 = tile[0];
+        //     while (xx <= xx_back) : (xx += 4) {
+        //         var old_ms = [_]Vec4f{.{ 0.0, 0.0, 0.0, 0.0 }} ** 16;
+        //         var old_ss = [_]f32{0.0} ** 16;
+        //         var ems = [_]f32{0.0} ** 16;
+        //         var cell_ems: [4]f32 = undefined;
+
+        //         var ss: u32 = 0;
+        //         while (ss < num_samples) {
+        //             var cc: u32 = 0;
+
+        //             const s_end = @min(ss + step, num_samples);
+        //             const y_back = @min(yy + 3, yy_back);
+        //             var y = yy;
+        //             while (y <= y_back) : (y += 1) {
+        //                 const pixel_n = @intCast(u32, y * r[0]);
+
+        //                 const x_back = @min(xx + 3, xx_back);
+        //                 var x = xx;
+        //                 while (x <= x_back) : (x += 1) {
+        //                     const c = cc;
+        //                     cc += 1;
+
+        //                     if (ss >= num_samples / 2) {
+        //                         if (ems[c] < em_threshold) continue;
+        //                     } else if (ss >= num_samples / 4) {
+        //                         const cx = (x - xx) >> 1;
+        //                         const cy = (y - yy) >> 1;
+        //                         const cid = @intCast(u32, (cy << 1) | cx);
+
+        //                         if (cell_ems[cid] < em_threshold) continue;
+        //                     }
+
+        //                     const pixel_id = pixel_n + @intCast(u32, x);
+
+        //                     const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
+        //                     const tsi = @truncate(u32, sample_index);
+        //                     const seed = @truncate(u32, sample_index >> 32) + so;
+
+        //                     rng.start(0, sample_index);
+        //                     self.sampler.startPixel(tsi, seed);
+        //                     self.surface_integrator.startPixel(tsi, seed + 1);
+
+        //                     self.photon = @splat(4, @as(f32, 0.0));
+
+        //                     const pixel = Vec2i{ x, y };
+
+        //                     var old_m = old_ms[c];
+        //                     var old_s = old_ss[c];
+
+        //                     var new_m: Vec4f = undefined;
+        //                     var new_s: f32 = undefined;
+
+        //                     var s = ss;
+        //                     while (s < s_end) : (s += 1) {
+        //                         self.aov.clear();
+
+        //                         var sample = self.sampler.cameraSample(pixel);
+        //                         var ray = camera.generateRay(&sample, frame, scene);
+
+        //                         const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
+
+        //                         var photon = self.photon;
+        //                         if (photon[3] > 0.0) {
+        //                             photon /= @splat(4, photon[3]);
+        //                             photon[3] = 0.0;
+        //                         }
+
+        //                         const clamped = sensor.addSample(sample, color + photon, self.aov);
+        //                         const value = clamped.last;
+
+        //                         new_m = clamped.mean;
+        //                         new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
+
+        //                         // set up for next iteration
+        //                         old_m = new_m;
+        //                         old_s = new_s;
+        //                     }
+
+        //                     old_ms[c] = old_m;
+        //                     old_ss[c] = old_s;
+
+        //                     const variance = new_s * new_m[3];
+        //                     const mam = math.hmax3(new_m);
+
+        //                     // c0
+        //                     //   const em = @sqrt(variance) / std.math.max(mam, 0.0001);
+
+        //                     // csw
+        //                     //  const em = @sqrt(variance / std.math.max(mam, 0.0001));
+
+        //                     //  const em = @sqrt(variance) / (if (mam < 1.0) std.math.max(@sqrt(mam), 0.0001) else mam);
+        //                     const em = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
+
+        //                     // cg
+        //                     // const em = std.math.pow(f32, variance, 0.16);
+
+        //                     // cw
+        //                     // const em = std.math.pow(f32, variance / std.math.max(mam, 1.0), 0.16);
+
+        //                     ems[c] = em;
+        //                 }
+        //             }
+
+        //             inline for (&cell_ems, 0..) |*c, i| {
+        //                 const id = ((i >> 1) << 2) + (i << 1);
+        //                 const em0 = std.math.max(ems[id + 0], ems[id + 1]);
+        //                 const em1 = std.math.max(ems[id + 4], ems[id + 5]);
+        //                 c.* = std.math.max(em0, em1);
+        //             }
+
+        //             const em0 = std.math.max(cell_ems[0], cell_ems[1]);
+        //             const em1 = std.math.max(cell_ems[2], cell_ems[3]);
+        //             const max_em = std.math.max(em0, em1);
+
+        //             if (0.0 == max_em or (ss >= step * 4 and max_em < em_threshold)) {
+        //                 break;
+        //             }
+
+        //             ss += step;
+        //         }
+        //     }
+        // }
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
