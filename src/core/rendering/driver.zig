@@ -121,7 +121,7 @@ pub const Driver = struct {
             );
         }
 
-        self.tiles.configure(camera.resolution, camera.crop, 16);
+        self.tiles.configure(camera.resolution, camera.crop, Worker.Tile_dimensions);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 

@@ -40,6 +40,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
+    pub const Tile_dimensions = 16;
+    const Tile_area = Tile_dimensions * Tile_dimensions;
+
     camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
 
@@ -56,6 +59,9 @@ pub const Worker = struct {
     lighttracer: lt.Lighttracer = undefined,
 
     aov: aov.Value = undefined,
+
+    old_ms: [Tile_area]Vec4f = undefined,
+    old_ss: [Tile_area]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -129,6 +135,9 @@ pub const Worker = struct {
 
         _ = em_threshold;
 
+        std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
+        std.mem.set(f32, &self.old_ss, 0.0);
+
         var ss: u32 = 0;
         while (ss < num_samples) {
             const s_end = @min(ss + step, num_samples);
@@ -156,11 +165,13 @@ pub const Worker = struct {
 
                     const pixel = Vec2i{ x, y };
 
-                    // var old_m = old_ms[c];
-                    // var old_s = old_ss[c];
+                    const ii = yy * Tile_dimensions + xx;
 
-                    // var new_m: Vec4f = undefined;
-                    // var new_s: f32 = undefined;
+                    var old_m = self.old_ms[ii];
+                    var old_s = self.old_ss[ii];
+
+                    var new_m: Vec4f = undefined;
+                    var new_s: f32 = undefined;
 
                     var s = ss;
                     while (s < s_end) : (s += 1) {
@@ -178,16 +189,18 @@ pub const Worker = struct {
                         }
 
                         const clamped = sensor.addSample(sample, color + photon, self.aov);
-                        _ = clamped;
-                        // const value = clamped.last;
+                        const value = clamped.last;
 
-                        // new_m = clamped.mean;
-                        // new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
+                        new_m = clamped.mean;
+                        new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
 
-                        // // set up for next iteration
-                        // old_m = new_m;
-                        // old_s = new_s;
+                        // set up for next iteration
+                        old_m = new_m;
+                        old_s = new_s;
                     }
+
+                    self.old_ms[ii] = old_m;
+                    self.old_ss[ii] = old_s;
 
                     xx += 1;
                 }
