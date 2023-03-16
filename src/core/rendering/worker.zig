@@ -62,7 +62,9 @@ pub const Worker = struct {
 
     old_ms: [Tile_area]Vec4f = undefined,
     old_ss: [Tile_area]f32 = undefined,
-    qms: [Tile_area + 1]f32 = undefined,
+    qms: [Tile_area]f32 = undefined,
+    cell_qms: [1]f32 = undefined,
+    cell_qms_work: [1]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -136,11 +138,11 @@ pub const Worker = struct {
 
         std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
         std.mem.set(f32, &self.old_ss, 0.0);
-        std.mem.set(f32, &self.qms, 0.0);
 
         var ss: u32 = 0;
         while (ss < num_samples) {
-            //  std.mem.set(f32, self.qms[Tile_area..], 0.0);
+            std.mem.copy(f32, &self.cell_qms, &self.cell_qms_work);
+            std.mem.set(f32, &self.cell_qms_work, 0.0);
 
             const s_end = @min(ss + step, num_samples);
 
@@ -161,7 +163,7 @@ pub const Worker = struct {
                             continue;
                         }
                     } else if (ss >= step) {
-                        if (self.qms[Tile_area] < qm_threshold) {
+                        if (self.cell_qms[0] < qm_threshold) {
                             continue;
                         }
                     }
@@ -221,9 +223,7 @@ pub const Worker = struct {
                     const qm = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
                     self.qms[ii] = qm;
 
-                    if (ss < step) {
-                        self.qms[Tile_area] = @max(self.qms[Tile_area], qm);
-                    }
+                    self.cell_qms_work[0] = @max(self.cell_qms_work[0], qm);
                 }
 
                 yy += 1;
