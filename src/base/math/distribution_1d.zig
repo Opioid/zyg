@@ -128,7 +128,7 @@ pub const Distribution1D = struct {
         self.lut[0] = 1;
 
         var border: u32 = 0;
-        for (self.cdf, 1..self.size) |cdf, i| {
+        for (self.cdf[1..self.size], 1..) |cdf, i| {
             const mapped = self.map(cdf);
             if (mapped > border) {
                 const last = @intCast(u32, i);
