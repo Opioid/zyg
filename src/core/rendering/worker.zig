@@ -173,11 +173,11 @@ pub const Worker = struct {
                     const c2 = 5 + coordToZorder(pp >> @splat(2, @as(u5, 2)));
                     const c3 = 21 + coordToZorder(pp >> @splat(2, @as(u5, 1)));
 
-                    if (ss >= 8 * num_samples_under_10) {
+                    if (ss >= 5 * num_samples_under_10) {
                         if (self.qms[ii] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 5 * num_samples_under_10) {
+                    } else if (ss >= 4 * num_samples_under_10) {
                         if (self.cell_qms[c3] < qm_threshold) {
                             continue;
                         }
