@@ -59,7 +59,7 @@ pub const View = struct {
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
-    em_threshold: f32 = 0.0,
+    qm_threshold: f32 = 0.0,
     aov_sample_count: bool = false,
 
     photon_settings: PhotonSettings = .{},

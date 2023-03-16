@@ -62,6 +62,7 @@ pub const Worker = struct {
 
     old_ms: [Tile_area]Vec4f = undefined,
     old_ss: [Tile_area]f32 = undefined,
+    qms: [Tile_area + 1]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -118,7 +119,7 @@ pub const Worker = struct {
         num_samples: u32,
         num_expected_samples: u32,
         num_photon_samples: u32,
-        em_threshold: f32,
+        qm_threshold: f32,
     ) void {
         var camera = self.camera;
         const sensor = &camera.sensor;
@@ -133,13 +134,14 @@ pub const Worker = struct {
         //const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
-        _ = em_threshold;
-
         std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
         std.mem.set(f32, &self.old_ss, 0.0);
+        std.mem.set(f32, &self.qms, 0.0);
 
         var ss: u32 = 0;
         while (ss < num_samples) {
+            //  std.mem.set(f32, self.qms[Tile_area..], 0.0);
+
             const s_end = @min(ss + step, num_samples);
 
             const y_back = tile[3];
@@ -151,6 +153,19 @@ pub const Worker = struct {
                 var xx: u32 = 0;
                 const pixel_n = @intCast(u32, y * r[0]);
                 while (x <= x_back) : (x += 1) {
+                    const ii = yy * Tile_dimensions + xx;
+                    xx += 1;
+
+                    if (ss >= num_samples / 2) {
+                        if (self.qms[ii] < qm_threshold) {
+                            continue;
+                        }
+                    } else if (ss >= step) {
+                        if (self.qms[Tile_area] < qm_threshold) {
+                            continue;
+                        }
+                    }
+
                     const pixel_id = pixel_n + @intCast(u32, x);
 
                     const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
@@ -164,8 +179,6 @@ pub const Worker = struct {
                     self.photon = @splat(4, @as(f32, 0.0));
 
                     const pixel = Vec2i{ x, y };
-
-                    const ii = yy * Tile_dimensions + xx;
 
                     var old_m = self.old_ms[ii];
                     var old_s = self.old_ss[ii];
@@ -202,7 +215,15 @@ pub const Worker = struct {
                     self.old_ms[ii] = old_m;
                     self.old_ss[ii] = old_s;
 
-                    xx += 1;
+                    const variance = new_s * new_m[3];
+                    const mam = math.hmax3(new_m);
+
+                    const qm = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
+                    self.qms[ii] = qm;
+
+                    if (ss < step) {
+                        self.qms[Tile_area] = @max(self.qms[Tile_area], qm);
+                    }
                 }
 
                 yy += 1;
