@@ -42,6 +42,7 @@ const Allocator = std.mem.Allocator;
 pub const Worker = struct {
     pub const Tile_dimensions = 16;
     const Tile_area = Tile_dimensions * Tile_dimensions;
+    const Tile_cell = 1 + 4 + 16 + 64;
 
     camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
@@ -63,8 +64,8 @@ pub const Worker = struct {
     old_ms: [Tile_area]Vec4f = undefined,
     old_ss: [Tile_area]f32 = undefined,
     qms: [Tile_area]f32 = undefined,
-    cell_qms: [1]f32 = undefined,
-    cell_qms_work: [1]f32 = undefined,
+    cell_qms: [Tile_cell]f32 = undefined,
+    cell_qms_work: [Tile_cell]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -136,6 +137,15 @@ pub const Worker = struct {
         //const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
+        //
+        // 0 16 / 1 = 16
+        // 1 16 / 2 = 8
+        // 2 16 / 4 = 4
+        // 3 16 / 8 = 2
+        // 4 16 / 16 = 1
+
+        const num_samples_under_10 = num_samples / 10;
+
         std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
         std.mem.set(f32, &self.old_ss, 0.0);
 
@@ -156,13 +166,30 @@ pub const Worker = struct {
                 const pixel_n = @intCast(u32, y * r[0]);
                 while (x <= x_back) : (x += 1) {
                     const ii = yy * Tile_dimensions + xx;
+                    const pp = Vec2i{ @intCast(i32, xx), @intCast(i32, yy) };
                     xx += 1;
 
-                    if (ss >= num_samples / 2) {
+                    const c1 = 1 + coordToZorder(pp >> @splat(2, @as(u5, 3)));
+                    const c2 = 5 + coordToZorder(pp >> @splat(2, @as(u5, 2)));
+                    const c3 = 21 + coordToZorder(pp >> @splat(2, @as(u5, 1)));
+
+                    if (ss >= 8 * num_samples_under_10) {
                         if (self.qms[ii] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= step) {
+                    } else if (ss >= 5 * num_samples_under_10) {
+                        if (self.cell_qms[c3] < qm_threshold) {
+                            continue;
+                        }
+                    } else if (ss >= 3 * num_samples_under_10) {
+                        if (self.cell_qms[c2] < qm_threshold) {
+                            continue;
+                        }
+                    } else if (ss >= 2 * num_samples_under_10) {
+                        if (self.cell_qms[c1] < qm_threshold) {
+                            continue;
+                        }
+                    } else if (ss >= 1 * num_samples_under_10) {
                         if (self.cell_qms[0] < qm_threshold) {
                             continue;
                         }
@@ -222,8 +249,10 @@ pub const Worker = struct {
 
                     const qm = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
                     self.qms[ii] = qm;
-
                     self.cell_qms_work[0] = @max(self.cell_qms_work[0], qm);
+                    self.cell_qms_work[c1] = @max(self.cell_qms_work[c1], qm);
+                    self.cell_qms_work[c2] = @max(self.cell_qms_work[c2], qm);
+                    self.cell_qms_work[c3] = @max(self.cell_qms_work[c3], qm);
                 }
 
                 yy += 1;
@@ -359,6 +388,36 @@ pub const Worker = struct {
         //         }
         //     }
         // }
+    }
+
+    // https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/
+
+    // "Insert" a 0 bit after each of the 16 low bits of x
+    fn part1By1(v: u32) u32 {
+        var x = v & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
+        x = (x ^ (x << 8)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
+        x = (x ^ (x << 4)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
+        x = (x ^ (x << 2)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
+        x = (x ^ (x << 1)) & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
+        return x;
+    }
+
+    // Inverse of Part1By1 - "delete" all odd-indexed bits
+    fn compact1By1(v: u32) u32 {
+        var x = v & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
+        x = (x ^ (x >> 1)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
+        x = (x ^ (x >> 2)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
+        x = (x ^ (x >> 4)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
+        x = (x ^ (x >> 8)) & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
+        return x;
+    }
+
+    fn coordToZorder(v: Vec2i) u32 {
+        return (part1By1(@intCast(u32, v[1])) << 1) + part1By1(@intCast(u32, v[0]));
+    }
+
+    fn zorderToCoord(z: u32) Vec2i {
+        return .{ @intCast(i32, compact1By1(z >> 0)), @intCast(i32, compact1By1(z >> 1)) };
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {

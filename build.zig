@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) void {
 
     cli.linkLibC();
     // cli.sanitize_thread = true;
-    // cli.strip = true;
+    cli.strip = true;
     cli.install();
 
     capi.addModule("base", base);
