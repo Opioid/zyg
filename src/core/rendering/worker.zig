@@ -42,7 +42,7 @@ const Allocator = std.mem.Allocator;
 pub const Worker = struct {
     pub const Tile_dimensions = 16;
     const Tile_area = Tile_dimensions * Tile_dimensions;
-    const Tile_cell = 1 + 4 + 16 + 64;
+    const Tile_cells = 4 + 16 + 64;
 
     camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
@@ -64,8 +64,8 @@ pub const Worker = struct {
     old_ms: [Tile_area]Vec4f = undefined,
     old_ss: [Tile_area]f32 = undefined,
     qms: [Tile_area]f32 = undefined,
-    cell_qms: [Tile_cell]f32 = undefined,
-    cell_qms_work: [Tile_cell]f32 = undefined,
+    cell_qms: [Tile_cells]f32 = undefined,
+    cell_qms_work: [Tile_cells]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -149,10 +149,14 @@ pub const Worker = struct {
         std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
         std.mem.set(f32, &self.old_ss, 0.0);
 
+        var tile_qm_work: f32 = undefined;
+
         var ss: u32 = 0;
         while (ss < num_samples) {
             std.mem.copy(f32, &self.cell_qms, &self.cell_qms_work);
             std.mem.set(f32, &self.cell_qms_work, 0.0);
+            const tile_qm = tile_qm_work;
+            tile_qm_work = 0.0;
 
             const s_end = @min(ss + step, num_samples);
 
@@ -169,28 +173,28 @@ pub const Worker = struct {
                     const pp = Vec2i{ @intCast(i32, xx), @intCast(i32, yy) };
                     xx += 1;
 
-                    const c1 = 1 + coordToZorder(pp >> @splat(2, @as(u5, 3)));
-                    const c2 = 5 + coordToZorder(pp >> @splat(2, @as(u5, 2)));
-                    const c3 = 21 + coordToZorder(pp >> @splat(2, @as(u5, 1)));
+                    const c1 = 0 + coordToZorder(pp >> @splat(2, @as(u5, 3)));
+                    const c2 = 4 + coordToZorder(pp >> @splat(2, @as(u5, 2)));
+                    const c3 = 20 + coordToZorder(pp >> @splat(2, @as(u5, 1)));
 
-                    if (ss >= 5 * num_samples_under_10) {
+                    if (ss >= 6 * num_samples_under_10) {
                         if (self.qms[ii] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 4 * num_samples_under_10) {
+                    } else if (ss >= 5 * num_samples_under_10) {
                         if (self.cell_qms[c3] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 3 * num_samples_under_10) {
+                    } else if (ss >= 4 * num_samples_under_10) {
                         if (self.cell_qms[c2] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 2 * num_samples_under_10) {
+                    } else if (ss >= 3 * num_samples_under_10) {
                         if (self.cell_qms[c1] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 1 * num_samples_under_10) {
-                        if (self.cell_qms[0] < qm_threshold) {
+                    } else if (ss >= 2 * num_samples_under_10) {
+                        if (tile_qm < qm_threshold) {
                             continue;
                         }
                     }
@@ -249,13 +253,17 @@ pub const Worker = struct {
 
                     const qm = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
                     self.qms[ii] = qm;
-                    self.cell_qms_work[0] = @max(self.cell_qms_work[0], qm);
+                    tile_qm_work = @max(tile_qm_work, qm);
                     self.cell_qms_work[c1] = @max(self.cell_qms_work[c1], qm);
                     self.cell_qms_work[c2] = @max(self.cell_qms_work[c2], qm);
                     self.cell_qms_work[c3] = @max(self.cell_qms_work[c3], qm);
                 }
 
                 yy += 1;
+            }
+
+            if (0.0 == tile_qm_work) {
+                break;
             }
 
             ss += step;
