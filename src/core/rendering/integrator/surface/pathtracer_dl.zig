@@ -123,7 +123,7 @@ pub const PathtracerDL = struct {
             result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
-            if (0.0 == sample_result.pdf) {
+            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }
 
