@@ -130,7 +130,9 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+        //  const step = @floatToInt(u32, @ceil(@sqrt(@intToFloat(f32, num_expected_samples))));
+
+        const step = @min(16, num_samples);
 
         const r = camera.resolution;
         //const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
@@ -144,7 +146,7 @@ pub const Worker = struct {
         // 3 16 / 8 = 2
         // 4 16 / 16 = 1
 
-        const num_samples_under_10 = num_samples / 10;
+        //  const num_samples_under_10 = num_samples / 10;
 
         std.mem.set(Vec4f, &self.old_ms, @splat(4, @as(f32, 0.0)));
         std.mem.set(f32, &self.old_ss, 0.0);
@@ -177,23 +179,45 @@ pub const Worker = struct {
                     const c2 = 4 + coordToZorder(pp >> @splat(2, @as(u5, 2)));
                     const c3 = 20 + coordToZorder(pp >> @splat(2, @as(u5, 1)));
 
-                    if (ss >= 6 * num_samples_under_10) {
+                    // if (ss >= 6 * num_samples_under_10) {
+                    //     if (self.qms[ii] < qm_threshold) {
+                    //         continue;
+                    //     }
+                    // } else if (ss >= 5 * num_samples_under_10) {
+                    //     if (self.cell_qms[c3] < qm_threshold) {
+                    //         continue;
+                    //     }
+                    // } else if (ss >= 4 * num_samples_under_10) {
+                    //     if (self.cell_qms[c2] < qm_threshold) {
+                    //         continue;
+                    //     }
+                    // } else if (ss >= 3 * num_samples_under_10) {
+                    //     if (self.cell_qms[c1] < qm_threshold) {
+                    //         continue;
+                    //     }
+                    // } else if (ss >= 2 * num_samples_under_10) {
+                    //     if (tile_qm < qm_threshold) {
+                    //         continue;
+                    //     }
+                    // }
+
+                    if (ss >= 1024) {
                         if (self.qms[ii] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 5 * num_samples_under_10) {
+                    } else if (ss >= 512) {
                         if (self.cell_qms[c3] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 4 * num_samples_under_10) {
+                    } else if (ss >= 256) {
                         if (self.cell_qms[c2] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 3 * num_samples_under_10) {
+                    } else if (ss >= 128) {
                         if (self.cell_qms[c1] < qm_threshold) {
                             continue;
                         }
-                    } else if (ss >= 2 * num_samples_under_10) {
+                    } else if (ss >= 64) {
                         if (tile_qm < qm_threshold) {
                             continue;
                         }
