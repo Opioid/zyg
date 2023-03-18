@@ -154,7 +154,7 @@ pub const PathtracerMIS = struct {
             var effective_bxdf_pdf = sample_result.pdf;
 
             sample_result = mat_sample.sample(sampler);
-            if (0.0 == sample_result.pdf) {
+            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }
 
