@@ -154,7 +154,7 @@ pub const Multi = struct {
             return result;
         }
 
-        const mu = material.super().cc;
+        const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene); // material.super().cc;
 
         const result = tracking.tracking(ray.ray, mu, throughput, sampler);
         if (.Scatter == result.event) {
