@@ -689,7 +689,7 @@ pub const Grid = struct {
             return material.collisionCoefficients(uvw, null, scene).s;
         }
 
-        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, scene).s;
+        return material.collisionCoefficients(math.vec2fTo4f(isec.geo.uv), null, scene).s;
     }
 };
 

@@ -80,8 +80,8 @@ const KeyContext = struct {
 };
 
 pub const Loader = struct {
-    pub const Error = error{
-        OutOfMemory,
+    const Error = error{
+        UndefinedShape,
     };
 
     resources: *Resources,
@@ -218,7 +218,7 @@ pub const Loader = struct {
         animated: bool,
         local_materials: LocalMaterials,
         graph: *Graph,
-    ) Error!void {
+    ) !void {
         const scene = &graph.scene;
 
         var parser = std.json.Parser.init(alloc, false);
@@ -356,13 +356,9 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
     ) !u32 {
+        const shape = if (value.Object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
+
         const scene = &graph.scene;
-
-        const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else Prop.Null;
-        if (Prop.Null == shape) {
-            return Prop.Null;
-        }
-
         const num_materials = scene.shape(shape).numMaterials();
 
         try self.materials.ensureTotalCapacity(alloc, num_materials);
@@ -410,21 +406,21 @@ pub const Loader = struct {
         scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
     }
 
-    fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) u32 {
+    fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) !u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
-            return getShape(type_name);
+            return try getShape(type_name);
         }
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            return self.resources.loadFile(Shape, alloc, file, .{}) catch Null;
+            return self.resources.loadFile(Shape, alloc, file, .{});
         }
 
-        return Null;
+        return Error.UndefinedShape;
     }
 
-    fn getShape(type_name: []const u8) u32 {
+    fn getShape(type_name: []const u8) !u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
             return @enumToInt(Scene.ShapeID.Canopy);
         } else if (std.mem.eql(u8, "Cube", type_name)) {
@@ -443,7 +439,7 @@ pub const Loader = struct {
             return @enumToInt(Scene.ShapeID.Sphere);
         }
 
-        return Null;
+        return Error.UndefinedShape;
     }
 
     fn loadMaterials(
@@ -462,12 +458,7 @@ pub const Loader = struct {
         }
     }
 
-    fn loadMaterial(
-        self: *const Loader,
-        alloc: Allocator,
-        name: []const u8,
-        local_materials: LocalMaterials,
-    ) u32 {
+    fn loadMaterial(self: *const Loader, alloc: Allocator, name: []const u8, local_materials: LocalMaterials) u32 {
         // First, check if we maybe already have cached the material.
         if (self.resources.getByName(Material, name, .{})) |material| {
             return material;

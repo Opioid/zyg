@@ -56,7 +56,7 @@ pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker
         return w;
     }
 
-    const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene); // material.super().cc;
+    const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
     const mu_t = mu.a + mu.s;
 
     return hlp.attenuation3(mu_t, d - ray.ray.minT());

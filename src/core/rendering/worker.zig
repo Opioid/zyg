@@ -364,7 +364,7 @@ pub const Worker = struct {
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;
                         const vbh = material.super().border(wi, n);
-                        const nsc = @fabs(math.dot3(wi, n) / mat.clampDot(wi, nisec.geo.geo_n));
+                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo.geo_n, n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
@@ -469,7 +469,7 @@ pub const Worker = struct {
             const n = isec.geo.n;
 
             const vbh = material.super().border(wi, n);
-            const nsc = @fabs(math.dot3(wi, n) / mat.clampDot(wi, geo_n));
+            const nsc = subsurfaceNonSymmetryCompensation(wi, geo_n, n);
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
@@ -502,6 +502,10 @@ pub const Worker = struct {
         const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
 
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
+    }
+
+    inline fn subsurfaceNonSymmetryCompensation(wi: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+        return @fabs(math.dot3(wi, n)) / mat.clampAbsDot(wi, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
