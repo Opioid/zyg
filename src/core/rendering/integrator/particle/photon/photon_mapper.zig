@@ -136,23 +136,18 @@ pub const Mapper = struct {
             var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
-            var wo1 = @splat(4, @as(f32, 0.0));
-
             while (ray.depth < self.settings.max_bounces) {
                 const wo = -ray.ray.direction;
 
                 const mat_sample = worker.sampleMaterial(
                     ray,
                     wo,
-                    wo1,
                     isec,
                     filter,
                     0.0,
                     Avoid_caustics,
                     from_subsurface,
                 );
-
-                wo1 = wo;
 
                 if (mat_sample.isPureEmissive()) {
                     break;

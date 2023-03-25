@@ -123,8 +123,6 @@ pub const Lighttracer = struct {
         var caustic_path = false;
         var from_subsurface = false;
 
-        var wo1 = @splat(4, @as(f32, 0.0));
-
         while (true) {
             const wo = -ray.ray.direction;
 
@@ -132,15 +130,12 @@ pub const Lighttracer = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
                 avoid_caustics,
                 from_subsurface,
             );
-
-            wo1 = wo;
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -275,7 +270,7 @@ pub const Lighttracer = struct {
         var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
 
         const wo = mat_sample.super().wo;
-        const tr = worker.transmitted(&ray, wo, isec, filter) orelse return false;
+        const tr = worker.transmitted(&ray, isec, filter) orelse return false;
 
         const bxdf = mat_sample.evaluate(wi);
 

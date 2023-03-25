@@ -74,7 +74,6 @@ pub const Pathtracer = struct {
         var throughput = @splat(4, @as(f32, 1.0));
         var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -102,7 +101,6 @@ pub const Pathtracer = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
@@ -113,8 +111,6 @@ pub const Pathtracer = struct {
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
             }
-
-            wo1 = wo;
 
             if (ray.depth >= self.settings.max_bounces) {
                 break;

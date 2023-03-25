@@ -74,7 +74,6 @@ pub const PathtracerDL = struct {
 
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -104,7 +103,6 @@ pub const PathtracerDL = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
@@ -115,8 +113,6 @@ pub const PathtracerDL = struct {
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
             }
-
-            wo1 = wo;
 
             var sampler = self.pickSampler(ray.depth);
 
@@ -247,7 +243,7 @@ pub const PathtracerDL = struct {
             ) orelse continue;
 
             shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
+            const tr = worker.transmitted(&shadow_ray, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 

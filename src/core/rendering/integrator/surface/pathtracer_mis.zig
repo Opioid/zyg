@@ -101,7 +101,6 @@ pub const PathtracerMIS = struct {
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
         var geo_n = @splat(4, @as(f32, 0.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         {
             var pure_emissive: bool = undefined;
@@ -133,7 +132,6 @@ pub const PathtracerMIS = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
@@ -144,8 +142,6 @@ pub const PathtracerMIS = struct {
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, pr);
             }
-
-            wo1 = wo;
 
             var sampler = self.pickSampler(ray.depth);
 
@@ -351,12 +347,7 @@ pub const PathtracerMIS = struct {
             history.time,
         );
 
-        const tr = worker.transmitted(
-            &shadow_ray,
-            mat_sample.super().wo,
-            isec,
-            filter,
-        ) orelse return @splat(4, @as(f32, 0.0));
+        const tr = worker.transmitted(&shadow_ray, isec, filter) orelse return @splat(4, @as(f32, 0.0));
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 

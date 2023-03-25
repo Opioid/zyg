@@ -6,7 +6,7 @@ const RayDif = sr.RayDif;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
-const mat = @import("../scene/material/material_helper.zig");
+const mat = @import("../scene/material/sample_helper.zig");
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
@@ -240,8 +240,8 @@ pub const Worker = struct {
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
-        if (self.subsurfaceVisibility(ray, wo, isec, filter)) |a| {
+    pub fn transmitted(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
+        if (self.subsurfaceVisibility(ray, isec, filter)) |a| {
             if (self.transmittance(ray.*, filter)) |b| {
                 return a * b;
             }
@@ -338,7 +338,7 @@ pub const Worker = struct {
         }
     }
 
-    fn subsurfaceVisibility(self: *Worker, ray: *Ray, wo: Vec4f, isec: Intersection, filter: ?Filter) ?Vec4f {
+    fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
         if (isec.subsurface and material.ior() > 1.0) {
@@ -362,8 +362,9 @@ pub const Worker = struct {
                     if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
-                        const vbh = material.super().border(wi, nisec.geo.n);
-                        const nsc = mat.nonSymmetryCompensation(wo, wi, nisec.geo.geo_n, nisec.geo.n);
+                        const n = nisec.geo.n;
+                        const vbh = material.super().border(wi, n);
+                        const nsc = @fabs(math.dot3(wi, n) / mat.clampDot(wi, nisec.geo.geo_n));
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
@@ -453,7 +454,6 @@ pub const Worker = struct {
         self: *const Worker,
         ray: Ray,
         wo: Vec4f,
-        wo1: Vec4f,
         isec: Intersection,
         filter: ?Filter,
         alpha: f32,
@@ -469,7 +469,7 @@ pub const Worker = struct {
             const n = isec.geo.n;
 
             const vbh = material.super().border(wi, n);
-            const nsc = mat.nonSymmetryCompensation(wo1, wi, geo_n, n);
+            const nsc = @fabs(math.dot3(wi, n) / mat.clampDot(wi, geo_n));
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };

@@ -129,7 +129,6 @@ pub const AOV = struct {
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -140,15 +139,12 @@ pub const AOV = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
                 true,
                 from_subsurface,
             );
-
-            wo1 = wo;
 
             if (mat_sample.isPureEmissive()) {
                 break;
