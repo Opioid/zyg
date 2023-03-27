@@ -21,9 +21,9 @@ pub const Multi = struct {
         const interface = worker.interface_stack.top(0);
         const material = interface.material(worker.scene);
 
-        const densesss = material.denseSSSOptimization();
+        const dense_sss = material.denseSSSOptimization();
 
-        if (densesss) {
+        if (dense_sss) {
             isec.subsurface = false;
             if (!worker.intersectProp(isec.prop, ray, .All, &isec.geo)) {
                 worker.interface_stack.pop();
@@ -62,11 +62,7 @@ pub const Multi = struct {
 
             if (missed) {
                 worker.interface_stack.pop();
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = .Pass,
-                };
+                return Result.initPass(@splat(4, @as(f32, 1.0)));
             }
         }
 
@@ -74,15 +70,8 @@ pub const Multi = struct {
 
         const n = worker.interface_stack.countStraightFromTop(worker.scene);
         for (0..n) |i| {
-            const local_result = integrateSingle(
-                ray.*,
-                throughput,
-                worker.interface_stack.top(@intCast(u32, i)),
-                isec,
-                filter,
-                sampler,
-                worker,
-            );
+            const local_interface = worker.interface_stack.top(@intCast(u32, i));
+            const local_result = integrateSingle(ray.*, throughput, local_interface, isec, filter, sampler, worker);
 
             if (.Absorb == local_result.event or .Scatter == local_result.event) {
                 ray.ray.setMaxT(local_result.t);
@@ -96,11 +85,9 @@ pub const Multi = struct {
             result.event = .Abort;
         }
 
-        if (.Absorb == result.event) {
-            ray.ray.setMaxT(result.t);
-        } else if (.Scatter == result.event) {
+        if (.Scatter == result.event) {
             setScattering(isec, interface, ray.ray.point(result.t));
-        } else if (.Pass == result.event and densesss) {
+        } else if (.Pass == result.event and dense_sss) {
             worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
         }
 
@@ -123,11 +110,7 @@ pub const Multi = struct {
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
             const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene).a;
-            return .{
-                .li = @splat(4, @as(f32, 0.0)),
-                .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
-                .event = .Pass,
-            };
+            return Result.initPass(hlp.attenuation3(mu_a, d - ray.ray.minT()));
         }
 
         if (material.volumetricTree()) |tree| {
@@ -180,17 +163,11 @@ pub const Multi = struct {
 
         if (material.emissive()) {
             const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
-
-            const result = tracking.trackingEmission(ray.ray, cce, throughput, &worker.rng);
-
-            return result;
+            return tracking.trackingEmission(ray.ray, cce, throughput, &worker.rng);
         }
 
         const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
-
-        const result = tracking.tracking(ray.ray, mu, throughput, sampler);
-
-        return result;
+        return tracking.tracking(ray.ray, mu, throughput, sampler);
     }
 
     fn setScattering(isec: *Intersection, interface: Interface, p: Vec4f) void {
