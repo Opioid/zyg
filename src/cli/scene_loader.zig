@@ -241,12 +241,12 @@ pub const Loader = struct {
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph, false);
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, false) catch continue;
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph, true);
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, true) catch continue;
             } else if (std.mem.eql(u8, "Sky", type_name)) {
-                entity_id = try loadSky(alloc, entity, graph);
+                entity_id = loadSky(alloc, entity, graph) catch continue;
             }
 
             var trafo = Transformation{
@@ -438,6 +438,8 @@ pub const Loader = struct {
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
             return @enumToInt(Scene.ShapeID.Sphere);
         }
+
+        log.err("Undefined shape \"{s}\"", .{type_name});
 
         return Error.UndefinedShape;
     }
