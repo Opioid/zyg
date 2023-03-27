@@ -18,7 +18,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
-        const interface = worker.interface_stack.top();
+        const interface = worker.interface_stack.top(0);
         const material = interface.material(worker.scene);
 
         const densesss = material.denseSSSOptimization();
@@ -70,6 +70,54 @@ pub const Multi = struct {
             }
         }
 
+        var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+
+        const n = worker.interface_stack.countStraightFromTop(worker.scene);
+        for (0..n) |i| {
+            const local_result = integrateSingle(
+                ray.*,
+                throughput,
+                worker.interface_stack.top(@intCast(u32, i)),
+                isec,
+                filter,
+                sampler,
+                worker,
+            );
+
+            if (.Absorb == local_result.event or .Scatter == local_result.event) {
+                ray.ray.setMaxT(local_result.t);
+                result = local_result;
+            } else if (.Pass == result.event) {
+                result.tr *= local_result.tr;
+            }
+        }
+
+        if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
+            result.event = .Abort;
+        }
+
+        if (.Absorb == result.event) {
+            ray.ray.setMaxT(result.t);
+        } else if (.Scatter == result.event) {
+            setScattering(isec, interface, ray.ray.point(result.t));
+        } else if (.Pass == result.event and densesss) {
+            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
+        }
+
+        return result;
+    }
+
+    fn integrateSingle(
+        ray: Ray,
+        throughput: Vec4f,
+        interface: Interface,
+        isec: *Intersection,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Result {
+        const material = interface.material(worker.scene);
+
         const d = ray.ray.maxT();
 
         if (!material.scatteringVolume()) {
@@ -83,7 +131,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
+            var local_ray = tracking.texturespaceRay(ray, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -98,12 +146,10 @@ pub const Multi = struct {
 
                         result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
-                            setScattering(isec, interface, ray.ray.point(result.t));
                             break;
                         }
 
                         if (.Absorb == result.event) {
-                            ray.ray.setMaxT(result.t);
                             // This is in local space on purpose! Alas, the purpose was not commented...
                             isec.geo.p = local_ray.point(result.t);
                             return result;
@@ -121,21 +167,12 @@ pub const Multi = struct {
 
                         result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
-                            setScattering(isec, interface, ray.ray.point(result.t));
                             break;
                         }
                     }
 
                     local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
                 }
-            }
-
-            if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
-                result.event = .Abort;
-            }
-
-            if (.Pass == result.event and densesss) {
-                worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
             }
 
             return result;
@@ -145,11 +182,6 @@ pub const Multi = struct {
             const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
 
             const result = tracking.trackingEmission(ray.ray, cce, throughput, &worker.rng);
-            if (.Scatter == result.event) {
-                setScattering(isec, interface, ray.ray.point(result.t));
-            } else if (.Absorb == result.event) {
-                ray.ray.setMaxT(result.t);
-            }
 
             return result;
         }
@@ -157,11 +189,6 @@ pub const Multi = struct {
         const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
 
         const result = tracking.tracking(ray.ray, mu, throughput, sampler);
-        if (.Scatter == result.event) {
-            setScattering(isec, interface, ray.ray.point(result.t));
-        } else if (.Pass == result.event and densesss) {
-            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
-        }
 
         return result;
     }

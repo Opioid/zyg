@@ -280,10 +280,13 @@ pub const Worker = struct {
             const hit = self.scene.intersectVolume(&tray, &isec);
 
             if (!stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, stack.top(), filter, self)) |tr| {
-                    w *= tr;
-                } else {
-                    return null;
+                const n = stack.countStraightFromTop(self.scene);
+                for (0..n) |i| {
+                    if (self.volume_integrator.transmittance(tray, stack.top(@intCast(u32, i)), filter, self)) |tr| {
+                        w *= tr;
+                    } else {
+                        return null;
+                    }
                 }
             }
 
@@ -359,7 +362,7 @@ pub const Worker = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                 if (self.scene.visibility(ray.*, filter)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(), filter, self)) |tr| {
+                    if (self.volume_integrator.transmittance(ray.*, self.interface_stack.top(0), filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;
