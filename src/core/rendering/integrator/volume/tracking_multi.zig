@@ -68,6 +68,8 @@ pub const Multi = struct {
 
         var result = Result.initPass(@splat(4, @as(f32, 1.0)));
 
+        var scatter_interface: Interface = undefined;
+
         const n = worker.interface_stack.countStraightFromTop(worker.scene);
         for (0..n) |i| {
             const local_interface = worker.interface_stack.top(@intCast(u32, i));
@@ -76,6 +78,7 @@ pub const Multi = struct {
             if (.Absorb == local_result.event or .Scatter == local_result.event) {
                 ray.ray.setMaxT(local_result.t);
                 result = local_result;
+                scatter_interface = local_interface;
             } else if (.Pass == result.event) {
                 result.tr *= local_result.tr;
             }
@@ -86,7 +89,7 @@ pub const Multi = struct {
         }
 
         if (.Scatter == result.event) {
-            setScattering(isec, interface, ray.ray.point(result.t));
+            setScattering(isec, scatter_interface, ray.ray.point(result.t));
         } else if (.Pass == result.event and dense_sss) {
             worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
         }
