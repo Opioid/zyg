@@ -88,11 +88,12 @@ pub const Stack = struct {
         return true;
     }
 
-    pub fn countStraightFromTop(self: *const Stack, scene: *const Scene) u32 {
+    pub fn countUntilBorder(self: *const Stack, scene: *const Scene) u32 {
         var index = self.index;
         while (index > 0) : (index -= 1) {
-            if (self.stack[index - 1].material(scene).ior() > 1.0) {
-                break;
+            const i = index - 1;
+            if (self.stack[i].material(scene).ior() > 1.0) {
+                return self.index - i;
             }
         }
 

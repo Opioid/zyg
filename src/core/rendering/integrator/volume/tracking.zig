@@ -1,5 +1,7 @@
 const scn = @import("../../../scene/ray.zig");
-const Interface = @import("../../../scene/prop/interface.zig").Interface;
+const intr = @import("../../../scene/prop/interface.zig");
+const Interface = intr.Interface;
+const Stack = intr.Stack;
 const Result = @import("result.zig").Result;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
@@ -24,17 +26,41 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker: *Worker) ?Vec4f {
-    const material = interface.material(worker.scene);
-
+pub fn transmittance(ray: scn.Ray, stack: *const Stack, filter: ?Filter, worker: *Worker) ?Vec4f {
     const d = ray.ray.maxT();
 
     if (ro.offsetF(ray.ray.minT()) >= d) {
         return @splat(4, @as(f32, 1.0));
     }
 
+    var w = @splat(4, @as(f32, 1.0));
+    var mu_t = @splat(4, @as(f32, 0.0));
+
+    const n = stack.countUntilBorder(worker.scene);
+    for (0..n) |i| {
+        const interface = stack.top(@intCast(u32, i));
+        const material = interface.material(worker.scene);
+
+        if (material.heterogeneousVolume()) {
+            if (transmittanceHetero(ray, material, interface.prop, filter, worker)) |tr| {
+                w *= tr;
+            } else {
+                return null;
+            }
+        } else {
+            const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
+            mu_t += mu.a + mu.s;
+        }
+    }
+
+    return w * hlp.attenuation3(mu_t, d - ray.ray.minT());
+}
+
+fn transmittanceHetero(ray: scn.Ray, material: *const Material, prop: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
     if (material.volumetricTree()) |tree| {
-        var local_ray = texturespaceRay(ray, interface.prop, worker);
+        const d = ray.ray.maxT();
+
+        var local_ray = texturespaceRay(ray, prop, worker);
 
         const srs = material.super().similarityRelationScale(ray.depth);
 
@@ -56,10 +82,7 @@ pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker
         return w;
     }
 
-    const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
-    const mu_t = mu.a + mu.s;
-
-    return hlp.attenuation3(mu_t, d - ray.ray.minT());
+    return null;
 }
 
 fn trackingTransmitted(

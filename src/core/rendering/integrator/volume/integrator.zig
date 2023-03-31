@@ -7,7 +7,9 @@ pub const MultiFactory = multi.Factory;
 
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../../rendering/worker.zig").Worker;
-const Interface = @import("../../../scene/prop/interface.zig").Interface;
+const intr = @import("../../../scene/prop/interface.zig");
+const Interface = intr.Interface;
+const Stack = intr.Stack;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -19,7 +21,7 @@ pub const Integrator = union(enum) {
     Multi: Multi,
 
     pub fn integrate(
-        self: *Integrator,
+        self: Integrator,
         ray: *Ray,
         throughput: Vec4f,
         isec: *Intersection,
@@ -27,14 +29,14 @@ pub const Integrator = union(enum) {
         sampler: *Sampler,
         worker: *Worker,
     ) Result {
-        return switch (self.*) {
+        return switch (self) {
             .Multi => Multi.integrate(ray, throughput, isec, filter, sampler, worker),
         };
     }
 
-    pub fn transmittance(self: Integrator, ray: Ray, interface: Interface, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn transmittance(self: Integrator, ray: Ray, stack: *const Stack, filter: ?Filter, worker: *Worker) ?Vec4f {
         _ = self;
-        return tracking.transmittance(ray, interface, filter, worker);
+        return tracking.transmittance(ray, stack, filter, worker);
     }
 };
 

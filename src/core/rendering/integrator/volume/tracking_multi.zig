@@ -70,7 +70,7 @@ pub const Multi = struct {
 
         var scatter_interface: Interface = undefined;
 
-        const n = worker.interface_stack.countStraightFromTop(worker.scene);
+        const n = worker.interface_stack.countUntilBorder(worker.scene);
         for (0..n) |i| {
             const local_interface = worker.interface_stack.top(@intCast(u32, i));
             const local_result = integrateSingle(ray.*, throughput, local_interface, isec, filter, sampler, worker);
