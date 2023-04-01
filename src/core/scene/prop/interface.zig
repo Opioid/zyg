@@ -1,6 +1,7 @@
 const Intersection = @import("intersection.zig").Intersection;
 const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
+const CC = @import("../material/collision_coefficients.zig").CC;
 const Material = @import("../material/material.zig").Material;
 
 const math = @import("base").math;
@@ -10,9 +11,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Interface = struct {
-    prop: u32 align(16),
+    prop: u32,
     part: u32,
-    uv: Vec2f,
+    cc: CC,
 
     pub fn material(self: Interface, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
@@ -24,7 +25,7 @@ pub const Interface = struct {
 };
 
 pub const Stack = struct {
-    const Num_entries = 14;
+    const Num_entries = 8;
 
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
@@ -100,16 +101,16 @@ pub const Stack = struct {
         return self.index - index;
     }
 
-    pub fn push(self: *Stack, isec: Intersection) void {
+    pub fn push(self: *Stack, isec: Intersection, cc: CC) void {
         if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
+            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .cc = cc };
             self.index += 1;
         }
     }
 
     pub fn pushVolumeLight(self: *Stack, light: Light) void {
         if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .uv = .{ 0.0, 0.0 } };
+            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .cc = undefined };
             self.index += 1;
         }
     }

@@ -294,7 +294,8 @@ pub const Worker = struct {
             if (isec.sameHemisphere(tray.ray.direction)) {
                 _ = stack.remove(isec);
             } else {
-                stack.push(isec);
+                const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+                stack.push(isec, cc);
             }
 
             const ray_min_t = ro.offsetF(tray.ray.maxT());
@@ -308,7 +309,7 @@ pub const Worker = struct {
         return w;
     }
 
-    pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, time: u64) void {
+    pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
         var isec: Intersection = undefined;
 
         const axis = b - a;
@@ -326,7 +327,8 @@ pub const Worker = struct {
             if (isec.sameHemisphere(ray.ray.direction)) {
                 _ = self.interface_stack.remove(isec);
             } else {
-                self.interface_stack.push(isec);
+                const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+                self.interface_stack.push(isec, cc);
             }
 
             const ray_min_t = ro.offsetF(ray.ray.maxT());
@@ -421,17 +423,20 @@ pub const Worker = struct {
         return self.interface_stack.peekIor(isec, self.scene);
     }
 
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *Intersection) void {
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *Intersection, filter: ?Filter) void {
+        const material = isec.material(self.scene);
+
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             _ = self.interface_stack.remove(isec.*);
-        } else if (self.interface_stack.straight(self.scene) or isec.material(self.scene).ior() > 1.0) {
+        } else if (self.interface_stack.straight(self.scene) or material.ior() > 1.0) {
             isec.volume_entry = isec.geo.p;
-            self.interface_stack.push(isec.*);
+            const cc = material.collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+            self.interface_stack.push(isec.*, cc);
         }
     }
 
-    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection) IoR {
+    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection, filter: ?Filter) IoR {
         const inter_ior = isec.material(self.scene).ior();
 
         const leave = isec.sameHemisphere(dir);
@@ -444,7 +449,8 @@ pub const Worker = struct {
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
         if (self.interface_stack.straight(self.scene) or inter_ior > 1.0) {
-            self.interface_stack.push(isec);
+            const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+            self.interface_stack.push(isec, cc);
         }
 
         return ior;

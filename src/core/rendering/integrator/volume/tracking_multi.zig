@@ -91,7 +91,7 @@ pub const Multi = struct {
         if (.Scatter == result.event) {
             setScattering(isec, scatter_interface, ray.ray.point(result.t));
         } else if (.Pass == result.event and dense_sss) {
-            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, ray.time);
+            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, filter, ray.time);
         }
 
         return result;
@@ -112,7 +112,7 @@ pub const Multi = struct {
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene).a;
+            const mu_a = interface.cc.a;
             return Result.initPass(hlp.attenuation3(mu_a, d - ray.ray.minT()));
         }
 
@@ -169,14 +169,13 @@ pub const Multi = struct {
             return tracking.trackingEmission(ray.ray, cce, throughput, &worker.rng);
         }
 
-        const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
+        const mu = interface.cc;
         return tracking.tracking(ray.ray, mu, throughput, sampler);
     }
 
     fn setScattering(isec: *Intersection, interface: Interface, p: Vec4f) void {
         isec.prop = interface.prop;
         isec.geo.p = p;
-        isec.geo.uv = interface.uv;
         isec.geo.part = interface.part;
         isec.subsurface = true;
     }

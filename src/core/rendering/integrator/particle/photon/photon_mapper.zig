@@ -226,7 +226,7 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.interfaceChangeIor(sample_result.wi, isec);
+                    const ior = worker.interfaceChangeIor(sample_result.wi, isec, filter);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }

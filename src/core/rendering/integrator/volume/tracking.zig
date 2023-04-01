@@ -48,7 +48,7 @@ pub fn transmittance(ray: scn.Ray, stack: *const Stack, filter: ?Filter, worker:
                 return null;
             }
         } else {
-            const mu = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene);
+            const mu = interface.cc;
             mu_t += mu.a + mu.s;
         }
     }
@@ -127,7 +127,7 @@ fn trackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -181,7 +181,7 @@ fn residualRatioTrackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
@@ -325,7 +325,7 @@ pub fn trackingHetero(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
