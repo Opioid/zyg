@@ -3,6 +3,7 @@ const Material = @import("../material/material.zig").Material;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const Vec4f = base.math.Vec4f;
@@ -167,5 +168,19 @@ pub const Prop = struct {
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
+    }
+
+    pub fn transmittance(self: Prop, entity: u32, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const properties = self.properties;
+
+        const scene = worker.scene;
+
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+            return @splat(4, @as(f32, 1.0));
+        }
+
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+
+        return scene.shape(self.shape).transmittance(ray, trafo, entity, filter, worker);
     }
 };

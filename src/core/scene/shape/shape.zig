@@ -21,6 +21,7 @@ const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -202,6 +203,22 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, scene),
             .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, scene),
             .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, scene),
+        };
+    }
+
+    pub fn transmittance(
+        self: Shape,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        filter: ?Filter,
+        worker: *Worker,
+    ) ?Vec4f {
+        return switch (self) {
+            .Null, .Canopy, .Disk, .DistantSphere, .InfiniteSphere, .Plane, .Rectangle => @splat(4, @as(f32, 1.0)),
+            .Cube => null, //Cube.visibility(ray.ray, trafo, entity, filter, scene),
+            .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
+            .TriangleMesh => null, // |m| m.visibility(ray.ray, trafo, entity, filter, scene),
         };
     }
 

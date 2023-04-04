@@ -4,17 +4,18 @@ const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
-const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const Interpolation = @import("shape/intersection.zig").Interpolation;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
+const Image = @import("../image/image.zig").Image;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
+const Worker = @import("../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -282,6 +283,10 @@ pub const Scene = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn transmittance(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
+        return self.volume_bvh.transmittance(ray, filter, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

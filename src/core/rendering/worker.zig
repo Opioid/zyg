@@ -4,9 +4,11 @@ const sr = @import("../scene/ray.zig");
 const Ray = sr.Ray;
 const RayDif = sr.RayDif;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
+const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/sample_helper.zig");
+const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
@@ -254,59 +256,73 @@ pub const Worker = struct {
         return self.volume_integrator.integrate(ray, throughput, isec, filter, sampler, self);
     }
 
+    pub fn propTransmittance(
+        self: *Worker,
+        ray: math.Ray,
+        trafo: Trafo,
+        material: *const Material,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+    ) ?Vec4f {
+        return self.volume_integrator.propTransmittance(ray, trafo, material, entity, depth, filter, self);
+    }
+
     fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
         if (!self.scene.has_volumes) {
             return @splat(4, @as(f32, 1.0));
         }
 
-        var stack: InterfaceStack = undefined;
-        stack.copy(&self.interface_stack);
+        return self.scene.transmittance(ray, filter, self);
 
-        // This is the typical SSS case:
-        // A medium is on the stack but we already considered it during shadow calculation,
-        // ignoring the IoR. Therefore remove the medium from the stack.
-        if (!stack.straight(self.scene)) {
-            stack.pop();
-        }
+        // var stack: InterfaceStack = undefined;
+        // stack.copy(&self.interface_stack);
 
-        const ray_max_t = ray.ray.maxT();
-        var tray = ray;
+        // // This is the typical SSS case:
+        // // A medium is on the stack but we already considered it during shadow calculation,
+        // // ignoring the IoR. Therefore remove the medium from the stack.
+        // if (!stack.straight(self.scene)) {
+        //     stack.pop();
+        // }
 
-        var isec: Intersection = undefined;
+        // const ray_max_t = ray.ray.maxT();
+        // var tray = ray;
 
-        var w = @splat(4, @as(f32, 1.0));
+        // var isec: Intersection = undefined;
 
-        while (true) {
-            const hit = self.scene.intersectVolume(&tray, &isec);
+        // var w = @splat(4, @as(f32, 1.0));
 
-            if (!stack.empty()) {
-                if (self.volume_integrator.transmittance(tray, &stack, filter, self)) |tr| {
-                    w *= tr;
-                } else {
-                    return null;
-                }
-            }
+        // while (true) {
+        //     const hit = self.scene.intersectVolume(&tray, &isec);
 
-            if (!hit) {
-                break;
-            }
+        //     if (!stack.empty()) {
+        //         if (self.volume_integrator.transmittance(tray, &stack, filter, self)) |tr| {
+        //             w *= tr;
+        //         } else {
+        //             return null;
+        //         }
+        //     }
 
-            if (isec.sameHemisphere(tray.ray.direction)) {
-                _ = stack.remove(isec);
-            } else {
-                const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
-                stack.push(isec, cc);
-            }
+        //     if (!hit) {
+        //         break;
+        //     }
 
-            const ray_min_t = ro.offsetF(tray.ray.maxT());
-            if (ray_min_t > ray_max_t) {
-                break;
-            }
+        //     if (isec.sameHemisphere(tray.ray.direction)) {
+        //         _ = stack.remove(isec);
+        //     } else {
+        //         const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+        //         stack.push(isec, cc);
+        //     }
 
-            tray.ray.setMinMaxT(ray_min_t, ray_max_t);
-        }
+        //     const ray_min_t = ro.offsetF(tray.ray.maxT());
+        //     if (ray_min_t > ray_max_t) {
+        //         break;
+        //     }
 
-        return w;
+        //     tray.ray.setMinMaxT(ray_min_t, ray_max_t);
+        // }
+
+        // return w;
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {

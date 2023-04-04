@@ -6,6 +6,7 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
@@ -144,6 +145,52 @@ pub const Sphere = struct {
         }
 
         return vis;
+    }
+
+    pub fn transmittance(ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const v = trafo.position - ray.origin;
+        const b = math.dot3(ray.direction, v);
+
+        const remedy_term = v - @splat(4, b) * ray.direction;
+        const radius = trafo.scaleX();
+        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+
+            const t0 = b - dist;
+            // if (t0 > ray.minT() and t0 < ray.maxT()) {
+            //     const p = ray.point(t0);
+            //     const n = math.normalize3(p - trafo.position);
+            //     const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
+            //     const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+            //     const theta = std.math.acos(xyz[1]);
+            //     const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
+
+            //     vis *= worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker.scene) orelse return null;
+            // }
+
+            const t1 = b + dist;
+            // if (t1 > ray.minT() and t1 < ray.maxT()) {
+            //     const p = ray.point(t1);
+            //     const n = math.normalize3(p - trafo.position);
+            //     const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
+            //     const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+            //     const theta = std.math.acos(xyz[1]);
+            //     const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
+
+            //     vis *= worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker.scene) orelse return null;
+            // }
+
+            const start = std.math.max(t0, ray.minT());
+            const end = std.math.min(t1, ray.maxT());
+
+            const material = worker.scene.propMaterial(entity, 0);
+            const tray = Ray.init(ray.origin, ray.direction, start, end);
+            return worker.propTransmittance(tray, trafo, material, entity, depth, filter);
+        }
+
+        return @splat(4, @as(f32, 1.0));
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
