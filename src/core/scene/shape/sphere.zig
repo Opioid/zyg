@@ -113,6 +113,8 @@ pub const Sphere = struct {
         const radius = trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
+        var vis = @splat(4, @as(f32, 1.0));
+
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
 
@@ -125,7 +127,11 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
+                if (scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene)) |lvis| {
+                    vis *= lvis;
+                } else {
+                    return null;
+                }
             }
 
             const t1 = b + dist;
@@ -137,11 +143,15 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene);
+                if (scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene)) |lvis| {
+                    vis *= lvis;
+                } else {
+                    return null;
+                }
             }
         }
 
-        return @splat(4, @as(f32, 1.0));
+        return vis;
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {

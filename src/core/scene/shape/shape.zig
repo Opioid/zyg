@@ -195,9 +195,7 @@ pub const Shape = union(enum) {
         scene: *const Scene,
     ) ?Vec4f {
         return switch (self) {
-            .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
-                return @splat(4, @as(f32, 1.0));
-            },
+            .Null, .Canopy, .DistantSphere, .InfiniteSphere => @splat(4, @as(f32, 1.0)),
             .Cube => Cube.visibility(ray.ray, trafo, entity, filter, scene),
             .Disk => Disk.visibility(ray.ray, trafo, entity, filter, scene),
             .Plane => Plane.visibility(ray.ray, trafo, entity, filter, scene),
