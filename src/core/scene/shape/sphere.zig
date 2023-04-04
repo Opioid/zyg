@@ -127,11 +127,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                if (scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene)) |lvis| {
-                    vis *= lvis;
-                } else {
-                    return null;
-                }
+                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene) orelse return null;
             }
 
             const t1 = b + dist;
@@ -143,11 +139,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                if (scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene)) |lvis| {
-                    vis *= lvis;
-                } else {
-                    return null;
-                }
+                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, scene) orelse return null;
             }
         }
 
