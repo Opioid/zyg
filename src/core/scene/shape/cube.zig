@@ -8,6 +8,7 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -23,7 +24,6 @@ pub const Cube = struct {
     pub fn intersect(ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
-
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
@@ -60,11 +60,9 @@ pub const Cube = struct {
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
-
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-
         return aabb.intersect(local_ray);
     }
 
@@ -76,6 +74,22 @@ pub const Cube = struct {
         _ = scene;
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn transmittance(ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const local_origin = trafo.worldToObjectPoint(ray.origin);
+        const local_dir = trafo.worldToObjectVector(ray.direction);
+        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+
+        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const hit_t = aabb.intersectP2(local_ray) orelse return @splat(4, @as(f32, 1.0));
+
+        const start = std.math.max(hit_t[0], ray.minT());
+        const end = std.math.min(hit_t[1], ray.maxT());
+
+        const material = worker.scene.propMaterial(entity, 0);
+        const tray = Ray.init(ray.origin, ray.direction, start, end);
+        return worker.propTransmittance(tray, trafo, material, entity, depth, filter);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

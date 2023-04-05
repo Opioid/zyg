@@ -157,31 +157,8 @@ pub const Sphere = struct {
 
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
-
             const t0 = b - dist;
-            // if (t0 > ray.minT() and t0 < ray.maxT()) {
-            //     const p = ray.point(t0);
-            //     const n = math.normalize3(p - trafo.position);
-            //     const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-            //     const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
-            //     const theta = std.math.acos(xyz[1]);
-            //     const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
-
-            //     vis *= worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker.scene) orelse return null;
-            // }
-
             const t1 = b + dist;
-            // if (t1 > ray.minT() and t1 < ray.maxT()) {
-            //     const p = ray.point(t1);
-            //     const n = math.normalize3(p - trafo.position);
-            //     const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-            //     const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
-            //     const theta = std.math.acos(xyz[1]);
-            //     const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
-
-            //     vis *= worker.scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, worker.scene) orelse return null;
-            // }
-
             const start = std.math.max(t0, ray.minT());
             const end = std.math.min(t1, ray.maxT());
 
