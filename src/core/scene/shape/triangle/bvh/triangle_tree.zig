@@ -1,5 +1,6 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
 const Scene = @import("../../../scene.zig").Scene;
+const Worker = @import("../../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
@@ -145,7 +146,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -202,5 +203,15 @@ pub const Tree = struct {
         }
 
         return vis;
+    }
+
+    pub fn transmittance(self: Tree, ray: Ray, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        _ = self;
+        _ = ray;
+        _ = entity;
+        _ = depth;
+        _ = filter;
+        _ = worker;
+        return @splat(4, @as(f32, 1.0));
     }
 };

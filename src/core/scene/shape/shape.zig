@@ -191,7 +191,7 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: Ray,
         trafo: Trafo,
-        entity: usize,
+        entity: u32,
         filter: ?Filter,
         scene: *const Scene,
     ) ?Vec4f {
@@ -211,7 +211,7 @@ pub const Shape = union(enum) {
             .Null, .Canopy, .Disk, .DistantSphere, .InfiniteSphere, .Plane, .Rectangle => @splat(4, @as(f32, 1.0)),
             .Cube => Cube.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
             .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
-            .TriangleMesh => null, // |m| m.visibility(ray.ray, trafo, entity, filter, scene),
+            .TriangleMesh => |m| m.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
         };
     }
 

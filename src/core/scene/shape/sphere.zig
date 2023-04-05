@@ -106,7 +106,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 

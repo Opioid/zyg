@@ -1,5 +1,6 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
@@ -514,7 +515,7 @@ pub const Mesh = struct {
         self: Mesh,
         ray: Ray,
         trafo: Trafo,
-        entity: usize,
+        entity: u32,
         filter: ?Filter,
         scene: *const Scene,
     ) ?Vec4f {
@@ -526,6 +527,25 @@ pub const Mesh = struct {
         );
 
         return self.tree.visibility(tray, entity, filter, scene);
+    }
+
+    pub fn transmittance(
+        self: Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        worker: *Worker,
+    ) ?Vec4f {
+        const tray = Ray.init(
+            trafo.worldToObjectPoint(ray.origin),
+            trafo.worldToObjectVector(ray.direction),
+            ray.minT(),
+            ray.maxT(),
+        );
+
+        return self.tree.transmittance(tray, entity, depth, filter, worker);
     }
 
     pub fn sampleTo(
