@@ -244,7 +244,7 @@ pub const Worker = struct {
 
     pub fn transmitted(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         if (self.subsurfaceVisibility(ray, isec, filter)) |a| {
-            if (self.transmittance(ray.*, filter)) |b| {
+            if (self.scene.transmittance(ray.*, filter, self)) |b| {
                 return a * b;
             }
         }
@@ -265,64 +265,8 @@ pub const Worker = struct {
         depth: u32,
         filter: ?Filter,
     ) ?Vec4f {
-        return self.volume_integrator.propTransmittance(ray, trafo, material, entity, depth, filter, self);
-    }
-
-    fn transmittance(self: *Worker, ray: Ray, filter: ?Filter) ?Vec4f {
-        if (!self.scene.has_volumes) {
-            return @splat(4, @as(f32, 1.0));
-        }
-
-        return self.scene.transmittance(ray, filter, self);
-
-        // var stack: InterfaceStack = undefined;
-        // stack.copy(&self.interface_stack);
-
-        // // This is the typical SSS case:
-        // // A medium is on the stack but we already considered it during shadow calculation,
-        // // ignoring the IoR. Therefore remove the medium from the stack.
-        // if (!stack.straight(self.scene)) {
-        //     stack.pop();
-        // }
-
-        // const ray_max_t = ray.ray.maxT();
-        // var tray = ray;
-
-        // var isec: Intersection = undefined;
-
-        // var w = @splat(4, @as(f32, 1.0));
-
-        // while (true) {
-        //     const hit = self.scene.intersectVolume(&tray, &isec);
-
-        //     if (!stack.empty()) {
-        //         if (self.volume_integrator.transmittance(tray, &stack, filter, self)) |tr| {
-        //             w *= tr;
-        //         } else {
-        //             return null;
-        //         }
-        //     }
-
-        //     if (!hit) {
-        //         break;
-        //     }
-
-        //     if (isec.sameHemisphere(tray.ray.direction)) {
-        //         _ = stack.remove(isec);
-        //     } else {
-        //         const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
-        //         stack.push(isec, cc);
-        //     }
-
-        //     const ray_min_t = ro.offsetF(tray.ray.maxT());
-        //     if (ray_min_t > ray_max_t) {
-        //         break;
-        //     }
-
-        //     tray.ray.setMinMaxT(ray_min_t, ray_max_t);
-        // }
-
-        // return w;
+        const cc = material.super().cc;
+        return self.volume_integrator.propTransmittance(ray, trafo, material, cc, entity, depth, filter, self);
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
@@ -377,7 +321,10 @@ pub const Worker = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                 if (self.scene.visibility(ray.*, filter)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    if (self.volume_integrator.transmittance(ray.*, &self.interface_stack, filter, self)) |tr| {
+                    //if (self.volume_integrator.transmittance(ray.*, &self.interface_stack, filter, self)) |tr| {
+                    const interface = self.interface_stack.top(0);
+                    const cc = interface.cc;
+                    if (self.volume_integrator.propTransmittance(ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;

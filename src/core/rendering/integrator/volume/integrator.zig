@@ -13,6 +13,7 @@ const Stack = intr.Stack;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const Material = @import("../../../scene/material/material.zig").Material;
+const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -46,13 +47,14 @@ pub const Integrator = union(enum) {
         ray: math.Ray,
         trafo: Trafo,
         material: *const Material,
+        cc: CC,
         prop: u32,
         depth: u32,
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
         _ = self;
-        return tracking.propTransmittance(ray, trafo, material, prop, depth, filter, worker);
+        return tracking.propTransmittance(ray, trafo, material, cc, prop, depth, filter, worker);
     }
 };
 

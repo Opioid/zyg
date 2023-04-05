@@ -31,6 +31,7 @@ pub fn propTransmittance(
     ray: Ray,
     trafo: Trafo,
     material: *const Material,
+    cc: CC,
     prop: u32,
     depth: u32,
     filter: ?Filter,
@@ -46,9 +47,7 @@ pub fn propTransmittance(
         return transmittanceHetero(ray, trafo, material, prop, depth, filter, worker);
     }
 
-    const cc = material.collisionCoefficients2D(@splat(2, @as(f32, 0.0)), filter, worker.scene);
-    const mu_t = cc.a + cc.s;
-    return hlp.attenuation3(mu_t, d - ray.minT());
+    return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
 }
 
 pub fn transmittance(ray: scn.Ray, stack: *const Stack, filter: ?Filter, worker: *Worker) ?Vec4f {
