@@ -1,5 +1,7 @@
 pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
+const Trafo = @import("../../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../../scene.zig").Scene;
+const ro = @import("../../../ray_offset.zig");
 const Worker = @import("../../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Node = @import("../../../bvh/node.zig").Node;
@@ -205,13 +207,29 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn transmittance(self: Tree, ray: Ray, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
-        _ = self;
-        _ = ray;
-        _ = entity;
-        _ = depth;
-        _ = filter;
-        _ = worker;
-        return @splat(4, @as(f32, 1.0));
+    pub fn transmittance(self: Tree, ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const material = worker.scene.propMaterial(entity, 0);
+
+        const data = self.data;
+
+        const ray_max_t = ray.maxT();
+
+        var tray = Ray.init(ray.origin, ray.direction, ray.minT(), ray.maxT());
+
+        var tr = @splat(4, @as(f32, 1.0));
+
+        while (true) {
+            const hit = self.intersect(ray) orelse break;
+
+            const n = data.normal(hit.index);
+
+            if (math.dot3(n, ray.direction) <= 0.0) {
+                tr *= worker.propTransmittance(false, tray, trafo, material, entity, depth, filter) orelse return null;
+            }
+
+            tray.setMinMaxT(ro.offsetF(tray.maxT()), ray_max_t);
+        }
+
+        return tr;
     }
 };

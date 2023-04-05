@@ -28,6 +28,7 @@ const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
 pub fn propTransmittance(
+    comptime WorldSpace: bool,
     ray: Ray,
     trafo: Trafo,
     material: *const Material,
@@ -44,51 +45,17 @@ pub fn propTransmittance(
     }
 
     if (material.heterogeneousVolume()) {
-        return transmittanceHetero(ray, trafo, material, prop, depth, filter, worker);
+        return transmittanceHetero(WorldSpace, ray, trafo, material, prop, depth, filter, worker);
     }
 
     return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
 }
 
-pub fn transmittance(ray: scn.Ray, stack: *const Stack, filter: ?Filter, worker: *Worker) ?Vec4f {
-    const d = ray.ray.maxT();
-
-    if (ro.offsetF(ray.ray.minT()) >= d) {
-        return @splat(4, @as(f32, 1.0));
-    }
-
-    var w = @splat(4, @as(f32, 1.0));
-    var mu_t = @splat(4, @as(f32, 0.0));
-
-    const depth = ray.depth;
-
-    const n = stack.countUntilBorder(worker.scene);
-    for (0..n) |i| {
-        const interface = stack.top(@intCast(u32, i));
-        const material = interface.material(worker.scene);
-
-        if (material.heterogeneousVolume()) {
-            const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
-
-            if (transmittanceHetero(ray.ray, trafo, material, interface.prop, depth, filter, worker)) |tr| {
-                w *= tr;
-            } else {
-                return null;
-            }
-        } else {
-            const mu = interface.cc;
-            mu_t += mu.a + mu.s;
-        }
-    }
-
-    return w * hlp.attenuation3(mu_t, d - ray.ray.minT());
-}
-
-fn transmittanceHetero(ray: Ray, trafo: Trafo, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+fn transmittanceHetero(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 
-        var local_ray = texturespaceRay(ray, trafo, prop, worker);
+        var local_ray = texturespaceRay(WorldSpace, ray, trafo, prop, worker);
 
         const srs = material.super().similarityRelationScale(depth);
 
@@ -456,9 +423,9 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(ray: Ray, trafo: Trafo, entity: u32, worker: *const Worker) Ray {
-    const local_origin = trafo.worldToObjectPoint(ray.origin);
-    const local_dir = trafo.worldToObjectVector(ray.direction);
+pub fn texturespaceRay(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, entity: u32, worker: *const Worker) Ray {
+    const local_origin = if (WorldSpace) trafo.worldToObjectPoint(ray.origin) else ray.origin;
+    const local_dir = if (WorldSpace) trafo.worldToObjectVector(ray.direction) else ray.direction;
 
     const aabb = worker.scene.propShape(entity).aabb();
 

@@ -37,13 +37,9 @@ pub const Integrator = union(enum) {
         };
     }
 
-    pub fn transmittance(self: Integrator, ray: Ray, stack: *const Stack, filter: ?Filter, worker: *Worker) ?Vec4f {
-        _ = self;
-        return tracking.transmittance(ray, stack, filter, worker);
-    }
-
     pub fn propTransmittance(
         self: Integrator,
+        comptime WorldSpace: bool,
         ray: math.Ray,
         trafo: Trafo,
         material: *const Material,
@@ -54,7 +50,7 @@ pub const Integrator = union(enum) {
         worker: *Worker,
     ) ?Vec4f {
         _ = self;
-        return tracking.propTransmittance(ray, trafo, material, cc, prop, depth, filter, worker);
+        return tracking.propTransmittance(WorldSpace, ray, trafo, material, cc, prop, depth, filter, worker);
     }
 };
 

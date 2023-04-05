@@ -118,7 +118,7 @@ pub const Multi = struct {
 
         if (material.volumetricTree()) |tree| {
             const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
-            var local_ray = tracking.texturespaceRay(ray.ray, trafo, interface.prop, worker);
+            var local_ray = tracking.texturespaceRay(true, ray.ray, trafo, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 

@@ -258,6 +258,7 @@ pub const Worker = struct {
 
     pub fn propTransmittance(
         self: *Worker,
+        comptime WorldSpace: bool,
         ray: math.Ray,
         trafo: Trafo,
         material: *const Material,
@@ -266,7 +267,7 @@ pub const Worker = struct {
         filter: ?Filter,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return self.volume_integrator.propTransmittance(ray, trafo, material, cc, entity, depth, filter, self);
+        return self.volume_integrator.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
@@ -324,7 +325,7 @@ pub const Worker = struct {
                     //if (self.volume_integrator.transmittance(ray.*, &self.interface_stack, filter, self)) |tr| {
                     const interface = self.interface_stack.top(0);
                     const cc = interface.cc;
-                    if (self.volume_integrator.propTransmittance(ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
+                    if (self.volume_integrator.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;

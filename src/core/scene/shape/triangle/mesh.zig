@@ -545,7 +545,7 @@ pub const Mesh = struct {
             ray.maxT(),
         );
 
-        return self.tree.transmittance(tray, entity, depth, filter, worker);
+        return self.tree.transmittance(tray, trafo, entity, depth, filter, worker);
     }
 
     pub fn sampleTo(

@@ -88,8 +88,8 @@ pub const Cube = struct {
         const end = std.math.min(hit_t[1], ray.maxT());
 
         const material = worker.scene.propMaterial(entity, 0);
-        const tray = Ray.init(ray.origin, ray.direction, start, end);
-        return worker.propTransmittance(tray, trafo, material, entity, depth, filter);
+        const tray = Ray.init(local_origin, local_dir, start, end);
+        return worker.propTransmittance(false, tray, trafo, material, entity, depth, filter);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
