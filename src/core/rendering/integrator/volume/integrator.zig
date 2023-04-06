@@ -1,5 +1,4 @@
 const Result = @import("result.zig").Result;
-const tracking = @import("tracking.zig");
 
 const multi = @import("tracking_multi.zig");
 pub const Multi = multi.Multi;
@@ -35,22 +34,6 @@ pub const Integrator = union(enum) {
         return switch (self) {
             .Multi => Multi.integrate(ray, throughput, isec, filter, sampler, worker),
         };
-    }
-
-    pub fn propTransmittance(
-        self: Integrator,
-        comptime WorldSpace: bool,
-        ray: math.Ray,
-        trafo: Trafo,
-        material: *const Material,
-        cc: CC,
-        prop: u32,
-        depth: u32,
-        filter: ?Filter,
-        worker: *Worker,
-    ) ?Vec4f {
-        _ = self;
-        return tracking.propTransmittance(WorldSpace, ray, trafo, material, cc, prop, depth, filter, worker);
     }
 };
 

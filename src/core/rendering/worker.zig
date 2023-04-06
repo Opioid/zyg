@@ -22,6 +22,7 @@ const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 const vol = @import("integrator/volume/integrator.zig");
 const VolumeResult = @import("integrator/volume/result.zig").Result;
+const tracking = @import("integrator/volume/tracking.zig");
 const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
@@ -267,7 +268,7 @@ pub const Worker = struct {
         filter: ?Filter,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return self.volume_integrator.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
+        return tracking.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
@@ -325,7 +326,7 @@ pub const Worker = struct {
                     //if (self.volume_integrator.transmittance(ray.*, &self.interface_stack, filter, self)) |tr| {
                     const interface = self.interface_stack.top(0);
                     const cc = interface.cc;
-                    if (self.volume_integrator.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
+                    if (tracking.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;
