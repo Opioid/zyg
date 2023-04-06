@@ -27,31 +27,7 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn propTransmittance(
-    comptime WorldSpace: bool,
-    ray: Ray,
-    trafo: Trafo,
-    material: *const Material,
-    cc: CC,
-    prop: u32,
-    depth: u32,
-    filter: ?Filter,
-    worker: *Worker,
-) ?Vec4f {
-    const d = ray.maxT();
-
-    if (ro.offsetF(ray.minT()) >= d) {
-        return @splat(4, @as(f32, 1.0));
-    }
-
-    if (material.heterogeneousVolume()) {
-        return transmittanceHetero(WorldSpace, ray, trafo, material, prop, depth, filter, worker);
-    }
-
-    return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
-}
-
-fn transmittanceHetero(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+pub fn transmittanceHetero(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 

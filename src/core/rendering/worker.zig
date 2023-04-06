@@ -20,9 +20,8 @@ const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
-const vol = @import("integrator/volume/integrator.zig");
+const Volume = @import("integrator/volume/tracking_multi.zig").Multi;
 const VolumeResult = @import("integrator/volume/result.zig").Result;
-const tracking = @import("integrator/volume/tracking.zig");
 const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
@@ -55,7 +54,6 @@ pub const Worker = struct {
     sampler: Sampler = undefined,
 
     surface_integrator: surface.Integrator = undefined,
-    volume_integrator: vol.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
 
     aov: aov.Value = undefined,
@@ -76,7 +74,6 @@ pub const Worker = struct {
         scene: *Scene,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
-        volumes: vol.Factory,
         lighttracers: lt.Factory,
         aovs: aov.Factory,
         photon_settings: PhotonSettings,
@@ -90,7 +87,6 @@ pub const Worker = struct {
         self.sampler = samplers.create(rng);
 
         self.surface_integrator = surfaces.create(rng);
-        self.volume_integrator = volumes.create();
         self.lighttracer = lighttracers.create(rng);
 
         self.aov = aovs.create();
@@ -254,7 +250,7 @@ pub const Worker = struct {
     }
 
     pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return self.volume_integrator.integrate(ray, throughput, isec, filter, sampler, self);
+        return Volume.integrate(ray, throughput, isec, filter, sampler, self);
     }
 
     pub fn propTransmittance(
@@ -268,7 +264,7 @@ pub const Worker = struct {
         filter: ?Filter,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return tracking.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
+        return Volume.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
@@ -323,10 +319,9 @@ pub const Worker = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                 if (self.scene.visibility(ray.*, filter)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    //if (self.volume_integrator.transmittance(ray.*, &self.interface_stack, filter, self)) |tr| {
                     const interface = self.interface_stack.top(0);
                     const cc = interface.cc;
-                    if (tracking.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
+                    if (Volume.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;

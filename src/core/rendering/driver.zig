@@ -112,7 +112,6 @@ pub const Driver = struct {
                 scene,
                 view.samplers,
                 view.surfaces,
-                view.volumes,
                 view.lighttracers,
                 view.aovs,
                 view.photon_settings,

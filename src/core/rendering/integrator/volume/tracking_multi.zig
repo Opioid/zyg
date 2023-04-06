@@ -5,6 +5,9 @@ const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
+const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
+const Material = @import("../../../scene/material/material.zig").Material;
+const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
@@ -17,6 +20,30 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
+    pub fn propTransmittance(
+        comptime WorldSpace: bool,
+        ray: math.Ray,
+        trafo: Trafo,
+        material: *const Material,
+        cc: CC,
+        prop: u32,
+        depth: u32,
+        filter: ?Filter,
+        worker: *Worker,
+    ) ?Vec4f {
+        const d = ray.maxT();
+
+        if (ro.offsetF(ray.minT()) >= d) {
+            return @splat(4, @as(f32, 1.0));
+        }
+
+        if (material.heterogeneousVolume()) {
+            return tracking.transmittanceHetero(WorldSpace, ray, trafo, material, prop, depth, filter, worker);
+        }
+
+        return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
+    }
+
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
         const interface = worker.interface_stack.top(0);
         const material = interface.material(worker.scene);

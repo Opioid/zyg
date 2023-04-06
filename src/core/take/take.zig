@@ -1,6 +1,5 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
-const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
 const LightTree = @import("../scene/light/light_tree.zig");
@@ -43,8 +42,6 @@ pub const View = struct {
             .photons_not_only_through_specular = false,
         },
     } },
-
-    volumes: volume.Factory = .{ .Multi = .{} },
 
     lighttracers: lt.Factory = .{ .settings = .{
         .num_samples = 0,
@@ -103,8 +100,6 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 self.loadSurfaceIntegrator(entry.value_ptr.*, lighttracer);
-            } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
-                loadVolumeIntegrator(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
                 self.photon_settings = loadPhotonSettings(entry.value_ptr.*, lighttracer);
             }
