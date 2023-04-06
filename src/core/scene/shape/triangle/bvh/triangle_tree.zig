@@ -226,7 +226,12 @@ pub const Tree = struct {
                 tr *= worker.propTransmittance(false, tray, trafo, material, entity, depth, filter) orelse return null;
             }
 
-            tray.setMinMaxT(ro.offsetF(hit.t), ray_max_t);
+            const ray_min_t = ro.offsetF(hit.t);
+            if (ray_min_t > ray_max_t) {
+                break;
+            }
+
+            tray.setMinMaxT(ray_min_t, ray_max_t);
         }
 
         return tr;
