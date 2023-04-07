@@ -1,6 +1,7 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
 const Worker = @import("../../rendering/worker.zig").Worker;
@@ -172,7 +173,6 @@ pub const Prop = struct {
 
     pub fn transmittance(self: Prop, entity: u32, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         const properties = self.properties;
-
         const scene = worker.scene;
 
         if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
@@ -184,17 +184,25 @@ pub const Prop = struct {
         return scene.shape(self.shape).transmittance(ray, trafo, entity, filter, worker);
     }
 
-    pub fn scatter(self: Prop, entity: u32, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *shp.Intersection) shp.Result {
+    pub fn scatter(
+        self: Prop, 
+        entity: u32, 
+        ray: *Ray,
+        throughput: Vec4f,
+        filter: ?Filter, 
+        sampler: *Sampler, 
+        worker: *Worker, 
+        isec: *shp.Intersection,
+    ) shp.Result {
         const properties = self.properties;
-
         const scene = worker.scene;
 
         if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
-            return @splat(4, @as(f32, 1.0));
+            return shp.Result.initPass(@splat(4, @as(f32, 1.0)));
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).scatter(ray, trafo, entity, filter, worker, isec);
+        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, filter, sampler, worker, isec);
     }    
 };

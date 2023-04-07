@@ -44,6 +44,83 @@ pub const Multi = struct {
         return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
     }
 
+    pub fn propScatter(
+        comptime WorldSpace: bool,
+        ray: math.Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        material: *const Material,
+        cc: CC,
+        prop: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+        isec: *shp.Intersection,
+    ) Result {
+        const d = ray.maxT();
+
+        if (!material.scatteringVolume()) {
+            // Basically the "glass" case
+            return Result.initPass(hlp.attenuation3(cc.a, d - ray.ray.minT()));
+        }
+
+        if (material.volumetricTree()) |tree| {
+            var local_ray = tracking.texturespaceRay(WorldSpace, ray, trafo, prop, worker);
+
+            const srs = material.super().similarityRelationScale(depth);
+
+            var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+
+            if (material.emissive()) {
+                while (local_ray.minT() < d) {
+                    if (tree.intersect(&local_ray)) |tcm| {
+                        var cm = tcm;
+                        cm.minorant_mu_s *= srs;
+                        cm.majorant_mu_s *= srs;
+
+                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
+                        if (.Scatter == result.event) {
+                            break;
+                        }
+
+                        if (.Absorb == result.event) {
+                            // This is in local space on purpose! Alas, the purpose was not commented...
+                            isec.geo.p = local_ray.point(result.t);
+                            return result;
+                        }
+                    }
+
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
+                }
+            } else {
+                while (local_ray.minT() < d) {
+                    if (tree.intersect(&local_ray)) |tcm| {
+                        var cm = tcm;
+                        cm.minorant_mu_s *= srs;
+                        cm.majorant_mu_s *= srs;
+
+                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
+                        if (.Scatter == result.event) {
+                            break;
+                        }
+                    }
+
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
+                }
+            }
+
+            return result;
+        }
+
+        if (material.emissive()) {
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
+            return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
+        }
+
+        return tracking.tracking(ray, cc, throughput, sampler);
+    }
+
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
         const interface = worker.interface_stack.top(0);
         const material = interface.material(worker.scene);

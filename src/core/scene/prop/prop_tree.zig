@@ -8,6 +8,7 @@ const Result = shp.Result;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
@@ -348,7 +349,15 @@ pub const Tree = struct {
         return tr;
     }
 
-    pub fn scatter(self: Tree, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *Intersection) Result {
+    pub fn scatter(
+        self: Tree, 
+        ray: *Ray, 
+        throughput: Vec4f, 
+        filter: ?Filter, 
+        worker: *Worker, 
+        sampler: *Sampler, 
+        isec: *Intersection,
+    ) Result {
         var stack = NodeStack{};
 
         var result = Result.initPass(@splat(4, @as(f32, 1.0)));
@@ -364,7 +373,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, ray, filter, worker, &isec.geo);
+                    const lr = props[p].scatter(p, ray, throughput, filter, sampler, worker, &isec.geo);
 
                     if (.Abort == lr.event) {
                         return lr;

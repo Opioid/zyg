@@ -216,12 +216,22 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn scatter(self: Shape, ray: *Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker, isec: *Intersection) Result {
+    pub fn scatter(
+        self: Shape, 
+        ray: *Ray, 
+        trafo: Trafo, 
+        entity: u32, 
+        filter: ?Filter, 
+        sampler: *Sampler, 
+        worker: *Worker, 
+        isec: *Intersection,
+    ) Result {
         _ = self;
         _ = ray;
         _ = trafo;
         _ = entity;
         _ = filter;
+        _ = sampler;
         _ = isec;
         _ = worker;
 
