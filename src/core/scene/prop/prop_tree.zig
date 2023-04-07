@@ -2,12 +2,13 @@ const Prop = @import("prop.zig").Prop;
 const Intersection = @import("intersection.zig").Intersection;
 const Ray = @import("../ray.zig").Ray;
 const Scene = @import("../scene.zig").Scene;
-const Interpolation = @import("../shape/intersection.zig").Interpolation;
+const shp = @import("../shape/intersection.zig");
+const Interpolation = shp.Interpolation;
+const Result = shp.Result;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Worker = @import("../../rendering/worker.zig").Worker;
-const ScatterResult = @import("../../rendering/integrator/volume/result.zig").Result;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -347,10 +348,10 @@ pub const Tree = struct {
         return tr;
     }
 
-    pub fn scatter(self: Tree, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *Intersection) ScatterResult {
+    pub fn scatter(self: Tree, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *Intersection) Result {
         var stack = NodeStack{};
 
-        var result = ScatterResult.initPass(@splat(4, @as(f32, 1.0)));
+        var result = Result.initPass(@splat(4, @as(f32, 1.0)));
         var prop = Prop.Null;
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 

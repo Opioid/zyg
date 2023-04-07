@@ -4,7 +4,6 @@ const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
 const Worker = @import("../../rendering/worker.zig").Worker;
-const ScatterResult = @import("../../rendering/integrator/volume/result.zig").Result;
 
 const base = @import("base");
 const Vec4f = base.math.Vec4f;
@@ -185,7 +184,7 @@ pub const Prop = struct {
         return scene.shape(self.shape).transmittance(ray, trafo, entity, filter, worker);
     }
 
-    pub fn scatter(self: Prop, entity: u32, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *shp.Intersection) ScatterResult {
+    pub fn scatter(self: Prop, entity: u32, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *shp.Intersection) shp.Result {
         const properties = self.properties;
 
         const scene = worker.scene;

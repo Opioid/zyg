@@ -22,3 +22,20 @@ pub const Interpolation = enum {
     NoTangentSpace,
     Normal,
 };
+
+pub const Result = struct {
+    pub const Event = enum { Absorb, Scatter, Pass, Abort };
+
+    li: Vec4f,
+    tr: Vec4f,
+    t: f32 = undefined,
+    event: Event,
+
+    pub fn initPass(w: Vec4f) Result {
+        return .{
+            .li = @splat(4, @as(f32, 0.0)),
+            .tr = w,
+            .event = .Pass,
+        };
+    }
+};

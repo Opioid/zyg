@@ -15,6 +15,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Result = int.Result;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -22,7 +23,6 @@ const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
 const Worker = @import("../../rendering/worker.zig").Worker;
-const ScatterResult = @import("../../rendering/integrator/volume/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -216,7 +216,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn scatter(self: Shape, ray: *Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker, isec: *Intersection) ScatterResult {
+    pub fn scatter(self: Shape, ray: *Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker, isec: *Intersection) Result {
         _ = self;
         _ = ray;
         _ = trafo;
@@ -225,7 +225,7 @@ pub const Shape = union(enum) {
         _ = isec;
         _ = worker;
 
-        return ScatterResult.initPass(@splat(4, @as(f32, 1.0)));
+        return Result.initPass(@splat(4, @as(f32, 1.0)));
     }
 
     pub fn sampleTo(
