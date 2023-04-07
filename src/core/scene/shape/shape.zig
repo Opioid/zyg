@@ -22,6 +22,7 @@ const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
 const Worker = @import("../../rendering/worker.zig").Worker;
+const ScatterResult = @import("../../rendering/integrator/volume/result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -213,6 +214,18 @@ pub const Shape = union(enum) {
             .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
             .TriangleMesh => |m| m.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
         };
+    }
+
+    pub fn scatter(self: Shape, ray: *Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker, isec: *Intersection) ScatterResult {
+        _ = self;
+        _ = ray;
+        _ = trafo;
+        _ = entity;
+        _ = filter;
+        _ = isec;
+        _ = worker;
+
+        return ScatterResult.initPass(@splat(4, @as(f32, 1.0)));
     }
 
     pub fn sampleTo(

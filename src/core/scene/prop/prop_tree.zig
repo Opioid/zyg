@@ -7,6 +7,7 @@ const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Worker = @import("../../rendering/worker.zig").Worker;
+const ScatterResult = @import("../../rendering/integrator/volume/result.zig").Result;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -345,4 +346,64 @@ pub const Tree = struct {
 
         return tr;
     }
+
+    pub fn scatter(self: Tree, ray: *Ray, filter: ?Filter, worker: *Worker, isec: *Intersection) ScatterResult {
+        var stack = NodeStack{};
+
+        var result = ScatterResult.initPass(@splat(4, @as(f32, 1.0)));
+        var prop = Prop.Null;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
+
+        const nodes = self.nodes;
+        const props = self.props;
+        const finite_props = self.indices;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            if (0 != node.numIndices()) {
+                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
+                    const lr = props[p].scatter(p, ray, filter, worker, &isec.geo);
+
+                    if (.Abort == lr.event) {
+                        return lr;
+                    }
+
+                    if (.Absorb == lr.event or .Scatter == lr.event) {
+                        result = lr;
+                        prop = p;
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray.ray);
+            var distb = nodes[b].intersect(ray.ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        if (.Pass != result.event) {
+            isec.prop = prop;
+        }
+
+        return result;
+    }    
 };
