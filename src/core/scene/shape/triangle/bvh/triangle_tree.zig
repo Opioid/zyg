@@ -208,6 +208,7 @@ pub const Tree = struct {
     }
 
     pub fn transmittance(self: Tree, ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const material = worker.scene.propMaterial(entity, 0);
         const data = self.data;
         const ray_max_t = ray.maxT();
 
@@ -221,8 +222,6 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(hit.t);
                 
-                const material = worker.scene.propMaterial(entity, data.part(hit.index));
-
                 tr *= worker.propTransmittance(false, tray, trafo, material, entity, depth, filter) orelse return null;
             }
 
