@@ -350,12 +350,12 @@ pub const Tree = struct {
     }
 
     pub fn scatter(
-        self: Tree, 
-        ray: *Ray, 
-        throughput: Vec4f, 
-        filter: ?Filter, 
-        worker: *Worker, 
-        sampler: *Sampler, 
+        self: Tree,
+        ray: *Ray,
+        throughput: Vec4f,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
         isec: *Intersection,
     ) Result {
         var stack = NodeStack{};
@@ -373,13 +373,14 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, ray, throughput, filter, sampler, worker, &isec.geo);
+                    const lr = props[p].scatter(p, ray, throughput, filter, sampler, worker);
 
                     if (.Abort == lr.event) {
                         return lr;
                     }
 
                     if (.Absorb == lr.event or .Scatter == lr.event) {
+                        ray.ray.setMaxT(lr.t);
                         result = lr;
                         prop = p;
                     }
@@ -410,10 +411,13 @@ pub const Tree = struct {
             }
         }
 
-        if (.Pass != result.event) {
+        if (.Scatter == result.event) {
             isec.prop = prop;
+            isec.geo.p = ray.ray.point(result.t);
+            isec.geo.part = 0;
+            isec.subsurface = true;
         }
 
         return result;
-    }    
+    }
 };

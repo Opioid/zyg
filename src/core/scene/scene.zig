@@ -5,13 +5,16 @@ const Light = @import("light/light.zig").Light;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Intersection = @import("prop/intersection.zig").Intersection;
-const Interpolation = @import("shape/intersection.zig").Interpolation;
+const int = @import("shape/intersection.zig");
+const Interpolation = int.Interpolation;
+const Result = int.Result;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
 const Image = @import("../image/image.zig").Image;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
@@ -293,6 +296,22 @@ pub const Scene = struct {
         return self.volume_bvh.transmittance(ray, filter, worker);
     }
 
+    pub fn scatter(
+        self: *const Scene,
+        ray: *Ray,
+        throughput: Vec4f,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+        isec: *Intersection,
+    ) Result {
+        if (!self.has_volumes) {
+            return Result.initPass(@splat(4, @as(f32, 1.0)));
+        }
+
+        return self.volume_bvh.scatter(ray, throughput, filter, sampler, worker, isec);
+    }
+
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
         for (self.materials.items) |*m| {
             try m.commit(alloc, self, threads);
@@ -328,16 +347,16 @@ pub const Scene = struct {
             try self.light_ids.append(alloc, Null);
         }
 
-        if (shape_inst.finite()) {
-            try self.finite_props.append(alloc, p);
-        } else {
-            try self.infinite_props.append(alloc, p);
-        }
-
         // Shape has no surface
         if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
             if (shape_inst.finite()) {
                 try self.volumes.append(alloc, p);
+            }
+        } else {
+            if (shape_inst.finite()) {
+                try self.finite_props.append(alloc, p);
+            } else {
+                try self.infinite_props.append(alloc, p);
             }
         }
 

@@ -253,6 +253,49 @@ pub const Worker = struct {
         return Volume.integrate(ray, throughput, isec, filter, sampler, self);
     }
 
+    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
+        const hit = self.intersectAndResolveMask(ray, filter, isec);
+
+        if (self.interface_stack.empty()) {
+            var result = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
+
+            if (.Pass == result.event and !hit) {
+                result.event = .Abort;
+            }
+
+            return result;
+        } else if (hit) {
+            const interface = self.interface_stack.top(0);
+            const material = interface.material(self.scene);
+
+            const result = Volume.propScatter(
+                true,
+                ray.ray,
+                isec.geo.trafo,
+                throughput,
+                material,
+                interface.cc,
+                isec.prop,
+                ray.depth,
+                filter,
+                sampler,
+                self,
+            );
+
+            if (.Scatter == result.event) {
+                isec.subsurface = true;
+            }
+
+            return result;
+        } else {
+            return .{
+                .li = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
+                .event = .Abort,
+            };
+        }
+    }
+
     pub fn propTransmittance(
         self: *Worker,
         comptime WorldSpace: bool,
@@ -265,6 +308,22 @@ pub const Worker = struct {
     ) ?Vec4f {
         const cc = material.super().cc;
         return Volume.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
+    }
+
+    pub fn propScatter(
+        self: *Worker,
+        comptime WorldSpace: bool,
+        ray: math.Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        material: *const Material,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+    ) VolumeResult {
+        const cc = material.super().cc;
+        return Volume.propScatter(WorldSpace, ray, trafo, throughput, material, cc, entity, depth, filter, sampler, self);
     }
 
     pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
@@ -322,7 +381,7 @@ pub const Worker = struct {
                     const interface = self.interface_stack.top(0);
                     const cc = interface.cc;
                     if (Volume.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
-                        ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
+                        ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;
                         const vbh = material.super().border(wi, n);

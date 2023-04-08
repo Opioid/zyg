@@ -197,45 +197,39 @@ pub const Shape = union(enum) {
         scene: *const Scene,
     ) ?Vec4f {
         return switch (self) {
-            .Null, .Canopy, .DistantSphere, .InfiniteSphere => @splat(4, @as(f32, 1.0)),
             .Cube => Cube.visibility(ray.ray, trafo, entity, filter, scene),
             .Disk => Disk.visibility(ray.ray, trafo, entity, filter, scene),
             .Plane => Plane.visibility(ray.ray, trafo, entity, filter, scene),
             .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, scene),
             .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, scene),
             .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, scene),
+            else => @splat(4, @as(f32, 1.0)),
         };
     }
 
     pub fn transmittance(self: Shape, ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
         return switch (self) {
-            .Null, .Canopy, .Disk, .DistantSphere, .InfiniteSphere, .Plane, .Rectangle => @splat(4, @as(f32, 1.0)),
             .Cube => Cube.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
             .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
             .TriangleMesh => |m| m.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
+            else => @splat(4, @as(f32, 1.0)),
         };
     }
 
     pub fn scatter(
-        self: Shape, 
-        ray: *Ray, 
-        trafo: Trafo, 
-        entity: u32, 
-        filter: ?Filter, 
-        sampler: *Sampler, 
-        worker: *Worker, 
-        isec: *Intersection,
+        self: Shape,
+        ray: *Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
     ) Result {
-        _ = self;
-        _ = ray;
-        _ = trafo;
-        _ = entity;
-        _ = filter;
-        _ = sampler;
-        _ = isec;
-        _ = worker;
-
-        return Result.initPass(@splat(4, @as(f32, 1.0)));
+        return switch (self) {
+            .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
+            else => Result.initPass(@splat(4, @as(f32, 1.0))),
+        };
     }
 
     pub fn sampleTo(

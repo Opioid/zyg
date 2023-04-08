@@ -56,13 +56,12 @@ pub const Multi = struct {
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
-        isec: *shp.Intersection,
     ) Result {
         const d = ray.maxT();
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            return Result.initPass(hlp.attenuation3(cc.a, d - ray.ray.minT()));
+            return Result.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
         }
 
         if (material.volumetricTree()) |tree| {
@@ -86,7 +85,7 @@ pub const Multi = struct {
 
                         if (.Absorb == result.event) {
                             // This is in local space on purpose! Alas, the purpose was not commented...
-                            isec.geo.p = local_ray.point(result.t);
+                            //   isec.geo.p = local_ray.point(result.t);
                             return result;
                         }
                     }

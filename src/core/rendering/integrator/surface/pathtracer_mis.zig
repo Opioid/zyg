@@ -209,43 +209,77 @@ pub const PathtracerMIS = struct {
                 geo_n = mat_sample.super().geometricNormal();
             }
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, throughput, isec, filter, sampler);
+            const vr = worker.nextEvent(ray, throughput, isec, filter, sampler);
 
-                if (.Absorb == vr.event) {
-                    if (0 == ray.depth) {
-                        // This is the direct eye-light connection for the volume case.
-                        result += vr.li;
-                    } else {
-                        const w = self.connectVolumeLight(
-                            ray.*,
-                            geo_n,
-                            isec.*,
-                            effective_bxdf_pdf,
-                            state,
-                            worker.scene,
-                        );
+            if (.Absorb == vr.event) {
+                if (0 == ray.depth) {
+                    // This is the direct eye-light connection for the volume case.
+                    result += vr.li;
+                } else {
+                    const w = self.connectVolumeLight(
+                        ray.*,
+                        geo_n,
+                        isec.*,
+                        effective_bxdf_pdf,
+                        state,
+                        worker.scene,
+                    );
 
-                        result += @splat(4, w) * (throughput * vr.li);
-                    }
-
-                    break;
+                    result += @splat(4, w) * (throughput * vr.li);
                 }
 
-                // This is only needed for Tracking_single at the moment...
-                result += throughput * vr.li;
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-
-                if (.Scatter == vr.event and ray.depth >= max_bounces) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 break;
             }
+
+            // This is only needed for Tracking_single at the moment...
+            result += throughput * vr.li;
+            throughput *= vr.tr;
+
+            if (.Abort == vr.event) {
+                break;
+            }
+
+            if (.Scatter == vr.event and ray.depth >= max_bounces) {
+                break;
+            }
+
+            // if (!worker.interface_stack.empty()) {
+            //     const vr = worker.volume(ray, throughput, isec, filter, sampler);
+
+            //     if (.Absorb == vr.event) {
+            //         if (0 == ray.depth) {
+            //             // This is the direct eye-light connection for the volume case.
+            //             result += vr.li;
+            //         } else {
+            //             const w = self.connectVolumeLight(
+            //                 ray.*,
+            //                 geo_n,
+            //                 isec.*,
+            //                 effective_bxdf_pdf,
+            //                 state,
+            //                 worker.scene,
+            //             );
+
+            //             result += @splat(4, w) * (throughput * vr.li);
+            //         }
+
+            //         break;
+            //     }
+
+            //     // This is only needed for Tracking_single at the moment...
+            //     result += throughput * vr.li;
+            //     throughput *= vr.tr;
+
+            //     if (.Abort == vr.event) {
+            //         break;
+            //     }
+
+            //     if (.Scatter == vr.event and ray.depth >= max_bounces) {
+            //         break;
+            //     }
+            // } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            //     break;
+            // }
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(

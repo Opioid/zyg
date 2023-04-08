@@ -2,6 +2,7 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Result = int.Result;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -90,6 +91,31 @@ pub const Cube = struct {
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
         return worker.propTransmittance(false, tray, trafo, material, entity, depth, filter);
+    }
+
+    pub fn scatter(
+        ray: Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Result {
+        const local_origin = trafo.worldToObjectPoint(ray.origin);
+        const local_dir = trafo.worldToObjectVector(ray.direction);
+        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+
+        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const hit_t = aabb.intersectP2(local_ray) orelse return Result.initPass(@splat(4, @as(f32, 1.0)));
+
+        const start = std.math.max(hit_t[0], ray.minT());
+        const end = std.math.min(hit_t[1], ray.maxT());
+
+        const material = worker.scene.propMaterial(entity, 0);
+        const tray = Ray.init(local_origin, local_dir, start, end);
+        return worker.propScatter(false, tray, trafo, throughput, material, entity, depth, filter, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
