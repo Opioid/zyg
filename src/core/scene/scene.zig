@@ -372,16 +372,16 @@ pub const Scene = struct {
         const shape_inst = self.propShape(p);
         const num_parts = shape_inst.numParts();
 
-        if (shape_inst.finite()) {
-            try self.finite_props.append(alloc, p);
-        } else {
-            try self.infinite_props.append(alloc, p);
-        }
-
         // Shape has no surface
         if (1 == num_parts and 1.0 == self.propMaterial(p, 0).ior()) {
             if (shape_inst.finite()) {
                 try self.volumes.append(alloc, p);
+            }
+        } else {
+            if (shape_inst.finite()) {
+                try self.finite_props.append(alloc, p);
+            } else {
+                try self.infinite_props.append(alloc, p);
             }
         }
 

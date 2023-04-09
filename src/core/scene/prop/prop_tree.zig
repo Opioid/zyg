@@ -373,7 +373,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, ray, throughput, filter, sampler, worker);
+                    const lr = props[p].scatter(p, ray.*, throughput, filter, sampler, worker);
 
                     if (.Abort == lr.event) {
                         return lr;
@@ -383,6 +383,8 @@ pub const Tree = struct {
                         ray.ray.setMaxT(lr.t);
                         result = lr;
                         prop = p;
+                    } else if (.Pass == result.event) {
+                        result.tr *= lr.tr;
                     }
                 }
 

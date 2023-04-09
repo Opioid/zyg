@@ -231,15 +231,9 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            // This is only needed for Tracking_single at the moment...
-            result += throughput * vr.li;
             throughput *= vr.tr;
 
-            if (.Abort == vr.event) {
-                break;
-            }
-
-            if (.Scatter == vr.event and ray.depth >= max_bounces) {
+            if (.Abort == vr.event or (.Scatter == vr.event and ray.depth >= max_bounces)) {
                 break;
             }
 

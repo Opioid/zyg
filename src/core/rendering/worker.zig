@@ -231,9 +231,15 @@ pub const Worker = struct {
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
+        // var isec = Intersection{};
+        // if (self.intersectAndResolveMask(ray, null, &isec)) {
+        //     return self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
+        // }
+
         var isec = Intersection{};
-        if (self.intersectAndResolveMask(ray, null, &isec)) {
-            return self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
+        const vr = self.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler);
+        if (.Abort != vr.event) {
+            return vr.tr * self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
         }
 
         return @splat(4, @as(f32, 0.0));
@@ -360,7 +366,8 @@ pub const Worker = struct {
     fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
-        if (isec.subsurface and material.ior() > 1.0) {
+        //  if (isec.subsurface and material.ior() > 1.0) {
+        if (isec.subsurface and !self.interface_stack.empty()) {
             const ray_max_t = ray.ray.maxT();
             var nisec: Intersection = .{};
 

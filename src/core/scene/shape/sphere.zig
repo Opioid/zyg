@@ -1,5 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Result = int.Result;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -168,6 +170,38 @@ pub const Sphere = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn scatter(
+        ray: Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Result {
+        const v = trafo.position - ray.origin;
+        const b = math.dot3(ray.direction, v);
+
+        const remedy_term = v - @splat(4, b) * ray.direction;
+        const radius = trafo.scaleX();
+        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+            const t0 = b - dist;
+            const t1 = b + dist;
+            const start = std.math.max(t0, ray.minT());
+            const end = std.math.min(t1, ray.maxT());
+
+            const material = worker.scene.propMaterial(entity, 0);
+            const tray = Ray.init(ray.origin, ray.direction, start, end);
+            return worker.propScatter(true, tray, trafo, throughput, material, entity, depth, filter, sampler);
+        }
+
+        return Result.initPass(@splat(4, @as(f32, 1.0)));
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {

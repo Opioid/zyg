@@ -218,7 +218,7 @@ pub const Shape = union(enum) {
 
     pub fn scatter(
         self: Shape,
-        ray: *Ray,
+        ray: Ray,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
@@ -228,6 +228,7 @@ pub const Shape = union(enum) {
     ) Result {
         return switch (self) {
             .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
+            .Sphere => Sphere.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
             else => Result.initPass(@splat(4, @as(f32, 1.0))),
         };
     }

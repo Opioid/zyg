@@ -187,7 +187,7 @@ pub const Prop = struct {
     pub fn scatter(
         self: Prop,
         entity: u32,
-        ray: *Ray,
+        ray: Ray,
         throughput: Vec4f,
         filter: ?Filter,
         sampler: *Sampler,
@@ -196,7 +196,7 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
             return shp.Result.initPass(@splat(4, @as(f32, 1.0)));
         }
 
