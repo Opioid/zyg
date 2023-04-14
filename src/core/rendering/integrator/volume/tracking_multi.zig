@@ -209,6 +209,20 @@ pub const Multi = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) Result {
+        // return propScatter(
+        //     true,
+        //     ray.ray,
+        //     isec.geo.trafo,
+        //     throughput,
+        //     interface.material(worker.scene),
+        //     interface.cc,
+        //     interface.prop,
+        //     ray.depth,
+        //     filter,
+        //     sampler,
+        //     worker,
+        // );
+
         const material = interface.material(worker.scene);
 
         const d = ray.ray.maxT();
