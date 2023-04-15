@@ -27,11 +27,11 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittanceHetero(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 
-        var local_ray = texturespaceRay(WorldSpace, ray, trafo, prop, worker);
+        var local_ray = rayObjectSpaceToTextureSpace(ray, prop, worker);
 
         const srs = material.super().similarityRelationScale(depth);
 
@@ -399,15 +399,12 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(comptime WorldSpace: bool, ray: Ray, trafo: Trafo, entity: u32, worker: *const Worker) Ray {
-    const local_origin = if (WorldSpace) trafo.worldToObjectPoint(ray.origin) else ray.origin;
-    const local_dir = if (WorldSpace) trafo.worldToObjectVector(ray.direction) else ray.direction;
-
+pub fn rayObjectSpaceToTextureSpace(ray: Ray, entity: u32, worker: *const Worker) Ray {
     const aabb = worker.scene.propShape(entity).aabb();
 
     const iextent = @splat(4, @as(f32, 1.0)) / aabb.extent();
-    const origin = (local_origin - aabb.bounds[0]) * iextent;
-    const dir = local_dir * iextent;
+    const origin = (ray.origin - aabb.bounds[0]) * iextent;
+    const dir = ray.direction * iextent;
 
     return Ray.init(origin, dir, ray.minT(), ray.maxT());
 }

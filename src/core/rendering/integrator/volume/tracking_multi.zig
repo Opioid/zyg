@@ -38,7 +38,14 @@ pub const Multi = struct {
         }
 
         if (material.heterogeneousVolume()) {
-            return tracking.transmittanceHetero(WorldSpace, ray, trafo, material, prop, depth, filter, worker);
+            const local_ray = if (WorldSpace) math.Ray.init(
+                trafo.worldToObjectPoint(ray.origin),
+                trafo.worldToObjectVector(ray.direction),
+                ray.minT(),
+                ray.maxT(),
+            ) else ray;
+
+            return tracking.transmittanceHetero(local_ray, material, prop, depth, filter, worker);
         }
 
         return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
@@ -65,7 +72,14 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(WorldSpace, ray, trafo, prop, worker);
+            const os_ray = if (WorldSpace) math.Ray.init(
+                trafo.worldToObjectPoint(ray.origin),
+                trafo.worldToObjectVector(ray.direction),
+                ray.minT(),
+                ray.maxT(),
+            ) else ray;
+
+            var local_ray = tracking.rayObjectSpaceToTextureSpace(os_ray, prop, worker);
 
             const srs = material.super().similarityRelationScale(depth);
 
@@ -121,7 +135,7 @@ pub const Multi = struct {
     }
 
     pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
-        const interface = worker.interface_stack.top(0);
+        const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
         const dense_sss = material.denseSSSOptimization();
@@ -169,32 +183,14 @@ pub const Multi = struct {
             }
         }
 
-        var result = Result.initPass(@splat(4, @as(f32, 1.0)));
-
-        var scatter_interface: Interface = undefined;
-
-        const n = worker.interface_stack.countUntilBorder(worker.scene);
-        for (0..n) |i| {
-            const local_interface = worker.interface_stack.top(@intCast(u32, i));
-            const local_result = integrateSingle(ray.*, throughput, local_interface, isec, filter, sampler, worker);
-
-            if (.Absorb == local_result.event or .Scatter == local_result.event) {
-                ray.ray.setMaxT(local_result.t);
-                result = local_result;
-                scatter_interface = local_interface;
-            } else if (.Pass == result.event) {
-                result.tr *= local_result.tr;
-            }
-        }
+        var result = integrateSingle(ray.*, throughput, interface, isec, filter, sampler, worker);
 
         if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
             result.event = .Abort;
         }
 
         if (.Scatter == result.event) {
-            setScattering(isec, scatter_interface, ray.ray.point(result.t));
-        } else if (.Pass == result.event and dense_sss) {
-            worker.correctVolumeInterfaceStack(isec.volume_entry, isec.geo.p, filter, ray.time);
+            setScattering(isec, interface, ray.ray.point(result.t));
         }
 
         return result;
@@ -235,7 +231,15 @@ pub const Multi = struct {
 
         if (material.volumetricTree()) |tree| {
             const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
-            var local_ray = tracking.texturespaceRay(true, ray.ray, trafo, interface.prop, worker);
+
+            const tray = math.Ray.init(
+                trafo.worldToObjectPoint(ray.ray.origin),
+                trafo.worldToObjectVector(ray.ray.direction),
+                ray.ray.minT(),
+                ray.ray.maxT(),
+            );
+
+            var local_ray = tracking.rayObjectSpaceToTextureSpace(tray, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);
 

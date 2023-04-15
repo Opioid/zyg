@@ -44,8 +44,8 @@ pub const Stack = struct {
         self.index = 0;
     }
 
-    pub fn top(self: *const Stack, delta: u32) Interface {
-        return self.stack[self.index - 1 - delta];
+    pub fn top(self: *const Stack) Interface {
+        return self.stack[self.index - 1];
     }
 
     pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
@@ -87,18 +87,6 @@ pub const Stack = struct {
         }
 
         return true;
-    }
-
-    pub fn countUntilBorder(self: *const Stack, scene: *const Scene) u32 {
-        var index = self.index;
-        while (index > 0) : (index -= 1) {
-            const i = index - 1;
-            if (self.stack[i].material(scene).ior() > 1.0) {
-                return self.index - i;
-            }
-        }
-
-        return self.index - index;
     }
 
     pub fn push(self: *Stack, isec: Intersection, cc: CC) void {

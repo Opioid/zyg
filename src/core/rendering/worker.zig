@@ -348,37 +348,6 @@ pub const Worker = struct {
         return Volume.propScatter(WorldSpace, ray, trafo, throughput, material, cc, entity, depth, filter, sampler, self);
     }
 
-    pub fn correctVolumeInterfaceStack(self: *Worker, a: Vec4f, b: Vec4f, filter: ?Filter, time: u64) void {
-        var isec: Intersection = undefined;
-
-        const axis = b - a;
-        const ray_max_t = math.length3(axis);
-
-        var ray = Ray.init(a, axis / @splat(4, ray_max_t), 0.0, ray_max_t, 0, 0.0, time);
-
-        while (true) {
-            const hit = self.scene.intersectVolume(&ray, &isec);
-
-            if (!hit) {
-                break;
-            }
-
-            if (isec.sameHemisphere(ray.ray.direction)) {
-                _ = self.interface_stack.remove(isec);
-            } else {
-                const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
-                self.interface_stack.push(isec, cc);
-            }
-
-            const ray_min_t = ro.offsetF(ray.ray.maxT());
-            if (ray_min_t > ray_max_t) {
-                break;
-            }
-
-            ray.ray.setMinMaxT(ray_min_t, ray_max_t);
-        }
-    }
-
     fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
@@ -401,7 +370,7 @@ pub const Worker = struct {
                 ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
                 if (self.scene.visibility(ray.*, filter)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const interface = self.interface_stack.top(0);
+                    const interface = self.interface_stack.top();
                     const cc = interface.cc;
                     if (Volume.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
