@@ -258,51 +258,12 @@ pub const Worker = struct {
     }
 
     pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        return Volume.integrate(ray, throughput, isec, filter, sampler, self);
+        const vr = Volume.integrate(ray, throughput, isec, filter, sampler, self);
+        isec.result = vr;
+        return vr;
     }
 
     pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        // const hit = self.intersectAndResolveMask(ray, filter, isec);
-
-        // if (self.interface_stack.empty()) {
-        //     var result = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
-
-        //     if (.Pass == result.event and !hit) {
-        //         result.event = .Abort;
-        //     }
-
-        //     return result;
-        // } else if (hit) {
-        //     const interface = self.interface_stack.top(0);
-        //     const material = interface.material(self.scene);
-
-        //     const result = Volume.propScatter(
-        //         true,
-        //         ray.ray,
-        //         isec.geo.trafo,
-        //         throughput,
-        //         material,
-        //         interface.cc,
-        //         isec.prop,
-        //         ray.depth,
-        //         filter,
-        //         sampler,
-        //         self,
-        //     );
-
-        //     if (.Scatter == result.event) {
-        //         isec.subsurface = true;
-        //     }
-
-        //     return result;
-        // } else {
-        //     return .{
-        //         .li = @splat(4, @as(f32, 0.0)),
-        //         .tr = @splat(4, @as(f32, 1.0)),
-        //         .event = .Abort,
-        //     };
-        // }
-
         if (!self.interface_stack.empty()) {
             return self.volume(ray, throughput, isec, filter, sampler);
         }

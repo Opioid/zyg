@@ -203,7 +203,7 @@ pub const Material = union(enum) {
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, worker),
-            .Volumetric => |*v| v.sample(wo, rs),
+            .Volumetric => |*v| .{ .Volumetric = v.sample(wo, rs) },
         };
     }
 

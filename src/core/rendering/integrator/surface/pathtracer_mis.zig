@@ -214,6 +214,8 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
+            throughput *= vr.tr;
+
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(
                 ray.*,
