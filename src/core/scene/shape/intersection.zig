@@ -28,6 +28,7 @@ pub const Result = struct {
 
     li: Vec4f,
     tr: Vec4f,
+    uvw: Vec4f = undefined,
     t: f32 = undefined,
     event: Event,
 

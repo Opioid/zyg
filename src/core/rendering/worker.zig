@@ -307,6 +307,8 @@ pub const Worker = struct {
             return self.volume(ray, throughput, isec, filter, sampler);
         }
 
+        isec.result.event = .Pass;
+
         const hit = self.intersectAndResolveMask(ray, filter, isec);
 
         var result = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
@@ -441,7 +443,6 @@ pub const Worker = struct {
         if (leave) {
             _ = self.interface_stack.remove(isec.*);
         } else if (self.interface_stack.straight(self.scene) or material.ior() > 1.0) {
-            isec.volume_entry = isec.geo.p;
             const cc = material.collisionCoefficients2D(isec.geo.uv, filter, self.scene);
             self.interface_stack.push(isec.*, cc);
         }

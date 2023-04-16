@@ -210,70 +210,9 @@ pub const PathtracerMIS = struct {
             }
 
             const vr = worker.nextEvent(ray, throughput, isec, filter, sampler);
-
-            if (.Absorb == vr.event) {
-                if (0 == ray.depth) {
-                    // This is the direct eye-light connection for the volume case.
-                    result += vr.li;
-                } else {
-                    const w = self.connectVolumeLight(
-                        ray.*,
-                        geo_n,
-                        isec.*,
-                        effective_bxdf_pdf,
-                        state,
-                        worker.scene,
-                    );
-
-                    result += @splat(4, w) * (throughput * vr.li);
-                }
-
+            if (.Abort == vr.event) {
                 break;
             }
-
-            throughput *= vr.tr;
-
-            if (.Abort == vr.event or (.Scatter == vr.event and ray.depth >= max_bounces)) {
-                break;
-            }
-
-            // if (!worker.interface_stack.empty()) {
-            //     const vr = worker.volume(ray, throughput, isec, filter, sampler);
-
-            //     if (.Absorb == vr.event) {
-            //         if (0 == ray.depth) {
-            //             // This is the direct eye-light connection for the volume case.
-            //             result += vr.li;
-            //         } else {
-            //             const w = self.connectVolumeLight(
-            //                 ray.*,
-            //                 geo_n,
-            //                 isec.*,
-            //                 effective_bxdf_pdf,
-            //                 state,
-            //                 worker.scene,
-            //             );
-
-            //             result += @splat(4, w) * (throughput * vr.li);
-            //         }
-
-            //         break;
-            //     }
-
-            //     // This is only needed for Tracking_single at the moment...
-            //     result += throughput * vr.li;
-            //     throughput *= vr.tr;
-
-            //     if (.Abort == vr.event) {
-            //         break;
-            //     }
-
-            //     if (.Scatter == vr.event and ray.depth >= max_bounces) {
-            //         break;
-            //     }
-            // } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-            //     break;
-            // }
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(
@@ -294,7 +233,7 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (ray.depth >= max_bounces) {
                 break;
             }
 
@@ -408,7 +347,7 @@ pub const PathtracerMIS = struct {
         ) orelse return @splat(4, @as(f32, 0.0));
 
         const light_id = isec.lightId(scene);
-        if (state.treat_as_singular or !Light.isAreaLight(light_id)) {
+        if (state.treat_as_singular or !Light.isLight(light_id)) {
             return energy;
         }
 
@@ -422,32 +361,6 @@ pub const PathtracerMIS = struct {
         const weight = hlp.powerHeuristic(sample_result.pdf, pdf * light_pick.pdf);
 
         return @splat(4, weight) * energy;
-    }
-
-    fn connectVolumeLight(
-        self: *const Self,
-        ray: Ray,
-        geo_n: Vec4f,
-        isec: Intersection,
-        bxdf_pdf: f32,
-        state: PathState,
-        scene: *const Scene,
-    ) f32 {
-        const light_id = isec.lightId(scene);
-
-        if (state.treat_as_singular or !Light.isLight(light_id)) {
-            return 1.0;
-        }
-
-        const translucent = state.is_translucent;
-        const split = self.splitting(ray.depth);
-
-        const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
-        const light = scene.light(light_pick.offset);
-
-        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
-
-        return hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {

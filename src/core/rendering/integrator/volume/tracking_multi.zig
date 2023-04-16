@@ -98,8 +98,7 @@ pub const Multi = struct {
                         }
 
                         if (.Absorb == result.event) {
-                            // This is in local space on purpose! Alas, the purpose was not commented...
-                            //   isec.geo.p = local_ray.point(result.t);
+                            result.uvw = local_ray.point(result.t);
                             return result;
                         }
                     }
@@ -219,6 +218,8 @@ pub const Multi = struct {
         //     worker,
         // );
 
+        _ = isec;
+
         const material = interface.material(worker.scene);
 
         const d = ray.ray.maxT();
@@ -258,8 +259,7 @@ pub const Multi = struct {
                         }
 
                         if (.Absorb == result.event) {
-                            // This is in local space on purpose! Alas, the purpose was not commented...
-                            isec.geo.p = local_ray.point(result.t);
+                            result.uvw = local_ray.point(result.t);
                             return result;
                         }
                     }

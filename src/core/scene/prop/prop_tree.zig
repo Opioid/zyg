@@ -413,11 +413,12 @@ pub const Tree = struct {
             }
         }
 
-        if (.Scatter == result.event) {
+        if (.Pass != result.event) {
             isec.prop = prop;
             isec.geo.p = ray.ray.point(result.t);
             isec.geo.part = 0;
             isec.subsurface = true;
+            isec.result = result;
         }
 
         return result;

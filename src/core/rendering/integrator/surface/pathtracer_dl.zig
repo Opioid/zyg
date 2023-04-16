@@ -75,6 +75,23 @@ pub const PathtracerDL = struct {
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
+        {
+            var pure_emissive: bool = undefined;
+            const energy = isec.evaluateRadiance(
+                ray.ray.origin,
+                -ray.ray.direction,
+                null,
+                worker.scene,
+                &pure_emissive,
+            ) orelse @splat(4, @as(f32, 0.0));
+
+            if (pure_emissive) {
+                return hlp.composeAlpha(energy, throughput, false);
+            }
+
+            result += energy;
+        }
+
         var i: u32 = 0;
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
@@ -161,28 +178,13 @@ pub const PathtracerDL = struct {
 
             from_subsurface = from_subsurface or isec.subsurface;
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, throughput, isec, filter, sampler);
+            const vr = worker.nextEvent(ray, throughput, isec, filter, sampler);
 
-                if (.Absorb == vr.event) {
-                    if (0 == ray.depth) {
-                        // This is the direct eye-light connection for the volume case.
-                        result += vr.li;
-                    }
-
-                    break;
-                }
-
-                // This is only needed for Tracking_single at the moment...
-                result += throughput * vr.li;
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            if (.Absorb == vr.event) {
                 break;
             }
+
+            throughput *= vr.tr;
 
             if (ray.depth >= self.settings.max_bounces) {
                 break;

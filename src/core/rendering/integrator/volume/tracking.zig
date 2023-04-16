@@ -245,7 +245,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
             const wa = mu.a / @splat(4, mt * pa);
             return .{
                 .li = w * wa * cce.e,
-                .tr = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
                 .t = t,
                 .event = .Absorb,
             };
@@ -378,7 +378,7 @@ pub fn trackingHeteroEmission(
             const wa = mu.a / @splat(4, mt * pa);
             return .{
                 .li = w * wa * cce.e,
-                .tr = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
                 .t = t,
                 .event = .Absorb,
             };
