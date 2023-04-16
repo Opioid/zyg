@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = cli.run();
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "C:/workspace/sprout/system";
+    run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {
@@ -117,7 +117,7 @@ pub fn build(b: *std.Build) void {
             //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",
-            "-1",
+            "-4",
             //"--no-tex",
             //"--no-tex-dwim",
             //"--debug-mat",
