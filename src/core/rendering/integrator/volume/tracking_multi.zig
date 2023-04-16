@@ -87,11 +87,7 @@ pub const Multi = struct {
 
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
-
+                    if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
                             break;
@@ -107,11 +103,7 @@ pub const Multi = struct {
                 }
             } else {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
-
+                    if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
                             break;
@@ -248,11 +240,7 @@ pub const Multi = struct {
 
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
-
+                    if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
                             break;
@@ -268,11 +256,7 @@ pub const Multi = struct {
                 }
             } else {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
-
+                    if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
                         if (.Scatter == result.event) {
                             break;

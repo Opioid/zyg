@@ -37,11 +37,7 @@ pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth
 
         var w = @splat(4, @as(f32, 1.0));
         while (local_ray.minT() < d) {
-            if (tree.intersect(&local_ray)) |tcm| {
-                var cm = tcm;
-                cm.minorant_mu_s *= srs;
-                cm.majorant_mu_s *= srs;
-
+            if (tree.intersect(&local_ray)) |cm| {
                 if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, worker)) {
                     return null;
                 }
@@ -56,6 +52,9 @@ pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth
     return null;
 }
 
+// Code for (residual ratio) hetereogeneous transmittance inspired by:
+// https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
+
 fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
@@ -65,71 +64,16 @@ fn trackingTransmitted(
     filter: ?Filter,
     worker: *Worker,
 ) bool {
-    const mt = cm.majorant_mu_t();
+    const minorant_mu_t = cm.minorant_mu_t(srs);
+    const majorant_mu_t = cm.majorant_mu_t(srs);
 
-    if (mt < Min_mt) {
-        return true;
-    }
-
-    const minorant_mu_t = cm.minorant_mu_t();
     if (minorant_mu_t > 0.0) {
-        return residualRatioTrackingTransmitted(
-            transmitted,
-            ray,
-            minorant_mu_t,
-            mt,
-            material,
-            srs,
-            filter,
-            worker,
-        );
-    }
-
-    var rng = &worker.rng;
-
-    const d = ray.maxT();
-    var t = ray.minT();
-    while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) / mt;
-        if (t > d) {
-            return true;
-        }
-
-        const uvw = ray.point(t);
-
-        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
-        mu.s *= @splat(4, srs);
-
-        const mu_t = mu.a + mu.s;
-        const mu_n = @splat(4, mt) - mu_t;
-
-        transmitted.* *= mu_n / @splat(4, mt);
+        // Transmittance of the control medium
+        transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
         }
-    }
-}
-
-// Code for hetereogeneous transmittance inspired by:
-// https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
-
-fn residualRatioTrackingTransmitted(
-    transmitted: *Vec4f,
-    ray: Ray,
-    minorant_mu_t: f32,
-    majorant_mu_t: f32,
-    material: *const Material,
-    srs: f32,
-    filter: ?Filter,
-    worker: *Worker,
-) bool {
-    // Transmittance of the control medium
-    transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
-
-    if (math.allLess4(transmitted.*, Abort_epsilon4)) {
-        return false;
     }
 
     const mt = majorant_mu_t - minorant_mu_t;
@@ -276,7 +220,7 @@ pub fn trackingHetero(
     filter: ?Filter,
     worker: *Worker,
 ) Result {
-    const mt = cm.majorant_mu_t();
+    const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
         return Result.initPass(w);
     }
@@ -336,7 +280,7 @@ pub fn trackingHeteroEmission(
     filter: ?Filter,
     worker: *Worker,
 ) Result {
-    const mt = cm.majorant_mu_t();
+    const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
         return Result.initPass(w);
     }
