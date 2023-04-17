@@ -283,16 +283,14 @@ pub const Worker = struct {
 
     pub fn propTransmittance(
         self: *Worker,
-        comptime WorldSpace: bool,
         ray: math.Ray,
-        trafo: Trafo,
         material: *const Material,
         entity: u32,
         depth: u32,
         filter: ?Filter,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return Volume.propTransmittance(WorldSpace, ray, trafo, material, cc, entity, depth, filter, self);
+        return Volume.propTransmittance(ray, material, cc, entity, depth, filter, self);
     }
 
     pub fn propScatter(
@@ -315,17 +313,11 @@ pub const Worker = struct {
         const material = isec.material(self.scene);
 
         //  if (isec.subsurface and material.ior() > 1.0) {
-        if (isec.subsurface and !self.interface_stack.empty()) {
+        if (isec.subsurface and !self.interface_stack.empty() and material.denseSSSOptimization()) {
             const ray_max_t = ray.ray.maxT();
-            var nisec: Intersection = .{};
 
-            var hit: bool = false;
-            if (material.denseSSSOptimization()) {
-                hit = self.intersectPropShadow(isec.prop, ray, &nisec.geo);
-            } else {
-                ray.ray.setMaxT(std.math.min(ro.offsetF(self.scene.propAabbIntersectP(isec.prop, ray.*) orelse ray_max_t), ray_max_t));
-                hit = self.scene.intersectShadow(ray, &nisec);
-            }
+            var nisec: Intersection = .{};
+            const hit = self.intersectPropShadow(isec.prop, ray, &nisec.geo);
 
             if (hit) {
                 const sss_min_t = ray.ray.minT();
@@ -335,7 +327,8 @@ pub const Worker = struct {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
-                    if (Volume.propTransmittance(true, ray.ray, nisec.geo.trafo, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
+                    const tray = if (material.heterogeneousVolume()) nisec.geo.trafo.worldToObjectRay(ray.ray) else ray.ray;
+                    if (Volume.propTransmittance(tray, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.geo.n;

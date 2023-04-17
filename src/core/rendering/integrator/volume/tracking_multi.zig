@@ -21,9 +21,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
     pub fn propTransmittance(
-        comptime WorldSpace: bool,
         ray: math.Ray,
-        trafo: Trafo,
         material: *const Material,
         cc: CC,
         prop: u32,
@@ -38,14 +36,7 @@ pub const Multi = struct {
         }
 
         if (material.heterogeneousVolume()) {
-            const local_ray = if (WorldSpace) math.Ray.init(
-                trafo.worldToObjectPoint(ray.origin),
-                trafo.worldToObjectVector(ray.direction),
-                ray.minT(),
-                ray.maxT(),
-            ) else ray;
-
-            return tracking.transmittanceHetero(local_ray, material, prop, depth, filter, worker);
+            return tracking.transmittanceHetero(ray, material, prop, depth, filter, worker);
         }
 
         return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
@@ -225,13 +216,7 @@ pub const Multi = struct {
         if (material.volumetricTree()) |tree| {
             const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
 
-            const tray = math.Ray.init(
-                trafo.worldToObjectPoint(ray.ray.origin),
-                trafo.worldToObjectVector(ray.ray.direction),
-                ray.ray.minT(),
-                ray.ray.maxT(),
-            );
-
+            const tray = trafo.worldToObjectRay(ray.ray);
             var local_ray = tracking.rayObjectSpaceToTextureSpace(tray, interface.prop, worker);
 
             const srs = material.super().similarityRelationScale(ray.depth);

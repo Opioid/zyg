@@ -4,6 +4,7 @@ const Mat3x3 = math.Mat3x3;
 const Mat4x4 = math.Mat4x4;
 const quaternion = math.quaternion;
 const Transformation = math.Transformation;
+const Ray = math.Ray;
 
 pub const ComposedTransformation = struct {
     rotation: Mat3x3 = undefined,
@@ -94,5 +95,14 @@ pub const ComposedTransformation = struct {
 
     pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {
         return self.rotation.transformVectorTransposed(n);
+    }
+
+    pub fn worldToObjectRay(self: Self, ray: Ray) Ray {
+        return Ray.init(
+            self.worldToObjectPoint(ray.origin),
+            self.worldToObjectVector(ray.direction),
+            ray.minT(),
+            ray.maxT(),
+        );
     }
 };

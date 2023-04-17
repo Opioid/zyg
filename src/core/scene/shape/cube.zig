@@ -90,7 +90,7 @@ pub const Cube = struct {
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propTransmittance(false, tray, trafo, material, entity, depth, filter);
+        return worker.propTransmittance(tray, material, entity, depth, filter);
     }
 
     pub fn scatter(

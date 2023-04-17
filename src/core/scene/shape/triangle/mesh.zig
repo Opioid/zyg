@@ -450,12 +450,7 @@ pub const Mesh = struct {
         ipo: Interpolation,
         isec: *Intersection,
     ) bool {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
+        const tray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(tray)) |hit| {
             const data = self.tree.data;
@@ -501,13 +496,7 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        var tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
+        const tray = trafo.worldToObjectRay(ray);
         return self.tree.intersectP(tray);
     }
 
@@ -519,13 +508,7 @@ pub const Mesh = struct {
         filter: ?Filter,
         scene: *const Scene,
     ) ?Vec4f {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
+        const tray = trafo.worldToObjectRay(ray);
         return self.tree.visibility(tray, entity, filter, scene);
     }
 
@@ -538,14 +521,8 @@ pub const Mesh = struct {
         filter: ?Filter,
         worker: *Worker,
     ) ?Vec4f {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
-        return self.tree.transmittance(tray, trafo, entity, depth, filter, worker);
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.transmittance(tray, entity, depth, filter, worker);
     }
 
     pub fn sampleTo(
