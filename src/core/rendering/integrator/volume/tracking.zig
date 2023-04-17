@@ -31,7 +31,7 @@ pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 
-        var local_ray = rayObjectSpaceToTextureSpace(ray, prop, worker);
+        var local_ray = objectToTextureRay(ray, prop, worker);
 
         const srs = material.super().similarityRelationScale(depth);
 
@@ -343,7 +343,7 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn rayObjectSpaceToTextureSpace(ray: Ray, entity: u32, worker: *const Worker) Ray {
+pub fn objectToTextureRay(ray: Ray, entity: u32, worker: *const Worker) Ray {
     const aabb = worker.scene.propShape(entity).aabb();
 
     const iextent = @splat(4, @as(f32, 1.0)) / aabb.extent();

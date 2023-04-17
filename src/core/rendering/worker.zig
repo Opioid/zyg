@@ -295,9 +295,7 @@ pub const Worker = struct {
 
     pub fn propScatter(
         self: *Worker,
-        comptime WorldSpace: bool,
         ray: math.Ray,
-        trafo: Trafo,
         throughput: Vec4f,
         material: *const Material,
         entity: u32,
@@ -306,18 +304,18 @@ pub const Worker = struct {
         sampler: *Sampler,
     ) VolumeResult {
         const cc = material.super().cc;
-        return Volume.propScatter(WorldSpace, ray, trafo, throughput, material, cc, entity, depth, filter, sampler, self);
+        return Volume.propScatter(ray, throughput, material, cc, entity, depth, filter, sampler, self);
     }
 
     fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
-        //  if (isec.subsurface and material.ior() > 1.0) {
         if (isec.subsurface and !self.interface_stack.empty() and material.denseSSSOptimization()) {
             const ray_max_t = ray.ray.maxT();
+            const prop = isec.prop;
 
-            var nisec: Intersection = .{};
-            const hit = self.intersectPropShadow(isec.prop, ray, &nisec.geo);
+            var nisec: shp.Intersection = .{};
+            const hit = self.scene.prop(prop).intersectSSS(prop, ray, self.scene, &nisec);
 
             if (hit) {
                 const sss_min_t = ray.ray.minT();
@@ -327,13 +325,13 @@ pub const Worker = struct {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
-                    const tray = if (material.heterogeneousVolume()) nisec.geo.trafo.worldToObjectRay(ray.ray) else ray.ray;
-                    if (Volume.propTransmittance(tray, material, cc, isec.prop, ray.depth, filter, self)) |tr| {
+                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
+                    if (Volume.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                         const wi = ray.ray.direction;
-                        const n = nisec.geo.n;
+                        const n = nisec.n;
                         const vbh = material.super().border(wi, n);
-                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo.geo_n, n);
+                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
 
                         return @splat(4, vbh * nsc) * tv * tr;
                     }
@@ -348,10 +346,6 @@ pub const Worker = struct {
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
         return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
-    }
-
-    pub fn intersectPropShadow(self: *Worker, entity: u32, ray: *Ray, isec: *shp.Intersection) bool {
-        return self.scene.prop(entity).intersectShadow(entity, ray, self.scene, isec);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
@@ -391,12 +385,11 @@ pub const Worker = struct {
     }
 
     pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *Intersection, filter: ?Filter) void {
-        const material = isec.material(self.scene);
-
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             _ = self.interface_stack.remove(isec.*);
-        } else if (self.interface_stack.straight(self.scene) or material.ior() > 1.0) {
+        } else {
+            const material = isec.material(self.scene);
             const cc = material.collisionCoefficients2D(isec.geo.uv, filter, self.scene);
             self.interface_stack.push(isec.*, cc);
         }
@@ -414,10 +407,8 @@ pub const Worker = struct {
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
-        if (self.interface_stack.straight(self.scene) or inter_ior > 1.0) {
-            const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
-            self.interface_stack.push(isec, cc);
-        }
+        const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+        self.interface_stack.push(isec, cc);
 
         return ior;
     }

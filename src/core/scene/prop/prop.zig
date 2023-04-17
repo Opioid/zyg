@@ -115,7 +115,7 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectShadow(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
+    pub fn intersectSSS(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {

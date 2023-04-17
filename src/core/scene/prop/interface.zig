@@ -80,15 +80,6 @@ pub const Stack = struct {
         }
     }
 
-    pub fn straight(self: *const Stack, scene: *const Scene) bool {
-        const index = self.index;
-        if (index > 0) {
-            return 1.0 == self.stack[index - 1].material(scene).ior();
-        }
-
-        return true;
-    }
-
     pub fn push(self: *Stack, isec: Intersection, cc: CC) void {
         if (self.index < Num_entries - 1) {
             self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .cc = cc };

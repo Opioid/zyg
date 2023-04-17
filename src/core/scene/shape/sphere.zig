@@ -203,8 +203,15 @@ pub const Sphere = struct {
             const end = std.math.min(t1, ray.maxT());
 
             const material = worker.scene.propMaterial(entity, 0);
-            const tray = Ray.init(ray.origin, ray.direction, start, end);
-            return worker.propScatter(true, tray, trafo, throughput, material, entity, depth, filter, sampler);
+
+            const tray = Ray.init(
+                trafo.worldToObjectPoint(ray.origin),
+                trafo.worldToObjectVector(ray.direction),
+                start,
+                end,
+            );
+
+            return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
         }
 
         return Result.initPass(@splat(4, @as(f32, 1.0)));

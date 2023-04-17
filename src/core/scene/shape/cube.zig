@@ -115,7 +115,7 @@ pub const Cube = struct {
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propScatter(false, tray, trafo, throughput, material, entity, depth, filter, sampler);
+        return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

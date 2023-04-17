@@ -43,9 +43,7 @@ pub const Multi = struct {
     }
 
     pub fn propScatter(
-        comptime WorldSpace: bool,
         ray: math.Ray,
-        trafo: Trafo,
         throughput: Vec4f,
         material: *const Material,
         cc: CC,
@@ -63,14 +61,7 @@ pub const Multi = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            const os_ray = if (WorldSpace) math.Ray.init(
-                trafo.worldToObjectPoint(ray.origin),
-                trafo.worldToObjectVector(ray.direction),
-                ray.minT(),
-                ray.maxT(),
-            ) else ray;
-
-            var local_ray = tracking.rayObjectSpaceToTextureSpace(os_ray, prop, worker);
+            var local_ray = tracking.objectToTextureRay(ray, prop, worker);
 
             const srs = material.super().similarityRelationScale(depth);
 
@@ -120,11 +111,9 @@ pub const Multi = struct {
         const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
-        const dense_sss = material.denseSSSOptimization();
-
-        if (dense_sss) {
+        if (material.denseSSSOptimization()) {
             isec.subsurface = false;
-            if (!worker.intersectProp(isec.prop, ray, .All, &isec.geo)) {
+            if (!worker.intersectProp(isec.prop, ray, .Normal, &isec.geo)) {
                 worker.interface_stack.pop();
 
                 return .{
@@ -165,116 +154,31 @@ pub const Multi = struct {
             }
         }
 
-        var result = integrateSingle(ray.*, throughput, interface, isec, filter, sampler, worker);
+        const tray = if (material.heterogeneousVolume()) worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray) else ray.ray;
+
+        var result = propScatter(
+            tray,
+            throughput,
+            material,
+            interface.cc,
+            interface.prop,
+            ray.depth,
+            filter,
+            sampler,
+            worker,
+        );
 
         if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
             result.event = .Abort;
         }
 
         if (.Scatter == result.event) {
-            setScattering(isec, interface, ray.ray.point(result.t));
+            isec.prop = interface.prop;
+            isec.geo.p = ray.ray.point(result.t);
+            isec.geo.part = interface.part;
+            isec.subsurface = true;
         }
 
         return result;
-    }
-
-    fn integrateSingle(
-        ray: Ray,
-        throughput: Vec4f,
-        interface: Interface,
-        isec: *Intersection,
-        filter: ?Filter,
-        sampler: *Sampler,
-        worker: *Worker,
-    ) Result {
-        // return propScatter(
-        //     true,
-        //     ray.ray,
-        //     isec.geo.trafo,
-        //     throughput,
-        //     interface.material(worker.scene),
-        //     interface.cc,
-        //     interface.prop,
-        //     ray.depth,
-        //     filter,
-        //     sampler,
-        //     worker,
-        // );
-
-        _ = isec;
-
-        const material = interface.material(worker.scene);
-
-        const d = ray.ray.maxT();
-
-        if (!material.scatteringVolume()) {
-            // Basically the "glass" case
-            const mu_a = interface.cc.a;
-            return Result.initPass(hlp.attenuation3(mu_a, d - ray.ray.minT()));
-        }
-
-        if (material.volumetricTree()) |tree| {
-            const trafo = worker.scene.propTransformationAt(interface.prop, ray.time);
-
-            const tray = trafo.worldToObjectRay(ray.ray);
-            var local_ray = tracking.rayObjectSpaceToTextureSpace(tray, interface.prop, worker);
-
-            const srs = material.super().similarityRelationScale(ray.depth);
-
-            var result = Result.initPass(@splat(4, @as(f32, 1.0)));
-
-            if (material.emissive()) {
-                while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
-                        if (.Scatter == result.event) {
-                            break;
-                        }
-
-                        if (.Absorb == result.event) {
-                            result.uvw = local_ray.point(result.t);
-                            return result;
-                        }
-                    }
-
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
-                }
-            } else {
-                while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
-                        if (.Scatter == result.event) {
-                            break;
-                        }
-                    }
-
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
-                }
-            }
-
-            return result;
-        }
-
-        if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
-            return tracking.trackingEmission(ray.ray, cce, throughput, &worker.rng);
-        }
-
-        const mu = interface.cc;
-        return tracking.tracking(ray.ray, mu, throughput, sampler);
-    }
-
-    fn setScattering(isec: *Intersection, interface: Interface, p: Vec4f) void {
-        isec.prop = interface.prop;
-        isec.geo.p = p;
-        isec.geo.part = interface.part;
-        isec.subsurface = true;
-    }
-};
-
-pub const Factory = struct {
-    pub fn create(self: Factory) Multi {
-        _ = self;
-        return .{};
     }
 };
