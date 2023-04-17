@@ -60,6 +60,10 @@ pub const Multi = struct {
             return Volume.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
         }
 
+        if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
+            return Volume.initPass(@splat(4, @as(f32, 1.0)));
+        }
+
         if (material.volumetricTree()) |tree| {
             var local_ray = tracking.objectToTextureRay(ray, prop, worker);
 

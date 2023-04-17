@@ -256,7 +256,11 @@ pub const Worker = struct {
             return vlhlp.integrate(ray, throughput, isec, filter, sampler, self);
         }
 
+        const ray_min_t = ray.ray.minT();
+
         const hit = self.intersectAndResolveMask(ray, filter, isec);
+
+        ray.ray.setMinT(ray_min_t);
 
         const volume_hit = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
 
