@@ -543,7 +543,7 @@ pub const Grid = struct {
         const radius = self.search_radius;
         const radius2 = radius * radius;
 
-        if (isec.subsurface) {} else {
+        if (isec.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
             const two_sided = isec.material(scene).twoSided();
@@ -602,7 +602,7 @@ pub const Grid = struct {
         var buffer = Buffer{};
         buffer.clear();
 
-        const subsurface = isec.subsurface;
+        const subsurface = isec.subsurface();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
             for (self.photons[cell[0]..cell[1]], 0..) |p, i| {

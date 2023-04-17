@@ -239,9 +239,8 @@ pub const Worker = struct {
         self.resetInterfaceStack(&interface_stack);
 
         var isec = Intersection{};
-        const vr = self.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler);
-        if (.Abort != vr.event) {
-            return vr.tr * self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
+        if (self.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler)) {
+            return isec.volume.tr * self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
         }
 
         return @splat(4, @as(f32, 0.0));
@@ -257,28 +256,16 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) Volume {
-        const vr = vlhlp.integrate(ray, throughput, isec, filter, sampler, self);
-        isec.volume = vr;
-        return vr;
-    }
-
-    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) Volume {
+    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) bool {
         if (!self.interface_stack.empty()) {
-            return self.volume(ray, throughput, isec, filter, sampler);
+            return vlhlp.integrate(ray, throughput, isec, filter, sampler, self);
         }
-
-        isec.volume.event = .Pass;
 
         const hit = self.intersectAndResolveMask(ray, filter, isec);
 
-        var result = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
+        const volume_hit = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
 
-        if (.Pass == result.event and !hit) {
-            result.event = .Abort;
-        }
-
-        return result;
+        return hit or volume_hit;
     }
 
     pub fn propTransmittance(
@@ -310,7 +297,7 @@ pub const Worker = struct {
     fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
         const material = isec.material(self.scene);
 
-        if (isec.subsurface and !self.interface_stack.empty() and material.denseSSSOptimization()) {
+        if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
             const ray_max_t = ray.ray.maxT();
             const prop = isec.prop;
 
@@ -427,7 +414,7 @@ pub const Worker = struct {
 
         const wi = ray.ray.direction;
 
-        if (!isec.subsurface and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
+        if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
             const geo_n = isec.geo.geo_n;
             const n = isec.geo.n;
 

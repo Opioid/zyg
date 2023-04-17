@@ -264,14 +264,6 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(ray, self, ipo, isec);
     }
 
-    pub fn intersectShadow(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
-        return self.prop_bvh.intersectShadow(ray, self, isec);
-    }
-
-    pub fn intersectVolume(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
-        return self.volume_bvh.intersect(ray, self, .NoTangentSpace, isec);
-    }
-
     pub fn intersectP(self: *const Scene, ray: Ray) bool {
         return self.prop_bvh.intersectP(ray, self);
     }
@@ -304,9 +296,10 @@ pub const Scene = struct {
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
-    ) Volume {
+    ) bool {
         if (!self.has_volumes) {
-            return Volume.initPass(@splat(4, @as(f32, 1.0)));
+            isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
+            return false;
         }
 
         return self.volume_bvh.scatter(ray, throughput, filter, sampler, worker, isec);

@@ -24,7 +24,7 @@ pub const Interpolation = enum {
 };
 
 pub const Volume = struct {
-    pub const Event = enum { Absorb, Scatter, Pass, Abort };
+    pub const Event = enum { Absorb, Scatter, Pass };
 
     li: Vec4f,
     tr: Vec4f,

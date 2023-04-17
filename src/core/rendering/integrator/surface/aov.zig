@@ -197,19 +197,13 @@ pub const AOV = struct {
                 worker.interfaceChange(sample_result.wi, isec, filter);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, throughput, isec, filter, sampler);
-
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
                 break;
             }
+
+            throughput *= isec.volume.tr;
 
             sampler.incrementPadding();
         }

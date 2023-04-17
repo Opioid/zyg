@@ -125,68 +125,6 @@ pub const Tree = struct {
         }
 
         isec.prop = prop;
-        isec.subsurface = false;
-        return hit;
-    }
-
-    pub fn intersectShadow(self: Tree, ray: *Ray, scene: *const Scene, isec: *Intersection) bool {
-        var stack = NodeStack{};
-
-        var hit = false;
-        var prop = Prop.Null;
-        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
-
-        const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
-
-        while (NodeStack.End != n) {
-            const node = nodes[n];
-
-            if (0 != node.numIndices()) {
-                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
-                        prop = p;
-                        hit = true;
-                    }
-                }
-
-                n = stack.pop();
-                continue;
-            }
-
-            var a = node.children();
-            var b = a + 1;
-
-            var dista = nodes[a].intersect(ray.ray);
-            var distb = nodes[b].intersect(ray.ray);
-
-            if (dista > distb) {
-                std.mem.swap(u32, &a, &b);
-                std.mem.swap(f32, &dista, &distb);
-            }
-
-            if (std.math.f32_max == dista) {
-                n = stack.pop();
-            } else {
-                n = a;
-                if (std.math.f32_max != distb) {
-                    stack.push(b);
-                }
-            }
-        }
-
-        if (ray.ray.maxT() >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
-                    prop = p;
-                    hit = true;
-                }
-            }
-        }
-
-        isec.prop = prop;
-        isec.subsurface = false;
         return hit;
     }
 
@@ -357,7 +295,7 @@ pub const Tree = struct {
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
-    ) Volume {
+    ) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
@@ -375,11 +313,7 @@ pub const Tree = struct {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
                     const lr = props[p].scatter(p, ray.*, throughput, filter, sampler, worker);
 
-                    if (.Abort == lr.event) {
-                        return lr;
-                    }
-
-                    if (.Absorb == lr.event or .Scatter == lr.event) {
+                    if (.Pass != lr.event) {
                         ray.ray.setMaxT(lr.t);
                         result = lr;
                         prop = p;
@@ -413,14 +347,16 @@ pub const Tree = struct {
             }
         }
 
+        isec.volume = result;
+
         if (.Pass != result.event) {
             isec.prop = prop;
             isec.geo.p = ray.ray.point(result.t);
+            isec.geo.geo_n = -ray.ray.direction;
             isec.geo.part = 0;
-            isec.subsurface = true;
-            isec.volume = result;
+            return true;
         }
 
-        return result;
+        return false;
     }
 };

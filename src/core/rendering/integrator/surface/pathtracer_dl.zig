@@ -176,15 +176,17 @@ pub const PathtracerDL = struct {
                 worker.interfaceChange(sample_result.wi, isec, filter);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or isec.subsurface();
 
-            const vr = worker.nextEvent(ray, throughput, isec, filter, sampler);
-
-            if (.Absorb == vr.event) {
+            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
                 break;
             }
 
-            throughput *= vr.tr;
+            if (.Absorb == isec.volume.event) {
+                break;
+            }
+
+            throughput *= isec.volume.tr;
 
             if (ray.depth >= self.settings.max_bounces) {
                 break;

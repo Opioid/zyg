@@ -200,7 +200,7 @@ pub const PathtracerMIS = struct {
                 worker.interfaceChange(sample_result.wi, isec, filter);
             }
 
-            state.from_subsurface = state.from_subsurface or isec.subsurface;
+            state.from_subsurface = state.from_subsurface or isec.subsurface();
 
             if (sample_result.class.straight and !state.treat_as_singular) {
                 sample_result.pdf = effective_bxdf_pdf;
@@ -209,12 +209,11 @@ pub const PathtracerMIS = struct {
                 geo_n = mat_sample.super().geometricNormal();
             }
 
-            const vr = worker.nextEvent(ray, throughput, isec, filter, sampler);
-            if (.Abort == vr.event) {
+            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
                 break;
             }
 
-            throughput *= vr.tr;
+            throughput *= isec.volume.tr;
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(

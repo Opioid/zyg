@@ -119,19 +119,27 @@ pub const Mapper = struct {
                 worker.interface_stack.pushVolumeLight(light);
             }
 
-            var throughput = @splat(4, @as(f32, 1.0));
-
             var isec = Intersection{};
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(&ray, throughput, &isec, null, &self.sampler);
-                throughput = vr.tr;
+            // if (!worker.interface_stack.empty()) {
+            //     const vr = worker.volume(&ray, throughput, &isec, null, &self.sampler);
+            //     throughput = vr.tr;
 
-                if (.Abort == vr.event or .Absorb == vr.event) {
-                    continue;
-                }
-            } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+            //     if (.Abort == vr.event or .Absorb == vr.event) {
+            //         continue;
+            //     }
+            // } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+            //     continue;
+            // }
+
+            if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler)) {
                 continue;
             }
+
+            if (.Absorb == isec.volume.event) {
+                continue;
+            }
+
+            var throughput = isec.volume.tr;
 
             var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
@@ -160,14 +168,14 @@ pub const Mapper = struct {
 
                 if (!sample_result.class.straight) {
                     if (!sample_result.class.specular and
-                        (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
+                        (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
                         if (finite_world or bounds.pointInside(isec.geo.p)) {
                             var radi = radiance;
 
                             const material_ior = isec.material(worker.scene).ior();
-                            if (isec.subsurface and material_ior > 1.0) {
+                            if (isec.subsurface() and material_ior > 1.0) {
                                 const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @splat(4, eta * eta);
@@ -177,7 +185,7 @@ pub const Mapper = struct {
                                 .p = isec.geo.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
-                                .volumetric = isec.subsurface,
+                                .volumetric = isec.subsurface(),
                             };
 
                             iteration = i + 1;
@@ -231,20 +239,17 @@ pub const Mapper = struct {
                     radiance *= @splat(4, eta * eta);
                 }
 
-                from_subsurface = from_subsurface or isec.subsurface;
+                from_subsurface = from_subsurface or isec.subsurface();
 
-                if (!worker.interface_stack.empty()) {
-                    const vr = worker.volume(&ray, throughput, &isec, filter, &self.sampler);
-
-                    // result += throughput * vr.li;
-                    radiance *= vr.tr;
-
-                    if (.Abort == vr.event or .Absorb == vr.event) {
-                        break;
-                    }
-                } else if (!worker.intersectAndResolveMask(&ray, filter, &isec)) {
+                if (!worker.nextEvent(&ray, throughput, &isec, filter, &self.sampler)) {
                     break;
                 }
+
+                if (.Absorb == isec.volume.event) {
+                    break;
+                }
+
+                throughput *= isec.volume.tr;
 
                 self.sampler.incrementPadding();
             }

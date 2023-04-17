@@ -15,7 +15,6 @@ pub const Intersection = struct {
     geo: shp.Intersection = undefined,
     prop: u32 = undefined,
     volume: shp.Volume = undefined,
-    subsurface: bool = undefined,
 
     const Self = @This();
 
@@ -37,6 +36,10 @@ pub const Intersection = struct {
 
     pub fn opacity(self: Self, filter: ?Filter, scene: *const Scene) f32 {
         return self.material(scene).opacity(self.geo.uv, filter, scene);
+    }
+
+    pub inline fn subsurface(self: Self) bool {
+        return .Pass != self.volume.event;
     }
 
     pub fn sample(
@@ -74,7 +77,7 @@ pub const Intersection = struct {
         rs.depth = ray.depth;
         rs.time = ray.time;
         rs.filter = filter;
-        rs.subsurface = self.subsurface;
+        rs.subsurface = self.subsurface();
         rs.avoid_caustics = avoid_caustics;
 
         return m.sample(wo, rs, worker);
@@ -90,13 +93,15 @@ pub const Intersection = struct {
     ) ?Vec4f {
         const m = self.material(scene);
 
-        pure_emissive.* = m.pureEmissive() or .Absorb == self.volume.event;
+        const volume = self.volume.event;
 
-        if (.Absorb == self.volume.event) {
+        pure_emissive.* = m.pureEmissive() or .Absorb == volume;
+
+        if (.Absorb == volume) {
             return self.volume.li;
         }
 
-        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo))) {
+        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
             return null;
         }
 

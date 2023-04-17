@@ -107,30 +107,26 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Volume {
+    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) bool {
         const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            isec.subsurface = false;
             if (!worker.intersectProp(isec.prop, ray, .Normal, &isec.geo)) {
                 worker.interface_stack.pop();
 
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = if (worker.intersectAndResolveMask(ray, filter, isec)) .Pass else .Abort,
-                };
+                if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+                    return false;
+                }
+
+                isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
+                return true;
             }
         } else {
             const ray_max_t = ray.ray.maxT();
             ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
             if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = .Abort,
-                };
+                return false;
             }
 
             // This test is intended to catch corner cases where we actually left the scattering medium,
@@ -150,7 +146,8 @@ pub const Multi = struct {
 
             if (missed) {
                 worker.interface_stack.pop();
-                return Volume.initPass(@splat(4, @as(f32, 1.0)));
+                isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
+                return true;
             }
         }
 
@@ -168,17 +165,13 @@ pub const Multi = struct {
             worker,
         );
 
-        if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
-            result.event = .Abort;
-        }
-
         if (.Scatter == result.event) {
             isec.prop = interface.prop;
             isec.geo.p = ray.ray.point(result.t);
             isec.geo.part = interface.part;
-            isec.subsurface = true;
         }
 
-        return result;
+        isec.volume = result;
+        return true;
     }
 };

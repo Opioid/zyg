@@ -68,21 +68,31 @@ pub const Lighttracer = struct {
             worker.interface_stack.pushVolumeLight(light);
         }
 
-        var throughput = @splat(4, @as(f32, 1.0));
+        //   var throughput = @splat(4, @as(f32, 1.0));
 
         var sampler = self.pickSampler(0);
 
         var isec = Intersection{};
-        if (!worker.interface_stack.empty()) {
-            const vr = worker.volume(&ray, throughput, &isec, null, sampler);
-            throughput = vr.tr;
+        // if (!worker.interface_stack.empty()) {
+        //     const vr = worker.volume(&ray, throughput, &isec, null, sampler);
+        //     throughput = vr.tr;
 
-            if (.Abort == vr.event or .Absorb == vr.event) {
-                return;
-            }
-        } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+        //     if (.Abort == vr.event or .Absorb == vr.event) {
+        //         return;
+        //     }
+        // } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+        //     return;
+        // }
+
+        if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, null, sampler)) {
             return;
         }
+
+        if (.Absorb == isec.volume.event) {
+            return;
+        }
+
+        const throughput = isec.volume.tr;
 
         const initrad = light.evaluateFrom(isec.geo.p, light_sample, null, worker.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
@@ -160,7 +170,7 @@ pub const Lighttracer = struct {
                 ray.depth += 1;
 
                 if (!sample_result.class.specular and
-                    (isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
+                    (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
                     _ = directCamera(camera, radiance, ray.*, isec.*, &mat_sample, filter, sampler, worker);
@@ -189,18 +199,27 @@ pub const Lighttracer = struct {
                 radiance *= @splat(4, eta * eta);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, @splat(4, @as(f32, 1.0)), isec, filter, sampler);
+            // if (!worker.interface_stack.empty()) {
+            //     const vr = worker.volume(ray, @splat(4, @as(f32, 1.0)), isec, filter, sampler);
 
-                // result += throughput * vr.li;
-                radiance *= vr.tr;
+            //     radiance *= vr.tr;
 
-                if (.Abort == vr.event or .Absorb == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            //     if (.Abort == vr.event or .Absorb == vr.event) {
+            //         break;
+            //     }
+            // } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            //     break;
+            // }
+
+            if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), isec, filter, sampler)) {
+                break;
+            }
+
+            radiance *= isec.volume.tr;
+
+            if (.Absorb == isec.volume.event) {
                 break;
             }
 
@@ -278,7 +297,7 @@ pub const Lighttracer = struct {
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
 
         const material_ior = isec.material(worker.scene).ior();
-        if (isec.subsurface and material_ior > 1.0) {
+        if (isec.subsurface() and material_ior > 1.0) {
             const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
