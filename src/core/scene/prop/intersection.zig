@@ -14,7 +14,7 @@ const Vec4f = math.Vec4f;
 pub const Intersection = struct {
     geo: shp.Intersection = undefined,
     prop: u32 = undefined,
-    result: shp.Result = undefined,
+    volume: shp.Volume = undefined,
     subsurface: bool = undefined,
 
     const Self = @This();
@@ -90,10 +90,10 @@ pub const Intersection = struct {
     ) ?Vec4f {
         const m = self.material(scene);
 
-        pure_emissive.* = m.pureEmissive() or .Absorb == self.result.event;
+        pure_emissive.* = m.pureEmissive() or .Absorb == self.volume.event;
 
-        if (.Absorb == self.result.event) {
-            return self.result.li;
+        if (.Absorb == self.volume.event) {
+            return self.volume.li;
         }
 
         if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo))) {

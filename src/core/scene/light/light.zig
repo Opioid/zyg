@@ -339,7 +339,7 @@ pub const Light = struct {
     }
 
     fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
-        const material_pdf = isec.material(scene).emissionPdf(isec.result.uvw);
+        const material_pdf = isec.material(scene).emissionPdf(isec.volume.uvw);
         const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec.geo);
 
         return material_pdf * shape_pdf;

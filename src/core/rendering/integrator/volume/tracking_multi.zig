@@ -3,7 +3,7 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
-const Result = shp.Result;
+const Volume = shp.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
@@ -52,12 +52,12 @@ pub const Multi = struct {
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
-    ) Result {
+    ) Volume {
         const d = ray.maxT();
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            return Result.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
+            return Volume.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
         }
 
         if (material.volumetricTree()) |tree| {
@@ -65,7 +65,7 @@ pub const Multi = struct {
 
             const srs = material.super().similarityRelationScale(depth);
 
-            var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+            var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
 
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
@@ -107,7 +107,7 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
+    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) Volume {
         const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
@@ -150,7 +150,7 @@ pub const Multi = struct {
 
             if (missed) {
                 worker.interface_stack.pop();
-                return Result.initPass(@splat(4, @as(f32, 1.0)));
+                return Volume.initPass(@splat(4, @as(f32, 1.0)));
             }
         }
 

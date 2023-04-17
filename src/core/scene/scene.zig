@@ -7,7 +7,7 @@ const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Intersection = @import("prop/intersection.zig").Intersection;
 const int = @import("shape/intersection.zig");
 const Interpolation = int.Interpolation;
-const Result = int.Result;
+const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
@@ -304,9 +304,9 @@ pub const Scene = struct {
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
-    ) Result {
+    ) Volume {
         if (!self.has_volumes) {
-            return Result.initPass(@splat(4, @as(f32, 1.0)));
+            return Volume.initPass(@splat(4, @as(f32, 1.0)));
         }
 
         return self.volume_bvh.scatter(ray, throughput, filter, sampler, worker, isec);

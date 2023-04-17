@@ -15,7 +15,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
-const Result = int.Result;
+const Volume = int.Volume;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -225,11 +225,11 @@ pub const Shape = union(enum) {
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
-    ) Result {
+    ) Volume {
         return switch (self) {
             .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
             .Sphere => Sphere.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
-            else => Result.initPass(@splat(4, @as(f32, 1.0))),
+            else => Volume.initPass(@splat(4, @as(f32, 1.0))),
         };
     }
 

@@ -4,7 +4,7 @@ const Ray = @import("../ray.zig").Ray;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
 const Interpolation = shp.Interpolation;
-const Result = shp.Result;
+const Volume = shp.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
@@ -357,10 +357,10 @@ pub const Tree = struct {
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
-    ) Result {
+    ) Volume {
         var stack = NodeStack{};
 
-        var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+        var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
         var prop = Prop.Null;
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
@@ -418,7 +418,7 @@ pub const Tree = struct {
             isec.geo.p = ray.ray.point(result.t);
             isec.geo.part = 0;
             isec.subsurface = true;
-            isec.result = result;
+            isec.volume = result;
         }
 
         return result;

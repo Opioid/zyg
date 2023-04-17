@@ -23,7 +23,7 @@ pub const Interpolation = enum {
     Normal,
 };
 
-pub const Result = struct {
+pub const Volume = struct {
     pub const Event = enum { Absorb, Scatter, Pass, Abort };
 
     li: Vec4f,
@@ -32,7 +32,7 @@ pub const Result = struct {
     t: f32 = undefined,
     event: Event,
 
-    pub fn initPass(w: Vec4f) Result {
+    pub fn initPass(w: Vec4f) Volume {
         return .{
             .li = @splat(4, @as(f32, 0.0)),
             .tr = w,

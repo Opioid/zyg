@@ -15,13 +15,13 @@ const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Interpolation = shp.Interpolation;
-const VolumeResult = shp.Result;
+const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
-const Volume = @import("integrator/volume/tracking_multi.zig").Multi;
+const vlhlp = @import("integrator/volume/tracking_multi.zig").Multi;
 const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
@@ -257,18 +257,18 @@ pub const Worker = struct {
         return null;
     }
 
-    pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
-        const vr = Volume.integrate(ray, throughput, isec, filter, sampler, self);
-        isec.result = vr;
+    pub fn volume(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) Volume {
+        const vr = vlhlp.integrate(ray, throughput, isec, filter, sampler, self);
+        isec.volume = vr;
         return vr;
     }
 
-    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) VolumeResult {
+    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) Volume {
         if (!self.interface_stack.empty()) {
             return self.volume(ray, throughput, isec, filter, sampler);
         }
 
-        isec.result.event = .Pass;
+        isec.volume.event = .Pass;
 
         const hit = self.intersectAndResolveMask(ray, filter, isec);
 
@@ -290,7 +290,7 @@ pub const Worker = struct {
         filter: ?Filter,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return Volume.propTransmittance(ray, material, cc, entity, depth, filter, self);
+        return vlhlp.propTransmittance(ray, material, cc, entity, depth, filter, self);
     }
 
     pub fn propScatter(
@@ -302,9 +302,9 @@ pub const Worker = struct {
         depth: u32,
         filter: ?Filter,
         sampler: *Sampler,
-    ) VolumeResult {
+    ) Volume {
         const cc = material.super().cc;
-        return Volume.propScatter(ray, throughput, material, cc, entity, depth, filter, sampler, self);
+        return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, filter, sampler, self);
     }
 
     fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
@@ -326,7 +326,7 @@ pub const Worker = struct {
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
                     const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
-                    if (Volume.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
                         ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                         const wi = ray.ray.direction;
                         const n = nisec.n;
@@ -427,7 +427,7 @@ pub const Worker = struct {
 
         const wi = ray.ray.direction;
 
-        if (!isec.subsurface and straight_border and material.ior() > 1.0 and isec.sameHemisphere(wi)) {
+        if (!isec.subsurface and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
             const geo_n = isec.geo.geo_n;
             const n = isec.geo.n;
 

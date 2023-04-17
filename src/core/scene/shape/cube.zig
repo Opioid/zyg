@@ -2,7 +2,7 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
-const Result = int.Result;
+const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -102,13 +102,13 @@ pub const Cube = struct {
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
-    ) Result {
+    ) Volume {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        const hit_t = aabb.intersectP2(local_ray) orelse return Result.initPass(@splat(4, @as(f32, 1.0)));
+        const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(4, @as(f32, 1.0)));
 
         const start = std.math.max(hit_t[0], ray.minT());
         const end = std.math.min(hit_t[1], ray.maxT());

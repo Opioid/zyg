@@ -3,7 +3,7 @@ const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTran
 const intr = @import("../../../scene/prop/interface.zig");
 const Interface = intr.Interface;
 const Stack = intr.Stack;
-const Result = @import("../../../scene/shape/intersection.zig").Result;
+const Volume = @import("../../../scene/shape/intersection.zig").Volume;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -110,7 +110,7 @@ fn trackingTransmitted(
     }
 }
 
-pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
+pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Volume {
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
     const mu_n = @splat(4, mt) - mu_t;
@@ -123,7 +123,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
         const r = sampler.sample2D();
         t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const wt = w * throughput;
@@ -131,7 +131,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
         const mn = math.average3(mu_n * wt);
         const mc = ms + mn;
         if (mc < 1.0e-10) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const c = 1.0 / mc;
@@ -153,7 +153,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
     }
 }
 
-pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result {
+pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume {
     const mu = cce.cc;
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
@@ -167,7 +167,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const wt = w * throughput;
@@ -176,7 +176,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         const mn = math.average3(mu_n * wt);
         const mc = ma + ms + mn;
         if (mc < 1.0e-10) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const c = 1.0 / mc;
@@ -219,10 +219,10 @@ pub fn trackingHetero(
     throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
-) Result {
+) Volume {
     const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
-        return Result.initPass(w);
+        return Volume.initPass(w);
     }
 
     var rng = &worker.rng;
@@ -235,7 +235,7 @@ pub fn trackingHetero(
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(lw);
+            return Volume.initPass(lw);
         }
 
         const uvw = ray.point(t);
@@ -279,10 +279,10 @@ pub fn trackingHeteroEmission(
     throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
-) Result {
+) Volume {
     const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
-        return Result.initPass(w);
+        return Volume.initPass(w);
     }
 
     var rng = &worker.rng;
@@ -295,7 +295,7 @@ pub fn trackingHeteroEmission(
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(lw);
+            return Volume.initPass(lw);
         }
 
         const uvw = ray.point(t);

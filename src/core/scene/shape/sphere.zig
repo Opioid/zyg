@@ -1,7 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
-const Result = int.Result;
+const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -187,7 +187,7 @@ pub const Sphere = struct {
         filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
-    ) Result {
+    ) Volume {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -214,7 +214,7 @@ pub const Sphere = struct {
             return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
         }
 
-        return Result.initPass(@splat(4, @as(f32, 1.0)));
+        return Volume.initPass(@splat(4, @as(f32, 1.0)));
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
