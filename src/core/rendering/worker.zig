@@ -231,11 +231,6 @@ pub const Worker = struct {
     }
 
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
-        // var isec = Intersection{};
-        // if (self.intersectAndResolveMask(ray, null, &isec)) {
-        //     return self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
-        // }
-
         self.resetInterfaceStack(&interface_stack);
 
         var isec = Intersection{};

@@ -6,6 +6,8 @@ const Worker = @import("../../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
+const Volume = @import("../../../shape/intersection.zig").Volume;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -212,7 +214,7 @@ pub const Tree = struct {
         const data = self.data;
         const ray_max_t = ray.maxT();
 
-        var tray = Ray.init(ray.origin, ray.direction, ray.minT(), ray.maxT());
+        var tray = ray;
         var tr = @splat(4, @as(f32, 1.0));
 
         while (true) {
@@ -234,5 +236,50 @@ pub const Tree = struct {
         }
 
         return tr;
+    }
+
+    pub fn scatter(
+        self: Tree,
+        ray: Ray,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const material = worker.scene.propMaterial(entity, 0);
+        const data = self.data;
+        const ray_max_t = ray.maxT();
+
+        var tray = ray;
+        var tr = @splat(4, @as(f32, 1.0));
+
+        while (true) {
+            const hit = self.intersect(tray) orelse break;
+            const n = data.normal(hit.index);
+
+            if (math.dot3(n, ray.direction) > 0.0) {
+                tray.setMaxT(hit.t);
+
+                var result = worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
+
+                tr *= result.tr;
+
+                if (.Pass != result.event) {
+                    result.tr = tr;
+                    return result;
+                }
+            }
+
+            const ray_min_t = ro.offsetF(hit.t);
+            if (ray_min_t > ray_max_t) {
+                break;
+            }
+
+            tray.setMinMaxT(ray_min_t, ray_max_t);
+        }
+
+        return Volume.initPass(tr);
     }
 };

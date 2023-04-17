@@ -229,6 +229,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
             .Sphere => Sphere.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
+            .TriangleMesh => |m| m.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
             else => Volume.initPass(@splat(4, @as(f32, 1.0))),
         };
     }
