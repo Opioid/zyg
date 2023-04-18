@@ -315,7 +315,7 @@ pub const PathtracerMIS = struct {
             history.time,
         );
 
-        const tr = worker.transmitted(&shadow_ray, isec, filter) orelse return @splat(4, @as(f32, 0.0));
+        const tr = worker.visibility(&shadow_ray, isec, filter) orelse return @splat(4, @as(f32, 0.0));
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 

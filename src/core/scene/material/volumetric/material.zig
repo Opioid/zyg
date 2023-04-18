@@ -63,6 +63,7 @@ pub const Material = struct {
             math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
+        self.super.properties.evaluate_visibility = true;
 
         if (self.density_map.valid()) {
             try Builder.build(

@@ -214,16 +214,18 @@ pub const Scene = struct {
 
         self.calculateWorldBounds(camera_pos);
 
-        self.evaluate_visibility = false;
-        for (self.material_ids.items) |i| {
-            if (self.materials.items[i].evaluateVisibility()) {
-                self.evaluate_visibility = true;
-                break;
-            }
-        }
+        self.has_volumes = self.volumes.items.len > 0;
 
-        for (self.volumes.items) |v| {
-            self.props.items[v].setVisibleInShadow(false);
+        if (self.has_volumes) {
+            self.evaluate_visibility = true;
+        } else {
+            self.evaluate_visibility = false;
+            for (self.material_ids.items) |i| {
+                if (self.materials.items[i].evaluateVisibility()) {
+                    self.evaluate_visibility = true;
+                    break;
+                }
+            }
         }
 
         self.sky.compile(alloc, time, self, threads, fs);
@@ -248,8 +250,6 @@ pub const Scene = struct {
 
         try self.light_tree_builder.build(alloc, &self.light_tree, self, threads);
 
-        self.has_volumes = self.volumes.items.len > 0;
-
         var caustic_aabb = math.aabb.Empty;
         for (self.finite_props.items) |i| {
             if (self.props.items[i].caustic()) {
@@ -264,13 +264,9 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(ray, self, ipo, isec);
     }
 
-    pub fn intersectP(self: *const Scene, ray: Ray) bool {
-        return self.prop_bvh.intersectP(ray, self);
-    }
-
-    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter) ?Vec4f {
+    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(ray, filter, self);
+            return self.prop_bvh.visibility(ray, filter, worker);
         }
 
         if (self.prop_bvh.intersectP(ray, self)) {
@@ -278,14 +274,6 @@ pub const Scene = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
-    }
-
-    pub fn transmittance(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        if (!self.has_volumes) {
-            return @splat(4, @as(f32, 1.0));
-        }
-
-        return self.volume_bvh.transmittance(ray, filter, worker);
     }
 
     pub fn scatter(
@@ -340,17 +328,14 @@ pub const Scene = struct {
             try self.light_ids.append(alloc, Null);
         }
 
-        // Shape has no surface
-        if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
-            if (shape_inst.finite()) {
-                try self.volumes.append(alloc, p);
-            }
+        if (shape_inst.finite()) {
+            try self.finite_props.append(alloc, p);
         } else {
-            if (shape_inst.finite()) {
-                try self.finite_props.append(alloc, p);
-            } else {
-                try self.infinite_props.append(alloc, p);
-            }
+            try self.infinite_props.append(alloc, p);
+        }
+
+        if (self.props.items[p].volume()) {
+            try self.volumes.append(alloc, p);
         }
 
         return p;
@@ -363,19 +348,15 @@ pub const Scene = struct {
         self.prop_parts.items[p] = self.prop_parts.items[entity];
 
         const shape_inst = self.propShape(p);
-        const num_parts = shape_inst.numParts();
 
-        // Shape has no surface
-        if (1 == num_parts and 1.0 == self.propMaterial(p, 0).ior()) {
-            if (shape_inst.finite()) {
-                try self.volumes.append(alloc, p);
-            }
+        if (shape_inst.finite()) {
+            try self.finite_props.append(alloc, p);
         } else {
-            if (shape_inst.finite()) {
-                try self.finite_props.append(alloc, p);
-            } else {
-                try self.infinite_props.append(alloc, p);
-            }
+            try self.infinite_props.append(alloc, p);
+        }
+
+        if (self.props.items[p].volume()) {
+            try self.volumes.append(alloc, p);
         }
 
         return p;

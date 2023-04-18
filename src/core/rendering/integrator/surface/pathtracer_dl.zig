@@ -75,23 +75,6 @@ pub const PathtracerDL = struct {
         var throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
-        {
-            var pure_emissive: bool = undefined;
-            const energy = isec.evaluateRadiance(
-                ray.ray.origin,
-                -ray.ray.direction,
-                null,
-                worker.scene,
-                &pure_emissive,
-            ) orelse @splat(4, @as(f32, 0.0));
-
-            if (pure_emissive) {
-                return hlp.composeAlpha(energy, throughput, false);
-            }
-
-            result += energy;
-        }
-
         var i: u32 = 0;
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
@@ -225,7 +208,6 @@ pub const PathtracerDL = struct {
         const p = isec.offsetPN(n, translucent);
 
         var shadow_ray: Ray = undefined;
-        shadow_ray.ray.origin = p;
         shadow_ray.depth = ray.depth;
         shadow_ray.time = ray.time;
         shadow_ray.wavelength = ray.wavelength;
@@ -246,8 +228,9 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
+            shadow_ray.ray.origin = p;
             shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.transmitted(&shadow_ray, isec, filter) orelse continue;
+            const tr = worker.visibility(&shadow_ray, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 

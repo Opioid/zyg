@@ -71,7 +71,8 @@ pub const AOV = struct {
 
         var occlusion_ray: Ray = undefined;
 
-        occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
+        const origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
+
         occlusion_ray.time = ray.time;
 
         var sampler = &self.samplers[0];
@@ -86,9 +87,10 @@ pub const AOV = struct {
 
             const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
 
+            occlusion_ray.ray.origin = origin;
             occlusion_ray.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(occlusion_ray, null)) |_| {
+            if (worker.scene.visibility(occlusion_ray, null, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 

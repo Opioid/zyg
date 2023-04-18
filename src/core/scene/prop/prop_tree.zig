@@ -183,7 +183,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis = @splat(4, @as(f32, 1.0));
@@ -198,7 +198,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    vis *= props[p].visibility(p, ray, filter, scene) orelse return null;
+                    vis *= props[p].visibility(p, ray, filter, worker) orelse return null;
                 }
 
                 n = stack.pop();
@@ -228,63 +228,11 @@ pub const Tree = struct {
 
         if (ray.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                vis *= props[p].visibility(p, ray, filter, scene) orelse return null;
+                vis *= props[p].visibility(p, ray, filter, worker) orelse return null;
             }
         }
 
         return vis;
-    }
-
-    pub fn transmittance(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
-        var stack = NodeStack{};
-
-        var tr = @splat(4, @as(f32, 1.0));
-        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
-
-        const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
-
-        while (NodeStack.End != n) {
-            const node = nodes[n];
-
-            if (0 != node.numIndices()) {
-                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    tr *= props[p].transmittance(p, ray, filter, worker) orelse return null;
-                }
-
-                n = stack.pop();
-                continue;
-            }
-
-            var a = node.children();
-            var b = a + 1;
-
-            var dista = nodes[a].intersect(ray.ray);
-            var distb = nodes[b].intersect(ray.ray);
-
-            if (dista > distb) {
-                std.mem.swap(u32, &a, &b);
-                std.mem.swap(f32, &dista, &distb);
-            }
-
-            if (std.math.f32_max == dista) {
-                n = stack.pop();
-            } else {
-                n = a;
-                if (std.math.f32_max != distb) {
-                    stack.push(b);
-                }
-            }
-        }
-
-        if (ray.ray.maxT() >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                tr *= props[p].transmittance(p, ray, filter, worker) orelse return null;
-            }
-        }
-
-        return tr;
     }
 
     pub fn scatter(

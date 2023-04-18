@@ -241,14 +241,40 @@ pub const Worker = struct {
         return @splat(4, @as(f32, 0.0));
     }
 
-    pub fn transmitted(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
-        if (self.subsurfaceVisibility(ray, isec, filter)) |a| {
-            if (self.scene.transmittance(ray.*, filter, self)) |b| {
-                return a * b;
+    pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
+        const material = isec.material(self.scene);
+
+        if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
+            const ray_max_t = ray.ray.maxT();
+            const prop = isec.prop;
+
+            var nisec: shp.Intersection = .{};
+            const hit = self.scene.prop(prop).intersectSSS(prop, ray, self.scene, &nisec);
+
+            if (hit) {
+                const sss_min_t = ray.ray.minT();
+                const sss_max_t = ray.ray.maxT();
+                ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
+                if (self.scene.visibility(ray.*, filter, self)) |tv| {
+                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                    const interface = self.interface_stack.top();
+                    const cc = interface.cc;
+                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
+                        const wi = ray.ray.direction;
+                        const n = nisec.n;
+                        const vbh = material.super().border(wi, n);
+                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
+
+                        return @splat(4, vbh * nsc) * tv * tr;
+                    }
+                }
+
+                return null;
             }
         }
 
-        return null;
+        return self.scene.visibility(ray.*, filter, self);
     }
 
     pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) bool {
@@ -291,43 +317,6 @@ pub const Worker = struct {
     ) Volume {
         const cc = material.super().cc;
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, filter, sampler, self);
-    }
-
-    fn subsurfaceVisibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
-        const material = isec.material(self.scene);
-
-        if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
-            const ray_max_t = ray.ray.maxT();
-            const prop = isec.prop;
-
-            var nisec: shp.Intersection = .{};
-            const hit = self.scene.prop(prop).intersectSSS(prop, ray, self.scene, &nisec);
-
-            if (hit) {
-                const sss_min_t = ray.ray.minT();
-                const sss_max_t = ray.ray.maxT();
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ray_max_t);
-                if (self.scene.visibility(ray.*, filter)) |tv| {
-                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const interface = self.interface_stack.top();
-                    const cc = interface.cc;
-                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
-                        ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                        const wi = ray.ray.direction;
-                        const n = nisec.n;
-                        const vbh = material.super().border(wi, n);
-                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
-
-                        return @splat(4, vbh * nsc) * tv * tr;
-                    }
-                }
-
-                return null;
-            }
-        }
-
-        return self.scene.visibility(ray.*, filter);
     }
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
