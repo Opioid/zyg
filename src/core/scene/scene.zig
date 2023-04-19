@@ -108,7 +108,6 @@ pub const Scene = struct {
 
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
-        try shapes.append(alloc, Shape{ .Null = {} });
         try shapes.append(alloc, Shape{ .Canopy = .{} });
         try shapes.append(alloc, Shape{ .Cube = .{} });
         try shapes.append(alloc, Shape{ .Disk = .{} });
@@ -312,7 +311,7 @@ pub const Scene = struct {
     }
 
     pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
-        const p = self.allocateProp(alloc) catch return Null;
+        const p = try self.allocateProp(alloc);
 
         self.props.items[p].configure(shape_id, materials, self);
 
@@ -342,7 +341,7 @@ pub const Scene = struct {
     }
 
     pub fn createPropInstance(self: *Scene, alloc: Allocator, entity: u32) !u32 {
-        const p = self.allocateProp(alloc) catch return Null;
+        const p = try self.allocateProp(alloc);
 
         self.props.items[p] = self.props.items[entity];
         self.prop_parts.items[p] = self.prop_parts.items[entity];

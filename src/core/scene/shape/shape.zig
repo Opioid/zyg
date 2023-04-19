@@ -35,7 +35,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
-    Null,
     Canopy: Canopy,
     Cube: Cube,
     Disk: Disk,
@@ -55,7 +54,6 @@ pub const Shape = union(enum) {
 
     pub fn numParts(self: Shape) u32 {
         return switch (self) {
-            .Null => 0,
             .TriangleMesh => |m| m.numParts(),
             else => 1,
         };
@@ -63,7 +61,6 @@ pub const Shape = union(enum) {
 
     pub fn numMaterials(self: Shape) u32 {
         return switch (self) {
-            .Null => 0,
             .TriangleMesh => |m| m.numMaterials(),
             else => 1,
         };
@@ -107,7 +104,7 @@ pub const Shape = union(enum) {
 
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
-            .Null, .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
+            .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .TriangleMesh => |m| m.tree.aabb(),
@@ -131,7 +128,7 @@ pub const Shape = union(enum) {
 
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
-            .Null, .Plane => 0.0,
+            .Plane => 0.0,
             .Canopy => 2.0 * std.math.pi,
             .Cube => {
                 const d = @splat(4, @as(f32, 2.0)) * scale;
@@ -162,7 +159,6 @@ pub const Shape = union(enum) {
 
     pub fn intersect(self: Shape, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         return switch (self) {
-            .Null => false,
             .Canopy => Canopy.intersect(&ray.ray, trafo, isec),
             .Cube => Cube.intersect(&ray.ray, trafo, ipo, isec),
             .Disk => Disk.intersect(&ray.ray, trafo, isec),
@@ -177,7 +173,7 @@ pub const Shape = union(enum) {
 
     pub fn intersectP(self: Shape, ray: Ray, trafo: Trafo) bool {
         return switch (self) {
-            .Null, .Canopy, .InfiniteSphere => false,
+            .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray.ray, trafo),
             .Disk => Disk.intersectP(ray.ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray.ray, trafo),
@@ -357,7 +353,7 @@ pub const Shape = union(enum) {
         total_sphere: bool,
     ) f32 {
         return switch (self) {
-            .Cube, .Null, .Plane => 0.0,
+            .Cube, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
             .DistantSphere => DistantSphere.pdf(isec.trafo),
