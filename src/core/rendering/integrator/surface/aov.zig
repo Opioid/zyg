@@ -15,8 +15,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const AOV = struct {
-    const Num_dedicated_samplers = 1;
-
     pub const Value = enum {
         AO,
         Tangent,
@@ -50,9 +48,7 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
-        worker.resetInterfaceStack(initial_stack);
-
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         return switch (self.settings.value) {
             .AO => self.ao(ray.*, isec.*, worker),
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),

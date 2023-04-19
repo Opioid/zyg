@@ -21,10 +21,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const PathtracerMIS = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
-        num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
 
@@ -50,42 +47,16 @@ pub const PathtracerMIS = struct {
     const Self = @This();
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
         for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
+            s.startPixel(sample, seed);
         }
     }
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        gather_photons: bool,
-        worker: *Worker,
-        initial_stack: *const InterfaceStack,
-    ) Vec4f {
-        const num_samples = self.settings.num_samples;
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, num_samples);
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
+        const result = self.integrate(ray, isec, gather_photons, worker);
 
-        var result = @splat(4, @as(f32, 0.0));
-
-        var i = num_samples;
-        while (i > 0) : (i -= 1) {
-            worker.resetInterfaceStack(initial_stack);
-
-            var split_ray = ray.*;
-            var split_isec = isec.*;
-
-            result += @splat(4, num_samples_reciprocal) * self.integrate(
-                &split_ray,
-                &split_isec,
-                num_samples == i and gather_photons,
-                worker,
-            );
-
-            for (&self.samplers) |*s| {
-                s.incrementSample();
-            }
+        for (&self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return result;
@@ -365,7 +336,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
     fn pickSampler(self: *Self, bounce: u32) *Sampler {

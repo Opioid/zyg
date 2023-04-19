@@ -16,10 +16,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Pathtracer = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
-        num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
         avoid_caustics: bool,
@@ -32,35 +29,16 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
         for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
+            s.startPixel(sample, seed);
         }
     }
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        worker: *Worker,
-        initial_stack: *const InterfaceStack,
-    ) Vec4f {
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+        const result = self.integrate(ray, isec, worker);
 
-        var result = @splat(4, @as(f32, 0.0));
-
-        var i = self.settings.num_samples;
-        while (i > 0) : (i -= 1) {
-            worker.resetInterfaceStack(initial_stack);
-
-            var split_ray = ray.*;
-            var split_isec = isec.*;
-
-            result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
-
-            for (&self.samplers) |*s| {
-                s.incrementSample();
-            }
+        for (&self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return result;

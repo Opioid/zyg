@@ -235,7 +235,7 @@ pub const Worker = struct {
 
         var isec = Intersection{};
         if (self.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler)) {
-            return isec.volume.tr * self.surface_integrator.li(ray, &isec, gather_photons, self, &interface_stack);
+            return isec.volume.tr * self.surface_integrator.li(ray, &isec, gather_photons, self);
         }
 
         return @splat(4, @as(f32, 0.0));
