@@ -49,7 +49,6 @@ pub const Scene = struct {
     pub const Null = Prop.Null;
 
     pub const ShapeID = enum(u32) {
-        Null,
         Canopy,
         Cube,
         Disk,
@@ -305,7 +304,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@enumToInt(ShapeID.Null), &.{}, self);
+        self.props.items[p].configure(@enumToInt(ShapeID.Plane), &.{}, self);
 
         return p;
     }
