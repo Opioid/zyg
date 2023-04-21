@@ -35,16 +35,6 @@ pub const Pathtracer = struct {
     }
 
     pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
-        const result = self.integrate(ray, isec, worker);
-
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
-        return result;
-    }
-
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
         var primary_ray = true;
         var transparent = true;
         var from_subsurface = false;
@@ -149,6 +139,10 @@ pub const Pathtracer = struct {
             throughput *= isec.volume.tr;
 
             sampler.incrementPadding();
+        }
+
+        for (&self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
