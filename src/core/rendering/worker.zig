@@ -233,12 +233,7 @@ pub const Worker = struct {
     fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
         self.resetInterfaceStack(&interface_stack);
 
-        var isec = Intersection{};
-        if (self.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler)) {
-            return isec.volume.tr * self.surface_integrator.li(ray, &isec, gather_photons, self);
-        }
-
-        return @splat(4, @as(f32, 0.0));
+        return self.surface_integrator.li(ray, gather_photons, self);
     }
 
     pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
@@ -359,14 +354,14 @@ pub const Worker = struct {
         return self.interface_stack.peekIor(isec, self.scene);
     }
 
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: *Intersection, filter: ?Filter) void {
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection, filter: ?Filter) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
-            _ = self.interface_stack.remove(isec.*);
+            _ = self.interface_stack.remove(isec);
         } else {
             const material = isec.material(self.scene);
             const cc = material.collisionCoefficients2D(isec.geo.uv, filter, self.scene);
-            self.interface_stack.push(isec.*, cc);
+            self.interface_stack.push(isec, cc);
         }
     }
 

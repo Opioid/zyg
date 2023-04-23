@@ -39,10 +39,10 @@ pub const Integrator = union(enum) {
         }
     }
 
-    pub fn li(self: *Integrator, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *Integrator, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
         return switch (self.*) {
-            .PTMIS => |*i| i.li(ray, isec, gather_photons, worker),
-            inline else => |*i| i.li(ray, isec, worker),
+            .PTMIS => |*i| i.li(ray, gather_photons, worker),
+            inline else => |*i| i.li(ray, worker),
         };
     }
 };

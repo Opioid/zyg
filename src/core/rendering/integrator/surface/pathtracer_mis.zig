@@ -52,17 +52,7 @@ pub const PathtracerMIS = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
-        const result = self.integrate(ray, isec, gather_photons, worker);
-
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
-        return result;
-    }
-
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var sample_result = BxdfSample{};
@@ -70,117 +60,19 @@ pub const PathtracerMIS = struct {
         var state = PathState{};
 
         var throughput = @splat(4, @as(f32, 1.0));
+        var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
         var geo_n = @splat(4, @as(f32, 0.0));
 
-        {
-            var pure_emissive: bool = undefined;
-            const energy = isec.evaluateRadiance(
-                ray.ray.origin,
-                -ray.ray.direction,
-                null,
-                worker.scene,
-                &pure_emissive,
-            ) orelse @splat(4, @as(f32, 0.0));
+        var isec = Intersection{};
 
-            if (pure_emissive) {
-                return hlp.composeAlpha(energy, throughput, false);
-            }
-
-            result += energy;
-        }
-
-        var i: u32 = 0;
-        while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
-
+        while (true) {
             const pr = state.primary_ray;
-
             const filter: ?Filter = if (ray.depth <= 1 or pr) null else .Nearest;
-            const avoid_caustics = self.settings.avoid_caustics and !pr;
-            const straight_border = state.from_subsurface;
-
-            const mat_sample = worker.sampleMaterial(
-                ray.*,
-                wo,
-                isec.*,
-                filter,
-                0.0,
-                avoid_caustics,
-                straight_border,
-            );
-
-            if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, pr);
-            }
 
             var sampler = self.pickSampler(ray.depth);
 
-            result += throughput * self.sampleLights(ray.*, isec.*, &mat_sample, filter, sampler, worker);
-
-            var effective_bxdf_pdf = sample_result.pdf;
-
-            sample_result = mat_sample.sample(sampler);
-            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
-                break;
-            }
-
-            if (sample_result.class.specular) {
-                if (avoid_caustics) {
-                    break;
-                }
-
-                state.treat_as_singular = true;
-            } else if (!sample_result.class.straight) {
-                state.treat_as_singular = false;
-
-                effective_bxdf_pdf = sample_result.pdf;
-
-                if (pr) {
-                    state.primary_ray = false;
-
-                    const indirect = !state.direct and 0 != ray.depth;
-                    if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
-                    }
-                }
-            }
-
-            if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                ray.depth += 1;
-            }
-
-            if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
-            } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
-                state.direct = false;
-                state.from_subsurface = false;
-            }
-
-            if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
-            }
-
-            const old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
-
-            if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, filter);
-            }
-
-            state.from_subsurface = state.from_subsurface or isec.subsurface();
-
-            if (sample_result.class.straight and !state.treat_as_singular) {
-                sample_result.pdf = effective_bxdf_pdf;
-            } else {
-                state.is_translucent = mat_sample.isTranslucent();
-                geo_n = mat_sample.super().geometricNormal();
-            }
-
-            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
                 break;
             }
 
@@ -190,7 +82,7 @@ pub const PathtracerMIS = struct {
             const radiance = self.connectLight(
                 ray.*,
                 geo_n,
-                isec.*,
+                isec,
                 sample_result,
                 state,
                 filter,
@@ -215,7 +107,94 @@ pub const PathtracerMIS = struct {
                 }
             }
 
+            const wo = -ray.ray.direction;
+
+            const avoid_caustics = self.settings.avoid_caustics and !pr;
+            const straight_border = state.from_subsurface;
+
+            const mat_sample = worker.sampleMaterial(
+                ray.*,
+                wo,
+                isec,
+                filter,
+                0.0,
+                avoid_caustics,
+                straight_border,
+            );
+
+            if (worker.aov.active()) {
+                worker.commonAOV(throughput, ray.*, isec, &mat_sample, pr);
+            }
+
+            result += throughput * self.sampleLights(ray.*, isec, &mat_sample, filter, sampler, worker);
+
+            var effective_bxdf_pdf = sample_result.pdf;
+
+            sample_result = mat_sample.sample(sampler);
+            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
+                break;
+            }
+
+            if (sample_result.class.specular) {
+                if (avoid_caustics) {
+                    break;
+                }
+
+                state.treat_as_singular = true;
+            } else if (!sample_result.class.straight) {
+                state.treat_as_singular = false;
+
+                effective_bxdf_pdf = sample_result.pdf;
+
+                if (pr) {
+                    state.primary_ray = false;
+
+                    const indirect = !state.direct and 0 != ray.depth;
+                    if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
+                        worker.addPhoton(throughput * worker.photonLi(isec, &mat_sample));
+                    }
+                }
+            }
+
+            if (!(sample_result.class.straight and sample_result.class.transmission)) {
+                ray.depth += 1;
+            }
+
+            if (sample_result.class.straight) {
+                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+            } else {
+                ray.ray.origin = isec.offsetP(sample_result.wi);
+                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+
+                state.direct = false;
+                state.from_subsurface = false;
+            }
+
+            if (0.0 == ray.wavelength) {
+                ray.wavelength = sample_result.wavelength;
+            }
+
+            old_throughput = throughput;
+            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+
+            if (sample_result.class.transmission) {
+                worker.interfaceChange(sample_result.wi, isec, filter);
+            }
+
+            state.from_subsurface = state.from_subsurface or isec.subsurface();
+
+            if (sample_result.class.straight and !state.treat_as_singular) {
+                sample_result.pdf = effective_bxdf_pdf;
+            } else {
+                state.is_translucent = mat_sample.isTranslucent();
+                geo_n = mat_sample.super().geometricNormal();
+            }
+
             sampler.incrementPadding();
+        }
+
+        for (&self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return hlp.composeAlpha(result, throughput, state.direct);
@@ -309,7 +288,7 @@ pub const PathtracerMIS = struct {
         scene: *const Scene,
         pure_emissive: *bool,
     ) Vec4f {
-        const wo = -sample_result.wi;
+        const wo = -ray.ray.direction;
         const energy = isec.evaluateRadiance(
             ray.ray.origin,
             wo,

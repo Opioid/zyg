@@ -40,21 +40,30 @@ pub const PathtracerDL = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
         var primary_ray = true;
         var treat_as_singular = true;
         var transparent = true;
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
+        var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
 
-        var i: u32 = 0;
-        while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
+        var isec = Intersection{};
 
+        while (true) {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
-            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+
+            var sampler = self.pickSampler(ray.depth);
+
+            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
+                break;
+            }
+
+            throughput *= isec.volume.tr;
+
+            const wo = -ray.ray.direction;
 
             var pure_emissive: bool = undefined;
             const energy = isec.evaluateRadiance(
@@ -74,10 +83,22 @@ pub const PathtracerDL = struct {
                 break;
             }
 
+            if (ray.depth >= self.settings.max_bounces) {
+                break;
+            }
+
+            if (ray.depth >= self.settings.min_bounces) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
+                    break;
+                }
+            }
+
+            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                isec.*,
+                isec,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -85,12 +106,10 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
             }
 
-            var sampler = self.pickSampler(ray.depth);
-
-            result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray.*, isec, &mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -126,7 +145,7 @@ pub const PathtracerDL = struct {
                 ray.wavelength = sample_result.wavelength;
             }
 
-            const old_throughput = throughput;
+            old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
@@ -134,26 +153,6 @@ pub const PathtracerDL = struct {
             }
 
             from_subsurface = from_subsurface or isec.subsurface();
-
-            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
-                break;
-            }
-
-            if (.Absorb == isec.volume.event) {
-                break;
-            }
-
-            throughput *= isec.volume.tr;
-
-            if (ray.depth >= self.settings.max_bounces) {
-                break;
-            }
-
-            if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
-                    break;
-                }
-            }
 
             sampler.incrementPadding();
         }

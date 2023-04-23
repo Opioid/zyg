@@ -48,12 +48,21 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
-        return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec.*, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
-            .Photons => self.photons(ray, isec, worker),
+    pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
+        var isec = Intersection{};
+        var sampler = &self.samplers[0];
+
+        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, sampler)) {
+            return @splat(4, @as(f32, 0.0));
+        }
+
+        const result = switch (self.settings.value) {
+            .AO => self.ao(ray.*, isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec, worker),
+            .Photons => self.photons(ray, &isec, worker),
         };
+
+        return isec.volume.tr * result;
     }
 
     fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
@@ -192,7 +201,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, filter);
+                worker.interfaceChange(sample_result.wi, isec.*, filter);
             }
 
             from_subsurface = from_subsurface or isec.subsurface();
