@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(cli);
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    run_cmd.cwd = "/home/beni/workspace/zyg/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {

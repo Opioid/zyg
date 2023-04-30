@@ -56,7 +56,7 @@ pub const Writer = struct {
             try writer.writeAll(&info);
 
             if (y < crop[1] or y >= crop[3]) {
-                std.mem.set(u8, buffer, 0);
+                @memset(buffer, 0);
                 current_pixel += width;
             } else {
                 var x: u32 = 0;

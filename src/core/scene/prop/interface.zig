@@ -33,7 +33,7 @@ pub const Stack = struct {
     pub fn copy(self: *Stack, other: *const Stack) void {
         const index = other.index;
         self.index = index;
-        std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
+        @memcpy(self.stack[0..index], other.stack[0..index]);
     }
 
     pub fn empty(self: *const Stack) bool {

@@ -19,7 +19,7 @@ pub const System = struct {
 
     pub fn init(alloc: Allocator) !System {
         var buffer = try alloc.alloc(u8, 256);
-        std.mem.set(u8, buffer, 0);
+        @memset(buffer, 0);
 
         return System{ .name_buffer = buffer };
     }
@@ -39,7 +39,7 @@ pub const System = struct {
         const buffer_len = if (append_slash) folder.len + 1 else folder.len;
 
         var buffer = try alloc.alloc(u8, buffer_len);
-        std.mem.copy(u8, buffer, folder);
+        @memcpy(buffer, folder);
 
         if (append_slash) {
             buffer[folder.len] = '/';
@@ -95,8 +95,8 @@ pub const System = struct {
                 self.name_buffer = try alloc.realloc(self.name_buffer, resolved_name_len);
             }
 
-            std.mem.copy(u8, self.name_buffer[0..], m);
-            std.mem.copy(u8, self.name_buffer[m.len..], modified_name);
+            @memcpy(self.name_buffer[0..], m);
+            @memcpy(self.name_buffer[m.len..], modified_name);
             self.resolved_name_len = resolved_name_len;
 
             const resolved_name = self.name_buffer[0..resolved_name_len];
@@ -109,7 +109,7 @@ pub const System = struct {
             return ReadStream.initFile(&self.stream);
         }
 
-        std.mem.copy(u8, self.name_buffer[0..], modified_name);
+        @memcpy(self.name_buffer[0..], modified_name);
         self.resolved_name_len = @intCast(u32, modified_name.len);
 
         self.stream.setFile(try std.fs.cwd().openFile(modified_name, .{}));

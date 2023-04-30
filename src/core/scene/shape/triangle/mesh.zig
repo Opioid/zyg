@@ -391,7 +391,7 @@ pub const Mesh = struct {
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
-        std.mem.set(Part, parts, .{});
+        @memset(parts, .{});
 
         return Mesh{ .num_parts = num_parts, .parts = parts.ptr };
     }

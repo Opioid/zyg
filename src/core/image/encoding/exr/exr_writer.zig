@@ -377,7 +377,7 @@ pub const Writer = struct {
                     cb.size = bytes_here;
                     cb.buffer = image_buffer;
 
-                    std.mem.copy(u8, image_buffer[0..bytes_here], block_buffer[0..bytes_here]);
+                    @memcpy(image_buffer[0..bytes_here], block_buffer[0..bytes_here]);
                 } else {
                     cb.size = compressed_size;
                     cb.buffer = image_buffer;

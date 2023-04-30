@@ -85,7 +85,7 @@ pub const Srgb = struct {
         self.max_depth = maxd;
 
         if (d[0] != dim[0] or d[1] != dim[1]) {
-            std.mem.set(u8, self.buffer[0..num_bytes], 0);
+            @memset(self.buffer[0..num_bytes], 0);
         }
 
         _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, dim[1]), 0);

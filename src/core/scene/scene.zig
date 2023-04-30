@@ -457,7 +457,7 @@ pub const Scene = struct {
         const b = self.prop_frames.items[entity];
         const e = b + len;
 
-        std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
+        @memcpy(self.keyframes.items[b..e], frames[0..len]);
     }
 
     pub fn propSetFramesScale(self: *Scene, entity: u32, scale: Vec4f) void {

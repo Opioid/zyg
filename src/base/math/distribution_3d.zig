@@ -30,7 +30,7 @@ pub const Distribution3D = struct {
             }
 
             self.conditional = try alloc.realloc(self.conditional, num);
-            std.mem.set(Distribution2D, self.conditional, .{});
+            @memset(self.conditional, .{});
         }
 
         return self.conditional;
