@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(cli);
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/zyg/system";
+    run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {
@@ -101,7 +101,7 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
@@ -113,7 +113,7 @@ pub fn build(b: *std.Build) void {
             //"takes/head.take",
             //"takes/flakes.take",
             //"takes/embergen.take",
-            //"takes/volume.take",
+            "takes/volume.take",
             //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",

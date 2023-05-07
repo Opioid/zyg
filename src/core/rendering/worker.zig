@@ -158,7 +158,8 @@ pub const Worker = struct {
                     const sample = self.sampler.cameraSample(pixel);
                     var ray = camera.generateRay(sample, frame, scene);
 
-                    const color = self.li(&ray, s < num_photon_samples, camera.interface_stack);
+                    self.resetInterfaceStack(&camera.interface_stack);
+                    const color = self.surface_integrator.li(&ray, s < num_photon_samples, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -228,12 +229,6 @@ pub const Worker = struct {
                 @intToFloat(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
             );
         }
-    }
-
-    fn li(self: *Worker, ray: *Ray, gather_photons: bool, interface_stack: InterfaceStack) Vec4f {
-        self.resetInterfaceStack(&interface_stack);
-
-        return self.surface_integrator.li(ray, gather_photons, self);
     }
 
     pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
@@ -319,24 +314,18 @@ pub const Worker = struct {
     }
 
     pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
-        if (!self.scene.intersect(ray, .All, isec)) {
-            return false;
-        }
-
-        var o = isec.opacity(filter, self.scene);
-
-        while (o < 1.0) {
-            if (o > 0.0 and o > self.rng.randomFloat()) {
-                return true;
-            }
-
-            // Slide along ray until opaque surface is found
-            ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+        while (true) {
             if (!self.scene.intersect(ray, .All, isec)) {
                 return false;
             }
 
-            o = isec.opacity(filter, self.scene);
+            const o = isec.opacity(filter, self.scene);
+            if (1.0 == o or (o > 0.0 and o > self.rng.randomFloat())) {
+                break;
+            }
+
+            // Slide along ray until opaque surface is found
+            ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
         }
 
         return true;
