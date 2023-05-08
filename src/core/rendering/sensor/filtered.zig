@@ -21,7 +21,6 @@ const Allocator = std.mem.Allocator;
 pub fn Filtered(comptime T: type) type {
     return struct {
         const N = 30;
-
         const Func = math.InterpolatedFunction1D_N(N);
 
         sensor: T = .{},
@@ -37,7 +36,7 @@ pub fn Filtered(comptime T: type) type {
 
         filter: Func,
 
-        distribution: math.Distribution2DN(31) = .{},
+        distribution: math.Distribution2DN(N + 1) = .{},
 
         tonemapper: Tonemapper = Tonemapper.init(.Linear, 0.0),
 
@@ -56,14 +55,13 @@ pub fn Filtered(comptime T: type) type {
             if (radius > 0.0) {
                 result.filter.scale(1.0 / result.integral(64, radius));
 
-                const Num: u32 = comptime result.distribution.conditional.len;
-                const interval = (2.0 * radius) / @intToFloat(f32, Num - 1);
+                const interval = (2.0 * radius) / @intToFloat(f32, N);
 
                 for (&result.distribution.conditional, 0..) |*c, y| {
                     const sy = -radius + @intToFloat(f32, y) * interval;
                     const fy = f.eval(@fabs(sy));
 
-                    var data: [Num]f32 = undefined;
+                    var data: [N + 1]f32 = undefined;
 
                     for (&data, 0..) |*d, x| {
                         const sx = -radius + @intToFloat(f32, x) * interval;
