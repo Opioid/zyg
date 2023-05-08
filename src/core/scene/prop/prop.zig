@@ -1,8 +1,10 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const Vec4f = base.math.Vec4f;
@@ -15,6 +17,7 @@ pub const Prop = struct {
         visible_in_reflection: bool = true,
         visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
+        volume: bool = false,
         caustic: bool = false,
         test_AABB: bool = false,
         static: bool = true,
@@ -25,11 +28,17 @@ pub const Prop = struct {
     properties: Properties = .{},
 
     fn visible(self: Prop, ray_depth: u32) bool {
-        if (0 == ray_depth) {
-            return self.properties.visible_in_camera;
+        const properties = self.properties;
+
+        if (properties.volume) {
+            return false;
         }
 
-        return self.properties.visible_in_reflection;
+        if (0 == ray_depth) {
+            return properties.visible_in_camera;
+        }
+
+        return properties.visible_in_reflection;
     }
 
     pub fn visibleInCamera(self: Prop) bool {
@@ -46,6 +55,10 @@ pub const Prop = struct {
 
     pub fn evaluateVisibility(self: Prop) bool {
         return self.properties.evaluate_visibility;
+    }
+
+    pub fn volume(self: Prop) bool {
+        return self.properties.volume;
     }
 
     pub fn caustic(self: Prop) bool {
@@ -78,6 +91,8 @@ pub const Prop = struct {
                 self.properties.caustic = true;
             }
         }
+
+        self.properties.volume = shape_inst.finite() and 1 == shape_inst.numParts() and 1.0 == scene.material(materials[0]).ior();
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
@@ -113,7 +128,7 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectShadow(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
+    pub fn intersectSSS(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
@@ -145,8 +160,9 @@ pub const Prop = struct {
         return scene.shape(self.shape).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         const properties = self.properties;
+        const scene = worker.scene;
 
         if (!properties.evaluate_visibility) {
             if (self.intersectP(entity, ray, scene)) {
@@ -166,6 +182,31 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
+        if (properties.volume) {
+            return scene.shape(self.shape).transmittance(ray, trafo, entity, filter, worker);
+        } else {
+            return scene.shape(self.shape).visibility(ray, trafo, entity, filter, scene);
+        }
+    }
+
+    pub fn scatter(
+        self: Prop,
+        entity: u32,
+        ray: Ray,
+        throughput: Vec4f,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) shp.Volume {
+        const properties = self.properties;
+        const scene = worker.scene;
+
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+            return shp.Volume.initPass(@splat(4, @as(f32, 1.0)));
+        }
+
+        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+
+        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, filter, sampler, worker);
     }
 };

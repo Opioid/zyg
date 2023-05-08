@@ -134,7 +134,28 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CC {
+    pub fn collisionCoefficients2D(self: *const Material, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) CC {
+        const sup = self.super();
+        const cc = sup.cc;
+
+        switch (self.*) {
+            .Volumetric => {
+                return cc;
+            },
+            else => {
+                const color_map = sup.color_map;
+                if (color_map.valid()) {
+                    const key = ts.resolveKey(sup.sampler_key, filter);
+                    const color = ts.sample2D_3(key, color_map, uv, scene);
+                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
+                }
+
+                return cc;
+            },
+        }
+    }
+
+    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CC {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -144,13 +165,6 @@ pub const Material = union(enum) {
                 return .{ .a = d * cc.a, .s = d * cc.s };
             },
             else => {
-                const color_map = sup.color_map;
-                if (color_map.valid()) {
-                    const key = ts.resolveKey(sup.sampler_key, filter);
-                    const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, scene);
-                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
-                }
-
                 return cc;
             },
         }
@@ -189,7 +203,7 @@ pub const Material = union(enum) {
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, worker),
-            .Volumetric => |*v| v.sample(wo, rs),
+            .Volumetric => |*v| .{ .Volumetric = v.sample(wo, rs) },
         };
     }
 

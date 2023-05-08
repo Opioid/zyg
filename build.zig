@@ -73,14 +73,14 @@ pub fn build(b: *std.Build) void {
     cli.linkLibC();
     // cli.sanitize_thread = true;
     cli.strip = true;
-    cli.install();
+    b.installArtifact(cli);
 
     capi.addModule("base", base);
     capi.addModule("core", core);
 
     capi.linkLibC();
     capi.strip = true;
-    capi.install();
+    b.installArtifact(capi);
 
     it.addModule("base", base);
     it.addModule("core", core);
@@ -88,9 +88,9 @@ pub fn build(b: *std.Build) void {
     it.linkLibC();
     // it.sanitize_thread = true;
     it.strip = true;
-    it.install();
+    b.installArtifact(it);
 
-    const run_cmd = cli.run();
+    const run_cmd = b.addRunArtifact(cli);
     run_cmd.step.dependOn(b.getInstallStep());
     run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
@@ -101,7 +101,7 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
@@ -111,8 +111,10 @@ pub fn build(b: *std.Build) void {
             //"takes/disney_cloud.take",
             //"takes/sky.take",
             //"takes/rene.take",
+            //"takes/head.take",
             //"takes/flakes.take",
             //"takes/embergen.take",
+            "takes/volume.take",
             //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",

@@ -211,7 +211,7 @@ pub const Reader = struct {
                         } else {
                             const len = @min(decompressed - i, row_size - current_byte);
 
-                            std.mem.copy(u8, self.buffer[current_byte_total .. current_byte_total + len], buffer[i .. i + len]);
+                            @memcpy(self.buffer[current_byte_total .. current_byte_total + len], buffer[i .. i + len]);
 
                             current_byte += len;
                             current_byte_total += len;
@@ -239,7 +239,7 @@ pub const Reader = struct {
             switch (self.image) {
                 .Byte1 => |image| {
                     if (byte_compatible) {
-                        std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var c: u32 = switch (swizzle) {
                             .W => 3,
@@ -266,7 +266,7 @@ pub const Reader = struct {
                 },
                 .Byte2 => |image| {
                     if (byte_compatible) {
-                        std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var i: u32 = 0;
                         const len = @intCast(u32, self.width * self.height);
@@ -291,7 +291,7 @@ pub const Reader = struct {
                 },
                 .Byte3 => |image| {
                     if (byte_compatible) {
-                        std.mem.copy(u8, std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var color = Pack3b.init1(0);
 

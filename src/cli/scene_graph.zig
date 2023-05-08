@@ -152,7 +152,7 @@ pub const Graph = struct {
         const b = self.prop_frames.items[entity];
         const e = b + len;
 
-        std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
+        @memcpy(self.keyframes.items[b..e], frames[0..len]);
     }
 
     pub fn createAnimation(self: *Self, alloc: Allocator, count: u32) !u32 {

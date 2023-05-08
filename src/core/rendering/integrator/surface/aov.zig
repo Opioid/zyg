@@ -15,8 +15,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const AOV = struct {
-    const Num_dedicated_samplers = 1;
-
     pub const Value = enum {
         AO,
         Tangent,
@@ -50,14 +48,21 @@ pub const AOV = struct {
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
-        worker.resetInterfaceStack(initial_stack);
+    pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
+        var isec = Intersection{};
+        var sampler = &self.samplers[0];
 
-        return switch (self.settings.value) {
-            .AO => self.ao(ray.*, isec.*, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec.*, worker),
-            .Photons => self.photons(ray, isec, worker),
+        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, sampler)) {
+            return @splat(4, @as(f32, 0.0));
+        }
+
+        const result = switch (self.settings.value) {
+            .AO => self.ao(ray.*, isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec, worker),
+            .Photons => self.photons(ray, &isec, worker),
         };
+
+        return isec.volume.tr * result;
     }
 
     fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
@@ -71,7 +76,8 @@ pub const AOV = struct {
 
         var occlusion_ray: Ray = undefined;
 
-        occlusion_ray.ray.origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
+        const origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
+
         occlusion_ray.time = ray.time;
 
         var sampler = &self.samplers[0];
@@ -86,9 +92,10 @@ pub const AOV = struct {
 
             const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
 
+            occlusion_ray.ray.origin = origin;
             occlusion_ray.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(occlusion_ray, null)) |_| {
+            if (worker.scene.visibility(occlusion_ray, null, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -129,7 +136,6 @@ pub const AOV = struct {
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -140,15 +146,12 @@ pub const AOV = struct {
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
                 isec.*,
                 filter,
                 0.0,
                 true,
                 from_subsurface,
             );
-
-            wo1 = wo;
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -198,22 +201,16 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec);
+                worker.interfaceChange(sample_result.wi, isec.*, filter);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
+            from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, throughput, isec, filter, sampler);
-
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
                 break;
             }
+
+            throughput *= isec.volume.tr;
 
             sampler.incrementPadding();
         }

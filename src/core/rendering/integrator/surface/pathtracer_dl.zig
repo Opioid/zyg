@@ -19,10 +19,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const PathtracerDL = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
-        num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
 
@@ -38,50 +35,35 @@ pub const PathtracerDL = struct {
     const Self = @This();
 
     pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
         for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
+            s.startPixel(sample, seed);
         }
     }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
-
-        var result = @splat(4, @as(f32, 0.0));
-
-        var i = self.settings.num_samples;
-        while (i > 0) : (i -= 1) {
-            worker.resetInterfaceStack(initial_stack);
-
-            var split_ray = ray.*;
-            var split_isec = isec.*;
-
-            result += @splat(4, num_samples_reciprocal) * self.integrate(&split_ray, &split_isec, worker);
-
-            for (&self.samplers) |*s| {
-                s.incrementSample();
-            }
-        }
-
-        return result;
-    }
-
-    fn integrate(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {
+    pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
         var primary_ray = true;
         var treat_as_singular = true;
         var transparent = true;
         var from_subsurface = false;
 
         var throughput = @splat(4, @as(f32, 1.0));
+        var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
-        var wo1 = @splat(4, @as(f32, 0.0));
 
-        var i: u32 = 0;
-        while (true) : (i += 1) {
-            const wo = -ray.ray.direction;
+        var isec = Intersection{};
 
+        while (true) {
             const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
-            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+
+            var sampler = self.pickSampler(ray.depth);
+
+            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
+                break;
+            }
+
+            throughput *= isec.volume.tr;
+
+            const wo = -ray.ray.direction;
 
             var pure_emissive: bool = undefined;
             const energy = isec.evaluateRadiance(
@@ -101,11 +83,22 @@ pub const PathtracerDL = struct {
                 break;
             }
 
+            if (ray.depth >= self.settings.max_bounces) {
+                break;
+            }
+
+            if (ray.depth >= self.settings.min_bounces) {
+                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
+                    break;
+                }
+            }
+
+            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
-                wo1,
-                isec.*,
+                isec,
                 filter,
                 0.0,
                 avoid_caustics,
@@ -113,14 +106,10 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec.*, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
             }
 
-            wo1 = wo;
-
-            var sampler = self.pickSampler(ray.depth);
-
-            result += throughput * self.directLight(ray.*, isec.*, &mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray.*, isec, &mat_sample, filter, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -156,49 +145,20 @@ pub const PathtracerDL = struct {
                 ray.wavelength = sample_result.wavelength;
             }
 
-            const old_throughput = throughput;
+            old_throughput = throughput;
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec);
+                worker.interfaceChange(sample_result.wi, isec, filter);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface;
-
-            if (!worker.interface_stack.empty()) {
-                const vr = worker.volume(ray, throughput, isec, filter, sampler);
-
-                if (.Absorb == vr.event) {
-                    if (0 == ray.depth) {
-                        // This is the direct eye-light connection for the volume case.
-                        result += vr.li;
-                    }
-
-                    break;
-                }
-
-                // This is only needed for Tracking_single at the moment...
-                result += throughput * vr.li;
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-                break;
-            }
-
-            if (ray.depth >= self.settings.max_bounces) {
-                break;
-            }
-
-            if (ray.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
-                    break;
-                }
-            }
+            from_subsurface = from_subsurface or isec.subsurface();
 
             sampler.incrementPadding();
+        }
+
+        for (&self.samplers) |*s| {
+            s.incrementSample();
         }
 
         return hlp.composeAlpha(result, throughput, transparent);
@@ -225,7 +185,6 @@ pub const PathtracerDL = struct {
         const p = isec.offsetPN(n, translucent);
 
         var shadow_ray: Ray = undefined;
-        shadow_ray.ray.origin = p;
         shadow_ray.depth = ray.depth;
         shadow_ray.time = ray.time;
         shadow_ray.wavelength = ray.wavelength;
@@ -246,8 +205,9 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
+            shadow_ray.ray.origin = p;
             shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.transmitted(&shadow_ray, mat_sample.super().wo, isec, filter) orelse continue;
+            const tr = worker.visibility(&shadow_ray, isec, filter) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
@@ -262,7 +222,7 @@ pub const PathtracerDL = struct {
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and bounce < Num_dedicated_samplers;
+        return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
     fn pickSampler(self: *Self, bounce: u32) *Sampler {

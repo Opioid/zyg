@@ -156,7 +156,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             for (result.cells) |*c| {
                 c.data = null;
-                std.mem.set(u8, std.mem.asBytes(&c.value), 0);
+                @memset(std.mem.asBytes(&c.value), 0);
             }
 
             return result;
@@ -186,7 +186,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             if (null == cell.data) {
                 const data = try alloc.alloc(T, cell_len);
-                std.mem.set(u8, std.mem.sliceAsBytes(data), 0);
+                @memset(std.mem.sliceAsBytes(data), 0);
                 cell.data = data.ptr;
             }
 

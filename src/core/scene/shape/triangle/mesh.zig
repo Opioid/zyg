@@ -1,11 +1,13 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -389,7 +391,7 @@ pub const Mesh = struct {
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
-        std.mem.set(Part, parts, .{});
+        @memset(parts, .{});
 
         return Mesh{ .num_parts = num_parts, .parts = parts.ptr };
     }
@@ -442,19 +444,8 @@ pub const Mesh = struct {
         return self.parts[part].cone(variant);
     }
 
-    pub fn intersect(
-        self: Mesh,
-        ray: *Ray,
-        trafo: Trafo,
-        ipo: Interpolation,
-        isec: *Intersection,
-    ) bool {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
+    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
+        const tray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(tray)) |hit| {
             const data = self.tree.data;
@@ -500,32 +491,33 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        var tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
+        const tray = trafo.worldToObjectRay(ray);
         return self.tree.intersectP(tray);
     }
 
-    pub fn visibility(
+    pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.visibility(tray, entity, filter, scene);
+    }
+
+    pub fn transmittance(self: Mesh, ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.transmittance(tray, entity, depth, filter, worker);
+    }
+
+    pub fn scatter(
         self: Mesh,
         ray: Ray,
         trafo: Trafo,
-        entity: usize,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
         filter: ?Filter,
-        scene: *const Scene,
-    ) ?Vec4f {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
-        return self.tree.visibility(tray, entity, filter, scene);
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.scatter(tray, throughput, entity, depth, filter, sampler, worker);
     }
 
     pub fn sampleTo(

@@ -1,6 +1,9 @@
 const scn = @import("../../../scene/ray.zig");
-const Interface = @import("../../../scene/prop/interface.zig").Interface;
-const Result = @import("result.zig").Result;
+const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
+const intr = @import("../../../scene/prop/interface.zig");
+const Interface = intr.Interface;
+const Stack = intr.Stack;
+const Volume = @import("../../../scene/shape/intersection.zig").Volume;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -24,27 +27,17 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker: *Worker) ?Vec4f {
-    const material = interface.material(worker.scene);
-
-    const d = ray.ray.maxT();
-
-    if (ro.offsetF(ray.ray.minT()) >= d) {
-        return @splat(4, @as(f32, 1.0));
-    }
-
+pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
     if (material.volumetricTree()) |tree| {
-        var local_ray = texturespaceRay(ray, interface.prop, worker);
+        const d = ray.maxT();
 
-        const srs = material.super().similarityRelationScale(ray.depth);
+        var local_ray = objectToTextureRay(ray, prop, worker);
+
+        const srs = material.super().similarityRelationScale(depth);
 
         var w = @splat(4, @as(f32, 1.0));
         while (local_ray.minT() < d) {
-            if (tree.intersect(&local_ray)) |tcm| {
-                var cm = tcm;
-                cm.minorant_mu_s *= srs;
-                cm.majorant_mu_s *= srs;
-
+            if (tree.intersect(&local_ray)) |cm| {
                 if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, worker)) {
                     return null;
                 }
@@ -56,11 +49,11 @@ pub fn transmittance(ray: scn.Ray, interface: Interface, filter: ?Filter, worker
         return w;
     }
 
-    const mu = material.super().cc;
-    const mu_t = mu.a + mu.s;
-
-    return hlp.attenuation3(mu_t, d - ray.ray.minT());
+    return null;
 }
+
+// Code for (residual ratio) hetereogeneous transmittance inspired by:
+// https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
 
 fn trackingTransmitted(
     transmitted: *Vec4f,
@@ -71,71 +64,16 @@ fn trackingTransmitted(
     filter: ?Filter,
     worker: *Worker,
 ) bool {
-    const mt = cm.majorant_mu_t();
+    const minorant_mu_t = cm.minorant_mu_t(srs);
+    const majorant_mu_t = cm.majorant_mu_t(srs);
 
-    if (mt < Min_mt) {
-        return true;
-    }
-
-    const minorant_mu_t = cm.minorant_mu_t();
     if (minorant_mu_t > 0.0) {
-        return residualRatioTrackingTransmitted(
-            transmitted,
-            ray,
-            minorant_mu_t,
-            mt,
-            material,
-            srs,
-            filter,
-            worker,
-        );
-    }
-
-    var rng = &worker.rng;
-
-    const d = ray.maxT();
-    var t = ray.minT();
-    while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) / mt;
-        if (t > d) {
-            return true;
-        }
-
-        const uvw = ray.point(t);
-
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
-        mu.s *= @splat(4, srs);
-
-        const mu_t = mu.a + mu.s;
-        const mu_n = @splat(4, mt) - mu_t;
-
-        transmitted.* *= mu_n / @splat(4, mt);
+        // Transmittance of the control medium
+        transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
         }
-    }
-}
-
-// Code for hetereogeneous transmittance inspired by:
-// https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
-
-fn residualRatioTrackingTransmitted(
-    transmitted: *Vec4f,
-    ray: Ray,
-    minorant_mu_t: f32,
-    majorant_mu_t: f32,
-    material: *const Material,
-    srs: f32,
-    filter: ?Filter,
-    worker: *Worker,
-) bool {
-    // Transmittance of the control medium
-    transmitted.* *= @splat(4, hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
-
-    if (math.allLess4(transmitted.*, Abort_epsilon4)) {
-        return false;
     }
 
     const mt = majorant_mu_t - minorant_mu_t;
@@ -158,7 +96,7 @@ fn residualRatioTrackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
@@ -172,7 +110,7 @@ fn residualRatioTrackingTransmitted(
     }
 }
 
-pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
+pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Volume {
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
     const mu_n = @splat(4, mt) - mu_t;
@@ -185,7 +123,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
         const r = sampler.sample2D();
         t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const wt = w * throughput;
@@ -193,7 +131,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
         const mn = math.average3(mu_n * wt);
         const mc = ms + mn;
         if (mc < 1.0e-10) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const c = 1.0 / mc;
@@ -215,7 +153,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Result {
     }
 }
 
-pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result {
+pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume {
     const mu = cce.cc;
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
@@ -229,7 +167,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const wt = w * throughput;
@@ -238,7 +176,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
         const mn = math.average3(mu_n * wt);
         const mc = ma + ms + mn;
         if (mc < 1.0e-10) {
-            return Result.initPass(w);
+            return Volume.initPass(w);
         }
 
         const c = 1.0 / mc;
@@ -251,7 +189,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Result
             const wa = mu.a / @splat(4, mt * pa);
             return .{
                 .li = w * wa * cce.e,
-                .tr = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
                 .t = t,
                 .event = .Absorb,
             };
@@ -281,10 +219,10 @@ pub fn trackingHetero(
     throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
-) Result {
-    const mt = cm.majorant_mu_t();
+) Volume {
+    const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
-        return Result.initPass(w);
+        return Volume.initPass(w);
     }
 
     var rng = &worker.rng;
@@ -297,12 +235,12 @@ pub fn trackingHetero(
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(lw);
+            return Volume.initPass(lw);
         }
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients(uvw, filter, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, filter, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -341,10 +279,10 @@ pub fn trackingHeteroEmission(
     throughput: Vec4f,
     filter: ?Filter,
     worker: *Worker,
-) Result {
-    const mt = cm.majorant_mu_t();
+) Volume {
+    const mt = cm.majorant_mu_t(srs);
     if (mt < Min_mt) {
-        return Result.initPass(w);
+        return Volume.initPass(w);
     }
 
     var rng = &worker.rng;
@@ -357,7 +295,7 @@ pub fn trackingHeteroEmission(
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
-            return Result.initPass(lw);
+            return Volume.initPass(lw);
         }
 
         const uvw = ray.point(t);
@@ -384,7 +322,7 @@ pub fn trackingHeteroEmission(
             const wa = mu.a / @splat(4, mt * pa);
             return .{
                 .li = w * wa * cce.e,
-                .tr = @splat(4, @as(f32, 0.0)),
+                .tr = @splat(4, @as(f32, 1.0)),
                 .t = t,
                 .event = .Absorb,
             };
@@ -405,17 +343,12 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn texturespaceRay(ray: scn.Ray, entity: u32, worker: *const Worker) Ray {
-    const trafo = worker.scene.propTransformationAt(entity, ray.time);
-
-    const local_origin = trafo.worldToObjectPoint(ray.ray.origin);
-    const local_dir = trafo.worldToObjectVector(ray.ray.direction);
-
+pub fn objectToTextureRay(ray: Ray, entity: u32, worker: *const Worker) Ray {
     const aabb = worker.scene.propShape(entity).aabb();
 
     const iextent = @splat(4, @as(f32, 1.0)) / aabb.extent();
-    const origin = (local_origin - aabb.bounds[0]) * iextent;
-    const dir = local_dir * iextent;
+    const origin = (ray.origin - aabb.bounds[0]) * iextent;
+    const dir = ray.direction * iextent;
 
-    return Ray.init(origin, dir, ray.ray.minT(), ray.ray.maxT());
+    return Ray.init(origin, dir, ray.minT(), ray.maxT());
 }

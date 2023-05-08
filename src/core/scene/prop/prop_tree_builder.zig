@@ -92,7 +92,7 @@ pub const Builder = struct {
 
             const begin = node.children();
             const indices = self.super.kernel.reference_ids.items[begin .. begin + num];
-            std.mem.copy(u32, tree.indices[i .. i + num], indices);
+            @memcpy(tree.indices[i .. i + num], indices);
 
             current_prop.* += num;
         }

@@ -4,17 +4,21 @@ const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
 const Light = @import("light/light.zig").Light;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
-const Image = @import("../image/image.zig").Image;
 const Intersection = @import("prop/intersection.zig").Intersection;
-const Interpolation = @import("shape/intersection.zig").Interpolation;
+const int = @import("shape/intersection.zig");
+const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
+const Image = @import("../image/image.zig").Image;
 const Filter = @import("../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
+const Worker = @import("../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -45,7 +49,6 @@ pub const Scene = struct {
     pub const Null = Prop.Null;
 
     pub const ShapeID = enum(u32) {
-        Null,
         Canopy,
         Cube,
         Disk,
@@ -104,7 +107,6 @@ pub const Scene = struct {
 
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
-        try shapes.append(alloc, Shape{ .Null = {} });
         try shapes.append(alloc, Shape{ .Canopy = .{} });
         try shapes.append(alloc, Shape{ .Cube = .{} });
         try shapes.append(alloc, Shape{ .Disk = .{} });
@@ -210,16 +212,18 @@ pub const Scene = struct {
 
         self.calculateWorldBounds(camera_pos);
 
-        self.evaluate_visibility = false;
-        for (self.material_ids.items) |i| {
-            if (self.materials.items[i].evaluateVisibility()) {
-                self.evaluate_visibility = true;
-                break;
-            }
-        }
+        self.has_volumes = self.volumes.items.len > 0;
 
-        for (self.volumes.items) |v| {
-            self.props.items[v].setVisibleInShadow(false);
+        if (self.has_volumes) {
+            self.evaluate_visibility = true;
+        } else {
+            self.evaluate_visibility = false;
+            for (self.material_ids.items) |i| {
+                if (self.materials.items[i].evaluateVisibility()) {
+                    self.evaluate_visibility = true;
+                    break;
+                }
+            }
         }
 
         self.sky.compile(alloc, time, self, threads, fs);
@@ -244,8 +248,6 @@ pub const Scene = struct {
 
         try self.light_tree_builder.build(alloc, &self.light_tree, self, threads);
 
-        self.has_volumes = self.volumes.items.len > 0;
-
         var caustic_aabb = math.aabb.Empty;
         for (self.finite_props.items) |i| {
             if (self.props.items[i].caustic()) {
@@ -260,21 +262,9 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(ray, self, ipo, isec);
     }
 
-    pub fn intersectShadow(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
-        return self.prop_bvh.intersectShadow(ray, self, isec);
-    }
-
-    pub fn intersectVolume(self: *const Scene, ray: *Ray, isec: *Intersection) bool {
-        return self.volume_bvh.intersect(ray, self, .NoTangentSpace, isec);
-    }
-
-    pub fn intersectP(self: *const Scene, ray: Ray) bool {
-        return self.prop_bvh.intersectP(ray, self);
-    }
-
-    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter) ?Vec4f {
+    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(ray, filter, self);
+            return self.prop_bvh.visibility(ray, filter, worker);
         }
 
         if (self.prop_bvh.intersectP(ray, self)) {
@@ -282,6 +272,23 @@ pub const Scene = struct {
         }
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn scatter(
+        self: *const Scene,
+        ray: *Ray,
+        throughput: Vec4f,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+        isec: *Intersection,
+    ) bool {
+        if (!self.has_volumes) {
+            isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
+            return false;
+        }
+
+        return self.volume_bvh.scatter(ray, throughput, filter, sampler, worker, isec);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
@@ -297,13 +304,13 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@enumToInt(ShapeID.Null), &.{}, self);
+        self.props.items[p].configure(@enumToInt(ShapeID.Plane), &.{}, self);
 
         return p;
     }
 
     pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
-        const p = self.allocateProp(alloc) catch return Null;
+        const p = try self.allocateProp(alloc);
 
         self.props.items[p].configure(shape_id, materials, self);
 
@@ -325,24 +332,20 @@ pub const Scene = struct {
             try self.infinite_props.append(alloc, p);
         }
 
-        // Shape has no surface
-        if (1 == num_parts and 1.0 == self.material(materials[0]).ior()) {
-            if (shape_inst.finite()) {
-                try self.volumes.append(alloc, p);
-            }
+        if (self.props.items[p].volume()) {
+            try self.volumes.append(alloc, p);
         }
 
         return p;
     }
 
     pub fn createPropInstance(self: *Scene, alloc: Allocator, entity: u32) !u32 {
-        const p = self.allocateProp(alloc) catch return Null;
+        const p = try self.allocateProp(alloc);
 
         self.props.items[p] = self.props.items[entity];
         self.prop_parts.items[p] = self.prop_parts.items[entity];
 
         const shape_inst = self.propShape(p);
-        const num_parts = shape_inst.numParts();
 
         if (shape_inst.finite()) {
             try self.finite_props.append(alloc, p);
@@ -350,11 +353,8 @@ pub const Scene = struct {
             try self.infinite_props.append(alloc, p);
         }
 
-        // Shape has no surface
-        if (1 == num_parts and 1.0 == self.propMaterial(p, 0).ior()) {
-            if (shape_inst.finite()) {
-                try self.volumes.append(alloc, p);
-            }
+        if (self.props.items[p].volume()) {
+            try self.volumes.append(alloc, p);
         }
 
         return p;
@@ -457,7 +457,7 @@ pub const Scene = struct {
         const b = self.prop_frames.items[entity];
         const e = b + len;
 
-        std.mem.copy(math.Transformation, self.keyframes.items[b..e], frames[0..len]);
+        @memcpy(self.keyframes.items[b..e], frames[0..len]);
     }
 
     pub fn propSetFramesScale(self: *Scene, entity: u32, scale: Vec4f) void {

@@ -68,7 +68,7 @@ pub const Material = struct {
         properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
-        properties.dense_sss_optimization = attenuation_distance <= 0.01 and properties.scattering_volume;
+        properties.dense_sss_optimization = attenuation_distance <= 0.05 and properties.scattering_volume;
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {

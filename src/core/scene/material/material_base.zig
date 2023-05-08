@@ -52,7 +52,6 @@ pub const Base = struct {
         emissive: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
-        heterogeneous_volume: bool = false,
         dense_sss_optimization: bool = false,
     };
 

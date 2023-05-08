@@ -2,10 +2,14 @@ const Prop = @import("prop.zig").Prop;
 const Intersection = @import("intersection.zig").Intersection;
 const Ray = @import("../ray.zig").Ray;
 const Scene = @import("../scene.zig").Scene;
-const Interpolation = @import("../shape/intersection.zig").Interpolation;
+const shp = @import("../shape/intersection.zig");
+const Interpolation = shp.Interpolation;
+const Volume = shp.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -121,68 +125,6 @@ pub const Tree = struct {
         }
 
         isec.prop = prop;
-        isec.subsurface = false;
-        return hit;
-    }
-
-    pub fn intersectShadow(self: Tree, ray: *Ray, scene: *const Scene, isec: *Intersection) bool {
-        var stack = NodeStack{};
-
-        var hit = false;
-        var prop = Prop.Null;
-        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
-
-        const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
-
-        while (NodeStack.End != n) {
-            const node = nodes[n];
-
-            if (0 != node.numIndices()) {
-                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
-                        prop = p;
-                        hit = true;
-                    }
-                }
-
-                n = stack.pop();
-                continue;
-            }
-
-            var a = node.children();
-            var b = a + 1;
-
-            var dista = nodes[a].intersect(ray.ray);
-            var distb = nodes[b].intersect(ray.ray);
-
-            if (dista > distb) {
-                std.mem.swap(u32, &a, &b);
-                std.mem.swap(f32, &dista, &distb);
-            }
-
-            if (std.math.f32_max == dista) {
-                n = stack.pop();
-            } else {
-                n = a;
-                if (std.math.f32_max != distb) {
-                    stack.push(b);
-                }
-            }
-        }
-
-        if (ray.ray.maxT() >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersectShadow(p, ray, scene, &isec.geo)) {
-                    prop = p;
-                    hit = true;
-                }
-            }
-        }
-
-        isec.prop = prop;
-        isec.subsurface = false;
         return hit;
     }
 
@@ -241,7 +183,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis = @splat(4, @as(f32, 1.0));
@@ -256,8 +198,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
-                    vis *= tv;
+                    vis *= props[p].visibility(p, ray, filter, worker) orelse return null;
                 }
 
                 n = stack.pop();
@@ -287,11 +228,83 @@ pub const Tree = struct {
 
         if (ray.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                const tv = props[p].visibility(p, ray, filter, scene) orelse return null;
-                vis *= tv;
+                vis *= props[p].visibility(p, ray, filter, worker) orelse return null;
             }
         }
 
         return vis;
+    }
+
+    pub fn scatter(
+        self: Tree,
+        ray: *Ray,
+        throughput: Vec4f,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+        isec: *Intersection,
+    ) bool {
+        var stack = NodeStack{};
+
+        var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
+        var prop = Prop.Null;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
+
+        const nodes = self.nodes;
+        const props = self.props;
+        const finite_props = self.indices;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            if (0 != node.numIndices()) {
+                for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
+                    const lr = props[p].scatter(p, ray.*, throughput, filter, sampler, worker);
+
+                    if (.Pass != lr.event) {
+                        ray.ray.setMaxT(lr.t);
+                        result = lr;
+                        prop = p;
+                    } else if (.Pass == result.event) {
+                        result.tr *= lr.tr;
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray.ray);
+            var distb = nodes[b].intersect(ray.ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.f32_max == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.f32_max != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        isec.volume = result;
+
+        if (.Pass != result.event) {
+            isec.prop = prop;
+            isec.geo.p = ray.ray.point(result.t);
+            isec.geo.geo_n = -ray.ray.direction;
+            isec.geo.part = 0;
+            return true;
+        }
+
+        return false;
     }
 };

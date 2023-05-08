@@ -125,9 +125,9 @@ pub const Separate = struct {
         }
 
         if (count == self.uvs.len) {
-            std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+            @memcpy(uvs[0..count], self.uvs);
         } else {
-            std.mem.set(Vec2f, uvs[0..count], .{ 0.0, 0.0 });
+            @memset(uvs[0..count], .{ 0.0, 0.0 });
         }
     }
 
@@ -170,7 +170,7 @@ pub const SeparateQuat = struct {
             frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
         }
 
-        std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+        @memcpy(uvs[0..count], self.uvs);
     }
 
     pub fn bitangentSign(self: Self, i: u32) bool {

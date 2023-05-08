@@ -20,7 +20,9 @@ const Allocator = std.mem.Allocator;
 
 pub fn Filtered(comptime T: type) type {
     return struct {
-        const Func = math.InterpolatedFunction1D_N(30);
+        const N = 30;
+
+        const Func = math.InterpolatedFunction1D_N(N);
 
         sensor: T = .{},
 

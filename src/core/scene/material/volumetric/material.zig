@@ -1,6 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("../sample.zig").Sample;
-const Volumetric = @import("sample.zig").Sample;
+const Sample = @import("sample.zig").Sample;
 const Gridtree = @import("gridtree.zig").Gridtree;
 const Builder = @import("gridtree_builder.zig").Builder;
 const ccoef = @import("../collision_coefficients.zig");
@@ -64,6 +63,7 @@ pub const Material = struct {
             math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
+        self.super.properties.evaluate_visibility = true;
 
         if (self.density_map.valid()) {
             try Builder.build(
@@ -166,12 +166,8 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
-        if (rs.subsurface) {
-            const gs = self.super.vanDeHulstAnisotropy(rs.depth);
-            return .{ .Volumetric = Volumetric.init(wo, rs, gs) };
-        }
-
-        return .{ .Null = Null.init(wo, rs) };
+        const gs = self.super.vanDeHulstAnisotropy(rs.depth);
+        return Sample.init(wo, rs, gs);
     }
 
     pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, scene: *const Scene) Vec4f {

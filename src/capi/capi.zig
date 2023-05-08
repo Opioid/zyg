@@ -256,7 +256,7 @@ export fn su_image_create(
         const bpp = bpc * num_channels;
 
         if (bpp == pixel_stride) {
-            std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+            @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
         }
 
         const image: ?img.Image = switch (ef) {
@@ -323,7 +323,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                     else => return -1,
                 };
 
-                std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+                @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
             }
 
             return 0;

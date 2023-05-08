@@ -44,6 +44,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _ARPRAGUESKYMODELGROUND_H_
 #define _ARPRAGUESKYMODELGROUND_H_
 
+#include <stdio.h>
+
 /*
 Prague Sky Model, ground level version, 5.3.2021
 
@@ -155,7 +157,7 @@ typedef struct ArPragueSkyModelGroundState
 }
 ArPragueSkyModelGroundState;
 
-typedef unsigned long long (*ReadFunc)(void*, unsigned long long, unsigned long long, void*);
+typedef size_t (*ReadFunc)(void*, size_t, size_t, FILE*);
 
 ArPragueSkyModelGroundState  * arpragueskymodelground_state_alloc_init_handle(
 	void                         * handle,

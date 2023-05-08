@@ -108,7 +108,7 @@ pub const GzipReadStream = struct {
             const dest_end = dest_cur + copy_len;
             const source_end = self.buffer_head + copy_len;
 
-            std.mem.copy(u8, dest[dest_cur..dest_end], self.buffer[self.buffer_head..source_end]);
+            @memcpy(dest[dest_cur..dest_end], self.buffer[self.buffer_head..source_end]);
 
             dest_cur += copy_len;
 

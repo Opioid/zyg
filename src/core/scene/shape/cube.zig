@@ -2,12 +2,14 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -23,7 +25,6 @@ pub const Cube = struct {
     pub fn intersect(ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
-
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
@@ -60,15 +61,13 @@ pub const Cube = struct {
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
-
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
         _ = ray;
         _ = trafo;
         _ = entity;
@@ -76,6 +75,47 @@ pub const Cube = struct {
         _ = scene;
 
         return @splat(4, @as(f32, 1.0));
+    }
+
+    pub fn transmittance(ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+        const local_origin = trafo.worldToObjectPoint(ray.origin);
+        const local_dir = trafo.worldToObjectVector(ray.direction);
+        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+
+        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const hit_t = aabb.intersectP2(local_ray) orelse return @splat(4, @as(f32, 1.0));
+
+        const start = std.math.max(hit_t[0], ray.minT());
+        const end = std.math.min(hit_t[1], ray.maxT());
+
+        const material = worker.scene.propMaterial(entity, 0);
+        const tray = Ray.init(local_origin, local_dir, start, end);
+        return worker.propTransmittance(tray, material, entity, depth, filter);
+    }
+
+    pub fn scatter(
+        ray: Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const local_origin = trafo.worldToObjectPoint(ray.origin);
+        const local_dir = trafo.worldToObjectVector(ray.direction);
+        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+
+        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(4, @as(f32, 1.0)));
+
+        const start = std.math.max(hit_t[0], ray.minT());
+        const end = std.math.min(hit_t[1], ray.maxT());
+
+        const material = worker.scene.propMaterial(entity, 0);
+        const tray = Ray.init(local_origin, local_dir, start, end);
+        return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

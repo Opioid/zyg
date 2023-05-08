@@ -26,12 +26,12 @@ pub const CM = struct {
         };
     }
 
-    pub fn minorant_mu_t(self: CM) f32 {
-        return self.minorant_mu_a + self.minorant_mu_s;
+    pub fn minorant_mu_t(self: CM, srs: f32) f32 {
+        return self.minorant_mu_a + srs * self.minorant_mu_s;
     }
 
-    pub fn majorant_mu_t(self: CM) f32 {
-        return self.majorant_mu_a + self.majorant_mu_s;
+    pub fn majorant_mu_t(self: CM, srs: f32) f32 {
+        return self.majorant_mu_a + srs * self.majorant_mu_s;
     }
 
     pub fn isEmpty(self: CM) bool {
