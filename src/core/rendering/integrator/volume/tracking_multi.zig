@@ -117,19 +117,13 @@ pub const Multi = struct {
 
         if (material.denseSSSOptimization()) {
             if (!worker.intersectProp(isec.prop, ray, .Normal, &isec.geo)) {
-                worker.interface_stack.pop();
-
-                if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-                    return false;
-                }
-
-                isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
-                return true;
+                return false;
             }
         } else {
             const ray_max_t = ray.ray.maxT();
             ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
             if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+                ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
                 return false;
             }
 
@@ -149,9 +143,8 @@ pub const Multi = struct {
             }
 
             if (missed) {
-                worker.interface_stack.pop();
-                isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
-                return true;
+                ray.ray.setMinMaxT(std.math.min(ro.offsetF(ray.ray.maxT()), ray_max_t), ray_max_t);
+                return false;
             }
         }
 

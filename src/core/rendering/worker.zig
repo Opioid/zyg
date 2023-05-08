@@ -268,8 +268,12 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) bool {
-        if (!self.interface_stack.empty()) {
-            return vlhlp.integrate(ray, throughput, isec, filter, sampler, self);
+        while (!self.interface_stack.empty()) {
+            if (vlhlp.integrate(ray, throughput, isec, filter, sampler, self)) {
+                return true;
+            }
+
+            self.interface_stack.pop();
         }
 
         const ray_min_t = ray.ray.minT();
