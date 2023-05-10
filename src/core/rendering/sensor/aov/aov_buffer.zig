@@ -10,7 +10,7 @@ const Allocator = @import("std").mem.Allocator;
 pub const Buffer = struct {
     slots: u32 = 0,
 
-    buffers: [aov.Value.Num_classes][]Pack4f = .{ &.{}, &.{}, &.{}, &.{} },
+    buffers: [aov.Value.Num_classes][]Pack4f = .{&.{}} ** aov.Value.Num_classes,
 
     const Self = @This();
 
@@ -49,7 +49,8 @@ pub const Buffer = struct {
 
         const pixels = self.buffers[@enumToInt(class)];
 
-        if (.Albedo == class or .ShadingNormal == class) {
+        const encoding = class.encoding();
+        if (.Color == encoding or .Normal == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };

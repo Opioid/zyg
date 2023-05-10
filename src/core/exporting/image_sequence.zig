@@ -40,7 +40,6 @@ pub const ImageSequence = struct {
         defer file.close();
 
         var encoding: Writer.Encoding = undefined;
-
         if (aov) |a| {
             encoding = a.encoding();
         } else {
@@ -58,7 +57,8 @@ pub const ImageSequence = struct {
                 .Albedo => "_albedo",
                 .Depth => "_depth",
                 .MaterialId => "_mat",
-                .ShadingNormal => "_n",
+                .GeometricNormal => "_ng",
+                .ShadingNormal => "_ns",
             };
         }
 

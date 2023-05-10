@@ -26,17 +26,15 @@ pub const Result = struct {
     }
 };
 
-pub const Class = packed struct {
-    reflection: bool = false,
-    transmission: bool = false,
-    diffuse: bool = false,
-    glossy: bool = false,
-    specular: bool = false,
-    straight: bool = false,
-};
-
 pub const Sample = struct {
-    pub const StraightTransmission = Class{ .transmission = true, .straight = true };
+    pub const Class = packed struct {
+        reflection: bool = false,
+        transmission: bool = false,
+        diffuse: bool = false,
+        glossy: bool = false,
+        specular: bool = false,
+        straight: bool = false,
+    };
 
     reflection: Vec4f = undefined,
     wi: Vec4f = undefined,

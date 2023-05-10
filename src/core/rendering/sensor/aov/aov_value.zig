@@ -11,6 +11,7 @@ pub const Value = struct {
         Albedo,
         Depth,
         MaterialId,
+        GeometricNormal,
         ShadingNormal,
 
         pub fn default(class: Class) Vec4f {
@@ -30,7 +31,7 @@ pub const Value = struct {
                 .Albedo => .Color,
                 .Depth => .Depth,
                 .MaterialId => .Id,
-                .ShadingNormal => .Normal,
+                .GeometricNormal, .ShadingNormal => .Normal,
             };
         }
     };

@@ -344,6 +344,10 @@ pub const Worker = struct {
             return;
         }
 
+        if (self.aov.activeClass(.GeometricNormal)) {
+            self.aov.insert3(.GeometricNormal, mat_sample.super().geometricNormal());
+        }
+
         if (self.aov.activeClass(.ShadingNormal)) {
             self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
         }
@@ -527,7 +531,7 @@ pub const Worker = struct {
             const nsc = subsurfaceNonSymmetryCompensation(wi, geo_n, n);
             const factor = nsc * vbh;
 
-            return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
+            return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
         return isec.sample(wo, ray, filter, avoid_caustics, self);
