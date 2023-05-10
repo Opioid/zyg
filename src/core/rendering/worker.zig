@@ -398,7 +398,7 @@ pub const Worker = struct {
             const nsc = subsurfaceNonSymmetryCompensation(wi, geo_n, n);
             const factor = nsc * vbh;
 
-            return .{ .Null = NullSample.initFactor(wo, geo_n, n, alpha, factor) };
+            return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
         return isec.sample(wo, ray, filter, avoid_caustics, self);

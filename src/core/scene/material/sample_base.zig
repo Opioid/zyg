@@ -116,13 +116,7 @@ pub const SampleBase = struct {
 
     const Self = @This();
 
-    pub fn init(
-        rs: Renderstate,
-        wo: Vec4f,
-        albedo: Vec4f,
-        alpha: Vec2f,
-        thickness: f32,
-    ) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) SampleBase {
         return .{
             .geo_n = rs.geo_n,
             .n = rs.n,
@@ -130,19 +124,19 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .alpha = alpha,
             .thickness = thickness,
-            .properties = Properties{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
+            .properties = .{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, alpha: f32) SampleBase {
+    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) SampleBase {
         return .{
             .geo_n = geo_n,
             .n = n,
             .wo = wo,
-            .albedo = @splat(4, @as(f32, 0.0)),
+            .albedo = @splat(4, factor),
             .alpha = @splat(2, alpha),
             .thickness = 0.0,
-            .properties = .{},
+            .properties = .{ .can_evaluate = false },
         };
     }
 
