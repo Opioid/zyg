@@ -215,6 +215,10 @@ pub const Worker = struct {
             return;
         }
 
+        if (self.aov.activeClass(.GeometricNormal)) {
+            self.aov.insert3(.GeometricNormal, mat_sample.super().geometricNormal());
+        }
+
         if (self.aov.activeClass(.ShadingNormal)) {
             self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
         }

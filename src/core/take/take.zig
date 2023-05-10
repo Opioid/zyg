@@ -83,6 +83,8 @@ pub const View = struct {
                 self.aovs.set(.Depth, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Material_id", entry.key_ptr.*)) {
                 self.aovs.set(.MaterialId, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Geometric_normal", entry.key_ptr.*)) {
+                self.aovs.set(.GeometricNormal, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Shading_normal", entry.key_ptr.*)) {
                 self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
             }
