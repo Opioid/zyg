@@ -91,7 +91,7 @@ pub const Scene = struct {
 
     keyframes: List(math.Transformation),
 
-    light_temp_powers: []f32 = &.{},
+    light_temp_powers: []f32,
     light_distribution: Distribution1D = .{},
     light_tree: LightTree = .{},
 
@@ -130,6 +130,7 @@ pub const Scene = struct {
             .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
             .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
+            .light_temp_powers = try alloc.alloc(f32, Num_reserved_props),
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try List(u32).initCapacity(alloc, 3),
             .volumes = try List(u32).initCapacity(alloc, Num_reserved_props),
@@ -236,7 +237,9 @@ pub const Scene = struct {
         try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
         self.volume_bvh.setProps(&.{}, self.props.items, self);
 
-        self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
+        if (self.lights.items.len > self.light_temp_powers.len) {
+            self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
+        }
 
         for (self.lights.items, 0..) |l, i| {
             self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
