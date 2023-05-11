@@ -237,17 +237,17 @@ pub const Scene = struct {
         try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
         self.volume_bvh.setProps(&.{}, self.props.items, self);
 
-        if (self.lights.items.len > self.light_temp_powers.len) {
-            self.light_temp_powers = try alloc.realloc(self.light_temp_powers, self.lights.items.len);
+        const num_lights = self.lights.items.len;
+        if (num_lights > self.light_temp_powers.len) {
+            self.light_temp_powers = try alloc.realloc(self.light_temp_powers, num_lights);
         }
 
         for (self.lights.items, 0..) |l, i| {
             self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
-
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
 
-        try self.light_distribution.configure(alloc, self.light_temp_powers, 0);
+        try self.light_distribution.configure(alloc, self.light_temp_powers[0..num_lights], 0);
 
         try self.light_tree_builder.build(alloc, &self.light_tree, self, threads);
 

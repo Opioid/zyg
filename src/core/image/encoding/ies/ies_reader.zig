@@ -326,7 +326,7 @@ pub const Reader = struct {
         var min_angle: f32 = 360.0;
 
         var p = try std.fmt.parseFloat(f32, try tokenizer.next());
-        data.horizontal_angles.items[0] = p;
+        data.vertical_angles.items[0] = p;
         for (data.vertical_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
             min_angle = std.math.min(min_angle, @fabs(c - p));
