@@ -34,8 +34,8 @@ pub const Buffer = struct {
         for (&self.buffers, 0..) |*b, i| {
             const class = @intToEnum(aov.Value.Class, i);
             if (class.activeIn(self.slots)) {
+                const default = class.default();
                 for (b.*) |*p| {
-                    const default = class.default();
                     p.v = Vec4f{ default[0], default[1], default[2], 0.0 };
                 }
             }
