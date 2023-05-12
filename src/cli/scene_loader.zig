@@ -468,9 +468,7 @@ pub const Loader = struct {
 
         // Otherwise, see if it is among the locally defined materials.
         if (local_materials.materials.get(name)) |material_node| {
-            const data = @ptrToInt(material_node);
-
-            const material = self.resources.loadData(Material, alloc, Null, data, .{}) catch Null;
+            const material = self.resources.loadData(Material, alloc, Null, material_node, .{}) catch Null;
             if (Null != material) {
                 self.resources.associate(Material, alloc, material, name, .{}) catch {};
                 return material;

@@ -91,13 +91,13 @@ pub const Provider = struct {
     pub fn loadData(
         self: *Provider,
         alloc: Allocator,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
         resources: *Resources,
     ) !Material {
         _ = options;
 
-        const value = @intToPtr(*std.json.Value, data);
+        const value = @ptrCast(*const std.json.Value, data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
         try material.commit(alloc, resources.scene, resources.threads);
@@ -196,7 +196,6 @@ pub const Provider = struct {
 
         material.super.setVolumetric(attenuation_color, @splat(4, @as(f32, 0.0)), material.super.attenuation_distance, 0.0);
     }
-
     fn loadLight(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 

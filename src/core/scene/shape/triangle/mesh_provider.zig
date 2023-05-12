@@ -189,13 +189,13 @@ pub const Provider = struct {
     pub fn loadData(
         self: *Provider,
         alloc: Allocator,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
         resources: *Resources,
     ) !Shape {
         _ = options;
 
-        const desc = @intToPtr(*Description, data);
+        const desc = @ptrCast(*const Description, data);
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
