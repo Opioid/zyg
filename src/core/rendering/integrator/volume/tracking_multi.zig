@@ -74,7 +74,17 @@ pub const Multi = struct {
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
                     if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
+                        result = tracking.trackingHeteroEmission(
+                            local_ray,
+                            cm,
+                            material,
+                            srs,
+                            result.tr,
+                            throughput,
+                            filter,
+                            worker,
+                        );
+
                         if (.Scatter == result.event) {
                             break;
                         }
@@ -90,7 +100,17 @@ pub const Multi = struct {
             } else {
                 while (local_ray.minT() < d) {
                     if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, throughput, filter, worker);
+                        result = tracking.trackingHetero(
+                            local_ray,
+                            cm,
+                            material,
+                            srs,
+                            result.tr,
+                            throughput,
+                            filter,
+                            worker,
+                        );
+
                         if (.Scatter == result.event) {
                             break;
                         }
@@ -111,7 +131,14 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(
+        ray: *Ray,
+        throughput: Vec4f,
+        isec: *Intersection,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) bool {
         const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
@@ -121,7 +148,8 @@ pub const Multi = struct {
             }
         } else {
             const ray_max_t = ray.ray.maxT();
-            ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
+            const limit = worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t;
+            ray.ray.setMaxT(std.math.min(ro.offsetF(limit), ray_max_t));
             if (!worker.intersectAndResolveMask(ray, filter, isec)) {
                 ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
                 return false;
@@ -148,7 +176,10 @@ pub const Multi = struct {
             }
         }
 
-        const tray = if (material.heterogeneousVolume()) worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray) else ray.ray;
+        const tray = if (material.heterogeneousVolume())
+            worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray)
+        else
+            ray.ray;
 
         var result = propScatter(
             tray,

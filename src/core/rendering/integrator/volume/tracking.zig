@@ -27,7 +27,14 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
 
-pub fn transmittanceHetero(ray: Ray, material: *const Material, prop: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+pub fn transmittanceHetero(
+    ray: Ray,
+    material: *const Material,
+    prop: u32,
+    depth: u32,
+    filter: ?Filter,
+    worker: *Worker,
+) ?Vec4f {
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 
