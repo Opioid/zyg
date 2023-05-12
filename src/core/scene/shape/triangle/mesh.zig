@@ -157,7 +157,7 @@ pub const Part = struct {
         }
 
         const dimensions = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(4, @as(i32, 0));
-        const context = Context{
+        var context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .part = self,
@@ -261,7 +261,7 @@ pub const Part = struct {
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*Context, context);
+            const self = @ptrCast(*Context, context);
 
             const emission_map = self.m.emissionMapped();
 

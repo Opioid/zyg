@@ -101,7 +101,7 @@ pub const Map = struct {
     }
 
     fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Self, context);
+        const self = @ptrCast(*Self, @alignCast(16, context));
 
         var aabb = math.aabb.Empty;
         for (self.photons[begin..end]) |p| {

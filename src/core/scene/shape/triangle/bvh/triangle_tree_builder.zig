@@ -66,7 +66,7 @@ pub const Builder = struct {
         vertices: *const VertexStream,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*ReferencesContext, context);
+            const self = @ptrCast(*ReferencesContext, @alignCast(16, context));
 
             var bounds = math.aabb.Empty;
 

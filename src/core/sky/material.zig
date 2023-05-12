@@ -195,7 +195,7 @@ const Context = struct {
     alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Context, context);
+        const self = @ptrCast(*Context, context);
 
         const d = self.dimensions;
 

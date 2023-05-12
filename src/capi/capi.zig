@@ -727,7 +727,7 @@ const CopyFramebufferContext = struct {
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*CopyFramebufferContext, context);
+        const self = @ptrCast(*CopyFramebufferContext, @alignCast(16, context));
 
         const d = self.source.description.dimensions;
 

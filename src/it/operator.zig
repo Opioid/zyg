@@ -52,18 +52,18 @@ pub const Operator = struct {
         };
     }
 
-    pub fn run(self: Self, threads: *Threads) void {
+    pub fn run(self: *Self, threads: *Threads) void {
         const texture = self.textures.items[self.current];
 
         const dim = texture.description(self.scene).dimensions;
 
-        _ = threads.runRange(&self, runRange, 0, @intCast(u32, dim[1]), 0);
+        _ = threads.runRange(self, runRange, 0, @intCast(u32, dim[1]), 0);
     }
 
     fn runRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        var self = @intToPtr(*Self, context);
+        const self = @ptrCast(*Self, @alignCast(16, context));
 
         if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
