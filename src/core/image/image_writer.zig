@@ -50,7 +50,7 @@ pub const Writer = union(enum) {
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .EXR => |w| try w.write(alloc, writer, image, crop, encoding, threads),
+            .EXR => |w| try w.write(Float4, alloc, writer, image, crop, encoding, threads),
             .PNG => |*w| try w.write(alloc, writer, image, crop, encoding, threads),
             .RGBE => try RGBE.write(alloc, writer, image, crop),
         }

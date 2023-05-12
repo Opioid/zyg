@@ -84,9 +84,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
         defer file.close();
 
-        const writer = file.writer();
-
-        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
 
         c.mz_free(png);
     }
@@ -117,9 +115,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
         defer file.close();
 
-        const writer = file.writer();
-
-        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
 
         c.mz_free(png);
     }
@@ -159,9 +155,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
-        const writer = file.writer();
-
-        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
 
         c.mz_free(png);
     }
