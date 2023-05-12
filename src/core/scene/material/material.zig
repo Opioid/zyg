@@ -135,7 +135,13 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients2D(self: *const Material, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CC {
+    pub fn collisionCoefficients2D(
+        self: *const Material,
+        uv: Vec2f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CC {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -156,7 +162,13 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CC {
+    pub fn collisionCoefficients3D(
+        self: *const Material,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CC {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -171,7 +183,13 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(
+        self: *const Material,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CCE {
         const sup = self.super();
         const cc = sup.cc;
 
@@ -252,7 +270,15 @@ pub const Material = union(enum) {
         return self.super().opacity(uv, filter, sampler, scene);
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(
+        self: *const Material,
+        wi: Vec4f,
+        n: Vec4f,
+        uv: Vec2f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) ?Vec4f {
         switch (self.*) {
             .Glass => |*m| {
                 return m.visibility(wi, n, uv, filter, sampler, scene);

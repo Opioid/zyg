@@ -132,7 +132,14 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(
+        ray: *Ray,
+        throughput: Vec4f,
+        isec: *Intersection,
+        filter: ?Filter,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) bool {
         const interface = worker.interface_stack.top();
         const material = interface.material(worker.scene);
 
@@ -169,7 +176,10 @@ pub const Multi = struct {
             }
         }
 
-        const tray = if (material.heterogeneousVolume()) worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray) else ray.ray;
+        const tray = if (material.heterogeneousVolume())
+            worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray)
+        else
+            ray.ray;
 
         var result = propScatter(
             tray,
