@@ -5,8 +5,8 @@ const Resources = @import("../../../resource/manager.zig").Manager;
 const Result = @import("../../../resource/result.zig").Result;
 const vs = @import("vertex_stream.zig");
 const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const bvh = @import("bvh/tree.zig");
-const Builder = @import("bvh/builder_sah.zig").BuilderSAH;
+const Tree = @import("bvh/triangle_tree.zig").Tree;
+const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
 const file = @import("../../../file/file.zig");
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
@@ -87,7 +87,7 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: bvh.Tree = .{},
+    tree: Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: vs.VertexStream = undefined,
@@ -107,7 +107,10 @@ pub const Provider = struct {
 
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
-                .TriangleMesh => |*m| std.mem.swap(bvh.Tree, &m.tree, &self.tree),
+                .TriangleMesh => |*m| {
+                    std.mem.swap(Tree, &m.tree, &self.tree);
+                    m.calculateAreas();
+                },
                 else => {},
             }
         }
@@ -157,7 +160,7 @@ pub const Provider = struct {
             return Error.NoVertices;
         }
 
-        for (handler.parts.items) |p, i| {
+        for (handler.parts.items, 0..) |p, i| {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
@@ -168,7 +171,7 @@ pub const Provider = struct {
 
         var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
 
-        for (handler.parts.items) |p, i| {
+        for (handler.parts.items, 0..) |p, i| {
             mesh.setMaterialForPart(i, p.material_index);
         }
 
@@ -186,13 +189,13 @@ pub const Provider = struct {
     pub fn loadData(
         self: *Provider,
         alloc: Allocator,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
         resources: *Resources,
     ) !Shape {
         _ = options;
 
-        const desc = @intToPtr(*Description, data);
+        const desc = @ptrCast(*const Description, data);
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
@@ -219,17 +222,17 @@ pub const Provider = struct {
     }
 
     fn buildAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Json = .{
-            .positions = handler.positions.items,
-            .normals = handler.normals.items,
-            .tangents = handler.tangents.items,
-            .uvs = handler.uvs.items,
-            .bts = handler.bitangent_signs.items,
-        } };
+        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+            handler.positions.items,
+            handler.normals.items,
+            handler.tangents.items,
+            handler.uvs.items,
+            handler.bitangent_signs.items,
+        ) };
 
         buildBVH(self.alloc, &self.tree, self.handler.triangles.items, vertices, self.threads) catch {};
 
@@ -264,7 +267,7 @@ pub const Provider = struct {
                         handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
                         try handler.positions.resize(alloc, num_positions);
 
-                        for (handler.positions.items) |*p, i| {
+                        for (handler.positions.items, 0..) |*p, i| {
                             p.* = Pack3f.init3(
                                 json.readFloat(f32, positions[i * 3 + 0]),
                                 json.readFloat(f32, positions[i * 3 + 1]),
@@ -278,7 +281,7 @@ pub const Provider = struct {
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
                         try handler.normals.resize(alloc, num_normals);
 
-                        for (handler.normals.items) |*n, i| {
+                        for (handler.normals.items, 0..) |*n, i| {
                             n.* = Pack3f.init3(
                                 json.readFloat(f32, normals[i * 3 + 0]),
                                 json.readFloat(f32, normals[i * 3 + 1]),
@@ -295,7 +298,7 @@ pub const Provider = struct {
                         handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangents);
                         try handler.bitangent_signs.resize(alloc, num_tangents);
 
-                        for (handler.tangents.items) |*t, i| {
+                        for (handler.tangents.items, 0..) |*t, i| {
                             t.* = Pack3f.init3(
                                 json.readFloat(f32, tangents[i * 4 + 0]),
                                 json.readFloat(f32, tangents[i * 4 + 1]),
@@ -318,7 +321,7 @@ pub const Provider = struct {
                         handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangent_spaces);
                         try handler.bitangent_signs.resize(alloc, num_tangent_spaces);
 
-                        for (handler.normals.items) |*n, i| {
+                        for (handler.normals.items, 0..) |*n, i| {
                             var ts = Quaternion{
                                 json.readFloat(f32, tangent_spaces[i * 4 + 0]),
                                 json.readFloat(f32, tangent_spaces[i * 4 + 1]),
@@ -347,7 +350,7 @@ pub const Provider = struct {
                         handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
                         try handler.uvs.resize(alloc, num_uvs);
 
-                        for (handler.uvs.items) |*uv, i| {
+                        for (handler.uvs.items, 0..) |*uv, i| {
                             uv.* = .{
                                 json.readFloat(f32, uvs[i * 2 + 0]),
                                 json.readFloat(f32, uvs[i * 2 + 1]),
@@ -362,7 +365,7 @@ pub const Provider = struct {
                 handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
                 try handler.triangles.resize(alloc, num_triangles);
 
-                for (handler.triangles.items) |*t, i| {
+                for (handler.triangles.items, 0..) |*t, i| {
                     t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
                     t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
                     t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
@@ -417,7 +420,7 @@ pub const Provider = struct {
 
                     parts = try alloc.alloc(Part, parts_slice.len);
 
-                    for (parts_slice) |p, i| {
+                    for (parts_slice, 0..) |p, i| {
                         parts[i].start_index = json.readUIntMember(p, "start_index", 0);
                         parts[i].num_indices = json.readUIntMember(p, "num_indices", 0);
                         parts[i].material_index = json.readUIntMember(p, "material_index", 0);
@@ -533,7 +536,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
@@ -541,7 +544,13 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Compact = vs.Compact.init(positions, normals) };
+                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                        positions,
+                        normals,
+                        &.{},
+                        &.{},
+                        &.{},
+                    ) };
                 }
             }
         }
@@ -558,7 +567,7 @@ pub const Provider = struct {
 
         var mesh = try Mesh.init(alloc, @intCast(u32, parts.len));
 
-        for (parts) |p, i| {
+        for (parts, 0..) |p, i| {
             if (p.start_index + p.num_indices > num_indices) {
                 return Error.PartIndicesOutOfBounds;
             }
@@ -584,7 +593,7 @@ pub const Provider = struct {
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const num_triangles = self.num_indices / 3;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
@@ -612,7 +621,7 @@ pub const Provider = struct {
     }
 
     fn buildDescAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const num_triangles = self.desc.num_triangles;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
@@ -681,7 +690,7 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *bvh.Tree,
+        tree: *Tree,
         triangles: []const IndexTriangle,
         vertices: vs.VertexStream,
         threads: *Threads,
@@ -700,11 +709,11 @@ pub const Provider = struct {
     ) void {
         const indices = std.mem.bytesAsSlice(I, index_buffer);
 
-        for (parts) |p, i| {
+        for (parts, 0..) |p, i| {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end]) |*t, j| {
+            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
                 const jj = triangles_start + j;
 
                 t.*.i[0] = @intCast(u32, indices[jj * 3 + 0]);
@@ -726,11 +735,11 @@ pub const Provider = struct {
 
         var previous_index: i32 = 0;
 
-        for (parts) |p, i| {
+        for (parts, 0..) |p, i| {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end]) |*t, j| {
+            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
                 const jj = triangles_start + j;
 
                 const a = previous_index + @intCast(i32, indices[jj * 3 + 0]);

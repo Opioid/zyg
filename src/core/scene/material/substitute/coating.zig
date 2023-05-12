@@ -14,19 +14,18 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Coating = struct {
-    frame: Frame = undefined,
+    n: Vec4f = undefined,
 
     absorption_coef: Vec4f = undefined,
 
     thickness: f32 = 0.0,
-    ior: f32 = undefined,
     f0: f32 = undefined,
     alpha: f32 = undefined,
     weight: f32 = undefined,
 
     const Self = @This();
 
-    pub const Result = struct {
+    const Result = struct {
         reflection: Vec4f,
         attenuation: Vec4f,
         f: f32,
@@ -34,8 +33,10 @@ pub const Coating = struct {
     };
 
     pub fn evaluate(self: *const Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, avoid_caustics: bool) Result {
-        const n_dot_wi = self.frame.clampNdot(wi);
-        const n_dot_wo = self.frame.clampAbsNdot(wo);
+        const n = self.n;
+
+        const n_dot_wi = hlp.clampDot(n, wi);
+        const n_dot_wo = hlp.clampAbsDot(n, wo);
 
         const att = self.attenuation(n_dot_wi, n_dot_wo);
 
@@ -45,24 +46,22 @@ pub const Coating = struct {
 
         const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
-        var fresnel_result: Vec4f = undefined;
         const gg = ggx.Iso.reflectionF(
             h,
-            self.frame.n,
+            n,
             n_dot_wi,
             n_dot_wo,
             wo_dot_h,
             self.alpha,
             schlick,
-            &fresnel_result,
         );
 
-        const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.ior);
+        const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
         return .{
-            .reflection = @splat(4, ep * self.weight * n_dot_wi) * gg.reflection,
+            .reflection = @splat(4, ep * self.weight * n_dot_wi) * gg.r.reflection,
             .attenuation = att,
-            .f = fresnel_result[0],
-            .pdf = gg.pdf(),
+            .f = gg.f[0],
+            .pdf = gg.r.pdf(),
         };
     }
 
@@ -74,9 +73,8 @@ pub const Coating = struct {
         n_dot_h: f32,
         wi_dot_h: f32,
         wo_dot_h: f32,
-        att: *Vec4f,
         result: *bxdf.Sample,
-    ) void {
+    ) Vec4f {
         const f = result.reflection;
         const n_dot_wi = ggx.Iso.reflectNoFresnel(
             wo,
@@ -86,18 +84,18 @@ pub const Coating = struct {
             wi_dot_h,
             wo_dot_h,
             self.alpha,
-            self.frame,
+            Frame.init(self.n),
             result,
         );
 
-        att.* = self.attenuation(n_dot_wi, n_dot_wo);
-
-        const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.ior);
+        const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
         result.reflection *= @splat(4, ep * self.weight * n_dot_wi) * f;
+
+        return self.attenuation(n_dot_wi, n_dot_wo);
     }
 
     pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
-        const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, self.frame, n_dot_h);
+        const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, Frame.init(self.n), n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
         const f = fresnel.schlick1(wo_dot_h, self.f0);

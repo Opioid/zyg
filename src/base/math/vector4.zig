@@ -7,8 +7,6 @@ const Pack3f = v3.Pack3f;
 
 const std = @import("std");
 
-pub const Min_normal = @splat(4, @bitCast(f32, @as(u32, 0x00800000)));
-
 pub fn Vec4(comptime T: type) type {
     return extern struct {
         v: [4]T = undefined,
@@ -19,10 +17,6 @@ pub fn Vec4(comptime T: type) type {
 
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
             return .{ .v = [4]T{ x, y, z, w } };
-        }
-
-        pub fn equal(a: Vec4(T), b: Vec4(T)) bool {
-            return a.v[0] == b.v[0] and a.v[1] == b.v[1] and a.v[2] == b.v[2] and a.v[3] == b.v[3];
         }
     };
 }
@@ -49,10 +43,6 @@ pub inline fn length3(v: Vec4f) f32 {
     return @sqrt(dot3(v, v));
 }
 
-pub inline fn rlength3(v: Vec4f) f32 {
-    return 1.0 / length3(v);
-}
-
 pub inline fn squaredDistance3(a: Vec4f, b: Vec4f) f32 {
     return squaredLength3(a - b);
 }
@@ -62,8 +52,7 @@ pub inline fn distance3(a: Vec4f, b: Vec4f) f32 {
 }
 
 pub inline fn normalize3(v: Vec4f) Vec4f {
-    const i = 1.0 / length3(v);
-    return @splat(4, i) * v;
+    return v / @splat(4, length3(v));
 }
 
 pub inline fn reciprocal3(v: Vec4f) Vec4f {
@@ -137,11 +126,11 @@ pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
     return min4(max4(v, @splat(4, mi)), @splat(4, ma));
 }
 
-pub inline fn minComponent3(v: Vec4f) f32 {
+pub inline fn hmin3(v: Vec4f) f32 {
     return std.math.min(v[0], std.math.min(v[1], v[2]));
 }
 
-pub inline fn maxComponent3(v: Vec4f) f32 {
+pub inline fn hmax3(v: Vec4f) f32 {
     return std.math.max(v[0], std.math.max(v[1], v[2]));
 }
 
@@ -165,11 +154,7 @@ pub inline fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
-pub inline fn equal(a: Vec4f, b: Vec4f) bool {
-    return @reduce(.And, a == b);
-}
-
-pub inline fn equal4i(a: Vec4i, b: Vec4i) bool {
+pub inline fn equal(a: anytype, b: @TypeOf(a)) bool {
     return @reduce(.And, a == b);
 }
 
@@ -179,6 +164,10 @@ pub inline fn allLess4(a: Vec4f, b: Vec4f) bool {
 
 pub inline fn anyLess4i(a: Vec4i, b: Vec4i) bool {
     return @reduce(.Or, a < b);
+}
+
+pub inline fn allLessEqualZero3(v: Vec4f) bool {
+    return @reduce(.And, v <= Vec4f{ 0.0, 0.0, 0.0, std.math.f32_max });
 }
 
 pub inline fn anyGreaterZero3(v: Vec4f) bool {

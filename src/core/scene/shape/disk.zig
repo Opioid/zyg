@@ -77,7 +77,14 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -108,7 +115,7 @@ pub const Disk = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, area: f32, two_sided: bool, sampler: *Sampler) ?SampleTo {
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
@@ -130,10 +137,16 @@ pub const Disk = struct {
             return null;
         }
 
+        const radius = trafo.scaleX();
+        var area = std.math.pi * (radius * radius);
+        if (two_sided) {
+            area *= 2.0;
+        }
+
         return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), trafo, sl / (c * area), t);
     }
 
-    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, area: f32, two_sided: bool) ?SampleTo {
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
 
@@ -160,6 +173,8 @@ pub const Disk = struct {
                 return null;
             }
 
+            const area = std.math.pi * (radius * radius);
+
             return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area), t);
         }
 
@@ -168,7 +183,6 @@ pub const Disk = struct {
 
     pub fn sampleFrom(
         trafo: Trafo,
-        area: f32,
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
@@ -181,6 +195,9 @@ pub const Disk = struct {
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         var wn = trafo.rotation.r[2];
+
+        const radius = trafo.scaleX();
+        const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
         if (cos_a < Dot_min) {
             var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);

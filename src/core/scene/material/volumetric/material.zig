@@ -1,6 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("../sample.zig").Sample;
-const Volumetric = @import("sample.zig").Sample;
+const Sample = @import("sample.zig").Sample;
 const Gridtree = @import("gridtree.zig").Gridtree;
 const Builder = @import("gridtree_builder.zig").Builder;
 const ccoef = @import("../collision_coefficients.zig");
@@ -63,7 +62,9 @@ pub const Material = struct {
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
             math.anyGreaterZero3(self.super.emittance.value);
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
+        self.super.properties.evaluate_visibility = true;
 
         if (self.density_map.valid()) {
             try Builder.build(
@@ -158,20 +159,16 @@ pub const Material = struct {
         self.average_emission = average_emission;
 
         const cca = self.super.cc.a;
-        const majorant_a = math.maxComponent3(cca);
+        const majorant_a = math.hmax3(cca);
         self.a_norm = @splat(4, majorant_a) / cca;
         self.pdf_factor = num_pixels / majorant_a;
 
         return average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate) Sample {
-        if (rs.subsurface) {
-            const gs = self.super.vanDeHulstAnisotropy(rs.depth);
-            return .{ .Volumetric = Volumetric.init(wo, rs, gs) };
-        }
-
-        return .{ .Null = Null.init(wo, rs) };
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
+        const gs = self.super.vanDeHulstAnisotropy(rs.depth);
+        return Sample.init(wo, rs, gs);
     }
 
     pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
@@ -261,7 +258,7 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*LuminanceContext, context);
+        const self = @ptrCast(*LuminanceContext, context);
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene).dimensions;
@@ -315,7 +312,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*DistributionContext, context);
+        const self = @ptrCast(*DistributionContext, @alignCast(16, context));
         const d = self.d;
         const width = @intCast(u32, d[0]);
         const height = @intCast(u32, d[1]);

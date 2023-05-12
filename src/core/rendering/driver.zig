@@ -57,9 +57,7 @@ pub const Driver = struct {
 
     pub fn init(alloc: Allocator, threads: *Threads, fs: *Filesystem, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
-        for (workers) |*w| {
-            w.* = .{};
-        }
+        @memset(workers, .{});
 
         return Driver{
             .threads = threads,
@@ -114,7 +112,6 @@ pub const Driver = struct {
                 scene,
                 view.samplers,
                 view.surfaces,
-                view.volumes,
                 view.lighttracers,
                 view.aovs,
                 view.photon_settings,
@@ -165,7 +162,7 @@ pub const Driver = struct {
         const start = @as(u64, frame) * camera.frame_step;
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
-        camera.update(start, &self.workers[0].super);
+        camera.update(start, self.scene);
 
         if (progressive) {
             camera.sensor.clear(0.0);
@@ -220,8 +217,10 @@ pub const Driver = struct {
 
         self.resolve();
 
+        const crop = self.view.camera.crop;
+
         for (exporters) |*e| {
-            try e.write(alloc, self.target, null, frame, self.threads);
+            try e.write(alloc, self.target, crop, null, frame, self.threads);
         }
 
         const len = View.AovValue.Num_classes;
@@ -233,7 +232,7 @@ pub const Driver = struct {
             }
 
             for (exporters) |*e| {
-                try e.write(alloc, self.target, class, frame, self.threads);
+                try e.write(alloc, self.target, crop, class, frame, self.threads);
             }
         }
 
@@ -269,7 +268,7 @@ pub const Driver = struct {
     }
 
     fn renderTiles(context: Threads.Context, id: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
@@ -294,7 +293,7 @@ pub const Driver = struct {
         var camera = &self.view.camera;
 
         camera.sensor.clear(0.0);
-        camera.sensor.basePtr().aov.clear();
+        camera.sensor.clearAov();
 
         self.progressor.start(self.tiles.size());
 
@@ -318,7 +317,7 @@ pub const Driver = struct {
     }
 
     fn renderRanges(context: Threads.Context, id: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
@@ -337,8 +336,8 @@ pub const Driver = struct {
         log.info("Baking photons...", .{});
         const start = std.time.milliTimestamp();
 
-        for (self.workers) |*w, i| {
-            w.super.rng.start(0, i);
+        for (self.workers, 0..) |*w, i| {
+            w.rng.start(0, i);
         }
 
         var num_paths: u64 = 0;
@@ -386,7 +385,7 @@ pub const Driver = struct {
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(
             begin,

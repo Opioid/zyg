@@ -1,9 +1,7 @@
 const Graph = @import("scene_graph.zig").Graph;
 const Keyframe = @import("animation.zig").Keyframe;
 
-const core = @import("core");
-const scn = core.scn;
-const Scene = scn.Scene;
+const Scene = @import("core").scn.Scene;
 
 const base = @import("base");
 const json = base.json;
@@ -17,13 +15,13 @@ pub fn load(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
-    entity: u32,
+    parent_trafo: ?Transformation,
     graph: *Graph,
-) !bool {
+) !u32 {
     var start_time: u64 = 0;
 
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
-    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, scn.cnst.Units_per_second) / fps)) else 0;
+    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps)) else 0;
 
     var iter = value.Object.iterator();
     while (iter.next()) |entry| {
@@ -32,7 +30,7 @@ pub fn load(
                 alloc,
                 entry.value_ptr.*,
                 default_trafo,
-                entity,
+                parent_trafo,
                 start_time,
                 frame_step,
                 graph,
@@ -40,33 +38,36 @@ pub fn load(
         }
     }
 
-    return false;
+    return Graph.Null;
 }
 
 pub fn loadKeyframes(
     alloc: Allocator,
     value: std.json.Value,
     default_trafo: Transformation,
-    entity: u32,
+    parent_trafo: ?Transformation,
     start_time: u64,
     frame_step: u64,
     graph: *Graph,
-) !bool {
+) !u32 {
     return switch (value) {
         .Array => |array| {
-            const animation = try graph.createAnimation(alloc, entity, @intCast(u32, array.items.len));
+            const animation = try graph.createAnimation(alloc, @intCast(u32, array.items.len));
 
             var current_time = start_time;
 
-            for (array.items) |n, i| {
+            for (array.items, 0..) |n, i| {
                 var keyframe = Keyframe{ .k = default_trafo, .time = current_time };
 
                 var iter = n.Object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "time", entry.key_ptr.*)) {
-                        keyframe.time = scn.cnst.time(json.readFloat(f64, entry.value_ptr.*));
+                        keyframe.time = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                         json.readTransformation(entry.value_ptr.*, &keyframe.k);
+                        if (parent_trafo) |pt| {
+                            keyframe.k = pt.transform(keyframe.k);
+                        }
                     }
                 }
 
@@ -75,8 +76,8 @@ pub fn loadKeyframes(
                 current_time += frame_step;
             }
 
-            return true;
+            return animation;
         },
-        else => false,
+        else => Graph.Null,
     };
 }

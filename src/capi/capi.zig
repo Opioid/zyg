@@ -256,7 +256,7 @@ export fn su_image_create(
         const bpp = bpc * num_channels;
 
         if (bpp == pixel_stride) {
-            std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+            @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
         }
 
         const image: ?img.Image = switch (ef) {
@@ -323,7 +323,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                     else => return -1,
                 };
 
-                std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+                @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
             }
 
             return 0;
@@ -341,9 +341,7 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
         defer document.deinit();
 
-        const data = @ptrToInt(&document.root);
-
-        const material = e.resources.loadData(scn.Material, e.alloc, id, data, .{}) catch return -1;
+        const material = e.resources.loadData(scn.Material, e.alloc, id, &document.root, .{}) catch return -1;
 
         return @intCast(i32, material);
     }
@@ -411,9 +409,7 @@ export fn su_triangle_mesh_create(
             .uvs = uvs,
         };
 
-        const data = @ptrToInt(&desc);
-
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
 
         e.resources.commitAsync();
 
@@ -456,9 +452,7 @@ export fn su_triangle_mesh_create_async(
             .uvs = uvs,
         };
 
-        const data = @ptrToInt(&desc);
-
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
         return @intCast(i32, mesh_id);
     }
 
@@ -490,6 +484,20 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
         }
 
         const prop = e.scene.createProp(e.alloc, shape, matbuf.items) catch return -1;
+
+        return @intCast(i32, prop);
+    }
+
+    return -1;
+}
+
+export fn su_prop_create_instance(entity: u32) i32 {
+    if (engine) |*e| {
+        if (entity >= e.scene.props.items.len) {
+            return -1;
+        }
+
+        const prop = e.scene.createPropInstance(e.alloc, entity) catch return -1;
 
         return @intCast(i32, prop);
     }
@@ -713,7 +721,7 @@ const CopyFramebufferContext = struct {
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*CopyFramebufferContext, context);
+        const self = @ptrCast(*CopyFramebufferContext, @alignCast(16, context));
 
         const d = self.source.description.dimensions;
 

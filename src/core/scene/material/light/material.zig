@@ -37,6 +37,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
+        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.emission_map.valid();
     }
 
@@ -71,7 +72,7 @@ pub const Material = struct {
             var context = LuminanceContext{
                 .scene = scene,
                 .shape = shape,
-                .texture = &self.emission_map,
+                .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
                     return @splat(4, @as(f32, 0.0)),
@@ -108,28 +109,25 @@ pub const Material = struct {
         return self.average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
-        const area = scene.lightArea(rs.prop, rs.part);
-        const rad = self.evaluateRadiance(rs.p, -wo, rs.uv, rs.trafo, area, rs.filter, sampler, scene);
-
-        var result = Sample.init(rs, wo, rad);
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
+        var result = Sample.init(rs, wo);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
+        shading_p: Vec4f,
         wi: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(p, wi, trafo, extent, filter, sampler, scene);
-
+        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, filter, sampler, scene);
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return rad * ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
@@ -156,12 +154,12 @@ pub const Material = struct {
 const LuminanceContext = struct {
     scene: *const Scene,
     shape: *const Shape,
-    texture: *const Texture,
+    texture: Texture,
     luminance: [*]f32,
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*LuminanceContext, context);
+        const self = @ptrCast(*LuminanceContext, context);
 
         const d = self.texture.description(self.scene).dimensions;
         const width = @intCast(u32, d[0]);
@@ -206,7 +204,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*DistributionContext, context);
+        const self = @ptrCast(*DistributionContext, context);
 
         var y = begin;
         while (y < end) : (y += 1) {

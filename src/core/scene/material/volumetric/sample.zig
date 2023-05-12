@@ -14,13 +14,13 @@ pub const Sample = struct {
 
     anisotropy: f32,
 
-    pub fn init(wo: Vec4f, rs: *const Renderstate, anisotropy: f32) Sample {
+    pub fn init(wo: Vec4f, rs: Renderstate, anisotropy: f32) Sample {
         var super = Base.init(
             rs,
             wo,
             @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
             @splat(2, @as(f32, 1.0)),
+            0.0,
         );
 
         super.properties.translucent = true;
@@ -59,7 +59,6 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const tb = math.orthonormalBasis3(wo);
-
         const wi = math.smpl.sphereDirection(sin_theta, cos_theta, phi, tb[0], tb[1], -wo);
 
         const phase = phaseHg(-cos_theta, g);

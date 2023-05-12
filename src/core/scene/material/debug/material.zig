@@ -17,7 +17,7 @@ pub const Material = struct {
         return .{ .super = super };
     }
 
-    pub fn sample(wo: Vec4f, rs: *const Renderstate) Sample {
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
         const n = math.cross3(rs.t, rs.b);
 
         const same_side = math.dot3(n, rs.n) > 0.0;

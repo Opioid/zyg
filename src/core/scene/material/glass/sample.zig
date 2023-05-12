@@ -24,12 +24,11 @@ pub const Sample = struct {
     ior: f32,
     ior_outside: f32,
     f0: f32,
-    thickness: f32,
     abbe: f32,
     wavelength: f32,
 
     pub fn init(
-        rs: *const Renderstate,
+        rs: Renderstate,
         wo: Vec4f,
         absorption_coef: Vec4f,
         ior: f32,
@@ -43,8 +42,8 @@ pub const Sample = struct {
             rs,
             wo,
             @splat(4, @as(f32, 1.0)),
-            @splat(4, @as(f32, 0.0)),
             @splat(2, alpha),
+            thickness,
         );
 
         const rough = alpha > 0.0;
@@ -57,8 +56,7 @@ pub const Sample = struct {
             .absorption_coef = absorption_coef,
             .ior = ior,
             .ior_outside = ior_outside,
-            .f0 = if (rough) fresnel.Schlick.F0(ior, ior_outside) else 0.0,
-            .thickness = thickness,
+            .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .abbe = abbe,
             .wavelength = wavelength,
         };
@@ -100,7 +98,7 @@ pub const Sample = struct {
             const n_dot_wo = frame.clampAbsNdot(wo);
             const n_dot_h = math.saturate(self.super.frame.nDot(h));
 
-            const schlick = fresnel.Schlick1.init(self.f0);
+            const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
             const gg = ggx.Iso.refraction(
                 n_dot_wi,
@@ -113,7 +111,7 @@ pub const Sample = struct {
                 schlick,
             );
 
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             return bxdf.Result.init(
                 @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
@@ -127,13 +125,12 @@ pub const Sample = struct {
 
             const wo_dot_h = hlp.clampDot(wo, h);
 
-            const schlick = fresnel.Schlick1.init(self.f0);
+            const schlick = fresnel.Schlick.init(@splat(4, self.f0));
 
-            var fr: Vec4f = undefined;
-            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, &fr);
-            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.ior);
+            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
+            const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
-            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.reflection, fr[0] * gg.pdf());
+            return bxdf.Result.init(@splat(4, n_dot_wi * comp) * gg.r.reflection, gg.f[0] * gg.r.pdf());
         }
     }
 
@@ -144,7 +141,7 @@ pub const Sample = struct {
             var result = self.roughSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
-        } else if (self.thickness > 0.0) {
+        } else if (self.super.thickness > 0.0) {
             var result = self.thinSample(ior, sampler);
             result.wavelength = 0.0;
             return result;
@@ -252,7 +249,7 @@ pub const Sample = struct {
             return reflect(wo, n, n_dot_wo);
         } else {
             const n_dot_wi = hlp.clamp(n_dot_wo);
-            const approx_dist = self.thickness / n_dot_wi;
+            const approx_dist = self.super.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
@@ -343,7 +340,7 @@ pub const Sample = struct {
             result.pdf *= omf;
         }
 
-        result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], ior_t));
+        result.reflection *= @splat(4, ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0));
 
         return result;
     }

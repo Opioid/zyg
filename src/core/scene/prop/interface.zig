@@ -1,6 +1,7 @@
 const Intersection = @import("intersection.zig").Intersection;
 const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
+const CC = @import("../material/collision_coefficients.zig").CC;
 const Material = @import("../material/material.zig").Material;
 
 const math = @import("base").math;
@@ -12,19 +13,19 @@ const Allocator = std.mem.Allocator;
 pub const Interface = struct {
     prop: u32,
     part: u32,
-    uv: Vec2f,
+    cc: CC,
 
     pub fn material(self: Interface, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
     }
 
-    pub fn matches(self: Interface, isec: *const Intersection) bool {
+    pub fn matches(self: Interface, isec: Intersection) bool {
         return self.prop == isec.prop and self.part == isec.geo.part;
     }
 };
 
 pub const Stack = struct {
-    const Num_entries = 16;
+    const Num_entries = 8;
 
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
@@ -32,7 +33,7 @@ pub const Stack = struct {
     pub fn copy(self: *Stack, other: *const Stack) void {
         const index = other.index;
         self.index = index;
-        std.mem.copy(Interface, self.stack[0..index], other.stack[0..index]);
+        @memcpy(self.stack[0..index], other.stack[0..index]);
     }
 
     pub fn empty(self: *const Stack) bool {
@@ -65,7 +66,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn peekIor(self: *const Stack, isec: *const Intersection, scene: *const Scene) f32 {
+    pub fn peekIor(self: *const Stack, isec: Intersection, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
@@ -79,25 +80,16 @@ pub const Stack = struct {
         }
     }
 
-    pub fn straight(self: *const Stack, scene: *const Scene) bool {
-        const index = self.index;
-        if (index > 0) {
-            return 1.0 == self.stack[index - 1].material(scene).ior();
-        }
-
-        return true;
-    }
-
-    pub fn push(self: *Stack, isec: *const Intersection) void {
+    pub fn push(self: *Stack, isec: Intersection, cc: CC) void {
         if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .uv = isec.geo.uv };
+            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .cc = cc };
             self.index += 1;
         }
     }
 
     pub fn pushVolumeLight(self: *Stack, light: Light) void {
         if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .uv = .{ 0.0, 0.0 } };
+            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .cc = undefined };
             self.index += 1;
         }
     }
@@ -108,7 +100,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn remove(self: *Stack, isec: *const Intersection) bool {
+    pub fn remove(self: *Stack, isec: Intersection) bool {
         const back = @intCast(i32, self.index) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {

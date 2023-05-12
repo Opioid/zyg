@@ -1,12 +1,15 @@
 const ComposedTransformation = @import("scene/composed_transformation.zig").ComposedTransformation;
 const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
-const LightNode = @import("scene/light/tree.zig").Node;
+const LightNode = @import("scene/light/light_tree.zig").Node;
 const mt = @import("scene/material/material.zig");
-const Interface = @import("scene/prop/interface.zig").Interface;
+const intf = @import("scene/prop/interface.zig");
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
+const Mesh = @import("scene/shape/triangle/mesh.zig").Mesh;
+const TriangleBvh = @import("scene/shape/triangle/bvh/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
+const Worker = @import("rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -14,7 +17,7 @@ const math = base.math;
 const std = @import("std");
 
 pub fn testSize() void {
-    std.debug.print("Name: measured size (expected size); align\n", .{});
+    std.debug.print("Name: actual size (expected size); alignment\n", .{});
 
     testType(math.Vec2f, "Vec2f", 8);
     testType(math.Pack3f, "Pack3f", 12);
@@ -28,10 +31,15 @@ pub fn testSize() void {
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 48);
-    testType(Interface, "Interface", 16);
+    testType(intf.Interface, "Interface", 16);
+    testType(intf.Stack, "InterfaceStack", 240);
     testType(mt.Material, "Material", 400);
     testType(mt.Substitute, "SubstituteMaterial", 368);
+    testType(mt.Sample, "MaterialSample", 256);
     testType(Texture, "Texture", 16);
+    testType(Mesh, "Mesh", 80);
+    testType(TriangleBvh, "TriangleBvh", 56);
+    testType(Worker, "Worker", 1152);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

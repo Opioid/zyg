@@ -30,7 +30,7 @@ pub const Distribution3D = struct {
             }
 
             self.conditional = try alloc.realloc(self.conditional, num);
-            std.mem.set(Distribution2D, self.conditional, .{});
+            @memset(self.conditional, .{});
         }
 
         return self.conditional;
@@ -40,8 +40,8 @@ pub const Distribution3D = struct {
         var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
-        for (self.conditional) |c, i| {
-            integrals[i] = c.integral();
+        for (integrals, self.conditional) |*i, c| {
+            i.* = c.integral();
         }
 
         try self.marginal.configure(alloc, integrals, 0);

@@ -5,6 +5,7 @@ const Float4 = img.Float4;
 const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
+const Vec4i = base.math.Vec4i;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -27,13 +28,14 @@ pub const Sink = union(enum) {
         self: *Self,
         alloc: Allocator,
         image: Float4,
+        crop: Vec4i,
         aov: ?AovClass,
         frame: u32,
         threads: *Threads,
     ) !void {
         switch (self.*) {
             .FFMPEG => |*s| try s.write(alloc, image, threads),
-            .ImageSequence => |*s| try s.write(alloc, image, aov, frame, threads),
+            .ImageSequence => |*s| try s.write(alloc, image, crop, aov, frame, threads),
         }
     }
 };

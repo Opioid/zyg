@@ -14,7 +14,7 @@ const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../worker.zig").Worker;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const image = @import("../../image/image.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
@@ -54,12 +54,9 @@ pub const Material = union(enum) {
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         switch (self.*) {
-            .Glass => |*m| m.commit(),
-            .Light => |*m| m.commit(),
-            .Sky => |*m| m.commit(),
-            .Substitute => |*m| m.commit(),
+            .Debug => {},
             .Volumetric => |*m| try m.commit(alloc, scene, threads),
-            else => {},
+            inline else => |*m| m.commit(),
         }
     }
 
@@ -85,39 +82,20 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn masked(self: *const Material) bool {
-        return self.super().mask.valid();
-    }
-
     pub fn twoSided(self: *const Material) bool {
-        return switch (self.*) {
-            .Debug => true,
-            .Glass => |*m| m.thickness > 0.0,
-            .Light => |*m| m.super.properties.two_sided,
-            .Substitute => |*m| m.super.properties.two_sided,
-            else => false,
-        };
+        return self.super().properties.two_sided;
     }
 
     pub fn caustic(self: *const Material) bool {
         return self.super().properties.caustic;
     }
 
-    pub fn tintedShadow(self: *const Material) bool {
-        return switch (self.*) {
-            .Glass => |*m| m.thickness > 0.0,
-            else => false,
-        };
+    pub fn evaluateVisibility(self: *const Material) bool {
+        return self.super().properties.evaluate_visibility;
     }
 
     pub fn emissive(self: *const Material) bool {
-        return switch (self.*) {
-            .Sky => true,
-            .Light => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Substitute => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            .Volumetric => |*m| math.anyGreaterZero3(m.super.emittance.value),
-            else => false,
-        };
+        return self.super().properties.emissive;
     }
 
     pub fn emissionMapped(self: *const Material) bool {
@@ -132,11 +110,7 @@ pub const Material = union(enum) {
     }
 
     pub fn scatteringVolume(self: *const Material) bool {
-        return switch (self.*) {
-            .Substitute => |*m| m.super.properties.scattering_volume,
-            .Volumetric => |*m| m.super.properties.scattering_volume,
-            else => false,
-        };
+        return self.super().properties.scattering_volume;
     }
 
     pub fn heterogeneousVolume(self: *const Material) bool {
@@ -144,6 +118,10 @@ pub const Material = union(enum) {
             .Volumetric => |*m| m.density_map.valid(),
             else => false,
         };
+    }
+
+    pub fn denseSSSOptimization(self: *const Material) bool {
+        return self.super().properties.dense_sss_optimization;
     }
 
     pub fn volumetricTree(self: *const Material) ?Gridtree {
@@ -157,24 +135,37 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CC {
+    pub fn collisionCoefficients2D(self: *const Material, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CC {
+        const sup = self.super();
+        const cc = sup.cc;
+
+        switch (self.*) {
+            .Volumetric => {
+                return cc;
+            },
+            else => {
+                const color_map = sup.color_map;
+                if (color_map.valid()) {
+                    const key = ts.resolveKey(sup.sampler_key, filter);
+                    const color = ts.sample2D_3(key, color_map, uv, sampler, scene);
+                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
+                }
+
+                return cc;
+            },
+        }
+    }
+
+    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CC {
         const sup = self.super();
         const cc = sup.cc;
 
         switch (self.*) {
             .Volumetric => |*m| {
                 const d = @splat(4, m.density(uvw, filter, sampler, scene));
-
                 return .{ .a = d * cc.a, .s = d * cc.s };
             },
             else => {
-                const color_map = sup.color_map;
-                if (color_map.valid()) {
-                    const key = ts.resolveKey(sup.sampler_key, filter);
-                    const color = ts.sample2D_3(key, color_map, .{ uvw[0], uvw[1] }, sampler, scene);
-                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
-                }
-
                 return cc;
             },
         }
@@ -206,35 +197,35 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, sampler, worker.scene) },
-            .Light => |*l| .{ .Light = l.sample(wo, rs, sampler, worker.scene) },
-            .Sky => |*s| .{ .Light = s.sample(wo, rs, sampler, worker.scene) },
+            .Light => .{ .Light = Light.sample(wo, rs) },
+            .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, sampler, worker),
-            .Volumetric => |*v| v.sample(wo, rs),
+            .Volumetric => |*v| .{ .Volumetric = v.sample(wo, rs) },
         };
     }
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
+        shading_p: Vec4f,
         wi: Vec4f,
         n: Vec4f,
         uvw: Vec4f,
         trafo: Trafo,
-        extent: f32,
+        prop: u32,
+        part: u32,
         filter: ?ts.Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(p, wi, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
-            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, .Nearest, sampler, scene),
-            .Substitute => |*m| m.evaluateRadiance(p, wi, n, .{ uvw[0], uvw[1] }, trafo, extent, filter, sampler, scene),
+            .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, sampler, scene),
+            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, filter, sampler, scene),
+            .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
-
             else => @splat(4, @as(f32, 0.0)),
         };
     }
@@ -261,15 +252,7 @@ pub const Material = union(enum) {
         return self.super().opacity(uv, filter, sampler, scene);
     }
 
-    pub fn visibility(
-        self: *const Material,
-        wi: Vec4f,
-        n: Vec4f,
-        uv: Vec2f,
-        filter: ?ts.Filter,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) ?Vec4f {
+    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         switch (self.*) {
             .Glass => |*m| {
                 return m.visibility(wi, n, uv, filter, sampler, scene);

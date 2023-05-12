@@ -12,7 +12,7 @@ pub const Options = struct {
 
     inputs: std.ArrayListUnmanaged([]u8) = .{},
     operator: Operator = .Over,
-    format: Format = .PNG,
+    format: ?Format = null,
     exposure: f32 = 0.0,
     threads: i32 = 0,
 
@@ -65,7 +65,7 @@ pub const Options = struct {
         if ('-' == command[0]) {
             try self.handle(alloc, command[1..], parameter);
         } else {
-            for (command) |_, i| {
+            for (command, 0..) |_, i| {
                 try self.handle(alloc, command[i .. i + 1], parameter);
             }
         }

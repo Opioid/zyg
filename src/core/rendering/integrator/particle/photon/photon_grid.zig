@@ -64,7 +64,7 @@ pub const Grid = struct {
         const diameter = 2.0 * self.search_radius;
         const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))) + @splat(4, @as(i32, 2));
 
-        if (!math.equal4i(dimensions, self.dimensions)) {
+        if (!math.equal(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;
@@ -345,7 +345,7 @@ pub const Grid = struct {
         std.sort.sort(Photon, photons, self, compareByMap);
 
         var current: u32 = 0;
-        for (self.grid) |*cell, c| {
+        for (self.grid, 0..) |*cell, c| {
             cell.* = current;
             while (current < photons.len) : (current += 1) {
                 if (self.map1(self.photons[current].p) != c) {
@@ -509,7 +509,7 @@ pub const Grid = struct {
         var result: Adjacency = undefined;
         result.num_cells = adjacency.num_cells;
 
-        for (adjacency.cells[0..adjacency.num_cells]) |cell, i| {
+        for (adjacency.cells[0..adjacency.num_cells], 0..) |cell, i| {
             result.cells[i][0] = self.grid[@intCast(usize, @as(i64, cell[0]) + ic)];
             result.cells[i][1] = self.grid[@intCast(usize, @as(i64, cell[1]) + ic + 1)];
         }
@@ -530,7 +530,7 @@ pub const Grid = struct {
         self.num_paths = @intToFloat(f64, num_paths);
     }
 
-    pub fn li(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -544,7 +544,7 @@ pub const Grid = struct {
         const radius = self.search_radius;
         const radius2 = radius * radius;
 
-        if (isec.subsurface) {} else {
+        if (isec.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
             const two_sided = isec.material(scene).twoSided();
@@ -586,7 +586,7 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
-    pub fn li2(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -603,10 +603,10 @@ pub const Grid = struct {
         var buffer = Buffer{};
         buffer.clear();
 
-        const subsurface = isec.subsurface;
+        const subsurface = isec.subsurface();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-            for (self.photons[cell[0]..cell[1]]) |p, i| {
+            for (self.photons[cell[0]..cell[1]], 0..) |p, i| {
                 if (subsurface != p.volumetric) {
                     continue;
                 }
@@ -677,7 +677,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: *const Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
+    fn scatteringCoefficient(isec: Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {
@@ -687,10 +687,10 @@ pub const Grid = struct {
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
-            return material.collisionCoefficients(uvw, null, sampler, scene).s;
+            return material.collisionCoefficients3D(uvw, null, sampler, scene).s;
         }
 
-        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, sampler, scene).s;
+        return material.collisionCoefficients2D(isec.geo.uv, null, sampler, scene).s;
     }
 };
 

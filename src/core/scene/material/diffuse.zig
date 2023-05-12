@@ -40,13 +40,7 @@ const E_avg_tex = math.InterpolatedFunction2D_N(
 ).fromArray(&integral.E_avg);
 
 pub const Micro = struct {
-    pub fn reflection(
-        color: Vec4f,
-        f0: Vec4f,
-        n_dot_wi: f32,
-        n_dot_wo: f32,
-        alpha: f32,
-    ) bxdf.Result {
+    pub fn reflection(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) bxdf.Result {
         const refl = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
 
         const pdf = n_dot_wi * math.pi_inv;
@@ -82,7 +76,7 @@ pub const Micro = struct {
     }
 
     fn evaluate(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
-        const f0m = math.maxComponent3(f0);
+        const f0m = math.hmax3(f0);
 
         const e_wo = E_tex.eval(n_dot_wo, alpha, f0m);
         const e_wi = E_tex.eval(n_dot_wi, alpha, f0m);

@@ -11,13 +11,13 @@ const RNG = base.rnd.Generator;
 pub const Sample = struct {
     super: Base,
 
-    pub fn init(rs: *const Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
         return .{ .super = Base.init(
             rs,
             wo,
             albedo,
-            @splat(4, @as(f32, 0.0)),
             @splat(2, @as(f32, 1.0)),
+            0.0,
         ) };
     }
 

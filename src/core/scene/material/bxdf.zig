@@ -24,25 +24,17 @@ pub const Result = struct {
     pub fn mulAssignPdf(self: *Result, p: f32) void {
         self.reflection[3] *= p;
     }
-
-    pub fn blend(self: *Result, other: Vec4f, w: f32) void {
-        const r = self.reflection;
-        const n = math.lerp(r, other, w);
-        self.reflection = .{ n[0], n[1], n[2], r[3] };
-    }
-};
-
-pub const Class = packed struct {
-    reflection: bool = false,
-    transmission: bool = false,
-    diffuse: bool = false,
-    glossy: bool = false,
-    specular: bool = false,
-    straight: bool = false,
 };
 
 pub const Sample = struct {
-    pub const StraightTransmission = Class{ .transmission = true, .straight = true };
+    pub const Class = packed struct {
+        reflection: bool = false,
+        transmission: bool = false,
+        diffuse: bool = false,
+        glossy: bool = false,
+        specular: bool = false,
+        straight: bool = false,
+    };
 
     reflection: Vec4f = undefined,
     wi: Vec4f = undefined,
@@ -51,8 +43,4 @@ pub const Sample = struct {
     wavelength: f32 = undefined,
     h_dot_wi: f32 = undefined, // intermediate result, convenient to store here
     class: Class = undefined,
-
-    pub fn blend(self: *Sample, other: Vec4f, w: f32) void {
-        self.reflection = math.lerp(self.reflection, other, w);
-    }
 };

@@ -161,18 +161,18 @@ fn importance(
 ) f32 {
     const axis = p - center;
 
-    const il = math.rlength3(axis);
+    const l = math.length3(axis);
 
-    const na = @splat(4, il) * axis;
+    const na = axis / @splat(4, l);
     const da = cone;
 
-    const sin_cu = std.math.min(il * radius, 1.0);
+    const sin_cu = std.math.min(radius / l, 1.0);
     const cos_cone = cone[3];
     const cos_a = mat.absDotC(da, na, two_sided);
     const cos_n = -math.dot3(n, na);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
-    const sb = math.max4(@splat(4, @as(f32, 1.0)) - sa * sa, math.Min_normal);
+    const sb = math.max4(@splat(4, @as(f32, 1.0)) - sa * sa, @splat(4, @as(f32, 0.0)));
     const sr = @sqrt(sb);
 
     const cos_cu = sr[0];
@@ -187,7 +187,7 @@ fn importance(
 
     const ra = if (total_sphere) 1.0 else tn;
     const rb = std.math.max(tc, 0.0);
-    const id_min = std.math.min(2.0 / radius, il);
+    const id_min = std.math.min(2.0 / radius, 1.0 / l);
     const base = power * (id_min * id_min);
 
     return std.math.max(ra * rb * base, mat.Dot_min);
@@ -286,7 +286,7 @@ pub const Tree = struct {
     }
 
     pub fn randomLight(
-        self: *const Tree,
+        self: Tree,
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
@@ -389,7 +389,7 @@ pub const Tree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: *const Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
+    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
         const lo = self.light_orders[id];
         const num_infinite_lights = self.num_infinite_lights;
 
@@ -498,7 +498,7 @@ pub const PrimitiveTree = struct {
     }
 
     pub fn randomLight(
-        self: *const Self,
+        self: Self,
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
@@ -541,7 +541,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn pdf(self: *const Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
+    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
         const lo = self.light_orders[id];
 
         var pd: f32 = 1.0;
@@ -588,7 +588,7 @@ const TraversalStack = struct {
 
     const Self = @This();
 
-    pub fn empty(self: *const Self) bool {
+    pub fn empty(self: Self) bool {
         return 0 == self.end;
     }
 

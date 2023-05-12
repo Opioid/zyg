@@ -19,19 +19,19 @@ pub const CM = struct {
 
     pub fn initCC(cc: CC) CM {
         return .{
-            .minorant_mu_a = math.minComponent3(cc.a),
-            .minorant_mu_s = math.minComponent3(cc.s),
-            .majorant_mu_a = math.maxComponent3(cc.a),
-            .majorant_mu_s = math.maxComponent3(cc.s),
+            .minorant_mu_a = math.hmin3(cc.a),
+            .minorant_mu_s = math.hmin3(cc.s),
+            .majorant_mu_a = math.hmax3(cc.a),
+            .majorant_mu_s = math.hmax3(cc.s),
         };
     }
 
-    pub fn minorant_mu_t(self: CM) f32 {
-        return self.minorant_mu_a + self.minorant_mu_s;
+    pub fn minorant_mu_t(self: CM, srs: f32) f32 {
+        return self.minorant_mu_a + srs * self.minorant_mu_s;
     }
 
-    pub fn majorant_mu_t(self: CM) f32 {
-        return self.majorant_mu_a + self.majorant_mu_s;
+    pub fn majorant_mu_t(self: CM, srs: f32) f32 {
+        return self.majorant_mu_a + srs * self.majorant_mu_s;
     }
 
     pub fn isEmpty(self: CM) bool {
@@ -56,14 +56,9 @@ pub fn attenuationCoefficient(color: Vec4f, distance: f32) Vec4f {
 }
 
 pub fn scattering(mu_t: Vec4f, ssc: Vec4f, g: f32) CC {
-    const root = @sqrt(@splat(4, @as(f32, 9.59217)) + @splat(4, @as(f32, 41.6808)) *
-        ssc + @splat(4, @as(f32, 17.7126)) * ssc * ssc);
-
-    const factor = math.clamp(@splat(4, @as(f32, 4.097125)) +
-        @splat(4, @as(f32, 4.20863)) * ssc - root, 0.0, 1.0);
-
+    const root = @sqrt(@splat(4, @as(f32, 9.59217)) + ssc * (@splat(4, @as(f32, 41.6808)) + ssc * @splat(4, @as(f32, 17.7126))));
+    const factor = math.clamp(@splat(4, @as(f32, 4.097125)) + @splat(4, @as(f32, 4.20863)) * ssc - root, 0.0, 1.0);
     const fsq = factor * factor;
-
     const pss = (@splat(4, @as(f32, 1.0)) - fsq) / (@splat(4, @as(f32, 1.0)) - @splat(4, @as(f32, g)) * fsq);
 
     const mu_a = mu_t * (@splat(4, @as(f32, 1.0)) - pss);

@@ -4,7 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const scn = @import("../constants.zig");
+const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -19,7 +19,7 @@ const std = @import("std");
 
 pub const InfiniteSphere = struct {
     pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
-        if (ray.maxT() < scn.Ray_max_t) {
+        if (ray.maxT() < ro.Ray_max_t) {
             return false;
         }
 
@@ -31,7 +31,7 @@ pub const InfiniteSphere = struct {
         };
 
         // This is nonsense
-        isec.p = @splat(4, @as(f32, scn.Ray_max_t)) * ray.direction;
+        isec.p = @splat(4, @as(f32, ro.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
@@ -40,7 +40,7 @@ pub const InfiniteSphere = struct {
         isec.part = 0;
         isec.primitive = 0;
 
-        ray.setMaxT(scn.Ray_max_t);
+        ray.setMaxT(ro.Ray_max_t);
 
         return true;
     }
@@ -79,7 +79,7 @@ pub const InfiniteSphere = struct {
             uvw,
             trafo,
             pdf_,
-            scn.Ray_max_t,
+            ro.Ray_max_t,
         );
     }
 
@@ -101,7 +101,7 @@ pub const InfiniteSphere = struct {
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / ((4.0 * std.math.pi) * sin_theta),
-            scn.Ray_max_t,
+            ro.Ray_max_t,
         );
     }
 
@@ -159,7 +159,7 @@ pub const InfiniteSphere = struct {
         return 1.0 / (2.0 * std.math.pi);
     }
 
-    pub fn pdfUv(isec: *const Intersection) f32 {
+    pub fn pdfUv(isec: Intersection) f32 {
         // sin_theta because of the uv weight
         const sin_theta = @sin(isec.uv[1] * std.math.pi);
 

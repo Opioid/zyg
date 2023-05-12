@@ -7,6 +7,7 @@ const Float4 = img.Float4;
 const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
+const Vec4i = base.math.Vec4i;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -44,13 +45,14 @@ pub const Writer = union(enum) {
         alloc: Allocator,
         writer: anytype,
         image: Float4,
+        crop: Vec4i,
         encoding: Encoding,
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .EXR => |w| try w.write(alloc, writer, image, encoding, threads),
-            .PNG => |*w| try w.write(alloc, writer, image, encoding, threads),
-            .RGBE => try RGBE.write(alloc, writer, image),
+            .EXR => |w| try w.write(alloc, writer, .{ .Float4 = image }, crop, encoding, threads),
+            .PNG => |*w| try w.write(alloc, writer, image, crop, encoding, threads),
+            .RGBE => try RGBE.write(alloc, writer, image, crop),
         }
     }
 

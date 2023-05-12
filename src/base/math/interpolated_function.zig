@@ -137,7 +137,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
                 .inverse_interval = @intToFloat(f32, N - 1),
             };
 
-            for (result.samples) |*s, i| {
+            for (&result.samples, 0..) |*s, i| {
                 s.* = samples[i];
             }
 
@@ -145,7 +145,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
         }
 
         pub fn scale(self: *Self, x: f32) void {
-            for (self.samples) |*s| {
+            for (&self.samples) |*s| {
                 s.* *= x;
             }
         }
@@ -176,7 +176,7 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
 
             var result = Self{};
 
-            for (result.samples) |*s, i| {
+            for (&result.samples, 0..) |*s, i| {
                 s.* = samples[i];
             }
 
@@ -218,7 +218,7 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
 
             var result = Self{};
 
-            for (result.samples) |*s, i| {
+            for (&result.samples, 0..) |*s, i| {
                 s.* = samples[i];
             }
 

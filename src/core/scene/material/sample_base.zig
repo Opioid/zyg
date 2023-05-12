@@ -11,6 +11,11 @@ pub const Frame = struct {
     b: Vec4f,
     n: Vec4f,
 
+    pub fn init(n: Vec4f) Frame {
+        const tb = math.orthonormalBasis3(n);
+        return .{ .t = tb[0], .b = tb[1], .n = n };
+    }
+
     pub fn swapped(self: Frame, same_side: bool) Frame {
         if (same_side) {
             return self;
@@ -89,10 +94,11 @@ pub const Frame = struct {
 
 pub const SampleBase = struct {
     pub const Properties = packed struct {
-        pure_emissive: bool = false,
         translucent: bool = false,
         can_evaluate: bool = false,
         avoid_caustics: bool = false,
+        volumetric: bool = false,
+        flakes: bool = false,
     };
 
     frame: Frame = undefined,
@@ -101,69 +107,64 @@ pub const SampleBase = struct {
     n: Vec4f,
     wo: Vec4f,
     albedo: Vec4f,
-    radiance: Vec4f,
 
     alpha: Vec2f,
+
+    thickness: f32,
 
     properties: Properties,
 
     const Self = @This();
 
-    pub fn init(
-        rs: *const Renderstate,
-        wo: Vec4f,
-        albedo: Vec4f,
-        radiance: Vec4f,
-        alpha: Vec2f,
-    ) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) SampleBase {
         return .{
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
             .albedo = albedo,
-            .radiance = radiance,
             .alpha = alpha,
-            .properties = Properties{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
+            .thickness = thickness,
+            .properties = .{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, alpha: f32) SampleBase {
+    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) SampleBase {
         return .{
             .geo_n = geo_n,
             .n = n,
             .wo = wo,
-            .albedo = @splat(4, @as(f32, 0.0)),
-            .radiance = @splat(4, @as(f32, 0.0)),
+            .albedo = @splat(4, factor),
             .alpha = @splat(2, alpha),
-            .properties = .{},
+            .thickness = 0.0,
+            .properties = .{ .can_evaluate = false },
         };
     }
 
-    pub fn geometricNormal(self: *const Self) Vec4f {
+    pub fn geometricNormal(self: Self) Vec4f {
         return self.geo_n;
     }
 
-    pub fn interpolatedNormal(self: *const Self) Vec4f {
+    pub fn interpolatedNormal(self: Self) Vec4f {
         return self.n;
     }
 
-    pub fn shadingNormal(self: *const Self) Vec4f {
+    pub fn shadingNormal(self: Self) Vec4f {
         return self.frame.n;
     }
 
-    pub fn shadingTangent(self: *const Self) Vec4f {
+    pub fn shadingTangent(self: Self) Vec4f {
         return self.frame.t;
     }
 
-    pub fn shadingBitangent(self: *const Self) Vec4f {
+    pub fn shadingBitangent(self: Self) Vec4f {
         return self.frame.b;
     }
 
-    pub fn sameHemisphere(self: *const Self, v: Vec4f) bool {
+    pub fn sameHemisphere(self: Self, v: Vec4f) bool {
         return math.dot3(self.geo_n, v) > 0.0;
     }
 
-    pub fn avoidCaustics(self: *const Self) bool {
+    pub fn avoidCaustics(self: Self) bool {
         return self.properties.avoid_caustics;
     }
 };

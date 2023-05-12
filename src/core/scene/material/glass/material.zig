@@ -2,9 +2,9 @@ const Base = @import("../material_base.zig").Base;
 const Sample = @import("sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
-const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
@@ -27,7 +27,9 @@ pub const Material = struct {
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
-        self.super.properties.two_sided = self.thickness > 0.0;
+        const thin = self.thickness > 0.0;
+        self.super.properties.two_sided = thin;
+        self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
         self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
     }
 
@@ -37,7 +39,7 @@ pub const Material = struct {
         self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = ts.resolveKey(self.super.sampler_key, rs.filter);
 
         const r = if (self.roughness_map.valid())

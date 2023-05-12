@@ -1,4 +1,3 @@
-const Model = @import("model.zig").Model;
 const Sky = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/sample.zig").Sample;
@@ -7,17 +6,18 @@ const Emittance = @import("../scene/light/emittance.zig").Emittance;
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
-const Transformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const ts = @import("../image/texture/texture_sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
-const Image = @import("../image/image.zig").Image;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
+const img = @import("../image/image.zig");
 
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
 const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Threads = base.thread.Pool;
@@ -36,22 +36,18 @@ pub const Material = struct {
     average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
     total_weight: f32 = undefined,
 
-    sky: *const Sky,
-
-    pub fn initSky(emission_map: Texture, sky: *const Sky) Material {
+    pub fn initSky(emission_map: Texture) Material {
         return Material{
             .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = emission_map,
-            .sky = sky,
         };
     }
 
-    pub fn initSun(alloc: Allocator, sky: *const Sky) !Material {
+    pub fn initSun(alloc: Allocator) !Material {
         return Material{
             .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
             .emission_map = .{},
-            .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, 1024),
-            .sky = sky,
+            .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
         };
     }
 
@@ -61,31 +57,23 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
+        self.super.properties.emissive = true;
         self.super.properties.emission_map = self.emission_map.valid();
     }
 
-    pub fn setSunRadiance(self: *Material, model: Model) void {
-        const n = @intToFloat(f32, self.sun_radiance.samples.len - 1);
-
-        var rng = RNG.init(0, 0);
-
-        for (self.sun_radiance.samples) |*s, i| {
-            const v = @intToFloat(f32, i) / n;
-            var wi = self.sky.sunWi(v);
-            wi[1] = std.math.max(wi[1], 0.0);
-
-            s.* = model.evaluateSkyAndSun(wi, &rng);
+    pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
+        for (self.sun_radiance.samples, 0..) |*s, i| {
+            s.* = math.vec3fTo4f(image.pixels[i]);
         }
 
         var total = @splat(4, @as(f32, 0.0));
         var tw: f32 = 0.0;
-        var i: u32 = 0;
-        while (i < self.sun_radiance.samples.len - 1) : (i += 1) {
+        for (0..self.sun_radiance.samples.len - 1) |i| {
             const s0 = self.sun_radiance.samples[i];
             const s1 = self.sun_radiance.samples[i + 1];
 
             const v = (@intToFloat(f32, i) + 0.5) / @intToFloat(f32, self.sun_radiance.samples.len);
-            var wi = self.sky.sunWi(v);
+            const wi = Sky.sunWi(rotation, v);
 
             const w = @sin(v);
             tw += w;
@@ -156,21 +144,33 @@ pub const Material = struct {
         return average_emission;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: *const Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
-        const rad = self.evaluateRadiance(-wo, rs.uv, rs.filter, sampler, scene);
-
-        var result = Sample.init(rs, wo, rad);
+    pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
+        var result = Sample.init(rs, wo);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
     }
 
-    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(
+        self: *const Material,
+        wi: Vec4f,
+        uv: Vec2f,
+        trafo: Trafo,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
         if (self.emission_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }
 
-        return self.sun_radiance.eval(self.sky.sunV(wi));
+        return self.sun_radiance.eval(sunV(trafo.rotation, wi));
+    }
+
+    fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
+        const k = wi - rotation.r[2];
+        const c = math.dot3(rotation.r[1], k) / Sky.Radius;
+        return std.math.max((c + 1.0) * 0.5, 0.0);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -190,14 +190,14 @@ pub const Material = struct {
 
 const Context = struct {
     shape: *const Shape,
-    image: *const Image,
+    image: *const img.Image,
     dimensions: Vec2i,
     conditional: []Distribution1D,
     averages: []Vec4f,
     alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Context, context);
+        const self = @ptrCast(*Context, context);
 
         const d = self.dimensions;
 

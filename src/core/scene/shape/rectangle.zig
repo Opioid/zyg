@@ -87,7 +87,14 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: usize, filter: ?Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        filter: ?Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -121,19 +128,17 @@ pub const Rectangle = struct {
     pub fn sampleTo(
         p: Vec4f,
         trafo: Trafo,
-        area: f32,
         two_sided: bool,
         sampler: *Sampler,
     ) ?SampleTo {
         const uv = sampler.sample2D();
-        return sampleToUv(p, uv, trafo, area, two_sided);
+        return sampleToUv(p, uv, trafo, two_sided);
     }
 
     pub fn sampleToUv(
         p: Vec4f,
         uv: Vec2f,
         trafo: Trafo,
-        area: f32,
         two_sided: bool,
     ) ?SampleTo {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
@@ -155,6 +160,9 @@ pub const Rectangle = struct {
             return null;
         }
 
+        const scale = trafo.scale();
+        const area = 4.0 * scale[0] * scale[1];
+
         return SampleTo.init(
             dir,
             wn,
@@ -167,7 +175,6 @@ pub const Rectangle = struct {
 
     pub fn sampleFrom(
         trafo: Trafo,
-        area: f32,
         two_sided: bool,
         sampler: *Sampler,
         uv: Vec2f,
@@ -190,6 +197,9 @@ pub const Rectangle = struct {
             dir = -dir;
         }
 
+        const scale = trafo.scale();
+        const area = @as(f32, if (two_sided) 8.0 else 4.0) * (scale[0] * scale[1]);
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
@@ -201,7 +211,7 @@ pub const Rectangle = struct {
         );
     }
 
-    pub fn pdf(ray: Ray, trafo: Trafo, area: f32, two_sided: bool) f32 {
+    pub fn pdf(ray: Ray, trafo: Trafo, two_sided: bool) f32 {
         const n = trafo.rotation.r[2];
 
         var c = -math.dot3(n, ray.direction);
@@ -209,6 +219,9 @@ pub const Rectangle = struct {
         if (two_sided) {
             c = @fabs(c);
         }
+
+        const scale = trafo.scale();
+        const area = 4.0 * scale[0] * scale[1];
 
         const max_t = ray.maxT();
         const sl = max_t * max_t;

@@ -1,9 +1,8 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
-const volume = @import("../rendering/integrator/volume/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
-const LightTree = @import("../scene/light/tree.zig");
+const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
@@ -43,8 +42,6 @@ pub const View = struct {
             .photons_not_only_through_specular = false,
         },
     } },
-
-    volumes: volume.Factory = .{ .Multi = .{} },
 
     lighttracers: lt.Factory = .{ .settings = .{
         .num_samples = 0,
@@ -86,6 +83,8 @@ pub const View = struct {
                 self.aovs.set(.Depth, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Material_id", entry.key_ptr.*)) {
                 self.aovs.set(.MaterialId, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Geometric_normal", entry.key_ptr.*)) {
+                self.aovs.set(.GeometricNormal, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Shading_normal", entry.key_ptr.*)) {
                 self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
             }
@@ -103,8 +102,6 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 self.loadSurfaceIntegrator(entry.value_ptr.*, lighttracer);
-            } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
-                loadVolumeIntegrator(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
                 self.photon_settings = loadPhotonSettings(entry.value_ptr.*, lighttracer);
             }
@@ -151,21 +148,18 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
-                const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
                 self.surfaces = surface.Factory{ .PT = .{
                     .settings = .{
-                        .num_samples = num_samples,
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .avoid_caustics = !enable_caustics,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
-                const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
@@ -174,7 +168,6 @@ pub const View = struct {
 
                 self.surfaces = surface.Factory{ .PTDL = .{
                     .settings = .{
-                        .num_samples = num_samples,
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
@@ -182,7 +175,6 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
-                const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics) and !lighttracer;
@@ -191,7 +183,6 @@ pub const View = struct {
 
                 self.surfaces = surface.Factory{ .PTMIS = .{
                     .settings = .{
-                        .num_samples = num_samples,
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
@@ -261,6 +252,7 @@ pub const View = struct {
 };
 
 pub const Take = struct {
+    resolved_filename: []u8 = &.{},
     scene_filename: []u8 = &.{},
 
     view: View = .{},
@@ -275,6 +267,7 @@ pub const Take = struct {
 
     pub fn clear(self: *Take, alloc: Allocator) void {
         self.clearExporters(alloc);
+        alloc.free(self.resolved_filename);
         alloc.free(self.scene_filename);
     }
 

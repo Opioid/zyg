@@ -80,7 +80,13 @@ pub const Map = struct {
         self.grid.setNumPaths(self.num_paths);
     }
 
-    pub fn li(self: Self, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn li(
+        self: *const Self,
+        isec: Intersection,
+        sample: *const MaterialSample,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
         if (0 == self.num_paths) {
             return @splat(4, @as(f32, 0.0));
         }
@@ -91,7 +97,7 @@ pub const Map = struct {
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {
         const num = threads.runRange(self, calculateAabbRange, 0, num_photons, 0);
 
-        var aabb = math.aabb.empty;
+        var aabb = math.aabb.Empty;
         for (self.aabbs[0..num]) |b| {
             aabb.mergeAssign(b);
         }
@@ -102,9 +108,9 @@ pub const Map = struct {
     }
 
     fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Self, context);
+        const self = @ptrCast(*Self, @alignCast(16, context));
 
-        var aabb = math.aabb.empty;
+        var aabb = math.aabb.Empty;
         for (self.photons[begin..end]) |p| {
             aabb.insert(p.p);
         }

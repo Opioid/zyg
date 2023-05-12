@@ -28,14 +28,17 @@ pub const Sobol = struct {
     }
 
     pub fn incrementPadding(self: *Self) void {
-        self.dimension = 0;
-        //self.run_seed += 1;
+        self.dimension = 5;
+    }
+
+    fn incrementSeed(self: *Self) void {
         self.run_seed = hash(self.run_seed +% 1);
+        self.dimension = 0;
     }
 
     pub fn sample1D(self: *Self) f32 {
         if (self.dimension >= 5) {
-            self.incrementPadding();
+            self.incrementSeed();
         }
 
         const s = self.run_seed;
@@ -48,7 +51,7 @@ pub const Sobol = struct {
 
     pub fn sample2D(self: *Self) Vec2f {
         if (self.dimension >= 4) {
-            self.incrementPadding();
+            self.incrementSeed();
         }
 
         const s = self.run_seed;
@@ -61,7 +64,7 @@ pub const Sobol = struct {
 
     pub fn sample3D(self: *Self) Vec4f {
         if (self.dimension >= 3) {
-            self.incrementPadding();
+            self.incrementSeed();
         }
 
         const s = self.run_seed;
@@ -74,7 +77,7 @@ pub const Sobol = struct {
 
     pub fn sample4D(self: *Self) Vec4f {
         if (self.dimension >= 2) {
-            self.incrementPadding();
+            self.incrementSeed();
         }
 
         const s = self.run_seed;

@@ -65,7 +65,9 @@ pub fn main() !void {
     };
     defer operator.deinit(alloc);
 
-    for (options.inputs.items) |input, i| {
+    var bytes_per_channel: u32 = 0;
+
+    for (options.inputs.items, 0..) |input, i| {
         log.info("Loading file {s}", .{input});
 
         const texture = core.tx.Provider.loadFile(alloc, input, image_options, .{ 1.0, 1.0 }, &resources) catch |e| {
@@ -75,6 +77,8 @@ pub fn main() !void {
 
         try operator.textures.append(alloc, texture);
         try operator.input_ids.append(alloc, @intCast(u32, i));
+
+        bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }
 
     if (0 == operator.textures.items.len) {
@@ -90,7 +94,9 @@ pub fn main() !void {
         else => .Color_alpha,
     };
 
-    var writer = switch (options.format) {
+    const format = options.format orelse (if (bytes_per_channel > 1) Options.Format.EXR else Options.Format.PNG);
+
+    var writer = switch (format) {
         .EXR => core.ImageWriter{ .EXR = .{ .half = true } },
         .PNG => core.ImageWriter{ .PNG = core.ImageWriter.PngWriter.init(false) },
         .RGBE => core.ImageWriter{ .RGBE = .{} },
@@ -131,8 +137,8 @@ fn write(
         const buffer = try alloc.alloc(f32, desc.numPixels());
         defer alloc.free(buffer);
 
-        for (target.pixels) |p, i| {
-            const v = math.maxComponent3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
+        for (target.pixels, 0..) |p, i| {
+            const v = math.hmax3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
 
             buffer[i] = v;
 
@@ -153,8 +159,10 @@ fn write(
         var file = try std.fs.cwd().createFile(output_name, .{});
         defer file.close();
 
+        const d = target.description.dimensions;
+
         var buffered = std.io.bufferedWriter(file.writer());
-        try writer.write(alloc, buffered.writer(), target, encoding, threads);
+        try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);
         try buffered.flush();
     }
 }

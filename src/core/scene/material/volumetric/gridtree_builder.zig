@@ -83,7 +83,7 @@ pub const Builder = struct {
         var next = cell_len;
         var data_id: u32 = 0;
 
-        for (context.grid) |c, i| {
+        for (context.grid, 0..) |c, i| {
             serialize(c, i, &next, &data_id, nodes, data);
         }
     }
@@ -97,7 +97,7 @@ pub const Builder = struct {
             const cn = next.*;
             next.* += 8;
 
-            for (node.children) |c, i| {
+            for (node.children, 0..) |c, i| {
                 serialize(c, cn + i, next, data_id, nodes, data);
             }
         } else if (!node.data.isEmpty()) {
@@ -275,7 +275,7 @@ const Context = struct {
     current_task: i32 = 0,
 
     fn distribute(context: Threads.Context, id: u32) void {
-        const self = @intToPtr(*Context, context);
+        const self = @ptrCast(*Context, @alignCast(16, context));
 
         var splitter = &self.splitters[id];
         splitter.num_nodes = 0;

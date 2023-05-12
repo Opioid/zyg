@@ -70,10 +70,9 @@ exporter_desc = """{
 }
 }"""
 
-
 zyg.su_exporters_create(c_char_p(exporter_desc.encode('utf-8')));
 
-zyg.su_sampler_create(16)
+zyg.su_sampler_create(64)
 
 integrators_desc = """{
 "surface": {
@@ -196,6 +195,8 @@ transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 -0.5, 1.0, 0.0, 1.0)
+
+# zyg.su_prop_set_transformation(camera, transformation)
 
 zyg.su_prop_set_transformation_frame(camera, 0, transformation)
 

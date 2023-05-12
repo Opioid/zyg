@@ -51,6 +51,18 @@ pub const Texture = struct {
         };
     }
 
+    pub fn bytesPerChannel(self: Texture) u32 {
+        if (Null == self.image) {
+            return 0;
+        }
+
+        return switch (self.type) {
+            .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB => 1,
+            .Half1, .Half3, .Half4 => 2,
+            else => 4,
+        };
+    }
+
     pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
         const image = scene.image(self.image);
 

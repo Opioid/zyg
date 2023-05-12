@@ -3,10 +3,10 @@ const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
 const Emittance = @import("../light/emittance.zig").Emittance;
-const ts = @import("../../image/texture/texture_sampler.zig");
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
+const Texture = @import("../../image/texture/texture.zig").Texture;
+const ts = @import("../../image/texture/texture_sampler.zig");
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -48,10 +48,12 @@ pub const Base = struct {
 
     pub const Properties = packed struct {
         two_sided: bool = false,
+        evaluate_visibility: bool = false,
         caustic: bool = false,
+        emissive: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
-        heterogeneous_volume: bool = false,
+        dense_sss_optimization: bool = false,
     };
 
     properties: Properties = .{},
@@ -89,7 +91,7 @@ pub const Base = struct {
         self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
-    pub fn opacity(self: Base, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) f32 {
+    pub fn opacity(self: *const Base, uv: Vec2f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
             const key = ts.resolveKey(self.sampler_key, filter);
@@ -100,7 +102,7 @@ pub const Base = struct {
     }
 
     pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
-        const f0 = fresnel.Schlick.F0(self.ior, 1.0);
+        const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
         const n_dot_wi = std.math.max(math.dot3(n, wi), 0.0);
         return 1.0 - fresnel.schlick1(n_dot_wi, f0);
     }

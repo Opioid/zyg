@@ -1,4 +1,4 @@
-const tr = @import("tree.zig");
+const tr = @import("light_tree.zig");
 const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
@@ -88,7 +88,7 @@ const SplitCandidate = struct {
 
     fn evaluateScene(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, scene: *const Scene) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var boxs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
+        var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
         var cones: [2]Vec4f = .{ @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 1.0)) };
         var two_sideds: [2]bool = .{ false, false };
         var powers: [2]f32 = .{ 0.0, 0.0 };
@@ -113,7 +113,7 @@ const SplitCandidate = struct {
         }
 
         const extent = bounds.extent();
-        const reg = math.maxComponent3(extent) / extent[self.axis];
+        const reg = math.hmax3(extent) / extent[self.axis];
         const surface_area = bounds.surfaceArea();
 
         self.aabbs = boxs;
@@ -142,7 +142,7 @@ const SplitCandidate = struct {
 
     fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const Part, variant: u32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
-        var boxs: [2]AABB = .{ math.aabb.empty, math.aabb.empty };
+        var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
         var dominant_axis: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
@@ -190,7 +190,7 @@ const SplitCandidate = struct {
         };
 
         const extent = bounds.extent();
-        const reg = math.maxComponent3(extent) / extent[self.axis];
+        const reg = math.hmax3(extent) / extent[self.axis];
         const surface_area = bounds.surfaceArea();
 
         const two_sided = part.lightTwoSided(variant, 0);
@@ -271,7 +271,7 @@ pub const Builder = struct {
         try tree.allocate(alloc, num_infinite_lights);
 
         var infinite_total_power: f32 = 0.0;
-        for (tree.light_mapping[0..num_infinite_lights]) |l, i| {
+        for (tree.light_mapping[0..num_infinite_lights], 0..) |l, i| {
             const power = scene.lightPower(0, l);
             tree.infinite_light_powers[i] = power;
             tree.light_orders[l] = self.light_order;
@@ -291,7 +291,7 @@ pub const Builder = struct {
 
             self.current_node = 1;
 
-            var bounds = math.aabb.empty;
+            var bounds = math.aabb.Empty;
             var cone = @splat(4, @as(f32, 1.0));
             var two_sided = false;
             var total_power: f32 = 0.0;
@@ -557,7 +557,7 @@ pub const Builder = struct {
     }
 
     fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
-        for (self.build_nodes[0..self.current_node]) |source, i| {
+        for (self.build_nodes[0..self.current_node], 0..) |source, i| {
             var dest = &nodes[i];
             const bounds = source.bounds;
             const p = bounds.position();
@@ -652,7 +652,7 @@ pub const Builder = struct {
         const Eval = EvaluateContext(T);
 
         if (lights.len * num_candidates > 1024) {
-            const context = Eval{
+            var context = Eval{
                 .lights = lights,
                 .bounds = bounds,
                 .cone_weight = cone_weight,
@@ -670,7 +670,7 @@ pub const Builder = struct {
 
         var min_cost = candidates[0].cost;
         var sc: usize = 0;
-        for (candidates[1..num_candidates]) |c, i| {
+        for (candidates[1..num_candidates], 0..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
                 sc = i + 1;
@@ -695,7 +695,7 @@ pub const Builder = struct {
             pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
                 _ = id;
 
-                const self = @intToPtr(*Self, context);
+                const self = @ptrCast(*Self, @alignCast(16, context));
 
                 for (self.candidates[begin..end]) |*c| {
                     c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);

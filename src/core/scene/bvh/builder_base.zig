@@ -58,10 +58,6 @@ const Kernel = struct {
         self.build_nodes.deinit(alloc);
     }
 
-    const SplitError = error{
-        OutOfMemory,
-    };
-
     fn split(
         self: *Kernel,
         alloc: Allocator,
@@ -72,7 +68,7 @@ const Kernel = struct {
         settings: Settings,
         threads: *Threads,
         tasks: *Tasks,
-    ) SplitError!void {
+    ) !void {
         var node = &self.build_nodes.items[node_id];
         node.setAABB(aabb);
 
@@ -119,8 +115,8 @@ const Kernel = struct {
                         try self.build_nodes.append(alloc, .{});
 
                         const next_depth = depth + 1;
-                        try self.split(alloc, child0, references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth, settings, threads, tasks);
-                        try self.split(alloc, child0 + 1, references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth, settings, threads, tasks);
+                        try self.split(alloc, child0, try references0.toOwnedSlice(alloc), sp.aabbs[0], next_depth, settings, threads, tasks);
+                        try self.split(alloc, child0 + 1, try references1.toOwnedSlice(alloc), sp.aabbs[1], next_depth, settings, threads, tasks);
                     }
                 }
             } else {
@@ -206,7 +202,7 @@ const Kernel = struct {
         var sc: usize = 0;
         var min_cost = self.split_candidates.items[0].cost;
 
-        for (self.split_candidates.items[1..]) |c, i| {
+        for (self.split_candidates.items[1..], 0..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
                 sc = i + 1;
@@ -228,7 +224,7 @@ const Kernel = struct {
     fn evaluateRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*Kernel, context);
+        const self = @ptrCast(*Kernel, context);
 
         const aabb_surface_area = self.aabb_surface_area;
         const references = self.references;
@@ -371,7 +367,7 @@ pub const Base = struct {
     fn workOnTasksParallel(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @intToPtr(*Base, context);
+        const self = @ptrCast(*Base, context);
 
         const num_tasks = @intCast(u32, self.tasks.items.len);
 

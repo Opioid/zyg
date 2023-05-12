@@ -4,16 +4,17 @@ const Float4 = img.Float4;
 const base = @import("base");
 const math = base.math;
 const Pack4f = math.Pack4f;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = struct {
-    pub fn write(alloc: Allocator, writer: anytype, image: Float4) !void {
+    pub fn write(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
         try writeHeader(writer, image);
 
-        try writePixelsRle(alloc, writer, image);
+        try writePixelsRle(alloc, writer, image, crop);
     }
 
     fn writeHeader(writer: anytype, image: Float4) !void {
@@ -27,59 +28,90 @@ pub const Writer = struct {
         try writer.writeAll(printed);
     }
 
-    fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4) !void {
+    fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
         const d = image.description.dimensions;
 
-        const scanline_width = @intCast(u32, d[0]);
-        var num_scanlines = d[1];
+        const width = @intCast(u32, d[0]);
+        const height = @intCast(u32, d[1]);
 
-        if (scanline_width < 8 or scanline_width > 0x7fff) {
+        if (width < 8 or width > 0x7fff) {
             // run length encoding is not allowed so write flat
-            return writePixels(writer, image);
+            return writePixels(writer, image, crop);
         }
 
-        var buffer = try alloc.alloc(u8, @intCast(usize, scanline_width * 4));
+        var buffer = try alloc.alloc(u8, @intCast(usize, width * 4));
         defer alloc.free(buffer);
 
         var current_pixel: u32 = 0;
-        while (num_scanlines > 0) : (num_scanlines -= 1) {
+
+        var y: u32 = 0;
+        while (y < height) : (y += 1) {
             const info: [4]u8 = .{
                 2,
                 2,
-                @intCast(u8, scanline_width >> 8),
-                @intCast(u8, scanline_width & 0xFF),
+                @intCast(u8, width >> 8),
+                @intCast(u8, width & 0xFF),
             };
 
             try writer.writeAll(&info);
 
-            var i: u32 = 0;
-            while (i < scanline_width) : (i += 1) {
-                const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
+            if (y < crop[1] or y >= crop[3]) {
+                @memset(buffer, 0);
+                current_pixel += width;
+            } else {
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    if (x < crop[0] or x >= crop[2]) {
+                        buffer[x * 4 + 0] = 0;
+                        buffer[x * 4 + 1] = 0;
+                        buffer[x * 4 + 2] = 0;
+                        buffer[x * 4 + 3] = 0;
+                    } else {
+                        const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
 
-                buffer[i] = rgbe[0];
-                buffer[i + scanline_width] = rgbe[1];
-                buffer[i + scanline_width * 2] = rgbe[2];
-                buffer[i + scanline_width * 3] = rgbe[3];
+                        buffer[x + width * 0] = rgbe[0];
+                        buffer[x + width * 1] = rgbe[1];
+                        buffer[x + width * 2] = rgbe[2];
+                        buffer[x + width * 3] = rgbe[3];
+                    }
 
-                current_pixel += 1;
+                    current_pixel += 1;
+                }
             }
 
             // write out each of the four channels separately run length encoded
             // first red, then green, then blue, then exponent
-            i = 0;
+            var i: u32 = 0;
             while (i < 4) : (i += 1) {
-                const begin = @intCast(usize, i * scanline_width);
-                const end = begin + scanline_width;
+                const begin = i * width;
+                const end = begin + width;
                 try writeBytesRle(writer, buffer[begin..end]);
             }
         }
     }
 
-    fn writePixels(writer: anytype, image: Float4) !void {
-        for (image.pixels) |p| {
-            const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
+    fn writePixels(writer: anytype, image: Float4, crop: Vec4i) !void {
+        const d = image.description.dimensions;
 
-            try writer.writeAll(&rgbe);
+        var i: u32 = 0;
+
+        var y: i32 = 0;
+        while (y < d[1]) {
+            var x: i32 = 0;
+            while (x < d[0]) {
+                if (y < crop[1] or y >= crop[3] or x < crop[0] or x >= crop[2]) {
+                    const zero = [_]u8{0} ** 4;
+                    try writer.writeAll(&zero);
+                } else {
+                    const p = image.pixels[i];
+
+                    const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
+
+                    try writer.writeAll(&rgbe);
+                }
+
+                i += 1;
+            }
         }
     }
 

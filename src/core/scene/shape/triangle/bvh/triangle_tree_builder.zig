@@ -1,4 +1,4 @@
-const Tree = @import("tree.zig").Tree;
+const Tree = @import("triangle_tree.zig").Tree;
 const tri = @import("../triangle.zig");
 const IndexTriangle = tri.IndexTriangle;
 const VertexStream = @import("../vertex_stream.zig").VertexStream;
@@ -12,19 +12,19 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const BuilderSAH = struct {
+pub const Builder = struct {
     super: Base,
 
-    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !BuilderSAH {
-        return BuilderSAH{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
+    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !Builder {
+        return Builder{ .super = try Base.init(alloc, num_slices, sweep_threshold, max_primitives) };
     }
 
-    pub fn deinit(self: *BuilderSAH, alloc: Allocator) void {
+    pub fn deinit(self: *Builder, alloc: Allocator) void {
         self.super.deinit(alloc);
     }
 
     pub fn build(
-        self: *BuilderSAH,
+        self: *Builder,
         alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
@@ -42,7 +42,7 @@ pub const BuilderSAH = struct {
 
         const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len), @sizeOf(Reference));
 
-        var bounds = math.aabb.empty;
+        var bounds = math.aabb.Empty;
         for (context.aabbs[0..num]) |b| {
             bounds.mergeAssign(b);
         }
@@ -66,11 +66,11 @@ pub const BuilderSAH = struct {
         vertices: *const VertexStream,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*ReferencesContext, context);
+            const self = @ptrCast(*ReferencesContext, @alignCast(16, context));
 
-            var bounds = math.aabb.empty;
+            var bounds = math.aabb.Empty;
 
-            for (self.triangles[begin..end]) |t, i| {
+            for (self.triangles[begin..end], 0..) |t, i| {
                 const a = self.vertices.position(t.i[0]);
                 const b = self.vertices.position(t.i[1]);
                 const c = self.vertices.position(t.i[2]);
@@ -90,7 +90,7 @@ pub const BuilderSAH = struct {
     };
 
     fn serialize(
-        self: *BuilderSAH,
+        self: *Builder,
         source_node: u32,
         dest_node: u32,
         tree: *Tree,
@@ -98,14 +98,13 @@ pub const BuilderSAH = struct {
         vertices: VertexStream,
         current_triangle: *u32,
     ) void {
-        const node = &self.super.kernel.build_nodes.items[source_node];
-
-        var n = &tree.nodes[dest_node];
-        n.setAABB(node.aabb());
+        const node = self.super.kernel.build_nodes.items[source_node];
+        var n = node;
 
         if (0 == node.numIndices()) {
             const child0 = self.super.currentNodeIndex();
             n.setSplitNode(child0);
+            tree.nodes[dest_node] = n;
 
             self.super.newNode();
             self.super.newNode();
@@ -117,7 +116,7 @@ pub const BuilderSAH = struct {
         } else {
             var i = current_triangle.*;
             const num = node.numIndices();
-            n.setLeafNode(i, num);
+            tree.nodes[dest_node] = n;
 
             const ro = node.children();
 

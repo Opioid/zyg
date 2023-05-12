@@ -4,6 +4,7 @@ const Float4 = img.Float4;
 const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
+const Vec4i = base.math.Vec4i;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -23,6 +24,7 @@ pub const ImageSequence = struct {
         self: *Self,
         alloc: Allocator,
         image: Float4,
+        crop: Vec4i,
         aov: ?AovClass,
         frame: u32,
         threads: *Threads,
@@ -38,7 +40,6 @@ pub const ImageSequence = struct {
         defer file.close();
 
         var encoding: Writer.Encoding = undefined;
-
         if (aov) |a| {
             encoding = a.encoding();
         } else {
@@ -46,7 +47,7 @@ pub const ImageSequence = struct {
         }
 
         var buffered = std.io.bufferedWriter(file.writer());
-        try self.writer.write(alloc, buffered.writer(), image, encoding, threads);
+        try self.writer.write(alloc, buffered.writer(), image, crop, encoding, threads);
         try buffered.flush();
     }
 
@@ -56,7 +57,8 @@ pub const ImageSequence = struct {
                 .Albedo => "_albedo",
                 .Depth => "_depth",
                 .MaterialId => "_mat",
-                .ShadingNormal => "_n",
+                .GeometricNormal => "_ng",
+                .ShadingNormal => "_ns",
             };
         }
 

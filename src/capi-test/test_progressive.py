@@ -31,12 +31,12 @@ else:
 
 logfunc = LOG_FUNC(py_log_callback)
 
-print(zyg.su_register_log(logfunc))
+zyg.su_register_log(logfunc)
 
-print(zyg.su_init())
+zyg.su_init()
 
 #print(zyg.su_mount(c_char_p(b"../../data/")))
-print(zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/")))
+zyg.su_mount(c_char_p(b"/home/beni/workspace/sprout/system/../data/"))
 
 zyg.su_sampler_create(4096)
 
@@ -94,7 +94,7 @@ def updateRoughness():
         "roughness": {}
     }}""".format(roughness)
     
-    print(zyg.su_material_update(material_a, c_char_p(material_desc.encode('utf-8'))))
+    zyg.su_material_update(material_a, c_char_p(material_desc.encode('utf-8')))
 
 material_light_desc = """{
 "rendering": {
@@ -300,4 +300,4 @@ fig.canvas.mpl_connect('key_press_event', press)
 
 plt.show()
 
-print(zyg.su_release())
+zyg.su_release()

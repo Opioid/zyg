@@ -3,7 +3,7 @@ const fresnel = @import("fresnel.zig");
 const ggx = @import("ggx.zig");
 const hlp = @import("sample_helper.zig");
 const sample = @import("sample_base.zig");
-const Layer = sample.Layer;
+const Frame = sample.Frame;
 const IoR = sample.IoR;
 const img = @import("../../image/image.zig");
 const Float4 = img.Float4;
@@ -28,9 +28,9 @@ const E_func = math.InterpolatedFunction3D_N(E_samples, E_samples, E_samples);
 fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
     const calpha = std.math.max(alpha, ggx.Min_alpha);
 
-    // Schlickk with f0 == 1.0 always evaluates to 1.0
-    const schlick = fresnel.Schlick1.init(1.0);
-    const layer = Layer{
+    // Schlick with f0 == 1.0 always evaluates to 1.0
+    const schlick = fresnel.Schlick.init(@splat(4, @as(f32, 1.0)));
+    const frame = Frame{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
@@ -47,7 +47,7 @@ fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
         const xi = math.hammersley(i, num_samples, 0);
 
         var result: bxdf.Sample = undefined;
-        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, layer, &result);
+        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, frame, &result);
 
         accum += ((n_dot_wi * result.reflection[0]) / result.pdf) / @intToFloat(f32, num_samples);
     }
@@ -89,8 +89,8 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
     const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
-    const schlick = fresnel.Schlick1.init(f0);
-    const layer = Layer{
+    const schlick = fresnel.Schlick.init(@splat(4, f0));
+    const frame = Frame{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
@@ -107,7 +107,7 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
         const xi = math.hammersley(i, num_samples, 0);
 
         var result: bxdf.Sample = undefined;
-        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, layer, &result);
+        const n_dot_wi = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, frame, &result);
 
         const mms = dspbrMicroEc(f0, n_dot_wi, n_dot_wo, calpha, e_m, e_m_avg);
 
@@ -133,12 +133,12 @@ fn integrate_f_ms_avg(alpha: f32, f0: f32, e: E_func, num_samples: u32) f32 {
     return accum;
 }
 
-fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32 {
+fn integrate_f_s_ss(alpha: f32, f0: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32 {
     if (alpha < ggx.Min_alpha or ior_t <= 1.0) {
         return 1.0;
     }
 
-    const layer = Layer{
+    const frame = Frame{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
@@ -149,12 +149,7 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - cn_dot_wo * cn_dot_wo), 0.0, cn_dot_wo, 0.0 };
 
-    const same_side = math.dot3(wo, layer.n) > 0.0;
-
-    const tior = IoR{ .eta_t = ior_t, .eta_i = 1.0 };
-    const ior = tior.swapped(same_side);
-
-    const f0 = fresnel.Schlick.F0(ior.eta_i, ior.eta_t);
+    const ior = IoR{ .eta_t = ior_t, .eta_i = 1.0 };
 
     var accum: f32 = 0.0;
     var i: u32 = 0;
@@ -162,22 +157,15 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
         const xi = math.hammersley(i, num_samples, 0);
 
         var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, @splat(2, alpha), xi, layer, &n_dot_h);
+        const h = ggx.Aniso.sample(wo, @splat(2, alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
         const eta = ior.eta_i / ior.eta_t;
         const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 
-        var f: f32 = undefined;
-        var wi_dot_h: f32 = undefined;
-        if (sint2 >= 1.0) {
-            f = 1.0;
-            wi_dot_h = 0.0;
-        } else {
-            wi_dot_h = @sqrt(1.0 - sint2);
-            const cos_x = if (ior.eta_i > ior.eta_t) wi_dot_h else wo_dot_h;
-            f = fresnel.schlick1(cos_x, f0);
-        }
+        const wi_dot_h = @sqrt(1.0 - sint2);
+        const cos_x = if (ior.eta_i > ior.eta_t) wi_dot_h else wo_dot_h;
+        const f = fresnel.schlick1(cos_x, f0);
 
         var result: bxdf.Sample = undefined;
         {
@@ -189,7 +177,7 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
                 wi_dot_h,
                 wo_dot_h,
                 alpha,
-                layer,
+                frame,
                 &result,
             );
 
@@ -202,7 +190,7 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
             accum += (std.math.min(n_dot_wi, n_dot_wo) * f * result.reflection[0]) / result.pdf;
         }
         {
-            const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
+            const r_wo_dot_h = -wo_dot_h;
             const n_dot_wi = ggx.Iso.refractNoFresnel(
                 wo,
                 h,
@@ -212,7 +200,7 @@ fn integrate_f_s_ss(alpha: f32, ior_t: f32, n_dot_wo: f32, num_samples: u32) f32
                 r_wo_dot_h,
                 alpha,
                 ior,
-                layer,
+                frame,
                 &result,
             );
 
@@ -443,9 +431,14 @@ fn make_f_ms_avg_table(comptime Num_samples: comptime_int, e: E_func, writer: an
 }
 
 fn make_f_s_ss_table(writer: anytype, buffer: []u8) !void {
-    const Num_samples = 32;
+    const Num_samples = 16;
 
-    var line = try std.fmt.bufPrint(buffer, "pub const E_s_size = {};\n", .{Num_samples});
+    const Max_f0 = 0.25;
+
+    var line = try std.fmt.bufPrint(buffer, "pub const E_s_inverse_max_f0 = {};\n", .{1.0 / Max_f0});
+    _ = try writer.write(line);
+
+    line = try std.fmt.bufPrint(buffer, "pub const E_s_size = {};\n", .{Num_samples});
     _ = try writer.write(line);
 
     _ = try writer.write("\n");
@@ -455,10 +448,11 @@ fn make_f_s_ss_table(writer: anytype, buffer: []u8) !void {
 
     const step = 1.0 / @intToFloat(f32, Num_samples - 1);
 
-    var ior: f32 = 1.0;
+    var f0: f32 = 0.0;
     var z: u32 = 0;
     while (z < Num_samples) : (z += 1) {
-        line = try std.fmt.bufPrint(buffer, "    // ior {d:.8}\n", .{ior});
+        const ior = fresnel.Schlick.F0ToIor(f0);
+        line = try std.fmt.bufPrint(buffer, "    // f0/ior {d:.8} {d:.8}\n", .{ f0, ior });
         _ = try writer.write(line);
 
         var alpha: f32 = 0.0;
@@ -470,7 +464,7 @@ fn make_f_s_ss_table(writer: anytype, buffer: []u8) !void {
             var n_dot_wo: f32 = 0.0;
             var i: u32 = 0;
             while (i < Num_samples) : (i += 1) {
-                const e_s = integrate_f_s_ss(alpha, ior, n_dot_wo, 1024);
+                const e_s = integrate_f_s_ss(alpha, f0, ior, n_dot_wo, 1024);
 
                 line = try std.fmt.bufPrint(buffer, "{d:.8},", .{e_s});
                 _ = try writer.write(line);
@@ -497,7 +491,7 @@ fn make_f_s_ss_table(writer: anytype, buffer: []u8) !void {
             _ = try writer.write("};");
         }
 
-        ior += step;
+        f0 += Max_f0 * step;
     }
 }
 
@@ -549,12 +543,12 @@ pub fn integrate(alloc: Allocator, threads: *Threads) !void {
 }
 
 fn writeImage(alloc: Allocator, dimensions: u32, data: []f32, threads: *Threads) !void {
-    var image = try Float4.init(alloc, img.Description.init2D(
-        .{ @intCast(i32, dimensions), @intCast(i32, dimensions) },
-    ));
+    const d = @intCast(i32, dimensions);
+
+    var image = try Float4.init(alloc, img.Description.init2D(.{ d, d }));
     defer image.deinit(alloc);
 
-    for (image.pixels) |*p, i| {
+    for (image.pixels, 0..) |*p, i| {
         p.* = Pack4f.init1(data[i]);
     }
 
@@ -563,7 +557,7 @@ fn writeImage(alloc: Allocator, dimensions: u32, data: []f32, threads: *Threads)
 
     var buffered = std.io.bufferedWriter(file.writer());
 
-    var exr = ExrWriter{ .half = false, .alpha = false };
-    try exr.write(alloc, buffered.writer(), image, .Depth, threads);
+    var exr = ExrWriter{ .half = false };
+    try exr.write(alloc, buffered.writer(), image, .{ 0, 0, d, d }, .Depth, threads);
     try buffered.flush();
 }

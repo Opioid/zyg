@@ -54,7 +54,7 @@ pub const Model = struct {
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: c_ulonglong, count: c_ulonglong, stream: ?*anyopaque) callconv(.C) c_ulonglong {
+    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*c.FILE) callconv(.C) usize {
         if (null == buffer or null == stream) {
             return 0;
         }
@@ -90,7 +90,7 @@ pub const Model = struct {
 
         var radiance: Spectrum = undefined;
 
-        for (radiance.values) |*bin, i| {
+        for (&radiance.values, 0..) |*bin, i| {
             math.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;
@@ -120,7 +120,7 @@ pub const Model = struct {
 
         var radiance: Spectrum = undefined;
 
-        for (radiance.values) |*bin, i| {
+        for (&radiance.values, 0..) |*bin, i| {
             math.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;
