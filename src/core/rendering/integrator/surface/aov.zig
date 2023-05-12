@@ -223,7 +223,7 @@ pub const AOV = struct {
     }
 
     fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 4) {
+        if (bounce < 3) {
             return &self.samplers[0];
         }
 
