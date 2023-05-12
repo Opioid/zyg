@@ -296,7 +296,7 @@ pub const Driver = struct {
     }
 
     fn renderTiles(context: Threads.Context, id: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
@@ -345,7 +345,7 @@ pub const Driver = struct {
     }
 
     fn renderRanges(context: Threads.Context, id: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
@@ -413,7 +413,7 @@ pub const Driver = struct {
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Driver, context);
+        const self = @ptrCast(*Driver, @alignCast(16, context));
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(
             begin,

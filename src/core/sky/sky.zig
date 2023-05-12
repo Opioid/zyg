@@ -10,7 +10,8 @@ const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
 const img = @import("../image/image.zig");
 const Image = img.Image;
-const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
+const ExrReader = @import("../image/encoding/exr/exr_reader.zig").Reader;
+const ExrWriter = @import("../image/encoding/exr/exr_writer.zig").Writer;
 const Filesystem = @import("../file/system.zig").System;
 
 const base = @import("base");
@@ -26,6 +27,7 @@ const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Base64 = std.base64.url_safe_no_pad;
 
 pub const Sky = struct {
     sun: u32 = Prop.Null,
@@ -39,6 +41,7 @@ pub const Sky = struct {
     pub const Radius = @tan(@floatCast(f32, Model.Angular_radius));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
+    pub const Bake_dimensions_sun: u32 = 1024;
 
     const Self = @This();
 
@@ -52,8 +55,7 @@ pub const Sky = struct {
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
 
-        const image = try img.Float3.init(alloc, img.Description.init2D(Sky.Bake_dimensions));
-        const sky_image = try scene.createImage(alloc, .{ .Float3 = image });
+        const sky_image = try scene.createImage(alloc, .{ .Float3 = .{} });
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
@@ -98,7 +100,7 @@ pub const Sky = struct {
         scene: *Scene,
         threads: *Threads,
         fs: *Filesystem,
-    ) void {
+    ) !void {
         if (Prop.Null == self.sun) {
             return;
         }
@@ -121,15 +123,68 @@ pub const Sky = struct {
             scene.propSetWorldTransformation(self.sun, trafo);
         }
 
-        const image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
+        var hasher = std.hash.Fnv1a_128.init();
+        hasher.update(std.mem.asBytes(&self.visibility));
+        hasher.update(std.mem.asBytes(&self.albedo));
+        hasher.update(std.mem.asBytes(&self.sun_rotation));
+
+        var hb64: [22]u8 = undefined;
+        _ = Base64.Encoder.encode(&hb64, std.mem.asBytes(&hasher.final()));
+
+        var buf0: [48]u8 = undefined;
+        const sky_filename = try std.fmt.bufPrint(&buf0, "../cache/sky_{s}.exr", .{hb64});
+
+        var buf1: [48]u8 = undefined;
+        const sun_filename = try std.fmt.bufPrint(&buf1, "../cache/sun_{s}.exr", .{hb64});
+
+        {
+            var stream = fs.readStream(alloc, sky_filename) catch {
+                return try self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+            };
+
+            defer stream.deinit();
+
+            const cached_image = try ExrReader.read(alloc, &stream, .XYZ, false);
+
+            var image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
+            image.deinit(alloc);
+            image.* = cached_image;
+        }
+
+        {
+            var stream = fs.readStream(alloc, sun_filename) catch {
+                return try self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+            };
+
+            defer stream.deinit();
+
+            var cached_image = try ExrReader.read(alloc, &stream, .XYZ, false);
+            defer cached_image.deinit(alloc);
+
+            scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, cached_image.Float3);
+        }
+    }
+
+    fn bakeSky(
+        self: *Self,
+        alloc: Allocator,
+        scene: *Scene,
+        threads: *Threads,
+        fs: *Filesystem,
+        sky_filename: []u8,
+        sun_filename: []u8,
+    ) !void {
+        var image = &scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image).Float3;
+
+        try image.resize(alloc, img.Description.init2D(Bake_dimensions));
 
         const sun_direction = self.sun_rotation.r[2];
         var model = Model.init(alloc, sun_direction, self.visibility, self.albedo, fs) catch {
             var y: i32 = 0;
-            while (y < Sky.Bake_dimensions[1]) : (y += 1) {
+            while (y < Bake_dimensions[1]) : (y += 1) {
                 var x: i32 = 0;
-                while (x < Sky.Bake_dimensions[0]) : (x += 1) {
-                    image.Float3.set2D(x, y, math.Pack3f.init1(0.0));
+                while (x < Bake_dimensions[0]) : (x += 1) {
+                    image.set2D(x, y, math.Pack3f.init1(0.0));
                 }
             }
 
@@ -140,7 +195,22 @@ pub const Sky = struct {
         };
         defer model.deinit();
 
-        scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, model);
+        var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ Bake_dimensions_sun, 1 }));
+        defer sun_image.deinit(alloc);
+
+        const n = @intToFloat(f32, Bake_dimensions_sun - 1);
+
+        var rng = RNG.init(0, 0);
+
+        for (sun_image.pixels, 0..) |*s, i| {
+            const v = @intToFloat(f32, i) / n;
+            var wi = sunWi(self.sun_rotation, v);
+            wi[1] = std.math.max(wi[1], 0.0);
+
+            s.* = math.vec4fTo3f(model.evaluateSkyAndSun(wi, &rng));
+        }
+
+        scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, sun_image);
 
         var context = SkyContext{
             .model = &model,
@@ -151,21 +221,44 @@ pub const Sky = struct {
 
         threads.runParallel(&context, SkyContext.bakeSky, 0);
 
-        // PngWriter.writeFloat3Scaled(alloc, context.image.Float3, 0.02) catch {};
+        const ew = ExrWriter{ .half = false };
+
+        {
+            var file = try std.fs.cwd().createFile(sky_filename, .{});
+            defer file.close();
+
+            try ew.write(alloc, file.writer(), .{ .Float3 = image.* }, .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] }, .Color, threads);
+        }
+
+        {
+            var file = try std.fs.cwd().createFile(sun_filename, .{});
+            defer file.close();
+
+            try ew.write(alloc, file.writer(), .{ .Float3 = sun_image }, .{ 0, 0, Bake_dimensions_sun, 1 }, .Color, threads);
+        }
+    }
+
+    pub fn sunWi(rotation: Mat3x3, v: f32) Vec4f {
+        const y = (2.0 * v) - 1.0;
+
+        const ls = Vec4f{ 0.0, y * Radius, 0.0, 0.0 };
+        const ws = rotation.transformVector(ls);
+
+        return math.normalize3(ws - rotation.r[2]);
     }
 };
 
 const SkyContext = struct {
     model: *const Model,
     shape: *const Shape,
-    image: *Image,
+    image: *img.Float3,
     trafo: ComposedTransformation,
     current: u32 = 0,
 
     pub fn bakeSky(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @intToPtr(*SkyContext, context);
+        const self = @ptrCast(*SkyContext, @alignCast(16, context));
 
         var rng = RNG{};
 
@@ -189,7 +282,7 @@ const SkyContext = struct {
 
                 const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
-                self.image.Float3.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
+                self.image.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
             }
         }
     }

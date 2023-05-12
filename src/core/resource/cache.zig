@@ -189,7 +189,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             self: *Self,
             alloc: Allocator,
             id: u32,
-            data: usize,
+            data: *align(8) const anyopaque,
             options: Variants,
             resources: *Resources,
         ) !u32 {

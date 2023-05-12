@@ -108,22 +108,22 @@ pub const Sensor = union(enum) {
     }
 
     pub fn resolve(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     pub fn resolveTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     pub fn resolveAccumulateTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     pub fn resolveAov(self: *const Sensor, class: aov.Value.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        const context = ResolveContext{ .sensor = self, .target = target, .aov = class };
+        var context = ResolveContext{ .sensor = self, .target = target, .aov = class };
         _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
@@ -135,7 +135,7 @@ pub const Sensor = union(enum) {
         pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @intToPtr(*const ResolveContext, context);
+            const self = @ptrCast(*const ResolveContext, context);
             const target = self.target;
 
             switch (self.sensor.*) {
@@ -146,7 +146,7 @@ pub const Sensor = union(enum) {
         pub fn resolveTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @intToPtr(*const ResolveContext, context);
+            const self = @ptrCast(*const ResolveContext, context);
             const target = self.target;
 
             switch (self.sensor.*) {
@@ -157,7 +157,7 @@ pub const Sensor = union(enum) {
         pub fn resolveAccumulateTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @intToPtr(*const ResolveContext, context);
+            const self = @ptrCast(*const ResolveContext, context);
             const target = self.target;
 
             switch (self.sensor.*) {
@@ -168,7 +168,7 @@ pub const Sensor = union(enum) {
         pub fn resolveAov(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @intToPtr(*const ResolveContext, context);
+            const self = @ptrCast(*const ResolveContext, context);
             const target = self.target;
             const class = self.aov;
 

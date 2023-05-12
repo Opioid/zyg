@@ -189,13 +189,13 @@ pub const Provider = struct {
     pub fn loadData(
         self: *Provider,
         alloc: Allocator,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
         resources: *Resources,
     ) !Shape {
         _ = options;
 
-        const desc = @intToPtr(*Description, data);
+        const desc = @ptrCast(*const Description, data);
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
@@ -222,7 +222,7 @@ pub const Provider = struct {
     }
 
     fn buildAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const handler = self.handler;
 
@@ -593,7 +593,7 @@ pub const Provider = struct {
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const num_triangles = self.num_indices / 3;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
@@ -621,7 +621,7 @@ pub const Provider = struct {
     }
 
     fn buildDescAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @ptrCast(*Provider, context);
 
         const num_triangles = self.desc.num_triangles;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;

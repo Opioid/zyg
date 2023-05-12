@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const Atomic = std.atomic.Atomic;
 
 pub const Pool = struct {
-    pub const Context = usize;
+    pub const Context = *align(8) anyopaque;
 
     const ParallelProgram = *const fn (context: Context, id: u32) void;
     const RangeProgram = *const fn (context: Context, id: u32, begin: u32, end: u32) void;
@@ -79,8 +79,8 @@ pub const Pool = struct {
         return @intCast(u32, self.uniques.len);
     }
 
-    pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram, num_tasks_hint: u32) void {
-        self.context = @ptrToInt(context);
+    pub fn runParallel(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
+        self.context = context;
         self.program = .{ .Parallel = program };
 
         self.running_parallel = true;
@@ -102,13 +102,13 @@ pub const Pool = struct {
 
     pub fn runRange(
         self: *Pool,
-        context: anytype,
+        context: Context,
         program: RangeProgram,
         begin: u32,
         end: u32,
         item_size_hint: u32,
     ) usize {
-        self.context = @ptrToInt(context);
+        self.context = context;
         self.program = .{ .Range = program };
 
         self.running_parallel = true;
@@ -152,10 +152,10 @@ pub const Pool = struct {
         return num_tasks;
     }
 
-    pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
+    pub fn runAsync(self: *Pool, context: Context, program: AsyncProgram) void {
         self.waitAsync();
 
-        self.asyncp.context = @ptrToInt(context);
+        self.asyncp.context = context;
         self.asyncp.program = program;
         self.asyncp.signal.store(SIGNAL_WAKE, .Release);
         std.Thread.Futex.wake(&self.asyncp.signal, 1);

@@ -96,7 +96,7 @@ pub const Srgb = struct {
     fn toSrgbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*Srgb, context);
+        const self = @ptrCast(*Srgb, @alignCast(16, context));
 
         self.toSrgbBuffer(begin, end);
     }

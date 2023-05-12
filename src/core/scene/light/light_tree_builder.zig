@@ -652,7 +652,7 @@ pub const Builder = struct {
         const Eval = EvaluateContext(T);
 
         if (lights.len * num_candidates > 1024) {
-            const context = Eval{
+            var context = Eval{
                 .lights = lights,
                 .bounds = bounds,
                 .cone_weight = cone_weight,
@@ -695,7 +695,7 @@ pub const Builder = struct {
             pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
                 _ = id;
 
-                const self = @intToPtr(*Self, context);
+                const self = @ptrCast(*Self, @alignCast(16, context));
 
                 for (self.candidates[begin..end]) |*c| {
                     c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);

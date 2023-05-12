@@ -257,7 +257,7 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*LuminanceContext, context);
+        const self = @ptrCast(*LuminanceContext, context);
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene).dimensions;
@@ -311,7 +311,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*DistributionContext, context);
+        const self = @ptrCast(*DistributionContext, @alignCast(16, context));
         const d = self.d;
         const width = @intCast(u32, d[0]);
         const height = @intCast(u32, d[1]);

@@ -341,9 +341,7 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
         defer document.deinit();
 
-        const data = @ptrToInt(&document.root);
-
-        const material = e.resources.loadData(scn.Material, e.alloc, id, data, .{}) catch return -1;
+        const material = e.resources.loadData(scn.Material, e.alloc, id, &document.root, .{}) catch return -1;
 
         return @intCast(i32, material);
     }
@@ -411,9 +409,7 @@ export fn su_triangle_mesh_create(
             .uvs = uvs,
         };
 
-        const data = @ptrToInt(&desc);
-
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
 
         e.resources.commitAsync();
 
@@ -456,9 +452,7 @@ export fn su_triangle_mesh_create_async(
             .uvs = uvs,
         };
 
-        const data = @ptrToInt(&desc);
-
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
         return @intCast(i32, mesh_id);
     }
 
@@ -727,7 +721,7 @@ const CopyFramebufferContext = struct {
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*CopyFramebufferContext, context);
+        const self = @ptrCast(*CopyFramebufferContext, @alignCast(16, context));
 
         const d = self.source.description.dimensions;
 

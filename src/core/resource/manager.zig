@@ -76,7 +76,7 @@ pub const Manager = struct {
         comptime T: type,
         alloc: Allocator,
         id: u32,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
     ) !u32 {
         if (Material == T) {

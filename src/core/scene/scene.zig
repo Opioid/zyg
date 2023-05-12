@@ -227,7 +227,7 @@ pub const Scene = struct {
             }
         }
 
-        self.sky.compile(alloc, time, self, threads, fs);
+        try self.sky.compile(alloc, time, self, threads, fs);
 
         // rebuild prop BVH_builder
         try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
