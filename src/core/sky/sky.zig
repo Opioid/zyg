@@ -227,14 +227,14 @@ pub const Sky = struct {
             var file = try std.fs.cwd().createFile(sky_filename, .{});
             defer file.close();
 
-            try ew.write(img.Float3, alloc, file.writer(), image.*, .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] }, .Color, threads);
+            try ew.write(alloc, file.writer(), .{ .Float3 = image.* }, .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] }, .Color, threads);
         }
 
         {
             var file = try std.fs.cwd().createFile(sun_filename, .{});
             defer file.close();
 
-            try ew.write(img.Float3, alloc, file.writer(), sun_image, .{ 0, 0, Bake_dimensions_sun, 1 }, .Color, threads);
+            try ew.write(alloc, file.writer(), .{ .Float3 = sun_image }, .{ 0, 0, Bake_dimensions_sun, 1 }, .Color, threads);
         }
     }
 
