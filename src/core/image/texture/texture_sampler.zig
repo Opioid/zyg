@@ -188,24 +188,42 @@ const LinearStochastic2D = struct {
         const df = math.vec2iTo2f(d);
         const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @splat(2, @as(f32, 0.5));
         const fuv = @floor(muv);
-        const xy = math.vec2fTo2i(fuv);
+        var xy = math.vec2fTo2i(fuv);
 
-        const b = d - @splat(2, @as(i32, 1));
+        // const b = d - @splat(2, @as(i32, 1));
         const w = muv - fuv;
-        const r = sampler.sample2D();
-        const c = r <= w;
+        // const r = sampler.sample2D();
+        // const c = r <= w;
 
-        return .{
-            if (c[0]) adr.u.increment(xy[0], b[0]) else adr.u.lowerBound(xy[0], b[0]),
-            if (c[1]) adr.v.increment(xy[1], b[1]) else adr.v.lowerBound(xy[1], b[1]),
-        };
+        // return .{
+        //     if (c[0]) adr.u.increment(xy[0], b[0]) else adr.u.lowerBound(xy[0], b[0]),
+        //     if (c[1]) adr.v.increment(xy[1], b[1]) else adr.v.lowerBound(xy[1], b[1]),
+        // };
 
         // return .{
         //     adr.u.offset(xy[0], @boolToInt(c[0]), b[0]),
         //     adr.v.offset(xy[1], @boolToInt(c[1]), b[1]),
         // };
 
-        // return adr.u.offset2(xy, @select(i32, c, @splat(2, @as(i32, 1)), @splat(2, @as(i32, 0))), b);
+        // return adr.u.offset2(xy, @select(i32, c, @splat(2, @as(i32, 1)), @splat(2, @as(i32, 0))), d);
+
+        var r = sampler.sample1D();
+
+        if (r < w[0]) {
+            xy[0] += 1;
+            r /= w[0];
+        } else {
+            r = (r - w[0]) / (1.0 - w[0]);
+        }
+
+        if (r < w[1]) {
+            xy[1] += 1;
+            // u /= w[1];
+        } // else {
+        //     u = (u - w[1]) / (1.0 - w[1]);
+        // }
+
+        return .{ adr.u.coord(xy[0], d[0]), adr.v.coord(xy[1], d[1]) };
     }
 };
 
@@ -224,12 +242,8 @@ const Nearest3D = struct {
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
         const df = math.vec4iTo4f(d);
-
         const muvw = adr.u.f3(uvw);
-
-        const b = d - @splat(4, @as(i32, 1));
-
-        return @min(math.vec4fTo4i(muvw * df), b);
+        return @min(math.vec4fTo4i(muvw * df), d - Vec4i{ 1, 1, 1, 0 });
     }
 };
 
@@ -302,15 +316,13 @@ const LinearStochastic3D = struct {
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address, sampler: *Sampler) Vec4i {
         const df = math.vec4iTo4f(d);
-
         const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
         const fuvw = @floor(muvw);
-        const xyz = math.vec4fTo4i(fuvw);
+        var xyz = math.vec4fTo4i(fuvw);
 
-        const b = d - Vec4i{ 1, 1, 1, 0 };
         const w = muvw - fuvw;
-        const r = sampler.sample3D();
-        const c = r <= w;
+        //  const r = sampler.sample3D();
+        // const c = r < w;
 
         // return .{
         //     if (c[0]) adr.u.increment(xyz[0], b[0]) else adr.u.lowerBound(xyz[0], b[0]),
@@ -326,6 +338,28 @@ const LinearStochastic3D = struct {
         //     0,
         // };
 
-        return adr.u.offset3(xyz, @select(i32, c, @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0))), b);
+        //  return adr.u.coord3(xyz + @select(i32, c, @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0))), d);
+
+        var r = sampler.sample1D();
+
+        if (r < w[0]) {
+            xyz[0] += 1;
+            r /= w[0];
+        } else {
+            r = (r - w[0]) / (1.0 - w[0]);
+        }
+
+        if (r < w[1]) {
+            xyz[1] += 1;
+            r /= w[1];
+        } else {
+            r = (r - w[1]) / (1.0 - w[1]);
+        }
+
+        if (r < w[2]) {
+            xyz[2] += 1;
+        }
+
+        return adr.u.coord3(xyz, d);
     }
 };

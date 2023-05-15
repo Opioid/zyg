@@ -61,29 +61,17 @@ pub const Mode = union(enum) {
         };
     }
 
-    pub fn offset(m: Mode, v: i32, d: i32, max: i32) i32 {
+    pub fn coord(m: Mode, c: i32, end: i32) i32 {
         return switch (m) {
-            .Clamp => Clamp.offset(v, d, max),
-            .Repeat => Repeat.offset(v, d, max),
+            .Clamp => Clamp.coord(c, end),
+            .Repeat => Repeat.coord(c, end),
         };
     }
 
-    pub fn offset2(m: Mode, v: Vec2i, d: Vec2i, max: Vec2i) Vec2i {
+    pub fn coord3(m: Mode, c: Vec4i, end: Vec4i) Vec4i {
         return switch (m) {
-            .Clamp => Clamp.offset2(v, d, max),
-            .Repeat => .{ Repeat.offset(v[0], d[0], max[0]), Repeat.offset(v[1], d[1], max[1]) },
-        };
-    }
-
-    pub fn offset3(m: Mode, v: Vec4i, d: Vec4i, max: Vec4i) Vec4i {
-        return switch (m) {
-            .Clamp => Clamp.offset3(v, d, max),
-            .Repeat => .{
-                Repeat.offset(v[0], d[0], max[0]),
-                Repeat.offset(v[1], d[1], max[1]),
-                Repeat.offset(v[2], d[2], max[2]),
-                0,
-            },
+            .Clamp => Clamp.coord3(c, end),
+            .Repeat => Repeat.coord3(c, end),
         };
     }
 };
@@ -113,19 +101,14 @@ pub const Clamp = struct {
         return @max(v, @splat(4, @as(i32, 0)));
     }
 
-    pub fn offset(v: i32, d: i32, max: i32) i32 {
-        const x = v + d;
-        return @max(@min(x, max), 0);
+    pub fn coord(c: i32, end: i32) i32 {
+        const max = end - 1;
+        return @max(@min(c, max), 0);
     }
 
-    pub fn offset2(v: Vec2i, d: Vec2i, max: Vec2i) Vec2i {
-        const x = v + d;
-        return @max(@min(x, max), @splat(2, @as(i32, 0)));
-    }
-
-    pub fn offset3(v: Vec4i, d: Vec4i, max: Vec4i) Vec4i {
-        const x = v + d;
-        return @max(@min(x, max), @splat(4, @as(i32, 0)));
+    pub fn coord3(c: Vec4i, end: Vec4i) Vec4i {
+        const max = end - Vec4i{ 1, 1, 1, 0 };
+        return @max(@min(c, max), @splat(4, @as(i32, 0)));
     }
 };
 
@@ -146,17 +129,11 @@ pub const Repeat = struct {
         return if (v < 0) max else v;
     }
 
-    pub fn offset(v: i32, d: i32, max: i32) i32 {
-        const x = v + d;
+    pub fn coord(c: i32, end: i32) i32 {
+        return @mod(c, end);
+    }
 
-        if (x > max) {
-            return 0;
-        }
-
-        if (x < 0) {
-            return max;
-        }
-
-        return x;
+    pub fn coord3(c: Vec4i, end: Vec4i) Vec4i {
+        return @mod(c, end);
     }
 };
