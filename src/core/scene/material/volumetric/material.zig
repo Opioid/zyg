@@ -171,12 +171,18 @@ pub const Material = struct {
         return Sample.init(wo, rs, gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(
+        self: *const Material,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
+        const key = ts.resolveKey(self.super.sampler_key, filter);
 
         const emission = if (self.temperature_map.valid())
             self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene))
@@ -209,7 +215,13 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) f32 {
+    pub fn density(
+        self: *const Material,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) f32 {
         if (self.density_map.valid()) {
             const key = ts.resolveKey(self.super.sampler_key, filter);
             return ts.sample3D_1(key, self.density_map, uvw, sampler, scene);
@@ -218,7 +230,13 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, sampler: *Sampler, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(
+        self: *const Material,
+        uvw: Vec4f,
+        filter: ?ts.Filter,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {

@@ -511,7 +511,7 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
                     if (std.mem.eql(u8, "Nearest", filter)) {
                         key.filter = .Nearest;
                     } else if (std.mem.eql(u8, "Linear", filter)) {
-                        key.filter = .Linear;
+                        key.filter = .Linear_stochastic;
                     }
                 } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
                     switch (entry.value_ptr.*) {

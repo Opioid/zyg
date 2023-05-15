@@ -243,7 +243,7 @@ pub const Material = union(enum) {
             .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, sampler, scene),
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, filter, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, filter, sampler, scene),
-            .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
+            .Volumetric => |*m| m.evaluateRadiance(uvw, filter, sampler, scene),
             else => @splat(4, @as(f32, 0.0)),
         };
     }

@@ -334,7 +334,7 @@ pub const Material = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
+        const key = ts.resolveKey(self.super.sampler_key, filter);
 
         var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, filter, sampler, scene);
         if (self.emission_map.valid()) {

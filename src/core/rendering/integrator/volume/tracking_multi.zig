@@ -86,6 +86,7 @@ pub const Multi = struct {
                             sampler,
                             worker,
                         );
+
                         if (.Scatter == result.event) {
                             break;
                         }
@@ -112,6 +113,7 @@ pub const Multi = struct {
                             sampler,
                             worker,
                         );
+
                         if (.Scatter == result.event) {
                             break;
                         }
@@ -149,7 +151,8 @@ pub const Multi = struct {
             }
         } else {
             const ray_max_t = ray.ray.maxT();
-            ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
+            const limit = worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t;
+            ray.ray.setMaxT(std.math.min(ro.offsetF(limit), ray_max_t));
             if (!worker.intersectAndResolveMask(ray, filter, sampler, isec)) {
                 ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
                 return false;
