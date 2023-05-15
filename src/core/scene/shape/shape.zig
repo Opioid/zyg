@@ -10,7 +10,6 @@ pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
 const Ray = @import("../ray.zig").Ray;
 const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
@@ -189,25 +188,32 @@ pub const Shape = union(enum) {
         ray: Ray,
         trafo: Trafo,
         entity: u32,
-        filter: ?Filter,
+        sampler: *Sampler,
         scene: *const Scene,
     ) ?Vec4f {
         return switch (self) {
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, scene),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, scene),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, scene),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, scene),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, scene),
-            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, scene),
+            .Cube => Cube.visibility(ray.ray, trafo, entity, sampler, scene),
+            .Disk => Disk.visibility(ray.ray, trafo, entity, sampler, scene),
+            .Plane => Plane.visibility(ray.ray, trafo, entity, sampler, scene),
+            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, sampler, scene),
+            .Sphere => Sphere.visibility(ray.ray, trafo, entity, sampler, scene),
+            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, sampler, scene),
             else => @splat(4, @as(f32, 1.0)),
         };
     }
 
-    pub fn transmittance(self: Shape, ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn transmittance(
+        self: Shape,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) ?Vec4f {
         return switch (self) {
-            .Cube => Cube.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
-            .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
-            .TriangleMesh => |m| m.transmittance(ray.ray, trafo, entity, ray.depth, filter, worker),
+            .Cube => Cube.transmittance(ray.ray, trafo, entity, ray.depth, sampler, worker),
+            .Sphere => Sphere.transmittance(ray.ray, trafo, entity, ray.depth, sampler, worker),
+            .TriangleMesh => |m| m.transmittance(ray.ray, trafo, entity, ray.depth, sampler, worker),
             else => @splat(4, @as(f32, 1.0)),
         };
     }
@@ -218,14 +224,13 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
         return switch (self) {
-            .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
-            .Sphere => Sphere.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
-            .TriangleMesh => |m| m.scatter(ray.ray, trafo, throughput, entity, ray.depth, filter, sampler, worker),
+            .Cube => Cube.scatter(ray.ray, trafo, throughput, entity, ray.depth, sampler, worker),
+            .Sphere => Sphere.scatter(ray.ray, trafo, throughput, entity, ray.depth, sampler, worker),
+            .TriangleMesh => |m| m.scatter(ray.ray, trafo, throughput, entity, ray.depth, sampler, worker),
             else => Volume.initPass(@splat(4, @as(f32, 1.0))),
         };
     }

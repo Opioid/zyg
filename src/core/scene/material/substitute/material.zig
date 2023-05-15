@@ -13,6 +13,7 @@ const Scene = @import("../../scene.zig").Scene;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
 
 const base = @import("base");
@@ -126,13 +127,13 @@ pub const Material = struct {
         self.flakes_res = std.math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, worker: *const Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.subsurface) {
             const g = self.super.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+        const key = self.super.sampler_key;
 
         const color = if (self.checkers[3] > 0.0) self.analyticCheckers(
             rs,
@@ -142,6 +143,7 @@ pub const Material = struct {
             key,
             self.super.color_map,
             rs.uv,
+            sampler,
             worker.scene,
         ) else self.color;
 
@@ -150,11 +152,11 @@ pub const Material = struct {
 
         const nc = self.surface_map.numChannels();
         if (nc >= 2) {
-            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, worker.scene);
+            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, sampler, worker.scene);
             roughness = ggx.mapRoughness(surface[0]);
             metallic = surface[1];
         } else if (1 == nc) {
-            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, worker.scene));
+            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene));
             metallic = self.metallic;
         } else {
             roughness = self.roughness;
@@ -167,7 +169,7 @@ pub const Material = struct {
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, worker.scene);
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene);
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
             coating_ior = math.lerp(rs.ior(), self.coating_ior, coating_weight);
@@ -194,7 +196,7 @@ pub const Material = struct {
         );
 
         if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, worker.scene);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker.scene);
             result.super.frame.setNormal(n);
         } else {
             result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -209,14 +211,14 @@ pub const Material = struct {
             if (self.normal_map.equal(self.coating_normal_map)) {
                 result.coating.n = result.super.frame.n;
             } else if (self.coating_normal_map.valid()) {
-                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, worker.scene);
+                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker.scene);
                 result.coating.n = n;
             } else {
                 result.coating.n = rs.n;
             }
 
             const r = if (self.coating_roughness_map.valid())
-                ggx.mapRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, worker.scene))
+                ggx.mapRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene))
             else
                 self.coating_roughness;
 
@@ -229,7 +231,7 @@ pub const Material = struct {
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
         const rotation = if (self.rotation_map.valid())
-            ts.sample2D_1(key, self.rotation_map, rs.uv, worker.scene) * (2.0 * std.math.pi)
+            ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi)
         else
             self.rotation;
 
@@ -328,19 +330,19 @@ pub const Material = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
+        sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
+        const key = self.super.sampler_key;
 
-        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, filter, scene);
+        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, uv, scene);
+            rad *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }
 
         var coating_thickness: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, scene);
+            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, sampler, scene);
             coating_thickness = self.coating_thickness * relative_thickness;
         } else {
             coating_thickness = self.coating_thickness;

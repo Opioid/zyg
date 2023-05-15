@@ -5,7 +5,6 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
@@ -87,7 +86,13 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -112,7 +117,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, filter, scene);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene);
         }
 
         return @splat(4, @as(f32, 1.0));

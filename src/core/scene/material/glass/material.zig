@@ -4,6 +4,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
@@ -38,11 +39,11 @@ pub const Material = struct {
         self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, scene: *const Scene) Sample {
-        const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
+        const key = self.super.sampler_key;
 
         const r = if (self.roughness_map.valid())
-            ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, scene))
+            ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
         else
             self.roughness;
 
@@ -59,7 +60,7 @@ pub const Material = struct {
         );
 
         if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, scene);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, scene);
             const tb = math.orthonormalBasis3(n);
 
             result.super.frame.setTangentFrame(tb[0], tb[1], n);
@@ -70,8 +71,8 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) ?Vec4f {
-        const o = self.super.opacity(uv, filter, scene);
+    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+        const o = self.super.opacity(uv, sampler, scene);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;

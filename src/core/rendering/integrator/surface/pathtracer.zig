@@ -2,7 +2,6 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -46,11 +45,9 @@ pub const Pathtracer = struct {
         var isec = Intersection{};
 
         while (true) {
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
-
             var sampler = self.pickSampler(ray.depth);
 
-            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
                 break;
             }
 
@@ -62,7 +59,7 @@ pub const Pathtracer = struct {
             const energy = isec.evaluateRadiance(
                 ray.ray.origin,
                 wo,
-                filter,
+                sampler,
                 worker.scene,
                 &pure_emissive,
             ) orelse @splat(4, @as(f32, 0.0));
@@ -79,7 +76,7 @@ pub const Pathtracer = struct {
                 ray.*,
                 wo,
                 isec,
-                filter,
+                sampler,
                 0.0,
                 avoid_caustics,
                 from_subsurface,
@@ -134,7 +131,7 @@ pub const Pathtracer = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, filter);
+                worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
             from_subsurface = from_subsurface or isec.subsurface();

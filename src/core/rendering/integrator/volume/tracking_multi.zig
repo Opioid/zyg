@@ -8,7 +8,6 @@ const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
 const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -26,7 +25,7 @@ pub const Multi = struct {
         cc: CC,
         prop: u32,
         depth: u32,
-        filter: ?Filter,
+        sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
         const d = ray.maxT();
@@ -36,7 +35,7 @@ pub const Multi = struct {
         }
 
         if (material.heterogeneousVolume()) {
-            return tracking.transmittanceHetero(ray, material, prop, depth, filter, worker);
+            return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker);
         }
 
         return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
@@ -49,7 +48,6 @@ pub const Multi = struct {
         cc: CC,
         prop: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
@@ -81,7 +79,7 @@ pub const Multi = struct {
                             srs,
                             result.tr,
                             throughput,
-                            filter,
+                            sampler,
                             worker,
                         );
 
@@ -107,7 +105,7 @@ pub const Multi = struct {
                             srs,
                             result.tr,
                             throughput,
-                            filter,
+                            sampler,
                             worker,
                         );
 
@@ -124,7 +122,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
+            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), sampler, worker.scene);
             return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
         }
 
@@ -135,7 +133,6 @@ pub const Multi = struct {
         ray: *Ray,
         throughput: Vec4f,
         isec: *Intersection,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
@@ -150,7 +147,7 @@ pub const Multi = struct {
             const ray_max_t = ray.ray.maxT();
             const limit = worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t;
             ray.ray.setMaxT(std.math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(ray, filter, isec)) {
+            if (!worker.intersectAndResolveMask(ray, sampler, isec)) {
                 ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
                 return false;
             }
@@ -188,7 +185,6 @@ pub const Multi = struct {
             interface.cc,
             interface.prop,
             ray.depth,
-            filter,
             sampler,
             worker,
         );

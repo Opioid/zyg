@@ -18,6 +18,7 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -43,6 +44,12 @@ pub const Integrator = union(enum) {
         return switch (self.*) {
             .PTMIS => |*i| i.li(ray, gather_photons, worker),
             inline else => |*i| i.li(ray, worker),
+        };
+    }
+
+    pub fn sampler(self: *Integrator) *Sampler {
+        return switch (self.*) {
+            inline else => |*i| &i.samplers[0],
         };
     }
 };

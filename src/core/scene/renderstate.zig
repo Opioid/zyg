@@ -1,5 +1,4 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
-const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -22,8 +21,6 @@ pub const Renderstate = struct {
     depth: u32 = undefined,
 
     time: u64 = undefined,
-
-    filter: ?Filter = undefined,
 
     subsurface: bool = undefined,
     avoid_caustics: bool = undefined,

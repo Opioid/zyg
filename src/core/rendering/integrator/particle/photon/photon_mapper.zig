@@ -7,7 +7,6 @@ const Camera = @import("../../../../camera/perspective.zig").Perspective;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
-const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
@@ -97,8 +96,6 @@ pub const Mapper = struct {
 
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
-            var filter: ?Filter = null;
-
             var caustic_path = false;
             var from_subsurface = false;
 
@@ -131,7 +128,7 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, null, &self.sampler)) {
+            if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
                 continue;
             }
 
@@ -141,7 +138,7 @@ pub const Mapper = struct {
 
             var throughput = isec.volume.tr;
 
-            var radiance = light.evaluateFrom(isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
             while (ray.depth < self.settings.max_bounces) {
@@ -151,7 +148,7 @@ pub const Mapper = struct {
                     ray,
                     wo,
                     isec,
-                    filter,
+                    &self.sampler,
                     0.0,
                     Avoid_caustics,
                     from_subsurface,
@@ -199,8 +196,6 @@ pub const Mapper = struct {
 
                     if (sample_result.class.specular) {
                         caustic_path = true;
-                    } else {
-                        filter = .Nearest;
                     }
 
                     const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
@@ -234,14 +229,14 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.interfaceChangeIor(sample_result.wi, isec, filter);
+                    const ior = worker.interfaceChangeIor(sample_result.wi, isec, &self.sampler);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }
 
                 from_subsurface = from_subsurface or isec.subsurface();
 
-                if (!worker.nextEvent(&ray, throughput, &isec, filter, &self.sampler)) {
+                if (!worker.nextEvent(&ray, throughput, &isec, &self.sampler)) {
                     break;
                 }
 

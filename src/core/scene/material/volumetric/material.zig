@@ -10,6 +10,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
@@ -45,7 +46,7 @@ pub const Material = struct {
 
     pub fn init() Material {
         return .{ .super = .{
-            .sampler_key = .{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } },
+            .sampler_key = .{ .filter = ts.Default_filter, .address = .{ .u = .Clamp, .v = .Clamp } },
             .ior = 1.0,
         } };
     }
@@ -170,23 +171,23 @@ pub const Material = struct {
         return Sample.init(wo, rs, gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
+        const key = self.super.sampler_key;
 
         const emission = if (self.temperature_map.valid())
-            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, scene))
+            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene))
         else
             self.super.emittance.value;
 
         if (2 == self.density_map.numChannels()) {
-            const d = ts.sample3D_2(key, self.density_map, uvw, scene);
+            const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
             return @splat(4, d[0] * d[1]) * self.a_norm * emission;
         } else {
-            const d = ts.sample3D_1(key, self.density_map, uvw, scene);
+            const d = ts.sample3D_1(key, self.density_map, uvw, sampler, scene);
             return @splat(4, d) * self.a_norm * emission;
         }
     }
@@ -208,33 +209,37 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) f32 {
+    pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) f32 {
         if (self.density_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample3D_1(key, self.density_map, uvw, scene);
+            return ts.sample3D_1(self.super.sampler_key, self.density_map, uvw, sampler, scene);
         }
 
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(
+        self: *const Material,
+        uvw: Vec4f,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
+            const key = self.super.sampler_key;
 
-            const t = ts.sample3D_1(key, self.temperature_map, uvw, scene);
+            const t = ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
-                const d = ts.sample3D_2(key, self.density_map, uvw, scene);
+                const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
                 const d0 = @splat(4, d[0]);
                 return .{
                     .cc = .{ .a = d0 * cc.a, .s = d0 * cc.s },
                     .e = @splat(4, d[1]) * e,
                 };
             } else {
-                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, scene));
+                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
                 return .{
                     .cc = .{ .a = d * cc.a, .s = d * cc.s },
                     .e = d * e,
@@ -242,7 +247,7 @@ pub const Material = struct {
             }
         }
 
-        const d = @splat(4, self.density(uvw, filter, scene));
+        const d = @splat(4, self.density(uvw, sampler, scene));
         return .{
             .cc = .{ .a = d * cc.a, .s = d * cc.s },
             .e = self.super.emittance.value,

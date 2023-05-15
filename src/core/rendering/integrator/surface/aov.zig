@@ -2,7 +2,6 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -52,7 +51,7 @@ pub const AOV = struct {
         var isec = Intersection{};
         var sampler = &self.samplers[0];
 
-        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, sampler)) {
+        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
             return @splat(4, @as(f32, 0.0));
         }
 
@@ -70,17 +69,17 @@ pub const AOV = struct {
         const radius = self.settings.radius;
 
         var result: f32 = 0.0;
+        var sampler = &self.samplers[0];
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker);
+
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
 
         var occlusion_ray: Ray = undefined;
 
         const origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
 
         occlusion_ray.time = ray.time;
-
-        var sampler = &self.samplers[0];
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
@@ -95,7 +94,7 @@ pub const AOV = struct {
             occlusion_ray.ray.origin = origin;
             occlusion_ray.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(occlusion_ray, null, worker)) |_| {
+            if (worker.scene.visibility(occlusion_ray, sampler, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -105,9 +104,11 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+        var sampler = &self.samplers[0];
+
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
 
         var vec: Vec4f = undefined;
 
@@ -141,13 +142,13 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
+            var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 isec.*,
-                filter,
+                sampler,
                 0.0,
                 true,
                 from_subsurface,
@@ -156,8 +157,6 @@ pub const AOV = struct {
             if (mat_sample.isPureEmissive()) {
                 break;
             }
-
-            var sampler = self.pickSampler(ray.depth);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
@@ -170,7 +169,7 @@ pub const AOV = struct {
 
                     const indirect = !direct and 0 != ray.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample, sampler));
                         break;
                     }
                 }
@@ -201,12 +200,12 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*, filter);
+                worker.interfaceChange(sample_result.wi, isec.*, sampler);
             }
 
             from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, isec, sampler)) {
                 break;
             }
 

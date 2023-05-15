@@ -19,7 +19,6 @@ const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
-const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const surface = @import("integrator/surface/integrator.zig");
 const vlhlp = @import("integrator/volume/tracking_multi.zig").Multi;
 const lt = @import("integrator/particle/lighttracer.zig");
@@ -320,8 +319,8 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: Intersection, sample: *const MaterialSample) Vec4f {
-        return self.photon_map.li(isec, sample, self.scene);
+    pub fn photonLi(self: *const Worker, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
+        return self.photon_map.li(isec, sample, sampler, self.scene);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -364,7 +363,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, filter: ?Filter) ?Vec4f {
+    pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, sampler: *Sampler) ?Vec4f {
         const material = isec.material(self.scene);
 
         if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
@@ -378,12 +377,12 @@ pub const Worker = struct {
                 const sss_min_t = ray.ray.minT();
                 const sss_max_t = ray.ray.maxT();
                 ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(ray.*, filter, self)) |tv| {
+                if (self.scene.visibility(ray.*, sampler, self)) |tv| {
                     ray.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
                     const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, filter, self)) |tr| {
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, sampler, self)) |tr| {
                         const wi = ray.ray.direction;
                         const n = nisec.n;
                         const vbh = material.super().border(wi, n);
@@ -397,12 +396,12 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(ray.*, filter, self);
+        return self.scene.visibility(ray.*, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, filter: ?Filter, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, sampler: *Sampler) bool {
         while (!self.interface_stack.empty()) {
-            if (vlhlp.integrate(ray, throughput, isec, filter, sampler, self)) {
+            if (vlhlp.integrate(ray, throughput, isec, sampler, self)) {
                 return true;
             }
 
@@ -411,11 +410,11 @@ pub const Worker = struct {
 
         const ray_min_t = ray.ray.minT();
 
-        const hit = self.intersectAndResolveMask(ray, filter, isec);
+        const hit = self.intersectAndResolveMask(ray, sampler, isec);
 
         ray.ray.setMinT(ray_min_t);
 
-        const volume_hit = self.scene.scatter(ray, throughput, filter, sampler, self, isec);
+        const volume_hit = self.scene.scatter(ray, throughput, sampler, self, isec);
 
         return hit or volume_hit;
     }
@@ -426,10 +425,10 @@ pub const Worker = struct {
         material: *const Material,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
+        sampler: *Sampler,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return vlhlp.propTransmittance(ray, material, cc, entity, depth, filter, self);
+        return vlhlp.propTransmittance(ray, material, cc, entity, depth, sampler, self);
     }
 
     pub fn propScatter(
@@ -439,24 +438,23 @@ pub const Worker = struct {
         material: *const Material,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
     ) Volume {
         const cc = material.super().cc;
-        return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, filter, sampler, self);
+        return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
     pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
         return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, filter: ?Filter, isec: *Intersection) bool {
+    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, sampler: *Sampler, isec: *Intersection) bool {
         while (true) {
             if (!self.scene.intersect(ray, .All, isec)) {
                 return false;
             }
 
-            const o = isec.opacity(filter, self.scene);
+            const o = isec.opacity(sampler, self.scene);
             if (1.0 == o or (o > 0.0 and o > self.rng.randomFloat())) {
                 break;
             }
@@ -480,18 +478,18 @@ pub const Worker = struct {
         return self.interface_stack.peekIor(isec, self.scene);
     }
 
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection, filter: ?Filter) void {
+    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection, sampler: *Sampler) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             _ = self.interface_stack.remove(isec);
         } else {
             const material = isec.material(self.scene);
-            const cc = material.collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+            const cc = material.collisionCoefficients2D(isec.geo.uv, sampler, self.scene);
             self.interface_stack.push(isec, cc);
         }
     }
 
-    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection, filter: ?Filter) IoR {
+    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection, sampler: *Sampler) IoR {
         const inter_ior = isec.material(self.scene).ior();
 
         const leave = isec.sameHemisphere(dir);
@@ -503,7 +501,7 @@ pub const Worker = struct {
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
-        const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, filter, self.scene);
+        const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, sampler, self.scene);
         self.interface_stack.push(isec, cc);
 
         return ior;
@@ -514,7 +512,7 @@ pub const Worker = struct {
         ray: Ray,
         wo: Vec4f,
         isec: Intersection,
-        filter: ?Filter,
+        sampler: *Sampler,
         alpha: f32,
         avoid_caustics: bool,
         straight_border: bool,
@@ -534,7 +532,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
-        return isec.sample(wo, ray, filter, avoid_caustics, self);
+        return isec.sample(wo, ray, sampler, avoid_caustics, self);
     }
 
     pub fn randomLightSpatial(

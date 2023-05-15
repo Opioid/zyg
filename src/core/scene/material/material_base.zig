@@ -6,6 +6,7 @@ const Emittance = @import("../light/emittance.zig").Emittance;
 const Scene = @import("../scene.zig").Scene;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -90,11 +91,10 @@ pub const Base = struct {
         self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
-    pub fn opacity(self: *const Base, uv: Vec2f, filter: ?ts.Filter, scene: *const Scene) f32 {
+    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
         const mask = self.mask;
         if (mask.valid()) {
-            const key = ts.resolveKey(self.sampler_key, filter);
-            return ts.sample2D_1(key, mask, uv, scene);
+            return ts.sample2D_1(self.sampler_key, mask, uv, sampler, scene);
         }
 
         return 1.0;

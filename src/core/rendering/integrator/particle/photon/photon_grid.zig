@@ -2,6 +2,7 @@ const Photon = @import("photon.zig").Photon;
 const Scene = @import("../../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const mat = @import("../../../../scene/material/sample_helper.zig");
 
 const base = @import("base");
@@ -585,7 +586,7 @@ pub const Grid = struct {
         return result * @splat(4, self.surface_normalization);
     }
 
-    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         var result = @splat(4, @as(f32, 0.0));
 
         const position = isec.geo.p;
@@ -633,7 +634,7 @@ pub const Grid = struct {
                 }
 
                 const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
-                const mu_s = scatteringCoefficient(isec, scene);
+                const mu_s = scatteringCoefficient(isec, sampler, scene);
 
                 result /= @splat(4, normalization) * mu_s;
             } else {
@@ -676,7 +677,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, scene: *const Scene) Vec4f {
+    fn scatteringCoefficient(isec: Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {
@@ -686,10 +687,10 @@ pub const Grid = struct {
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
-            return material.collisionCoefficients3D(uvw, null, scene).s;
+            return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients2D(isec.geo.uv, null, scene).s;
+        return material.collisionCoefficients2D(isec.geo.uv, sampler, scene).s;
     }
 };
 

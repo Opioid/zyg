@@ -1,7 +1,6 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
 const Worker = @import("../../../rendering/worker.zig").Worker;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
@@ -28,6 +27,7 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 const Distribution1D = math.Distribution1D;
 const Threads = base.thread.Pool;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -274,6 +274,11 @@ pub const Part = struct {
 
                 var pow: f32 = undefined;
                 if (emission_map) {
+                    var rng = RNG{};
+                    rng.start(0, i);
+
+                    var sampler = Sampler{ .Random = .{ .rng = &rng } };
+
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
                     const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
@@ -293,7 +298,7 @@ pub const Part = struct {
                             IdTrafo,
                             self.prop_id,
                             self.part_id,
-                            null,
+                            &sampler,
                             self.scene,
                         );
                     }
@@ -495,14 +500,29 @@ pub const Mesh = struct {
         return self.tree.intersectP(tray);
     }
 
-    pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, scene: *const Scene) ?Vec4f {
+    pub fn visibility(
+        self: Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) ?Vec4f {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, filter, scene);
+        return self.tree.visibility(tray, entity, sampler, scene);
     }
 
-    pub fn transmittance(self: Mesh, ray: Ray, trafo: Trafo, entity: u32, depth: u32, filter: ?Filter, worker: *Worker) ?Vec4f {
+    pub fn transmittance(
+        self: Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) ?Vec4f {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.transmittance(tray, entity, depth, filter, worker);
+        return self.tree.transmittance(tray, entity, depth, sampler, worker);
     }
 
     pub fn scatter(
@@ -512,12 +532,11 @@ pub const Mesh = struct {
         throughput: Vec4f,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.scatter(tray, throughput, entity, depth, filter, sampler, worker);
+        return self.tree.scatter(tray, throughput, entity, depth, sampler, worker);
     }
 
     pub fn sampleTo(

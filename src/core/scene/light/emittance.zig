@@ -1,4 +1,5 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
@@ -72,13 +73,13 @@ pub const Emittance = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
+        sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
             const key = ts.Key{
-                .filter = filter orelse .Linear,
+                .filter = ts.Default_filter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
@@ -86,7 +87,7 @@ pub const Emittance = struct {
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @splat(2, @as(f32, 1.0))) * @splat(2, @as(f32, 0.5));
 
-            pf = ts.sample2D_1(key, self.profile, ouv, scene);
+            pf = ts.sample2D_1(key, self.profile, ouv, sampler, scene);
         }
 
         if (-math.dot3(wi, trafo.rotation.r[2]) < self.cos_a) {

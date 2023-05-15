@@ -70,53 +70,12 @@ pub fn TypedImage(comptime T: type) type {
             self.pixels[@intCast(usize, i)] = v;
         }
 
-        pub fn gather2D(self: Self, xy_xy1: Vec4i) [4]T {
-            const width = self.description.dimensions[0];
-            const y0 = width * xy_xy1[1];
-            const y1 = width * xy_xy1[3];
-
-            return .{
-                self.pixels[@intCast(usize, y0 + xy_xy1[0])],
-                self.pixels[@intCast(usize, y0 + xy_xy1[2])],
-                self.pixels[@intCast(usize, y1 + xy_xy1[0])],
-                self.pixels[@intCast(usize, y1 + xy_xy1[2])],
-            };
-        }
-
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
             const d = self.description.dimensions;
             const i = (@intCast(u64, z) * @intCast(u64, d[1]) + @intCast(u64, y)) *
                 @intCast(u64, d[0]) + @intCast(u64, x);
 
             return self.pixels[i];
-        }
-
-        pub fn gather3D(self: Self, xyz: Vec4i, xyz1: Vec4i) [8]T {
-            const dim = self.description.dimensions;
-            const w = @as(i64, dim[0]);
-            const h = @as(i64, dim[1]);
-
-            const x = @as(i64, xyz[0]);
-            const y = @as(i64, xyz[1]);
-            const z = @as(i64, xyz[2]);
-
-            const x1 = @as(i64, xyz1[0]);
-            const y1 = @as(i64, xyz1[1]);
-            const z1 = @as(i64, xyz1[2]);
-
-            const d = z * h;
-            const d1 = z1 * h;
-
-            return .{
-                self.pixels[@intCast(usize, (d + y) * w + x)],
-                self.pixels[@intCast(usize, (d1 + y) * w + x)],
-                self.pixels[@intCast(usize, (d + y) * w + x1)],
-                self.pixels[@intCast(usize, (d1 + y) * w + x1)],
-                self.pixels[@intCast(usize, (d + y1) * w + x)],
-                self.pixels[@intCast(usize, (d1 + y1) * w + x)],
-                self.pixels[@intCast(usize, (d + y1) * w + x1)],
-                self.pixels[@intCast(usize, (d1 + y1) * w + x1)],
-            };
         }
     };
 }
@@ -233,92 +192,6 @@ pub fn TypedSparseImage(comptime T: type) type {
             }
 
             return cell.value;
-        }
-
-        pub fn gather3D(self: Self, xyz: Vec4i, xyz1: Vec4i) [8]T {
-            const cc0 = xyz >> Log2_cell_dim4;
-            const cc1 = xyz1 >> Log2_cell_dim4;
-
-            if (math.equal(cc0, cc1)) {
-                const num_cells = self.num_cells;
-                const cell_index = (cc0[2] * num_cells[1] + cc0[1]) * num_cells[0] + cc0[0];
-
-                const cell = self.cells[@intCast(usize, cell_index)];
-
-                if (cell.data) |data| {
-                    const cs = cc0 << Log2_cell_dim4;
-
-                    const d0 = (xyz[2] - cs[2]) << Log2_cell_dim;
-                    const d1 = (xyz1[2] - cs[2]) << Log2_cell_dim;
-
-                    const csxy = Vec2i{ cs[0], cs[1] };
-
-                    var result: [8]T = undefined;
-                    {
-                        const cxy = Vec2i{ xyz[0], xyz[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[0] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz[0], xyz[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[1] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[2] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz1[0], xyz[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[3] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz[0], xyz1[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[4] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz[0], xyz1[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[5] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz1[0], xyz1[1] } - csxy;
-                        const ci = ((d0 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[6] = data[@intCast(usize, ci)];
-                    }
-
-                    {
-                        const cxy = Vec2i{ xyz1[0], xyz1[1] } - csxy;
-                        const ci = ((d1 + cxy[1]) << Log2_cell_dim) + cxy[0];
-                        result[7] = data[@intCast(usize, ci)];
-                    }
-
-                    return result;
-                }
-
-                const v = cell.value;
-                return .{ v, v, v, v, v, v, v, v };
-            }
-
-            return .{
-                self.get3D(xyz[0], xyz[1], xyz[2]),
-                self.get3D(xyz[0], xyz[1], xyz1[2]),
-                self.get3D(xyz1[0], xyz[1], xyz[2]),
-                self.get3D(xyz1[0], xyz[1], xyz1[2]),
-                self.get3D(xyz[0], xyz1[1], xyz[2]),
-                self.get3D(xyz[0], xyz1[1], xyz1[2]),
-                self.get3D(xyz1[0], xyz1[1], xyz[2]),
-                self.get3D(xyz1[0], xyz1[1], xyz1[2]),
-            };
         }
 
         fn coordinates3(self: Self, index: i64) Vec4i {
