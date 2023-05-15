@@ -99,8 +99,8 @@ const Nearest2D = struct {
         const b = d - @splat(2, @as(i32, 1));
 
         return .{
-            std.math.min(@floatToInt(i32, u * df[0]), b[0]),
-            std.math.min(@floatToInt(i32, v * df[1]), b[1]),
+            @min(@floatToInt(i32, u * df[0]), b[0]),
+            @min(@floatToInt(i32, v * df[1]), b[1]),
         };
     }
 };
