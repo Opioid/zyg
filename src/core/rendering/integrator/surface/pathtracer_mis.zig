@@ -3,7 +3,6 @@ const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
@@ -68,11 +67,10 @@ pub const PathtracerMIS = struct {
 
         while (true) {
             const pr = state.primary_ray;
-            const filter: ?Filter = if (ray.depth <= 1 or pr) null else .Nearest;
 
             var sampler = self.pickSampler(ray.depth);
 
-            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
                 break;
             }
 
@@ -85,7 +83,6 @@ pub const PathtracerMIS = struct {
                 isec,
                 sample_result,
                 state,
-                filter,
                 sampler,
                 worker.scene,
                 &pure_emissive,
@@ -117,7 +114,6 @@ pub const PathtracerMIS = struct {
                 ray.*,
                 wo,
                 isec,
-                filter,
                 sampler,
                 0.0,
                 avoid_caustics,
@@ -128,7 +124,7 @@ pub const PathtracerMIS = struct {
                 worker.commonAOV(throughput, ray.*, isec, &mat_sample, pr);
             }
 
-            result += throughput * self.sampleLights(ray.*, isec, &mat_sample, filter, sampler, worker);
+            result += throughput * self.sampleLights(ray.*, isec, &mat_sample, sampler, worker);
 
             var effective_bxdf_pdf = sample_result.pdf;
 
@@ -180,7 +176,7 @@ pub const PathtracerMIS = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, filter, sampler);
+                worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
             state.from_subsurface = state.from_subsurface or isec.subsurface();
@@ -207,7 +203,6 @@ pub const PathtracerMIS = struct {
         ray: Ray,
         isec: Intersection,
         mat_sample: *const MaterialSample,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
@@ -230,7 +225,7 @@ pub const PathtracerMIS = struct {
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
 
-            result += evaluateLight(light, l.pdf, ray, p, isec, mat_sample, filter, sampler, worker);
+            result += evaluateLight(light, l.pdf, ray, p, isec, mat_sample, sampler, worker);
         }
 
         return result;
@@ -243,7 +238,6 @@ pub const PathtracerMIS = struct {
         p: Vec4f,
         isec: Intersection,
         mat_sample: *const MaterialSample,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
@@ -267,11 +261,11 @@ pub const PathtracerMIS = struct {
             history.time,
         );
 
-        const tr = worker.visibility(&shadow_ray, isec, filter, sampler) orelse return @splat(4, @as(f32, 0.0));
+        const tr = worker.visibility(&shadow_ray, isec, sampler) orelse return @splat(4, @as(f32, 0.0));
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
-        const radiance = light.evaluateTo(p, light_sample, filter, sampler, worker.scene);
+        const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
@@ -286,7 +280,6 @@ pub const PathtracerMIS = struct {
         isec: Intersection,
         sample_result: BxdfSample,
         state: PathState,
-        filter: ?Filter,
         sampler: *Sampler,
         scene: *const Scene,
         pure_emissive: *bool,
@@ -295,7 +288,6 @@ pub const PathtracerMIS = struct {
         const energy = isec.evaluateRadiance(
             ray.ray.origin,
             wo,
-            filter,
             sampler,
             scene,
             pure_emissive,

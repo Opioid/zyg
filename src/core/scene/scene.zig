@@ -13,7 +13,6 @@ const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Ray = @import("ray.zig").Ray;
 const Image = @import("../image/image.zig").Image;
-const Filter = @import("../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
@@ -265,9 +264,9 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(ray, self, ipo, isec);
     }
 
-    pub fn visibility(self: *const Scene, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(ray, filter, sampler, worker);
+            return self.prop_bvh.visibility(ray, sampler, worker);
         }
 
         if (self.prop_bvh.intersectP(ray, self)) {
@@ -281,7 +280,6 @@ pub const Scene = struct {
         self: *const Scene,
         ray: *Ray,
         throughput: Vec4f,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
@@ -291,7 +289,7 @@ pub const Scene = struct {
             return false;
         }
 
-        return self.volume_bvh.scatter(ray, throughput, filter, sampler, worker, isec);
+        return self.volume_bvh.scatter(ray, throughput, sampler, worker, isec);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

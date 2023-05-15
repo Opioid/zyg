@@ -123,14 +123,12 @@ pub const Material = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, filter, sampler, scene);
+        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
-            return rad * ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
+            return rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
         }
 
         return rad;

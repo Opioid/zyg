@@ -3,7 +3,6 @@ const Trafo = @import("../../../composed_transformation.zig").ComposedTransforma
 const Scene = @import("../../../scene.zig").Scene;
 const ro = @import("../../../ray_offset.zig");
 const Worker = @import("../../../../rendering/worker.zig").Worker;
-const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const Node = @import("../../../bvh/node.zig").Node;
 const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
 const Volume = @import("../../../shape/intersection.zig").Volume;
@@ -150,14 +149,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(
-        self: Tree,
-        ray: Ray,
-        entity: u32,
-        filter: ?Filter,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -181,7 +173,7 @@ pub const Tree = struct {
                             const normal = self.data.normal(i);
                             const uv = self.data.interpolateUv(hit.u, hit.v, i);
 
-                            const tv = material.visibility(ray_dir, normal, uv, filter, sampler, scene) orelse return null;
+                            const tv = material.visibility(ray_dir, normal, uv, sampler, scene) orelse return null;
 
                             vis *= tv;
                         } else return null;
@@ -221,7 +213,6 @@ pub const Tree = struct {
         ray: Ray,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
@@ -239,7 +230,7 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(hit.t);
 
-                tr *= worker.propTransmittance(tray, material, entity, depth, filter, sampler) orelse return null;
+                tr *= worker.propTransmittance(tray, material, entity, depth, sampler) orelse return null;
             }
 
             const ray_min_t = ro.offsetF(hit.t);
@@ -259,7 +250,6 @@ pub const Tree = struct {
         throughput: Vec4f,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
@@ -277,7 +267,7 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(hit.t);
 
-                var result = worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
+                var result = worker.propScatter(tray, throughput, material, entity, depth, sampler);
 
                 tr *= result.tr;
 

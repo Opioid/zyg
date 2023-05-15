@@ -7,7 +7,6 @@ const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -183,7 +182,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis = @splat(4, @as(f32, 1.0));
@@ -198,7 +197,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    vis *= props[p].visibility(p, ray, filter, sampler, worker) orelse return null;
+                    vis *= props[p].visibility(p, ray, sampler, worker) orelse return null;
                 }
 
                 n = stack.pop();
@@ -228,7 +227,7 @@ pub const Tree = struct {
 
         if (ray.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                vis *= props[p].visibility(p, ray, filter, sampler, worker) orelse return null;
+                vis *= props[p].visibility(p, ray, sampler, worker) orelse return null;
             }
         }
 
@@ -239,7 +238,6 @@ pub const Tree = struct {
         self: Tree,
         ray: *Ray,
         throughput: Vec4f,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
         isec: *Intersection,
@@ -259,7 +257,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, ray.*, throughput, filter, sampler, worker);
+                    const lr = props[p].scatter(p, ray.*, throughput, sampler, worker);
 
                     if (.Pass != lr.event) {
                         ray.ray.setMaxT(lr.t);

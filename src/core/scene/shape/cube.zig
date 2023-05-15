@@ -8,7 +8,6 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 
@@ -67,11 +66,10 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, filter: ?Filter, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         _ = ray;
         _ = trafo;
         _ = entity;
-        _ = filter;
         _ = sampler;
         _ = scene;
 
@@ -83,7 +81,6 @@ pub const Cube = struct {
         trafo: Trafo,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
@@ -99,7 +96,7 @@ pub const Cube = struct {
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propTransmittance(tray, material, entity, depth, filter, sampler);
+        return worker.propTransmittance(tray, material, entity, depth, sampler);
     }
 
     pub fn scatter(
@@ -108,7 +105,6 @@ pub const Cube = struct {
         throughput: Vec4f,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
@@ -124,7 +120,7 @@ pub const Cube = struct {
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
+        return worker.propScatter(tray, throughput, material, entity, depth, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

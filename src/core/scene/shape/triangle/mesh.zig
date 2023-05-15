@@ -1,7 +1,6 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
 const Worker = @import("../../../rendering/worker.zig").Worker;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
@@ -299,7 +298,6 @@ pub const Part = struct {
                             IdTrafo,
                             self.prop_id,
                             self.part_id,
-                            null,
                             &sampler,
                             self.scene,
                         );
@@ -507,12 +505,11 @@ pub const Mesh = struct {
         ray: Ray,
         trafo: Trafo,
         entity: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) ?Vec4f {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, filter, sampler, scene);
+        return self.tree.visibility(tray, entity, sampler, scene);
     }
 
     pub fn transmittance(
@@ -521,12 +518,11 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.transmittance(tray, entity, depth, filter, sampler, worker);
+        return self.tree.transmittance(tray, entity, depth, sampler, worker);
     }
 
     pub fn scatter(
@@ -536,12 +532,11 @@ pub const Mesh = struct {
         throughput: Vec4f,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.scatter(tray, throughput, entity, depth, filter, sampler, worker);
+        return self.tree.scatter(tray, throughput, entity, depth, sampler, worker);
     }
 
     pub fn sampleTo(

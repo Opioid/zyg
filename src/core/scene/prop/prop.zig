@@ -1,6 +1,5 @@
 const Ray = @import("../ray.zig").Ray;
 const Material = @import("../material/material.zig").Material;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
@@ -160,7 +159,7 @@ pub const Prop = struct {
         return scene.shape(self.shape).intersectP(ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, ray: Ray, filter: ?Filter, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
         const properties = self.properties;
         const scene = worker.scene;
 
@@ -183,9 +182,9 @@ pub const Prop = struct {
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         if (properties.volume) {
-            return scene.shape(self.shape).transmittance(ray, trafo, entity, filter, sampler, worker);
+            return scene.shape(self.shape).transmittance(ray, trafo, entity, sampler, worker);
         } else {
-            return scene.shape(self.shape).visibility(ray, trafo, entity, filter, sampler, scene);
+            return scene.shape(self.shape).visibility(ray, trafo, entity, sampler, scene);
         }
     }
 
@@ -194,7 +193,6 @@ pub const Prop = struct {
         entity: u32,
         ray: Ray,
         throughput: Vec4f,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) shp.Volume {
@@ -207,6 +205,6 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, filter, sampler, worker);
+        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, sampler, worker);
     }
 };

@@ -36,13 +36,6 @@ pub const Key = struct {
     address: Address = .{ .u = .Repeat, .v = .Repeat },
 };
 
-pub fn resolveKey(key: Key, filter: ?Filter) Key {
-    return .{
-        .filter = filter orelse key.filter,
-        .address = key.address,
-    };
-}
-
 pub fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),

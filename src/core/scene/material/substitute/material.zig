@@ -133,7 +133,7 @@ pub const Material = struct {
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, rs.filter);
+        const key = self.super.sampler_key;
 
         const color = if (self.checkers[3] > 0.0) self.analyticCheckers(
             rs,
@@ -330,13 +330,12 @@ pub const Material = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const key = ts.resolveKey(self.super.sampler_key, filter);
+        const key = self.super.sampler_key;
 
-        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, filter, sampler, scene);
+        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
             rad *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }

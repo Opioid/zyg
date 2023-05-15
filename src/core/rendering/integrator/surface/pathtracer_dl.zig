@@ -2,7 +2,6 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
 const hlp = @import("../helper.zig");
@@ -53,11 +52,9 @@ pub const PathtracerDL = struct {
         var isec = Intersection{};
 
         while (true) {
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
-
             var sampler = self.pickSampler(ray.depth);
 
-            if (!worker.nextEvent(ray, throughput, &isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
                 break;
             }
 
@@ -69,7 +66,6 @@ pub const PathtracerDL = struct {
             const energy = isec.evaluateRadiance(
                 ray.ray.origin,
                 wo,
-                filter,
                 sampler,
                 worker.scene,
                 &pure_emissive,
@@ -100,7 +96,6 @@ pub const PathtracerDL = struct {
                 ray.*,
                 wo,
                 isec,
-                filter,
                 sampler,
                 0.0,
                 avoid_caustics,
@@ -111,7 +106,7 @@ pub const PathtracerDL = struct {
                 worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
             }
 
-            result += throughput * self.directLight(ray.*, isec, &mat_sample, filter, sampler, worker);
+            result += throughput * self.directLight(ray.*, isec, &mat_sample, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -151,7 +146,7 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, filter, sampler);
+                worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
             from_subsurface = from_subsurface or isec.subsurface();
@@ -171,7 +166,6 @@ pub const PathtracerDL = struct {
         ray: Ray,
         isec: Intersection,
         mat_sample: *const MaterialSample,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
@@ -209,11 +203,11 @@ pub const PathtracerDL = struct {
 
             shadow_ray.ray.origin = p;
             shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.visibility(&shadow_ray, isec, filter, sampler) orelse continue;
+            const tr = worker.visibility(&shadow_ray, isec, sampler) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 
-            const radiance = light.evaluateTo(p, light_sample, filter, sampler, worker.scene);
+            const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 

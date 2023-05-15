@@ -7,7 +7,6 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 const Dot_min = @import("../material/sample_helper.zig").Dot_min;
@@ -108,14 +107,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(
-        ray: Ray,
-        trafo: Trafo,
-        entity: u32,
-        filter: ?Filter,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -137,7 +129,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, sampler, scene) orelse return null;
+                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene) orelse return null;
             }
 
             const t1 = b + dist;
@@ -149,7 +141,7 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, filter, sampler, scene) orelse return null;
+                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene) orelse return null;
             }
         }
 
@@ -161,7 +153,6 @@ pub const Sphere = struct {
         trafo: Trafo,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
@@ -187,7 +178,7 @@ pub const Sphere = struct {
                 start,
                 end,
             );
-            return worker.propTransmittance(tray, material, entity, depth, filter, sampler);
+            return worker.propTransmittance(tray, material, entity, depth, sampler);
         }
 
         return @splat(4, @as(f32, 1.0));
@@ -199,7 +190,6 @@ pub const Sphere = struct {
         throughput: Vec4f,
         entity: u32,
         depth: u32,
-        filter: ?Filter,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
@@ -226,7 +216,7 @@ pub const Sphere = struct {
                 end,
             );
 
-            return worker.propScatter(tray, throughput, material, entity, depth, filter, sampler);
+            return worker.propScatter(tray, throughput, material, entity, depth, sampler);
         }
 
         return Volume.initPass(@splat(4, @as(f32, 1.0)));

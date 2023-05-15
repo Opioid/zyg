@@ -2,7 +2,6 @@ const Ray = @import("../../../scene/ray.zig").Ray;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -52,7 +51,7 @@ pub const AOV = struct {
         var isec = Intersection{};
         var sampler = &self.samplers[0];
 
-        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, null, sampler)) {
+        if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
             return @splat(4, @as(f32, 0.0));
         }
 
@@ -74,7 +73,7 @@ pub const AOV = struct {
 
         const wo = -ray.ray.direction;
 
-        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
 
         var occlusion_ray: Ray = undefined;
 
@@ -95,7 +94,7 @@ pub const AOV = struct {
             occlusion_ray.ray.origin = origin;
             occlusion_ray.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(occlusion_ray, null, sampler, worker)) |_| {
+            if (worker.scene.visibility(occlusion_ray, sampler, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -109,7 +108,7 @@ pub const AOV = struct {
         var sampler = &self.samplers[0];
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, null, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
 
         var vec: Vec4f = undefined;
 
@@ -143,15 +142,12 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            const filter: ?Filter = if (ray.depth <= 1 or primary_ray) null else .Nearest;
-
             var sampler = self.pickSampler(ray.depth);
 
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
                 isec.*,
-                filter,
                 sampler,
                 0.0,
                 true,
@@ -204,12 +200,12 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec.*, filter, sampler);
+                worker.interfaceChange(sample_result.wi, isec.*, sampler);
             }
 
             from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.nextEvent(ray, throughput, isec, filter, sampler)) {
+            if (!worker.nextEvent(ray, throughput, isec, sampler)) {
                 break;
             }
 

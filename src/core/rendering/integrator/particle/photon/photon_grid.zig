@@ -687,10 +687,10 @@ pub const Grid = struct {
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
-            return material.collisionCoefficients3D(uvw, null, sampler, scene).s;
+            return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients2D(isec.geo.uv, null, sampler, scene).s;
+        return material.collisionCoefficients2D(isec.geo.uv, sampler, scene).s;
     }
 };
 

@@ -3,7 +3,6 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Ray = @import("../ray.zig").Ray;
 const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
@@ -118,14 +117,34 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, p: Vec4f, sample: SampleTo, filter: ?Filter, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateTo(self: Light, p: Vec4f, sample: SampleTo, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(p, sample.wi, sample.n, sample.uvw, sample.trafo, self.prop, self.part, filter, sampler, scene);
+        return material.evaluateRadiance(
+            p,
+            sample.wi,
+            sample.n,
+            sample.uvw,
+            sample.trafo,
+            self.prop,
+            self.part,
+            sampler,
+            scene,
+        );
     }
 
-    pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, filter: ?Filter, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(p, -sample.dir, sample.n, sample.uvw, sample.trafo, self.prop, self.part, filter, sampler, scene);
+        return material.evaluateRadiance(
+            p,
+            -sample.dir,
+            sample.n,
+            sample.uvw,
+            sample.trafo,
+            self.prop,
+            self.part,
+            sampler,
+            scene,
+        );
     }
 
     pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: *const Scene) f32 {

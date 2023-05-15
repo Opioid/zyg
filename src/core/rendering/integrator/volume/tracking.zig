@@ -5,7 +5,6 @@ const Interface = intr.Interface;
 const Stack = intr.Stack;
 const Volume = @import("../../../scene/shape/intersection.zig").Volume;
 const Worker = @import("../../../rendering/worker.zig").Worker;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../../../rendering/integrator/helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -32,7 +31,6 @@ pub fn transmittanceHetero(
     material: *const Material,
     prop: u32,
     depth: u32,
-    filter: ?Filter,
     sampler: *Sampler,
     worker: *Worker,
 ) ?Vec4f {
@@ -46,7 +44,7 @@ pub fn transmittanceHetero(
         var w = @splat(4, @as(f32, 1.0));
         while (local_ray.minT() < d) {
             if (tree.intersect(&local_ray)) |cm| {
-                if (!trackingTransmitted(&w, local_ray, cm, material, srs, filter, sampler, worker)) {
+                if (!trackingTransmitted(&w, local_ray, cm, material, srs, sampler, worker)) {
                     return null;
                 }
             }
@@ -69,7 +67,6 @@ fn trackingTransmitted(
     cm: CM,
     material: *const Material,
     srs: f32,
-    filter: ?Filter,
     sampler: *Sampler,
     worker: *Worker,
 ) bool {
@@ -105,7 +102,7 @@ fn trackingTransmitted(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients3D(uvw, filter, sampler, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = (mu.a + mu.s) - @splat(4, minorant_mu_t);
@@ -226,7 +223,6 @@ pub fn trackingHetero(
     srs: f32,
     w: Vec4f,
     throughput: Vec4f,
-    filter: ?Filter,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
@@ -250,7 +246,7 @@ pub fn trackingHetero(
 
         const uvw = ray.point(t);
 
-        var mu = material.collisionCoefficients3D(uvw, filter, sampler, worker.scene);
+        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
         mu.s *= @splat(4, srs);
 
         const mu_t = mu.a + mu.s;
@@ -287,7 +283,6 @@ pub fn trackingHeteroEmission(
     srs: f32,
     w: Vec4f,
     throughput: Vec4f,
-    filter: ?Filter,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
@@ -311,7 +306,7 @@ pub fn trackingHeteroEmission(
 
         const uvw = ray.point(t);
 
-        const cce = material.collisionCoefficientsEmission(uvw, filter, sampler, worker.scene);
+        const cce = material.collisionCoefficientsEmission(uvw, sampler, worker.scene);
         var mu = cce.cc;
         mu.s *= @splat(4, srs);
 

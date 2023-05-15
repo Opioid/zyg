@@ -73,14 +73,13 @@ pub const Emittance = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
             const key = ts.Key{
-                .filter = filter orelse ts.Default_filter,
+                .filter = ts.Default_filter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
