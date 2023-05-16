@@ -144,9 +144,7 @@ pub const Worker = struct {
                 const tsi = @truncate(u32, sample_index);
                 const seed = @truncate(u32, sample_index >> 32) + so;
 
-                for (&self.samplers) |*sampler| {
-                    sampler.startPixel(tsi, seed);
-                }
+                self.samplers[0].startPixel(tsi, seed);
 
                 self.photon = @splat(4, @as(f32, 0.0));
 
@@ -170,9 +168,7 @@ pub const Worker = struct {
 
                     sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
 
-                    for (&self.samplers) |*sampler| {
-                        sampler.incrementSample();
-                    }
+                    self.samplers[0].incrementSample();
                 }
             }
         }
@@ -204,7 +200,7 @@ pub const Worker = struct {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
     }
 
-    pub fn pickSampler(self: *Worker, bounce: u32) *Sampler {
+    pub inline fn pickSampler(self: *Worker, bounce: u32) *Sampler {
         if (bounce < 3) {
             return &self.samplers[0];
         }
