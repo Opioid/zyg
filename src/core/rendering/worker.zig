@@ -207,8 +207,7 @@ pub const Worker = struct {
                     const seed = @truncate(u32, sample_index >> 32) + so;
 
                     rng.start(0, sample_index);
-                    self.sampler.startPixel(tsi, seed);
-                    self.surface_integrator.startPixel(tsi, seed + 1);
+                    self.samplers[0].startPixel(tsi, seed);
 
                     self.photon = @splat(4, @as(f32, 0.0));
 
@@ -223,7 +222,7 @@ pub const Worker = struct {
                     for (ss..s_end) |s| {
                         self.aov.clear();
 
-                        var sample = self.sampler.cameraSample(pixel);
+                        var sample = self.samplers[0].cameraSample(pixel);
                         var ray = camera.generateRay(&sample, frame, scene);
 
                         self.resetInterfaceStack(&camera.interface_stack);
@@ -244,6 +243,8 @@ pub const Worker = struct {
                         // set up for next iteration
                         old_m = new_m;
                         old_s = new_s;
+
+                        self.samplers[0].incrementSample();
                     }
 
                     self.old_ms[ii] = old_m;
