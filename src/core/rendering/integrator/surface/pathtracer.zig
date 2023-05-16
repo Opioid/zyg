@@ -23,15 +23,7 @@ pub const Pathtracer = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler,
-
     const Self = @This();
-
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        for (&self.samplers) |*s| {
-            s.startPixel(sample, seed);
-        }
-    }
 
     pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
         var primary_ray = true;
@@ -45,7 +37,7 @@ pub const Pathtracer = struct {
         var isec = Intersection{};
 
         while (true) {
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(ray.depth);
 
             if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
                 break;
@@ -139,29 +131,14 @@ pub const Pathtracer = struct {
             sampler.incrementPadding();
         }
 
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
         return hlp.composeAlpha(result, throughput, transparent);
-    }
-
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 3) {
-            return &self.samplers[0];
-        }
-
-        return &self.samplers[1];
     }
 };
 
 pub const Factory = struct {
     settings: Pathtracer.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) Pathtracer {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) Pathtracer {
+        return .{ .settings = self.settings };
     }
 };

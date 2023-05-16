@@ -36,20 +36,11 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler,
-
     const Self = @This();
-
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
-        for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
-        }
-    }
 
     pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
         var isec = Intersection{};
-        var sampler = &self.samplers[0];
+        var sampler = worker.pickSampler(0);
 
         if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
             return @splat(4, @as(f32, 0.0));
@@ -69,7 +60,7 @@ pub const AOV = struct {
         const radius = self.settings.radius;
 
         var result: f32 = 0.0;
-        var sampler = &self.samplers[0];
+        var sampler = worker.pickSampler(0);
 
         const wo = -ray.ray.direction;
 
@@ -105,7 +96,7 @@ pub const AOV = struct {
     }
 
     fn vector(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
-        var sampler = &self.samplers[0];
+        var sampler = worker.pickSampler(0);
 
         const wo = -ray.ray.direction;
         const mat_sample = isec.sample(wo, ray, sampler, false, worker);
@@ -142,7 +133,7 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             const wo = -ray.ray.direction;
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(ray.depth);
 
             const mat_sample = worker.sampleMaterial(
                 ray.*,
@@ -214,29 +205,14 @@ pub const AOV = struct {
             sampler.incrementPadding();
         }
 
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
         return @splat(4, @as(f32, 0.0));
-    }
-
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 3) {
-            return &self.samplers[0];
-        }
-
-        return &self.samplers[1];
     }
 };
 
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) AOV {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) AOV {
+        return .{ .settings = self.settings };
     }
 };

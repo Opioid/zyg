@@ -76,7 +76,7 @@ pub const Sampler = union(enum) {
         const s4 = self.sample4D();
         const s1 = self.sample1D();
 
-        self.incrementSample();
+        self.incrementPadding();
 
         return .{
             .pixel = pixel,

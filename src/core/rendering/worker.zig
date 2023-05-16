@@ -50,7 +50,7 @@ pub const Worker = struct {
 
     lights: Scene.Lights = undefined,
 
-    sampler: Sampler = undefined,
+    samplers: [2]Sampler = undefined,
 
     surface_integrator: surface.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
@@ -83,9 +83,10 @@ pub const Worker = struct {
 
         const rng = &self.rng;
 
-        self.sampler = samplers.create(rng);
+        self.samplers[0] = samplers.create(rng);
+        self.samplers[1] = .{ .Random = .{ .rng = rng } };
 
-        self.surface_integrator = surfaces.create(rng);
+        self.surface_integrator = surfaces.create();
         self.lighttracer = lighttracers.create(rng);
 
         self.aov = aovs.create();
@@ -143,8 +144,9 @@ pub const Worker = struct {
                 const tsi = @truncate(u32, sample_index);
                 const seed = @truncate(u32, sample_index >> 32) + so;
 
-                self.sampler.startPixel(tsi, seed);
-                self.surface_integrator.startPixel(tsi, seed + 1);
+                for (&self.samplers) |*sampler| {
+                    sampler.startPixel(tsi, seed);
+                }
 
                 self.photon = @splat(4, @as(f32, 0.0));
 
@@ -154,7 +156,7 @@ pub const Worker = struct {
                 while (s < num_samples) : (s += 1) {
                     self.aov.clear();
 
-                    const sample = self.sampler.cameraSample(pixel);
+                    const sample = self.samplers[0].cameraSample(pixel);
                     var ray = camera.generateRay(sample, frame, scene);
 
                     self.resetInterfaceStack(&camera.interface_stack);
@@ -167,6 +169,10 @@ pub const Worker = struct {
                     }
 
                     sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
+
+                    for (&self.samplers) |*sampler| {
+                        sampler.incrementSample();
+                    }
                 }
             }
         }
@@ -196,6 +202,14 @@ pub const Worker = struct {
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    pub fn pickSampler(self: *Worker, bounce: u32) *Sampler {
+        if (bounce < 3) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 
     pub fn commonAOV(
