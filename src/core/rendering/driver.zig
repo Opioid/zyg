@@ -250,7 +250,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@intToFloat(f32, self.view.numParticleSamplesPerPixel()));
+        camera.sensor.clear(@intToFloat(f32, self.view.num_particles_per_pixel));
 
         self.progressor.start(self.ranges.size());
 

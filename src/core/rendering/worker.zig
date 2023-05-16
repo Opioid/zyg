@@ -87,7 +87,7 @@ pub const Worker = struct {
         self.samplers[1] = .{ .Random = .{ .rng = rng } };
 
         self.surface_integrator = surfaces.create();
-        self.lighttracer = lighttracers.create(rng);
+        self.lighttracer = lighttracers.create();
 
         self.aov = aovs.create();
 
@@ -179,12 +179,16 @@ pub const Worker = struct {
 
         var rng = &self.rng;
         rng.start(0, offset);
-        const seed = rng.randomUint();
-        self.lighttracer.startPixel(@truncate(u32, range[0]), seed);
+
+        const tsi = @truncate(u32, range[0]);
+        const seed = @truncate(u32, range[0] >> 32);
+        self.samplers[0].startPixel(tsi, seed);
 
         var i = range[0];
         while (i < range[1]) : (i += 1) {
             self.lighttracer.li(frame, self, &camera.interface_stack);
+
+            self.samplers[0].incrementSample();
         }
     }
 
