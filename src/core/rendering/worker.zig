@@ -54,7 +54,7 @@ pub const Worker = struct {
 
     lights: Scene.Lights = undefined,
 
-    sampler: Sampler = undefined,
+    samplers: [2]Sampler = undefined,
 
     surface_integrator: surface.Integrator = undefined,
     lighttracer: lt.Lighttracer = undefined,
@@ -93,9 +93,10 @@ pub const Worker = struct {
 
         const rng = &self.rng;
 
-        self.sampler = samplers.create(rng);
+        self.samplers[0] = samplers.create(rng);
+        self.samplers[1] = .{ .Random = .{ .rng = rng } };
 
-        self.surface_integrator = surfaces.create(rng);
+        self.surface_integrator = surfaces.create();
         self.lighttracer = lighttracers.create(rng);
 
         self.aov = aovs.create();
@@ -325,6 +326,14 @@ pub const Worker = struct {
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
         self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
+    }
+
+    pub inline fn pickSampler(self: *Worker, bounce: u32) *Sampler {
+        if (bounce < 3) {
+            return &self.samplers[0];
+        }
+
+        return &self.samplers[1];
     }
 
     pub fn commonAOV(

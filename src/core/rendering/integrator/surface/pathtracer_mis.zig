@@ -41,15 +41,7 @@ pub const PathtracerMIS = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler,
-
     const Self = @This();
-
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        for (&self.samplers) |*s| {
-            s.startPixel(sample, seed);
-        }
-    }
 
     pub fn li(self: *Self, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
@@ -68,7 +60,7 @@ pub const PathtracerMIS = struct {
         while (true) {
             const pr = state.primary_ray;
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(ray.depth);
 
             if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
                 break;
@@ -191,10 +183,6 @@ pub const PathtracerMIS = struct {
             sampler.incrementPadding();
         }
 
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
         return hlp.composeAlpha(result, throughput, state.direct);
     }
 
@@ -313,23 +301,12 @@ pub const PathtracerMIS = struct {
     fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
-
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 3) {
-            return &self.samplers[0];
-        }
-
-        return &self.samplers[1];
-    }
 };
 
 pub const Factory = struct {
     settings: PathtracerMIS.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) PathtracerMIS {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) PathtracerMIS {
+        return .{ .settings = self.settings };
     }
 };
