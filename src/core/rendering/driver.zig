@@ -224,9 +224,7 @@ pub const Driver = struct {
             try e.write(alloc, self.target, crop, null, frame, self.threads);
         }
 
-        const len = View.AovValue.Num_classes;
-        var i: u32 = 0;
-        while (i < len) : (i += 1) {
+        for (0..View.AovValue.Num_classes) |i| {
             const class = @intToEnum(View.AovValue.Class, i);
             if (!self.resolveAov(class)) {
                 continue;
@@ -278,7 +276,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@intToFloat(f32, self.view.numParticleSamplesPerPixel()));
+        camera.sensor.clear(@intToFloat(f32, self.view.num_particles_per_pixel));
 
         self.progressor.start(self.ranges.size());
 

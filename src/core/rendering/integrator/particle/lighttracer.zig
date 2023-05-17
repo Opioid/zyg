@@ -22,7 +22,6 @@ const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
     pub const Settings = struct {
-        num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
         full_light_path: bool,
@@ -30,18 +29,7 @@ pub const Lighttracer = struct {
 
     settings: Settings,
 
-    light_sampler: Sampler = Sampler{ .Sobol = .{} },
-    samplers: [2]Sampler,
-
     const Self = @This();
-
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        self.light_sampler.startPixel(sample, seed);
-
-        for (&self.samplers) |*s| {
-            s.startPixel(sample, seed + 1);
-        }
-    }
 
     pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const InterfaceStack) void {
         _ = initial_stack;
@@ -49,11 +37,14 @@ pub const Lighttracer = struct {
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
         const frustum_bounds = world_bounds;
 
+        var sampler = worker.pickSampler(0);
+
         var light_id: u32 = undefined;
         var light_sample: SampleFrom = undefined;
-        var ray = self.generateLightRay(
+        var ray = generateLightRay(
             frame,
             frustum_bounds,
+            sampler,
             worker,
             &light_id,
             &light_sample,
@@ -67,21 +58,7 @@ pub const Lighttracer = struct {
             worker.interface_stack.pushVolumeLight(light);
         }
 
-        //   var throughput = @splat(4, @as(f32, 1.0));
-
-        var sampler = self.pickSampler(0);
-
         var isec = Intersection{};
-        // if (!worker.interface_stack.empty()) {
-        //     const vr = worker.volume(&ray, throughput, &isec, null, sampler);
-        //     throughput = vr.tr;
-
-        //     if (.Abort == vr.event or .Absorb == vr.event) {
-        //         return;
-        //     }
-        // } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
-        //     return;
-        // }
 
         if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
             return;
@@ -91,27 +68,22 @@ pub const Lighttracer = struct {
             return;
         }
 
+        sampler.incrementPadding();
+
         const throughput = isec.volume.tr;
 
         const initrad = light.evaluateFrom(isec.geo.p, light_sample, sampler, worker.scene) / @splat(4, light_sample.pdf());
         const radiance = throughput * initrad;
 
-        var i = self.settings.num_samples;
-        while (i > 0) : (i -= 1) {
-            worker.interface_stack.clear();
-            if (volumetric) {
-                worker.interface_stack.pushVolumeLight(light);
-            }
-
-            var split_ray = ray;
-            var split_isec = isec;
-
-            self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
-
-            for (&self.samplers) |*s| {
-                s.incrementSample();
-            }
+        worker.interface_stack.clear();
+        if (volumetric) {
+            worker.interface_stack.pushVolumeLight(light);
         }
+
+        var split_ray = ray;
+        var split_isec = isec;
+
+        self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
     }
 
     fn integrate(
@@ -135,7 +107,7 @@ pub const Lighttracer = struct {
         while (true) {
             const wo = -ray.ray.direction;
 
-            var sampler = self.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(ray.depth);
             const mat_sample = worker.sampleMaterial(
                 ray.*,
                 wo,
@@ -198,18 +170,6 @@ pub const Lighttracer = struct {
 
             from_subsurface = from_subsurface or isec.subsurface();
 
-            // if (!worker.interface_stack.empty()) {
-            //     const vr = worker.volume(ray, @splat(4, @as(f32, 1.0)), isec, sampler);
-
-            //     radiance *= vr.tr;
-
-            //     if (.Abort == vr.event or .Absorb == vr.event) {
-            //         break;
-            //     }
-            // } else if (!worker.intersectAndResolveMask(ray, isec)) {
-            //     break;
-            // }
-
             if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), isec, sampler)) {
                 break;
             }
@@ -228,14 +188,13 @@ pub const Lighttracer = struct {
     }
 
     fn generateLightRay(
-        self: *Self,
         frame: u32,
         bounds: AABB,
+        sampler: *Sampler,
         worker: *Worker,
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Ray {
-        var sampler = &self.light_sampler;
         const s2 = sampler.sample2D();
         const l = worker.scene.randomLight(s2[0]);
         const time = worker.absoluteTime(frame, s2[1]);
@@ -246,7 +205,7 @@ pub const Lighttracer = struct {
 
         light_id.* = l.offset;
 
-        sampler.incrementSample();
+        sampler.incrementPadding();
 
         return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
@@ -309,23 +268,12 @@ pub const Lighttracer = struct {
 
         return true;
     }
-
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 3) {
-            return &self.samplers[0];
-        }
-
-        return &self.samplers[1];
-    }
 };
 
 pub const Factory = struct {
     settings: Lighttracer.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) Lighttracer {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) Lighttracer {
+        return .{ .settings = self.settings };
     }
 };

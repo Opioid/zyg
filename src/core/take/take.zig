@@ -44,7 +44,6 @@ pub const View = struct {
     } },
 
     lighttracers: lt.Factory = .{ .settings = .{
-        .num_samples = 0,
         .min_bounces = 0,
         .max_bounces = 0,
         .full_light_path = false,
@@ -70,10 +69,6 @@ pub const View = struct {
     pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
         self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
-    }
-
-    pub fn numParticleSamplesPerPixel(self: *const View) u32 {
-        return self.num_particles_per_pixel * self.lighttracers.settings.num_samples;
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
@@ -209,13 +204,11 @@ pub const View = struct {
     }
 
     fn loadParticleIntegrator(self: *View, value: std.json.Value, surface_integrator: bool) void {
-        const num_samples = json.readUIntMember(value, "num_samples", 1);
         const max_bounces = json.readUIntMember(value, "max_bounces", 8);
         const full_light_path = json.readBoolMember(value, "full_light_path", true);
         self.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
         self.lighttracers = lt.Factory{ .settings = .{
-            .num_samples = num_samples,
             .min_bounces = 1,
             .max_bounces = max_bounces,
             .full_light_path = full_light_path and !surface_integrator,

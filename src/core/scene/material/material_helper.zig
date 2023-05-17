@@ -24,8 +24,7 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
     // https://github.com/kennyalive/YAR/blob/8068aeec1e9df298f9703017f99fe8e046aab94d/src/reference/shading_context.cpp
 
     const ng = rs.geo_n;
-    const b = math.dot3(ng, n);
-    const r = @splat(4, 2.0 * b) * ng - n;
+    const r = math.reflect3(n, wo);
     const a = math.dot3(ng, r);
     if (a >= 0.0) {
         return n;
@@ -38,8 +37,12 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
         return ng;
     }
 
+    const b = math.dot3(ng, n);
+
+    const epsilon = @as(f32, 1e-4);
+
     var tangent: Vec4f = undefined;
-    if (b > 1e-4) {
+    if (b > epsilon) {
         const distance_to_surface_along_normal = @fabs(a) / b;
         tangent = math.normalize3(r + @splat(4, distance_to_surface_along_normal) * n);
     } else {
@@ -48,7 +51,7 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
         tangent = n;
     }
 
-    tangent += @splat(4, @as(f32, 1e-4)) * ng;
+    tangent += @splat(4, epsilon) * ng;
 
     return math.normalize3(wo + tangent);
 }

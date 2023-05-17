@@ -85,8 +85,7 @@ pub const Material = struct {
 
             self.blackbody = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.2, Num_samples);
 
-            var i: u32 = 0;
-            while (i < Num_samples) : (i += 1) {
+            for (0..Num_samples) |i| {
                 const t = Start + @intToFloat(f32, i) / @intToFloat(f32, Num_samples - 1) * (End - Start);
 
                 const c = spectrum.blackbody(t);

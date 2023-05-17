@@ -97,7 +97,7 @@ pub const Worker = struct {
         self.samplers[1] = .{ .Random = .{ .rng = rng } };
 
         self.surface_integrator = surfaces.create();
-        self.lighttracer = lighttracers.create(rng);
+        self.lighttracer = lighttracers.create();
 
         self.aov = aovs.create();
 
@@ -308,12 +308,15 @@ pub const Worker = struct {
 
         var rng = &self.rng;
         rng.start(0, offset);
-        const seed = rng.randomUint();
-        self.lighttracer.startPixel(@truncate(u32, range[0]), seed);
 
-        var i = range[0];
-        while (i < range[1]) : (i += 1) {
+        const tsi = @truncate(u32, range[0]);
+        const seed = @truncate(u32, range[0] >> 32);
+        self.samplers[0].startPixel(tsi, seed);
+
+        for (range[0]..range[1]) |_| {
             self.lighttracer.li(frame, self, &camera.interface_stack);
+
+            self.samplers[0].incrementSample();
         }
     }
 
@@ -465,7 +468,7 @@ pub const Worker = struct {
             }
 
             const o = isec.opacity(sampler, self.scene);
-            if (1.0 == o or (o > 0.0 and o > self.rng.randomFloat())) {
+            if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
 
