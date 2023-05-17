@@ -184,8 +184,7 @@ pub const Worker = struct {
         const seed = @truncate(u32, range[0] >> 32);
         self.samplers[0].startPixel(tsi, seed);
 
-        var i = range[0];
-        while (i < range[1]) : (i += 1) {
+        for (range[0]..range[1]) |_| {
             self.lighttracer.li(frame, self, &camera.interface_stack);
 
             self.samplers[0].incrementSample();

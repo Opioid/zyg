@@ -223,9 +223,7 @@ pub const Driver = struct {
             try e.write(alloc, self.target, crop, null, frame, self.threads);
         }
 
-        const len = View.AovValue.Num_classes;
-        var i: u32 = 0;
-        while (i < len) : (i += 1) {
+        for (0..View.AovValue.Num_classes) |i| {
             const class = @intToEnum(View.AovValue.Class, i);
             if (!self.resolveAov(class)) {
                 continue;
