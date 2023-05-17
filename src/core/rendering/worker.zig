@@ -340,7 +340,7 @@ pub const Worker = struct {
             }
 
             const o = isec.opacity(sampler, self.scene);
-            if (1.0 == o or (o > 0.0 and o > self.rng.randomFloat())) {
+            if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
 
