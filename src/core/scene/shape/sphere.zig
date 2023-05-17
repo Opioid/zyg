@@ -296,10 +296,9 @@ pub const Sphere = struct {
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
         const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
-
         const wn = math.normalize3(ws - trafo.position);
-        const xy = math.orthonormalBasis3(ls);
-        const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], ls);
+        const xy = math.orthonormalBasis3(wn);
+        const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], wn);
 
         const r = trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
