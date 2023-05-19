@@ -126,8 +126,8 @@ const SplitCandidate = struct {
             self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sideds[0]) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sideds[1]) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
+            const cone_weight_b = coneCost(cones[1][3], two_sideds[1]);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -205,8 +205,8 @@ const SplitCandidate = struct {
             self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sided);
+            const cone_weight_b = coneCost(cones[1][3], two_sided);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -437,7 +437,7 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Scene, lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
@@ -484,7 +484,8 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const two_sided = part.lightTwoSided(variant, 0);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Part, lights, bounds, cone_weight, Part_sweep_threshold, self.candidates, part, variant, threads);
 
@@ -506,7 +507,7 @@ pub const Builder = struct {
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
-        node.two_sided = part.lightTwoSided(variant, 0);
+        node.two_sided = two_sided;
 
         return c1_end;
     }
@@ -705,8 +706,8 @@ pub const Builder = struct {
     }
 };
 
-fn coneCost(cos: f32) f32 {
-    const o = std.math.acos(cos);
+fn coneCost(cos: f32, two_sided: bool) f32 {
+    const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
     const w = std.math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);

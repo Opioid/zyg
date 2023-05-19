@@ -160,9 +160,7 @@ fn importance(
     total_sphere: bool,
 ) f32 {
     const axis = p - center;
-
     const l = math.length3(axis);
-
     const na = axis / @splat(4, l);
     const da = cone;
 
@@ -187,8 +185,8 @@ fn importance(
 
     const ra = if (total_sphere) 1.0 else tn;
     const rb = std.math.max(tc, 0.0);
-    const id_min = std.math.min(2.0 / radius, 1.0 / l);
-    const base = power * (id_min * id_min);
+    const d_min = std.math.max(0.5 * radius, l);
+    const base = power / (d_min * d_min);
 
     return std.math.max(ra * rb * base, mat.Dot_min);
 }
