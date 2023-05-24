@@ -125,6 +125,8 @@ pub const View = struct {
                     value_type = .GeometricNormal;
                 } else if (std.mem.eql(u8, "Shading_normal", value_name)) {
                     value_type = .ShadingNormal;
+                } else if (std.mem.eql(u8, "Light_sample_count", value_name)) {
+                    value_type = .LightSampleCount;
                 } else if (std.mem.eql(u8, "Photons", value_name)) {
                     value_type = .Photons;
                 }
@@ -132,6 +134,8 @@ pub const View = struct {
                 const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
+
+                loadLightSampling(entry.value_ptr.*, &light_sampling);
 
                 self.surfaces = surface.Factory{ .AOV = .{
                     .settings = .{

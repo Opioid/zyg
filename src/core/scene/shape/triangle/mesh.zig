@@ -222,8 +222,9 @@ pub const Part = struct {
     }
 
     pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+        // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
-        return dist.pdfI(light) * dist.integral;
+        return dist.pdfI(light); // * dist.integral;
     }
 
     const Temp = struct {
