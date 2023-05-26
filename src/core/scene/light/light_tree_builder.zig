@@ -55,6 +55,34 @@ const BuildNode = struct {
             }
         }
     }
+
+    pub fn countSplitDepth(self: BuildNode, nodes: []const BuildNode, split_depth: *u32, budget: *i32) bool {
+        if (!self.hasChildren()) {
+            budget.* -= @intCast(i32, self.num_lights);
+        } else if (budget.* > 0) {
+            const a = nodes[self.children_or_light].countSplitDepth(nodes, split_depth, budget);
+            const b = nodes[self.children_or_light + 1].countSplitDepth(nodes, split_depth, budget);
+
+            if (a and b) {
+                split_depth.* += 1;
+            }
+
+            budget.* -= 2;
+        }
+
+        return budget.* > 0;
+    }
+
+    pub fn countLightsPerSplitDepth(self: BuildNode, nodes: []const BuildNode, depth: u32, splits: []u32) void {
+        if (!self.hasChildren()) {
+            splits[depth] += self.num_lights;
+        } else {
+            splits[depth] += 2;
+
+            nodes[self.children_or_light].countLightsPerSplitDepth(nodes, depth + 1, splits);
+            nodes[self.children_or_light + 1].countLightsPerSplitDepth(nodes, depth + 1, splits);
+        }
+    }
 };
 
 const SplitCandidate = struct {
@@ -318,6 +346,38 @@ pub const Builder = struct {
                     infinite_depth_bias = std.math.max(@floatToInt(u32, @ceil(@log2(rest))), 1);
                 }
             }
+
+            // var budget: i32 = @intCast(i32, Tree.Max_lights) - @intCast(i32, num_infinite_lights);
+            // var split_depth: u32 = 0;
+
+            // _ = self.build_nodes[0].countSplitDepth(self.build_nodes, &split_depth, &budget);
+
+            // std.debug.print("split depth {}\n", .{split_depth});
+
+            var splits = [_]u32{0} ** 16;
+
+            self.build_nodes[0].countLightsPerSplitDepth(self.build_nodes, 0, &splits);
+
+            //   var my_depth_bias: u32 = 0;
+            var max_split_depth: u32 = undefined;
+            var num_split_lights: u32 = 0;
+            for (splits, 1..) |s, i| {
+                // if (split >= Tree.Max_lights - num_infinite_lights) {
+                //     split_depth = i - 1;
+                //     break;
+                // }
+
+                num_split_lights += s;
+
+                if (num_split_lights >= Tree.Max_lights - num_infinite_lights) {
+                    max_split_depth = @intCast(u32, i) - 1;
+                    break;
+                }
+
+                std.debug.print("{}: {}\n", .{ i - 1, num_split_lights });
+            }
+
+            std.debug.print("{}\n", .{max_split_depth});
         } else {
             try tree.allocateNodes(alloc, 0);
         }
