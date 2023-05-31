@@ -213,11 +213,8 @@ fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype,
 }
 
 pub const Tree = struct {
-    pub const Max_split_depth = 5;
-
-    // (Max_split_depth + 1) to have space for worst case where we want to split on a leaf node,
-    // which can have up to 4 lights
-    pub const Max_lights = 1 << (Max_split_depth + 1);
+    pub const Max_split_depth = 12;
+    pub const Max_lights = 64;
 
     pub const Lights = [Max_lights]Pick;
 
@@ -225,7 +222,7 @@ pub const Tree = struct {
     infinite_guard: f32 = undefined,
 
     infinite_end: u32 = undefined,
-    infinite_depth_bias: u32 = undefined,
+    max_split_depth: u32 = undefined,
     num_lights: u32 = 0,
     num_infinite_lights: u32 = 0,
     num_nodes: u32 = 0,
@@ -296,12 +293,9 @@ pub const Tree = struct {
         var current_light: u32 = 0;
 
         var ip: f32 = 0.0;
-        var depth_bias: u32 = 0;
         const num_infinite_lights = self.num_infinite_lights;
 
         if (split and num_infinite_lights < Max_lights - 1) {
-            depth_bias = self.infinite_depth_bias;
-
             for (self.light_mapping[0..num_infinite_lights]) |lm| {
                 buffer[current_light] = .{ .offset = lm, .pdf = 1.0 };
                 current_light += 1;
@@ -322,13 +316,15 @@ pub const Tree = struct {
 
         const pd = 1.0 - ip;
 
+        const max_split_depth = self.max_split_depth;
+
         var stack: TraversalStack = .{};
 
         var t: TraversalStack.Value = .{
             .pdf = pd,
             .random = (random - ip) / pd,
             .node = 0,
-            .depth = if (split) depth_bias else Max_split_depth,
+            .depth = if (split) 0 else max_split_depth,
         };
 
         stack.push(t);
@@ -336,7 +332,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = self.nodes[t.node];
 
-            const do_split = t.depth < Max_split_depth and node.split(p);
+            const do_split = t.depth < max_split_depth and node.split(p);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
@@ -365,7 +361,7 @@ pub const Tree = struct {
                         t.random = std.math.min((t.random - p0) / p1, 1.0);
                     }
 
-                    t.depth = Max_split_depth;
+                    t.depth = max_split_depth;
                 }
             } else {
                 if (do_split) {
@@ -406,15 +402,16 @@ pub const Tree = struct {
         }
 
         const ip = if (split_infinite) 0.0 else self.infinite_weight;
+        const max_split_depth = self.max_split_depth;
 
         var pd = 1.0 - ip;
 
         var nid: u32 = 0;
-        var depth: u32 = if (split) self.infinite_depth_bias else Max_split_depth;
+        var depth: u32 = if (split) 0 else max_split_depth;
         while (true) : (depth += 1) {
             const node = self.nodes[nid];
 
-            const do_split = depth < Max_split_depth and node.split(p);
+            const do_split = depth < max_split_depth and node.split(p);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
@@ -441,7 +438,7 @@ pub const Tree = struct {
                         pd *= p1 / pt;
                     }
 
-                    depth = Max_split_depth;
+                    depth = max_split_depth;
                 }
             } else {
                 if (do_split) {

@@ -39,48 +39,17 @@ const BuildNode = struct {
         return self.middle > 0;
     }
 
-    pub fn countMaxSplits(self: BuildNode, depth: u32, nodes: []const BuildNode, splits: *u32) void {
-        if (0 == self.middle) {
-            if (depth < Tree.Max_split_depth) {
-                splits.* += self.num_lights;
-            } else {
-                splits.* += 1;
-            }
-        } else {
-            if (depth == Tree.Max_split_depth - 1) {
-                splits.* += 2;
-            } else {
-                nodes[self.children_or_light].countMaxSplits(depth + 1, nodes, splits);
-                nodes[self.children_or_light + 1].countMaxSplits(depth + 1, nodes, splits);
-            }
-        }
-    }
-
-    pub fn countSplitDepth(self: BuildNode, nodes: []const BuildNode, split_depth: *u32, budget: *i32) bool {
-        if (!self.hasChildren()) {
-            budget.* -= @intCast(i32, self.num_lights);
-        } else if (budget.* > 0) {
-            const a = nodes[self.children_or_light].countSplitDepth(nodes, split_depth, budget);
-            const b = nodes[self.children_or_light + 1].countSplitDepth(nodes, split_depth, budget);
-
-            if (a and b) {
-                split_depth.* += 1;
-            }
-
-            budget.* -= 2;
-        }
-
-        return budget.* > 0;
-    }
-
-    pub fn countLightsPerSplitDepth(self: BuildNode, nodes: []const BuildNode, depth: u32, splits: []u32) void {
+    pub fn countLightsPerDepth(self: BuildNode, nodes: []const BuildNode, depth: u32, splits: []u32, max_depth: u32) void {
         if (!self.hasChildren()) {
             splits[depth] += self.num_lights;
         } else {
             splits[depth] += 2;
 
-            nodes[self.children_or_light].countLightsPerSplitDepth(nodes, depth + 1, splits);
-            nodes[self.children_or_light + 1].countLightsPerSplitDepth(nodes, depth + 1, splits);
+            const next_depth = depth + 1;
+            if (next_depth < max_depth) {
+                nodes[self.children_or_light].countLightsPerDepth(nodes, next_depth, splits, max_depth);
+                nodes[self.children_or_light + 1].countLightsPerDepth(nodes, next_depth, splits, max_depth);
+            }
         }
     }
 };
@@ -312,7 +281,8 @@ pub const Builder = struct {
         try tree.infinite_light_distribution.configure(alloc, tree.infinite_light_powers[0..tree.num_infinite_lights], 0);
 
         const num_finite_lights = num_lights - num_infinite_lights;
-        var infinite_depth_bias: u32 = 0;
+
+        var max_split_depth: u32 = Tree.Max_split_depth;
 
         if (num_finite_lights > 0) {
             try self.allocate(alloc, num_finite_lights, Scene_sweep_threshold);
@@ -336,45 +306,19 @@ pub const Builder = struct {
             try tree.allocateNodes(alloc, self.current_node);
             self.serialize(tree.nodes, tree.node_middles);
 
-            var max_splits: u32 = 0;
-            self.build_nodes[0].countMaxSplits(0, self.build_nodes, &max_splits);
+            var splits = [_]u32{0} ** Tree.Max_split_depth;
+            self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
 
-            if (num_infinite_lights > 0 and num_infinite_lights < Tree.Max_lights - 1) {
-                const left = Tree.Max_lights - max_splits;
-                if (left < num_infinite_lights) {
-                    const rest = @intToFloat(f32, num_infinite_lights - left);
-                    infinite_depth_bias = std.math.max(@floatToInt(u32, @ceil(@log2(rest))), 1);
-                }
-            }
-
-            // var budget: i32 = @intCast(i32, Tree.Max_lights) - @intCast(i32, num_infinite_lights);
-            // var split_depth: u32 = 0;
-
-            // _ = self.build_nodes[0].countSplitDepth(self.build_nodes, &split_depth, &budget);
-
-            // std.debug.print("split depth {}\n", .{split_depth});
-
-            var splits = [_]u32{0} ** 16;
-
-            self.build_nodes[0].countLightsPerSplitDepth(self.build_nodes, 0, &splits);
-
-            //   var my_depth_bias: u32 = 0;
-            var max_split_depth: u32 = undefined;
             var num_split_lights: u32 = 0;
-            for (splits, 1..) |s, i| {
-                // if (split >= Tree.Max_lights - num_infinite_lights) {
-                //     split_depth = i - 1;
-                //     break;
-                // }
-
+            for (splits, 0..) |s, i| {
                 num_split_lights += s;
 
-                if (num_split_lights >= Tree.Max_lights - num_infinite_lights) {
-                    max_split_depth = @intCast(u32, i) - 1;
+                if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
+                    max_split_depth = @intCast(u32, i);
                     break;
                 }
 
-                std.debug.print("{}: {}\n", .{ i - 1, num_split_lights });
+                std.debug.print("{}: {}\n", .{ i, num_split_lights });
             }
 
             std.debug.print("{}\n", .{max_split_depth});
@@ -382,7 +326,7 @@ pub const Builder = struct {
             try tree.allocateNodes(alloc, 0);
         }
 
-        tree.infinite_depth_bias = infinite_depth_bias;
+        tree.max_split_depth = max_split_depth;
 
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
