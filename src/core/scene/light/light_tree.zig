@@ -338,9 +338,10 @@ pub const Tree = struct {
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
+                t.depth += 1;
+
                 if (do_split) {
                     t.node = c0;
-
                     stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
                     var p0 = self.nodes[c0].weight(p, n, total_sphere);
@@ -361,8 +362,6 @@ pub const Tree = struct {
                         t.random = std.math.min((t.random - p0) / p1, 1.0);
                     }
                 }
-
-                t.depth += 1;
             } else {
                 if (do_split) {
                     const begin = node.meta.children_or_light;
