@@ -246,7 +246,7 @@ pub const Perspective = struct {
     pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
         var motion_blur = true;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
                 self.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
@@ -339,7 +339,7 @@ pub const Perspective = struct {
     fn loadFocus(value: std.json.Value) Focus {
         var focus = Focus{};
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "point", entry.key_ptr.*)) {
                 focus.point = json.readVec4f3(entry.value_ptr.*);

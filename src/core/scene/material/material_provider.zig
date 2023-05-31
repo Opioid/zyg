@@ -40,7 +40,7 @@ pub const Provider = struct {
     force_debug_material: bool = false,
 
     pub fn init(alloc: Allocator) Provider {
-        return .{ .parser = std.json.Parser.init(alloc, false) };
+        return .{ .parser = std.json.Parser.init(alloc, .alloc_if_needed) };
     }
 
     pub fn deinit(self: *Provider, alloc: Allocator) void {
@@ -127,11 +127,11 @@ pub const Provider = struct {
     }
 
     fn loadMaterial(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) !Material {
-        const rendering_node = value.Object.get("rendering") orelse {
+        const rendering_node = value.object.get("rendering") orelse {
             return Error.NoRenderNode;
         };
 
-        var iter = rendering_node.Object.iterator();
+        var iter = rendering_node.object.iterator();
         while (iter.next()) |entry| {
             if (self.force_debug_material) {
                 if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
@@ -171,7 +171,7 @@ pub const Provider = struct {
     fn updateGlass(self: *Provider, alloc: Allocator, material: *mat.Glass, value: std.json.Value, resources: *Resources) void {
         var attenuation_color = @splat(4, @as(f32, 1.0));
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
@@ -205,7 +205,7 @@ pub const Provider = struct {
     }
 
     fn updateLight(self: *Provider, alloc: Allocator, material: *mat.Light, value: std.json.Value, resources: *Resources) void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
@@ -233,7 +233,7 @@ pub const Provider = struct {
         var attenuation_color = @splat(4, @as(f32, 0.0));
         var subsurface_color = @splat(4, @as(f32, 0.0));
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
@@ -253,19 +253,19 @@ pub const Provider = struct {
                 var checkers: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
                 var checkers_scale: f32 = 0.0;
 
-                var citer = entry.value_ptr.Object.iterator();
+                var citer = entry.value_ptr.object.iterator();
                 while (citer.next()) |cn| {
                     if (std.mem.eql(u8, "scale", cn.key_ptr.*)) {
                         checkers_scale = json.readFloat(f32, cn.value_ptr.*);
                     } else if (std.mem.eql(u8, "colors", cn.key_ptr.*)) {
-                        checkers[0] = readColor(cn.value_ptr.Array.items[0]);
-                        checkers[1] = readColor(cn.value_ptr.Array.items[1]);
+                        checkers[0] = readColor(cn.value_ptr.array.items[0]);
+                        checkers[1] = readColor(cn.value_ptr.array.items[1]);
                     }
                 }
 
                 material.setCheckers(checkers[0], checkers[1], checkers_scale);
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
-                const eta_k = metal.iorAndAbsorption(entry.value_ptr.String);
+                const eta_k = metal.iorAndAbsorption(entry.value_ptr.string);
                 material.setColor(MappedValue(Vec4f).init(fresnel.conductor(eta_k[0], eta_k[1], 1.0)));
                 material.metallic = 1.0;
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
@@ -294,7 +294,7 @@ pub const Provider = struct {
                 var coating_color = @splat(4, @as(f32, 1.0));
                 var coating_attenuation_distance: f32 = 0.1;
 
-                var citer = entry.value_ptr.Object.iterator();
+                var citer = entry.value_ptr.object.iterator();
                 while (citer.next()) |c| {
                     if (std.mem.eql(u8, "color", c.key_ptr.*)) {
                         coating_color = readColor(c.value_ptr.*);
@@ -329,7 +329,7 @@ pub const Provider = struct {
 
                 material.setCoatingAttenuation(coating_color, coating_attenuation_distance);
             } else if (std.mem.eql(u8, "flakes", entry.key_ptr.*)) {
-                var citer = entry.value_ptr.Object.iterator();
+                var citer = entry.value_ptr.object.iterator();
                 while (citer.next()) |c| {
                     if (std.mem.eql(u8, "color", c.key_ptr.*)) {
                         material.flakes_color = readColor(c.value_ptr.*);
@@ -369,7 +369,7 @@ pub const Provider = struct {
         var use_attenuation_color = false;
         var use_subsurface_color = false;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
                 material.density_map = readTexture(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
@@ -415,11 +415,11 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     const quantity = json.readStringMember(jvalue, "quantity", "");
 
     var color = @splat(4, @as(f32, 1.0));
-    if (jvalue.Object.get("spectrum")) |s| {
+    if (jvalue.object.get("spectrum")) |s| {
         color = readColor(s);
     }
 
-    if (jvalue.Object.get("profile")) |p| {
+    if (jvalue.object.get("profile")) |p| {
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
@@ -456,15 +456,15 @@ const TextureDescription = struct {
         var desc = TextureDescription{};
 
         switch (value) {
-            .Object => |o| {
+            .object => |o| {
                 var iter = o.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
-                        desc.filename = try alloc.dupe(u8, entry.value_ptr.String);
+                        desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
                     } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
                         desc.id = json.readUInt(entry.value_ptr.*);
                     } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
-                        const swizzle = entry.value_ptr.String;
+                        const swizzle = entry.value_ptr.string;
 
                         if (std.mem.eql(u8, "X", swizzle)) {
                             desc.swizzle = .X;
@@ -477,7 +477,7 @@ const TextureDescription = struct {
                         }
                     } else if (std.mem.eql(u8, "scale", entry.key_ptr.*)) {
                         desc.scale = switch (entry.value_ptr.*) {
-                            .Array => json.readVec2f(entry.value_ptr.*),
+                            .array => json.readVec2f(entry.value_ptr.*),
                             else => @splat(2, json.readFloat(f32, entry.value_ptr.*)),
                         };
                     } else if (std.mem.eql(u8, "invert", entry.key_ptr.*)) {
@@ -502,7 +502,7 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
     var key = ts.Key{};
 
     switch (value) {
-        .Object => |o| {
+        .object => |o| {
             var iter = o.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
@@ -515,7 +515,7 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
                     }
                 } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
                     switch (entry.value_ptr.*) {
-                        .Array => |a| {
+                        .array => |a| {
                             key.address.u = readAddress(a.items[0]);
                             key.address.v = readAddress(a.items[1]);
                         },
@@ -550,10 +550,10 @@ fn mapColor(color: Vec4f) Vec4f {
 
 fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
-        .Array => mapColor(json.readVec4f3(value)),
-        .Integer => |i| mapColor(@splat(4, @intToFloat(f32, i))),
-        .Float => |f| mapColor(@splat(4, @floatCast(f32, f))),
-        .Object => |o| {
+        .array => mapColor(json.readVec4f3(value)),
+        .integer => |i| mapColor(@splat(4, @intToFloat(f32, i))),
+        .float => |f| mapColor(@splat(4, @floatCast(f32, f))),
+        .object => |o| {
             var rgb = @splat(4, @as(f32, 0.0));
             var linear = true;
 
@@ -643,13 +643,13 @@ fn readValue(
 
     if (Vec4f == Value) {
         switch (value) {
-            .Object => {
+            .object => {
                 var desc = TextureDescription.init(alloc, value) catch return result;
                 defer desc.deinit(alloc);
 
                 result.texture = createTexture(alloc, desc, usage, tex, resources);
 
-                if (value.Object.get("value")) |n| {
+                if (value.object.get("value")) |n| {
                     result.value = readColor(n);
                 }
             },
@@ -659,7 +659,7 @@ fn readValue(
         return result;
     } else {
         switch (value) {
-            .Object => {
+            .object => {
                 var desc = TextureDescription.init(alloc, value) catch return result;
                 defer desc.deinit(alloc);
 

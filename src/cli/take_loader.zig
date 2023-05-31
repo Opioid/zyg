@@ -29,7 +29,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
-    var parser = std.json.Parser.init(alloc, false);
+    var parser = std.json.Parser.init(alloc, .alloc_if_needed);
     defer parser.deinit();
 
     var document = try parser.parse(buffer);
@@ -37,8 +37,8 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
 
     const root = document.root;
 
-    if (root.Object.get("scene")) |scene_filename| {
-        take.scene_filename = try alloc.dupe(u8, scene_filename.String);
+    if (root.object.get("scene")) |scene_filename| {
+        take.scene_filename = try alloc.dupe(u8, scene_filename.string);
     }
 
     if (0 == take.scene_filename.len) {
@@ -49,7 +49,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     var integrator_value_ptr: ?*std.json.Value = null;
     var post_value_ptr: ?*std.json.Value = null;
 
-    var iter = root.Object.iterator();
+    var iter = root.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
             take.view.loadAOV(entry.value_ptr.*);
@@ -85,7 +85,7 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
-    var parser = std.json.Parser.init(alloc, false);
+    var parser = std.json.Parser.init(alloc, .alloc_if_needed);
     defer parser.deinit();
 
     var document = try parser.parse(buffer);
@@ -93,8 +93,8 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
 
     const root = document.root;
 
-    if (root.Object.get("camera")) |camera_node| {
-        var iter = camera_node.Object.iterator();
+    if (root.object.get("camera")) |camera_node| {
+        var iter = camera_node.object.iterator();
         if (iter.next()) |type_value| {
             var trafo = Transformation{
                 .position = @splat(4, @as(f32, 0.0)),
@@ -102,7 +102,7 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
                 .rotation = math.quaternion.identity,
             };
 
-            if (type_value.value_ptr.Object.get("transformation")) |trafo_node| {
+            if (type_value.value_ptr.object.get("transformation")) |trafo_node| {
                 json.readTransformation(trafo_node, &trafo);
             }
 
@@ -118,7 +118,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     var type_value_ptr: ?*std.json.Value = null;
 
     {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             type_value_ptr = entry.value_ptr;
         }
@@ -138,7 +138,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
     };
 
     if (type_value_ptr) |type_value| {
-        var iter = type_value.Object.iterator();
+        var iter = type_value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
                 param_value_ptr = entry.value_ptr;
@@ -178,13 +178,13 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     var filter_value_ptr: ?*std.json.Value = null;
 
     {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
                 alpha_transparency = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
                 switch (entry.value_ptr.*) {
-                    .Array => |a| clamp_max = json.readFloat(f32, a.items[0]),
+                    .array => |a| clamp_max = json.readFloat(f32, a.items[0]),
                     else => clamp_max = json.readFloat(f32, entry.value_ptr.*),
                 }
             } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
@@ -196,7 +196,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     if (filter_value_ptr) |filter_value| {
         const radius: f32 = 2.0;
 
-        var iter = filter_value.Object.iterator();
+        var iter = filter_value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
                 const filter = snsr.Blackman{ .r = radius };
@@ -228,7 +228,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
 }
 
 fn loadSampler(value: std.json.Value, view: *View) void {
-    var iter = value.Object.iterator();
+    var iter = value.object.iterator();
     while (iter.next()) |entry| {
         view.num_samples_per_pixel = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
 
@@ -242,8 +242,8 @@ fn loadSampler(value: std.json.Value, view: *View) void {
 }
 
 fn loadPostProcessors(value: std.json.Value, view: *View) void {
-    for (value.Array.items) |pp| {
-        var iter = pp.Object.iterator();
+    for (value.array.items) |pp| {
+        var iter = pp.object.iterator();
         if (iter.next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
                 view.camera.sensor.setTonemapper(loadTonemapper(entry.value_ptr.*));
@@ -253,7 +253,7 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
 }
 
 fn loadTonemapper(value: std.json.Value) Tonemapper {
-    var iter = value.Object.iterator();
+    var iter = value.object.iterator();
     while (iter.next()) |entry| {
         const exposure = json.readFloatMember(entry.value_ptr.*, "exposure", 0.0);
 

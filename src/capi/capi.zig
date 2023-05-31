@@ -175,7 +175,7 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
 
 export fn su_exporters_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
+        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
@@ -191,7 +191,7 @@ export fn su_exporters_create(string: [*:0]const u8) i32 {
 
 export fn su_aovs_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
+        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
@@ -215,7 +215,7 @@ export fn su_sampler_create(num_samples: u32) i32 {
 
 export fn su_integrators_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
+        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
@@ -335,7 +335,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
 
 export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
+        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
@@ -351,7 +351,7 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
 
 export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
+        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = parser.parse(string[0..std.mem.len(string)]) catch return -2;

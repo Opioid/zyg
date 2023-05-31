@@ -342,7 +342,7 @@ pub const Grid = struct {
     pub fn initCells(self: *Self, photons: []Photon) void {
         self.photons = photons;
 
-        std.sort.sort(Photon, photons, self, compareByMap);
+        std.mem.sort(Photon, photons, self, compareByMap);
 
         var current: u32 = 0;
         for (self.grid, 0..) |*cell, c| {

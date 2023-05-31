@@ -78,7 +78,7 @@ pub const Sky = struct {
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value) void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "sun", entry.key_ptr.*)) {
                 const angles = json.readVec4f3Member(entry.value_ptr.*, "rotation", @splat(4, @as(f32, 0.0)));

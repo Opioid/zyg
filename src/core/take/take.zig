@@ -70,7 +70,7 @@ pub const View = struct {
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Albedo", entry.key_ptr.*)) {
                 self.aovs.set(.Albedo, json.readBool(entry.value_ptr.*));
@@ -87,13 +87,13 @@ pub const View = struct {
     }
 
     pub fn loadIntegrators(self: *View, value: std.json.Value) void {
-        if (value.Object.get("particle")) |particle_node| {
+        if (value.object.get("particle")) |particle_node| {
             self.loadParticleIntegrator(particle_node, self.num_samples_per_pixel > 0);
         }
 
         const lighttracer = self.num_particles_per_pixel > 0;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 self.loadSurfaceIntegrator(entry.value_ptr.*, lighttracer);
@@ -111,7 +111,7 @@ pub const View = struct {
 
         const Default_caustics = true;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "AOV", entry.key_ptr.*)) {
                 const value_name = json.readStringMember(entry.value_ptr.*, "value", "");
@@ -194,7 +194,7 @@ pub const View = struct {
     }
 
     fn loadVolumeIntegrator(value: std.json.Value) void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
                 const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
@@ -227,12 +227,12 @@ pub const View = struct {
     }
 
     fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {
-        const light_sampling_node = value.Object.get("light_sampling") orelse return;
+        const light_sampling_node = value.object.get("light_sampling") orelse return;
 
-        var iter = light_sampling_node.Object.iterator();
+        var iter = light_sampling_node.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "strategy", entry.key_ptr.*)) {
-                const strategy = entry.value_ptr.String;
+                const strategy = entry.value_ptr.string;
 
                 if (std.mem.eql(u8, "Single", strategy)) {
                     sampling.* = .Single;
@@ -279,7 +279,7 @@ pub const Take = struct {
     pub fn loadExporters(self: *Take, alloc: Allocator, value: std.json.Value) !void {
         self.clearExporters(alloc);
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
                 const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");

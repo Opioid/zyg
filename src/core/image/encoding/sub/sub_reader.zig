@@ -34,15 +34,15 @@ pub const Reader = struct {
 
         _ = try stream.read(json_string);
 
-        var parser = std.json.Parser.init(alloc, false);
+        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
         defer parser.deinit();
 
         var document = try parser.parse(json_string);
         defer document.deinit();
 
-        const image_node = document.root.Object.get("image") orelse return Error.NoImageDeclaration;
+        const image_node = document.root.object.get("image") orelse return Error.NoImageDeclaration;
 
-        const description_node = image_node.Object.get("description") orelse return Error.NoImageDescription;
+        const description_node = image_node.object.get("description") orelse return Error.NoImageDescription;
 
         const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(4, @as(i32, -1)));
 
@@ -55,13 +55,13 @@ pub const Reader = struct {
         const image_type = try readImageType(description_node);
         //   const topology_node =
 
-        const pixels_node = image_node.Object.get("pixels") orelse return Error.NoPixels;
+        const pixels_node = image_node.object.get("pixels") orelse return Error.NoPixels;
 
         var pixels_offset: u64 = 0;
         var pixels_size: u64 = 0;
 
         {
-            var iter = pixels_node.Object.iterator();
+            var iter = pixels_node.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "binary", entry.key_ptr.*)) {
                     pixels_offset = json.readUInt64Member(entry.value_ptr.*, "offset", 0);
@@ -74,12 +74,12 @@ pub const Reader = struct {
 
         const description = img.Description.init3D(dimensions);
 
-        if (image_node.Object.get("topology")) |topology_node| {
+        if (image_node.object.get("topology")) |topology_node| {
             var topology_offset: u64 = 0;
             var topology_size: u64 = 0;
 
             {
-                var iter = topology_node.Object.iterator();
+                var iter = topology_node.object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "binary", entry.key_ptr.*)) {
                         topology_offset = json.readUInt64Member(entry.value_ptr.*, "offset", 0);
@@ -178,9 +178,9 @@ pub const Reader = struct {
     }
 
     fn readImageType(value: std.json.Value) !img.Type {
-        const node = value.Object.get("type") orelse return Error.UndefinedImageType;
+        const node = value.object.get("type") orelse return Error.UndefinedImageType;
 
-        const type_name = node.String;
+        const type_name = node.string;
 
         if (std.mem.eql(u8, "Byte1", type_name)) {
             return img.Type.Byte1;

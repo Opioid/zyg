@@ -23,7 +23,7 @@ pub fn load(
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
     const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps)) else 0;
 
-    var iter = value.Object.iterator();
+    var iter = value.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "keyframes", entry.key_ptr.*)) {
             return loadKeyframes(
@@ -51,7 +51,7 @@ pub fn loadKeyframes(
     graph: *Graph,
 ) !u32 {
     return switch (value) {
-        .Array => |array| {
+        .array => |array| {
             const animation = try graph.createAnimation(alloc, @intCast(u32, array.items.len));
 
             var current_time = start_time;
@@ -59,7 +59,7 @@ pub fn loadKeyframes(
             for (array.items, 0..) |n, i| {
                 var keyframe = Keyframe{ .k = default_trafo, .time = current_time };
 
-                var iter = n.Object.iterator();
+                var iter = n.object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "time", entry.key_ptr.*)) {
                         keyframe.time = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
