@@ -213,7 +213,7 @@ fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype,
 }
 
 pub const Tree = struct {
-    pub const Max_split_depth = 12;
+    pub const Max_split_depth = 8;
     pub const Max_lights = 64;
 
     pub const Lights = [Max_lights]Pick;
@@ -340,7 +340,7 @@ pub const Tree = struct {
 
                 if (do_split) {
                     t.node = c0;
-                    t.depth += 1;
+
                     stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
                     var p0 = self.nodes[c0].weight(p, n, total_sphere);
@@ -360,9 +360,9 @@ pub const Tree = struct {
                         t.pdf *= p1;
                         t.random = std.math.min((t.random - p0) / p1, 1.0);
                     }
-
-                    t.depth = max_split_depth;
                 }
+
+                t.depth += 1;
             } else {
                 if (do_split) {
                     const begin = node.meta.children_or_light;
@@ -437,8 +437,6 @@ pub const Tree = struct {
                         nid = c1;
                         pd *= p1 / pt;
                     }
-
-                    depth = max_split_depth;
                 }
             } else {
                 if (do_split) {
