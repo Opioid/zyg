@@ -317,11 +317,7 @@ pub const Builder = struct {
                     max_split_depth = @intCast(u32, i);
                     break;
                 }
-
-                std.debug.print("{}: {}\n", .{ i, num_split_lights });
             }
-
-            std.debug.print("{}\n", .{max_split_depth});
         } else {
             try tree.allocateNodes(alloc, 0);
         }

@@ -138,4 +138,12 @@ pub const Intersection = struct {
 
         return ro.offsetRay(p, geo_n);
     }
+
+    pub fn offsetT(self: Self, min_t: f32) f32 {
+        const p = self.geo.p;
+        const n = self.geo.geo_n;
+
+        const t = math.hmax3(@fabs(p * n));
+        return ro.offsetF(t + min_t) - t;
+    }
 };

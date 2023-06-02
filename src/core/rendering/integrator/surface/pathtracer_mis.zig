@@ -118,7 +118,7 @@ pub const PathtracerMIS = struct {
 
             result += throughput * self.sampleLights(ray.*, isec, &mat_sample, sampler, worker);
 
-            var effective_bxdf_pdf = sample_result.pdf;
+            const previous_bxdf_pdf = sample_result.pdf;
 
             sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -133,9 +133,6 @@ pub const PathtracerMIS = struct {
                 state.treat_as_singular = true;
             } else if (!sample_result.class.straight) {
                 state.treat_as_singular = false;
-
-                effective_bxdf_pdf = sample_result.pdf;
-
                 if (pr) {
                     state.primary_ray = false;
 
@@ -146,39 +143,36 @@ pub const PathtracerMIS = struct {
                 }
             }
 
+            old_throughput = throughput;
+            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 ray.depth += 1;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                ray.ray.setMinMaxT(isec.offsetT(ray.ray.maxT()), ro.Ray_max_t);
+
+                sample_result.pdf = previous_bxdf_pdf;
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 state.direct = false;
                 state.from_subsurface = false;
+                state.is_translucent = mat_sample.isTranslucent();
+                geo_n = mat_sample.super().geometricNormal();
             }
 
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
             }
 
-            old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
-
             if (sample_result.class.transmission) {
                 worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
             state.from_subsurface = state.from_subsurface or isec.subsurface();
-
-            if (sample_result.class.straight and !state.treat_as_singular) {
-                sample_result.pdf = effective_bxdf_pdf;
-            } else {
-                state.is_translucent = mat_sample.isTranslucent();
-                geo_n = mat_sample.super().geometricNormal();
-            }
 
             sampler.incrementPadding();
         }
