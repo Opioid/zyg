@@ -69,10 +69,11 @@ pub const Model = struct {
     }
 
     pub fn evaluateSky(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const vd = [3]f64{ @floatCast(f64, wi[0]), @floatCast(f64, wi[2]), @floatCast(f64, wi[1]) };
-        const ud = [3]f64{ 0.0, 0.0, 1.0 };
+        const wi_dot_z = std.math.clamp(wi[1], -1.0, 1.0);
+        const theta = std.math.acos(wi_dot_z);
 
-        var theta: f64 = undefined;
+        const vd = [3]f64{ @floatCast(f64, wi[0]), @floatCast(f64, wi[2]), @floatCast(f64, wi[1]) };
+
         var gamma: f64 = undefined;
         var shadow: f64 = undefined;
 
@@ -80,8 +81,6 @@ pub const Model = struct {
             self.sun_elevation,
             self.sun_azimuth,
             &vd,
-            &ud,
-            &theta,
             &gamma,
             &shadow,
         );

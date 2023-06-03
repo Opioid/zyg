@@ -189,8 +189,6 @@ void arpragueskymodelground_compute_angles(
 	const double		           sun_elevation,
 	const double		           sun_azimuth,
 	const double		         * view_direction,
-	const double		         * up_direction,
-		  double                 * theta,
 		  double                 * gamma,
 		  double                 * shadow
 	);
