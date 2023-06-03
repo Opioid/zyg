@@ -259,8 +259,7 @@ pub const Part = struct {
 
             var temp: Temp = .{};
 
-            var i = begin;
-            while (i < end) : (i += 1) {
+            for (begin..end) |i| {
                 const t = self.part.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
