@@ -101,7 +101,6 @@ pub const Model = struct {
                     theta,
                     gamma,
                     shadow,
-
                     Spectrum.randomWavelength(i, s),
                 )) / @intToFloat(f32, samples.len);
             }

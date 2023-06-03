@@ -371,7 +371,7 @@ void arpragueskymodelground_compute_angles(
 
 	const double sun_direction[] = {cos(sun_azimuth) * cos(sun_elevation), sin(sun_azimuth) * cos(sun_elevation), sin(sun_elevation)};
 	const double cosGamma = view_direction[0] * sun_direction[0] + view_direction[1] * sun_direction[1] + view_direction[2] * sun_direction[2];
-    *gamma = acos(cosGamma);
+    *gamma = acos(fmax(cosGamma, -1.0));
 
     // Shadow angle
 
