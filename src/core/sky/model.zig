@@ -23,8 +23,8 @@ const Error = error{
 pub const Model = struct {
     state: *c.ArPragueSkyModelGroundState,
 
-    sun_elevation: f32,
-    sun_azimuth: f32,
+    sun_direction: Vec4f,
+    shadow_direction: Vec4f,
 
     pub const Angular_radius = c.PSMG_SUN_RADIUS;
 
@@ -36,8 +36,7 @@ pub const Model = struct {
         var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();
 
-        const sun_elevation = elevation(sun_direction);
-        const sun_azimuth = azimuth(sun_direction);
+        const sun_elevation = -std.math.asin(sun_direction[1]);
 
         const state = c.arpragueskymodelground_state_alloc_init_handle(
             &stream,
@@ -47,10 +46,19 @@ pub const Model = struct {
             albedo,
         ) orelse return Error.FailedToLoadSky;
 
+        const d = @sqrt(sun_direction[0] * sun_direction[0] + sun_direction[2] * sun_direction[2]);
+
+        const shadow_direction = Vec4f{
+            (-sun_direction[0] / d) * sun_direction[1],
+            @sqrt(1.0 - sun_direction[1] * sun_direction[1]),
+            (-sun_direction[2] / d) * sun_direction[1],
+            0.0,
+        };
+
         return Model{
             .state = state,
-            .sun_elevation = sun_elevation,
-            .sun_azimuth = sun_azimuth,
+            .sun_direction = sun_direction,
+            .shadow_direction = shadow_direction,
         };
     }
 
@@ -72,18 +80,11 @@ pub const Model = struct {
         const wi_dot_z = std.math.clamp(wi[1], -1.0, 1.0);
         const theta = std.math.acos(wi_dot_z);
 
-        const vd = [3]f64{ @floatCast(f64, wi[0]), @floatCast(f64, wi[2]), @floatCast(f64, wi[1]) };
+        const cos_gamma = std.math.clamp(-math.dot3(wi, self.sun_direction), -1.0, 1.0);
+        const gamma = std.math.acos(cos_gamma);
 
-        var gamma: f64 = undefined;
-        var shadow: f64 = undefined;
-
-        c.arpragueskymodelground_compute_angles(
-            self.sun_elevation,
-            self.sun_azimuth,
-            &vd,
-            &gamma,
-            &shadow,
-        );
+        const cos_shadow = std.math.clamp(math.dot3(wi, self.shadow_direction), -1.0, 1.0);
+        const shadow = std.math.acos(cos_shadow);
 
         var samples: [16]f32 = undefined;
 
@@ -139,14 +140,5 @@ pub const Model = struct {
 
     pub fn turbidityToVisibility(turbidity: f32) f32 {
         return 7487.0 * @exp(-3.41 * turbidity) + 117.1 * @exp(-0.4768 * turbidity);
-    }
-
-    fn elevation(dir: Vec4f) f32 {
-        const dir_dot_z = -dir[1];
-        return (std.math.pi / 2.0) - std.math.acos(dir_dot_z);
-    }
-
-    fn azimuth(dir: Vec4f) f32 {
-        return -std.math.atan2(f32, -dir[0], -dir[2]) + 0.5 * std.math.pi;
     }
 };
