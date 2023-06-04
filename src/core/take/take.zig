@@ -127,6 +127,8 @@ pub const View = struct {
                     value_type = .ShadingNormal;
                 } else if (std.mem.eql(u8, "Light_sample_count", value_name)) {
                     value_type = .LightSampleCount;
+                } else if (std.mem.eql(u8, "Side", value_name)) {
+                    value_type = .Side;
                 } else if (std.mem.eql(u8, "Photons", value_name)) {
                     value_type = .Photons;
                 }

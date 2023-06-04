@@ -7,7 +7,7 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Value = struct {
-    pub const Class = enum(u5) {
+    pub const Class = enum(u4) {
         Albedo,
         Depth,
         MaterialId,
@@ -55,7 +55,7 @@ pub const Value = struct {
             return;
         }
 
-        var i: u5 = 0;
+        var i: u4 = 0;
         while (i < Num_classes) : (i += 1) {
             const class = @intToEnum(Class, i);
             if (self.activeClass(class)) {
