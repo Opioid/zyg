@@ -54,6 +54,9 @@ pub const Reader = struct {
         var name_buf: [128]u8 = undefined;
         var type_buf: [128]u8 = undefined;
 
+        var name_fbs = std.io.fixedBufferStream(&name_buf);
+        var type_fbs = std.io.fixedBufferStream(&type_buf);
+
         var channels = try Channels.init(alloc);
         defer channels.deinit(alloc);
 
@@ -63,13 +66,17 @@ pub const Reader = struct {
         var display_window = @splat(4, @as(i32, 0));
 
         while (true) {
-            const attribute_name = try stream.readUntilDelimiter(&name_buf, '\x00');
+            name_fbs.reset();
+            try stream.streamUntilDelimiter(name_fbs.writer(), '\x00', name_buf.len);
+            const attribute_name = name_fbs.getWritten();
 
             if (0 == attribute_name.len) {
                 break;
             }
 
-            const attribute_type = try stream.readUntilDelimiter(&type_buf, '\x00');
+            type_fbs.reset();
+            try stream.streamUntilDelimiter(type_fbs.writer(), '\x00', type_buf.len);
+            const attribute_type = type_fbs.getWritten();
 
             var attribute_size: u32 = undefined;
             _ = try stream.read(std.mem.asBytes(&attribute_size));
@@ -390,9 +397,14 @@ const Channels = struct {
     }
 
     pub fn read(self: *Channels, alloc: Allocator, stream: *ReadStream) !void {
+        var buf = std.ArrayListUnmanaged(u8){};
+
         while (true) {
             var channel: exr.Channel = undefined;
-            channel.name = try stream.readUntilDelimiterAlloc(alloc, '\x00');
+
+            buf.shrinkRetainingCapacity(0);
+            try stream.streamUntilDelimiter(buf.writer(alloc), '\x00', null);
+            channel.name = try buf.toOwnedSlice(alloc);
 
             if (0 == channel.name.len) {
                 break;
