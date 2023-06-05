@@ -42,17 +42,21 @@ pub const Reader = struct {
 
     fn readHeader(stream: *ReadStream) !Header {
         var buf: [128]u8 = undefined;
-        {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
+        var fbs = std.io.fixedBufferStream(&buf);
 
-            if (!std.mem.startsWith(u8, line, "#?")) {
+        {
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            if (!std.mem.startsWith(u8, fbs.getWritten(), "#?")) {
                 return Error.BadInitialToken;
             }
         }
 
         var format_specifier: bool = false;
         while (true) {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            const line = fbs.getWritten();
             if (0 == line.len or 0 == line[0]) {
                 // blank lines signifies end of meta data header
                 break;
@@ -67,7 +71,9 @@ pub const Reader = struct {
             return Error.MissingFormatSpecifier;
         }
 
-        var line = try stream.readUntilDelimiter(&buf, '\n');
+        fbs.reset();
+        try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+        var line = fbs.getWritten();
         var i = (std.mem.indexOfScalar(u8, line, ' ') orelse return Error.MissingImageSizeSpecifier) + 1;
         if (!std.mem.eql(u8, line[0..i], "-Y ")) {
             return Error.MissingImageSizeSpecifier;

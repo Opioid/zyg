@@ -241,8 +241,8 @@ pub const Scene = struct {
             self.light_temp_powers = try alloc.realloc(self.light_temp_powers, num_lights);
         }
 
-        for (self.lights.items, 0..) |l, i| {
-            self.propPrepareSampling(alloc, l.prop, l.part, i, time, l.volumetric(), threads);
+        for (0..num_lights) |i| {
+            self.propPrepareSampling(alloc, i, time, threads);
             self.light_temp_powers[i] = self.lightPower(0, i);
         }
 
@@ -475,28 +475,22 @@ pub const Scene = struct {
         self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
     }
 
-    fn propPrepareSampling(
-        self: *Scene,
-        alloc: Allocator,
-        entity: u32,
-        part: u32,
-        light_id: usize,
-        time: u64,
-        volume: bool,
-        threads: *Threads,
-    ) void {
+    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: usize, time: u64, threads: *Threads) void {
+        var l = &self.lights.items[light_id];
+
+        const entity = l.prop;
+        const part = l.part;
+
         const shape_inst = self.propShape(entity);
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = if (volume) Light.Volume_mask | @intCast(u32, light_id) else @intCast(u32, light_id);
+        self.light_ids.items[p] = @intCast(u32, light_id);
 
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
 
         const variant = shape_inst.prepareSampling(alloc, entity, part, m, &self.light_tree_builder, self, threads) catch 0;
-
-        var l = &self.lights.items[light_id];
         l.variant = variant;
 
         const trafo = self.propTransformationAt(entity, time);
@@ -657,10 +651,8 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        const light_id = Light.stripMask(id);
-
-        const pdf = self.light_tree.pdf(p, n, total_sphere, split, light_id, self);
-        return .{ .offset = light_id, .pdf = pdf };
+        const pdf = self.light_tree.pdf(p, n, total_sphere, split, id, self);
+        return .{ .offset = id, .pdf = pdf };
     }
 
     pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {

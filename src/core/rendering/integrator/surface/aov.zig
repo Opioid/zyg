@@ -20,6 +20,8 @@ pub const AOV = struct {
         Bitangent,
         GeometricNormal,
         ShadingNormal,
+        LightSampleCount,
+        Side,
         Photons,
     };
 
@@ -49,6 +51,8 @@ pub const AOV = struct {
         const result = switch (self.settings.value) {
             .AO => self.ao(ray.*, isec, worker),
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(ray.*, isec, worker),
+            .LightSampleCount => self.lightSampleCount(ray.*, isec, worker),
+            .Side => self.side(ray.*, isec, worker),
             .Photons => self.photons(ray, &isec, worker),
         };
 
@@ -120,6 +124,39 @@ pub const AOV = struct {
         vec = Vec4f{ vec[0], vec[1], vec[2], 1.0 };
 
         return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
+    }
+
+    fn lightSampleCount(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+        _ = self;
+
+        var sampler = worker.pickSampler(0);
+
+        const wo = -ray.ray.direction;
+
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+
+        const n = mat_sample.super().geometricNormal();
+        const p = isec.offsetPN(n, false);
+
+        const lights = worker.randomLightSpatial(p, n, false, sampler.sample1D(), true);
+
+        const r = @intToFloat(f32, lights.len) / @intToFloat(f32, worker.lights.len);
+
+        return .{ r, r, r, 1.0 };
+    }
+
+    fn side(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
+        _ = self;
+
+        var sampler = worker.pickSampler(0);
+
+        const wo = -ray.ray.direction;
+        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+
+        const super = mat_sample.super();
+        const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
+        const same_side = math.dot3(n, super.shadingNormal()) > 0.0;
+        return if (same_side) Vec4f{ 0.2, 1.0, 0.1, 0.0 } else Vec4f{ 1.0, 0.1, 0.2, 0.0 };
     }
 
     fn photons(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker) Vec4f {

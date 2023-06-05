@@ -39,19 +39,16 @@ const BuildNode = struct {
         return self.middle > 0;
     }
 
-    pub fn countMaxSplits(self: BuildNode, depth: u32, nodes: []const BuildNode, splits: *u32) void {
-        if (0 == self.middle) {
-            if (depth < Tree.Max_split_depth) {
-                splits.* += self.num_lights;
-            } else {
-                splits.* += 1;
-            }
+    pub fn countLightsPerDepth(self: BuildNode, nodes: []const BuildNode, depth: u32, splits: []u32, max_depth: u32) void {
+        if (!self.hasChildren()) {
+            splits[depth] += self.num_lights;
         } else {
-            if (depth == Tree.Max_split_depth - 1) {
-                splits.* += 2;
-            } else {
-                nodes[self.children_or_light].countMaxSplits(depth + 1, nodes, splits);
-                nodes[self.children_or_light + 1].countMaxSplits(depth + 1, nodes, splits);
+            splits[depth] += 2;
+
+            const next_depth = depth + 1;
+            if (next_depth < max_depth) {
+                nodes[self.children_or_light].countLightsPerDepth(nodes, next_depth, splits, max_depth);
+                nodes[self.children_or_light + 1].countLightsPerDepth(nodes, next_depth, splits, max_depth);
             }
         }
     }
@@ -126,8 +123,8 @@ const SplitCandidate = struct {
             self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sideds[0]) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sideds[1]) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
+            const cone_weight_b = coneCost(cones[1][3], two_sideds[1]);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -205,8 +202,8 @@ const SplitCandidate = struct {
             self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sided);
+            const cone_weight_b = coneCost(cones[1][3], two_sided);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -284,7 +281,8 @@ pub const Builder = struct {
         try tree.infinite_light_distribution.configure(alloc, tree.infinite_light_powers[0..tree.num_infinite_lights], 0);
 
         const num_finite_lights = num_lights - num_infinite_lights;
-        var infinite_depth_bias: u32 = 0;
+
+        var max_split_depth: u32 = Tree.Max_split_depth;
 
         if (num_finite_lights > 0) {
             try self.allocate(alloc, num_finite_lights, Scene_sweep_threshold);
@@ -308,21 +306,23 @@ pub const Builder = struct {
             try tree.allocateNodes(alloc, self.current_node);
             self.serialize(tree.nodes, tree.node_middles);
 
-            var max_splits: u32 = 0;
-            self.build_nodes[0].countMaxSplits(0, self.build_nodes, &max_splits);
+            var splits = [_]u32{0} ** Tree.Max_split_depth;
+            self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
 
-            if (num_infinite_lights > 0 and num_infinite_lights < Tree.Max_lights - 1) {
-                const left = Tree.Max_lights - max_splits;
-                if (left < num_infinite_lights) {
-                    const rest = @intToFloat(f32, num_infinite_lights - left);
-                    infinite_depth_bias = std.math.max(@floatToInt(u32, @ceil(@log2(rest))), 1);
+            var num_split_lights: u32 = 0;
+            for (splits, 0..) |s, i| {
+                num_split_lights += s;
+
+                if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
+                    max_split_depth = @intCast(u32, i);
+                    break;
                 }
             }
         } else {
             try tree.allocateNodes(alloc, 0);
         }
 
-        tree.infinite_depth_bias = infinite_depth_bias;
+        tree.max_split_depth = max_split_depth;
 
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
@@ -437,7 +437,7 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Scene, lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
@@ -484,7 +484,8 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const two_sided = part.lightTwoSided(variant, 0);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Part, lights, bounds, cone_weight, Part_sweep_threshold, self.candidates, part, variant, threads);
 
@@ -506,7 +507,7 @@ pub const Builder = struct {
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
-        node.two_sided = part.lightTwoSided(variant, 0);
+        node.two_sided = two_sided;
 
         return c1_end;
     }
@@ -705,8 +706,8 @@ pub const Builder = struct {
     }
 };
 
-fn coneCost(cos: f32) f32 {
-    const o = std.math.acos(cos);
+fn coneCost(cos: f32, two_sided: bool) f32 {
+    const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
     const w = std.math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);

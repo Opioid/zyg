@@ -101,12 +101,15 @@ pub const Pathtracer = struct {
                 primary_ray = false;
             }
 
+            old_throughput = throughput;
+            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 ray.depth += 1;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                ray.ray.setMinMaxT(isec.offsetT(ray.ray.maxT()), ro.Ray_max_t);
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
@@ -118,9 +121,6 @@ pub const Pathtracer = struct {
             if (0.0 == ray.wavelength) {
                 ray.wavelength = sample_result.wavelength;
             }
-
-            old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (sample_result.class.transmission) {
                 worker.interfaceChange(sample_result.wi, isec, sampler);

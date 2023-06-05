@@ -101,8 +101,6 @@ pub const Part = struct {
         const num = self.num_triangles;
 
         if (0 == self.num_alloc) {
-            var total_area: f32 = 0.0;
-
             const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
             const aabbs = (try alloc.alloc(AABB, num)).ptr;
             const cones = (try alloc.alloc(Vec4f, num)).ptr;
@@ -112,9 +110,6 @@ pub const Part = struct {
             const len = tree.numTriangles();
             while (t < len) : (t += 1) {
                 if (tree.data.part(t) == part) {
-                    const area = tree.data.area(t);
-                    total_area += area;
-
                     triangle_mapping[mt] = t;
 
                     const vabc = tree.data.triangleP(t);
@@ -124,7 +119,7 @@ pub const Part = struct {
                     box.insert(vabc[1]);
                     box.insert(vabc[2]);
                     box.cacheRadius();
-                    box.bounds[1][3] = area;
+                    box.bounds[1][3] = tree.data.area(t);
 
                     aabbs[mt] = box;
 
@@ -133,10 +128,6 @@ pub const Part = struct {
 
                     mt += 1;
                 }
-            }
-
-            for (aabbs[0..num]) |*b| {
-                b.bounds[1][3] = total_area / b.bounds[1][3];
             }
 
             self.num_alloc = num;
@@ -231,8 +222,9 @@ pub const Part = struct {
     }
 
     pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+        // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
-        return dist.pdfI(light) * dist.integral;
+        return dist.pdfI(light); // * dist.integral;
     }
 
     const Temp = struct {
@@ -267,8 +259,7 @@ pub const Part = struct {
 
             var temp: Temp = .{};
 
-            var i = begin;
-            while (i < end) : (i += 1) {
+            for (begin..end) |i| {
                 const t = self.part.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
@@ -303,8 +294,7 @@ pub const Part = struct {
                         );
                     }
 
-                    const weight = math.hmax3(radiance) / @intToFloat(f32, num_samples);
-                    pow = weight * area;
+                    pow = if (math.hmax3(radiance) > 0.0) area else 0.0;
                 } else {
                     pow = area;
                 }
@@ -330,38 +320,22 @@ pub const Part = struct {
         }
     };
 
-    const Discrete = struct {
-        global: u32,
-        local: u32,
-        pdf: f32,
-    };
+    pub inline fn primitiveArea(self: Part, id: u32, scale: Vec4f) f32 {
+        return self.aabbs[id].bounds[1][3] * (scale[0] * scale[1]);
+    }
 
-    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
+    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.sampleRandom(variant, r);
 
-        const pick = self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
-        const relative_area = self.aabbs[pick.offset].bounds[1][3];
-
-        return .{
-            .global = self.triangle_mapping[pick.offset],
-            .local = pick.offset,
-            .pdf = pick.pdf * relative_area,
-        };
+        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
     }
 
-    pub fn sampleRandom(self: Part, variant: u32, r: f32) Discrete {
-        const pick = self.variants.items[variant].distribution.sampleDiscrete(r);
-        const relative_area = self.aabbs[pick.offset].bounds[1][3];
-
-        return .{
-            .global = self.triangle_mapping[pick.offset],
-            .local = pick.offset,
-            .pdf = pick.pdf * relative_area,
-        };
+    pub fn sampleRandom(self: Part, variant: u32, r: f32) Distribution1D.Discrete {
+        return self.variants.items[variant].distribution.sampleDiscrete(r);
     }
 
     pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
@@ -369,19 +343,9 @@ pub const Part = struct {
         // _ = n;
         // _ = total_sphere;
 
-        // return self.pdfRandom(variant, id);
+        // return self.variants.items[variant].distribution.pdfI(id);
 
-        const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
-        const relative_area = self.aabbs[id].bounds[1][3];
-
-        return pdf * relative_area;
-    }
-
-    pub fn pdfRandom(self: *const Part, variant: u32, id: u32) f32 {
-        const pdf = self.variants.items[variant].distribution.pdfI(id);
-        const relative_area = self.aabbs[id].bounds[1][3];
-
-        return pdf * relative_area;
+        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
     }
 };
 
@@ -541,7 +505,7 @@ pub const Mesh = struct {
 
     pub fn sampleTo(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         p: Vec4f,
         n: Vec4f,
@@ -554,17 +518,20 @@ pub const Mesh = struct {
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
-        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r[0]);
 
+        const part = self.parts[part_id];
+        const s = part.sampleSpatial(variant, op, on, total_sphere, r[0]);
         if (0.0 == s.pdf) {
             return null;
         }
 
+        const global = part.triangle_mapping[s.offset];
+
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, .{ r[1], r[2] }, &sv, &tc);
+        self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
-        const sn = self.parts[part].lightCone(s.local);
+        const sn = part.lightCone(s.offset);
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
@@ -581,23 +548,21 @@ pub const Mesh = struct {
             return null;
         }
 
-        const extent = self.area(part, trafo.scale());
-
-        const angle_pdf = sl / (c * extent);
+        const tri_area = part.primitiveArea(s.offset, trafo.scale());
 
         return SampleTo.init(
             dir,
             wn,
             .{ tc[0], tc[1], 0.0, 0.0 },
             trafo,
-            angle_pdf * s.pdf,
+            (sl * s.pdf) / (c * tri_area),
             d,
         );
     }
 
     pub fn sampleFrom(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         trafo: Trafo,
         two_sided: bool,
@@ -606,13 +571,17 @@ pub const Mesh = struct {
         importance_uv: Vec2f,
     ) ?SampleFrom {
         const r = sampler.sample1D();
-        const s = self.parts[part].sampleRandom(variant, r);
+
+        const part = self.parts[part_id];
+        const s = part.sampleRandom(variant, r);
+
+        const global = part.triangle_mapping[s.offset];
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, uv, &sv, &tc);
+        self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
-        const sn = self.parts[part].lightCone(s.local);
+        const sn = part.lightCone(s.offset);
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
@@ -623,7 +592,7 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
-        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * self.area(part, trafo.scale());
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * part.primitiveArea(s.offset, trafo.scale());
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -638,7 +607,7 @@ pub const Mesh = struct {
 
     pub fn pdf(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
@@ -652,18 +621,18 @@ pub const Mesh = struct {
             c = @fabs(c);
         }
 
-        const extent = self.area(part, isec.trafo.scale());
-
         const sl = ray.maxT() * ray.maxT();
-        const angle_pdf = sl / (c * extent);
 
         const op = isec.trafo.worldToObjectPoint(ray.origin);
         const on = isec.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[isec.primitive];
-        const tri_pdf = self.parts[isec.part].pdfSpatial(variant, op, on, total_sphere, pm);
 
-        return angle_pdf * tri_pdf;
+        const part = self.parts[part_id];
+        const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
+        const tri_area = part.primitiveArea(pm, isec.trafo.scale());
+
+        return (sl * tri_pdf) / (c * tri_area);
     }
 
     pub fn calculateAreas(self: *Mesh) void {

@@ -236,17 +236,19 @@ const Data = struct {
 };
 
 const Tokenizer = struct {
-    it: std.mem.TokenIterator(u8) = .{ .index = 0, .buffer = &.{}, .delimiter_bytes = &.{} },
+    it: std.mem.TokenIterator(u8, .any) = .{ .index = 0, .buffer = &.{}, .delimiter = &.{} },
     stream: *ReadStream,
-    buf: []u8,
+    buf: std.io.FixedBufferStream([]u8),
 
     pub fn next(self: *Tokenizer) ![]const u8 {
         if (self.it.next()) |token| {
             return token;
         }
 
-        const line = try self.stream.readUntilDelimiter(self.buf, '\n');
-        self.it = std.mem.tokenize(u8, line, " \r");
+        self.buf.reset();
+        try self.stream.streamUntilDelimiter(self.buf.writer(), '\n', self.buf.buffer.len);
+
+        self.it = std.mem.tokenizeAny(u8, self.buf.getWritten(), " \r");
         return self.it.next().?;
     }
 
@@ -263,24 +265,25 @@ pub const Reader = struct {
 
     pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
         var buf: [256]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&buf);
 
         {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
-
-            if (!std.mem.startsWith(u8, line, "IES")) {
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            if (!std.mem.startsWith(u8, fbs.getWritten(), "IES")) {
                 return Error.BadInitialToken;
             }
         }
 
         while (true) {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
-
-            if (std.mem.startsWith(u8, line, "TILT=NONE")) {
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            if (std.mem.startsWith(u8, fbs.getWritten(), "TILT=NONE")) {
                 break;
             }
         }
 
-        var tokenizer = Tokenizer{ .stream = stream, .buf = &buf };
+        var tokenizer = Tokenizer{ .stream = stream, .buf = fbs };
 
         // num lamps
         try tokenizer.skip();
@@ -385,15 +388,5 @@ pub const Reader = struct {
             if (phi < 0) (2.0 * std.math.pi) + phi else phi,
             std.math.acos(v[1]),
         };
-    }
-
-    fn nextToken(it: *std.mem.TokenIterator(u8), stream: *ReadStream, buf: []u8) !?[]const u8 {
-        if (it.next()) |token| {
-            return token;
-        }
-
-        const line = try stream.readUntilDelimiter(buf, '\n');
-        it.* = std.mem.tokenize(u8, line, " \r");
-        return it.next();
     }
 };

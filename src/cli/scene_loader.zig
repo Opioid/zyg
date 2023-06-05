@@ -132,7 +132,7 @@ pub const Loader = struct {
             .rotation = math.quaternion.identity,
         };
 
-        var parser = std.json.Parser.init(alloc, false);
+        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
         defer parser.deinit();
 
         try self.loadFile(alloc, &parser, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
@@ -177,13 +177,13 @@ pub const Loader = struct {
         var local_materials = LocalMaterials.init(alloc);
         defer local_materials.deinit();
 
-        if (root.Object.get("materials")) |materials_node| {
+        if (root.object.get("materials")) |materials_node| {
             try readMaterials(materials_node, &local_materials);
         }
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
-        var iter = root.Object.iterator();
+        var iter = root.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                 try self.loadEntities(
@@ -202,10 +202,10 @@ pub const Loader = struct {
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
-        for (value.Array.items) |*m| {
-            const name_node = m.Object.get("name") orelse continue;
+        for (value.array.items) |*m| {
+            const name_node = m.object.get("name") orelse continue;
 
-            try local_materials.materials.put(name_node.String, m);
+            try local_materials.materials.put(name_node.string, m);
         }
     }
 
@@ -221,12 +221,12 @@ pub const Loader = struct {
     ) !void {
         const scene = &graph.scene;
 
-        var parser = std.json.Parser.init(alloc, false);
+        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
         defer parser.deinit();
 
-        for (value.Array.items) |entity| {
-            if (entity.Object.get("file")) |file_node| {
-                const filename = file_node.String;
+        for (value.array.items) |entity| {
+            if (entity.object.get("file")) |file_node| {
+                const filename = file_node.string;
                 self.loadFile(alloc, &parser, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
                 };
@@ -234,8 +234,8 @@ pub const Loader = struct {
                 continue;
             }
 
-            const type_node = entity.Object.get("type") orelse continue;
-            const type_name = type_node.String;
+            const type_node = entity.object.get("type") orelse continue;
+            const type_name = type_node.string;
 
             var entity_id: u32 = Prop.Null;
             var is_light = false;
@@ -259,7 +259,7 @@ pub const Loader = struct {
             var children_ptr: ?*std.json.Value = null;
             var visibility_ptr: ?*std.json.Value = null;
 
-            var iter = entity.Object.iterator();
+            var iter = entity.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                     json.readTransformation(entry.value_ptr.*, &trafo);
@@ -356,7 +356,7 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
     ) !u32 {
-        const shape = if (value.Object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
+        const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
         const scene = &graph.scene;
         const num_materials = scene.shape(shape).numMaterials();
@@ -364,7 +364,7 @@ pub const Loader = struct {
         try self.materials.ensureTotalCapacity(alloc, num_materials);
         self.materials.clearRetainingCapacity();
 
-        if (value.Object.get("materials")) |m| {
+        if (value.object.get("materials")) |m| {
             self.loadMaterials(alloc, m, num_materials, local_materials);
         }
 
@@ -392,7 +392,7 @@ pub const Loader = struct {
         var in_reflection = true;
         var in_shadow = true;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "in_camera", entry.key_ptr.*)) {
                 in_camera = json.readBool(entry.value_ptr.*);
@@ -451,8 +451,8 @@ pub const Loader = struct {
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
-        for (value.Array.items, 0..) |m, i| {
-            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.String, local_materials));
+        for (value.array.items, 0..) |m, i| {
+            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
 
             if (i == num_materials - 1) {
                 return;
@@ -489,7 +489,7 @@ pub const Loader = struct {
 
         // try graph.bumpProps(alloc);
 
-        if (value.Object.get("parameters")) |parameters| {
+        if (value.object.get("parameters")) |parameters| {
             sky.setParameters(parameters);
         }
 

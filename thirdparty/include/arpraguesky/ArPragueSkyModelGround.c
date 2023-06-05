@@ -356,22 +356,15 @@ void arpragueskymodelground_compute_angles(
 	const double		           sun_elevation,
 	const double		           sun_azimuth,
 	const double		         * view_direction,
-	const double		         * up_direction,
-		  double                 * theta,
 		  double                 * gamma,
 		  double                 * shadow
         )
 {
-    // Zenith angle (theta)
-
-    const double cosTheta = view_direction[0] * up_direction[0] + view_direction[1] * up_direction[1] + view_direction[2] * up_direction[2];
-    *theta = acos(cosTheta);
-
     // Sun angle (gamma)
 
 	const double sun_direction[] = {cos(sun_azimuth) * cos(sun_elevation), sin(sun_azimuth) * cos(sun_elevation), sin(sun_elevation)};
 	const double cosGamma = view_direction[0] * sun_direction[0] + view_direction[1] * sun_direction[1] + view_direction[2] * sun_direction[2];
-    *gamma = acos(cosGamma);
+    *gamma = acos(fmax(cosGamma, -1.0));
 
     // Shadow angle
 

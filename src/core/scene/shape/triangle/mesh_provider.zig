@@ -137,7 +137,7 @@ pub const Provider = struct {
             const buffer = try stream.readAll(alloc);
             defer alloc.free(buffer);
 
-            var parser = std.json.Parser.init(alloc, false);
+            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
             defer parser.deinit();
 
             var document = parser.parse(buffer) catch |e| {
@@ -148,7 +148,7 @@ pub const Provider = struct {
 
             const root = document.root;
 
-            var iter = root.Object.iterator();
+            var iter = root.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "geometry", entry.key_ptr.*)) {
                     try loadGeometry(alloc, &handler, entry.value_ptr.*);
@@ -240,10 +240,10 @@ pub const Provider = struct {
     }
 
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                const parts = entry.value_ptr.Array.items;
+                const parts = entry.value_ptr.array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
 
@@ -258,10 +258,10 @@ pub const Provider = struct {
                     });
                 }
             } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
-                var viter = entry.value_ptr.Object.iterator();
+                var viter = entry.value_ptr.object.iterator();
                 while (viter.next()) |ventry| {
                     if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
-                        const positions = ventry.value_ptr.Array.items;
+                        const positions = ventry.value_ptr.array.items;
                         const num_positions = positions.len / 3;
 
                         handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
@@ -275,7 +275,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
-                        const normals = ventry.value_ptr.Array.items;
+                        const normals = ventry.value_ptr.array.items;
                         const num_normals = normals.len / 3;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
@@ -289,7 +289,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
-                        const tangents = ventry.value_ptr.*.Array.items;
+                        const tangents = ventry.value_ptr.array.items;
                         const num_tangents = tangents.len / 4;
 
                         handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangents);
@@ -309,7 +309,7 @@ pub const Provider = struct {
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
                         log.warning("It is reading tangent space", .{});
-                        const tangent_spaces = ventry.value_ptr.*.Array.items;
+                        const tangent_spaces = ventry.value_ptr.array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
@@ -344,7 +344,7 @@ pub const Provider = struct {
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
-                        const uvs = ventry.value_ptr.Array.items;
+                        const uvs = ventry.value_ptr.array.items;
                         const num_uvs = uvs.len / 2;
 
                         handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
@@ -359,16 +359,16 @@ pub const Provider = struct {
                     }
                 }
             } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                const indices = entry.value_ptr.Array.items;
+                const indices = entry.value_ptr.array.items;
                 const num_triangles = indices.len / 3;
 
                 handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
                 try handler.triangles.resize(alloc, num_triangles);
 
                 for (handler.triangles.items, 0..) |*t, i| {
-                    t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
-                    t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
-                    t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
+                    t.*.i[0] = @intCast(u32, indices[i * 3 + 0].integer);
+                    t.*.i[1] = @intCast(u32, indices[i * 3 + 1].integer);
+                    t.*.i[2] = @intCast(u32, indices[i * 3 + 2].integer);
                     t.*.part = 0;
                 }
             }
@@ -405,18 +405,18 @@ pub const Provider = struct {
 
             _ = try stream.read(json_string);
 
-            var parser = std.json.Parser.init(alloc, false);
+            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
             defer parser.deinit();
 
             var document = try parser.parse(std.mem.sliceTo(json_string, 0));
             defer document.deinit();
 
-            const geometry_node = document.root.Object.get("geometry") orelse return Error.NoGeometryNode;
+            const geometry_node = document.root.object.get("geometry") orelse return Error.NoGeometryNode;
 
-            var iter = geometry_node.Object.iterator();
+            var iter = geometry_node.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                    const parts_slice = entry.value_ptr.Array.items;
+                    const parts_slice = entry.value_ptr.array.items;
 
                     parts = try alloc.alloc(Part, parts_slice.len);
 
@@ -426,7 +426,7 @@ pub const Provider = struct {
                         parts[i].material_index = json.readUIntMember(p, "material_index", 0);
                     }
                 } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
-                    var viter = entry.value_ptr.Object.iterator();
+                    var viter = entry.value_ptr.object.iterator();
                     while (viter.next()) |vn| {
                         if (std.mem.eql(u8, "binary", vn.key_ptr.*)) {
                             vertices_offset = json.readUInt64Member(vn.value_ptr.*, "offset", 0);
@@ -434,7 +434,7 @@ pub const Provider = struct {
                         } else if (std.mem.eql(u8, "num_vertices", vn.key_ptr.*)) {
                             num_vertices = json.readUInt(vn.value_ptr.*);
                         } else if (std.mem.eql(u8, "layout", vn.key_ptr.*)) {
-                            for (vn.value_ptr.Array.items) |ln| {
+                            for (vn.value_ptr.array.items) |ln| {
                                 const semantic_name = json.readStringMember(ln, "semantic_name", "");
                                 if (std.mem.eql(u8, "Tangent", semantic_name)) {
                                     has_tangents = true;
@@ -455,7 +455,7 @@ pub const Provider = struct {
                         }
                     }
                 } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                    var iiter = entry.value_ptr.Object.iterator();
+                    var iiter = entry.value_ptr.object.iterator();
                     while (iiter.next()) |in| {
                         if (std.mem.eql(u8, "binary", in.key_ptr.*)) {
                             indices_offset = json.readUInt64Member(in.value_ptr.*, "offset", 0);

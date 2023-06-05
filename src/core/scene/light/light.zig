@@ -19,8 +19,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Light = struct {
-    pub const Volume_mask: u32 = 0x10000000;
-
     pub const Class = enum(u8) {
         Prop,
         PropImage,
@@ -36,14 +34,6 @@ pub const Light = struct {
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;
-    }
-
-    pub fn isAreaLight(id: u32) bool {
-        return 0 == (id & Volume_mask);
-    }
-
-    pub fn stripMask(id: u32) u32 {
-        return ~Volume_mask & id;
     }
 
     pub fn finite(self: Light, scene: *const Scene) bool {
