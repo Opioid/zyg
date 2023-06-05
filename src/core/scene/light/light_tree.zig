@@ -185,8 +185,7 @@ fn importance(
 
     const ra = if (total_sphere) 1.0 else tn;
     const rb = std.math.max(tc, 0.0);
-    const d_min = std.math.max(0.5 * radius, l);
-    const base = power / (d_min * d_min);
+    const base = power / std.math.max(l * l, radius);
 
     return std.math.max(ra * rb * base, mat.Dot_min);
 }
