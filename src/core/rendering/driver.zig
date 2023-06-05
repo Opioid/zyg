@@ -248,7 +248,7 @@ pub const Driver = struct {
             var max: f32 = 0.0;
 
             for (weights) |w| {
-                if (w > 1.0) {
+                if (w > 0.0) {
                     min = std.math.min(min, w);
                 }
                 max = std.math.max(max, w);
