@@ -26,20 +26,20 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(PropIntersection, "PropIntersection", 176);
+    testType(PropIntersection, "PropIntersection", 240);
     testType(smpl.To, "SampleTo", 112);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 48);
-    testType(intf.Interface, "Interface", 16);
-    testType(intf.Stack, "InterfaceStack", 240);
-    testType(mt.Material, "Material", 400);
-    testType(mt.Substitute, "SubstituteMaterial", 368);
-    testType(mt.Sample, "MaterialSample", 256);
+    testType(intf.Interface, "Interface", 48);
+    testType(intf.Stack, "InterfaceStack", 400);
+    testType(mt.Material, "Material", 368);
+    testType(mt.Substitute, "SubstituteMaterial", 352);
+    testType(mt.Sample, "MaterialSample", 240);
     testType(Texture, "Texture", 16);
     testType(Mesh, "Mesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 1152);
+    testType(Worker, "Worker", 1216);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
