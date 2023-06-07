@@ -35,16 +35,15 @@ pub const Disk = struct {
                 const b = -trafo.rotation.r[1];
 
                 const sk = k / @splat(4, radius);
+                const u = math.dot3(t, sk);
+                const v = math.dot3(b, sk);
 
                 isec.p = p;
                 isec.t = t;
                 isec.b = b;
                 isec.n = normal;
                 isec.geo_n = normal;
-                isec.uv = .{
-                    0.5 * (math.dot3(t, sk) + 1.0),
-                    0.5 * (math.dot3(b, sk) + 1.0),
-                };
+                isec.uv = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
                 isec.part = 0;
 
                 ray.setMaxT(hit_t);
@@ -130,10 +129,7 @@ pub const Disk = struct {
         }
 
         const radius = trafo.scaleX();
-        var area = std.math.pi * (radius * radius);
-        if (two_sided) {
-            area *= 2.0;
-        }
+        const area = std.math.pi * (radius * radius);
 
         return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), trafo, sl / (c * area), t);
     }
@@ -208,8 +204,23 @@ pub const Disk = struct {
                 dir = -dir;
             }
 
-            const pdf = math.smpl.conePdfCosine(cos_a);
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf / area);
+            const cone_pdf = math.smpl.conePdfCosine(cos_a);
+            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, cone_pdf / area);
         }
+    }
+
+    pub fn pdf(ray: Ray, trafo: Trafo, two_sided: bool) f32 {
+        var c = -math.dot3(trafo.rotation.r[2], ray.direction);
+
+        if (two_sided) {
+            c = @fabs(c);
+        }
+
+        const radius = trafo.scaleX();
+        const area = std.math.pi * (radius * radius);
+
+        const max_t = ray.maxT();
+        const sl = max_t * max_t;
+        return sl / (c * area);
     }
 };
