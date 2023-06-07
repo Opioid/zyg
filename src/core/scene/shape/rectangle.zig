@@ -86,13 +86,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(
-        ray: Ray,
-        trafo: Trafo,
-        entity: u32,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -123,22 +117,12 @@ pub const Rectangle = struct {
         return @splat(4, @as(f32, 1.0));
     }
 
-    pub fn sampleTo(
-        p: Vec4f,
-        trafo: Trafo,
-        two_sided: bool,
-        sampler: *Sampler,
-    ) ?SampleTo {
+    pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
         const uv = sampler.sample2D();
         return sampleToUv(p, uv, trafo, two_sided);
     }
 
-    pub fn sampleToUv(
-        p: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        two_sided: bool,
-    ) ?SampleTo {
+    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
         const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
@@ -210,9 +194,7 @@ pub const Rectangle = struct {
     }
 
     pub fn pdf(ray: Ray, trafo: Trafo, two_sided: bool) f32 {
-        const n = trafo.rotation.r[2];
-
-        var c = -math.dot3(n, ray.direction);
+        var c = -math.dot3(trafo.rotation.r[2], ray.direction);
 
         if (two_sided) {
             c = @fabs(c);
