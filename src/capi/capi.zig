@@ -393,9 +393,9 @@ export fn su_triangle_mesh_create(
     uvs_stride: u32,
 ) i32 {
     if (engine) |*e| {
-        const desc = resource.TriangleMeshProvider.Description{
+        const desc = resource.ShapeProvider.Description{
             .num_parts = num_parts,
-            .num_triangles = num_triangles,
+            .num_primitives = num_triangles,
             .num_vertices = num_vertices,
             .positions_stride = positions_stride,
             .normals_stride = normals_stride,
@@ -436,9 +436,9 @@ export fn su_triangle_mesh_create_async(
     uvs_stride: u32,
 ) i32 {
     if (engine) |*e| {
-        const desc = resource.TriangleMeshProvider.Description{
+        const desc = resource.ShapeProvider.Description{
             .num_parts = num_parts,
-            .num_triangles = num_triangles,
+            .num_primitives = num_triangles,
             .num_vertices = num_vertices,
             .positions_stride = positions_stride,
             .normals_stride = normals_stride,

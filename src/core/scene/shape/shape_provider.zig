@@ -1,14 +1,14 @@
-const log = @import("../../../log.zig");
-const Mesh = @import("triangle_mesh.zig").Mesh;
-const Shape = @import("../shape.zig").Shape;
-const Resources = @import("../../../resource/manager.zig").Manager;
-const Result = @import("../../../resource/result.zig").Result;
-const vs = @import("vertex_stream.zig");
-const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const Tree = @import("bvh/triangle_tree.zig").Tree;
-const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
-const file = @import("../../../file/file.zig");
-const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+const log = @import("../../log.zig");
+const Shape = @import("shape.zig").Shape;
+const Mesh = @import("triangle/triangle_mesh.zig").Mesh;
+const vs = @import("triangle/vertex_stream.zig");
+const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
+const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
+const Builder = @import("triangle/bvh/triangle_tree_builder.zig").Builder;
+const Resources = @import("../../resource/manager.zig").Manager;
+const Result = @import("../../resource/result.zig").Result;
+const file = @import("../../file/file.zig");
+const ReadStream = @import("../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
 const json = base.json;
@@ -68,7 +68,7 @@ const Error = error{
 pub const Provider = struct {
     pub const Description = struct {
         num_parts: u32,
-        num_triangles: u32,
+        num_primitives: u32,
         num_vertices: u32,
         positions_stride: u32,
         normals_stride: u32,
@@ -623,7 +623,7 @@ pub const Provider = struct {
     fn buildDescAsync(context: ThreadContext) void {
         const self = @ptrCast(*Provider, context);
 
-        const num_triangles = self.desc.num_triangles;
+        const num_triangles = self.desc.num_primitives;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
