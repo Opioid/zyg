@@ -386,7 +386,7 @@ pub const Mesh = struct {
         var id: u32 = 0;
 
         for (self.parts[0..self.num_parts]) |p| {
-            id = std.math.max(id, p.material);
+            id = @max(id, p.material);
         }
 
         return id + 1;
