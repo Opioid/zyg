@@ -9,8 +9,8 @@ pub const MaterialProvider = @import("../scene/material/material_provider.zig").
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
-pub const TriangleMeshProvider = @import("../scene/shape/triangle/triangle_mesh_provider.zig").Provider;
-const Shapes = Cache(Shape, TriangleMeshProvider);
+pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
+const Shapes = Cache(Shape, ShapeProvider);
 
 const base = @import("base");
 const Threads = base.thread.Pool;
@@ -42,7 +42,7 @@ pub const Manager = struct {
             .fs = try Filesystem.init(alloc),
             .images = Images.init(ImageProvider{}, &scene.images),
             .materials = Materials.init(MaterialProvider.init(alloc), &scene.materials),
-            .shapes = Shapes.init(TriangleMeshProvider{}, &scene.shapes),
+            .shapes = Shapes.init(ShapeProvider{}, &scene.shapes),
         };
     }
 
