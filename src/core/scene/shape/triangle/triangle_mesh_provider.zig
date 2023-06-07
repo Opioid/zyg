@@ -1,5 +1,5 @@
 const log = @import("../../../log.zig");
-const Mesh = @import("mesh.zig").Mesh;
+const Mesh = @import("triangle_mesh.zig").Mesh;
 const Shape = @import("../shape.zig").Shape;
 const Resources = @import("../../../resource/manager.zig").Manager;
 const Result = @import("../../../resource/result.zig").Result;

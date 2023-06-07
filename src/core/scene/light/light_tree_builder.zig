@@ -3,7 +3,7 @@ const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
-const Part = @import("../shape/triangle/mesh.zig").Part;
+const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 
 const base = @import("base");
 const math = base.math;

@@ -9,7 +9,7 @@ pub const MaterialProvider = @import("../scene/material/material_provider.zig").
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
-pub const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
+pub const TriangleMeshProvider = @import("../scene/shape/triangle/triangle_mesh_provider.zig").Provider;
 const Shapes = Cache(Shape, TriangleMeshProvider);
 
 const base = @import("base");

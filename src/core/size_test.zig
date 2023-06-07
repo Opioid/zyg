@@ -6,7 +6,7 @@ const mt = @import("scene/material/material.zig");
 const intf = @import("scene/prop/interface.zig");
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
-const Mesh = @import("scene/shape/triangle/mesh.zig").Mesh;
+const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/bvh/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
@@ -37,7 +37,7 @@ pub fn testSize() void {
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Sample, "MaterialSample", 240);
     testType(Texture, "Texture", 16);
-    testType(Mesh, "Mesh", 80);
+    testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
     testType(Worker, "Worker", 1216);
 }

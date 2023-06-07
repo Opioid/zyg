@@ -1,5 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
-const Part = @import("../shape/triangle/mesh.zig").Part;
+const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 const mat = @import("../material/sample_helper.zig");
 
 const math = @import("base").math;
