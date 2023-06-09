@@ -70,7 +70,8 @@ pub const Part = struct {
 
     triangle_mapping: [*]u32 = undefined,
     aabbs: [*]AABB = undefined,
-    cones: [*]Vec4f = undefined,
+
+    tree: *const Tree = undefined,
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
@@ -82,7 +83,6 @@ pub const Part = struct {
         self.variants.deinit(alloc);
 
         const num = self.num_alloc;
-        alloc.free(self.cones[0..num]);
         alloc.free(self.aabbs[0..num]);
         alloc.free(self.triangle_mapping[0..num]);
     }
@@ -103,7 +103,6 @@ pub const Part = struct {
         if (0 == self.num_alloc) {
             const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
             const aabbs = (try alloc.alloc(AABB, num)).ptr;
-            const cones = (try alloc.alloc(Vec4f, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
@@ -123,9 +122,6 @@ pub const Part = struct {
 
                     aabbs[mt] = box;
 
-                    const n = tree.data.normal(t);
-                    cones[mt] = Vec4f{ n[0], n[1], n[2], 1.0 };
-
                     mt += 1;
                 }
             }
@@ -133,7 +129,7 @@ pub const Part = struct {
             self.num_alloc = num;
             self.triangle_mapping = triangle_mapping;
             self.aabbs = aabbs;
-            self.cones = cones;
+            self.tree = tree;
         }
 
         const m = scene.material(material);
@@ -176,7 +172,8 @@ pub const Part = struct {
         const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
 
         var angle: f32 = 0.0;
-        for (self.cones[0..self.num_alloc]) |n| {
+        for (self.triangle_mapping[0..self.num_alloc]) |t| {
+            const n = self.tree.data.normal(t);
             const c = math.dot3(da, n);
             angle = std.math.max(angle, std.math.acos(c));
         }
@@ -213,7 +210,9 @@ pub const Part = struct {
     }
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
-        return self.cones[light];
+        const global = self.triangle_mapping[light];
+        const n = self.tree.data.normal(global);
+        return .{ n[0], n[1], n[2], 1.0 };
     }
 
     pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
@@ -302,7 +301,7 @@ pub const Part = struct {
                 self.powers[i] = pow;
 
                 if (pow > 0.0) {
-                    const n = self.part.cones[i];
+                    const n = self.tree.data.normal(t);
                     temp.dominant_axis += @splat(4, pow) * n;
                     temp.bb.mergeAssign(self.part.aabbs[i]);
                     temp.total_power += pow;
@@ -531,7 +530,7 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
-        const sn = part.lightCone(s.offset);
+        const sn = self.tree.data.normal(global);
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
@@ -581,7 +580,7 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
-        const sn = part.lightCone(s.offset);
+        const sn = self.tree.data.normal(global);
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
