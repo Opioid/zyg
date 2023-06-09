@@ -170,6 +170,19 @@ pub const Indexed_data = struct {
         return math.normalize3(math.cross3(e1, e2));
     }
 
+    pub fn crossAxis(self: *const Self, index: u32) Vec4f {
+        const tri = self.triangles[index];
+
+        const a = self.positions[tri.a];
+        const b = self.positions[tri.b];
+        const c = self.positions[tri.c];
+
+        const e1 = b - a;
+        const e2 = c - a;
+
+        return math.cross3(e1, e2);
+    }
+
     pub fn bitangentSign(self: *const Self, index: u32) f32 {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }

@@ -118,7 +118,6 @@ pub const Part = struct {
                     box.insert(vabc[1]);
                     box.insert(vabc[2]);
                     box.cacheRadius();
-                    box.bounds[1][3] = tree.data.area(t);
 
                     aabbs[mt] = box;
 
@@ -318,10 +317,6 @@ pub const Part = struct {
             return 0.5 * @fabs(x[0] * y[1] - x[1] * y[0]);
         }
     };
-
-    pub inline fn primitiveArea(self: Part, id: u32, scale: Vec4f) f32 {
-        return self.aabbs[id].bounds[1][3] * (scale[0] * scale[1]);
-    }
 
     pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
         // _ = p;
@@ -530,7 +525,9 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
-        const sn = self.tree.data.normal(global);
+
+        const ca = self.tree.data.crossAxis(global);
+        const sn = math.normalize3(ca);
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
@@ -547,7 +544,7 @@ pub const Mesh = struct {
             return null;
         }
 
-        const tri_area = part.primitiveArea(s.offset, trafo.scale());
+        const tri_area = 0.5 * math.length3(trafo.scale() * ca);
 
         return SampleTo.init(
             dir,
@@ -580,7 +577,9 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
-        const sn = self.tree.data.normal(global);
+
+        const ca = self.tree.data.crossAxis(global);
+        const sn = math.normalize3(ca);
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
@@ -591,7 +590,9 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
-        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * part.primitiveArea(s.offset, trafo.scale());
+        const tri_area = 0.5 * math.length3(trafo.scale() * ca);
+
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * tri_area;
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -629,7 +630,9 @@ pub const Mesh = struct {
 
         const part = self.parts[part_id];
         const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
-        const tri_area = part.primitiveArea(pm, isec.trafo.scale());
+
+        const ca = self.tree.data.crossAxis(isec.primitive);
+        const tri_area = 0.5 * math.length3(isec.trafo.scale() * ca);
 
         return (sl * tri_pdf) / (c * tri_area);
     }
