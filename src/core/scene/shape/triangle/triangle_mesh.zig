@@ -535,7 +535,7 @@ pub const Mesh = struct {
         self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
 
-        const ca = self.tree.data.crossAxis(global, trafo.scale());
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
         const lca = math.length3(ca);
         const sn = ca / @splat(4, lca);
         var wn = trafo.rotation.transformVector(sn);
@@ -588,7 +588,7 @@ pub const Mesh = struct {
         self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
 
-        const ca = self.tree.data.crossAxis(global, trafo.scale());
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
         const lca = math.length3(ca);
         const sn = ca / @splat(4, lca);
         var wn = trafo.rotation.transformVector(sn);
@@ -642,7 +642,7 @@ pub const Mesh = struct {
         const part = self.parts[part_id];
         const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
 
-        const ca = self.tree.data.crossAxis(isec.primitive, isec.trafo.scale());
+        const ca = (isec.trafo.scale() * isec.trafo.scale()) * self.tree.data.crossAxis(isec.primitive);
         const tri_area = 0.5 * math.length3(ca);
 
         return (sl * tri_pdf) / (c * tri_area);

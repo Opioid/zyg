@@ -170,15 +170,15 @@ pub const Indexed_data = struct {
         return math.normalize3(math.cross3(e1, e2));
     }
 
-    pub fn crossAxis(self: *const Self, index: u32, scale: Vec4f) Vec4f {
+    pub fn crossAxis(self: *const Self, index: u32) Vec4f {
         const tri = self.triangles[index];
 
         const a = self.positions[tri.a];
         const b = self.positions[tri.b];
         const c = self.positions[tri.c];
 
-        const e1 = scale * (b - a);
-        const e2 = scale * (c - a);
+        const e1 = b - a;
+        const e2 = c - a;
 
         return math.cross3(e1, e2);
     }
