@@ -305,7 +305,9 @@ pub const Builder = struct {
             _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, scene, threads);
 
             try tree.allocateNodes(alloc, self.current_node);
+            self.build_nodes[0].bounds.cacheRadius();
             self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+            tree.bounds = self.build_nodes[0].bounds;
 
             var splits = [_]u32{0} ** Tree.Max_split_depth;
             self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
@@ -323,7 +325,6 @@ pub const Builder = struct {
             try tree.allocateNodes(alloc, 0);
         }
 
-        tree.bounds = self.build_nodes[0].bounds;
         tree.max_split_depth = max_split_depth;
 
         const p0 = infinite_total_power;
@@ -353,11 +354,8 @@ pub const Builder = struct {
 
         self.light_order = 0;
 
-        var lm: u32 = 0;
-        var l: u32 = 0;
-        while (l < num_finite_lights) : (l += 1) {
-            tree.light_mapping[lm] = l;
-            lm += 1;
+        for (tree.light_mapping, 0..num_finite_lights) |*lm, l| {
+            lm.* = @intCast(u32, l);
         }
 
         try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);
@@ -380,6 +378,7 @@ pub const Builder = struct {
         );
 
         try tree.allocateNodes(alloc, self.current_node);
+        self.build_nodes[0].bounds.cacheRadius();
         self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
         tree.bounds = self.build_nodes[0].bounds;
     }
@@ -452,7 +451,6 @@ pub const Builder = struct {
         const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sideds[1], sc.powers[1], scene, threads);
 
         node.bounds = bounds;
-        node.bounds.cacheRadius();
         node.cone = cone;
         node.power = total_power;
         node.variance = variance(Scene, lights, scene, 0);
@@ -505,7 +503,6 @@ pub const Builder = struct {
         const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
 
         node.bounds = bounds;
-        node.bounds.cacheRadius();
         node.cone = cone;
         node.power = total_power;
         node.variance = 0.0; //variance(lights, part, variant);

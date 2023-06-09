@@ -43,8 +43,7 @@ pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
             return @mulAdd(f32, u, a, t * b);
         },
         .Vector => |v| {
-            const l = comptime v.len;
-            const u = @splat(l, @as(f32, 1.0)) - t;
+            const u = @splat(v.len, @as(v.child, 1.0)) - t;
             return @mulAdd(@TypeOf(a), u, a, t * b);
         },
         else => comptime unreachable,

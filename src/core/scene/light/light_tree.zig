@@ -44,9 +44,8 @@ pub const Node = struct {
     }
 
     pub fn compressCenter(self: *Node, center: Vec4f, bounds: AABB) void {
-        const e = bounds.extent();
         const d = center - bounds.bounds[0];
-        const q = d / e;
+        const q = d / bounds.extent();
 
         self.center[0] = enc.floatToUnorm16(q[0]);
         self.center[1] = enc.floatToUnorm16(q[1]);
@@ -484,7 +483,7 @@ pub const Tree = struct {
 };
 
 pub const PrimitiveTree = struct {
-    bounds: AABB = undefined,
+    bounds: AABB = math.aabb.Empty,
 
     num_lights: u32 = 0,
     num_nodes: u32 = 0,
