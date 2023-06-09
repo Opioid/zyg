@@ -2,8 +2,11 @@ const Scene = @import("../scene.zig").Scene;
 const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 const mat = @import("../material/sample_helper.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const enc = base.encoding;
+const math = base.math;
 const Vec4f = math.Vec4f;
+const AABB = math.AABB;
 const Distribution1D = math.Distribution1D;
 
 const std = @import("std");
@@ -21,8 +24,8 @@ const Meta = packed struct {
 };
 
 pub const Node = struct {
-    center: Vec4f,
-    cone: Vec4f,
+    center: [4]u16,
+    cone: [4]u16,
 
     power: f32,
     variance: f32,
@@ -30,14 +33,46 @@ pub const Node = struct {
     meta: Meta,
     num_lights: u32,
 
-    pub fn weight(self: Node, p: Vec4f, n: Vec4f, total_sphere: bool) f32 {
-        const r = self.center[3];
-        return importance(p, n, self.center, self.cone, r, self.power, self.meta.two_sided, total_sphere);
+    fn decompressCenter(self: Node, bounds: AABB) Vec4f {
+        const t = Vec4f{
+            enc.unorm16ToFloat(self.center[0]),
+            enc.unorm16ToFloat(self.center[1]),
+            enc.unorm16ToFloat(self.center[2]),
+            enc.unorm16ToFloat(self.center[3]),
+        };
+        return math.lerp(bounds.bounds[0], bounds.bounds[1], t);
     }
 
-    pub fn split(self: Node, p: Vec4f) bool {
-        const r = self.center[3];
-        const d = std.math.min(math.distance3(p, self.center), 1.0e6);
+    pub fn compressCenter(self: *Node, center: Vec4f, bounds: AABB) void {
+        const e = bounds.extent();
+        const d = center - bounds.bounds[0];
+        const q = d / e;
+
+        self.center[0] = enc.floatToUnorm16(q[0]);
+        self.center[1] = enc.floatToUnorm16(q[1]);
+        self.center[2] = enc.floatToUnorm16(q[2]);
+        self.center[3] = enc.floatToUnorm16(center[3] / bounds.cachedRadius());
+    }
+
+    pub fn weight(self: Node, p: Vec4f, n: Vec4f, bounds: AABB, total_sphere: bool) f32 {
+        const center = self.decompressCenter(bounds);
+        const r = center[3];
+
+        const cone = Vec4f{
+            enc.snorm16ToFloat(self.cone[0]),
+            enc.snorm16ToFloat(self.cone[1]),
+            enc.snorm16ToFloat(self.cone[2]),
+            enc.snorm16ToFloat(self.cone[3]),
+        };
+
+        return importance(p, n, center, cone, r, self.power, self.meta.two_sided, total_sphere);
+    }
+
+    pub fn split(self: Node, p: Vec4f, bounds: AABB) bool {
+        const center = self.decompressCenter(bounds);
+
+        const r = center[3];
+        const d = std.math.min(math.distance3(p, center), 1.0e6);
         const a = std.math.max(d - r, 0.001);
         const b = d + r;
 
@@ -185,9 +220,9 @@ fn importance(
 
     const ra = if (total_sphere) 1.0 else tn;
     const rb = std.math.max(tc, 0.0);
-    const base = power / std.math.max(l * l, radius);
+    const rc = power / std.math.max(l * l, radius);
 
-    return std.math.max(ra * rb * base, mat.Dot_min);
+    return std.math.max(ra * rb * rc, mat.Dot_min);
 }
 
 fn clampedCosSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
@@ -215,6 +250,8 @@ pub const Tree = struct {
     pub const Max_lights = 64;
 
     pub const Lights = [Max_lights]Pick;
+
+    bounds: AABB = undefined,
 
     infinite_weight: f32 = undefined,
     infinite_guard: f32 = undefined,
@@ -330,7 +367,7 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = self.nodes[t.node];
 
-            const do_split = t.depth < max_split_depth and node.split(p);
+            const do_split = t.depth < max_split_depth and node.split(p, self.bounds);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
@@ -342,8 +379,8 @@ pub const Tree = struct {
                     t.node = c0;
                     stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
-                    var p0 = self.nodes[c0].weight(p, n, total_sphere);
-                    var p1 = self.nodes[c1].weight(p, n, total_sphere);
+                    var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                    var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
 
                     const pt = p0 + p1;
 
@@ -408,7 +445,7 @@ pub const Tree = struct {
         while (true) : (depth += 1) {
             const node = self.nodes[nid];
 
-            const do_split = depth < max_split_depth and node.split(p);
+            const do_split = depth < max_split_depth and node.split(p, self.bounds);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
@@ -423,8 +460,8 @@ pub const Tree = struct {
                         nid = c1;
                     }
                 } else {
-                    const p0 = self.nodes[c0].weight(p, n, total_sphere);
-                    const p1 = self.nodes[c1].weight(p, n, total_sphere);
+                    const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                    const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
                     const pt = p0 + p1;
 
                     if (lo < middle) {
@@ -447,6 +484,8 @@ pub const Tree = struct {
 };
 
 pub const PrimitiveTree = struct {
+    bounds: AABB = undefined,
+
     num_lights: u32 = 0,
     num_nodes: u32 = 0,
 
@@ -507,8 +546,8 @@ pub const PrimitiveTree = struct {
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
-                var p0 = self.nodes[c0].weight(p, n, total_sphere);
-                var p1 = self.nodes[c1].weight(p, n, total_sphere);
+                var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
 
                 const pt = p0 + p1;
 
@@ -545,8 +584,8 @@ pub const PrimitiveTree = struct {
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
-                const p0 = self.nodes[c0].weight(p, n, total_sphere);
-                const p1 = self.nodes[c1].weight(p, n, total_sphere);
+                const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
                 const pt = p0 + p1;
 
                 if (lo < middle) {

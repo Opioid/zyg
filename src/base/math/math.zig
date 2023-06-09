@@ -36,7 +36,7 @@ pub inline fn saturate(x: f32) f32 {
     return std.math.clamp(x, 0.0, 1.0);
 }
 
-pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
+pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
     switch (@typeInfo(@TypeOf(a))) {
         .Float => {
             const u = 1.0 - t;
@@ -44,8 +44,8 @@ pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
         },
         .Vector => |v| {
             const l = comptime v.len;
-            const u = 1.0 - t;
-            return @mulAdd(@TypeOf(a), @splat(l, u), a, @splat(l, t) * b);
+            const u = @splat(l, @as(f32, 1.0)) - t;
+            return @mulAdd(@TypeOf(a), u, a, t * b);
         },
         else => comptime unreachable,
     }

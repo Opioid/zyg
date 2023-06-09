@@ -161,10 +161,10 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 4 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 4 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 4 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                            buffer[i * 4 + 3] = enc.floatToUnorm(std.math.min(p.v[3], 1.0));
+                            buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 4 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 4 + 3] = enc.floatToUnorm8(std.math.min(p.v[3], 1.0));
 
                             i += 1;
                         }
@@ -206,9 +206,9 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 3 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 3 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 3 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 3 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
 
                             i += 1;
                         }
@@ -226,7 +226,7 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const depth = image.pixels[i].v[0];
 
-                        buffer[i] = enc.floatToUnorm(math.saturate(1.0 - (depth - mind) / range));
+                        buffer[i] = enc.floatToUnorm8(math.saturate(1.0 - (depth - mind) / range));
 
                         i += 1;
                     }
@@ -238,7 +238,7 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const f = image.pixels[i].v[0];
 
-                        buffer[i] = enc.floatToUnorm(math.saturate(f));
+                        buffer[i] = enc.floatToUnorm8(math.saturate(f));
 
                         i += 1;
                     }
@@ -265,9 +265,9 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const p = image.pixels[i];
 
-                        buffer[i * 3 + 0] = enc.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
-                        buffer[i * 3 + 1] = enc.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
-                        buffer[i * 3 + 2] = enc.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
+                        buffer[i * 3 + 0] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[0] + 1.0)));
+                        buffer[i * 3 + 1] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[1] + 1.0)));
+                        buffer[i * 3 + 2] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[2] + 1.0)));
 
                         i += 1;
                     }

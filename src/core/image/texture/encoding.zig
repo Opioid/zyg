@@ -45,7 +45,7 @@ fn calculateUnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = enc.unormToFloat(@intCast(u8, i));
+        b.* = enc.unorm8ToFloat(@intCast(u8, i));
     }
 
     return buf;
@@ -55,7 +55,7 @@ fn calculateSnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = enc.snormToFloat(@intCast(u8, i));
+        b.* = enc.snorm8ToFloat(@intCast(u8, i));
     }
 
     return buf;

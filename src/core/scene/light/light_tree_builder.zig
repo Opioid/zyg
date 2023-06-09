@@ -6,6 +6,7 @@ const Scene = @import("../scene.zig").Scene;
 const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 
 const base = @import("base");
+const enc = base.encoding;
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
@@ -304,7 +305,7 @@ pub const Builder = struct {
             _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, scene, threads);
 
             try tree.allocateNodes(alloc, self.current_node);
-            self.serialize(tree.nodes, tree.node_middles);
+            self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
 
             var splits = [_]u32{0} ** Tree.Max_split_depth;
             self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
@@ -322,6 +323,7 @@ pub const Builder = struct {
             try tree.allocateNodes(alloc, 0);
         }
 
+        tree.bounds = self.build_nodes[0].bounds;
         tree.max_split_depth = max_split_depth;
 
         const p0 = infinite_total_power;
@@ -378,7 +380,8 @@ pub const Builder = struct {
         );
 
         try tree.allocateNodes(alloc, self.current_node);
-        self.serialize(tree.nodes, tree.node_middles);
+        self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+        tree.bounds = self.build_nodes[0].bounds;
     }
 
     fn allocate(self: *Builder, alloc: Allocator, num_lights: u32, sweep_threshold: u32) !void {
@@ -449,6 +452,7 @@ pub const Builder = struct {
         const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sideds[1], sc.powers[1], scene, threads);
 
         node.bounds = bounds;
+        node.bounds.cacheRadius();
         node.cone = cone;
         node.power = total_power;
         node.variance = variance(Scene, lights, scene, 0);
@@ -501,6 +505,7 @@ pub const Builder = struct {
         const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
 
         node.bounds = bounds;
+        node.bounds.cacheRadius();
         node.cone = cone;
         node.power = total_power;
         node.variance = 0.0; //variance(lights, part, variant);
@@ -557,14 +562,20 @@ pub const Builder = struct {
         return begin + len;
     }
 
-    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
+    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32, total_bounds: AABB) void {
         for (self.build_nodes[0..self.current_node], 0..) |source, i| {
             var dest = &nodes[i];
+
             const bounds = source.bounds;
             const p = bounds.position();
+            const center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
+            dest.compressCenter(center, total_bounds);
 
-            dest.center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
-            dest.cone = source.cone;
+            dest.cone[0] = enc.floatToSnorm16(source.cone[0]);
+            dest.cone[1] = enc.floatToSnorm16(source.cone[1]);
+            dest.cone[2] = enc.floatToSnorm16(source.cone[2]);
+            dest.cone[3] = enc.floatToSnorm16(source.cone[3]);
+
             dest.power = source.power;
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();

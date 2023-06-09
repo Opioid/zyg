@@ -384,7 +384,7 @@ pub const Material = struct {
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp(self.color, self.checkers, t);
+        return math.lerp(self.color, self.checkers, @splat(4, t));
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {

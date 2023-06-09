@@ -738,9 +738,9 @@ const CopyFramebufferContext = struct {
                 while (x < used_width) : (x += 1) {
                     const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
 
-                    destination[o + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[0]));
-                    destination[o + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[1]));
-                    destination[o + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[2]));
+                    destination[o + 0] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[0]));
+                    destination[o + 1] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[1]));
+                    destination[o + 2] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[2]));
 
                     o += 3;
                 }

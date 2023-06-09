@@ -40,7 +40,7 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
             return math.lerp(
                 self.samples[offset],
                 self.samples[std.math.min(offset + 1, @intCast(u32, self.samples.len - 1))],
-                t,
+                @splat(4, t),
             );
         }
     };

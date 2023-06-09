@@ -130,11 +130,12 @@ pub const AABB = struct {
     }
 
     pub fn cachedRadius(self: AABB) f32 {
-        return self.bounds[0][3];
+        return self.bounds[1][3];
     }
 
     pub fn cacheRadius(self: *AABB) void {
-        self.bounds[0][3] = 0.5 * math.length3(self.extent());
+        self.bounds[0][3] = 0.0;
+        self.bounds[1][3] = 0.5 * math.length3(self.extent());
     }
 
     pub fn transform(self: AABB, m: Mat4x4) AABB {
