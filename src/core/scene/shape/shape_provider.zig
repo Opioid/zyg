@@ -122,6 +122,10 @@ pub const Provider = struct {
         var handler = Handler{};
 
         {
+            if (std.mem.eql(u8, "curve", name)) {
+                return .{ .data = .{ .CurveMesh = .{} } };
+            }
+
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
