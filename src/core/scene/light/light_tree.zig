@@ -202,10 +202,9 @@ fn clampedSinSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
 
 fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype, variant: u32) f32 {
     const two_sided = set.lightTwoSided(variant, light);
-    const aabb = set.lightAabb(light);
-    const center = aabb.position();
     const cone = set.lightCone(light);
-    const radius = aabb.cachedRadius();
+    const center = set.lightSphere(light);
+    const radius = center[3];
     const power = set.lightPower(variant, light);
 
     return importance(p, n, center, cone, radius, power, two_sided, total_sphere);

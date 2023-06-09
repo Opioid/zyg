@@ -69,7 +69,6 @@ pub const Part = struct {
     area: f32 = undefined,
 
     triangle_mapping: [*]u32 = undefined,
-    aabbs: [*]AABB = undefined,
 
     tree: *const Tree = undefined,
 
@@ -83,7 +82,6 @@ pub const Part = struct {
         self.variants.deinit(alloc);
 
         const num = self.num_alloc;
-        alloc.free(self.aabbs[0..num]);
         alloc.free(self.triangle_mapping[0..num]);
     }
 
@@ -102,7 +100,6 @@ pub const Part = struct {
 
         if (0 == self.num_alloc) {
             const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
-            const aabbs = (try alloc.alloc(AABB, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
@@ -110,24 +107,12 @@ pub const Part = struct {
             while (t < len) : (t += 1) {
                 if (tree.data.part(t) == part) {
                     triangle_mapping[mt] = t;
-
-                    const vabc = tree.data.triangleP(t);
-
-                    var box = math.aabb.Empty;
-                    box.insert(vabc[0]);
-                    box.insert(vabc[1]);
-                    box.insert(vabc[2]);
-                    box.cacheRadius();
-
-                    aabbs[mt] = box;
-
                     mt += 1;
                 }
             }
 
             self.num_alloc = num;
             self.triangle_mapping = triangle_mapping;
-            self.aabbs = aabbs;
             self.tree = tree;
         }
 
@@ -205,7 +190,31 @@ pub const Part = struct {
     }
 
     pub fn lightAabb(self: Part, light: u32) AABB {
-        return self.aabbs[light];
+        const global = self.triangle_mapping[light];
+
+        const abc = self.tree.data.triangleP(global);
+
+        var box = math.aabb.Empty;
+        box.insert(abc[0]);
+        box.insert(abc[1]);
+        box.insert(abc[2]);
+        return box;
+    }
+
+    pub fn lightSphere(self: Part, light: u32) Vec4f {
+        const global = self.triangle_mapping[light];
+
+        const abc = self.tree.data.triangleP(global);
+
+        const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
+
+        const sra = math.squaredLength3(abc[0] - center);
+        const srb = math.squaredLength3(abc[1] - center);
+        const src = math.squaredLength3(abc[2] - center);
+
+        const radius = @sqrt(std.math.max(sra, std.math.max(srb, src)));
+
+        return .{ center[0], center[1], center[2], radius };
     }
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
@@ -302,7 +311,7 @@ pub const Part = struct {
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
                     temp.dominant_axis += @splat(4, pow) * n;
-                    temp.bb.mergeAssign(self.part.aabbs[i]);
+                    temp.bb.mergeAssign(self.part.lightAabb(@intCast(u32, i)));
                     temp.total_power += pow;
                 }
             }

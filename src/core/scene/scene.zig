@@ -669,6 +669,12 @@ pub const Scene = struct {
         return self.light_aabbs.items[light_id];
     }
 
+    pub fn lightSphere(self: *const Scene, light_id: usize) Vec4f {
+        const box = self.light_aabbs.items[light_id];
+        const pos = box.position();
+        return .{ pos[0], pos[1], pos[2], box.cachedRadius() };
+    }
+
     pub fn lightCone(self: *const Scene, light_id: usize) Vec4f {
         return self.light_cones.items[light_id];
     }
