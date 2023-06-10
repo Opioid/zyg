@@ -12,6 +12,7 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Tree = @import("bvh/triangle_tree.zig").Tree;
+const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const ro = @import("../../ray_offset.zig");
@@ -191,19 +192,12 @@ pub const Part = struct {
 
     pub fn lightAabb(self: Part, light: u32) AABB {
         const global = self.triangle_mapping[light];
-
         const abc = self.tree.data.triangleP(global);
-
-        var box = math.aabb.Empty;
-        box.insert(abc[0]);
-        box.insert(abc[1]);
-        box.insert(abc[2]);
-        return box;
+        return AABB.init(tri.min(abc[0], abc[1], abc[2]), tri.max(abc[0], abc[1], abc[2]));
     }
 
     pub fn lightSphere(self: Part, light: u32) Vec4f {
         const global = self.triangle_mapping[light];
-
         const abc = self.tree.data.triangleP(global);
 
         const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
@@ -231,7 +225,7 @@ pub const Part = struct {
     pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
         // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
-        return dist.pdfI(light); // * dist.integral;
+        return dist.pdfI(light);
     }
 
     const Temp = struct {
