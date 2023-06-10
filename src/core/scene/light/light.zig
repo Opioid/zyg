@@ -18,6 +18,13 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+pub const Properties = struct {
+    sphere: Vec4f,
+    cone: Vec4f,
+    power: f32,
+    two_sided: bool,
+};
+
 pub const Light align(16) = struct {
     pub const Class = enum(u8) {
         Prop,

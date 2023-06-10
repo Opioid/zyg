@@ -15,6 +15,7 @@ const Tree = @import("bvh/triangle_tree.zig").Tree;
 const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
+const LightProperties = @import("../../light/light.zig").Properties;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -196,21 +197,6 @@ pub const Part = struct {
         return AABB.init(tri.min(abc[0], abc[1], abc[2]), tri.max(abc[0], abc[1], abc[2]));
     }
 
-    pub fn lightSphere(self: Part, light: u32) Vec4f {
-        const global = self.triangle_mapping[light];
-        const abc = self.tree.data.triangleP(global);
-
-        const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
-
-        const sra = math.squaredLength3(abc[0] - center);
-        const srb = math.squaredLength3(abc[1] - center);
-        const src = math.squaredLength3(abc[2] - center);
-
-        const radius = @sqrt(std.math.max(sra, std.math.max(srb, src)));
-
-        return .{ center[0], center[1], center[2], radius };
-    }
-
     pub fn lightCone(self: Part, light: u32) Vec4f {
         const global = self.triangle_mapping[light];
         const n = self.tree.data.normal(global);
@@ -226,6 +212,35 @@ pub const Part = struct {
         // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
         return dist.pdfI(light);
+    }
+
+    pub fn lightProperties(self: Part, light: u32, variant: u32) LightProperties {
+        const global = self.triangle_mapping[light];
+
+        const abc = self.tree.data.triangleP(global);
+
+        const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
+
+        const sra = math.squaredLength3(abc[0] - center);
+        const srb = math.squaredLength3(abc[1] - center);
+        const src = math.squaredLength3(abc[2] - center);
+
+        const radius = @sqrt(std.math.max(sra, std.math.max(srb, src)));
+
+        const e1 = abc[1] - abc[0];
+        const e2 = abc[2] - abc[0];
+        const n = math.normalize3(math.cross3(e1, e2));
+
+        // I think it is fine to just give the primitives relative power in this case
+        const dist = self.variants.items[variant].distribution;
+        const pow = dist.pdfI(light);
+
+        return .{
+            .sphere = .{ center[0], center[1], center[2], radius },
+            .cone = .{ n[0], n[1], n[2], 1.0 },
+            .power = pow,
+            .two_sided = self.variants.items[variant].two_sided,
+        };
     }
 
     const Temp = struct {

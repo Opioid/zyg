@@ -1,7 +1,9 @@
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
 const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
-const Light = @import("light/light.zig").Light;
+const lgt = @import("light/light.zig");
+const Light = lgt.Light;
+const LightProperties = lgt.Properties;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Intersection = @import("prop/intersection.zig").Intersection;
@@ -554,7 +556,7 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
-        self.light_aabbs.items[light_id].bounds[1][3] = math.hmax3(
+        self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(
             self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
@@ -662,21 +664,29 @@ pub const Scene = struct {
 
     pub fn lightPower(self: *const Scene, variant: u32, light_id: usize) f32 {
         _ = variant;
-        return self.light_aabbs.items[light_id].bounds[1][3];
+        return self.light_aabbs.items[light_id].bounds[0][3];
     }
 
     pub fn lightAabb(self: *const Scene, light_id: usize) AABB {
         return self.light_aabbs.items[light_id];
     }
 
-    pub fn lightSphere(self: *const Scene, light_id: usize) Vec4f {
-        const box = self.light_aabbs.items[light_id];
-        const pos = box.position();
-        return .{ pos[0], pos[1], pos[2], box.cachedRadius() };
-    }
-
     pub fn lightCone(self: *const Scene, light_id: usize) Vec4f {
         return self.light_cones.items[light_id];
+    }
+
+    pub fn lightProperties(self: *const Scene, light_id: u32, variant: u32) LightProperties {
+        _ = variant;
+
+        const box = self.light_aabbs.items[light_id];
+        const pos = box.position();
+
+        return .{
+            .sphere = .{ pos[0], pos[1], pos[2], box.cachedRadius() },
+            .cone = self.light_cones.items[light_id],
+            .power = self.light_aabbs.items[light_id].bounds[0][3],
+            .two_sided = self.lights.items[light_id].two_sided,
+        };
     }
 
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
