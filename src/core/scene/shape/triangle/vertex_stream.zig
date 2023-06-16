@@ -41,7 +41,7 @@ pub const VertexStream = union(enum) {
         }
     }
 
-    pub fn copy(self: VertexStream, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: VertexStream, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(positions, frames, uvs, count),
         };
@@ -97,14 +97,10 @@ pub const Separate = struct {
         }
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
+    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        @memcpy(positions[0..count], self.positions);
 
-        i = 0;
+        var i: u32 = 0;
         if (count == self.tangents.len) {
             while (i < count) : (i += 1) {
                 const n3 = self.normals[i];
@@ -157,14 +153,10 @@ pub const SeparateQuat = struct {
         alloc.free(self.positions);
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
+    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        @memcpy(positions[0..count], self.positions);
 
-        i = 0;
+        var i: u32 = 0;
         while (i < count) : (i += 1) {
             const ts = self.ts[i];
             frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
@@ -216,11 +208,11 @@ pub const CAPI = struct {
         };
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         var i: u32 = 0;
         while (i < count) : (i += 1) {
             const id = i * self.positions_stride;
-            positions[i] = .{ self.positions[id + 0], self.positions[id + 1], self.positions[id + 2], 0.0 };
+            positions[i] = Pack3f.init3(self.positions[id + 0], self.positions[id + 1], self.positions[id + 2]);
         }
 
         i = 0;
