@@ -167,11 +167,11 @@ pub inline fn anyLess4i(a: Vec4i, b: Vec4i) bool {
 }
 
 pub inline fn allLessEqualZero3(v: Vec4f) bool {
-    return @reduce(.And, v <= Vec4f{ 0.0, 0.0, 0.0, std.math.f32_max });
+    return @reduce(.And, v <= Vec4f{ 0.0, 0.0, 0.0, std.math.floatMax(f32) });
 }
 
 pub inline fn anyGreaterZero3(v: Vec4f) bool {
-    return @reduce(.Or, v > Vec4f{ 0.0, 0.0, 0.0, std.math.f32_max });
+    return @reduce(.Or, v > Vec4f{ 0.0, 0.0, 0.0, std.math.floatMax(f32) });
 }
 
 pub inline fn anyGreaterZero4(v: Vec4f) bool {

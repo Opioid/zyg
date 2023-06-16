@@ -212,4 +212,4 @@ pub const AABB = struct {
     }
 };
 
-pub const Empty = AABB.init(@splat(4, @as(f32, std.math.f32_max)), @splat(4, @as(f32, -std.math.f32_max)));
+pub const Empty = AABB.init(@splat(4, @as(f32, std.math.floatMax(f32))), @splat(4, @as(f32, -std.math.floatMax(f32))));

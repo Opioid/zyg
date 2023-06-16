@@ -129,7 +129,7 @@ fn write(
     defer alloc.free(output_name);
 
     if (.Diff == operator) {
-        var min: f32 = std.math.f32_max;
+        var min: f32 = std.math.floatMax(f32);
         var max: f32 = 0.0;
 
         const desc = target.description;

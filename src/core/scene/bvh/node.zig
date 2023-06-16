@@ -83,6 +83,6 @@ pub const Node = struct {
         const tboxmin = std.math.max(tmins[0], std.math.max(tmins[1], std.math.max(tmins[2], tmins[3])));
         const tboxmax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], std.math.min(tmaxs[2], tmaxs[3])));
 
-        return if (tboxmin <= tboxmax) tboxmin else std.math.f32_max;
+        return if (tboxmin <= tboxmax) tboxmin else std.math.floatMax(f32);
     }
 };

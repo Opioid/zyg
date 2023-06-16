@@ -40,7 +40,7 @@ pub const Srgb = struct {
 
         var num_channels: u32 = 3;
 
-        var mind: f32 = std.math.f32_max;
+        var mind: f32 = std.math.floatMax(f32);
         var maxd: f32 = 0.0;
 
         switch (encoding) {

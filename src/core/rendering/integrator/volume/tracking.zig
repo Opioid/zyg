@@ -24,7 +24,7 @@ const std = @import("std");
 
 const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
-pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.f32_max };
+pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.floatMax(f32) };
 
 pub fn transmittanceHetero(
     ray: Ray,

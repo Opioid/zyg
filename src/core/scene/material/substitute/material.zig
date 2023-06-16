@@ -286,7 +286,7 @@ pub const Material = struct {
         const ij = gridCell(uv, res);
         const suv = @splat(2, res) * uv;
 
-        var nearest_d: f32 = std.math.f32_max;
+        var nearest_d: f32 = std.math.floatMax(f32);
         var nearest_r: f32 = undefined;
         var nearest_xi: Vec2f = undefined;
 

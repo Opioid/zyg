@@ -48,7 +48,7 @@ pub const Perspective = struct {
 
     sensor: Sensor = .{
         .Opaque = snsr.Filtered(snsr.Opaque).init(
-            std.math.f32_max,
+            std.math.floatMax(f32),
             2.0,
             snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
         ),

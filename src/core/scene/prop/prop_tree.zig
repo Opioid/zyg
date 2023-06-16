@@ -52,7 +52,7 @@ pub const Tree = struct {
         self.infinite_props = infinite_props.ptr;
         self.props = props.ptr;
 
-        var t_max: f32 = std.math.f32_max;
+        var t_max: f32 = std.math.floatMax(f32);
         for (infinite_props) |i| {
             t_max = std.math.min(t_max, scene.propShape(i).infiniteTMax());
         }
@@ -104,11 +104,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }
@@ -161,11 +161,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }
@@ -215,11 +215,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }
@@ -283,11 +283,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }

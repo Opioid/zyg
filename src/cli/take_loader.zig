@@ -173,7 +173,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
-    var clamp_max: f32 = std.math.f32_max;
+    var clamp_max: f32 = std.math.floatMax(f32);
 
     var filter_value_ptr: ?*std.json.Value = null;
 
