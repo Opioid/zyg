@@ -54,7 +54,7 @@ pub const Sample = struct {
             cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
         }
 
-        const sin_theta = @sqrt(std.math.max(0.0, 1.0 - cos_theta * cos_theta));
+        const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
         const phi = r2[1] * (2.0 * std.math.pi);
 
         const wo = self.super.wo;

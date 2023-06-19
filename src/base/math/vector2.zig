@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = @import("minmax.zig");
 
 pub const Vec2b = @Vector(2, u8);
 pub const Vec2i = @Vector(2, i32);
@@ -24,11 +25,11 @@ pub inline fn normalize2(v: Vec2f) Vec2f {
 }
 
 pub inline fn min2(a: Vec2f, b: Vec2f) Vec2f {
-    return .{ std.math.min(a[0], b[0]), std.math.min(a[1], b[1]) };
+    return .{ math.min(a[0], b[0]), math.min(a[1], b[1]) };
 }
 
 pub inline fn max2(a: Vec2f, b: Vec2f) Vec2f {
-    return .{ std.math.max(a[0], b[0]), std.math.max(a[1], b[1]) };
+    return .{ math.max(a[0], b[0]), math.max(a[1], b[1]) };
 }
 
 pub inline fn vec2fTo2i(v: Vec2f) Vec2i {

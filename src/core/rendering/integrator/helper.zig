@@ -17,7 +17,7 @@ pub inline fn attenuation3(c: Vec4f, distance: f32) Vec4f {
 }
 
 pub inline fn composeAlpha(radiance: Vec4f, throughput: Vec4f, transparent: bool) Vec4f {
-    const alpha = if (transparent) std.math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
+    const alpha = if (transparent) math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
 
     return .{ radiance[0], radiance[1], radiance[2], alpha };
 }
@@ -33,7 +33,7 @@ pub inline fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
 }
 
 pub inline fn russianRoulette(new_throughput: *Vec4f, old_throughput: Vec4f, r: f32) bool {
-    const continuation_probability = @sqrt(std.math.max(math.hmax3(new_throughput.*) / math.hmax3(old_throughput), 0.0));
+    const continuation_probability = @sqrt(math.max(math.hmax3(new_throughput.*) / math.hmax3(old_throughput), 0.0));
 
     if (r >= continuation_probability) {
         return true;

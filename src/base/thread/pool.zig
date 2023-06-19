@@ -49,10 +49,10 @@ pub const Pool = struct {
         if (request <= 0) {
             const num_threads = @intCast(i32, available) + request;
 
-            return @intCast(u32, std.math.max(num_threads, 1));
+            return @intCast(u32, @max(num_threads, 1));
         }
 
-        return std.math.min(available, @intCast(u32, std.math.max(request, 1)));
+        return @min(available, @intCast(u32, @max(request, 1)));
     }
 
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
@@ -142,7 +142,7 @@ pub const Pool = struct {
             }
 
             u.begin = b;
-            u.end = std.math.min(e, end);
+            u.end = @min(e, end);
             u.signal.store(SIGNAL_WAKE, .Release);
             std.Thread.Futex.wake(&u.signal, 1);
         }

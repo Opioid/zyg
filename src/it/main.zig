@@ -142,8 +142,8 @@ fn write(
 
             buffer[i] = v;
 
-            min = std.math.min(v, min);
-            max = std.math.max(v, max);
+            min = math.min(v, min);
+            max = math.max(v, max);
         }
 
         try core.ImageWriter.PngWriter.writeHeatmap(

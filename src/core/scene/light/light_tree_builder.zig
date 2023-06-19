@@ -177,7 +177,7 @@ const SplitCandidate = struct {
 
             const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
             const c = math.dot3(dominant_axis[side], n);
-            angles[side] = std.math.max(angles[side], std.math.acos(c));
+            angles[side] = math.max(angles[side], std.math.acos(c));
         }
 
         const da0 = dominant_axis[0];
@@ -390,7 +390,7 @@ pub const Builder = struct {
             self.build_nodes = try alloc.realloc(self.build_nodes, num_nodes);
         }
 
-        const num_slices = std.math.min(num_lights, sweep_threshold);
+        const num_slices = @min(num_lights, sweep_threshold);
         const num_candidates = if (num_slices >= 2) num_slices * 3 else 0;
 
         if (num_candidates > self.candidates.len) {
@@ -716,7 +716,7 @@ pub const Builder = struct {
 
 fn coneCost(cos: f32, two_sided: bool) f32 {
     const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
-    const w = std.math.min(o + (std.math.pi / 2.0), std.math.pi);
+    const w = math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);
     const b = (std.math.pi / 2.0) * (2.0 * w * sin - @cos(o - 2.0 * w) - 2.0 * o * sin + cos);

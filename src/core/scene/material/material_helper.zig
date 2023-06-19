@@ -15,7 +15,7 @@ const std = @import("std");
 pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
     // Reconstruct normal from normal texture
     const nm = ts.sample2D_2(key, map, rs.uv, sampler, scene);
-    const nmz = @sqrt(std.math.max(1.0 - math.dot2(nm, nm), 0.01));
+    const nmz = @sqrt(math.max(1.0 - math.dot2(nm, nm), 0.01));
     const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 
     // Normal mapping can lead to normals facing away from the view direction.
@@ -62,7 +62,7 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
 
     const numer = @fabs(math.dot3(wi, geo_n) * math.dot3(wo, n));
-    const denom = std.math.max(@fabs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
+    const denom = math.max(@fabs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
 
     return numer / denom;
 }

@@ -71,8 +71,8 @@ pub const Node = struct {
         const center = self.decompressCenter(bounds);
 
         const r = center[3];
-        const d = std.math.min(math.distance3(p, center), 1.0e6);
-        const a = std.math.max(d - r, 0.001);
+        const d = math.min(math.distance3(p, center), 1.0e6);
+        const a = math.max(d - r, 0.001);
         const b = d + r;
 
         const eg = 1.0 / (a * b);
@@ -88,7 +88,7 @@ pub const Node = struct {
         const ve = self.variance;
         const ee = self.power / @intToFloat(f32, self.num_lights);
 
-        const s2 = std.math.max(ve * vg + ve * eg2 + ee * ee * vg, 0.0);
+        const s2 = math.max(ve * vg + ve * eg2 + ee * ee * vg, 0.0);
         const ns = 1.0 / (1.0 + @sqrt(s2));
 
         return ns <= Splitting_threshold;
@@ -198,7 +198,7 @@ fn importance(
     const na = axis / @splat(4, l);
     const da = cone;
 
-    const sin_cu = std.math.min(radius / l, 1.0);
+    const sin_cu = math.min(radius / l, 1.0);
     const cos_cone = cone[3];
     const cos_a = mat.absDotC(da, na, two_sided);
     const cos_n = -math.dot3(n, na);
@@ -218,10 +218,10 @@ fn importance(
     const tn = clampedCosSub(cos_n, cos_cu, sin_n, sin_cu);
 
     const ra = if (total_sphere) 1.0 else tn;
-    const rb = std.math.max(tc, 0.0);
-    const rc = power / std.math.max(l * l, radius);
+    const rb = math.max(tc, 0.0);
+    const rc = power / math.max(l * l, radius);
 
-    return std.math.max(ra * rb * rc, mat.Dot_min);
+    return math.max(ra * rb * rc, mat.Dot_min);
 }
 
 fn clampedCosSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
@@ -391,7 +391,7 @@ pub const Tree = struct {
                     } else {
                         t.node = c1;
                         t.pdf *= p1;
-                        t.random = std.math.min((t.random - p0) / p1, 1.0);
+                        t.random = math.min((t.random - p0) / p1, 1.0);
                     }
                 }
             } else {
@@ -558,7 +558,7 @@ pub const PrimitiveTree = struct {
                 } else {
                     nid = c1;
                     pd *= p1;
-                    random = std.math.min((random - p0) / p1, 1.0);
+                    random = math.min((random - p0) / p1, 1.0);
                 }
             } else {
                 const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);

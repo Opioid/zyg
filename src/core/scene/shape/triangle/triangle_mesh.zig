@@ -161,7 +161,7 @@ pub const Part = struct {
         for (self.triangle_mapping[0..self.num_alloc]) |t| {
             const n = self.tree.data.normal(t);
             const c = math.dot3(da, n);
-            angle = std.math.max(angle, std.math.acos(c));
+            angle = math.max(angle, std.math.acos(c));
         }
 
         const v = @intCast(u32, self.variants.items.len);
@@ -225,7 +225,7 @@ pub const Part = struct {
         const srb = math.squaredLength3(abc[1] - center);
         const src = math.squaredLength3(abc[2] - center);
 
-        const radius = @sqrt(std.math.max(sra, std.math.max(srb, src)));
+        const radius = @sqrt(math.max(sra, math.max(srb, src)));
 
         const e1 = abc[1] - abc[0];
         const e2 = abc[2] - abc[0];
@@ -288,7 +288,7 @@ pub const Part = struct {
 
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+                    const num_samples = @max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
 
                     var radiance = @splat(4, @as(f32, 0.0));
 

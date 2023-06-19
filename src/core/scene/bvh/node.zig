@@ -80,8 +80,8 @@ pub const Node = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const tboxmin = std.math.max(tmins[0], std.math.max(tmins[1], std.math.max(tmins[2], tmins[3])));
-        const tboxmax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], std.math.min(tmaxs[2], tmaxs[3])));
+        const tboxmin = math.max(tmins[0], math.max(tmins[1], math.max(tmins[2], tmins[3])));
+        const tboxmax = math.min(tmaxs[0], math.min(tmaxs[1], math.min(tmaxs[2], tmaxs[3])));
 
         return if (tboxmin <= tboxmax) tboxmin else std.math.floatMax(f32);
     }

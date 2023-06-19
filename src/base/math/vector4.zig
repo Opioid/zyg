@@ -1,3 +1,4 @@
+const math = @import("minmax.zig");
 const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
@@ -106,19 +107,19 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
 
 pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {
     return .{
-        std.math.min(a[0], b[0]),
-        std.math.min(a[1], b[1]),
-        std.math.min(a[2], b[2]),
-        std.math.min(a[3], b[3]),
+        math.min(a[0], b[0]),
+        math.min(a[1], b[1]),
+        math.min(a[2], b[2]),
+        math.min(a[3], b[3]),
     };
 }
 
 pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
     return .{
-        std.math.max(a[0], b[0]),
-        std.math.max(a[1], b[1]),
-        std.math.max(a[2], b[2]),
-        std.math.max(a[3], b[3]),
+        math.max(a[0], b[0]),
+        math.max(a[1], b[1]),
+        math.max(a[2], b[2]),
+        math.max(a[3], b[3]),
     };
 }
 
@@ -127,11 +128,11 @@ pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
 }
 
 pub inline fn hmin3(v: Vec4f) f32 {
-    return std.math.min(v[0], std.math.min(v[1], v[2]));
+    return math.min(v[0], math.min(v[1], v[2]));
 }
 
 pub inline fn hmax3(v: Vec4f) f32 {
-    return std.math.max(v[0], std.math.max(v[1], v[2]));
+    return math.max(v[0], math.max(v[1], v[2]));
 }
 
 pub inline fn indexMinComponent3(v: Vec4f) u32 {

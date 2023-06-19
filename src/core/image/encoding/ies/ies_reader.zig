@@ -332,7 +332,7 @@ pub const Reader = struct {
         data.vertical_angles.items[0] = p;
         for (data.vertical_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = std.math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @fabs(c - p));
             a.* = c;
             p = c;
         }
@@ -341,7 +341,7 @@ pub const Reader = struct {
         data.horizontal_angles.items[0] = p;
         for (data.horizontal_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = std.math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @fabs(c - p));
             a.* = c;
             p = c;
         }
@@ -349,7 +349,7 @@ pub const Reader = struct {
         var mi: f32 = 0.0;
         for (data.intensities.items) |*i| {
             const v = try std.fmt.parseFloat(f32, try tokenizer.next());
-            mi = std.math.max(mi, v);
+            mi = math.max(mi, v);
             i.* = v;
         }
 

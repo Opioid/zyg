@@ -213,7 +213,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
+                const p = math.max(l - self.al, math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 

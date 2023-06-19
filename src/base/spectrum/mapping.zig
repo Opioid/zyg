@@ -1,5 +1,5 @@
 const spectrum = @import("xyz.zig");
-const math = @import("../math/vector4.zig");
+const math = @import("../math/math.zig");
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -24,7 +24,7 @@ pub fn blackbody(temperature: f32) Vec4f {
     }
 
     // normalize the result
-    xyz /= @splat(4, std.math.max(xyz[0], std.math.max(xyz[1], xyz[2])));
+    xyz /= @splat(4, math.max(xyz[0], math.max(xyz[1], xyz[2])));
 
     return math.max4(spectrum.XYZ_to_sRGB(xyz), @splat(4, @as(f32, 0.0)));
 }

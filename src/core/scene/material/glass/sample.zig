@@ -114,7 +114,7 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             return bxdf.Result.init(
-                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
+                @splat(4, math.min(n_dot_wi, n_dot_wo) * comp) * self.super.albedo * gg.reflection,
                 gg.pdf(),
             );
         } else {
@@ -203,7 +203,7 @@ pub const Sample = struct {
             std.mem.swap(f32, &eta_i, &eta_t);
         }
 
-        const n_dot_wo = std.math.min(@fabs(math.dot3(n, wo)), 1.0);
+        const n_dot_wo = math.min(@fabs(math.dot3(n, wo)), 1.0);
         const eta = eta_i / eta_t;
         const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 
@@ -232,7 +232,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const n = self.super.frame.n;
 
-        const n_dot_wo = std.math.min(@fabs(math.dot3(n, wo)), 1.0);
+        const n_dot_wo = math.min(@fabs(math.dot3(n, wo)), 1.0);
         const eta = eta_i / eta_t;
         const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 

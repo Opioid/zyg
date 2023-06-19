@@ -124,7 +124,7 @@ pub const Material = struct {
         const N = 1.5396 / (size * size);
         const K = 4.0;
 
-        self.flakes_res = std.math.max(4.0, @ceil(@sqrt(N / K)));
+        self.flakes_res = math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
@@ -273,7 +273,7 @@ pub const Material = struct {
         comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
         comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
 
-        return std.math.min(limit, 0.5 * alpha);
+        return math.min(limit, 0.5 * alpha);
     }
 
     fn gridCell(uv: Vec2f, res: f32) Vec2i {

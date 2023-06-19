@@ -205,7 +205,7 @@ pub const Sky = struct {
         for (sun_image.pixels, 0..) |*s, i| {
             const v = @intToFloat(f32, i) / n;
             var wi = sunWi(self.sun_rotation, v);
-            wi[1] = std.math.max(wi[1], 0.0);
+            wi[1] = math.max(wi[1], 0.0);
 
             s.* = math.vec4fTo3f(model.evaluateSkyAndSun(wi, &rng));
         }

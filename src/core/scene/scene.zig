@@ -774,7 +774,7 @@ pub const Scene = struct {
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
-        const a: u32 = std.math.max(@intCast(u32, frame_duration / Tick_duration), 1);
+        const a: u32 = @max(@intCast(u32, frame_duration / Tick_duration), 1);
         const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
         const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
 
