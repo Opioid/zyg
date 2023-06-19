@@ -41,7 +41,7 @@ pub const VertexStream = union(enum) {
         }
     }
 
-    pub fn copy(self: VertexStream, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: VertexStream, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(positions, frames, uvs, count),
         };
@@ -97,12 +97,17 @@ pub const Separate = struct {
         }
     }
 
-    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        @memcpy(positions[0..count], self.positions);
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        for (0..count) |i| {
+            const id = i * 3;
 
-        var i: u32 = 0;
+            positions[id + 0] = self.positions[i].v[0];
+            positions[id + 1] = self.positions[i].v[1];
+            positions[id + 2] = self.positions[i].v[2];
+        }
+
         if (count == self.tangents.len) {
-            while (i < count) : (i += 1) {
+            for (0..count) |i| {
                 const n3 = self.normals[i];
                 const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
                 const t3 = self.tangents[i];
@@ -111,7 +116,7 @@ pub const Separate = struct {
                 frames[i] = quaternion.initFromTN(t, n);
             }
         } else {
-            while (i < count) : (i += 1) {
+            for (0..count) |i| {
                 const n3 = self.normals[i];
                 const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
                 const t = math.tangent3(n);
@@ -153,12 +158,16 @@ pub const SeparateQuat = struct {
         alloc.free(self.positions);
     }
 
-    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        @memcpy(positions[0..count], self.positions);
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        for (0..count) |i| {
+            const id = i * 3;
 
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const ts = self.ts[i];
+            positions[id + 0] = self.positions[i].v[0];
+            positions[id + 1] = self.positions[i].v[1];
+            positions[id + 2] = self.positions[i].v[2];
+        }
+
+        for (self.ts[0..count], 0..count) |ts, i| {
             frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
         }
 
@@ -208,11 +217,15 @@ pub const CAPI = struct {
         };
     }
 
-    pub fn copy(self: Self, positions: [*]Pack3f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         var i: u32 = 0;
         while (i < count) : (i += 1) {
-            const id = i * self.positions_stride;
-            positions[i] = Pack3f.init3(self.positions[id + 0], self.positions[id + 1], self.positions[id + 2]);
+            const dest_id = i * 3;
+            const source_id = i * self.positions_stride;
+
+            positions[dest_id + 0] = self.positions[source_id + 0];
+            positions[dest_id + 1] = self.positions[source_id + 1];
+            positions[dest_id + 2] = self.positions[source_id + 2];
         }
 
         i = 0;
