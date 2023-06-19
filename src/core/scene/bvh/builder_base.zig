@@ -47,7 +47,7 @@ const Kernel = struct {
         return Kernel{
             .split_candidates = try std.ArrayListUnmanaged(SplitCandidate).initCapacity(
                 alloc,
-                3 + std.math.max(3 * sweep_threshold, 3 * 2 * num_slices),
+                3 + @max(3 * sweep_threshold, 3 * 2 * num_slices),
             ),
         };
     }
@@ -247,7 +247,7 @@ const Kernel = struct {
     pub fn reserve(self: *Kernel, alloc: Allocator, num_primitives: u32, settings: Settings) !void {
         try self.build_nodes.ensureTotalCapacity(
             alloc,
-            std.math.max((3 * num_primitives) / settings.max_primitives, 1),
+            @max((3 * num_primitives) / settings.max_primitives, 1),
         );
         self.build_nodes.clearRetainingCapacity();
         try self.build_nodes.append(alloc, .{});
@@ -307,9 +307,9 @@ pub const Base = struct {
         const log2_num_references = std.math.log2(@intToFloat(f32, references.len));
         self.settings.spatial_split_threshold = @floatToInt(u32, @round(log2_num_references / 2.0));
 
-        self.settings.parallel_build_depth = std.math.min(self.settings.spatial_split_threshold, 6);
+        self.settings.parallel_build_depth = @min(self.settings.spatial_split_threshold, 6);
 
-        const num_tasks = std.math.min(
+        const num_tasks = @min(
             try std.math.powi(u32, 2, self.settings.parallel_build_depth),
             @intCast(u32, references.len / Parallelize_threshold),
         );

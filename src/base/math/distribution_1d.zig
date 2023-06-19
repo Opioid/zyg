@@ -27,7 +27,7 @@ pub const Distribution1D = struct {
         try self.precomputePdfCdf(alloc, data);
 
         var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
-        lut_size = std.math.min(std.math.max(lut_size, 1), self.size);
+        lut_size = @min(@max(lut_size, 1), self.size);
 
         try self.initLut(alloc, lut_size);
     }
@@ -72,7 +72,7 @@ pub const Distribution1D = struct {
 
     pub fn pdfF(self: Self, u: f32) f32 {
         const len = self.size;
-        const o = std.math.min(@floatToInt(u32, u * @intToFloat(f32, len - 1)), len - 2);
+        const o = @min(@floatToInt(u32, u * @intToFloat(f32, len - 1)), len - 2);
 
         return self.cdf[o + 1] - self.cdf[o];
     }

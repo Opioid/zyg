@@ -398,8 +398,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                const jlen = std.math.min(cell[1], end);
-                var j = std.math.max(cell[0], i + 1);
+                const jlen = @min(cell[1], end);
+                var j = @max(cell[0], i + 1);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -418,7 +418,7 @@ pub const Grid = struct {
                     const b_alpha = Vec4f{ b.alpha[0], b.alpha[1], b.alpha[2], 0.0 };
                     const weight = math.average3(b_alpha);
                     const ratio = if (total_weight > weight) weight / total_weight else total_weight / weight;
-                    const threshold = std.math.max(ratio - 0.1, 0.0);
+                    const threshold = math.max(ratio - 0.1, 0.0);
 
                     if (math.dot3(wi, b.wi) < threshold) {
                         continue;
@@ -720,7 +720,7 @@ const Buffer = struct {
 
         if (lb < num) {
             const begin = lb + 1;
-            const end = std.math.min(num + 1, self.entries.len);
+            const end = @min(num + 1, self.entries.len);
             const range = end - begin;
             std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
 

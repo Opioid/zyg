@@ -273,7 +273,7 @@ pub const Shaper = struct {
                     const n = math.normalize2(.{ cb[1], -cb[0] });
                     const d = math.dot2(n, b);
                     const t = math.dot2(n, center) / d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
 
                     b = c;
                 }
@@ -291,7 +291,7 @@ pub const Shaper = struct {
                 var mt: f32 = 0.0;
                 for (s.planes[0..s.blades]) |b| {
                     const t = math.dot2(b.n, center) / b.d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
                 }
 
                 return math.lerp(mt, lc, s.roundness) <= radius;

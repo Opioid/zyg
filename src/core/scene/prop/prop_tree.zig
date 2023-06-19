@@ -54,7 +54,7 @@ pub const Tree = struct {
 
         var t_max: f32 = std.math.floatMax(f32);
         for (infinite_props) |i| {
-            t_max = std.math.min(t_max, scene.propShape(i).infiniteTMax());
+            t_max = math.min(t_max, scene.propShape(i).infiniteTMax());
         }
         self.infinite_t_max = t_max;
     }

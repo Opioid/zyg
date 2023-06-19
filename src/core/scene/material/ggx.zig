@@ -47,7 +47,7 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
-    return std.math.max(roughness, Min_roughness);
+    return math.max(roughness, Min_roughness);
 }
 
 pub fn mapRoughness(roughness: f32) f32 {
@@ -418,10 +418,10 @@ pub const Aniso = struct {
         const p2 = r * sin_phi * (if (xi[1] < a) 1.0 else v[2]);
 
         // compute normal
-        var m = @splat(4, p1) * t1 + @splat(4, p2) * t2 + @splat(4, @sqrt(std.math.max(1.0 - p1 * p1 - p2 * p2, 0.0))) * v;
+        var m = @splat(4, p1) * t1 + @splat(4, p2) * t2 + @splat(4, @sqrt(math.max(1.0 - p1 * p1 - p2 * p2, 0.0))) * v;
 
         // unstretch
-        m = math.normalize3(.{ alpha[0] * m[0], alpha[1] * m[1], std.math.max(m[2], 0.0), 0.0 });
+        m = math.normalize3(.{ alpha[0] * m[0], alpha[1] * m[1], math.max(m[2], 0.0), 0.0 });
 
         n_dot_h.* = hlp.clamp(m[2]);
 

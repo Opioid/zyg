@@ -57,10 +57,10 @@ pub const Srgb = struct {
                     while (x < crop[2]) : (x += 1) {
                         const depth = image.pixels[i].v[0];
 
-                        mind = std.math.min(mind, depth);
+                        mind = math.min(mind, depth);
 
                         if (depth < ro.Almost_ray_max_t) {
-                            maxd = std.math.max(maxd, depth);
+                            maxd = math.max(maxd, depth);
                         }
 
                         i += 1;
@@ -138,7 +138,7 @@ pub const Srgb = struct {
                                 spectrum.linearToGamma_sRGB(p.v[0]),
                                 spectrum.linearToGamma_sRGB(p.v[1]),
                                 spectrum.linearToGamma_sRGB(p.v[2]),
-                                std.math.min(p.v[3], 1.0),
+                                math.min(p.v[3], 1.0),
                             };
 
                             const cf = @splat(4, @as(f32, 255.0)) * color;
@@ -164,7 +164,7 @@ pub const Srgb = struct {
                             buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
                             buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
                             buffer[i * 4 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
-                            buffer[i * 4 + 3] = enc.floatToUnorm8(std.math.min(p.v[3], 1.0));
+                            buffer[i * 4 + 3] = enc.floatToUnorm8(math.min(p.v[3], 1.0));
 
                             i += 1;
                         }

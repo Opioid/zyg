@@ -136,11 +136,11 @@ pub const Emittance = struct {
 
                 if (s > 0.0) {
                     const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
-                    cos_a = std.math.min(cos_a, -dir[2]);
+                    cos_a = math.min(cos_a, -dir[2]);
                 }
             }
         }
 
-        return std.math.acos(std.math.max(cos_a - std.math.max(idf[0], idf[1]), -1.0));
+        return std.math.acos(math.max(cos_a - math.max(idf[0], idf[1]), -1.0));
     }
 };

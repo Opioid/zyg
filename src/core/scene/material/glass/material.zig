@@ -78,7 +78,7 @@ pub const Material = struct {
             const eta_i: f32 = 1.0;
             const eta_t = self.super.ior;
 
-            const n_dot_wo = std.math.min(@fabs(math.dot3(n, wi)), 1.0);
+            const n_dot_wo = math.min(@fabs(math.dot3(n, wi)), 1.0);
             const eta = eta_i / eta_t;
             const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 

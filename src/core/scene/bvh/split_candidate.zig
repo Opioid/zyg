@@ -43,7 +43,7 @@ pub const Reference = struct {
     pub fn clippedMin(self: Reference, d: f32, axis: u8) Reference {
         var bounds0 = self.bounds[0];
 
-        bounds0.v[axis] = std.math.max(d, bounds0.v[axis]);
+        bounds0.v[axis] = math.max(d, bounds0.v[axis]);
 
         return .{ .bounds = .{ bounds0, self.bounds[1] } };
     }
@@ -51,7 +51,7 @@ pub const Reference = struct {
     pub fn clippedMax(self: Reference, d: f32, axis: u8) Reference {
         var bounds1 = self.bounds[1];
 
-        bounds1.v[axis] = std.math.min(d, bounds1.v[axis]);
+        bounds1.v[axis] = math.min(d, bounds1.v[axis]);
 
         return .{ .bounds = .{ self.bounds[0], bounds1 } };
     }

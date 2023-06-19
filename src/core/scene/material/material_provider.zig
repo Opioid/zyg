@@ -563,7 +563,7 @@ fn readColor(value: std.json.Value) Vec4f {
                     rgb = readColor(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = json.readFloat(f32, entry.value_ptr.*);
-                    rgb = spectrum.blackbody(std.math.max(800.0, temperature));
+                    rgb = spectrum.blackbody(math.max(800.0, temperature));
                 } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
                     linear = json.readBool(entry.value_ptr.*);
                 }
