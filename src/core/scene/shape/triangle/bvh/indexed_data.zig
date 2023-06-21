@@ -16,9 +16,6 @@ pub const Indexed_data = struct {
         a: u32,
         b: u32,
         c: u32,
-    };
-
-    const Part = packed struct {
         bts: u1,
         part: u31,
     };
@@ -27,7 +24,6 @@ pub const Indexed_data = struct {
     num_vertices: u32 = 0,
 
     triangles: [*]Triangle = undefined,
-    parts: [*]Part = undefined,
     positions: [*]f32 = undefined,
     frames: [*]Vec4f = undefined,
     uvs: [*]Vec2f = undefined,
@@ -38,7 +34,6 @@ pub const Indexed_data = struct {
         alloc.free(self.uvs[0..self.num_vertices]);
         alloc.free(self.frames[0..self.num_vertices]);
         alloc.free(self.positions[0 .. self.num_vertices * 3 + 1]);
-        alloc.free(self.parts[0..self.num_triangles]);
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
@@ -49,7 +44,6 @@ pub const Indexed_data = struct {
         self.num_vertices = num_vertices;
 
         self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
-        self.parts = (try alloc.alloc(Part, num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
@@ -67,24 +61,23 @@ pub const Indexed_data = struct {
         vertices: VertexStream,
         triangle_id: u32,
     ) void {
-        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c };
-
         const abts = vertices.bitangentSign(a);
         const bbts = vertices.bitangentSign(b);
         const cbts = vertices.bitangentSign(c);
 
         const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
 
-        self.parts[triangle_id] = .{
+        self.triangles[triangle_id] = .{
+            .a = a,
+            .b = b,
+            .c = c,
             .bts = if (bitangent_sign) 1 else 0,
             .part = @intCast(u31, p),
         };
     }
 
     inline fn position(self: *const Self, index: u32) Vec4f {
-        const start = index * 3;
-
-        return self.positions[start .. start + 4][0..4].*;
+        return self.positions[index * 3 ..][0..4].*;
     }
 
     pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Intersection {
@@ -167,7 +160,7 @@ pub const Indexed_data = struct {
     }
 
     pub fn part(self: *const Self, index: u32) u32 {
-        return self.parts[index].part;
+        return self.triangles[index].part;
     }
 
     pub fn normal(self: *const Self, index: u32) Vec4f {
@@ -197,7 +190,7 @@ pub const Indexed_data = struct {
     }
 
     pub fn bitangentSign(self: *const Self, index: u32) f32 {
-        return if (0 == self.parts[index].bts) 1.0 else -1.0;
+        return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
 
     pub fn area(self: *const Self, index: u32) f32 {
