@@ -139,7 +139,7 @@ pub const Part = struct {
             .scene = scene,
             .prop_id = prop,
             .part_id = part,
-            .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
+            .estimate_area = @floatFromInt(f32, dimensions[0] * dimensions[1]) / 4.0,
         };
         defer {
             alloc.free(context.powers);
@@ -288,7 +288,7 @@ pub const Part = struct {
 
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = @max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+                    const num_samples = @max(@intFromFloat(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
 
                     var radiance = @splat(4, @as(f32, 0.0));
 

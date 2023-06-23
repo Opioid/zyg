@@ -248,7 +248,7 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const id = @floatToInt(u32, image.pixels[i].v[0]);
+                        const id = @intFromFloat(u32, image.pixels[i].v[0]);
                         const mid = (id *% 9795927) % 16777216;
 
                         buffer[i * 3 + 0] = @truncate(u8, mid >> 16);
@@ -277,6 +277,6 @@ pub const Srgb = struct {
     }
 
     fn goldenRatio(n: u32) f32 {
-        return math.frac(@intToFloat(f32, n) * 0.618033988749894);
+        return math.frac(@floatFromInt(f32, n) * 0.618033988749894);
     }
 };

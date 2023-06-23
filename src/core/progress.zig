@@ -44,12 +44,12 @@ pub const StdOut = struct {
 
         self.progress += 1;
 
-        const p = @intToFloat(f32, self.progress) / @intToFloat(f32, self.resolution) * 100.0;
+        const p = @floatFromInt(f32, self.progress) / @floatFromInt(f32, self.resolution) * 100.0;
         if (p >= self.threshold) {
             self.threshold += step;
 
             const stdout = std.io.getStdOut().writer();
-            stdout.print("{}%\r", .{@floatToInt(u32, p)}) catch return;
+            stdout.print("{}%\r", .{@intFromFloat(u32, p)}) catch return;
         }
     }
 };

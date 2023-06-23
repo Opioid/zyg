@@ -62,7 +62,7 @@ pub const Distribution1D = struct {
         }
 
         const t = (c - r) / v;
-        const result = (@intToFloat(f32, offset) + t) / @intToFloat(f32, self.size - 1);
+        const result = (@floatFromInt(f32, offset) + t) / @floatFromInt(f32, self.size - 1);
         return .{ .offset = result, .pdf = v };
     }
 
@@ -72,7 +72,7 @@ pub const Distribution1D = struct {
 
     pub fn pdfF(self: Self, u: f32) f32 {
         const len = self.size;
-        const o = @min(@floatToInt(u32, u * @intToFloat(f32, len - 1)), len - 2);
+        const o = @min(@intFromFloat(u32, u * @floatFromInt(f32, len - 1)), len - 2);
 
         return self.cdf[o + 1] - self.cdf[o];
     }
@@ -122,7 +122,7 @@ pub const Distribution1D = struct {
         if (padded_lut_size != self.lut_size) {
             self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
             self.lut_size = padded_lut_size;
-            self.lut_range = @intToFloat(f32, lut_size);
+            self.lut_range = @floatFromInt(f32, lut_size);
         }
 
         self.lut[0] = 1;
@@ -143,7 +143,7 @@ pub const Distribution1D = struct {
     }
 
     fn map(self: Self, s: f32) u32 {
-        return @floatToInt(u32, s * self.lut_range);
+        return @intFromFloat(u32, s * self.lut_range);
     }
 
     fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {

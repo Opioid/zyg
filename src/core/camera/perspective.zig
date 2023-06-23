@@ -190,7 +190,7 @@ pub const Perspective = struct {
         const fx = @floor(x);
         const fy = @floor(y);
 
-        const pixel = Vec2i{ @floatToInt(i32, fx), @floatToInt(i32, fy) };
+        const pixel = Vec2i{ @intFromFloat(i32, fx), @intFromFloat(i32, fy) };
 
         if (@intCast(u32, pixel[0] - bounds[0]) > @intCast(u32, bounds[2]) or
             @intCast(u32, pixel[1] - bounds[1]) > @intCast(u32, bounds[3]))
@@ -236,9 +236,9 @@ pub const Perspective = struct {
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
         const delta = @floatCast(f64, frame_delta);
-        const duration = @intToFloat(f64, self.frame_duration);
+        const duration = @floatFromInt(f64, self.frame_duration);
 
-        const fdi = @floatToInt(u64, @round(delta * duration));
+        const fdi = @intFromFloat(u64, @round(delta * duration));
 
         return @as(u64, frame) * self.frame_step + fdi;
     }
@@ -255,7 +255,7 @@ pub const Perspective = struct {
                 if (0.0 == fps) {
                     self.frame_step = 0;
                 } else {
-                    self.frame_step = @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps));
+                    self.frame_step = @intFromFloat(u64, @round(@floatFromInt(f64, Scene.Units_per_second) / fps));
                 }
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
@@ -304,8 +304,8 @@ pub const Perspective = struct {
 
     fn setFocus(self: *Self, focus: Focus) void {
         self.focus = focus;
-        self.focus.point[0] *= @intToFloat(f32, self.resolution[0]);
-        self.focus.point[1] *= @intToFloat(f32, self.resolution[1]);
+        self.focus.point[0] *= @floatFromInt(f32, self.resolution[0]);
+        self.focus.point[1] *= @floatFromInt(f32, self.resolution[1]);
         self.focus_distance = focus.distance;
     }
 

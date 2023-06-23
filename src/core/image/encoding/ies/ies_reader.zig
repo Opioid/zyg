@@ -353,21 +353,21 @@ pub const Reader = struct {
             i.* = v;
         }
 
-        const res = @floatToInt(i32, 360.0 / min_angle + 0.5);
+        const res = @intFromFloat(i32, 360.0 / min_angle + 0.5);
         const d = Vec2i{ res, res };
 
         var image = try img.Half1.init(alloc, img.Description.init2D(d));
 
-        const idf = 1.0 / @intToFloat(f32, res);
+        const idf = 1.0 / @floatFromInt(f32, res);
         const imi = 1.0 / mi;
 
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
-            const v = idf * (@intToFloat(f32, y) + 0.5);
+            const v = idf * (@floatFromInt(f32, y) + 0.5);
 
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
-                const u = idf * (@intToFloat(f32, x) + 0.5);
+                const u = idf * (@floatFromInt(f32, x) + 0.5);
 
                 const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
                 const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });

@@ -66,7 +66,7 @@ pub const View = struct {
 
     pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
-        self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
+        self.camera.sample_spacing = 1.0 / @sqrt(@floatFromInt(f32, spp));
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
@@ -310,7 +310,7 @@ pub const Take = struct {
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
                 var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 if (0 == framerate) {
-                    framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, self.view.camera.frame_step)));
+                    framerate = @intFromFloat(u32, @round(1.0 / @floatFromInt(f64, self.view.camera.frame_step)));
                 }
 
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);

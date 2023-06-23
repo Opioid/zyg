@@ -137,16 +137,13 @@ pub const Provider = struct {
             const buffer = try stream.readAll(alloc);
             defer alloc.free(buffer);
 
-            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-            defer parser.deinit();
-
-            var document = parser.parse(buffer) catch |e| {
+            var parsed = std.json.parseFromSlice(std.json.Value, alloc, buffer, .{}) catch |e| {
                 log.err("Loading mesh \"{s}\": {}", .{ name, e });
                 return e;
             };
-            defer document.deinit();
+            defer parsed.deinit();
 
-            const root = document.root;
+            const root = parsed.value;
 
             var iter = root.object.iterator();
             while (iter.next()) |entry| {
@@ -404,13 +401,12 @@ pub const Provider = struct {
 
             _ = try stream.read(json_string);
 
-            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-            defer parser.deinit();
+            var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string, .{});
+            defer parsed.deinit();
 
-            var document = try parser.parse(std.mem.sliceTo(json_string, 0));
-            defer document.deinit();
+            const root = parsed.value;
 
-            const geometry_node = document.root.object.get("geometry") orelse return Error.NoGeometryNode;
+            const geometry_node = root.object.get("geometry") orelse return Error.NoGeometryNode;
 
             var iter = geometry_node.object.iterator();
             while (iter.next()) |entry| {

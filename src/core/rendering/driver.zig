@@ -224,7 +224,7 @@ pub const Driver = struct {
         }
 
         for (0..View.AovValue.Num_classes) |i| {
-            const class = @intToEnum(View.AovValue.Class, i);
+            const class = @enumFromInt(View.AovValue.Class, i);
             if (!self.resolveAov(class)) {
                 continue;
             }
@@ -248,7 +248,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@intToFloat(f32, self.view.num_particles_per_pixel));
+        camera.sensor.clear(@floatFromInt(f32, self.view.num_particles_per_pixel));
 
         self.progressor.start(self.ranges.size());
 
@@ -271,7 +271,7 @@ pub const Driver = struct {
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+        const num_photon_samples = @intFromFloat(u32, @ceil(0.25 * @floatFromInt(f32, num_samples)));
 
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples);
@@ -369,7 +369,7 @@ pub const Driver = struct {
             ) catch break;
 
             if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
-                @intToFloat(f32, begin) / @intToFloat(f32, new_begin) > (1.0 - iteration_threshold))
+                @floatFromInt(f32, begin) / @floatFromInt(f32, new_begin) > (1.0 - iteration_threshold))
             {
                 break;
             }

@@ -39,7 +39,7 @@ pub fn Filtered(comptime T: type) type {
         pub fn init(clamp_max: f32, radius: f32, f: anytype) Self {
             var result = Self{
                 .clamp_max = clamp_max,
-                .radius_int = @floatToInt(i32, @ceil(radius)),
+                .radius_int = @intFromFloat(i32, @ceil(radius)),
                 .filter = Func.init(0.0, radius, f),
             };
 
@@ -85,7 +85,7 @@ pub fn Filtered(comptime T: type) type {
                     const len = AovValue.Num_classes;
                     var i: u32 = 0;
                     while (i < len) : (i += 1) {
-                        const class = @intToEnum(AovValue.Class, i);
+                        const class = @enumFromInt(AovValue.Class, i);
                         if (aov.activeClass(class)) {
                             const value = aov.values[i];
 
@@ -127,7 +127,7 @@ pub fn Filtered(comptime T: type) type {
                     const len = AovValue.Num_classes;
                     var i: u32 = 0;
                     while (i < len) : (i += 1) {
-                        const class = @intToEnum(AovValue.Class, i);
+                        const class = @enumFromInt(AovValue.Class, i);
                         if (aov.activeClass(class)) {
                             const value = aov.values[i];
 
@@ -208,7 +208,7 @@ pub fn Filtered(comptime T: type) type {
                     const len = AovValue.Num_classes;
                     var i: u32 = 0;
                     while (i < len) : (i += 1) {
-                        const class = @intToEnum(AovValue.Class, i);
+                        const class = @enumFromInt(AovValue.Class, i);
                         if (aov.activeClass(class)) {
                             const value = aov.values[i];
 
@@ -433,7 +433,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {
-            const interval = radius / @intToFloat(f32, num_samples);
+            const interval = radius / @floatFromInt(f32, num_samples);
             var s = 0.5 * interval;
             var sum: f32 = 0.0;
             var i: u32 = 0;

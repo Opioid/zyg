@@ -22,7 +22,7 @@ pub const Value = struct {
         }
 
         pub fn activeIn(class: Class, slots: u32) bool {
-            const bit = @as(u32, 1) << @enumToInt(class);
+            const bit = @as(u32, 1) << @intFromEnum(class);
             return 0 != (slots & bit);
         }
 
@@ -57,7 +57,7 @@ pub const Value = struct {
 
         var i: u4 = 0;
         while (i < Num_classes) : (i += 1) {
-            const class = @intToEnum(Class, i);
+            const class = @enumFromInt(Class, i);
             if (self.activeClass(class)) {
                 self.values[i] = class.default();
             }
@@ -65,11 +65,11 @@ pub const Value = struct {
     }
 
     pub fn insert3(self: *Value, class: Class, value: Vec4f) void {
-        self.values[@enumToInt(class)] = value;
+        self.values[@intFromEnum(class)] = value;
     }
 
     pub fn insert1(self: *Value, class: Class, value: f32) void {
-        self.values[@enumToInt(class)][0] = value;
+        self.values[@intFromEnum(class)][0] = value;
     }
 };
 
@@ -85,7 +85,7 @@ pub const Factory = struct {
     }
 
     pub fn set(self: *Factory, class: Value.Class, value: bool) void {
-        const bit = @as(u32, 1) << @enumToInt(class);
+        const bit = @as(u32, 1) << @intFromEnum(class);
 
         if (value) {
             self.slots |= bit;

@@ -86,7 +86,7 @@ pub const Node = struct {
         const vg = e2g - eg2;
 
         const ve = self.variance;
-        const ee = self.power / @intToFloat(f32, self.num_lights);
+        const ee = self.power / @floatFromInt(f32, self.num_lights);
 
         const s2 = math.max(ve * vg + ve * eg2 + ee * ee * vg, 0.0);
         const ns = 1.0 / (1.0 + @sqrt(s2));

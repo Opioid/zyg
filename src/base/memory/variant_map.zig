@@ -28,7 +28,7 @@ pub const VariantMap = struct {
         }
 
         pub fn hash(self: Variant, hasher: anytype) void {
-            const et = @enumToInt(self);
+            const et = @intFromEnum(self);
             hasher.update(std.mem.asBytes(&et));
 
             switch (self) {
@@ -77,7 +77,7 @@ pub const VariantMap = struct {
                     }
 
                     return switch (@typeInfo(T)) {
-                        .Enum => @intToEnum(T, ui),
+                        .Enum => @enumFromInt(T, ui),
                         else => null,
                     };
                 },
@@ -97,7 +97,7 @@ pub const VariantMap = struct {
     pub fn set(self: *Self, alloc: Allocator, key: []const u8, val: anytype) !void {
         switch (@typeInfo(@TypeOf(val))) {
             .Bool => try self.map.put(alloc, key, .{ .Bool = val }),
-            .Enum => try self.map.put(alloc, key, .{ .UInt = @as(u32, @enumToInt(val)) }),
+            .Enum => try self.map.put(alloc, key, .{ .UInt = @as(u32, @intFromEnum(val)) }),
             .Vector => try self.map.put(alloc, key, .{ .Vec4i = val }),
             else => {},
         }

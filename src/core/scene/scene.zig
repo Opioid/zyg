@@ -39,10 +39,10 @@ pub const Scene = struct {
     pub const Units_per_second: u64 = 705600000;
     pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;
-    const Interval = 1.0 / @intToFloat(f32, Num_steps);
+    const Interval = 1.0 / @floatFromInt(f32, Num_steps);
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @floatToInt(u64, @round(@intToFloat(f64, Units_per_second) * dtime));
+        return @intFromFloat(u64, @round(@floatFromInt(f64, Units_per_second) * dtime));
     }
 
     pub const Num_reserved_props = 32;
@@ -307,7 +307,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@enumToInt(ShapeID.Plane), &.{}, self);
+        self.props.items[p].configure(@intFromEnum(ShapeID.Plane), &.{}, self);
 
         return p;
     }
@@ -402,7 +402,7 @@ pub const Scene = struct {
         const a_time = self.current_time_start + i * Tick_duration;
         const delta = time - a_time;
 
-        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, Tick_duration));
+        const t = @floatCast(f32, @floatFromInt(f64, delta) / @floatFromInt(f64, Tick_duration));
 
         return .{ .f = @intCast(u32, i), .w = t };
     }

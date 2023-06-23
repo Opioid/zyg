@@ -373,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*Self, context);
+        const self = @ptrFromInt(*Self, context);
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
@@ -487,14 +487,14 @@ pub const Grid = struct {
 
     fn adjacent(s: f32, cell_bound: f32) u8 {
         if (s < cell_bound) {
-            return @enumToInt(Adjacent.Negative);
+            return @intFromEnum(Adjacent.Negative);
         }
 
         if (s > (1.0 - cell_bound)) {
-            return @enumToInt(Adjacent.Positive);
+            return @intFromEnum(Adjacent.Positive);
         }
 
-        return @enumToInt(Adjacent.None);
+        return @intFromEnum(Adjacent.None);
     }
 
     fn adjacentCells(self: *const Self, v: Vec4f, cell_bound: f32) Adjacency {
@@ -525,9 +525,9 @@ pub const Grid = struct {
         // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
 
         // cone
-        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @floatFromInt(f32, num_paths) * radius2);
 
-        self.num_paths = @intToFloat(f64, num_paths);
+        self.num_paths = @floatFromInt(f64, num_paths);
     }
 
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {

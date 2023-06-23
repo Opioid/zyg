@@ -205,7 +205,7 @@ pub const Reader = struct {
                     var i: u32 = 0;
                     while (i < decompressed) {
                         if (filter_byte) {
-                            self.filters[current_row] = @intToEnum(Filter, buffer[i]);
+                            self.filters[current_row] = @enumFromInt(Filter, buffer[i]);
                             filter_byte = false;
                             i += 1;
                         } else {
@@ -505,7 +505,7 @@ pub const Reader = struct {
             return Error.PNGBitDepthNotSupported;
         }
 
-        const color_type = @intToEnum(ColorType, chunk.data[9]);
+        const color_type = @enumFromInt(ColorType, chunk.data[9]);
 
         info.num_channels = switch (color_type) {
             .Grayscale => 1,

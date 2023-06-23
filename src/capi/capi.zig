@@ -175,13 +175,10 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
 
 export fn su_exporters_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.loadExporters(e.alloc, document.root) catch return -1;
+        e.take.loadExporters(e.alloc, parsed.value) catch return -1;
 
         return 0;
     }
@@ -191,13 +188,10 @@ export fn su_exporters_create(string: [*:0]const u8) i32 {
 
 export fn su_aovs_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.view.loadAOV(document.root);
+        e.take.view.loadAOV(parsed.value);
 
         return 0;
     }
@@ -215,13 +209,10 @@ export fn su_sampler_create(num_samples: u32) i32 {
 
 export fn su_integrators_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.view.loadIntegrators(document.root);
+        e.take.view.loadIntegrators(parsed.value);
 
         return 0;
     }
@@ -240,7 +231,7 @@ export fn su_image_create(
     data: [*]u8,
 ) i32 {
     if (engine) |*e| {
-        const ef = @intToEnum(Format, format);
+        const ef = @enumFromInt(Format, format);
         const bpc: u32 = switch (ef) {
             .UInt8 => 1,
             .UInt16, .Float16 => 2,
@@ -335,13 +326,10 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
 
 export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        const material = e.resources.loadData(scn.Material, e.alloc, id, &document.root, .{}) catch return -1;
+        const material = e.resources.loadData(scn.Material, e.alloc, id, &parsed.value, .{}) catch return -1;
 
         return @intCast(i32, material);
     }
@@ -351,11 +339,8 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
 
 export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, .alloc_if_needed);
-        defer parser.deinit();
-
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -2;
-        defer document.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
         if (id >= e.scene.materials.items.len) {
             return -3;
@@ -366,7 +351,7 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
         e.resources.materials.provider.updateMaterial(
             e.alloc,
             material,
-            document.root,
+            parsed.value,
             &e.resources,
         ) catch return -4;
 
@@ -654,7 +639,7 @@ export fn su_resolve_frame(aov: u32) i32 {
             return 0;
         }
 
-        return if (e.driver.resolveAov(@intToEnum(core.tk.View.AovValue.Class, aov))) 0 else -2;
+        return if (e.driver.resolveAov(@enumFromInt(core.tk.View.AovValue.Class, aov))) 0 else -2;
     }
 
     return -1;
@@ -672,7 +657,7 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
         }
 
         return if (e.driver.resolveAovToBuffer(
-            @intToEnum(core.tk.View.AovValue.Class, aov),
+            @enumFromInt(core.tk.View.AovValue.Class, aov),
             target,
             num_pixels,
         )) 0 else -2;
@@ -692,7 +677,7 @@ export fn su_copy_framebuffer(
         const bpc: u32 = if (0 == format) 1 else 4;
 
         var context = CopyFramebufferContext{
-            .format = @intToEnum(Format, format),
+            .format = @enumFromInt(Format, format),
             .num_channels = num_channels,
             .width = width,
             .destination = destination[0 .. bpc * num_channels * width * height],

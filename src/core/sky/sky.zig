@@ -53,14 +53,14 @@ pub const Sky = struct {
         var sun_mat = try SkyMaterial.initSun(alloc);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
+        const sun_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
 
         const sky_image = try scene.createImage(alloc, .{ .Float3 = .{} });
         const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, @enumToInt(Scene.ShapeID.Canopy), &.{sky_mat_id});
+        const sky_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id});
 
         self.sky = sky_prop;
         self.sun = sun_prop;
@@ -198,12 +198,12 @@ pub const Sky = struct {
         var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ Bake_dimensions_sun, 1 }));
         defer sun_image.deinit(alloc);
 
-        const n = @intToFloat(f32, Bake_dimensions_sun - 1);
+        const n = @floatFromInt(f32, Bake_dimensions_sun - 1);
 
         var rng = RNG.init(0, 0);
 
         for (sun_image.pixels, 0..) |*s, i| {
-            const v = @intToFloat(f32, i) / n;
+            const v = @floatFromInt(f32, i) / n;
             var wi = sunWi(self.sun_rotation, v);
             wi[1] = math.max(wi[1], 0.0);
 
@@ -270,13 +270,13 @@ const SkyContext = struct {
                 return;
             }
 
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
+            const v = idf[1] * (@floatFromInt(f32, y) + 0.5);
 
             var x: u32 = 0;
             while (x < Sky.Bake_dimensions[0]) : (x += 1) {
                 rng.start(0, @intCast(u64, y * Sky.Bake_dimensions[0] + x));
 
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
+                const u = idf[0] * (@floatFromInt(f32, x) + 0.5);
                 const uv = Vec2f{ u, v };
                 const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
 

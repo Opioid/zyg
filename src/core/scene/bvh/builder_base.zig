@@ -95,7 +95,7 @@ const Kernel = struct {
 
             const spo = self.splittingPlane(references, aabb, depth, settings, threads);
             if (spo) |sp| {
-                if (num_primitives <= 0xFF and @intToFloat(f32, num_primitives) <= sp.cost) {
+                if (num_primitives <= 0xFF and @floatFromInt(f32, num_primitives) <= sp.cost) {
                     try self.assign(alloc, node, references);
                 } else {
                     var references0: References = undefined;
@@ -163,17 +163,17 @@ const Kernel = struct {
             const min = aabb.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @intToFloat(f32, settings.num_slices);
+            const step = extent[la] / @floatFromInt(f32, settings.num_slices);
 
             const ax = [_]u8{ 0, 1, 2 };
             for (ax) |a| {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @intToFloat(f32, num_steps);
+                const num_steps = @intFromFloat(u32, @ceil(extent_a / step));
+                const step_a = extent_a / @floatFromInt(f32, num_steps);
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @intToFloat(f32, i);
+                    const fi = @floatFromInt(f32, i);
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
@@ -304,8 +304,8 @@ pub const Base = struct {
         aabb: AABB,
         threads: *Threads,
     ) !void {
-        const log2_num_references = std.math.log2(@intToFloat(f32, references.len));
-        self.settings.spatial_split_threshold = @floatToInt(u32, @round(log2_num_references / 2.0));
+        const log2_num_references = std.math.log2(@floatFromInt(f32, references.len));
+        self.settings.spatial_split_threshold = @intFromFloat(u32, @round(log2_num_references / 2.0));
 
         self.settings.parallel_build_depth = @min(self.settings.spatial_split_threshold, 6);
 

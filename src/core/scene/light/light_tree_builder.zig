@@ -121,7 +121,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
@@ -200,7 +200,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sided);
@@ -593,7 +593,7 @@ pub const Builder = struct {
             const p = set.lightPower(variant, l);
             if (p > 0.0) {
                 n += 1;
-                const in = 1.0 / @intToFloat(f32, n);
+                const in = 1.0 / @floatFromInt(f32, n);
 
                 ap += (p - ap) * in;
                 aps += (p * p - aps) * in;
@@ -637,17 +637,17 @@ pub const Builder = struct {
             const min = bounds.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @intToFloat(f32, Num_slices);
+            const step = extent[la] / @floatFromInt(f32, Num_slices);
 
             var a: u32 = 0;
             while (a < 3) : (a += 1) {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @intToFloat(f32, num_steps);
+                const num_steps = @intFromFloat(u32, @ceil(extent_a / step));
+                const step_a = extent_a / @floatFromInt(f32, num_steps);
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @intToFloat(f32, i);
+                    const fi = @floatFromInt(f32, i);
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;

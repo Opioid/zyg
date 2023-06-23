@@ -242,7 +242,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @intToFloat(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
+                @floatFromInt(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
             );
         }
     }

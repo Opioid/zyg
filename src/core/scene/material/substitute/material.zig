@@ -277,8 +277,8 @@ pub const Material = struct {
     }
 
     fn gridCell(uv: Vec2f, res: f32) Vec2i {
-        const i: i32 = @floatToInt(i32, res * @mod(uv[0], 1.0));
-        const j: i32 = @floatToInt(i32, res * @mod(uv[1], 1.0));
+        const i: i32 = @intFromFloat(i32, res * @mod(uv[0], 1.0));
+        const j: i32 = @intFromFloat(i32, res * @mod(uv[1], 1.0));
         return .{ i, j };
     }
 
@@ -294,7 +294,7 @@ pub const Material = struct {
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
-                const fij = Vec2f{ @intToFloat(f32, ii), @intToFloat(f32, jj) };
+                const fij = Vec2f{ @floatFromInt(f32, ii), @floatFromInt(f32, jj) };
 
                 var rng = base.rnd.SingleGenerator.init(fuse(ii, jj));
 

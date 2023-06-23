@@ -9,13 +9,13 @@ pub fn blackbody(temperature: f32) Vec4f {
     const wl_max = 780.0;
     const wl_step = 5.0;
 
-    const num_steps = @floatToInt(u32, (wl_max - wl_min) / wl_step) + 1;
+    const num_steps = @intFromFloat(u32, (wl_max - wl_min) / wl_step) + 1;
 
     var xyz = @splat(4, @as(f32, 0.0));
     var k: u32 = 0;
     while (k < num_steps) : (k += 1) {
         // convert to nanometer
-        const wl = (wl_min + @intToFloat(f32, k) * wl_step) * 1.0e-9;
+        const wl = (wl_min + @floatFromInt(f32, k) * wl_step) * 1.0e-9;
         const p = planck(temperature, wl);
 
         xyz[0] += p * color_matching[k][0];
@@ -70,7 +70,7 @@ const color_matching = [_][3]f32{
 };
 
 pub fn turbo(x: f32) [3]u8 {
-    const i = @floatToInt(u8, x * 255.0 + 0.5);
+    const i = @intFromFloat(u8, x * 255.0 + 0.5);
     return turbo_srgb_bytes[i];
 }
 

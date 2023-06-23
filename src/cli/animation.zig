@@ -70,7 +70,7 @@ pub const Animation = struct {
                     const range = b_time - a_time;
                     const delta = time - a_time;
 
-                    const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, range));
+                    const t = @floatCast(f32, @floatFromInt(f64, delta) / @floatFromInt(f64, range));
 
                     // interpolated_frames[i] = f1.lerp(f2, t);
                     interpolated_frames[i] = interpolate(f0, f1, f2, f3, t);

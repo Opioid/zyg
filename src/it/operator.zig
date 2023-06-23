@@ -95,7 +95,7 @@ pub const Operator = struct {
             const dim = texture.description(self.scene).dimensions;
             const width = dim[0];
 
-            const factor = @splat(4, if (.Average == self.class) 1.0 / @intToFloat(f32, self.textures.items.len) else 1.0);
+            const factor = @splat(4, if (.Average == self.class) 1.0 / @floatFromInt(f32, self.textures.items.len) else 1.0);
 
             var y = begin;
             while (y < end) : (y += 1) {
