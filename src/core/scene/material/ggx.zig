@@ -47,7 +47,7 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
-    return std.math.max(roughness, Min_roughness);
+    return math.max(roughness, Min_roughness);
 }
 
 pub fn mapRoughness(roughness: f32) f32 {
@@ -394,34 +394,22 @@ pub const Aniso = struct {
         return n_dot_wi;
     }
 
+    // Sampling Visible GGX Normals with Spherical Caps
+    // Jonathan Dupuy, Anis Benyoub
+    // https://arxiv.org/pdf/2306.05044.pdf
+
     pub fn sample(wo: Vec4f, alpha: Vec2f, xi: Vec2f, frame: Frame, n_dot_h: *f32) Vec4f {
         const lwo = frame.worldToTangent(wo);
-
-        // stretch view
         const v = math.normalize3(.{ alpha[0] * lwo[0], alpha[1] * lwo[1], lwo[2], 0.0 });
 
-        // orthonormal basis
-        const cross_v_z = math.normalize3(.{ v[1], -v[0], 0.0, 0.0 }); // == cross(v, [0, 0, 1])
+        const phi = 2.0 * std.math.pi * xi[0];
+        const z = @mulAdd(f32, 1.0 - xi[1], 1.0 + v[2], -v[2]);
+        const sin_theta = @sqrt(math.saturate(1.0 - z * z));
+        const x = sin_theta * @cos(phi);
+        const y = sin_theta * @sin(phi);
 
-        const t1 = if (v[2] < 0.9999) cross_v_z else Vec4f{ 1.0, 0.0, 0.0, 0.0 };
-        const t2 = Vec4f{ t1[1] * v[2], -t1[0] * v[2], t1[0] * v[1] - t1[1] * v[0], 0.0 };
-
-        // sample point with polar coordinates (r, phi)
-        const a = 1.0 / (1.0 + v[2]);
-        const r = @sqrt(xi[0]);
-        const phi = if (xi[1] < a) (xi[1] / a * std.math.pi) else (std.math.pi + (xi[1] - a) / (1.0 - a) * std.math.pi);
-
-        const sin_phi = @sin(phi);
-        const cos_phi = @cos(phi);
-
-        const p1 = r * cos_phi;
-        const p2 = r * sin_phi * (if (xi[1] < a) 1.0 else v[2]);
-
-        // compute normal
-        var m = @splat(4, p1) * t1 + @splat(4, p2) * t2 + @splat(4, @sqrt(std.math.max(1.0 - p1 * p1 - p2 * p2, 0.0))) * v;
-
-        // unstretch
-        m = math.normalize3(.{ alpha[0] * m[0], alpha[1] * m[1], std.math.max(m[2], 0.0), 0.0 });
+        const h = Vec4f{ x, y, z, 0.0 } + v;
+        const m = math.normalize3(.{ alpha[0] * h[0], alpha[1] * h[1], h[2], 0.0 });
 
         n_dot_h.* = hlp.clamp(m[2]);
 

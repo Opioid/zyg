@@ -253,13 +253,13 @@ pub const Worker = struct {
                     const variance = new_s * new_m[3];
                     const mam = math.hmax3(new_m);
 
-                    const qm = if (mam < 1.0) @sqrt(variance / std.math.max(mam, 0.0001)) else @sqrt(variance) / mam;
+                    const qm = if (mam < 1.0) @sqrt(variance / math.max(mam, 0.0001)) else @sqrt(variance) / mam;
 
                     self.qms[ii] = qm;
-                    tile_qm_work = std.math.max(tile_qm_work, qm);
-                    self.cell_qms_work[c1] = std.math.max(self.cell_qms_work[c1], qm);
-                    self.cell_qms_work[c2] = std.math.max(self.cell_qms_work[c2], qm);
-                    self.cell_qms_work[c3] = std.math.max(self.cell_qms_work[c3], qm);
+                    tile_qm_work = math.max(tile_qm_work, qm);
+                    self.cell_qms_work[c1] = math.max(self.cell_qms_work[c1], qm);
+                    self.cell_qms_work[c2] = math.max(self.cell_qms_work[c2], qm);
+                    self.cell_qms_work[c3] = math.max(self.cell_qms_work[c3], qm);
                 }
 
                 yy += 1;
@@ -371,7 +371,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @intToFloat(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
+                @floatFromInt(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
             );
         }
     }

@@ -108,13 +108,13 @@ fn hash(i: u32) u32 {
     return x;
 }
 
-const S: f32 = 1.0 / @intToFloat(f32, 1 << 32);
+const S: f32 = 1.0 / @floatFromInt(f32, 1 << 32);
 
 fn sobolOwen(scrambled_index: u32, seed: u32, dim: u32) f32 {
     const sob = sobol(scrambled_index, dim);
     const hc = hashCombine(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
-    return @intToFloat(f32, nus) * S;
+    return @floatFromInt(f32, nus) * S;
 }
 
 fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {

@@ -53,7 +53,7 @@ pub const Sample = struct {
 
         return .{
             .super = super,
-            .f0 = math.lerp(@splat(4, f0), albedo, metallic),
+            .f0 = math.lerp(@splat(4, f0), albedo, @splat(4, metallic)),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
         };
@@ -430,7 +430,7 @@ pub const Sample = struct {
     }
 
     fn diffuseFresnelHack(n_dot_wi: f32, n_dot_wo: f32, f0: f32) f32 {
-        return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
+        return fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), f0);
     }
 
     fn volumetricEvaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
@@ -482,7 +482,7 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
             return bxdf.Result.init(
-                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
+                @splat(4, math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
                 gg.pdf(),
             );
         }

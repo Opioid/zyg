@@ -163,20 +163,20 @@ const LuminanceContext = struct {
         const width = @intCast(u32, d[0]);
 
         const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
-            @intToFloat(f32, d[0]),
-            @intToFloat(f32, d[1]),
+            @floatFromInt(f32, d[0]),
+            @floatFromInt(f32, d[1]),
         };
 
         var avg = @splat(4, @as(f32, 0.0));
 
         var y = begin;
         while (y < end) : (y += 1) {
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
+            const v = idf[1] * (@floatFromInt(f32, y) + 0.5);
 
             const row = y * width;
             var x: u32 = 0;
             while (x < width) : (x += 1) {
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
+                const u = idf[0] * (@floatFromInt(f32, x) + 0.5);
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
@@ -213,7 +213,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
+                const p = math.max(l - self.al, math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 

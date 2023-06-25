@@ -18,7 +18,14 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Light = struct {
+pub const Properties = struct {
+    sphere: Vec4f,
+    cone: Vec4f,
+    power: f32,
+    two_sided: bool,
+};
+
+pub const Light align(16) = struct {
     pub const Class = enum(u8) {
         Prop,
         PropImage,
@@ -26,7 +33,7 @@ pub const Light = struct {
         VolumeImage,
     };
 
-    class: Class align(16),
+    class: Class,
     two_sided: bool,
     prop: u32,
     part: u32,

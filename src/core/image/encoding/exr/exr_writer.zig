@@ -89,7 +89,7 @@ pub const Writer = struct {
             try writeString(writer, "compression");
             try writeString(writer, "compression");
             try writeScalar(u32, writer, 1);
-            try writer.writeByte(@enumToInt(compression));
+            try writer.writeByte(@intFromEnum(compression));
         }
 
         {
@@ -215,7 +215,7 @@ pub const Writer = struct {
             var x: i32 = crop[0];
             while (x < x_end) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
-                const ui = @floatToInt(u32, s);
+                const ui = @intFromFloat(u32, s);
                 try writer.writeAll(std.mem.asBytes(&ui));
             }
         } else if (.Half == format) {
@@ -456,7 +456,7 @@ pub const Writer = struct {
                 while (x < num_x) : (x += 1) {
                     const c = image.pixels[current];
 
-                    uints[o + num_x * 0 + x] = @floatToInt(u32, c.v[0]);
+                    uints[o + num_x * 0 + x] = @intFromFloat(u32, c.v[0]);
 
                     current += 1;
                 }

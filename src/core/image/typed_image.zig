@@ -94,7 +94,7 @@ pub fn TypedSparseImage(comptime T: type) type {
         cells: []Cell,
 
         const Log2_cell_dim: u5 = 4;
-        const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
+        const Log2_cell_dim4 = @Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
         const Cell_dim: u32 = 1 << Log2_cell_dim;
 
         const Self = @This();

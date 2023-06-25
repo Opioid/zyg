@@ -198,9 +198,9 @@ pub const Writer = struct {
         v = f.significand * 256.0 / v;
 
         return .{
-            @floatToInt(u8, c[0] * v),
-            @floatToInt(u8, c[1] * v),
-            @floatToInt(u8, c[2] * v),
+            @intFromFloat(u8, c[0] * v),
+            @intFromFloat(u8, c[1] * v),
+            @intFromFloat(u8, c[2] * v),
             @intCast(u8, f.exponent + 128),
         };
     }

@@ -50,8 +50,8 @@ pub const Interpolated = struct {
             return 0.0;
         }
 
-        const start = std.math.max(a, self.startWavelength());
-        const end = std.math.min(b, self.endWavelength());
+        const start = math.max(a, self.startWavelength());
+        const end = math.min(b, self.endWavelength());
         if (end <= start) {
             return 0.0;
         }
@@ -68,8 +68,8 @@ pub const Interpolated = struct {
             const wl0 = self.wavelengths[index];
             const wl1 = self.wavelengths[index + 1];
 
-            const c0 = std.math.max(wl0, start);
-            const c1 = std.math.min(wl1, end);
+            const c0 = math.max(wl0, start);
+            const c1 = math.min(wl1, end);
 
             if (c1 <= c0) {
                 continue;

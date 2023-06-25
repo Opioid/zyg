@@ -1,14 +1,14 @@
-const log = @import("../../../log.zig");
-const Mesh = @import("mesh.zig").Mesh;
-const Shape = @import("../shape.zig").Shape;
-const Resources = @import("../../../resource/manager.zig").Manager;
-const Result = @import("../../../resource/result.zig").Result;
-const vs = @import("vertex_stream.zig");
-const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const Tree = @import("bvh/triangle_tree.zig").Tree;
-const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
-const file = @import("../../../file/file.zig");
-const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+const log = @import("../../log.zig");
+const Shape = @import("shape.zig").Shape;
+const Mesh = @import("triangle/triangle_mesh.zig").Mesh;
+const vs = @import("triangle/vertex_stream.zig");
+const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
+const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
+const Builder = @import("triangle/bvh/triangle_tree_builder.zig").Builder;
+const Resources = @import("../../resource/manager.zig").Manager;
+const Result = @import("../../resource/result.zig").Result;
+const file = @import("../../file/file.zig");
+const ReadStream = @import("../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
 const json = base.json;
@@ -68,7 +68,7 @@ const Error = error{
 pub const Provider = struct {
     pub const Description = struct {
         num_parts: u32,
-        num_triangles: u32,
+        num_primitives: u32,
         num_vertices: u32,
         positions_stride: u32,
         normals_stride: u32,
@@ -137,16 +137,13 @@ pub const Provider = struct {
             const buffer = try stream.readAll(alloc);
             defer alloc.free(buffer);
 
-            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-            defer parser.deinit();
-
-            var document = parser.parse(buffer) catch |e| {
+            var parsed = std.json.parseFromSlice(std.json.Value, alloc, buffer, .{}) catch |e| {
                 log.err("Loading mesh \"{s}\": {}", .{ name, e });
                 return e;
             };
-            defer document.deinit();
+            defer parsed.deinit();
 
-            const root = document.root;
+            const root = parsed.value;
 
             var iter = root.object.iterator();
             while (iter.next()) |entry| {
@@ -165,7 +162,7 @@ pub const Provider = struct {
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
             for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(u32, i);
             }
         }
 
@@ -202,8 +199,7 @@ pub const Provider = struct {
         var mesh = try Mesh.init(alloc, num_parts);
 
         if (desc.num_parts > 0 and null != desc.parts) {
-            var i: u32 = 0;
-            while (i < num_parts) : (i += 1) {
+            for (0..num_parts) |i| {
                 mesh.setMaterialForPart(i, desc.parts.?[i * 3 + 2]);
             }
         } else {
@@ -366,10 +362,10 @@ pub const Provider = struct {
                 try handler.triangles.resize(alloc, num_triangles);
 
                 for (handler.triangles.items, 0..) |*t, i| {
-                    t.*.i[0] = @intCast(u32, indices[i * 3 + 0].integer);
-                    t.*.i[1] = @intCast(u32, indices[i * 3 + 1].integer);
-                    t.*.i[2] = @intCast(u32, indices[i * 3 + 2].integer);
-                    t.*.part = 0;
+                    t.i[0] = @intCast(u32, indices[i * 3 + 0].integer);
+                    t.i[1] = @intCast(u32, indices[i * 3 + 1].integer);
+                    t.i[2] = @intCast(u32, indices[i * 3 + 2].integer);
+                    t.part = 0;
                 }
             }
         }
@@ -405,13 +401,12 @@ pub const Provider = struct {
 
             _ = try stream.read(json_string);
 
-            var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-            defer parser.deinit();
+            var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string, .{});
+            defer parsed.deinit();
 
-            var document = try parser.parse(std.mem.sliceTo(json_string, 0));
-            defer document.deinit();
+            const root = parsed.value;
 
-            const geometry_node = document.root.object.get("geometry") orelse return Error.NoGeometryNode;
+            const geometry_node = root.object.get("geometry") orelse return Error.NoGeometryNode;
 
             var iter = geometry_node.object.iterator();
             while (iter.next()) |entry| {
@@ -623,7 +618,7 @@ pub const Provider = struct {
     fn buildDescAsync(context: ThreadContext) void {
         const self = @ptrCast(*Provider, context);
 
-        const num_triangles = self.desc.num_triangles;
+        const num_triangles = self.desc.num_primitives;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
@@ -713,14 +708,12 @@ pub const Provider = struct {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
-                const jj = triangles_start + j;
+            for (triangles[triangles_start..triangles_end], triangles_start..) |*t, j| {
+                t.i[0] = @intCast(u32, indices[j * 3 + 0]);
+                t.i[1] = @intCast(u32, indices[j * 3 + 1]);
+                t.i[2] = @intCast(u32, indices[j * 3 + 2]);
 
-                t.*.i[0] = @intCast(u32, indices[jj * 3 + 0]);
-                t.*.i[1] = @intCast(u32, indices[jj * 3 + 1]);
-                t.*.i[2] = @intCast(u32, indices[jj * 3 + 2]);
-
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(u32, i);
             }
         }
     }
@@ -739,19 +732,17 @@ pub const Provider = struct {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
-                const jj = triangles_start + j;
+            for (triangles[triangles_start..triangles_end], triangles_start..) |*t, j| {
+                const a = previous_index + @intCast(i32, indices[j * 3 + 0]);
+                t.i[0] = @intCast(u32, a);
 
-                const a = previous_index + @intCast(i32, indices[jj * 3 + 0]);
-                t.*.i[0] = @intCast(u32, a);
-
-                const b = a + @intCast(i32, indices[jj * 3 + 1]);
+                const b = a + @intCast(i32, indices[j * 3 + 1]);
                 t.*.i[1] = @intCast(u32, b);
 
-                const c = b + @intCast(i32, indices[jj * 3 + 2]);
-                t.*.i[2] = @intCast(u32, c);
+                const c = b + @intCast(i32, indices[j * 3 + 2]);
+                t.i[2] = @intCast(u32, c);
 
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(u32, i);
 
                 previous_index = c;
             }

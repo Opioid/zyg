@@ -373,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*Self, context);
+        const self = @ptrFromInt(*Self, context);
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
@@ -398,8 +398,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                const jlen = std.math.min(cell[1], end);
-                var j = std.math.max(cell[0], i + 1);
+                const jlen = @min(cell[1], end);
+                var j = @max(cell[0], i + 1);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -418,7 +418,7 @@ pub const Grid = struct {
                     const b_alpha = Vec4f{ b.alpha[0], b.alpha[1], b.alpha[2], 0.0 };
                     const weight = math.average3(b_alpha);
                     const ratio = if (total_weight > weight) weight / total_weight else total_weight / weight;
-                    const threshold = std.math.max(ratio - 0.1, 0.0);
+                    const threshold = math.max(ratio - 0.1, 0.0);
 
                     if (math.dot3(wi, b.wi) < threshold) {
                         continue;
@@ -487,14 +487,14 @@ pub const Grid = struct {
 
     fn adjacent(s: f32, cell_bound: f32) u8 {
         if (s < cell_bound) {
-            return @enumToInt(Adjacent.Negative);
+            return @intFromEnum(Adjacent.Negative);
         }
 
         if (s > (1.0 - cell_bound)) {
-            return @enumToInt(Adjacent.Positive);
+            return @intFromEnum(Adjacent.Positive);
         }
 
-        return @enumToInt(Adjacent.None);
+        return @intFromEnum(Adjacent.None);
     }
 
     fn adjacentCells(self: *const Self, v: Vec4f, cell_bound: f32) Adjacency {
@@ -525,9 +525,9 @@ pub const Grid = struct {
         // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
 
         // cone
-        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @floatFromInt(f32, num_paths) * radius2);
 
-        self.num_paths = @intToFloat(f64, num_paths);
+        self.num_paths = @floatFromInt(f64, num_paths);
     }
 
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
@@ -720,7 +720,7 @@ const Buffer = struct {
 
         if (lb < num) {
             const begin = lb + 1;
-            const end = std.math.min(num + 1, self.entries.len);
+            const end = @min(num + 1, self.entries.len);
             const range = end - begin;
             std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
 

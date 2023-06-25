@@ -49,10 +49,10 @@ pub const Pool = struct {
         if (request <= 0) {
             const num_threads = @intCast(i32, available) + request;
 
-            return @intCast(u32, std.math.max(num_threads, 1));
+            return @intCast(u32, @max(num_threads, 1));
         }
 
-        return std.math.min(available, @intCast(u32, std.math.max(request, 1)));
+        return @min(available, @intCast(u32, @max(request, 1)));
     }
 
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
@@ -114,14 +114,14 @@ pub const Pool = struct {
         self.running_parallel = true;
 
         const range = end - begin;
-        const rangef = @intToFloat(f32, range);
-        const num_threads = @intToFloat(f32, self.uniques.len);
+        const rangef = @floatFromInt(f32, range);
+        const num_threads = @floatFromInt(f32, self.uniques.len);
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
-            @floatToInt(u32, @ceil((rangef * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
+            @intFromFloat(u32, @ceil((rangef * @floatFromInt(f32, item_size_hint)) / num_threads / Cache_line)) *
                 Cache_line / item_size_hint
         else
-            @floatToInt(u32, @floor(rangef / num_threads));
+            @intFromFloat(u32, @floor(rangef / num_threads));
 
         var r = range - @min(step * @intCast(u32, self.uniques.len), range);
         var e = begin;
@@ -142,7 +142,7 @@ pub const Pool = struct {
             }
 
             u.begin = b;
-            u.end = std.math.min(e, end);
+            u.end = @min(e, end);
             u.signal.store(SIGNAL_WAKE, .Release);
             std.Thread.Futex.wake(&u.signal, 1);
         }

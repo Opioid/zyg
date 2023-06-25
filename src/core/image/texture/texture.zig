@@ -197,7 +197,7 @@ pub const Texture = struct {
             }
         }
 
-        const area = @intToFloat(f32, d[0]) * @intToFloat(f32, d[1]);
+        const area = @floatFromInt(f32, d[0]) * @floatFromInt(f32, d[1]);
         return average / @splat(4, area);
     }
 };

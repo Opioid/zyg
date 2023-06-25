@@ -1,7 +1,9 @@
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
 const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
-const Light = @import("light/light.zig").Light;
+const lgt = @import("light/light.zig");
+const Light = lgt.Light;
+const LightProperties = lgt.Properties;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Intersection = @import("prop/intersection.zig").Intersection;
@@ -37,10 +39,10 @@ pub const Scene = struct {
     pub const Units_per_second: u64 = 705600000;
     pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;
-    const Interval = 1.0 / @intToFloat(f32, Num_steps);
+    const Interval = 1.0 / @floatFromInt(f32, Num_steps);
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @floatToInt(u64, @round(@intToFloat(f64, Units_per_second) * dtime));
+        return @intFromFloat(u64, @round(@floatFromInt(f64, Units_per_second) * dtime));
     }
 
     pub const Num_reserved_props = 32;
@@ -305,7 +307,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@enumToInt(ShapeID.Plane), &.{}, self);
+        self.props.items[p].configure(@intFromEnum(ShapeID.Plane), &.{}, self);
 
         return p;
     }
@@ -400,7 +402,7 @@ pub const Scene = struct {
         const a_time = self.current_time_start + i * Tick_duration;
         const delta = time - a_time;
 
-        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, Tick_duration));
+        const t = @floatCast(f32, @floatFromInt(f64, delta) / @floatFromInt(f64, Tick_duration));
 
         return .{ .f = @intCast(u32, i), .w = t };
     }
@@ -554,7 +556,7 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
-        self.light_aabbs.items[light_id].bounds[1][3] = math.hmax3(
+        self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(
             self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
@@ -662,7 +664,7 @@ pub const Scene = struct {
 
     pub fn lightPower(self: *const Scene, variant: u32, light_id: usize) f32 {
         _ = variant;
-        return self.light_aabbs.items[light_id].bounds[1][3];
+        return self.light_aabbs.items[light_id].bounds[0][3];
     }
 
     pub fn lightAabb(self: *const Scene, light_id: usize) AABB {
@@ -671,6 +673,20 @@ pub const Scene = struct {
 
     pub fn lightCone(self: *const Scene, light_id: usize) Vec4f {
         return self.light_cones.items[light_id];
+    }
+
+    pub fn lightProperties(self: *const Scene, light_id: u32, variant: u32) LightProperties {
+        _ = variant;
+
+        const box = self.light_aabbs.items[light_id];
+        const pos = box.position();
+
+        return .{
+            .sphere = .{ pos[0], pos[1], pos[2], box.cachedRadius() },
+            .cone = self.light_cones.items[light_id],
+            .power = self.light_aabbs.items[light_id].bounds[0][3],
+            .two_sided = self.lights.items[light_id].two_sided,
+        };
     }
 
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
@@ -758,7 +774,7 @@ pub const Scene = struct {
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
-        const a: u32 = std.math.max(@intCast(u32, frame_duration / Tick_duration), 1);
+        const a: u32 = @max(@intCast(u32, frame_duration / Tick_duration), 1);
         const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
         const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
 

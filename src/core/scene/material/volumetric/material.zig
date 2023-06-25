@@ -86,7 +86,7 @@ pub const Material = struct {
             self.blackbody = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.2, Num_samples);
 
             for (0..Num_samples) |i| {
-                const t = Start + @intToFloat(f32, i) / @intToFloat(f32, Num_samples - 1) * (End - Start);
+                const t = Start + @floatFromInt(f32, i) / @floatFromInt(f32, Num_samples - 1) * (End - Start);
 
                 const c = spectrum.blackbody(t);
 
@@ -135,7 +135,7 @@ pub const Material = struct {
             }
         }
 
-        const num_pixels = @intToFloat(f32, d[0] * d[1] * d[2]);
+        const num_pixels = @floatFromInt(f32, d[0] * d[1] * d[2]);
 
         const average_emission = avg / @splat(4, num_pixels);
 
@@ -333,7 +333,7 @@ const DistributionContext = struct {
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
                     const l = luminance_row[x];
-                    const p = std.math.max(l - self.al, 0.0);
+                    const p = math.max(l - self.al, 0.0);
                     luminance_row[x] = p;
                 }
 

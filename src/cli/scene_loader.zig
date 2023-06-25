@@ -132,10 +132,7 @@ pub const Loader = struct {
             .rotation = math.quaternion.identity,
         };
 
-        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-        defer parser.deinit();
-
-        try self.loadFile(alloc, &parser, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+        try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
         self.instances.clearAndFree(alloc);
 
@@ -145,7 +142,6 @@ pub const Loader = struct {
     fn loadFile(
         self: *Loader,
         alloc: Allocator,
-        parser: *std.json.Parser,
         filename: []const u8,
         take_mount_folder: []const u8,
         parent_id: u32,
@@ -169,10 +165,10 @@ pub const Loader = struct {
         stream.deinit();
         defer alloc.free(buffer);
 
-        var document = try parser.parse(buffer);
-        defer document.deinit();
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+        defer parsed.deinit();
 
-        const root = document.root;
+        const root = parsed.value;
 
         var local_materials = LocalMaterials.init(alloc);
         defer local_materials.deinit();
@@ -221,16 +217,12 @@ pub const Loader = struct {
     ) !void {
         const scene = &graph.scene;
 
-        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-        defer parser.deinit();
-
         for (value.array.items) |entity| {
             if (entity.object.get("file")) |file_node| {
                 const filename = file_node.string;
-                self.loadFile(alloc, &parser, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+                self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
                 };
-                parser.reset();
                 continue;
             }
 
@@ -422,21 +414,21 @@ pub const Loader = struct {
 
     fn getShape(type_name: []const u8) !u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
-            return @enumToInt(Scene.ShapeID.Canopy);
+            return @intFromEnum(Scene.ShapeID.Canopy);
         } else if (std.mem.eql(u8, "Cube", type_name)) {
-            return @enumToInt(Scene.ShapeID.Cube);
+            return @intFromEnum(Scene.ShapeID.Cube);
         } else if (std.mem.eql(u8, "Disk", type_name)) {
-            return @enumToInt(Scene.ShapeID.Disk);
+            return @intFromEnum(Scene.ShapeID.Disk);
         } else if (std.mem.eql(u8, "Distant_sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.DistantSphere);
+            return @intFromEnum(Scene.ShapeID.DistantSphere);
         } else if (std.mem.eql(u8, "Infinite_sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.InfiniteSphere);
+            return @intFromEnum(Scene.ShapeID.InfiniteSphere);
         } else if (std.mem.eql(u8, "Plane", type_name)) {
-            return @enumToInt(Scene.ShapeID.Plane);
+            return @intFromEnum(Scene.ShapeID.Plane);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
-            return @enumToInt(Scene.ShapeID.Rectangle);
+            return @intFromEnum(Scene.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.Sphere);
+            return @intFromEnum(Scene.ShapeID.Sphere);
         }
 
         log.err("Undefined shape \"{s}\"", .{type_name});

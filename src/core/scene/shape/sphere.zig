@@ -36,7 +36,7 @@ pub const Sphere = struct {
         const sin_phi = @sin(phi);
         const cos_phi = @cos(phi);
         // avoid singularity at poles
-        const sin_theta = std.math.max(@sin(theta), 0.00001);
+        const sin_theta = math.max(@sin(theta), 0.00001);
 
         const t = math.normalize3(trafo.rotation.transformVector(.{
             sin_theta * cos_phi,
@@ -167,8 +167,8 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
             const t1 = b + dist;
-            const start = std.math.max(t0, ray.minT());
-            const end = std.math.min(t1, ray.maxT());
+            const start = math.max(t0, ray.minT());
+            const end = math.min(t1, ray.maxT());
 
             const material = worker.scene.propMaterial(entity, 0);
 
@@ -204,8 +204,8 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
             const t1 = b + dist;
-            const start = std.math.max(t0, ray.minT());
-            const end = std.math.min(t1, ray.maxT());
+            const start = math.max(t0, ray.minT());
+            const end = math.min(t1, ray.maxT());
 
             const material = worker.scene.propMaterial(entity, 0);
 
@@ -227,7 +227,7 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(std.math.max(1.0 - r2 / l2, math.smpl.Eps));
+        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, math.smpl.Eps));
 
         const z = @splat(4, @sqrt(1.0 / l2)) * v;
         const xy = math.orthonormalBasis3(z);
@@ -261,7 +261,7 @@ pub const Sphere = struct {
         const theta = uv[1] * std.math.pi;
 
         // avoid singularity at poles
-        const sin_theta = std.math.max(@sin(theta), 0.00001);
+        const sin_theta = math.max(@sin(theta), 0.00001);
         const cos_theta = @cos(theta);
         const sin_phi = @sin(phi);
         const cos_phi = @cos(phi);
@@ -319,14 +319,14 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(std.math.max(1.0 - r2 / l2, math.smpl.Eps));
+        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, math.smpl.Eps));
 
         return math.smpl.conePdfUniform(cos_theta_max);
     }
 
     pub fn pdfUv(ray: Ray, isec: Intersection) f32 {
         // avoid singularity at poles
-        const sin_theta = std.math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
+        const sin_theta = math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
 
         const max_t = ray.maxT();
         const sl = max_t * max_t;

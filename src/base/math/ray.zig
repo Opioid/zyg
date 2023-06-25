@@ -1,5 +1,6 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
+const mima = @import("minmax.zig");
 
 const std = @import("std");
 
@@ -46,7 +47,7 @@ pub const Ray = struct {
 
     pub inline fn clipMaxT(self: *Ray, t: f32) void {
         const max_t = self.direction[3];
-        self.direction[3] = std.math.min(max_t, t);
+        self.direction[3] = mima.min(max_t, t);
     }
 
     pub inline fn point(self: Ray, t: f32) Vec4f {

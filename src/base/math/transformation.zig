@@ -28,9 +28,11 @@ pub const Transformation = struct {
     }
 
     pub fn lerp(self: Transformation, other: Transformation, t: f32) Transformation {
+        const t4 = @splat(4, t);
+
         return .{
-            .position = math.lerp(self.position, other.position, t),
-            .scale = math.lerp(self.scale, other.scale, t),
+            .position = math.lerp(self.position, other.position, t4),
+            .scale = math.lerp(self.scale, other.scale, t4),
             .rotation = quaternion.slerp(self.rotation, other.rotation, t),
         };
     }

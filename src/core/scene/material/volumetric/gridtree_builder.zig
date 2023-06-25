@@ -147,8 +147,8 @@ const Splitter = struct {
                 while (x < maxb[0]) : (x += 1) {
                     const density = texture.get3D_1(x, y, z, scene);
 
-                    min_density = std.math.min(density, min_density);
-                    max_density = std.math.max(density, max_density);
+                    min_density = math.min(density, min_density);
+                    max_density = math.max(density, max_density);
                 }
             }
         }
@@ -178,8 +178,8 @@ const Splitter = struct {
                 data.majorant_mu_a = majorant_mu_a;
                 data.majorant_mu_s = majorant_mu_s;
             } else {
-                data.minorant_mu_a = std.math.max(minorant_mu_a, 0.0);
-                data.minorant_mu_s = std.math.max(minorant_mu_s, 0.0);
+                data.minorant_mu_a = math.max(minorant_mu_a, 0.0);
+                data.minorant_mu_s = math.max(minorant_mu_s, 0.0);
                 data.majorant_mu_a = majorant_mu_a;
                 data.majorant_mu_s = majorant_mu_s;
             }

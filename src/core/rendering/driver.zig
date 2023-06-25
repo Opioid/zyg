@@ -225,7 +225,7 @@ pub const Driver = struct {
         }
 
         for (0..View.AovValue.Num_classes) |i| {
-            const class = @intToEnum(View.AovValue.Class, i);
+            const class = @enumFromInt(View.AovValue.Class, i);
             if (!self.resolveAov(class)) {
                 continue;
             }
@@ -244,14 +244,14 @@ pub const Driver = struct {
 
             sensor.copyWeights(weights);
 
-            var min: f32 = std.math.f32_max;
+            var min: f32 = std.math.floatMax(f32);
             var max: f32 = 0.0;
 
             for (weights) |w| {
                 if (w > 0.0) {
-                    min = std.math.min(min, w);
+                    min = math.min(min, w);
                 }
-                max = std.math.max(max, w);
+                max = math.max(max, w);
             }
 
             var buf: [22]u8 = undefined;
@@ -259,7 +259,7 @@ pub const Driver = struct {
 
             try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
 
-            log.info("Sample count [{}, {}]", .{ @floatToInt(u32, @ceil(min)), @floatToInt(u32, @ceil(max)) });
+            log.info("Sample count [{}, {}]", .{ @intFromFloat(u32, @ceil(min)), @intFromFloat(u32, @ceil(max)) });
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
@@ -276,7 +276,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@intToFloat(f32, self.view.num_particles_per_pixel));
+        camera.sensor.clear(@floatFromInt(f32, self.view.num_particles_per_pixel));
 
         self.progressor.start(self.ranges.size());
 
@@ -299,7 +299,7 @@ pub const Driver = struct {
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @floatToInt(u32, @ceil(0.25 * @intToFloat(f32, num_samples)));
+        const num_photon_samples = @intFromFloat(u32, @ceil(0.25 * @floatFromInt(f32, num_samples)));
         const qm_threshold = self.view.qm_threshold;
 
         while (self.tiles.pop()) |tile| {
@@ -397,7 +397,7 @@ pub const Driver = struct {
             ) catch break;
 
             if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
-                @intToFloat(f32, begin) / @intToFloat(f32, new_begin) > (1.0 - iteration_threshold))
+                @floatFromInt(f32, begin) / @floatFromInt(f32, new_begin) > (1.0 - iteration_threshold))
             {
                 break;
             }

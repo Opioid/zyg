@@ -118,29 +118,29 @@ pub const Emittance = struct {
         const d = self.profile.description(scene).dimensions;
 
         const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
-            @intToFloat(f32, d[0]),
-            @intToFloat(f32, d[1]),
+            @floatFromInt(f32, d[0]),
+            @floatFromInt(f32, d[1]),
         };
 
         var cos_a: f32 = 1.0;
 
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
+            const v = idf[1] * (@floatFromInt(f32, y) + 0.5);
 
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
+                const u = idf[0] * (@floatFromInt(f32, x) + 0.5);
 
                 const s = self.profile.get2D_1(x, y, scene);
 
                 if (s > 0.0) {
                     const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
-                    cos_a = std.math.min(cos_a, -dir[2]);
+                    cos_a = math.min(cos_a, -dir[2]);
                 }
             }
         }
 
-        return std.math.acos(std.math.max(cos_a - std.math.max(idf[0], idf[1]), -1.0));
+        return std.math.acos(math.max(cos_a - math.max(idf[0], idf[1]), -1.0));
     }
 };

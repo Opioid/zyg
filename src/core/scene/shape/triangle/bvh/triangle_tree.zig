@@ -85,11 +85,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }
@@ -136,11 +136,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }
@@ -195,11 +195,11 @@ pub const Tree = struct {
                 std.mem.swap(f32, &dista, &distb);
             }
 
-            if (std.math.f32_max == dista) {
+            if (std.math.floatMax(f32) == dista) {
                 n = stack.pop();
             } else {
                 n = a;
-                if (std.math.f32_max != distb) {
+                if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
                 }
             }

@@ -27,7 +27,7 @@ pub fn readBoolMember(value: Value, name: []const u8, default: bool) bool {
 
 pub fn readFloat(comptime T: type, value: Value) T {
     return switch (value) {
-        .integer => |int| @intToFloat(T, int),
+        .integer => |int| @floatFromInt(T, int),
         .float => |float| @floatCast(T, float),
         else => 0.0,
     };

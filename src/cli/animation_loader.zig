@@ -21,7 +21,7 @@ pub fn load(
     var start_time: u64 = 0;
 
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
-    const frame_step = if (fps > 0.0) @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps)) else 0;
+    const frame_step = if (fps > 0.0) @intFromFloat(u64, @round(@floatFromInt(f64, Scene.Units_per_second) / fps)) else 0;
 
     var iter = value.object.iterator();
     while (iter.next()) |entry| {

@@ -220,9 +220,9 @@ pub const Reader = struct {
             const f = std.math.scalbn(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
 
             const srgb = Vec4f{
-                (@intToFloat(f32, rgbe[0]) + 0.5) * f,
-                (@intToFloat(f32, rgbe[1]) + 0.5) * f,
-                (@intToFloat(f32, rgbe[2]) + 0.5) * f,
+                (@floatFromInt(f32, rgbe[0]) + 0.5) * f,
+                (@floatFromInt(f32, rgbe[1]) + 0.5) * f,
+                (@floatFromInt(f32, rgbe[2]) + 0.5) * f,
                 0.0,
             };
 

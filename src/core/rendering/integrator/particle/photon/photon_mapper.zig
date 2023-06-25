@@ -62,7 +62,7 @@ pub const Mapper = struct {
 
         var i = begin;
         while (i < end) {
-            const max_photons = std.math.min(self.settings.max_bounces, end - i);
+            const max_photons = @min(self.settings.max_bounces, end - i);
             const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
 
             if (result.num_iterations > 0) {
@@ -200,8 +200,8 @@ pub const Mapper = struct {
 
                     const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
 
-                    const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
-                    const continue_prob = std.math.min(1.0, avg);
+                    const avg = math.average3(nr) / math.max(math.average3(radiance), 0.000001);
+                    const continue_prob = math.min(1.0, avg);
 
                     if (self.sampler.sample1D() >= continue_prob) {
                         break;

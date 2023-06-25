@@ -3,9 +3,10 @@ const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
-const Part = @import("../shape/triangle/mesh.zig").Part;
+const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 
 const base = @import("base");
+const enc = base.encoding;
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
@@ -120,7 +121,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
@@ -176,7 +177,7 @@ const SplitCandidate = struct {
 
             const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
             const c = math.dot3(dominant_axis[side], n);
-            angles[side] = std.math.max(angles[side], std.math.acos(c));
+            angles[side] = math.max(angles[side], std.math.acos(c));
         }
 
         const da0 = dominant_axis[0];
@@ -199,7 +200,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sided);
@@ -304,7 +305,9 @@ pub const Builder = struct {
             _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, scene, threads);
 
             try tree.allocateNodes(alloc, self.current_node);
-            self.serialize(tree.nodes, tree.node_middles);
+            self.build_nodes[0].bounds.cacheRadius();
+            self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+            tree.bounds = self.build_nodes[0].bounds;
 
             var splits = [_]u32{0} ** Tree.Max_split_depth;
             self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
@@ -351,11 +354,8 @@ pub const Builder = struct {
 
         self.light_order = 0;
 
-        var lm: u32 = 0;
-        var l: u32 = 0;
-        while (l < num_finite_lights) : (l += 1) {
-            tree.light_mapping[lm] = l;
-            lm += 1;
+        for (tree.light_mapping, 0..num_finite_lights) |*lm, l| {
+            lm.* = @intCast(u32, l);
         }
 
         try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);
@@ -378,7 +378,9 @@ pub const Builder = struct {
         );
 
         try tree.allocateNodes(alloc, self.current_node);
-        self.serialize(tree.nodes, tree.node_middles);
+        self.build_nodes[0].bounds.cacheRadius();
+        self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+        tree.bounds = self.build_nodes[0].bounds;
     }
 
     fn allocate(self: *Builder, alloc: Allocator, num_lights: u32, sweep_threshold: u32) !void {
@@ -388,7 +390,7 @@ pub const Builder = struct {
             self.build_nodes = try alloc.realloc(self.build_nodes, num_nodes);
         }
 
-        const num_slices = std.math.min(num_lights, sweep_threshold);
+        const num_slices = @min(num_lights, sweep_threshold);
         const num_candidates = if (num_slices >= 2) num_slices * 3 else 0;
 
         if (num_candidates > self.candidates.len) {
@@ -557,14 +559,20 @@ pub const Builder = struct {
         return begin + len;
     }
 
-    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
+    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32, total_bounds: AABB) void {
         for (self.build_nodes[0..self.current_node], 0..) |source, i| {
             var dest = &nodes[i];
+
             const bounds = source.bounds;
             const p = bounds.position();
+            const center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
+            dest.compressCenter(center, total_bounds);
 
-            dest.center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
-            dest.cone = source.cone;
+            dest.cone[0] = enc.floatToSnorm16(source.cone[0]);
+            dest.cone[1] = enc.floatToSnorm16(source.cone[1]);
+            dest.cone[2] = enc.floatToSnorm16(source.cone[2]);
+            dest.cone[3] = enc.floatToSnorm16(source.cone[3]);
+
             dest.power = source.power;
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();
@@ -585,7 +593,7 @@ pub const Builder = struct {
             const p = set.lightPower(variant, l);
             if (p > 0.0) {
                 n += 1;
-                const in = 1.0 / @intToFloat(f32, n);
+                const in = 1.0 / @floatFromInt(f32, n);
 
                 ap += (p - ap) * in;
                 aps += (p * p - aps) * in;
@@ -629,17 +637,17 @@ pub const Builder = struct {
             const min = bounds.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @intToFloat(f32, Num_slices);
+            const step = extent[la] / @floatFromInt(f32, Num_slices);
 
             var a: u32 = 0;
             while (a < 3) : (a += 1) {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @intToFloat(f32, num_steps);
+                const num_steps = @intFromFloat(u32, @ceil(extent_a / step));
+                const step_a = extent_a / @floatFromInt(f32, num_steps);
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @intToFloat(f32, i);
+                    const fi = @floatFromInt(f32, i);
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
@@ -708,7 +716,7 @@ pub const Builder = struct {
 
 fn coneCost(cos: f32, two_sided: bool) f32 {
     const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
-    const w = std.math.min(o + (std.math.pi / 2.0), std.math.pi);
+    const w = math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);
     const b = (std.math.pi / 2.0) * (2.0 * w * sin - @cos(o - 2.0 * w) - 2.0 * o * sin + cos);

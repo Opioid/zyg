@@ -44,7 +44,7 @@ pub const CFunc = struct {
     pub fn post(self: *Self, comptime level: Level, comptime format: []const u8, args: anytype) void {
         var line = std.fmt.bufPrintZ(&self.buffer, format, args) catch return;
 
-        self.func(@enumToInt(level), line);
+        self.func(@intFromEnum(level), line);
     }
 };
 

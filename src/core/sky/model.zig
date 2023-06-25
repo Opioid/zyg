@@ -102,7 +102,7 @@ pub const Model = struct {
                     gamma,
                     shadow,
                     Spectrum.randomWavelength(i, s),
-                )) / @intToFloat(f32, samples.len);
+                )) / @floatFromInt(f32, samples.len);
             }
 
             bin.* = rwl;
@@ -129,7 +129,7 @@ pub const Model = struct {
                     self.state,
                     theta,
                     Spectrum.randomWavelength(i, s),
-                )) / @intToFloat(f32, samples.len);
+                )) / @floatFromInt(f32, samples.len);
             }
 
             bin.* = rwl;

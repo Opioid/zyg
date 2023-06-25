@@ -44,15 +44,15 @@ pub const Shaper = struct {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = enc.floatToUnorm(std.math.clamp(p.v[3], 0.0, 1.0));
+                image.pixels[i] = enc.floatToUnorm8(std.math.clamp(p.v[3], 0.0, 1.0));
             }
         } else if (img.Byte2 == T) {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
                 image.pixels[i] = Vec2b{
-                    enc.floatToSnorm(std.math.clamp(p.v[0], -1.0, 1.0)),
-                    enc.floatToSnorm(std.math.clamp(p.v[1], -1.0, 1.0)),
+                    enc.floatToSnorm8(std.math.clamp(p.v[0], -1.0, 1.0)),
+                    enc.floatToSnorm8(std.math.clamp(p.v[1], -1.0, 1.0)),
                 };
             }
         } else if (img.Float3 == T) {
@@ -106,13 +106,13 @@ pub const Shaper = struct {
                 .roundness = roundness,
             };
 
-            const delta = (2.0 * std.math.pi) / @intToFloat(f32, blades);
+            const delta = (2.0 * std.math.pi) / @floatFromInt(f32, blades);
 
             var b = Vec2f{ @sin(rot), @cos(rot) };
 
             var i: u32 = 0;
             while (i < blades) : (i += 1) {
-                const angle = @intToFloat(f32, i + 1) * delta + rot;
+                const angle = @floatFromInt(f32, i + 1) * delta + rot;
                 const c = Vec2f{ @sin(angle), @cos(angle) };
 
                 const cb = c - b;
@@ -168,19 +168,19 @@ pub const Shaper = struct {
 
     fn drawShape(self: *Self, color: Vec4f, p: Vec2f, shape: Shape) void {
         const dim = self.dimensions;
-        const end_x = @intToFloat(f32, dim[0]);
-        const end_y = @intToFloat(f32, dim[1]);
-        const ss = 1.0 / @intToFloat(f32, Sub_samples);
+        const end_x = @floatFromInt(f32, dim[0]);
+        const end_y = @floatFromInt(f32, dim[1]);
+        const ss = 1.0 / @floatFromInt(f32, Sub_samples);
         const ssx = ss / end_x;
         const ssy = ss / end_y;
         const so = 0.5 * ss;
-        const ss2 = 1.0 / @intToFloat(f32, Sub_samples * Sub_samples);
+        const ss2 = 1.0 / @floatFromInt(f32, Sub_samples * Sub_samples);
 
         const r = @splat(2, shape.radius());
         const min = p - r;
         const max = p + r;
-        const begin = Vec2i{ @floatToInt(i32, min[0] * end_x), @floatToInt(i32, min[1] * end_y) };
-        const end = Vec2i{ @floatToInt(i32, max[0] * end_x), @floatToInt(i32, max[1] * end_y) };
+        const begin = Vec2i{ @intFromFloat(i32, min[0] * end_x), @intFromFloat(i32, min[1] * end_y) };
+        const end = Vec2i{ @intFromFloat(i32, max[0] * end_x), @intFromFloat(i32, max[1] * end_y) };
 
         var y = begin[1];
         while (y < end[1]) : (y += 1) {
@@ -188,11 +188,11 @@ pub const Shaper = struct {
             while (x < end[0]) : (x += 1) {
                 var w: f32 = 0.0;
 
-                var v = (@intToFloat(f32, y) + so) / end_y;
+                var v = (@floatFromInt(f32, y) + so) / end_y;
 
                 var sy: i32 = 0;
                 while (sy < Sub_samples) : (sy += 1) {
-                    var u = (@intToFloat(f32, x) + so) / end_x;
+                    var u = (@floatFromInt(f32, x) + so) / end_x;
 
                     var sx: i32 = 0;
                     while (sx < Sub_samples) : (sx += 1) {
@@ -223,7 +223,7 @@ pub const Shaper = struct {
 
                     var pixel = &self.pixels[@intCast(usize, wy * dim[0] + wx)];
                     const old: Vec4f = pixel.v;
-                    pixel.v = math.lerp(old, color, w);
+                    pixel.v = math.lerp(old, color, @splat(4, w));
                 }
             }
         }
@@ -258,7 +258,7 @@ pub const Shaper = struct {
                 }
 
                 const blades = s.blades;
-                const delta = (2.0 * std.math.pi) / @intToFloat(f32, blades);
+                const delta = (2.0 * std.math.pi) / @floatFromInt(f32, blades);
 
                 const rot = s.rotation;
                 var b = Vec2f{ @sin(rot), @cos(rot) };
@@ -266,14 +266,14 @@ pub const Shaper = struct {
                 var mt: f32 = 0.0;
                 var i: u32 = 0;
                 while (i < blades) : (i += 1) {
-                    const angle = @intToFloat(f32, i + 1) * delta + rot;
+                    const angle = @floatFromInt(f32, i + 1) * delta + rot;
                     const c = Vec2f{ @sin(angle), @cos(angle) };
 
                     const cb = c - b;
                     const n = math.normalize2(.{ cb[1], -cb[0] });
                     const d = math.dot2(n, b);
                     const t = math.dot2(n, center) / d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
 
                     b = c;
                 }
@@ -291,7 +291,7 @@ pub const Shaper = struct {
                 var mt: f32 = 0.0;
                 for (s.planes[0..s.blades]) |b| {
                     const t = math.dot2(b.n, center) / b.d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
                 }
 
                 return math.lerp(mt, lc, s.roundness) <= radius;

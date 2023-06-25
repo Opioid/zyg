@@ -63,11 +63,11 @@ pub const Map = struct {
         else
             num_photons;
 
-        const percentage_left = @intToFloat(f32, reduced_num) / @intToFloat(f32, total_num_photons);
+        const percentage_left = @floatFromInt(f32, reduced_num) / @floatFromInt(f32, total_num_photons);
 
         std.debug.print(
             "{} left of {} ({}%)\n",
-            .{ reduced_num, total_num_photons, @floatToInt(u32, 100.0 * percentage_left) },
+            .{ reduced_num, total_num_photons, @intFromFloat(u32, 100.0 * percentage_left) },
         );
 
         self.reduced_num = reduced_num;
