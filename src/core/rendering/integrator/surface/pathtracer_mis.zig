@@ -25,8 +25,7 @@ pub const PathtracerMIS = struct {
         max_bounces: u32,
 
         light_sampling: hlp.LightSampling,
-
-        avoid_caustics: bool,
+        caustics: hlp.Caustics,
         photons_not_only_through_specular: bool,
     };
 
@@ -37,6 +36,7 @@ pub const PathtracerMIS = struct {
         split_photon: bool = false,
         direct: bool = true,
         from_subsurface: bool = false,
+        started_specular: bool = false,
     };
 
     settings: Settings,
@@ -99,7 +99,7 @@ pub const PathtracerMIS = struct {
 
             const wo = -ray.ray.direction;
 
-            const avoid_caustics = self.settings.avoid_caustics and !pr;
+            const avoid_caustics = !pr and ((self.settings.caustics == .Off) or (self.settings.caustics == .Indirect and !state.started_specular));
             const straight_border = state.from_subsurface;
 
             const mat_sample = worker.sampleMaterial(
@@ -131,6 +131,10 @@ pub const PathtracerMIS = struct {
                 }
 
                 state.treat_as_singular = true;
+
+                if (pr) {
+                    state.started_specular = true;
+                }
             } else if (!sample_result.class.straight) {
                 state.treat_as_singular = false;
                 if (pr) {

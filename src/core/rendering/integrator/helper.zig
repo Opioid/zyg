@@ -8,6 +8,12 @@ pub const LightSampling = enum(u8) {
     Adaptive,
 };
 
+pub const Caustics = enum(u8) {
+    Off,
+    Indirect,
+    Full,
+};
+
 pub inline fn attenuation1(c: f32, distance: f32) f32 {
     return @exp(-distance * c);
 }
