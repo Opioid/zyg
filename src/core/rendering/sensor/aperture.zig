@@ -21,8 +21,8 @@ pub const Aperture = struct {
     pub fn setShape(self: *Aperture, alloc: Allocator, texture: Texture, scene: *const Scene) !void {
         const d = texture.description(scene).dimensions;
 
-        const width = @intCast(u32, d[0]);
-        const height = @intCast(u32, d[1]);
+        const width = @as(u32, @intCast(d[0]));
+        const height = @as(u32, @intCast(d[1]));
 
         const conditionals = try self.distribution.allocate(alloc, height);
 
@@ -33,7 +33,7 @@ pub const Aperture = struct {
         while (y < height) : (y += 1) {
             var x: u32 = 0;
             while (x < width) : (x += 1) {
-                const weight = texture.get2D_1(@intCast(i32, x), @intCast(i32, y), scene);
+                const weight = texture.get2D_1(@as(i32, @intCast(x)), @as(i32, @intCast(y)), scene);
                 weights[x] = weight;
             }
 

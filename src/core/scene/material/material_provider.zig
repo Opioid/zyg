@@ -91,7 +91,7 @@ pub const Provider = struct {
     ) !Material {
         _ = options;
 
-        const value = @ptrCast(*const std.json.Value, data);
+        const value = @as(*const std.json.Value, @ptrCast(data));
 
         var material = try self.loadMaterial(alloc, value.*, resources);
         try material.commit(alloc, resources.scene, resources.threads);
@@ -545,8 +545,8 @@ fn mapColor(color: Vec4f) Vec4f {
 fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
         .array => mapColor(json.readVec4f3(value)),
-        .integer => |i| mapColor(@splat(4, @floatFromInt(f32, i))),
-        .float => |f| mapColor(@splat(4, @floatCast(f32, f))),
+        .integer => |i| mapColor(@splat(4, @as(f32, @floatFromInt(i)))),
+        .float => |f| mapColor(@splat(4, @as(f32, @floatCast(f)))),
         .object => |o| {
             var rgb = @splat(4, @as(f32, 0.0));
             var linear = true;

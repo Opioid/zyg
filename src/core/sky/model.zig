@@ -67,8 +67,8 @@ pub const Model = struct {
             return 0;
         }
 
-        var stream_ptr = @ptrCast(*ReadStream, @alignCast(@alignOf(ReadStream), stream));
-        var dest = @ptrCast([*]u8, buffer)[0 .. size * count];
+        var stream_ptr = @as(*ReadStream, @ptrCast(@alignCast(stream)));
+        var dest = @as([*]u8, @ptrCast(buffer))[0 .. size * count];
         return (stream_ptr.read(dest) catch 0) / size;
     }
 
@@ -96,13 +96,13 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @floatCast(f32, c.arpragueskymodelground_sky_radiance(
+                rwl += @as(f32, @floatCast(c.arpragueskymodelground_sky_radiance(
                     self.state,
                     theta,
                     gamma,
                     shadow,
                     Spectrum.randomWavelength(i, s),
-                )) / @floatFromInt(f32, samples.len);
+                ))) / @as(f32, @floatFromInt(samples.len));
             }
 
             bin.* = rwl;
@@ -125,11 +125,11 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @floatCast(f32, c.arpragueskymodelground_solar_radiance(
+                rwl += @as(f32, @floatCast(c.arpragueskymodelground_solar_radiance(
                     self.state,
                     theta,
                     Spectrum.randomWavelength(i, s),
-                )) / @floatFromInt(f32, samples.len);
+                ))) / @as(f32, @floatFromInt(samples.len));
             }
 
             bin.* = rwl;

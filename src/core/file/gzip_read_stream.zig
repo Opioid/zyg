@@ -103,7 +103,7 @@ pub const GzipReadStream = struct {
                 }
             }
 
-            const copy_len = @min(@intCast(u32, dest.len - dest_cur), self.buffer_count);
+            const copy_len = @min(@as(u32, @intCast(dest.len - dest_cur)), self.buffer_count);
 
             const dest_end = dest_cur + copy_len;
             const source_end = self.buffer_head + copy_len;
@@ -122,12 +122,12 @@ pub const GzipReadStream = struct {
     pub fn seekTo(self: *Self, pos: u64) SeekError!void {
         const buffer_len = self.buffer_head + self.buffer_count;
         const buffer_start = self.z_stream.total_out - buffer_len;
-        const buffer_offset = @intCast(i64, pos) - @intCast(i64, buffer_start);
+        const buffer_offset = @as(i64, @intCast(pos)) - @as(i64, @intCast(buffer_start));
 
         if (buffer_offset >= 0 and buffer_offset < buffer_len) {
             const d = @as(i64, self.buffer_head) - buffer_offset;
-            self.buffer_head = @intCast(u32, buffer_offset);
-            self.buffer_count = @intCast(u32, @as(i64, self.buffer_count) + d);
+            self.buffer_head = @as(u32, @intCast(buffer_offset));
+            self.buffer_count = @as(u32, @intCast(@as(i64, self.buffer_count) + d));
         } else {
             if (buffer_offset < 0) {
                 try self.stream.seekTo(self.data_start);
@@ -147,7 +147,7 @@ pub const GzipReadStream = struct {
             }
 
             const bs = self.z_stream.total_out - (self.buffer_head + self.buffer_count);
-            const bo = @intCast(u32, pos - bs);
+            const bo = @as(u32, @intCast(pos - bs));
             const d = bo - self.buffer_head;
 
             self.buffer_head = bo;
@@ -179,7 +179,7 @@ pub const GzipReadStream = struct {
             if (0 == self.z_stream.avail_in) {
                 const read_bytes = try self.stream.read(&self.read_buffer);
 
-                self.z_stream.avail_in = @intCast(c_uint, read_bytes);
+                self.z_stream.avail_in = @as(c_uint, @intCast(read_bytes));
                 self.z_stream.next_in = &self.read_buffer;
             }
 

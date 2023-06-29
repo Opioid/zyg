@@ -35,7 +35,7 @@ fn calculateSrgbToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = spectrum.gammaToLinear_sRGB(@floatFromInt(f32, i) / 255.0);
+        b.* = spectrum.gammaToLinear_sRGB(@as(f32, @floatFromInt(i)) / 255.0);
     }
 
     return buf;
@@ -45,7 +45,7 @@ fn calculateUnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = enc.unorm8ToFloat(@intCast(u8, i));
+        b.* = enc.unorm8ToFloat(@intCast(i));
     }
 
     return buf;
@@ -55,7 +55,7 @@ fn calculateSnormToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = enc.snorm8ToFloat(@intCast(u8, i));
+        b.* = enc.snorm8ToFloat(@intCast(i));
     }
 
     return buf;

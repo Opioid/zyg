@@ -168,10 +168,10 @@ pub const Worker = struct {
                 const x_back = tile[2];
                 var x: i32 = tile[0];
                 var xx: u32 = 0;
-                const pixel_n = @intCast(u32, y * r[0]);
+                const pixel_n = @as(u32, @intCast(y * r[0]));
                 while (x <= x_back) : (x += 1) {
                     const ii = yy * Tile_dimensions + xx;
-                    const pp = Vec2i{ @intCast(i32, xx), @intCast(i32, yy) };
+                    const pp = Vec2i{ @as(i32, @intCast(xx)), @as(i32, @intCast(yy)) };
                     xx += 1;
 
                     const c1 = 0 + coordToZorder(pp >> @splat(2, @as(u5, 3)));
@@ -200,11 +200,11 @@ pub const Worker = struct {
                         }
                     }
 
-                    const pixel_id = pixel_n + @intCast(u32, x);
+                    const pixel_id = pixel_n + @as(u32, @intCast(x));
 
                     const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
-                    const tsi = @truncate(u32, sample_index);
-                    const seed = @truncate(u32, sample_index >> 32) + so;
+                    const tsi = @as(u32, @truncate(sample_index));
+                    const seed = @as(u32, @truncate(sample_index >> 32)) + so;
 
                     rng.start(0, sample_index);
                     self.samplers[0].startPixel(tsi, seed);
@@ -298,11 +298,11 @@ pub const Worker = struct {
     }
 
     fn coordToZorder(v: Vec2i) u32 {
-        return (part1By1(@intCast(u32, v[1])) << 1) + part1By1(@intCast(u32, v[0]));
+        return (part1By1(@as(u32, @intCast(v[1]))) << 1) + part1By1(@as(u32, @intCast(v[0])));
     }
 
     fn zorderToCoord(z: u32) Vec2i {
-        return .{ @intCast(i32, compact1By1(z >> 0)), @intCast(i32, compact1By1(z >> 1)) };
+        return .{ @as(i32, @intCast(compact1By1(z >> 0))), @as(i32, @intCast(compact1By1(z >> 1))) };
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
@@ -311,8 +311,8 @@ pub const Worker = struct {
         var rng = &self.rng;
         rng.start(0, offset);
 
-        const tsi = @truncate(u32, range[0]);
-        const seed = @truncate(u32, range[0] >> 32);
+        const tsi = @as(u32, @truncate(range[0]));
+        const seed = @as(u32, @truncate(range[0] >> 32));
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
@@ -373,7 +373,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @floatFromInt(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
+                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.geo.part))),
             );
         }
     }

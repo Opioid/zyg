@@ -48,7 +48,7 @@ pub const Tree = struct {
     }
 
     pub fn setProps(self: *Tree, infinite_props: []const u32, props: []const Prop, scene: *const Scene) void {
-        self.num_infinite_props = @intCast(u32, infinite_props.len);
+        self.num_infinite_props = @intCast(infinite_props.len);
         self.infinite_props = infinite_props.ptr;
         self.props = props.ptr;
 

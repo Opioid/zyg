@@ -77,7 +77,7 @@ pub const VariantMap = struct {
                     }
 
                     return switch (@typeInfo(T)) {
-                        .Enum => @enumFromInt(T, ui),
+                        .Enum => @enumFromInt(ui),
                         else => null,
                     };
                 },

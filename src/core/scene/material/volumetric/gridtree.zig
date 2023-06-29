@@ -33,12 +33,12 @@ pub const Node = packed struct {
 
     pub fn setChildren(self: *Node, id: u32) void {
         self.has_children = 1;
-        self.children_or_data = @intCast(u31, id);
+        self.children_or_data = @intCast(id);
     }
 
     pub fn setData(self: *Node, id: u32) void {
         self.has_children = 0;
-        self.children_or_data = @intCast(u31, id);
+        self.children_or_data = @intCast(id);
     }
 
     pub fn setEmpty(self: *Node) void {

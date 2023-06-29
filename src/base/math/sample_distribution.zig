@@ -1,7 +1,7 @@
 const Vec2f = @import("vector2.zig").Vec2f;
 
 pub fn hammersley(i: u32, num_samples: u32, r: u32) Vec2f {
-    return .{ @floatFromInt(f32, i) / @floatFromInt(f32, num_samples), radicalInverseVcd(i, r) };
+    return .{ @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(num_samples)), radicalInverseVcd(i, r) };
 }
 
 fn radicalInverseVcd(bits: u32, r: u32) f32 {
@@ -15,7 +15,7 @@ fn radicalInverseVcd(bits: u32, r: u32) f32 {
 
     out ^= r;
 
-    return @floatFromInt(f32, out) * 2.3283064365386963e-10; // / 0x100000000
+    return @as(f32, @floatFromInt(out)) * 2.3283064365386963e-10; // / 0x100000000
 }
 
 pub fn goldenRatio1D(samples: []f32, r: f32) void {
@@ -44,7 +44,7 @@ pub fn goldenRatio2D(samples: []Vec2f, r: Vec2f) void {
         // keep the minimum
         if (x < min) {
             min = x;
-            idx = @intCast(u32, i);
+            idx = @intCast(i);
         }
 
         // increment the coordinate

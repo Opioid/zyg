@@ -76,7 +76,7 @@ pub fn main() !void {
         };
 
         try operator.textures.append(alloc, texture);
-        try operator.input_ids.append(alloc, @intCast(u32, i));
+        try operator.input_ids.append(alloc, @intCast(i));
 
         bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }

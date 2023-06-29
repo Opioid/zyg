@@ -48,23 +48,23 @@ pub fn Filtered(comptime T: type) type {
             var result = Self{
                 .clamp_max = clamp_max,
                 .radius = radius,
-                .radius_int = @intFromFloat(i32, @ceil(radius)),
+                .radius_int = @intFromFloat(@ceil(radius)),
                 .filter = Func.init(0.0, radius, f),
             };
 
             if (radius > 0.0) {
                 result.filter.scale(1.0 / result.integral(64, radius));
 
-                const interval = (2.0 * radius) / @floatFromInt(f32, N);
+                const interval = (2.0 * radius) / @as(f32, @floatFromInt(N));
 
                 for (&result.distribution.conditional, 0..) |*c, y| {
-                    const sy = -radius + @floatFromInt(f32, y) * interval;
+                    const sy = -radius + @as(f32, @floatFromInt(y)) * interval;
                     const fy = f.eval(@fabs(sy));
 
                     var data: [N + 1]f32 = undefined;
 
                     for (&data, 0..) |*d, x| {
-                        const sx = -radius + @floatFromInt(f32, x) * interval;
+                        const sx = -radius + @as(f32, @floatFromInt(x)) * interval;
                         d.* = @fabs(fy * f.eval(@fabs(sx)));
                     }
 
@@ -85,7 +85,7 @@ pub fn Filtered(comptime T: type) type {
         pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory) !void {
             self.dimensions = dimensions;
 
-            const len = @intCast(usize, dimensions[0] * dimensions[1]);
+            const len = @as(usize, @intCast(dimensions[0] * dimensions[1]));
 
             try self.sensor.resize(alloc, len);
             try self.aov.resize(alloc, len, factory);
@@ -112,13 +112,13 @@ pub fn Filtered(comptime T: type) type {
             const pixel = sample.pixel;
 
             const d = self.dimensions;
-            const id = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+            const id = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
 
             if (aov.active()) {
                 const len = AovValue.Num_classes;
                 var i: u32 = 0;
                 while (i < len) : (i += 1) {
-                    const class = @enumFromInt(AovValue.Class, i);
+                    const class = @as(AovValue.Class, @enumFromInt(i));
                     if (aov.activeClass(class)) {
                         const value = aov.values[i];
 
@@ -151,7 +151,7 @@ pub fn Filtered(comptime T: type) type {
 
             if (0 == self.radius_int) {
                 const d = self.dimensions;
-                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+                const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
 
                 self.sensor.splatPixelAtomic(i, clamped, 1.0);
             } else if (1 == self.radius_int) {
@@ -228,15 +228,14 @@ pub fn Filtered(comptime T: type) type {
         }
 
         fn splat(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i) void {
-            if (@bitCast(u32, pixel[0] - bounds[0]) <= @bitCast(u32, bounds[2]) and
-                @bitCast(u32, pixel[1] - bounds[1]) <= @bitCast(u32, bounds[3]))
+            if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
+                @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
             {
                 const d = self.dimensions;
-                const i = @intCast(usize, d[0] * pixel[1] + pixel[0]);
+                const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
                 self.sensor.splatPixelAtomic(i, color, weight);
             }
         }
-
         inline fn clamp(self: *const Self, color: Vec4f) Vec4f {
             const mc = math.hmax3(color);
             const max = self.clamp_max;
@@ -255,7 +254,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {
-            const interval = radius / @floatFromInt(f32, num_samples);
+            const interval = radius / @as(f32, @floatFromInt(num_samples));
             var s = 0.5 * interval;
             var sum: f32 = 0.0;
             var i: u32 = 0;

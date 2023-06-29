@@ -44,7 +44,7 @@ pub const Builder = struct {
 
         num_cells = num_cells + @min(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
 
-        const cell_len = @intCast(u32, num_cells[0] * num_cells[1] * num_cells[2]);
+        const cell_len = @as(u32, @intCast(num_cells[0] * num_cells[1] * num_cells[2]));
 
         var context = Context{
             .alloc = alloc,
@@ -275,7 +275,7 @@ const Context = struct {
     current_task: i32 = 0,
 
     fn distribute(context: Threads.Context, id: u32) void {
-        const self = @ptrCast(*Context, @alignCast(16, context));
+        const self = @as(*Context, @ptrCast(@alignCast(context)));
 
         var splitter = &self.splitters[id];
         splitter.num_nodes = 0;
@@ -305,7 +305,7 @@ const Context = struct {
 
             splitter.split(
                 self.alloc,
-                &self.grid[@intCast(u32, i)],
+                &self.grid[@as(u32, @intCast(i))],
                 box,
                 self.texture,
                 self.cc,

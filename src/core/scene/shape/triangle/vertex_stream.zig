@@ -24,7 +24,7 @@ pub const VertexStream = union(enum) {
     pub fn numVertices(self: VertexStream) u32 {
         return switch (self) {
             .C => |c| c.num_vertices,
-            inline else => |v| @intCast(u32, v.positions.len),
+            inline else => |v| @intCast(v.positions.len),
         };
     }
 

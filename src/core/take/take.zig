@@ -70,7 +70,7 @@ pub const View = struct {
 
     pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
-        self.camera.sample_spacing = 1.0 / @sqrt(@floatFromInt(f32, spp));
+        self.camera.sample_spacing = 1.0 / @sqrt(@as(f32, @floatFromInt(spp)));
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
@@ -211,7 +211,7 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
                 const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
-                MaterialBase.setSimilarityRelationRange(@intCast(u32, sr_range[0]), @intCast(u32, sr_range[1]));
+                MaterialBase.setSimilarityRelationRange(@as(u32, @intCast(sr_range[0])), @as(u32, @intCast(sr_range[1])));
             }
         }
     }
@@ -321,7 +321,7 @@ pub const Take = struct {
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
                 var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 if (0 == framerate) {
-                    framerate = @intFromFloat(u32, @round(1.0 / @floatFromInt(f64, self.view.camera.frame_step)));
+                    framerate = @as(u32, @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(self.view.camera.frame_step)))));
                 }
 
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);

@@ -39,10 +39,10 @@ pub const Scene = struct {
     pub const Units_per_second: u64 = 705600000;
     pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;
-    const Interval = 1.0 / @floatFromInt(f32, Num_steps);
+    const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @intFromFloat(u64, @round(@floatFromInt(f64, Units_per_second) * dtime));
+        return @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Units_per_second)) * dtime)));
     }
 
     pub const Num_reserved_props = 32;
@@ -320,7 +320,7 @@ pub const Scene = struct {
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
-        const parts_start = @intCast(u32, self.material_ids.items.len);
+        const parts_start = @as(u32, @intCast(self.material_ids.items.len));
         self.prop_parts.items[p] = parts_start;
 
         var i: u32 = 0;
@@ -402,9 +402,9 @@ pub const Scene = struct {
         const a_time = self.current_time_start + i * Tick_duration;
         const delta = time - a_time;
 
-        const t = @floatCast(f32, @floatFromInt(f64, delta) / @floatFromInt(f64, Tick_duration));
+        const t = @as(f32, @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration))));
 
-        return .{ .f = @intCast(u32, i), .w = t };
+        return .{ .f = @as(u32, @intCast(i)), .w = t };
     }
 
     pub fn propWorldPosition(self: *const Scene, entity: u32) Vec4f {
@@ -436,7 +436,7 @@ pub const Scene = struct {
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-        const current_len = @intCast(u32, self.keyframes.items.len);
+        const current_len = @as(u32, @intCast(self.keyframes.items.len));
         self.prop_frames.items[entity] = current_len;
 
         const num_frames = self.num_interpolation_frames;
@@ -487,7 +487,7 @@ pub const Scene = struct {
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = @intCast(u32, light_id);
+        self.light_ids.items[p] = @as(u32, @intCast(light_id));
 
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
@@ -613,7 +613,7 @@ pub const Scene = struct {
     }
 
     pub fn numLights(self: *const Scene) u32 {
-        return @intCast(u32, self.lights.items.len);
+        return @as(u32, @intCast(self.lights.items.len));
     }
 
     pub fn light(self: *const Scene, id: u32) Light {
@@ -696,7 +696,7 @@ pub const Scene = struct {
         try self.prop_frames.append(alloc, Null);
         try self.prop_aabbs.append(alloc, .{});
 
-        return @intCast(u32, self.props.items.len - 1);
+        return @as(u32, @intCast(self.props.items.len - 1));
     }
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
@@ -712,12 +712,12 @@ pub const Scene = struct {
 
     pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
         try self.images.append(alloc, item);
-        return @intCast(u32, self.images.items.len - 1);
+        return @as(u32, @intCast(self.images.items.len - 1));
     }
 
     pub fn createMaterial(self: *Scene, alloc: Allocator, item: Material) !u32 {
         try self.materials.append(alloc, item);
-        return @intCast(u32, self.materials.items.len - 1);
+        return @as(u32, @intCast(self.materials.items.len - 1));
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
@@ -774,7 +774,7 @@ pub const Scene = struct {
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
-        const a: u32 = @max(@intCast(u32, frame_duration / Tick_duration), 1);
+        const a: u32 = @max(@as(u32, @intCast(frame_duration / Tick_duration)), 1);
         const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
         const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
 

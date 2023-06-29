@@ -59,8 +59,8 @@ pub const Distribution2D = struct {
     pub fn sampleContinuous(self: Self, r2: Vec2f) Continuous {
         const v = self.marginal.sampleContinuous(r2[1]);
 
-        const i = @intFromFloat(u32, v.offset * @floatFromInt(f32, self.conditional.len));
-        const c = @min(i, @intCast(u32, self.conditional.len - 1));
+        const i = @as(u32, @intFromFloat(v.offset * @as(f32, @floatFromInt(self.conditional.len))));
+        const c = @min(i, @as(u32, @intCast(self.conditional.len - 1)));
 
         const u = self.conditional[c].sampleContinuous(r2[0]);
 
@@ -70,8 +70,8 @@ pub const Distribution2D = struct {
     pub fn pdf(self: Self, uv: Vec2f) f32 {
         const v_pdf = self.marginal.pdfF(uv[1]);
 
-        const i = @intFromFloat(u32, uv[1] * @floatFromInt(f32, self.conditional.len));
-        const c = @min(i, @intCast(u32, self.conditional.len - 1));
+        const i = @as(u32, @intFromFloat(uv[1] * @as(f32, @floatFromInt(self.conditional.len))));
+        const c = @min(i, @as(u32, @intCast(self.conditional.len - 1)));
 
         const u_pdf = self.conditional[c].pdfF(uv[0]);
 

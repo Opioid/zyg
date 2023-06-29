@@ -121,7 +121,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @as(f32, @floatFromInt(lights.len));
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
@@ -200,7 +200,7 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @floatFromInt(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @as(f32, @floatFromInt(lights.len));
             self.exhausted = true;
         } else {
             const cone_weight_a = coneCost(cones[0][3], two_sided);
@@ -317,7 +317,7 @@ pub const Builder = struct {
                 num_split_lights += s;
 
                 if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
-                    max_split_depth = @intCast(u32, i);
+                    max_split_depth = @as(u32, @intCast(i));
                     break;
                 }
             }
@@ -355,7 +355,7 @@ pub const Builder = struct {
         self.light_order = 0;
 
         for (tree.light_mapping, 0..num_finite_lights) |*lm, l| {
-            lm.* = @intCast(u32, l);
+            lm.* = @as(u32, @intCast(l));
         }
 
         try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);
@@ -444,7 +444,7 @@ pub const Builder = struct {
         const sc = evaluateSplits(Scene, lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
         const predicate = Predicate(Scene){ .sc = &sc, .set = scene };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Scene).f));
+        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
 
         self.current_node += 2;
         const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sideds[0], sc.powers[0], scene, threads);
@@ -496,7 +496,7 @@ pub const Builder = struct {
         }
 
         const predicate = Predicate(Part){ .sc = &sc, .set = part };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Part).f));
+        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Part).f)));
 
         self.current_node += 2;
         const c0_end = self.splitPrimitive(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
@@ -577,7 +577,7 @@ pub const Builder = struct {
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();
             dest.meta.two_sided = source.two_sided;
-            dest.meta.children_or_light = @intCast(u30, source.children_or_light);
+            dest.meta.children_or_light = @as(u30, @intCast(source.children_or_light));
             dest.num_lights = source.num_lights;
 
             node_middles[i] = source.middle;
@@ -593,7 +593,7 @@ pub const Builder = struct {
             const p = set.lightPower(variant, l);
             if (p > 0.0) {
                 n += 1;
-                const in = 1.0 / @floatFromInt(f32, n);
+                const in = 1.0 / @as(f32, @floatFromInt(n));
 
                 ap += (p - ap) * in;
                 aps += (p * p - aps) * in;
@@ -637,17 +637,17 @@ pub const Builder = struct {
             const min = bounds.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @floatFromInt(f32, Num_slices);
+            const step = extent[la] / @as(f32, @floatFromInt(Num_slices));
 
             var a: u32 = 0;
             while (a < 3) : (a += 1) {
                 const extent_a = extent[a];
-                const num_steps = @intFromFloat(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @floatFromInt(f32, num_steps);
+                const num_steps = @as(u32, @intFromFloat(@ceil(extent_a / step)));
+                const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @floatFromInt(f32, i);
+                    const fi = @as(f32, @floatFromInt(i));
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
@@ -704,7 +704,7 @@ pub const Builder = struct {
             pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
                 _ = id;
 
-                const self = @ptrCast(*Self, @alignCast(16, context));
+                const self = @as(*Self, @ptrCast(@alignCast(context)));
 
                 for (self.candidates[begin..end]) |*c| {
                     c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);

@@ -38,7 +38,7 @@ pub const Sky = struct {
 
     sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
-    pub const Radius = @tan(@floatCast(f32, Model.Angular_radius));
+    pub const Radius = @tan(@as(f32, @floatCast(Model.Angular_radius)));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
     pub const Bake_dimensions_sun: u32 = 1024;
@@ -198,12 +198,12 @@ pub const Sky = struct {
         var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ Bake_dimensions_sun, 1 }));
         defer sun_image.deinit(alloc);
 
-        const n = @floatFromInt(f32, Bake_dimensions_sun - 1);
+        const n = @as(f32, @floatFromInt(Bake_dimensions_sun - 1));
 
         var rng = RNG.init(0, 0);
 
         for (sun_image.pixels, 0..) |*s, i| {
-            const v = @floatFromInt(f32, i) / n;
+            const v = @as(f32, @floatFromInt(i)) / n;
             var wi = sunWi(self.sun_rotation, v);
             wi[1] = math.max(wi[1], 0.0);
 
@@ -227,14 +227,28 @@ pub const Sky = struct {
             var file = try std.fs.cwd().createFile(sky_filename, .{});
             defer file.close();
 
-            try ew.write(alloc, file.writer(), .{ .Float3 = image.* }, .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] }, .Color, threads);
+            try ew.write(
+                alloc,
+                file.writer(),
+                .{ .Float3 = image.* },
+                .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] },
+                .Color,
+                threads,
+            );
         }
 
         {
             var file = try std.fs.cwd().createFile(sun_filename, .{});
             defer file.close();
 
-            try ew.write(alloc, file.writer(), .{ .Float3 = sun_image }, .{ 0, 0, Bake_dimensions_sun, 1 }, .Color, threads);
+            try ew.write(
+                alloc,
+                file.writer(),
+                .{ .Float3 = sun_image },
+                .{ 0, 0, Bake_dimensions_sun, 1 },
+                .Color,
+                threads,
+            );
         }
     }
 
@@ -258,7 +272,7 @@ const SkyContext = struct {
     pub fn bakeSky(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @ptrCast(*SkyContext, @alignCast(16, context));
+        const self = @as(*SkyContext, @ptrCast(@alignCast(context)));
 
         var rng = RNG{};
 
@@ -270,19 +284,19 @@ const SkyContext = struct {
                 return;
             }
 
-            const v = idf[1] * (@floatFromInt(f32, y) + 0.5);
+            const v = idf[1] * (@as(f32, @floatFromInt(y)) + 0.5);
 
             var x: u32 = 0;
             while (x < Sky.Bake_dimensions[0]) : (x += 1) {
-                rng.start(0, @intCast(u64, y * Sky.Bake_dimensions[0] + x));
+                rng.start(0, @as(u64, @intCast(y * Sky.Bake_dimensions[0] + x)));
 
-                const u = idf[0] * (@floatFromInt(f32, x) + 0.5);
+                const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv = Vec2f{ u, v };
                 const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
 
                 const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
-                self.image.set2D(@intCast(i32, x), @intCast(i32, y), math.vec4fTo3f(li));
+                self.image.set2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)), math.vec4fTo3f(li));
             }
         }
     }

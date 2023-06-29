@@ -31,15 +31,15 @@ pub const Writer = struct {
     fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
         const d = image.description.dimensions;
 
-        const width = @intCast(u32, d[0]);
-        const height = @intCast(u32, d[1]);
+        const width = @as(u32, @intCast(d[0]));
+        const height = @as(u32, @intCast(d[1]));
 
         if (width < 8 or width > 0x7fff) {
             // run length encoding is not allowed so write flat
             return writePixels(writer, image, crop);
         }
 
-        var buffer = try alloc.alloc(u8, @intCast(usize, width * 4));
+        var buffer = try alloc.alloc(u8, @as(usize, @intCast(width * 4)));
         defer alloc.free(buffer);
 
         var current_pixel: u32 = 0;
@@ -49,8 +49,8 @@ pub const Writer = struct {
             const info: [4]u8 = .{
                 2,
                 2,
-                @intCast(u8, width >> 8),
-                @intCast(u8, width & 0xFF),
+                @as(u8, @intCast(width >> 8)),
+                @as(u8, @intCast(width & 0xFF)),
             };
 
             try writer.writeAll(&info);
@@ -142,7 +142,7 @@ pub const Writer = struct {
 
             // if data before next big run is a short run then write it as such
             if (old_run_count > 1 and old_run_count == begin_run - current) {
-                buffer[0] = @intCast(u8, 128 + old_run_count); // write short run
+                buffer[0] = @as(u8, @intCast(128 + old_run_count)); // write short run
                 buffer[1] = data[current];
 
                 try writer.writeAll(&buffer);
@@ -158,7 +158,7 @@ pub const Writer = struct {
                     nonrun_count = 128;
                 }
 
-                buffer[0] = @intCast(u8, nonrun_count);
+                buffer[0] = @as(u8, @intCast(nonrun_count));
 
                 try writer.writeByte(buffer[0]);
                 try writer.writeAll(data[current .. current + nonrun_count]);
@@ -168,7 +168,7 @@ pub const Writer = struct {
 
             // write out next run if one was found
             if (run_count >= Min_run_length) {
-                buffer[0] = @intCast(u8, 128 + run_count);
+                buffer[0] = @as(u8, @intCast(128 + run_count));
                 buffer[1] = data[begin_run];
 
                 try writer.writeAll(&buffer);
@@ -198,10 +198,10 @@ pub const Writer = struct {
         v = f.significand * 256.0 / v;
 
         return .{
-            @intFromFloat(u8, c[0] * v),
-            @intFromFloat(u8, c[1] * v),
-            @intFromFloat(u8, c[2] * v),
-            @intCast(u8, f.exponent + 128),
+            @intFromFloat(c[0] * v),
+            @intFromFloat(c[1] * v),
+            @intFromFloat(c[2] * v),
+            @intCast(f.exponent + 128),
         };
     }
 };
