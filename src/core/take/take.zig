@@ -1,7 +1,9 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
-const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
+const hlp = @import("../rendering/integrator/helper.zig");
+const LightSampling = hlp.LightSampling;
+const Caustics = hlp.Caustics;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
@@ -182,16 +184,21 @@ pub const View = struct {
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
-                const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics) and !lighttracer;
+                const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
+
+                var caustics: Caustics = .Off;
+                if (enable_caustics) {
+                    caustics = if (lighttracer) .Indirect else .Full;
+                }
 
                 self.surfaces = surface.Factory{ .PTMIS = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
-                        .avoid_caustics = !enable_caustics,
+                        .caustics = caustics,
                         .photons_not_only_through_specular = !lighttracer,
                     },
                 } };
