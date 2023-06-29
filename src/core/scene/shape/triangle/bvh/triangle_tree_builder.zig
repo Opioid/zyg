@@ -31,7 +31,7 @@ pub const Builder = struct {
         vertices: VertexStream,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @intCast(u32, triangles.len));
+        try self.super.reserve(alloc, @as(u32, @intCast(triangles.len)));
 
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
@@ -40,7 +40,7 @@ pub const Builder = struct {
             .vertices = &vertices,
         };
 
-        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len), @sizeOf(Reference));
+        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(triangles.len), @sizeOf(Reference));
 
         var bounds = math.aabb.Empty;
         for (context.aabbs[0..num]) |b| {
@@ -66,7 +66,7 @@ pub const Builder = struct {
         vertices: *const VertexStream,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @ptrCast(*ReferencesContext, @alignCast(16, context));
+            const self = @as(*ReferencesContext, @ptrCast(@alignCast(context)));
 
             var bounds = math.aabb.Empty;
 
@@ -79,7 +79,7 @@ pub const Builder = struct {
                 const max = tri.max(a, b, c);
 
                 const r = i + begin;
-                self.references[r].set(min, max, @intCast(u32, r));
+                self.references[r].set(min, max, @as(u32, @intCast(r)));
 
                 bounds.bounds[0] = math.min4(bounds.bounds[0], min);
                 bounds.bounds[1] = math.max4(bounds.bounds[1], max);

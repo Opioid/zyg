@@ -124,7 +124,7 @@ pub const Driver = struct {
         try self.target.resize(alloc, img.Description.init2D(dim));
 
         const r = camera.resolution;
-        const num_particles = @intCast(u64, r[0] * r[1]) * @as(u64, view.num_particles_per_pixel);
+        const num_particles = @as(u64, @intCast(r[0] * r[1])) * @as(u64, view.num_particles_per_pixel);
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
     }
 
@@ -193,7 +193,7 @@ pub const Driver = struct {
     }
 
     pub fn resolve(self: *Driver) void {
-        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
         self.resolveToBuffer(self.target.pixels.ptr, num_pixels);
     }
 
@@ -208,7 +208,7 @@ pub const Driver = struct {
     }
 
     pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
-        const num_pixels = @intCast(u32, self.target.description.numPixels());
+        const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
         return self.resolveAovToBuffer(class, self.target.pixels.ptr, num_pixels);
     }
 
@@ -224,7 +224,7 @@ pub const Driver = struct {
         }
 
         for (0..View.AovValue.Num_classes) |i| {
-            const class = @enumFromInt(View.AovValue.Class, i);
+            const class = @as(View.AovValue.Class, @enumFromInt(i));
             if (!self.resolveAov(class)) {
                 continue;
             }
@@ -248,7 +248,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@floatFromInt(f32, self.view.num_particles_per_pixel));
+        camera.sensor.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
 
         self.progressor.start(self.ranges.size());
 
@@ -258,7 +258,7 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            const num_pixels = @intCast(u32, self.target.description.numPixels());
+            const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
             camera.sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
         }
 
@@ -266,12 +266,12 @@ pub const Driver = struct {
     }
 
     fn renderTiles(context: Threads.Context, id: u32) void {
-        const self = @ptrCast(*Driver, @alignCast(16, context));
+        const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @intFromFloat(u32, @ceil(0.25 * @floatFromInt(f32, num_samples)));
+        const num_photon_samples = @as(u32, @intFromFloat(@ceil(0.25 * @as(f32, @floatFromInt(num_samples)))));
 
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples);
@@ -315,7 +315,7 @@ pub const Driver = struct {
     }
 
     fn renderRanges(context: Threads.Context, id: u32) void {
-        const self = @ptrCast(*Driver, @alignCast(16, context));
+        const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
@@ -369,7 +369,7 @@ pub const Driver = struct {
             ) catch break;
 
             if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
-                @floatFromInt(f32, begin) / @floatFromInt(f32, new_begin) > (1.0 - iteration_threshold))
+                @as(f32, @floatFromInt(begin)) / @as(f32, @floatFromInt(new_begin)) > (1.0 - iteration_threshold))
             {
                 break;
             }
@@ -383,7 +383,7 @@ pub const Driver = struct {
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @ptrCast(*Driver, @alignCast(16, context));
+        const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(
             begin,

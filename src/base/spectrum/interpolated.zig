@@ -13,7 +13,7 @@ pub const Interpolated = struct {
 
     pub fn init(wavelengths: []const f32, intensities: []const f32) Self {
         return Self{
-            .num_elements = @intCast(u32, wavelengths.len),
+            .num_elements = @intCast(wavelengths.len),
             .wavelengths = wavelengths.ptr,
             .intensities = intensities.ptr,
         };

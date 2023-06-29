@@ -131,7 +131,7 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: f32 = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        try image.storeSequentially(alloc, @intCast(i64, i), val);
+                        try image.storeSequentially(alloc, @intCast(i), val);
                     }
                 }
 

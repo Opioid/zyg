@@ -68,7 +68,7 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
-            .Half1 => @floatCast(f32, image.Half1.get2D(x, y)),
+            .Half1 => @as(f32, @floatCast(image.Half1.get2D(x, y))),
             .Float1 => image.Float1.get2D(x, y),
             else => 0.0,
         };
@@ -100,9 +100,9 @@ pub const Texture = struct {
             .Half3 => {
                 const value = image.Half3.get2D(x, y);
                 return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
+                    @as(f32, @floatCast(value.v[0])),
+                    @as(f32, @floatCast(value.v[1])),
+                    @as(f32, @floatCast(value.v[2])),
                     0.0,
                 };
             },
@@ -130,9 +130,9 @@ pub const Texture = struct {
             .Half3 => {
                 const value = image.Half3.get2D(x, y);
                 return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
+                    @as(f32, @floatCast(value.v[0])),
+                    @as(f32, @floatCast(value.v[1])),
+                    @as(f32, @floatCast(value.v[2])),
                     1.0,
                 };
             },
@@ -143,10 +143,10 @@ pub const Texture = struct {
             .Half4 => {
                 const value = image.Half4.get2D(x, y);
                 return .{
-                    @floatCast(f32, value.v[0]),
-                    @floatCast(f32, value.v[1]),
-                    @floatCast(f32, value.v[2]),
-                    @floatCast(f32, value.v[3]),
+                    @as(f32, @floatCast(value.v[0])),
+                    @as(f32, @floatCast(value.v[1])),
+                    @as(f32, @floatCast(value.v[2])),
+                    @as(f32, @floatCast(value.v[3])),
                 };
             },
             .Float4 => {
@@ -197,7 +197,7 @@ pub const Texture = struct {
             }
         }
 
-        const area = @floatFromInt(f32, d[0]) * @floatFromInt(f32, d[1]);
+        const area = @as(f32, @floatFromInt(d[0])) * @as(f32, @floatFromInt(d[1]));
         return average / @splat(4, area);
     }
 };

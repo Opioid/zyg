@@ -60,7 +60,7 @@ pub const AOV = struct {
     }
 
     fn ao(self: *Self, ray: Ray, isec: Intersection, worker: *Worker) Vec4f {
-        const num_samples_reciprocal = 1.0 / @floatFromInt(f32, self.settings.num_samples);
+        const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
         var result: f32 = 0.0;
@@ -140,7 +140,7 @@ pub const AOV = struct {
 
         const lights = worker.randomLightSpatial(p, n, false, sampler.sample1D(), true);
 
-        const r = @floatFromInt(f32, lights.len) / @floatFromInt(f32, worker.lights.len);
+        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(worker.lights.len));
 
         return .{ r, r, r, 1.0 };
     }

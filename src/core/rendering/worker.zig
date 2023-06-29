@@ -124,25 +124,25 @@ pub const Worker = struct {
 
         const fr = sensor.filterRadiusInt();
         const r = camera.resolution + @splat(2, 2 * fr);
-        const a = @intCast(u32, r[0]) * @intCast(u32, r[1]);
+        const a = @as(u32, @intCast(r[0])) * @as(u32, @intCast(r[1]));
         const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
 
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const pixel_n = @intCast(u32, (y + fr) * r[0]);
+            const pixel_n = @as(u32, @intCast((y + fr) * r[0]));
 
             const x_back = tile[2];
             var x: i32 = tile[0];
             while (x <= x_back) : (x += 1) {
-                const pixel_id = pixel_n + @intCast(u32, x + fr);
+                const pixel_id = pixel_n + @as(u32, @intCast(x + fr));
 
                 rng.start(0, @as(u64, pixel_id) + o);
 
                 const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
-                const tsi = @truncate(u32, sample_index);
-                const seed = @truncate(u32, sample_index >> 32) + so;
+                const tsi = @as(u32, @truncate(sample_index));
+                const seed = @as(u32, @truncate(sample_index >> 32)) + so;
 
                 self.samplers[0].startPixel(tsi, seed);
 
@@ -180,8 +180,8 @@ pub const Worker = struct {
         var rng = &self.rng;
         rng.start(0, offset);
 
-        const tsi = @truncate(u32, range[0]);
-        const seed = @truncate(u32, range[0] >> 32);
+        const tsi = @as(u32, @truncate(range[0]));
+        const seed = @as(u32, @truncate(range[0] >> 32));
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
@@ -242,7 +242,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @floatFromInt(f32, 1 + self.scene.propMaterialId(isec.prop, isec.geo.part)),
+                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.geo.part))),
             );
         }
     }

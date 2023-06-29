@@ -44,15 +44,15 @@ pub const Pool = struct {
     running_async: bool = false,
 
     pub fn availableCores(request: i32) u32 {
-        const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
+        const available = @as(u32, @intCast(std.Thread.getCpuCount() catch 1));
 
         if (request <= 0) {
-            const num_threads = @intCast(i32, available) + request;
+            const num_threads = @as(i32, @intCast(available)) + request;
 
-            return @intCast(u32, @max(num_threads, 1));
+            return @as(u32, @intCast(@max(num_threads, 1)));
         }
 
-        return @min(available, @intCast(u32, @max(request, 1)));
+        return @min(available, @as(u32, @intCast(@max(request, 1))));
     }
 
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
@@ -61,7 +61,7 @@ pub const Pool = struct {
         for (self.uniques, 0..) |*u, i| {
             // Initializing u first, seems to get rid of one data race
             u.* = .{};
-            u.thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
+            u.thread = try std.Thread.spawn(.{}, loop, .{ self, @as(u32, @intCast(i)) });
         }
 
         self.asyncp.thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
@@ -76,7 +76,7 @@ pub const Pool = struct {
     }
 
     pub fn numThreads(self: *const Pool) u32 {
-        return @intCast(u32, self.uniques.len);
+        return @as(u32, @intCast(self.uniques.len));
     }
 
     pub fn runParallel(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
@@ -114,16 +114,16 @@ pub const Pool = struct {
         self.running_parallel = true;
 
         const range = end - begin;
-        const rangef = @floatFromInt(f32, range);
-        const num_threads = @floatFromInt(f32, self.uniques.len);
+        const rangef = @as(f32, @floatFromInt(range));
+        const num_threads = @as(f32, @floatFromInt(self.uniques.len));
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
-            @intFromFloat(u32, @ceil((rangef * @floatFromInt(f32, item_size_hint)) / num_threads / Cache_line)) *
+            @as(u32, @intFromFloat(@ceil((rangef * @as(f32, @floatFromInt(item_size_hint))) / num_threads / Cache_line))) *
                 Cache_line / item_size_hint
         else
-            @intFromFloat(u32, @floor(rangef / num_threads));
+            @as(u32, @intFromFloat(@floor(rangef / num_threads)));
 
-        var r = range - @min(step * @intCast(u32, self.uniques.len), range);
+        var r = range - @min(step * @as(u32, @intCast(self.uniques.len)), range);
         var e = begin;
 
         var num_tasks = self.uniques.len;

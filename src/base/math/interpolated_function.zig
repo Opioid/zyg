@@ -18,7 +18,7 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
 
         pub fn init(alloc: Allocator, range_begin: f32, range_end: f32, num_samples: u32) !Self {
             const range = range_end - range_begin;
-            const interval = range / @floatFromInt(f32, num_samples - 1);
+            const interval = range / @as(f32, @floatFromInt(num_samples - 1));
 
             return Self{
                 .range_end = range_end,
@@ -34,12 +34,12 @@ pub fn InterpolatedFunction1D(comptime T: type) type {
         pub fn eval(self: Self, x: f32) T {
             const cx = math.min(x, self.range_end);
             const o = cx * self.inverse_interval;
-            const offset = @intFromFloat(u32, o);
-            const t = o - @floatFromInt(f32, offset);
+            const offset = @as(u32, @intFromFloat(o));
+            const t = o - @as(f32, @floatFromInt(offset));
 
             return math.lerp(
                 self.samples[offset],
-                self.samples[@min(offset + 1, @intCast(u32, self.samples.len - 1))],
+                self.samples[@min(offset + 1, @as(u32, @intCast(self.samples.len - 1)))],
                 @splat(4, t),
             );
         }
@@ -112,7 +112,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
 
         pub fn init(range_begin: f32, range_end: f32, f: anytype) Self {
             const range = range_end - range_begin;
-            const interval = range / @floatFromInt(f32, N - 1);
+            const interval = range / @as(f32, @floatFromInt(N - 1));
 
             var result = Self{
                 .range_end = range_end,
@@ -134,7 +134,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
         pub fn fromArray(samples: [*]const f32) Self {
             var result = Self{
                 .range_end = 1.0,
-                .inverse_interval = @floatFromInt(f32, N - 1),
+                .inverse_interval = @floatFromInt(N - 1),
             };
 
             for (&result.samples, 0..) |*s, i| {
@@ -153,8 +153,8 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
         pub fn eval(self: Self, x: f32) f32 {
             const cx = math.min(x, self.range_end);
             const o = cx * self.inverse_interval;
-            const offset = @intFromFloat(u32, o);
-            const t = o - @floatFromInt(f32, offset);
+            const offset = @as(u32, @intFromFloat(o));
+            const t = o - @as(f32, @floatFromInt(offset));
 
             return math.lerp(
                 self.samples[offset],
@@ -187,7 +187,7 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
             const mx = math.min(x, 1.0);
             const my = math.min(y, 1.0);
 
-            const o = Vec2f{ mx, my } * Vec2f{ @floatFromInt(f32, X - 1), @floatFromInt(f32, Y - 1) };
+            const o = Vec2f{ mx, my } * Vec2f{ @floatFromInt(X - 1), @floatFromInt(Y - 1) };
             const offset = math.vec2fTo2i(o);
             const t = o - math.vec2iTo2f(offset);
 
@@ -196,10 +196,10 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
             const row1 = @min(offset[1] + 1, Y - 1) * X;
 
             const c = [_]f32{
-                self.samples[@intCast(u32, offset[0] + row0)],
-                self.samples[@intCast(u32, col1 + row0)],
-                self.samples[@intCast(u32, offset[0] + row1)],
-                self.samples[@intCast(u32, col1 + row1)],
+                self.samples[@intCast(offset[0] + row0)],
+                self.samples[@intCast(col1 + row0)],
+                self.samples[@intCast(offset[0] + row1)],
+                self.samples[@intCast(col1 + row1)],
             };
 
             return math.bilinear(f32, c, t[0], t[1]);
@@ -230,9 +230,9 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
             const mv = math.min4(v, @splat(4, @as(f32, 1.0)));
 
             const o = mv * Vec4f{
-                @floatFromInt(f32, X - 1),
-                @floatFromInt(f32, Y - 1),
-                @floatFromInt(f32, Z - 1),
+                @floatFromInt(X - 1),
+                @floatFromInt(Y - 1),
+                @floatFromInt(Z - 1),
                 0.0,
             };
 
@@ -248,17 +248,17 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
             const slice1 = @min(offset[2] + 1, Z - 1) * area;
 
             const ca = [_]f32{
-                self.samples[@intCast(u32, offset[0] + row0 + slice0)],
-                self.samples[@intCast(u32, col1 + row0 + slice0)],
-                self.samples[@intCast(u32, offset[0] + row1 + slice0)],
-                self.samples[@intCast(u32, col1 + row1 + slice0)],
+                self.samples[@intCast(offset[0] + row0 + slice0)],
+                self.samples[@intCast(col1 + row0 + slice0)],
+                self.samples[@intCast(offset[0] + row1 + slice0)],
+                self.samples[@intCast(col1 + row1 + slice0)],
             };
 
             const cb = [_]f32{
-                self.samples[@intCast(u32, offset[0] + row0 + slice1)],
-                self.samples[@intCast(u32, col1 + row0 + slice1)],
-                self.samples[@intCast(u32, offset[0] + row1 + slice1)],
-                self.samples[@intCast(u32, col1 + row1 + slice1)],
+                self.samples[@intCast(offset[0] + row0 + slice1)],
+                self.samples[@intCast(col1 + row0 + slice1)],
+                self.samples[@intCast(offset[0] + row1 + slice1)],
+                self.samples[@intCast(col1 + row1 + slice1)],
             };
 
             const c0 = math.bilinear(f32, ca, t[0], t[1]);

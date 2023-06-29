@@ -33,17 +33,17 @@ pub inline fn max2(a: Vec2f, b: Vec2f) Vec2f {
 }
 
 pub inline fn vec2fTo2i(v: Vec2f) Vec2i {
-    return .{ @intFromFloat(i32, v[0]), @intFromFloat(i32, v[1]) };
+    return .{ @intFromFloat(v[0]), @intFromFloat(v[1]) };
 }
 
 pub inline fn vec2fTo2u(v: Vec2f) Vec2u {
-    return .{ @intFromFloat(u32, v[0]), @intFromFloat(u32, v[1]) };
+    return .{ @intFromFloat(v[0]), @intFromFloat(v[1]) };
 }
 
 pub inline fn vec2iTo2f(v: Vec2i) Vec2f {
-    return .{ @floatFromInt(f32, v[0]), @floatFromInt(f32, v[1]) };
+    return .{ @floatFromInt(v[0]), @floatFromInt(v[1]) };
 }
 
 pub inline fn vec2uTo2f(v: Vec2u) Vec2f {
-    return .{ @floatFromInt(f32, v[0]), @floatFromInt(f32, v[1]) };
+    return .{ @floatFromInt(v[0]), @floatFromInt(v[1]) };
 }

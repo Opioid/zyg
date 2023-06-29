@@ -24,7 +24,7 @@ pub const Buffer = struct {
         self.slots = factory.slots;
 
         for (&self.buffers, 0..) |*b, i| {
-            if (factory.activeClass(@enumFromInt(aov.Value.Class, i)) and len > b.len) {
+            if (factory.activeClass(@as(aov.Value.Class, @enumFromInt(i))) and len > b.len) {
                 b.* = try alloc.realloc(b.*, len);
             }
         }
@@ -32,7 +32,7 @@ pub const Buffer = struct {
 
     pub fn clear(self: *Self) void {
         for (&self.buffers, 0..) |*b, i| {
-            const class = @enumFromInt(aov.Value.Class, i);
+            const class = @as(aov.Value.Class, @enumFromInt(i));
             if (class.activeIn(self.slots)) {
                 const default = class.default();
                 for (b.*) |*p| {

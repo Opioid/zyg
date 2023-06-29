@@ -57,7 +57,7 @@ pub const Value = struct {
 
         var i: u4 = 0;
         while (i < Num_classes) : (i += 1) {
-            const class = @enumFromInt(Class, i);
+            const class = @as(Class, @enumFromInt(i));
             if (self.activeClass(class)) {
                 self.values[i] = class.default();
             }

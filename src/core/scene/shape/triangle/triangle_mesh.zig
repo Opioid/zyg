@@ -125,7 +125,7 @@ pub const Part = struct {
 
         for (self.variants.items, 0..) |v, i| {
             if (v.matches(material, emission_map, two_sided, scene)) {
-                return @intCast(u32, i);
+                return @intCast(i);
             }
         }
 
@@ -139,7 +139,7 @@ pub const Part = struct {
             .scene = scene,
             .prop_id = prop,
             .part_id = part,
-            .estimate_area = @floatFromInt(f32, dimensions[0] * dimensions[1]) / 4.0,
+            .estimate_area = @as(f32, @floatFromInt(dimensions[0] * dimensions[1])) / 4.0,
         };
         defer {
             alloc.free(context.powers);
@@ -164,7 +164,7 @@ pub const Part = struct {
             angle = math.max(angle, std.math.acos(c));
         }
 
-        const v = @intCast(u32, self.variants.items.len);
+        const v = @as(u32, @intCast(self.variants.items.len));
 
         try self.variants.append(alloc, .{
             .aabb = temp.bb,
@@ -269,7 +269,7 @@ pub const Part = struct {
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @ptrCast(*Context, context);
+            const self = @as(*Context, @ptrCast(context));
 
             const emission_map = self.m.emissionMapped();
 
@@ -288,7 +288,7 @@ pub const Part = struct {
 
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = @max(@intFromFloat(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+                    const num_samples = @max(@as(u32, @intFromFloat(@round(uv_area * self.estimate_area + 0.5))), 1);
 
                     var radiance = @splat(4, @as(f32, 0.0));
 
@@ -320,7 +320,7 @@ pub const Part = struct {
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
                     temp.dominant_axis += @splat(4, pow) * n;
-                    temp.bb.mergeAssign(self.part.lightAabb(@intCast(u32, i)));
+                    temp.bb.mergeAssign(self.part.lightAabb(@as(u32, @intCast(i))));
                     temp.total_power += pow;
                 }
             }

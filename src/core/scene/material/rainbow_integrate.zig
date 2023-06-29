@@ -57,13 +57,13 @@ pub fn integrate(alloc: Allocator) !void {
 
     var image = try img.Float3.init(alloc, img.Description.init2D(d));
 
-    const wl_range = (Spectrum.wavelengthsEnd() - Spectrum.wavelengthsStart()) / @floatFromInt(f32, d[0] - 1);
+    const wl_range = (Spectrum.wavelengthsEnd() - Spectrum.wavelengthsStart()) / @as(f32, @floatFromInt(d[0] - 1));
 
     var x: i32 = 0;
     while (x < d[0]) : (x += 1) {
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
-            const wl = Spectrum.wavelengthsStart() + @floatFromInt(f32, x) * wl_range;
+            const wl = Spectrum.wavelengthsStart() + @as(f32, @floatFromInt(x)) * wl_range;
             const color = spectrumAtWavelength(&rainbow, Spectrum.wavelengthsStart(), Spectrum.wavelengthsEnd(), wl);
 
             image.set2D(x, y, math.vec4fTo3f(color));
@@ -74,11 +74,11 @@ pub fn integrate(alloc: Allocator) !void {
 }
 
 fn spectrumAtWavelength(rainbow: []Vec4f, wl_start: f32, wl_end: f32, wl: f32) Vec4f {
-    const nb = @floatFromInt(f32, rainbow.len);
+    const nb = @as(f32, @floatFromInt(rainbow.len));
 
     const u = ((wl - wl_start) / (wl_end - wl_start)) * nb;
-    const id = @intFromFloat(u32, u);
-    const frac = u - @floatFromInt(f32, id);
+    const id = @as(u32, @intFromFloat(u));
+    const frac = u - @as(f32, @floatFromInt(id));
 
     if (id >= rainbow.len - 1) {
         return rainbow[rainbow.len - 1];

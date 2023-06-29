@@ -26,7 +26,7 @@ pub const Distribution1D = struct {
     pub fn configure(self: *Self, alloc: Allocator, data: []const f32, lut_bucket_size: u32) !void {
         try self.precomputePdfCdf(alloc, data);
 
-        var lut_size = @intCast(u32, if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
+        var lut_size = @as(u32, @intCast(if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size));
         lut_size = @min(@max(lut_size, 1), self.size);
 
         try self.initLut(alloc, lut_size);
@@ -62,7 +62,7 @@ pub const Distribution1D = struct {
         }
 
         const t = (c - r) / v;
-        const result = (@floatFromInt(f32, offset) + t) / @floatFromInt(f32, self.size - 1);
+        const result = (@as(f32, @floatFromInt(offset)) + t) / @as(f32, @floatFromInt(self.size - 1));
         return .{ .offset = result, .pdf = v };
     }
 
@@ -72,7 +72,7 @@ pub const Distribution1D = struct {
 
     pub fn pdfF(self: Self, u: f32) f32 {
         const len = self.size;
-        const o = @min(@intFromFloat(u32, u * @floatFromInt(f32, len - 1)), len - 2);
+        const o = @min(@as(u32, @intFromFloat(u * @as(f32, @floatFromInt(len - 1)))), len - 2);
 
         return self.cdf[o + 1] - self.cdf[o];
     }
@@ -98,7 +98,7 @@ pub const Distribution1D = struct {
 
         if (self.size != data.len + 1) {
             self.cdf = (try alloc.realloc(self.cdf[0..self.size], data.len + 1)).ptr;
-            self.size = @intCast(u32, data.len + 1);
+            self.size = @as(u32, @intCast(data.len + 1));
         }
 
         const ii = 1.0 / integral;
@@ -122,7 +122,7 @@ pub const Distribution1D = struct {
         if (padded_lut_size != self.lut_size) {
             self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
             self.lut_size = padded_lut_size;
-            self.lut_range = @floatFromInt(f32, lut_size);
+            self.lut_range = @as(f32, @floatFromInt(lut_size));
         }
 
         self.lut[0] = 1;
@@ -131,7 +131,7 @@ pub const Distribution1D = struct {
         for (self.cdf[1..self.size], 1..) |cdf, i| {
             const mapped = self.map(cdf);
             if (mapped > border) {
-                const last = @intCast(u32, i);
+                const last = @as(u32, @intCast(i));
 
                 for (self.lut[border + 1 .. mapped + 1]) |*lut| {
                     lut.* = last;
@@ -143,13 +143,13 @@ pub const Distribution1D = struct {
     }
 
     fn map(self: Self, s: f32) u32 {
-        return @intFromFloat(u32, s * self.lut_range);
+        return @as(u32, @intFromFloat(s * self.lut_range));
     }
 
     fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
         for (buffer[begin..end], begin..) |b, i| {
             if (b >= key) {
-                return @intCast(u32, i);
+                return @as(u32, @intCast(i));
             }
         }
 

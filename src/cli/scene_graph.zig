@@ -98,10 +98,10 @@ pub const Graph = struct {
     pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
         try self.prop_props.append(alloc, render_id);
         try self.prop_properties.append(alloc, .{});
-        try self.prop_frames.append(alloc, @intCast(u32, self.keyframes.items.len));
+        try self.prop_frames.append(alloc, @as(u32, @intCast(self.keyframes.items.len)));
         try self.prop_topology.append(alloc, .{});
 
-        return @intCast(u32, self.prop_props.items.len - 1);
+        return @as(u32, @intCast(self.prop_props.items.len - 1));
     }
 
     pub fn propSerializeChild(self: *Self, parent_id: u32, child_id: u32) void {
@@ -123,7 +123,7 @@ pub const Graph = struct {
         const render_id = self.prop_props.items[entity];
         const render_entity = Null != render_id;
 
-        const current_len = @intCast(u32, self.keyframes.items.len);
+        const current_len = @as(u32, @intCast(self.keyframes.items.len));
 
         if (world_animation) {
             const nif = self.scene.num_interpolation_frames;
@@ -158,7 +158,7 @@ pub const Graph = struct {
     pub fn createAnimation(self: *Self, alloc: Allocator, count: u32) !u32 {
         try self.animations.append(alloc, try Animation.init(alloc, count, self.scene.num_interpolation_frames));
 
-        return @intCast(u32, self.animations.items.len - 1);
+        return @as(u32, @intCast(self.animations.items.len - 1));
     }
 
     pub fn animationSetEntity(self: *Self, animation: u32, entity: u32) void {

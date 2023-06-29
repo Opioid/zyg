@@ -72,7 +72,7 @@ pub const Indexed_data = struct {
             .b = b,
             .c = c,
             .bts = if (bitangent_sign) 1 else 0,
-            .part = @intCast(u31, p),
+            .part = @intCast(p),
         };
     }
 
