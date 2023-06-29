@@ -253,9 +253,9 @@ pub const Worker = struct {
                     const variance = new_s * new_m[3];
                     const mam = math.max(math.hmax3(new_m), 0.0001);
 
-                    //     const qm = if (mam < 1.0) @sqrt(variance / mam) else std.math.pow(f32, variance, 1.0 / 2.4) / mam;
+                    //const qm = if (mam < 1.0) @sqrt(variance / mam) else std.math.pow(f32, variance, 1.0 / 2.4) / mam;
 
-                    const qm = if (mam < 1.0) @sqrt(variance / mam) else @log(math.max(variance, 1.0)) / mam;
+                    const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.4) else @log(math.max(variance, 1.0)) / mam;
 
                     self.qms[ii] = qm;
                     tile_qm_work = math.max(tile_qm_work, qm);
