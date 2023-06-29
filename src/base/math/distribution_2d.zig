@@ -100,8 +100,8 @@ pub fn Distribution2DN(comptime N: u32) type {
         pub fn sampleContinous(self: Self, r2: Vec2f) Distribution2D.Continuous {
             const v = self.marginal.sampleContinous(r2[1]);
 
-            const i = @intFromFloat(u32, v.offset * @floatFromInt(f32, N));
-            const c = @min(i, @intCast(u32, N - 1));
+            const i = @as(u32, @intFromFloat(v.offset * @as(f32, @floatFromInt(N))));
+            const c = @min(i, @as(u32, @intCast(N - 1)));
 
             const u = self.conditional[c].sampleContinous(r2[0]);
 
