@@ -134,13 +134,41 @@ pub const Sample = struct {
         }
     }
 
+    fn wavelengthSpectrumWeight(wavelength: *f32, r: f32) Vec4f {
+        if (0.0 == wavelength.*) {
+            const start = Material.Start_wavelength;
+            const end = Material.End_wavelength;
+
+            wavelength.* = start + (end - start) * r;
+
+            return Material.spectrumAtWavelength(wavelength.*, 1.0) * @splat(4, @as(f32, 3.0));
+        }
+
+        return @splat(4, @as(f32, 1.0));
+    }
+
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
-            var result = self.roughSample(ior, sampler);
-            result.wavelength = 0.0;
-            return result;
+            if (0.0 == self.abbe) {
+                var result = self.roughSample(ior, sampler);
+                result.wavelength = 0.0;
+                return result;
+            } else {
+                var wavelength = self.wavelength;
+
+                const r = sampler.sample1D();
+                const weight = wavelengthSpectrumWeight(&wavelength, r);
+
+                const sqr_wl = wavelength * wavelength;
+                ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
+
+                var result = self.roughSample(ior, sampler);
+                result.reflection *= weight;
+                result.wavelength = wavelength;
+                return result;
+            }
         } else if (self.super.thickness > 0.0) {
             var result = self.thinSample(ior, sampler);
             result.wavelength = 0.0;
@@ -153,22 +181,10 @@ pub const Sample = struct {
                 result.wavelength = 0.0;
                 return result;
             } else {
-                var weight: Vec4f = undefined;
                 var wavelength = self.wavelength;
 
                 const r = sampler.sample2D();
-
-                if (0.0 == wavelength) {
-                    const start = Material.Start_wavelength;
-                    const end = Material.End_wavelength;
-
-                    wavelength = start + (end - start) * r[1];
-
-                    weight = Material.spectrumAtWavelength(wavelength, 1.0);
-                    weight *= @splat(4, @as(f32, 3.0));
-                } else {
-                    weight = @splat(4, @as(f32, 1.0));
-                }
+                const weight = wavelengthSpectrumWeight(&wavelength, r[1]);
 
                 const sqr_wl = wavelength * wavelength;
                 ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
