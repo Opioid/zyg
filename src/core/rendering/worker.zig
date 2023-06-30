@@ -398,7 +398,7 @@ pub const Worker = struct {
         isec: Intersection,
         sampler: *Sampler,
         alpha: f32,
-        avoid_caustics: bool,
+        caustics: Renderstate.Caustics,
         straight_border: bool,
     ) MaterialSample {
         const material = isec.material(self.scene);
@@ -416,7 +416,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
-        return isec.sample(wo, ray, sampler, avoid_caustics, self);
+        return isec.sample(wo, ray, sampler, caustics, self);
     }
 
     pub fn randomLightSpatial(
