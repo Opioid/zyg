@@ -124,7 +124,7 @@ pub const SampleBase = struct {
             .albedo = albedo,
             .alpha = alpha,
             .thickness = thickness,
-            .properties = .{ .can_evaluate = true, .avoid_caustics = rs.avoid_caustics },
+            .properties = .{ .can_evaluate = true, .avoid_caustics = .Full != rs.caustics },
         };
     }
 

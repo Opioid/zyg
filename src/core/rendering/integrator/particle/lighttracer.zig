@@ -98,9 +98,6 @@ pub const Lighttracer = struct {
         const camera = worker.camera;
 
         var radiance = radiance_;
-
-        const avoid_caustics = false;
-
         var caustic_path = false;
         var from_subsurface = false;
 
@@ -114,7 +111,7 @@ pub const Lighttracer = struct {
                 isec.*,
                 sampler,
                 0.0,
-                avoid_caustics,
+                .Full,
                 from_subsurface,
             );
 

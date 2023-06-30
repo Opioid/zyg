@@ -5,6 +5,12 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Renderstate = struct {
+    pub const Caustics = enum(u8) {
+        Avoid,
+        Rough,
+        Full,
+    };
+
     trafo: Trafo = undefined,
 
     p: Vec4f = undefined,
@@ -23,7 +29,7 @@ pub const Renderstate = struct {
     time: u64 = undefined,
 
     subsurface: bool = undefined,
-    avoid_caustics: bool = undefined,
+    caustics: Caustics = undefined,
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
         return .{

@@ -47,7 +47,7 @@ pub const Intersection = struct {
         wo: Vec4f,
         ray: Ray,
         sampler: *Sampler,
-        avoid_caustics: bool,
+        caustics: Renderstate.Caustics,
         worker: *const Worker,
     ) mat.Sample {
         const m = self.material(worker.scene);
@@ -75,7 +75,7 @@ pub const Intersection = struct {
         rs.depth = ray.depth;
         rs.time = ray.time;
         rs.subsurface = self.subsurface();
-        rs.avoid_caustics = avoid_caustics;
+        rs.caustics = caustics;
 
         return m.sample(wo, rs, sampler, worker);
     }

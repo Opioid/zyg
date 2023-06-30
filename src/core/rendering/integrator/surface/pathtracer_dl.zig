@@ -90,7 +90,7 @@ pub const PathtracerDL = struct {
                 isec,
                 sampler,
                 0.0,
-                avoid_caustics,
+                if (avoid_caustics) .Avoid else .Full,
                 from_subsurface,
             );
 

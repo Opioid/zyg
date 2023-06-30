@@ -68,7 +68,7 @@ pub const AOV = struct {
 
         const wo = -ray.ray.direction;
 
-        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, .Avoid, worker);
 
         var occlusion_ray: Ray = undefined;
 
@@ -103,7 +103,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, .Avoid, worker);
 
         var vec: Vec4f = undefined;
 
@@ -133,7 +133,7 @@ pub const AOV = struct {
 
         const wo = -ray.ray.direction;
 
-        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, .Avoid, worker);
 
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, false);
@@ -151,7 +151,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -ray.ray.direction;
-        const mat_sample = isec.sample(wo, ray, sampler, false, worker);
+        const mat_sample = isec.sample(wo, ray, sampler, .Avoid, worker);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -178,7 +178,7 @@ pub const AOV = struct {
                 isec.*,
                 sampler,
                 0.0,
-                true,
+                .Avoid,
                 from_subsurface,
             );
 

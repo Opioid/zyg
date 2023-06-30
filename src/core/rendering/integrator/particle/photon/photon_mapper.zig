@@ -89,8 +89,6 @@ pub const Mapper = struct {
         // How often should we try to create a valid photon path?
         const Max_iterations = 1024 * 10;
 
-        const Avoid_caustics = false;
-
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
@@ -150,7 +148,7 @@ pub const Mapper = struct {
                     isec,
                     &self.sampler,
                     0.0,
-                    Avoid_caustics,
+                    .Full,
                     from_subsurface,
                 );
 

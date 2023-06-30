@@ -1,14 +1,15 @@
 const Ray = @import("../../../scene/ray.zig").Ray;
 const Scene = @import("../../../scene/scene.zig").Scene;
-const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
-const hlp = @import("../helper.zig");
+const Caustics = @import("../../../scene/renderstate.zig").Renderstate.Caustics;
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const ro = @import("../../../scene/ray_offset.zig");
+const Worker = @import("../../worker.zig").Worker;
+const hlp = @import("../helper.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -43,7 +44,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var sample_result = BxdfSample{};
@@ -99,7 +100,10 @@ pub const PathtracerMIS = struct {
 
             const wo = -ray.ray.direction;
 
-            const avoid_caustics = !pr and ((self.settings.caustics == .Off) or (self.settings.caustics == .Indirect and !state.started_specular));
+            //    const avoid_caustics = !pr and ((self.settings.caustics == .Off) or (self.settings.caustics == .Indirect and !state.started_specular));
+
+            const caustics = self.selectCaustics(state);
+
             const straight_border = state.from_subsurface;
 
             const mat_sample = worker.sampleMaterial(
@@ -108,7 +112,7 @@ pub const PathtracerMIS = struct {
                 isec,
                 sampler,
                 0.0,
-                avoid_caustics,
+                caustics,
                 straight_border,
             );
 
@@ -126,7 +130,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (sample_result.class.specular) {
-                if (avoid_caustics) {
+                if (.Full != caustics) {
                     break;
                 }
 
@@ -298,6 +302,21 @@ pub const PathtracerMIS = struct {
 
     fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < 3;
+    }
+
+    fn selectCaustics(self: *const Self, state: PathState) Caustics {
+        const pr = state.primary_ray;
+        const c = self.settings.caustics;
+
+        if (!pr) {
+            if (.Off == c) {
+                return .Avoid;
+            } else if (.Indirect == c) {
+                return if (!state.started_specular) .Avoid else .Rough;
+            }
+        }
+
+        return .Full;
     }
 };
 
