@@ -100,10 +100,10 @@ pub const Base = struct {
         return 1.0;
     }
 
-    pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
+    pub fn border(self: *const Base, wo: Vec4f, n: Vec4f) f32 {
         const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
-        const n_dot_wi = math.max(math.dot3(n, wi), 0.0);
-        return 1.0 - fresnel.schlick1(n_dot_wi, f0);
+        const a = @fabs(math.dot3(n, wo));
+        return 1.0 - fresnel.schlick1(a, f0);
     }
 
     pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {

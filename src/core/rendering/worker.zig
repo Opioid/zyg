@@ -402,15 +402,15 @@ pub const Worker = struct {
     ) MaterialSample {
         const material = isec.material(self.scene);
 
-        const wo = -vertex.ray.direction;
         const wi = vertex.ray.direction;
+        const wo = -vertex.ray.direction;
 
         if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
             const geo_n = isec.geo.geo_n;
             const n = isec.geo.n;
 
-            const vbh = material.super().border(wi, n);
-            const nsc = subsurfaceNonSymmetryCompensation(wi, geo_n, n);
+            const vbh = material.super().border(wo, n);
+            const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
             const factor = nsc * vbh;
 
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
@@ -445,8 +445,8 @@ pub const Worker = struct {
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
     }
 
-    inline fn subsurfaceNonSymmetryCompensation(wi: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @fabs(math.dot3(wi, n)) / mat.clampAbsDot(wi, geo_n);
+    inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+        return @fabs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
