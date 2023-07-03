@@ -1,8 +1,8 @@
 const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
-const sr = @import("../scene/ray.zig");
-const Ray = sr.Ray;
-const RayDif = sr.RayDif;
+const vt = @import("../scene/vertex.zig");
+const Vertex = vt.Vertex;
+const RayDif = vt.RayDif;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
@@ -155,10 +155,10 @@ pub const Worker = struct {
                     self.aov.clear();
 
                     const sample = self.samplers[0].cameraSample(pixel);
-                    var ray = camera.generateRay(sample, frame, scene);
+                    var vertex = camera.generateVertex(sample, frame, scene);
 
                     self.resetInterfaceStack(&camera.interface_stack);
-                    const color = self.surface_integrator.li(&ray, s < num_photon_samples, self);
+                    const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -214,7 +214,7 @@ pub const Worker = struct {
     pub fn commonAOV(
         self: *Worker,
         throughput: Vec4f,
-        ray: Ray,
+        vertex: Vertex,
         isec: Intersection,
         mat_sample: *const MaterialSample,
         primary_ray: bool,
@@ -223,7 +223,7 @@ pub const Worker = struct {
             self.aov.insert3(.Albedo, throughput * mat_sample.aovAlbedo());
         }
 
-        if (ray.depth > 0) {
+        if (vertex.depth > 0) {
             return;
         }
 
@@ -236,7 +236,7 @@ pub const Worker = struct {
         }
 
         if (self.aov.activeClass(.Depth)) {
-            self.aov.insert1(.Depth, ray.ray.maxT());
+            self.aov.insert1(.Depth, vertex.ray.maxT());
         }
 
         if (self.aov.activeClass(.MaterialId)) {
@@ -247,27 +247,27 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, ray: *Ray, isec: Intersection, sampler: *Sampler) ?Vec4f {
+    pub fn visibility(self: *Worker, vertex: *Vertex, isec: Intersection, sampler: *Sampler) ?Vec4f {
         const material = isec.material(self.scene);
 
         if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
-            const ray_max_t = ray.ray.maxT();
+            const ray_max_t = vertex.ray.maxT();
             const prop = isec.prop;
 
             var nisec: shp.Intersection = .{};
-            const hit = self.scene.prop(prop).intersectSSS(prop, ray, self.scene, &nisec);
+            const hit = self.scene.prop(prop).intersectSSS(prop, vertex, self.scene, &nisec);
 
             if (hit) {
-                const sss_min_t = ray.ray.minT();
-                const sss_max_t = ray.ray.maxT();
-                ray.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(ray.*, sampler, self)) |tv| {
-                    ray.ray.setMinMaxT(sss_min_t, sss_max_t);
+                const sss_min_t = vertex.ray.minT();
+                const sss_max_t = vertex.ray.maxT();
+                vertex.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
+                if (self.scene.visibility(vertex.*, sampler, self)) |tv| {
+                    vertex.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
-                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(ray.ray) else ray.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, ray.depth, sampler, self)) |tr| {
-                        const wi = ray.ray.direction;
+                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(vertex.ray) else vertex.ray;
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, vertex.depth, sampler, self)) |tr| {
+                        const wi = vertex.ray.direction;
                         const n = nisec.n;
                         const vbh = material.super().border(wi, n);
                         const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
@@ -280,25 +280,25 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(ray.*, sampler, self);
+        return self.scene.visibility(vertex.*, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, ray: *Ray, throughput: Vec4f, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, isec: *Intersection, sampler: *Sampler) bool {
         while (!self.interface_stack.empty()) {
-            if (vlhlp.integrate(ray, throughput, isec, sampler, self)) {
+            if (vlhlp.integrate(vertex, throughput, isec, sampler, self)) {
                 return true;
             }
 
             self.interface_stack.pop();
         }
 
-        const ray_min_t = ray.ray.minT();
+        const ray_min_t = vertex.ray.minT();
 
-        const hit = self.intersectAndResolveMask(ray, sampler, isec);
+        const hit = self.intersectAndResolveMask(vertex, sampler, isec);
 
-        ray.ray.setMinT(ray_min_t);
+        vertex.ray.setMinT(ray_min_t);
 
-        const volume_hit = self.scene.scatter(ray, throughput, sampler, self, isec);
+        const volume_hit = self.scene.scatter(vertex, throughput, sampler, self, isec);
 
         return hit or volume_hit;
     }
@@ -328,13 +328,13 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn intersectProp(self: *Worker, entity: u32, ray: *Ray, ipo: Interpolation, isec: *shp.Intersection) bool {
-        return self.scene.prop(entity).intersect(entity, ray, self.scene, ipo, isec);
+    pub fn intersectProp(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *shp.Intersection) bool {
+        return self.scene.prop(entity).intersect(entity, vertex, self.scene, ipo, isec);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, ray: *Ray, sampler: *Sampler, isec: *Intersection) bool {
+    pub fn intersectAndResolveMask(self: *Worker, vertex: *Vertex, sampler: *Sampler, isec: *Intersection) bool {
         while (true) {
-            if (!self.scene.intersect(ray, .All, isec)) {
+            if (!self.scene.intersect(vertex, .All, isec)) {
                 return false;
             }
 
@@ -344,7 +344,7 @@ pub const Worker = struct {
             }
 
             // Slide along ray until opaque surface is found
-            ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+            vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
         }
 
         return true;
@@ -393,8 +393,7 @@ pub const Worker = struct {
 
     pub fn sampleMaterial(
         self: *const Worker,
-        ray: Ray,
-        wo: Vec4f,
+        vertex: Vertex,
         isec: Intersection,
         sampler: *Sampler,
         alpha: f32,
@@ -403,7 +402,8 @@ pub const Worker = struct {
     ) MaterialSample {
         const material = isec.material(self.scene);
 
-        const wi = ray.ray.direction;
+        const wo = -vertex.ray.direction;
+        const wi = vertex.ray.direction;
 
         if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
             const geo_n = isec.geo.geo_n;
@@ -416,7 +416,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
-        return isec.sample(wo, ray, sampler, caustics, self);
+        return isec.sample(wo, vertex, sampler, caustics, self);
     }
 
     pub fn randomLightSpatial(

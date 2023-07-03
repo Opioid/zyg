@@ -1,6 +1,6 @@
 const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
-const Ray = @import("../ray.zig").Ray;
+const Vertex = @import("../vertex.zig").Vertex;
 const ro = @import("../ray_offset.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
@@ -45,7 +45,7 @@ pub const Intersection = struct {
     pub fn sample(
         self: Self,
         wo: Vec4f,
-        ray: Ray,
+        vertex: Vertex,
         sampler: *Sampler,
         caustics: Renderstate.Caustics,
         worker: *const Worker,
@@ -58,7 +58,7 @@ pub const Intersection = struct {
         rs.trafo = self.geo.trafo;
         rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
         rs.t = self.geo.t;
-        rs.b = .{ b[0], b[1], b[2], ray.wavelength };
+        rs.b = .{ b[0], b[1], b[2], vertex.wavelength };
 
         if (m.twoSided() and !self.sameHemisphere(wo)) {
             rs.geo_n = -self.geo.geo_n;
@@ -72,8 +72,8 @@ pub const Intersection = struct {
         rs.prop = self.prop;
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
-        rs.depth = ray.depth;
-        rs.time = ray.time;
+        rs.depth = vertex.depth;
+        rs.time = vertex.time;
         rs.subsurface = self.subsurface();
         rs.caustics = caustics;
 

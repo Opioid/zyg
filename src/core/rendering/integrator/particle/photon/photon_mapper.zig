@@ -1,6 +1,6 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
-const Ray = @import("../../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
@@ -99,7 +99,7 @@ pub const Mapper = struct {
 
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
-            var ray = self.generateLightRay(
+            var vertex = self.generateLightVertex(
                 frame,
                 bounds,
                 worker,
@@ -126,7 +126,7 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
+            if (!worker.nextEvent(&vertex, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
                 continue;
             }
 
@@ -139,12 +139,11 @@ pub const Mapper = struct {
             var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
-            while (ray.depth < self.settings.max_bounces) {
-                const wo = -ray.ray.direction;
+            while (vertex.depth < self.settings.max_bounces) {
+                const wo = -vertex.ray.direction;
 
                 const mat_sample = worker.sampleMaterial(
-                    ray,
-                    wo,
+                    vertex,
                     isec,
                     &self.sampler,
                     0.0,
@@ -209,21 +208,21 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.straight) {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                    vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
-                        ray.depth += 1;
+                        vertex.depth += 1;
                     }
                 } else {
-                    ray.ray.origin = isec.offsetP(sample_result.wi);
-                    ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    ray.depth += 1;
+                    vertex.ray.origin = isec.offsetP(sample_result.wi);
+                    vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.depth += 1;
 
                     from_subsurface = false;
                 }
 
-                if (0.0 == ray.wavelength) {
-                    ray.wavelength = sample_result.wavelength;
+                if (0.0 == vertex.wavelength) {
+                    vertex.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {
@@ -234,7 +233,7 @@ pub const Mapper = struct {
 
                 from_subsurface = from_subsurface or isec.subsurface();
 
-                if (!worker.nextEvent(&ray, throughput, &isec, &self.sampler)) {
+                if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {
                     break;
                 }
 
@@ -257,14 +256,14 @@ pub const Mapper = struct {
         return .{ .num_iterations = 0, .num_photons = 0 };
     }
 
-    fn generateLightRay(
+    fn generateLightVertex(
         self: *Self,
         frame: u32,
         bounds: AABB,
         worker: *Worker,
         light_id: *u32,
         light_sample: *SampleFrom,
-    ) ?Ray {
+    ) ?Vertex {
         const select = self.sampler.sample1D();
         const l = worker.scene.randomLight(select);
 
@@ -276,6 +275,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 };

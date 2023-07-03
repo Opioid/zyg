@@ -1,4 +1,4 @@
-const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -31,7 +31,7 @@ pub const PathtracerDL = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, ray: *Ray, worker: *Worker) Vec4f {
+    pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
         var primary_ray = true;
         var treat_as_singular = true;
         var transparent = true;
@@ -44,19 +44,19 @@ pub const PathtracerDL = struct {
         var isec = Intersection{};
 
         while (true) {
-            var sampler = worker.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(vertex.depth);
 
-            if (!worker.nextEvent(ray, throughput, &isec, sampler)) {
+            if (!worker.nextEvent(vertex, throughput, &isec, sampler)) {
                 break;
             }
 
             throughput *= isec.volume.tr;
 
-            const wo = -ray.ray.direction;
+            const wo = -vertex.ray.direction;
 
             var pure_emissive: bool = undefined;
             const energy = isec.evaluateRadiance(
-                ray.ray.origin,
+                vertex.ray.origin,
                 wo,
                 sampler,
                 worker.scene,
@@ -68,15 +68,15 @@ pub const PathtracerDL = struct {
             }
 
             if (pure_emissive) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                transparent = transparent and !isec.visibleInCamera(worker.scene) and vertex.ray.maxT() >= ro.Ray_max_t;
                 break;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (vertex.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            if (ray.depth >= self.settings.min_bounces) {
+            if (vertex.depth >= self.settings.min_bounces) {
                 if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
@@ -85,8 +85,7 @@ pub const PathtracerDL = struct {
             const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
 
             const mat_sample = worker.sampleMaterial(
-                ray.*,
-                wo,
+                vertex.*,
                 isec,
                 sampler,
                 0.0,
@@ -95,10 +94,10 @@ pub const PathtracerDL = struct {
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, ray.*, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, vertex.*, isec, &mat_sample, primary_ray);
             }
 
-            result += throughput * self.directLight(ray.*, isec, &mat_sample, sampler, worker);
+            result += throughput * self.directLight(vertex.*, isec, &mat_sample, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -120,21 +119,21 @@ pub const PathtracerDL = struct {
             throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                ray.depth += 1;
+                vertex.depth += 1;
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(isec.offsetT(ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.setMinMaxT(isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
             } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 transparent = false;
                 from_subsurface = false;
             }
 
-            if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.wavelength) {
+                vertex.wavelength = sample_result.wavelength;
             }
 
             if (sample_result.class.transmission) {
@@ -151,7 +150,7 @@ pub const PathtracerDL = struct {
 
     fn directLight(
         self: *Self,
-        ray: Ray,
+        vertex: Vertex,
         isec: Intersection,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
@@ -168,13 +167,13 @@ pub const PathtracerDL = struct {
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, translucent);
 
-        var shadow_ray: Ray = undefined;
-        shadow_ray.depth = ray.depth;
-        shadow_ray.time = ray.time;
-        shadow_ray.wavelength = ray.wavelength;
+        var shadow_vertex: Vertex = undefined;
+        shadow_vertex.depth = vertex.depth;
+        shadow_vertex.time = vertex.time;
+        shadow_vertex.wavelength = vertex.wavelength;
 
         const select = sampler.sample1D();
-        const split = self.splitting(ray.depth);
+        const split = self.splitting(vertex.depth);
 
         const lights = worker.randomLightSpatial(p, n, translucent, select, split);
 
@@ -183,15 +182,15 @@ pub const PathtracerDL = struct {
             const light_sample = light.sampleTo(
                 p,
                 n,
-                ray.time,
+                vertex.time,
                 translucent,
                 sampler,
                 worker.scene,
             ) orelse continue;
 
-            shadow_ray.ray.origin = p;
-            shadow_ray.ray.setDirection(light_sample.wi, light_sample.offset());
-            const tr = worker.visibility(&shadow_ray, isec, sampler) orelse continue;
+            shadow_vertex.ray.origin = p;
+            shadow_vertex.ray.setDirection(light_sample.wi, light_sample.offset());
+            const tr = worker.visibility(&shadow_vertex, isec, sampler) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);
 

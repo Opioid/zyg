@@ -8,9 +8,9 @@ const cs = @import("../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
-const sr = @import("../scene/ray.zig");
-const Ray = sr.Ray;
-const RayDif = sr.RayDif;
+const vt = @import("../scene/vertex.zig");
+const Vertex = vt.Vertex;
+const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
@@ -116,7 +116,7 @@ pub const Perspective = struct {
         self.updateFocus(time, scene);
     }
 
-    pub fn generateRay(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Ray {
+    pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -140,7 +140,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 
     pub fn sampleTo(
@@ -317,7 +317,7 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var ray = Ray.init(
+            var vertex = Vertex.init(
                 trafo.position,
                 trafo.objectToWorldVector(direction),
                 0.0,
@@ -328,8 +328,8 @@ pub const Perspective = struct {
             );
 
             var isec = Intersection{};
-            if (scene.intersect(&ray, .Normal, &isec)) {
-                self.focus_distance = ray.ray.maxT() + self.focus.point[2];
+            if (scene.intersect(&vertex, .Normal, &isec)) {
+                self.focus_distance = vertex.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
             }

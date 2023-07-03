@@ -1,4 +1,3 @@
-const scn = @import("../../../scene/ray.zig");
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const intr = @import("../../../scene/prop/interface.zig");
 const Interface = intr.Interface;

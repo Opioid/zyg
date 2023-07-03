@@ -1,4 +1,4 @@
-const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
@@ -41,7 +41,7 @@ pub const Lighttracer = struct {
 
         var light_id: u32 = undefined;
         var light_sample: SampleFrom = undefined;
-        var ray = generateLightRay(
+        var vertex = generateLightVertex(
             frame,
             frustum_bounds,
             sampler,
@@ -60,7 +60,7 @@ pub const Lighttracer = struct {
 
         var isec = Intersection{};
 
-        if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
+        if (!worker.nextEvent(&vertex, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
             return;
         }
 
@@ -80,16 +80,16 @@ pub const Lighttracer = struct {
             worker.interface_stack.pushVolumeLight(light);
         }
 
-        var split_ray = ray;
+        var split_vertex = vertex;
         var split_isec = isec;
 
-        self.integrate(radiance, &split_ray, &split_isec, worker, light_id, light_sample.xy);
+        self.integrate(radiance, &split_vertex, &split_isec, worker, light_id, light_sample.xy);
     }
 
     fn integrate(
         self: *Self,
         radiance_: Vec4f,
-        ray: *Ray,
+        vertex: *Vertex,
         isec: *Intersection,
         worker: *Worker,
         light_id: u32,
@@ -102,12 +102,11 @@ pub const Lighttracer = struct {
         var from_subsurface = false;
 
         while (true) {
-            const wo = -ray.ray.direction;
+            const wo = -vertex.ray.direction;
 
-            var sampler = worker.pickSampler(ray.depth);
+            var sampler = worker.pickSampler(vertex.depth);
             const mat_sample = worker.sampleMaterial(
-                ray.*,
-                wo,
+                vertex.*,
                 isec.*,
                 sampler,
                 0.0,
@@ -125,21 +124,21 @@ pub const Lighttracer = struct {
             }
 
             if (sample_result.class.straight) {
-                ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
 
                 if (!sample_result.class.transmission) {
-                    ray.depth += 1;
+                    vertex.depth += 1;
                 }
             } else {
-                ray.ray.origin = isec.offsetP(sample_result.wi);
-                ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                ray.depth += 1;
+                vertex.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.depth += 1;
 
                 if (!sample_result.class.specular and
                     (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, ray.*, isec.*, &mat_sample, sampler, worker);
+                    _ = directCamera(camera, radiance, vertex.*, isec.*, &mat_sample, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -149,12 +148,12 @@ pub const Lighttracer = struct {
                 from_subsurface = false;
             }
 
-            if (ray.depth >= self.settings.max_bounces) {
+            if (vertex.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            if (0.0 == ray.wavelength) {
-                ray.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.wavelength) {
+                vertex.wavelength = sample_result.wavelength;
             }
 
             radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
@@ -167,7 +166,7 @@ pub const Lighttracer = struct {
 
             from_subsurface = from_subsurface or isec.subsurface();
 
-            if (!worker.nextEvent(ray, @splat(4, @as(f32, 1.0)), isec, sampler)) {
+            if (!worker.nextEvent(vertex, @splat(4, @as(f32, 1.0)), isec, sampler)) {
                 break;
             }
 
@@ -184,14 +183,14 @@ pub const Lighttracer = struct {
         _ = light_sample_xy;
     }
 
-    fn generateLightRay(
+    fn generateLightVertex(
         frame: u32,
         bounds: AABB,
         sampler: *Sampler,
         worker: *Worker,
         light_id: *u32,
         light_sample: *SampleFrom,
-    ) ?Ray {
+    ) ?Vertex {
         const s2 = sampler.sample2D();
         const l = worker.scene.randomLight(s2[0]);
         const time = worker.absoluteTime(frame, s2[1]);
@@ -204,13 +203,13 @@ pub const Lighttracer = struct {
 
         sampler.incrementPadding();
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 
     fn directCamera(
         camera: *Camera,
         radiance: Vec4f,
-        history: Ray,
+        history: Vertex,
         isec: Intersection,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
@@ -238,10 +237,10 @@ pub const Lighttracer = struct {
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var ray = Ray.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
+        var vertex = Vertex.init(p, wi, p[3], camera_sample.t, history.depth, history.wavelength, history.time);
 
         const wo = mat_sample.super().wo;
-        const tr = worker.visibility(&ray, isec, sampler) orelse return false;
+        const tr = worker.visibility(&vertex, isec, sampler) orelse return false;
 
         const bxdf = mat_sample.evaluate(wi);
 
