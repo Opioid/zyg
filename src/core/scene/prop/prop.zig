@@ -112,14 +112,14 @@ pub const Prop = struct {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.ray)) {
             return false;
         }
 
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
 
-        if (scene.shape(self.shape).intersect(ray, trafo, ipo, isec)) {
+        if (scene.shape(self.shape).intersect(&ray.ray, trafo, ipo, isec)) {
             isec.trafo = trafo;
             return true;
         }
@@ -134,13 +134,13 @@ pub const Prop = struct {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.ray)) {
             return false;
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).intersect(ray, trafo, .Normal, isec);
+        return scene.shape(self.shape).intersect(&ray.ray, trafo, .Normal, isec);
     }
 
     pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
@@ -150,13 +150,13 @@ pub const Prop = struct {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.ray)) {
             return false;
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).intersectP(ray, trafo);
+        return scene.shape(self.shape).intersectP(ray.ray, trafo);
     }
 
     pub fn visibility(self: Prop, entity: u32, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
@@ -175,16 +175,16 @@ pub const Prop = struct {
             return @splat(4, @as(f32, 1.0));
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.ray)) {
             return @splat(4, @as(f32, 1.0));
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
         if (properties.volume) {
-            return scene.shape(self.shape).transmittance(ray, trafo, entity, sampler, worker);
+            return scene.shape(self.shape).transmittance(ray.ray, ray.depth, trafo, entity, sampler, worker);
         } else {
-            return scene.shape(self.shape).visibility(ray, trafo, entity, sampler, scene);
+            return scene.shape(self.shape).visibility(ray.ray, trafo, entity, sampler, scene);
         }
     }
 
@@ -199,12 +199,12 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.ray)) {
             return shp.Volume.initPass(@splat(4, @as(f32, 1.0)));
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
 
-        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, sampler, worker);
+        return scene.shape(self.shape).scatter(ray.ray, ray.depth, trafo, throughput, entity, sampler, worker);
     }
 };

@@ -47,9 +47,9 @@ pub const PathtracerMIS = struct {
     pub fn li(self: *const Self, ray: *Ray, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
-        var sample_result = BxdfSample{};
-
         var state = PathState{};
+
+        var bxdf_pdf: f32 = 0.0;
 
         var throughput = @splat(4, @as(f32, 1.0));
         var old_throughput = @splat(4, @as(f32, 1.0));
@@ -74,7 +74,7 @@ pub const PathtracerMIS = struct {
                 ray.*,
                 geo_n,
                 isec,
-                sample_result,
+                bxdf_pdf,
                 state,
                 sampler,
                 worker.scene,
@@ -122,9 +122,7 @@ pub const PathtracerMIS = struct {
 
             result += throughput * self.sampleLights(ray.*, isec, &mat_sample, sampler, worker);
 
-            const previous_bxdf_pdf = sample_result.pdf;
-
-            sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }
@@ -160,8 +158,6 @@ pub const PathtracerMIS = struct {
 
             if (sample_result.class.straight) {
                 ray.ray.setMinMaxT(isec.offsetT(ray.ray.maxT()), ro.Ray_max_t);
-
-                sample_result.pdf = previous_bxdf_pdf;
             } else {
                 ray.ray.origin = isec.offsetP(sample_result.wi);
                 ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
@@ -169,6 +165,7 @@ pub const PathtracerMIS = struct {
                 state.direct = false;
                 state.from_subsurface = false;
                 state.is_translucent = mat_sample.isTranslucent();
+                bxdf_pdf = sample_result.pdf;
                 geo_n = mat_sample.super().geometricNormal();
             }
 
@@ -268,7 +265,7 @@ pub const PathtracerMIS = struct {
         ray: Ray,
         geo_n: Vec4f,
         isec: Intersection,
-        sample_result: BxdfSample,
+        bxdf_pdf: f32,
         state: PathState,
         sampler: *Sampler,
         scene: *const Scene,
@@ -294,8 +291,8 @@ pub const PathtracerMIS = struct {
         const light_pick = scene.lightPdfSpatial(light_id, ray.ray.origin, geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const pdf = light.pdf(ray, geo_n, isec, translucent, scene);
-        const weight = hlp.powerHeuristic(sample_result.pdf, pdf * light_pick.pdf);
+        const pdf = light.pdf(ray.ray, geo_n, isec, translucent, scene);
+        const weight = hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
 
         return @splat(4, weight) * energy;
     }

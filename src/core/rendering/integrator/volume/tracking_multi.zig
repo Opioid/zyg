@@ -145,7 +145,7 @@ pub const Multi = struct {
             }
         } else {
             const ray_max_t = ray.ray.maxT();
-            const limit = worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t;
+            const limit = worker.scene.propAabbIntersectP(interface.prop, ray.ray) orelse ray_max_t;
             ray.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
             if (!worker.intersectAndResolveMask(ray, sampler, isec)) {
                 ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
