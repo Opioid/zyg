@@ -143,7 +143,7 @@ pub const Lighttracer = struct {
                     caustic_path = true;
                 }
 
-                vertex.state.from_subsurface = false;
+                vertex.state.from_subsurface = isec.subsurface();
             }
 
             if (vertex.depth >= self.settings.max_bounces) {
@@ -161,8 +161,6 @@ pub const Lighttracer = struct {
                 const eta = ior.eta_i / ior.eta_t;
                 radiance *= @splat(4, eta * eta);
             }
-
-            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             if (!worker.nextEvent(vertex, @splat(4, @as(f32, 1.0)), isec, sampler)) {
                 break;

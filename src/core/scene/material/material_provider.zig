@@ -354,7 +354,13 @@ pub const Provider = struct {
         return Material{ .Volumetric = material };
     }
 
-    fn updateVolumetric(self: *Provider, alloc: Allocator, material: *mat.Volumetric, value: std.json.Value, resources: *Resources) void {
+    fn updateVolumetric(
+        self: *Provider,
+        alloc: Allocator,
+        material: *mat.Volumetric,
+        value: std.json.Value,
+        resources: *Resources,
+    ) void {
         var color = @splat(4, @as(f32, 0.5));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));

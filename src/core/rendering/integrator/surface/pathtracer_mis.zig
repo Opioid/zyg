@@ -145,7 +145,7 @@ pub const PathtracerMIS = struct {
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
-                vertex.state.from_subsurface = false;
+                vertex.state.from_subsurface = isec.subsurface();
                 vertex.state.is_translucent = mat_sample.isTranslucent();
                 bxdf_pdf = sample_result.pdf;
                 geo_n = mat_sample.super().geometricNormal();
@@ -158,8 +158,6 @@ pub const PathtracerMIS = struct {
             if (sample_result.class.transmission) {
                 worker.interfaceChange(sample_result.wi, isec, sampler);
             }
-
-            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             sampler.incrementPadding();
         }

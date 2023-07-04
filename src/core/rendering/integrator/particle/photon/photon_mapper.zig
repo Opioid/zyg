@@ -216,7 +216,7 @@ pub const Mapper = struct {
                     vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     vertex.depth += 1;
 
-                    vertex.state.from_subsurface = false;
+                    vertex.state.from_subsurface = isec.subsurface();
                 }
 
                 if (0.0 == vertex.wavelength) {
@@ -228,8 +228,6 @@ pub const Mapper = struct {
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @splat(4, eta * eta);
                 }
-
-                vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
                 if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {
                     break;
