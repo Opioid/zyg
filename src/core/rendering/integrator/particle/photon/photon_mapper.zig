@@ -95,7 +95,6 @@ pub const Mapper = struct {
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
             var caustic_path = false;
-            var from_subsurface = false;
 
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
@@ -148,7 +147,6 @@ pub const Mapper = struct {
                     &self.sampler,
                     0.0,
                     .Full,
-                    from_subsurface,
                 );
 
                 if (mat_sample.isPureEmissive()) {
@@ -218,7 +216,7 @@ pub const Mapper = struct {
                     vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     vertex.depth += 1;
 
-                    from_subsurface = false;
+                    vertex.state.from_subsurface = false;
                 }
 
                 if (0.0 == vertex.wavelength) {
@@ -231,7 +229,7 @@ pub const Mapper = struct {
                     radiance *= @splat(4, eta * eta);
                 }
 
-                from_subsurface = from_subsurface or isec.subsurface();
+                vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
                 if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {
                     break;

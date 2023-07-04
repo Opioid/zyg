@@ -32,11 +32,6 @@ pub const PathtracerDL = struct {
     const Self = @This();
 
     pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var primary_ray = true;
-        var treat_as_singular = true;
-        var transparent = true;
-        var from_subsurface = false;
-
         var throughput = @splat(4, @as(f32, 1.0));
         var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -63,12 +58,13 @@ pub const PathtracerDL = struct {
                 &pure_emissive,
             ) orelse @splat(4, @as(f32, 0.0));
 
-            if (treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
+            if (vertex.state.treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
                 result += throughput * energy;
             }
 
             if (pure_emissive) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and vertex.ray.maxT() >= ro.Ray_max_t;
+                const vis_in_cam = isec.visibleInCamera(worker.scene);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
@@ -82,7 +78,7 @@ pub const PathtracerDL = struct {
                 }
             }
 
-            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+            const avoid_caustics = self.settings.avoid_caustics and (!vertex.state.primary_ray);
 
             const mat_sample = worker.sampleMaterial(
                 vertex.*,
@@ -90,11 +86,10 @@ pub const PathtracerDL = struct {
                 sampler,
                 0.0,
                 if (avoid_caustics) .Avoid else .Full,
-                from_subsurface,
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex.*, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, vertex.*, isec, &mat_sample);
             }
 
             result += throughput * self.directLight(vertex.*, isec, &mat_sample, sampler, worker);
@@ -109,10 +104,10 @@ pub const PathtracerDL = struct {
                     break;
                 }
 
-                treat_as_singular = true;
+                vertex.state.treat_as_singular = true;
             } else if (!sample_result.class.straight) {
-                treat_as_singular = false;
-                primary_ray = false;
+                vertex.state.treat_as_singular = false;
+                vertex.state.primary_ray = false;
             }
 
             old_throughput = throughput;
@@ -128,8 +123,8 @@ pub const PathtracerDL = struct {
                 vertex.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                transparent = false;
-                from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
             if (0.0 == vertex.wavelength) {
@@ -140,12 +135,12 @@ pub const PathtracerDL = struct {
                 worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, transparent);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
     fn directLight(

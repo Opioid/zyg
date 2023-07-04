@@ -30,24 +30,12 @@ pub const PathtracerMIS = struct {
         photons_not_only_through_specular: bool,
     };
 
-    const PathState = packed struct {
-        primary_ray: bool = true,
-        treat_as_singular: bool = true,
-        is_translucent: bool = false,
-        split_photon: bool = false,
-        direct: bool = true,
-        from_subsurface: bool = false,
-        started_specular: bool = false,
-    };
-
     settings: Settings,
 
     const Self = @This();
 
     pub fn li(self: *const Self, vertex: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
-
-        var state = PathState{};
 
         var bxdf_pdf: f32 = 0.0;
 
@@ -59,7 +47,7 @@ pub const PathtracerMIS = struct {
         var isec = Intersection{};
 
         while (true) {
-            const pr = state.primary_ray;
+            const pr = vertex.state.primary_ray;
 
             var sampler = worker.pickSampler(vertex.depth);
 
@@ -75,7 +63,6 @@ pub const PathtracerMIS = struct {
                 geo_n,
                 isec,
                 bxdf_pdf,
-                state,
                 sampler,
                 worker.scene,
                 &pure_emissive,
@@ -84,7 +71,8 @@ pub const PathtracerMIS = struct {
             result += throughput * radiance;
 
             if (pure_emissive) {
-                state.direct = state.direct and (!isec.visibleInCamera(worker.scene) and vertex.ray.maxT() >= ro.Ray_max_t);
+                const vis_in_cam = isec.visibleInCamera(worker.scene);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
@@ -100,9 +88,7 @@ pub const PathtracerMIS = struct {
 
             //    const avoid_caustics = !pr and ((self.settings.caustics == .Off) or (self.settings.caustics == .Indirect and !state.started_specular));
 
-            const caustics = self.selectCaustics(state);
-
-            const straight_border = state.from_subsurface;
+            const caustics = self.selectCaustics(vertex.state);
 
             const mat_sample = worker.sampleMaterial(
                 vertex.*,
@@ -110,11 +96,10 @@ pub const PathtracerMIS = struct {
                 sampler,
                 0.0,
                 caustics,
-                straight_border,
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex.*, isec, &mat_sample, pr);
+                worker.commonAOV(throughput, vertex.*, isec, &mat_sample);
             }
 
             result += throughput * self.sampleLights(vertex.*, isec, &mat_sample, sampler, worker);
@@ -129,17 +114,17 @@ pub const PathtracerMIS = struct {
                     break;
                 }
 
-                state.treat_as_singular = true;
+                vertex.state.treat_as_singular = true;
 
                 if (pr) {
-                    state.started_specular = true;
+                    vertex.state.started_specular = true;
                 }
             } else if (!sample_result.class.straight) {
-                state.treat_as_singular = false;
+                vertex.state.treat_as_singular = false;
                 if (pr) {
-                    state.primary_ray = false;
+                    vertex.state.primary_ray = false;
 
-                    const indirect = !state.direct and 0 != vertex.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.depth;
                     if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
                         worker.addPhoton(throughput * worker.photonLi(isec, &mat_sample, sampler));
                     }
@@ -159,9 +144,9 @@ pub const PathtracerMIS = struct {
                 vertex.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                state.direct = false;
-                state.from_subsurface = false;
-                state.is_translucent = mat_sample.isTranslucent();
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
+                vertex.state.is_translucent = mat_sample.isTranslucent();
                 bxdf_pdf = sample_result.pdf;
                 geo_n = mat_sample.super().geometricNormal();
             }
@@ -174,12 +159,12 @@ pub const PathtracerMIS = struct {
                 worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
-            state.from_subsurface = state.from_subsurface or isec.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
     fn sampleLights(
@@ -263,7 +248,6 @@ pub const PathtracerMIS = struct {
         geo_n: Vec4f,
         isec: Intersection,
         bxdf_pdf: f32,
-        state: PathState,
         sampler: *Sampler,
         scene: *const Scene,
         pure_emissive: *bool,
@@ -278,11 +262,11 @@ pub const PathtracerMIS = struct {
         ) orelse return @splat(4, @as(f32, 0.0));
 
         const light_id = isec.lightId(scene);
-        if (state.treat_as_singular or !Light.isLight(light_id)) {
+        if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
             return energy;
         }
 
-        const translucent = state.is_translucent;
+        const translucent = vertex.state.is_translucent;
         const split = self.splitting(vertex.depth);
 
         const light_pick = scene.lightPdfSpatial(light_id, vertex.ray.origin, geo_n, translucent, split);
@@ -298,7 +282,7 @@ pub const PathtracerMIS = struct {
         return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
-    fn selectCaustics(self: *const Self, state: PathState) Caustics {
+    fn selectCaustics(self: *const Self, state: Vertex.State) Caustics {
         const pr = state.primary_ray;
         const c = self.settings.caustics;
 

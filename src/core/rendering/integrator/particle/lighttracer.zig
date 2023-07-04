@@ -99,7 +99,6 @@ pub const Lighttracer = struct {
 
         var radiance = radiance_;
         var caustic_path = false;
-        var from_subsurface = false;
 
         while (true) {
             const wo = -vertex.ray.direction;
@@ -111,7 +110,6 @@ pub const Lighttracer = struct {
                 sampler,
                 0.0,
                 .Full,
-                from_subsurface,
             );
 
             if (mat_sample.isPureEmissive()) {
@@ -145,7 +143,7 @@ pub const Lighttracer = struct {
                     caustic_path = true;
                 }
 
-                from_subsurface = false;
+                vertex.state.from_subsurface = false;
             }
 
             if (vertex.depth >= self.settings.max_bounces) {
@@ -164,7 +162,7 @@ pub const Lighttracer = struct {
                 radiance *= @splat(4, eta * eta);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             if (!worker.nextEvent(vertex, @splat(4, @as(f32, 1.0)), isec, sampler)) {
                 break;

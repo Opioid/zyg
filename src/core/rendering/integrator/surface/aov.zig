@@ -160,10 +160,6 @@ pub const AOV = struct {
     }
 
     fn photons(self: *Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {
-        var primary_ray = true;
-        var direct = true;
-        var from_subsurface = false;
-
         var throughput = @splat(4, @as(f32, 1.0));
 
         var i: u32 = 0;
@@ -176,7 +172,6 @@ pub const AOV = struct {
                 sampler,
                 0.0,
                 .Avoid,
-                from_subsurface,
             );
 
             if (mat_sample.isPureEmissive()) {
@@ -189,10 +184,10 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
-                if (primary_ray) {
-                    primary_ray = false;
+                if (vertex.state.primary_ray) {
+                    vertex.state.primary_ray = false;
 
-                    const indirect = !direct and 0 != vertex.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
                         worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample, sampler));
                         break;
@@ -214,8 +209,8 @@ pub const AOV = struct {
                 vertex.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                direct = false;
-                from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
             if (0.0 == vertex.wavelength) {
@@ -228,7 +223,7 @@ pub const AOV = struct {
                 worker.interfaceChange(sample_result.wi, isec.*, sampler);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             if (!worker.nextEvent(vertex, throughput, isec, sampler)) {
                 break;

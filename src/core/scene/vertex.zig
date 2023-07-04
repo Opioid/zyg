@@ -3,11 +3,22 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Vertex = struct {
+    pub const State = packed struct {
+        primary_ray: bool = true,
+        treat_as_singular: bool = true,
+        is_translucent: bool = false,
+        split_photon: bool = false,
+        direct: bool = true,
+        from_subsurface: bool = false,
+        started_specular: bool = false,
+    };
+
     ray: Ray,
 
     depth: u32,
     wavelength: f32,
     time: u64,
+    state: State,
 
     pub fn init(
         origin: Vec4f,
@@ -23,6 +34,7 @@ pub const Vertex = struct {
             .depth = depth,
             .wavelength = wavelength,
             .time = time,
+            .state = .{},
         };
     }
 };

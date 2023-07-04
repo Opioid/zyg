@@ -217,8 +217,9 @@ pub const Worker = struct {
         vertex: Vertex,
         isec: Intersection,
         mat_sample: *const MaterialSample,
-        primary_ray: bool,
     ) void {
+        const primary_ray = vertex.state.primary_ray;
+
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
             self.aov.insert3(.Albedo, throughput * mat_sample.aovAlbedo());
         }
@@ -398,12 +399,13 @@ pub const Worker = struct {
         sampler: *Sampler,
         alpha: f32,
         caustics: Renderstate.Caustics,
-        straight_border: bool,
     ) MaterialSample {
         const material = isec.material(self.scene);
 
         const wi = vertex.ray.direction;
         const wo = -vertex.ray.direction;
+
+        const straight_border = vertex.state.from_subsurface;
 
         if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
             const geo_n = isec.geo.geo_n;

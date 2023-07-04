@@ -26,10 +26,6 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var primary_ray = true;
-        var transparent = true;
-        var from_subsurface = false;
-
         var throughput = @splat(4, @as(f32, 1.0));
         var old_throughput = @splat(4, @as(f32, 1.0));
         var result = @splat(4, @as(f32, 0.0));
@@ -59,22 +55,22 @@ pub const Pathtracer = struct {
             result += throughput * energy;
 
             if (pure_emissive) {
-                transparent = transparent and !isec.visibleInCamera(worker.scene) and vertex.ray.maxT() >= ro.Ray_max_t;
+                const vis_in_cam = isec.visibleInCamera(worker.scene);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
-            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+            const avoid_caustics = self.settings.avoid_caustics and (!vertex.state.primary_ray);
             const mat_sample = worker.sampleMaterial(
                 vertex.*,
                 isec,
                 sampler,
                 0.0,
                 if (avoid_caustics) .Avoid else .Full,
-                from_subsurface,
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex.*, isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, vertex.*, isec, &mat_sample);
             }
 
             if (vertex.depth >= self.settings.max_bounces) {
@@ -97,7 +93,7 @@ pub const Pathtracer = struct {
                     break;
                 }
             } else if (!sample_result.class.straight) {
-                primary_ray = false;
+                vertex.state.primary_ray = false;
             }
 
             old_throughput = throughput;
@@ -113,8 +109,8 @@ pub const Pathtracer = struct {
                 vertex.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                transparent = false;
-                from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
             if (0.0 == vertex.wavelength) {
@@ -125,12 +121,12 @@ pub const Pathtracer = struct {
                 worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
-            from_subsurface = from_subsurface or isec.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, transparent);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 };
 
