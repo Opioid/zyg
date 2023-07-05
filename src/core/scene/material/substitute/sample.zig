@@ -218,7 +218,7 @@ pub const Sample = struct {
         if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
             const r = math.reflect3(frame.n, wo);
-            const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+            const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
             return bxdf.Result.init(@splat(4, n_dot_wi * f) * self.f0, f);
         }
@@ -360,7 +360,7 @@ pub const Sample = struct {
             const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
             const wi_dot_h = hlp.clampDot(wi, h);
 
-            const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+            const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
             const n_dot_wi = frame.clampNdot(wi);
 
@@ -531,7 +531,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const quo_ior = self.ior;
-        if (quo_ior.eta_i == quo_ior.eta_t) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
@@ -648,7 +648,7 @@ pub const Sample = struct {
     fn coatedVolumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const quo_ior = self.ior;
-        if (quo_ior.eta_i == quo_ior.eta_t) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;

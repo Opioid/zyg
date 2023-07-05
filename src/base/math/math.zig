@@ -113,6 +113,10 @@ pub fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
 }
 
-pub inline fn solidAngleCone(c: f32) f32 {
+pub inline fn solidAngleOfCone(c: f32) f32 {
     return (2.0 * std.math.pi) * (1.0 - c);
+}
+
+pub inline fn eq(x: f32, y: f32, comptime eps: f32) bool {
+    return @fabs(x - y) <= eps;
 }

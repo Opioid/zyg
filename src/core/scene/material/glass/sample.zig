@@ -280,7 +280,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        if (@fabs(quo_ior.eta_i - quo_ior.eta_t) < 2.e-7) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
             return .{
                 .reflection = @splat(4, @as(f32, 1.0)),
                 .wi = -wo,

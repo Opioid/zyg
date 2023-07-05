@@ -270,7 +270,7 @@ pub const Material = struct {
     }
 
     fn flakesA2cone(alpha: f32) f32 {
-        comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
+        comptime var target_angle = math.solidAngleOfCone(@cos(math.degreesToRadians(7.0)));
         comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
 
         return math.min(limit, 0.5 * alpha);
