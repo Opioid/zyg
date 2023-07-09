@@ -4,7 +4,7 @@ const Intersection = @import("../../../scene/prop/intersection.zig").Intersectio
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
-const Caustics = @import("../../../scene/renderstate.zig").Renderstate.Caustics;
+const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const ro = @import("../../../scene/ray_offset.zig");
@@ -26,7 +26,8 @@ pub const PathtracerMIS = struct {
         max_bounces: u32,
 
         light_sampling: hlp.LightSampling,
-        caustics: hlp.Caustics,
+        caustics_path: hlp.CausticsPath,
+        caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
     };
 
@@ -86,9 +87,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            //    const avoid_caustics = !pr and ((self.settings.caustics == .Off) or (self.settings.caustics == .Indirect and !state.started_specular));
-
-            const caustics = self.selectCaustics(vertex.state);
+            const caustics = self.causticsResolve(vertex.state);
 
             const mat_sample = worker.sampleMaterial(
                 vertex.*,
@@ -280,16 +279,19 @@ pub const PathtracerMIS = struct {
         return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
-    fn selectCaustics(self: *const Self, state: Vertex.State) Caustics {
+    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
         const pr = state.primary_ray;
-        const c = self.settings.caustics;
+        const p = self.settings.caustics_path;
+        const r = self.settings.caustics_resolve;
 
         if (!pr) {
-            if (.Off == c) {
-                return .Avoid;
-            } else if (.Indirect == c) {
-                return if (!state.started_specular) .Avoid else .Rough;
+            if (.Off == p) {
+                return .Off;
+            } else if (.Indirect == p and !state.started_specular) {
+                return .Off;
             }
+
+            return r;
         }
 
         return .Full;

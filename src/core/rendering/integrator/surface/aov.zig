@@ -68,7 +68,7 @@ pub const AOV = struct {
 
         const wo = -vertex.ray.direction;
 
-        const mat_sample = isec.sample(wo, vertex, sampler, .Avoid, worker);
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         var occlusion_vertex: Vertex = undefined;
 
@@ -103,7 +103,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.ray.direction;
-        const mat_sample = isec.sample(wo, vertex, sampler, .Avoid, worker);
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
 
@@ -133,7 +133,7 @@ pub const AOV = struct {
 
         const wo = -vertex.ray.direction;
 
-        const mat_sample = isec.sample(wo, vertex, sampler, .Avoid, worker);
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
         const p = isec.offsetPN(n, false);
@@ -151,7 +151,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.ray.direction;
-        const mat_sample = isec.sample(wo, vertex, sampler, .Avoid, worker);
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -166,13 +166,7 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             var sampler = worker.pickSampler(vertex.depth);
 
-            const mat_sample = worker.sampleMaterial(
-                vertex.*,
-                isec.*,
-                sampler,
-                0.0,
-                .Avoid,
-            );
+            const mat_sample = worker.sampleMaterial(vertex.*, isec.*, sampler, 0.0, .Off);
 
             if (mat_sample.isPureEmissive()) {
                 break;

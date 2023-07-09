@@ -3,7 +3,9 @@ const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
 const RayDif = vt.RayDif;
-const Renderstate = @import("../scene/renderstate.zig").Renderstate;
+const rst = @import("../scene/renderstate.zig");
+const Renderstate = rst.Renderstate;
+const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
@@ -398,7 +400,7 @@ pub const Worker = struct {
         isec: Intersection,
         sampler: *Sampler,
         alpha: f32,
-        caustics: Renderstate.Caustics,
+        caustics: CausticsResolve,
     ) MaterialSample {
         const material = isec.material(self.scene);
 

@@ -44,8 +44,9 @@ pub const Sample = struct {
         volumetric: bool,
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
+        const reg_alpha = rs.regularizeAlpha(alpha);
 
-        var super = Base.init(rs, wo, color, alpha, 0.0);
+        var super = Base.init(rs, wo, color, reg_alpha, 0.0);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 

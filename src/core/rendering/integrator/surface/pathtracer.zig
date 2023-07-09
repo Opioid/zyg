@@ -2,6 +2,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
+const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -19,6 +20,7 @@ pub const Pathtracer = struct {
         min_bounces: u32,
         max_bounces: u32,
         avoid_caustics: bool,
+        caustics_resolve: CausticsResolve,
     };
 
     settings: Settings,
@@ -60,13 +62,14 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            const avoid_caustics = self.settings.avoid_caustics and (!vertex.state.primary_ray);
+            const caustics = self.causticsResolve(vertex.state);
+
             const mat_sample = worker.sampleMaterial(
                 vertex.*,
                 isec,
                 sampler,
                 0.0,
-                if (avoid_caustics) .Avoid else .Full,
+                caustics,
             );
 
             if (worker.aov.active()) {
@@ -89,7 +92,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.specular) {
-                if (avoid_caustics) {
+                if (.Full != caustics) {
                     break;
                 }
             } else if (!sample_result.class.straight) {
@@ -125,6 +128,21 @@ pub const Pathtracer = struct {
         }
 
         return hlp.composeAlpha(result, throughput, vertex.state.direct);
+    }
+
+    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+        const pr = state.primary_ray;
+        const r = self.settings.caustics_resolve;
+
+        if (!pr) {
+            if (self.settings.avoid_caustics) {
+                return .Off;
+            }
+
+            return r;
+        }
+
+        return .Full;
     }
 };
 

@@ -38,17 +38,17 @@ pub const Sample = struct {
         abbe: f32,
         wavelength: f32,
     ) Sample {
-        const reg_alpha = if (.Rough == rs.caustics) math.max(alpha, 0.5) else alpha;
+        const reg_alpha = rs.regularizeAlpha(@splat(2, alpha));
 
         var super = Base.init(
             rs,
             wo,
             @splat(4, @as(f32, 1.0)),
-            @splat(2, reg_alpha),
+            reg_alpha,
             thickness,
         );
 
-        const rough = reg_alpha > 0.0;
+        const rough = reg_alpha[0] > 0.0;
 
         super.properties.can_evaluate = rough and ior != ior_outside;
         super.properties.translucent = thickness > 0.0;

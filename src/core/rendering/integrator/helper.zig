@@ -8,7 +8,7 @@ pub const LightSampling = enum(u8) {
     Adaptive,
 };
 
-pub const Caustics = enum(u8) {
+pub const CausticsPath = enum(u8) {
     Off,
     Indirect,
     Full,

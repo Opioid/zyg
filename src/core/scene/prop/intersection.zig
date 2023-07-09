@@ -2,7 +2,9 @@ const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
 const Vertex = @import("../vertex.zig").Vertex;
 const ro = @import("../ray_offset.zig");
-const Renderstate = @import("../renderstate.zig").Renderstate;
+const rst = @import("../renderstate.zig");
+const Renderstate = rst.Renderstate;
+const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -47,7 +49,7 @@ pub const Intersection = struct {
         wo: Vec4f,
         vertex: Vertex,
         sampler: *Sampler,
-        caustics: Renderstate.Caustics,
+        caustics: CausticsResolve,
         worker: *const Worker,
     ) mat.Sample {
         const m = self.material(worker.scene);
@@ -67,6 +69,8 @@ pub const Intersection = struct {
             rs.geo_n = self.geo.geo_n;
             rs.n = self.geo.n;
         }
+
+        rs.ray_p = vertex.ray.origin;
 
         rs.uv = self.geo.uv;
         rs.prop = self.prop;
