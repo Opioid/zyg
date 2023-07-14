@@ -168,15 +168,15 @@ pub const Prop = struct {
                 return null;
             }
 
-            return @splat(4, @as(f32, 1.0));
+            return @splat(1.0);
         }
 
         if (!properties.visible_in_shadow) {
-            return @splat(4, @as(f32, 1.0));
+            return @splat(1.0);
         }
 
         if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
-            return @splat(4, @as(f32, 1.0));
+            return @splat(1.0);
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
@@ -200,7 +200,7 @@ pub const Prop = struct {
         const scene = worker.scene;
 
         if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
-            return shp.Volume.initPass(@splat(4, @as(f32, 1.0)));
+            return shp.Volume.initPass(@splat(1.0));
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);

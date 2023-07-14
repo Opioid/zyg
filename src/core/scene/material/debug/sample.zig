@@ -16,7 +16,7 @@ pub const Sample = struct {
             rs,
             wo,
             albedo,
-            @splat(2, @as(f32, 1.0)),
+            @splat(1.0),
             0.0,
         ) };
     }
@@ -25,7 +25,7 @@ pub const Sample = struct {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
-        const reflection = @splat(4, pdf) * self.super.albedo;
+        const reflection = @as(Vec4f, @splat(pdf)) * self.super.albedo;
 
         return bxdf.Result.init(reflection, pdf);
     }
@@ -39,7 +39,7 @@ pub const Sample = struct {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
-        const reflection = @splat(4, pdf) * self.super.albedo;
+        const reflection = @as(Vec4f, @splat(pdf)) * self.super.albedo;
 
         return .{
             .reflection = reflection,

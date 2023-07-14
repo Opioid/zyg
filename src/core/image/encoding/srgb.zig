@@ -127,7 +127,7 @@ pub const Srgb = struct {
             if (alpha) {
                 if (self.error_diffusion) {
                     while (y < y_end) : (y += 1) {
-                        var err = @splat(4, goldenRatio(y) - 0.5);
+                        var err = @as(Vec4f, @splat(goldenRatio(y) - 0.5));
 
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
@@ -141,8 +141,8 @@ pub const Srgb = struct {
                                 math.min(p.v[3], 1.0),
                             };
 
-                            const cf = @splat(4, @as(f32, 255.0)) * color;
-                            const ci = math.vec4fTo4b(cf + err + @splat(4, @as(f32, 0.5)));
+                            const cf = @as(Vec4f, @splat(255.0)) * color;
+                            const ci = math.vec4fTo4b(cf + err + @as(Vec4f, @splat(0.5)));
 
                             err += cf - math.vec4bTo4f(ci);
 
@@ -173,7 +173,7 @@ pub const Srgb = struct {
             } else {
                 if (self.error_diffusion) {
                     while (y < y_end) : (y += 1) {
-                        var err = @splat(4, goldenRatio(y) - 0.5);
+                        var err = @as(Vec4f, @splat(goldenRatio(y) - 0.5));
 
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
@@ -187,8 +187,8 @@ pub const Srgb = struct {
                                 0.0,
                             };
 
-                            const cf = @splat(4, @as(f32, 255.0)) * color;
-                            const ci = math.vec4fTo3b(cf + err + @splat(4, @as(f32, 0.5)));
+                            const cf = @as(Vec4f, @splat(255.0)) * color;
+                            const ci = math.vec4fTo3b(cf + err + @as(Vec4f, @splat(0.5)));
 
                             err += cf - math.vec3bTo4f(ci);
 

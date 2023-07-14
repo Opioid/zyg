@@ -28,7 +28,7 @@ pub const Transformation = struct {
     }
 
     pub fn lerp(self: Transformation, other: Transformation, t: f32) Transformation {
-        const t4 = @splat(4, t);
+        const t4: Vec4f = @splat(t);
 
         return .{
             .position = math.lerp(self.position, other.position, t4),

@@ -34,7 +34,7 @@ pub const Disk = struct {
                 const t = -trafo.rotation.r[0];
                 const b = -trafo.rotation.r[1];
 
-                const sk = k / @splat(4, radius);
+                const sk = k / @as(Vec4f, @splat(radius));
                 const u = math.dot3(t, sk);
                 const v = math.dot3(b, sk);
 
@@ -92,7 +92,7 @@ pub const Disk = struct {
                 const t = trafo.rotation.r[0];
                 const b = trafo.rotation.r[1];
 
-                const sk = k / @splat(4, radius);
+                const sk = k / @as(Vec4f, @splat(radius));
 
                 const uv = Vec2f{
                     0.5 * (1.0 - math.dot3(t, sk)),
@@ -103,7 +103,7 @@ pub const Disk = struct {
             }
         }
 
-        return @splat(4, @as(f32, 1.0));
+        return @splat(1.0);
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
@@ -111,7 +111,7 @@ pub const Disk = struct {
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
+        const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
         var wn = trafo.rotation.r[2];
 
         if (two_sided and math.dot3(wn, ws - p) > 0.0) {
@@ -121,7 +121,7 @@ pub const Disk = struct {
         const axis = ro.offsetRay(ws, wn) - p;
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
-        const dir = axis / @splat(4, t);
+        const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
         if (c < Dot_min) {
@@ -131,15 +131,15 @@ pub const Disk = struct {
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        return SampleTo.init(dir, wn, @splat(4, @as(f32, 0.0)), trafo, sl / (c * area), t);
+        return SampleTo.init(dir, wn, @splat(0.0), trafo, sl / (c * area), t);
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
-        const uv2 = @splat(2, @as(f32, -2.0)) * uv + @splat(2, @as(f32, 1.0));
+        const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
 
         const radius = trafo.scaleX();
-        const k = @splat(4, radius) * trafo.rotation.transformVector(ls);
+        const k = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const l = math.dot3(k, k);
 
@@ -154,7 +154,7 @@ pub const Disk = struct {
             const axis = ro.offsetRay(ws, wn) - p;
             const sl = math.squaredLength3(axis);
             const t = @sqrt(sl);
-            const dir = axis / @splat(4, t);
+            const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
             if (c < Dot_min) {
@@ -179,7 +179,7 @@ pub const Disk = struct {
     ) ?SampleFrom {
         const xy = math.smpl.diskConcentric(uv);
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const ws = trafo.position + @splat(4, trafo.scaleX()) * trafo.rotation.transformVector(ls);
+        const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         var wn = trafo.rotation.r[2];

@@ -91,7 +91,7 @@ pub const Mat4x4 = struct {
         const sy = math.length3(my);
         const sz = math.length3(mz);
 
-        basis.* = Mat3x3.init3(mx / @splat(4, sx), my / @splat(4, sy), mz / @splat(4, sz));
+        basis.* = Mat3x3.init3(mx / @as(Vec4f, @splat(sx)), my / @as(Vec4f, @splat(sy)), mz / @as(Vec4f, @splat(sz)));
         scale.* = Vec4f{ sx, sy, sz, 0.0 };
         origin.* = self.w();
     }
@@ -124,12 +124,12 @@ pub const Mat4x4 = struct {
         //     0.0,
         // };
 
-        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.r[0];
-        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.r[1];
         result = result + temp;
-        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.r[2];
         return result + temp;
     }
@@ -142,12 +142,12 @@ pub const Mat4x4 = struct {
         //     0.0,
         // };
 
-        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.r[0];
-        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.r[1];
         result = result + temp;
-        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.r[2];
         result = result + temp;
         return result + self.r[3];

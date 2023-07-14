@@ -40,7 +40,7 @@ pub const Material = struct {
 
     tree: Gridtree = .{},
 
-    average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
+    average_emission: Vec4f = @splat(-1.0),
     a_norm: Vec4f = undefined,
     pdf_factor: f32 = undefined,
 
@@ -58,7 +58,7 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
-        self.average_emission = @splat(4, @as(f32, -1.0));
+        self.average_emission = @splat(-1.0);
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
             math.anyGreaterZero3(self.super.emittance.value);
@@ -114,10 +114,10 @@ pub const Material = struct {
 
         const d = self.density_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(4, @as(f32, 0.0));
+        var luminance: Vec4f = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(0.0);
         defer alloc.free(luminance);
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         {
             var context = LuminanceContext{
@@ -125,7 +125,7 @@ pub const Material = struct {
                 .scene = scene,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
             };
             defer alloc.free(context.averages);
 
@@ -137,14 +137,14 @@ pub const Material = struct {
 
         const num_pixels = @as(f32, @floatFromInt(d[0] * d[1] * d[2]));
 
-        const average_emission = avg / @splat(4, num_pixels);
+        const average_emission = avg / @as(Vec4f, @splat(num_pixels));
 
         {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
                 .d = d,
                 .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[2]))) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
@@ -153,13 +153,13 @@ pub const Material = struct {
         }
 
         self.distribution.configure(alloc) catch
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
 
         self.average_emission = average_emission;
 
         const cca = self.super.cc.a;
         const majorant_a = math.hmax3(cca);
-        self.a_norm = @splat(4, majorant_a) / cca;
+        self.a_norm = @as(Vec4f, @splat(majorant_a)) / cca;
         self.pdf_factor = num_pixels / majorant_a;
 
         return average_emission;
@@ -184,10 +184,10 @@ pub const Material = struct {
 
         if (2 == self.density_map.numChannels()) {
             const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
-            return @splat(4, d[0] * d[1]) * self.a_norm * emission;
+            return @as(Vec4f, @splat(d[0] * d[1])) * self.a_norm * emission;
         } else {
             const d = ts.sample3D_1(key, self.density_map, uvw, sampler, scene);
-            return @splat(4, d) * self.a_norm * emission;
+            return @as(Vec4f, @splat(d)) * self.a_norm * emission;
         }
     }
 
@@ -232,13 +232,13 @@ pub const Material = struct {
 
             if (2 == self.density_map.numChannels()) {
                 const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
-                const d0 = @splat(4, d[0]);
+                const d0: Vec4f = @splat(d[0]);
                 return .{
                     .cc = .{ .a = d0 * cc.a, .s = d0 * cc.s },
-                    .e = @splat(4, d[1]) * e,
+                    .e = @as(Vec4f, @splat(d[1])) * e,
                 };
             } else {
-                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
+                const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
                 return .{
                     .cc = .{ .a = d * cc.a, .s = d * cc.s },
                     .e = d * e,
@@ -246,7 +246,7 @@ pub const Material = struct {
             }
         }
 
-        const d = @splat(4, self.density(uvw, sampler, scene));
+        const d: Vec4f = @splat(self.density(uvw, sampler, scene));
         return .{
             .cc = .{ .a = d * cc.a, .s = d * cc.s },
             .e = self.super.emittance.value,
@@ -268,7 +268,7 @@ const LuminanceContext = struct {
         const width = @as(u32, @intCast(d[0]));
         const height = @as(u32, @intCast(d[1]));
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         if (2 == mat.density_map.numChannels()) {
             var z = begin;
@@ -292,7 +292,7 @@ const LuminanceContext = struct {
                             self.scene,
                         );
                         const c = mat.blackbody.eval(t);
-                        const radiance = @splat(4, density[0] * density[1]) * c;
+                        const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
                         self.luminance[slice + row + x] = spectrum.luminance(radiance);
 

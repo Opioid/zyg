@@ -275,7 +275,7 @@ pub const Scene = struct {
             return null;
         }
 
-        return @splat(4, @as(f32, 1.0));
+        return @splat(1.0);
     }
 
     pub fn scatter(
@@ -287,7 +287,7 @@ pub const Scene = struct {
         isec: *Intersection,
     ) bool {
         if (!self.has_volumes) {
-            isec.volume = Volume.initPass(@splat(4, @as(f32, 1.0)));
+            isec.volume = Volume.initPass(@splat(1.0));
             return false;
         }
 
@@ -701,7 +701,7 @@ pub const Scene = struct {
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
-        try self.light_aabbs.append(alloc, AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))));
+        try self.light_aabbs.append(alloc, AABB.init(@splat(0.0)), @splat(0.0));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }
 

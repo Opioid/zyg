@@ -157,7 +157,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
 
-        var vis = @splat(4, @as(f32, 1.0));
+        var vis: Vec4f = @splat(1.0);
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -221,7 +221,7 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
-        var tr = @splat(4, @as(f32, 1.0));
+        var tr: Vec4f = @splat(1.0);
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
@@ -258,7 +258,7 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
-        var tr = @splat(4, @as(f32, 1.0));
+        var tr: Vec4f = @splat(1.0);
 
         while (true) {
             const hit = self.intersect(tray) orelse break;

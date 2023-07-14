@@ -25,11 +25,11 @@ const Allocator = std.mem.Allocator;
 // https://twitter.com/VrKomarov/status/1297454856177954816
 
 pub const Material = struct {
-    super: Base = .{ .emittance = .{ .value = @splat(4, @as(f32, 1.0)) } },
+    super: Base = .{ .emittance = .{ .value = @splat(1.0) } },
 
     emission_map: Texture = .{},
     distribution: Distribution2D = .{},
-    average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
+    average_emission: Vec4f = @splat(-1.0),
     total_weight: f32 = 0.0,
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
@@ -63,10 +63,10 @@ pub const Material = struct {
 
         const d = self.emission_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1]))) catch return @splat(4, @as(f32, 0.0));
+        var luminance: Vec4f = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1]))) catch return @splat(0.0);
         defer alloc.free(luminance);
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         {
             var context = LuminanceContext{
@@ -75,7 +75,7 @@ pub const Material = struct {
                 .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
             };
             defer alloc.free(context.averages);
 
@@ -85,7 +85,7 @@ pub const Material = struct {
             }
         }
 
-        const average_emission = avg / @splat(4, avg[3]);
+        const average_emission = avg / @as(Vec4f, @splat(avg[3]));
         self.average_emission = rad * average_emission;
 
         self.total_weight = avg[3];
@@ -95,7 +95,7 @@ pub const Material = struct {
                 .al = 0.6 * spectrum.luminance(average_emission),
                 .width = @as(u32, @intCast(d[0])),
                 .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[1]))) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
@@ -104,7 +104,7 @@ pub const Material = struct {
         }
 
         self.distribution.configure(alloc) catch
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
 
         return self.average_emission;
     }
@@ -162,12 +162,12 @@ const LuminanceContext = struct {
         const d = self.texture.description(self.scene).dimensions;
         const width = @as(u32, @intCast(d[0]));
 
-        const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
+        const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
             @floatFromInt(d[0]),
             @floatFromInt(d[1]),
         };
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         var y = begin;
         while (y < end) : (y += 1) {
@@ -181,7 +181,7 @@ const LuminanceContext = struct {
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
                 const radiance = self.texture.get2D_3(@intCast(x), @intCast(y), self.scene);
-                const wr = @splat(4, uv_weight) * radiance;
+                const wr = @as(Vec4f, @splat(uv_weight)) * radiance;
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
 

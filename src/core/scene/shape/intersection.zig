@@ -34,7 +34,7 @@ pub const Volume = struct {
 
     pub fn initPass(w: Vec4f) Volume {
         return .{
-            .li = @splat(4, @as(f32, 0.0)),
+            .li = @splat(0.0),
             .tr = w,
             .event = .Pass,
         };

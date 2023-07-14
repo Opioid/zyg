@@ -28,14 +28,14 @@ pub const DistantSphere = struct {
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
 
         if (det >= 0.0) {
-            isec.p = @splat(4, @as(f32, ro.Almost_ray_max_t)) * ray.direction;
+            isec.p = @as(Vec4f, @splat(ro.Almost_ray_max_t)) * ray.direction;
             isec.geo_n = n;
             isec.t = trafo.rotation.r[0];
             isec.b = trafo.rotation.r[1];
             isec.n = n;
 
             const k = ray.direction - n;
-            const sk = k / @splat(4, radius);
+            const sk = k / @as(Vec4f, @splat(radius));
 
             isec.uv[0] = (math.dot3(isec.t, sk) + 1.0) * 0.5;
             isec.uv[1] = (math.dot3(isec.b, sk) + 1.0) * 0.5;
@@ -71,14 +71,14 @@ pub const DistantSphere = struct {
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const radius = trafo.scaleX();
-        const ws = @splat(4, radius) * trafo.rotation.transformVector(ls);
+        const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const solid_angle = solidAngle(radius);
 
         return SampleTo.init(
             math.normalize3(ws - trafo.rotation.r[2]),
-            @splat(4, @as(f32, 0.0)),
-            @splat(4, @as(f32, 0.0)),
+            @splat(0.0),
+            @splat(0.0),
             trafo,
             1.0 / solid_angle,
             ro.Almost_ray_max_t,
@@ -90,16 +90,16 @@ pub const DistantSphere = struct {
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
         const radius = trafo.scaleX();
-        const ws = @splat(4, radius) * trafo.rotation.transformVector(ls);
+        const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(trafo.rotation.r[2] - ws);
 
         const ls_bounds = bounds.transformTransposed(trafo.rotation);
         const ls_extent = ls_bounds.extent();
-        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const ls_rect = (importance_uv - @as(Vec2f, @splat(0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = trafo.rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
 
-        const offset = @splat(4, ls_extent[2]) * dir;
+        const offset = @as(Vec4f, @splat(ls_extent[2])) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         const solid_angle = solidAngle(radius);

@@ -44,7 +44,7 @@ pub const Perspective = struct {
     sample_spacing: f32 = undefined,
 
     resolution: Vec2i = Vec2i{ 0, 0 },
-    crop: Vec4i = @splat(4, @as(i32, 0)),
+    crop: Vec4i = @splat(0),
 
     sensor: Sensor = .{
         .Opaque = snsr.Filtered(snsr.Opaque).init(
@@ -54,9 +54,9 @@ pub const Perspective = struct {
         ),
     },
 
-    left_top: Vec4f = @splat(4, @as(f32, 0.0)),
-    d_x: Vec4f = @splat(4, @as(f32, 0.0)),
-    d_y: Vec4f = @splat(4, @as(f32, 0.0)),
+    left_top: Vec4f = @splat(0.0),
+    d_x: Vec4f = @splat(0.0),
+    d_y: Vec4f = @splat(0.0),
 
     fov: f32 = 0.0,
     aperture: Aperture = .{},
@@ -84,7 +84,7 @@ pub const Perspective = struct {
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
         self.resolution = resolution;
 
-        var cc: Vec4i = @max(crop, @splat(4, @as(i32, 0)));
+        var cc = @max(crop, @as(Vec4i, @splat(0)));
         cc[2] = @min(cc[2], resolution[0]);
         cc[3] = @min(cc[3], resolution[1]);
         cc[0] = @min(cc[0], cc[2]);
@@ -105,11 +105,11 @@ pub const Perspective = struct {
         const left_bottom = Vec4f{ -1.0, -ratio, z, 0.0 };
 
         self.left_top = left_top;
-        self.d_x = (right_top - left_top) / @splat(4, fr[0]);
-        self.d_y = (left_bottom - left_top) / @splat(4, fr[1]);
+        self.d_x = (right_top - left_top) / @as(Vec4f, @splat(fr[0]));
+        self.d_y = (left_bottom - left_top) / @as(Vec4f, @splat(fr[1]));
 
-        const nlb = left_bottom / @splat(4, z);
-        const nrt = right_top / @splat(4, z);
+        const nlb = left_bottom / @as(Vec4f, @splat(z));
+        const nrt = right_top / @as(Vec4f, @splat(z));
 
         self.a = @fabs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
 
@@ -119,7 +119,7 @@ pub const Perspective = struct {
     pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
-        var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
+        var direction = self.left_top + self.d_x * @as(Vec4f, @splat(coordinates[0])) + self.d_y * @as(Vec4f, @splat(coordinates[1]));
         var origin: Vec4f = undefined;
 
         if (self.aperture.radius > 0.0) {
@@ -127,11 +127,11 @@ pub const Perspective = struct {
 
             origin = Vec4f{ lens[0], lens[1], 0.0, 0.0 };
 
-            const t = @splat(4, self.focus_distance / direction[2]);
+            const t: Vec4f = @splat(self.focus_distance / direction[2]);
             const focus = t * direction;
             direction = focus - origin;
         } else {
-            origin = @splat(4, @as(f32, 0.0));
+            origin = @splat(0.0);
         }
 
         const time = self.absoluteTime(frame, sample.time);
@@ -166,12 +166,12 @@ pub const Perspective = struct {
             const axis = po - origin;
             const d = self.focus_distance / axis[2];
 
-            dir = origin + @splat(4, d) * axis;
+            dir = origin + @as(Vec4f, @splat(d)) * axis;
             t = math.length3(axis);
-            out_dir = axis / @splat(4, t);
+            out_dir = axis / @as(Vec4f, @splat(t));
         } else {
             t = math.length3(po);
-            dir = po / @splat(4, t);
+            dir = po / @as(Vec4f, @splat(t));
             out_dir = dir;
         }
 
@@ -180,7 +180,7 @@ pub const Perspective = struct {
             return null;
         }
 
-        const pd = @splat(4, self.left_top[2]) * (dir / @splat(4, dir[2]));
+        const pd = @as(Vec4f, @splat(self.left_top[2])) * (dir / @as(Vec4f, @splat(dir[2])));
 
         const offset = pd - self.left_top;
 
@@ -223,8 +223,8 @@ pub const Perspective = struct {
 
         const ss = self.sample_spacing;
 
-        const x_dir_w = math.normalize3(dir_w + @splat(4, ss) * d_x_w);
-        const y_dir_w = math.normalize3(dir_w + @splat(4, ss) * d_y_w);
+        const x_dir_w = math.normalize3(dir_w + @as(Vec4f, @splat(ss)) * d_x_w);
+        const y_dir_w = math.normalize3(dir_w + @as(Vec4f, @splat(ss)) * d_y_w);
 
         return .{
             .x_origin = p_w,
@@ -275,7 +275,7 @@ pub const Perspective = struct {
                     defer options.deinit(alloc);
                     options.set(alloc, "usage", .Opacity) catch {};
 
-                    const texture = try tx.Provider.loadFile(alloc, shape, options, @splat(2, @as(f32, 1.0)), resources);
+                    const texture = try tx.Provider.loadFile(alloc, shape, options, @splat(1.0), resources);
                     try self.aperture.setShape(alloc, texture, scene);
                 } else {
                     const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
@@ -285,14 +285,14 @@ pub const Perspective = struct {
 
                         const roundness = json.readFloatMember(entry.value_ptr.*, "roundness", 0.0);
 
-                        shaper.clear(@splat(4, @as(f32, 0.0)));
-                        shaper.drawAperture(@splat(4, @as(f32, 1.0)), .{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
+                        shaper.clear(@splat(0.0));
+                        shaper.drawAperture(@splat(1.0), .{ 0.5, 0.5 }, blades, 0.5, roundness, std.math.pi);
 
                         var image = try img.Byte1.init(alloc, img.Description.init2D(shaper.dimensions));
                         shaper.resolve(img.Byte1, &image);
                         const iid = try resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image });
 
-                        const texture = try tx.Provider.createTexture(iid, .Opacity, @splat(2, @as(f32, 1.0)), resources);
+                        const texture = try tx.Provider.createTexture(iid, .Opacity, @splat(1.0), resources);
                         try self.aperture.setShape(alloc, texture, scene);
                     }
                 }
@@ -312,7 +312,7 @@ pub const Perspective = struct {
     fn updateFocus(self: *Self, time: u64, scene: *const Scene) void {
         if (self.focus.use_point and self.aperture.radius > 0.0) {
             const direction = math.normalize3(
-                self.left_top + self.d_x * @splat(4, self.focus.point[0]) + self.d_y * @splat(4, self.focus.point[1]),
+                self.left_top + self.d_x * @as(Vec4f, @splat(self.focus.point[0])) + self.d_y * @as(Vec4f, @splat(self.focus.point[1])),
             );
 
             const trafo = scene.propTransformationAt(self.entity, time);

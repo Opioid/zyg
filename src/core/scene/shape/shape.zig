@@ -105,7 +105,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
-            .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
+            .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
             .TriangleMesh => |m| m.tree.aabb(),
         };
     }
@@ -130,7 +130,7 @@ pub const Shape = union(enum) {
             .Plane => 0.0,
             .Canopy => 2.0 * std.math.pi,
             .Cube => {
-                const d = @splat(4, @as(f32, 2.0)) * scale;
+                const d = @as(Vec4f, @splat(2.0)) * scale;
                 return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
             },
             .Disk => std.math.pi * (scale[0] * scale[0]),
@@ -149,7 +149,7 @@ pub const Shape = union(enum) {
     pub fn volume(self: Shape, scale: Vec4f) f32 {
         return switch (self) {
             .Cube => {
-                const d = @splat(4, @as(f32, 2.0)) * scale;
+                const d = @as(Vec4f, @splat(2.0)) * scale;
                 return d[0] * d[1] * d[2];
             },
             else => 0.0,
@@ -198,7 +198,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),
             .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene),
             .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene),
-            else => @splat(4, @as(f32, 1.0)),
+            else => @splat(1.0),
         };
     }
 
@@ -215,7 +215,7 @@ pub const Shape = union(enum) {
             .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker),
             .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker),
             .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker),
-            else => @splat(4, @as(f32, 1.0)),
+            else => @splat(1.0),
         };
     }
 
@@ -233,7 +233,7 @@ pub const Shape = union(enum) {
             .Cube => Cube.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
             .Sphere => Sphere.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
             .TriangleMesh => |m| m.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
-            else => Volume.initPass(@splat(4, @as(f32, 1.0))),
+            else => Volume.initPass(@splat(1.0)),
         };
     }
 

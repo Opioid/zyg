@@ -44,8 +44,8 @@ pub const AOV = struct {
         var isec = Intersection{};
         var sampler = worker.pickSampler(0);
 
-        if (!worker.nextEvent(vertex, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
-            return @splat(4, @as(f32, 0.0));
+        if (!worker.nextEvent(vertex, @splat(1.0), &isec, sampler)) {
+            return @splat(0.0);
         }
 
         const result = switch (self.settings.value) {
@@ -123,7 +123,7 @@ pub const AOV = struct {
 
         vec = Vec4f{ vec[0], vec[1], vec[2], 1.0 };
 
-        return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
+        return math.clamp(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
     fn lightSampleCount(self: *Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
@@ -160,7 +160,7 @@ pub const AOV = struct {
     }
 
     fn photons(self: *Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {
-        var throughput = @splat(4, @as(f32, 1.0));
+        var throughput: Vec4f = @splat(1.0);
 
         var i: u32 = 0;
         while (true) : (i += 1) {
@@ -211,7 +211,7 @@ pub const AOV = struct {
                 vertex.wavelength = sample_result.wavelength;
             }
 
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
                 worker.interfaceChange(sample_result.wi, isec.*, sampler);
@@ -228,7 +228,7 @@ pub const AOV = struct {
             sampler.incrementPadding();
         }
 
-        return @splat(4, @as(f32, 0.0));
+        return @splat(0.0);
     }
 };
 

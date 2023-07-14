@@ -55,13 +55,13 @@ pub const Light align(16) = struct {
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
-        const radiance = @splat(4, extent) * average_radiance;
+        const radiance = @as(Vec4f, @splat(extent)) * average_radiance;
 
         if (scene.propShape(self.prop).finite() or scene_bb.empty()) {
             return radiance;
         }
 
-        return @splat(4, math.squaredLength3(scene_bb.extent())) * radiance;
+        return @as(Vec4f, @splat(math.squaredLength3(scene_bb.extent()))) * radiance;
     }
 
     pub fn sampleTo(self: Light, p: Vec4f, n: Vec4f, time: u64, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {

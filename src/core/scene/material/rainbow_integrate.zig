@@ -20,10 +20,10 @@ pub fn integrate(alloc: Allocator) !void {
 
     var rainbow: [Bins]Vec4f = undefined;
 
-    var sum_rgb = @splat(4, @as(f32, 0.0));
+    var sum_rgb: Vec4f = @splat(0.0);
 
     for (rainbow, 0..) |*r, i| {
-        var color = @splat(4, @as(f32, 0.0));
+        var color: Vec4f = @splat(0.0);
 
         var sub: u32 = 0;
         while (sub < 16) : (sub += 1) {
@@ -37,7 +37,7 @@ pub fn integrate(alloc: Allocator) !void {
     }
 
     // hack-normalize
-    const n = @splat(4, @as(f32, rainbow.len)) / (@splat(4, @as(f32, 3.0)) * sum_rgb);
+    const n = @as(Vec4f, @splat(rainbow.len)) / (@as(Vec4f, @splat(3.0)) * sum_rgb);
 
     for (rainbow) |*r| {
         r.* = math.clamp(n * r.*, 0.0, 1.0);

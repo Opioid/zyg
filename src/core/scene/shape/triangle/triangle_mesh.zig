@@ -26,6 +26,7 @@ const AABB = math.AABB;
 const Mat3x3 = math.Mat3x3;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
 const Ray = math.Ray;
 const Distribution1D = math.Distribution1D;
 const Threads = base.thread.Pool;
@@ -129,7 +130,7 @@ pub const Part = struct {
             }
         }
 
-        const dimensions = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(4, @as(i32, 0));
+        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(0);
         var context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
@@ -155,7 +156,7 @@ pub const Part = struct {
             temp.total_power += t.total_power;
         }
 
-        const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
+        const da = math.normalize3(temp.dominant_axis / @as(Vec4f, @splat(temp.total_power)));
 
         var angle: f32 = 0.0;
         for (self.triangle_mapping[0..self.num_alloc]) |t| {
@@ -219,7 +220,7 @@ pub const Part = struct {
 
         const abc = self.tree.data.triangleP(global);
 
-        const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
+        const center = (abc[0] + abc[1] + abc[2]) / @as(Vec4f, @splat(3.0));
 
         const sra = math.squaredLength3(abc[0] - center);
         const srb = math.squaredLength3(abc[1] - center);
@@ -245,7 +246,7 @@ pub const Part = struct {
 
     const Temp = struct {
         bb: AABB = math.aabb.Empty,
-        dominant_axis: Vec4f = @splat(4, @as(f32, 0.0)),
+        dominant_axis: Vec4f = @splat(0.0),
         total_power: f32 = 0.0,
     };
 
@@ -265,7 +266,7 @@ pub const Part = struct {
 
         const IdTrafo = Trafo{
             .rotation = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
-            .position = @splat(4, @as(f32, 0.0)),
+            .position = @splat(0.0),
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -290,7 +291,7 @@ pub const Part = struct {
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
                     const num_samples = @max(@as(u32, @intFromFloat(@round(uv_area * self.estimate_area + 0.5))), 1);
 
-                    var radiance = @splat(4, @as(f32, 0.0));
+                    var radiance: Vec4f = @splat(0.0);
 
                     var j: u32 = 0;
                     while (j < num_samples) : (j += 1) {
@@ -319,7 +320,7 @@ pub const Part = struct {
 
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
-                    temp.dominant_axis += @splat(4, pow) * n;
+                    temp.dominant_axis += @as(Vec4f, @splat(pow)) * n;
                     temp.bb.mergeAssign(self.part.lightAabb(@as(u32, @intCast(i))));
                     temp.total_power += pow;
                 }
@@ -450,7 +451,7 @@ pub const Mesh = struct {
 
                 const t_w = trafo.rotation.transformVector(t);
                 const n_w = trafo.rotation.transformVector(n);
-                const b_w = @splat(4, data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
+                const b_w = @as(Vec4f, @splat(data.bitangentSign(hit.index))) * math.cross3(n_w, t_w);
 
                 isec.t = t_w;
                 isec.b = b_w;
@@ -546,7 +547,7 @@ pub const Mesh = struct {
 
         const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
         const lca = math.length3(ca);
-        const sn = ca / @splat(4, lca);
+        const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
@@ -556,7 +557,7 @@ pub const Mesh = struct {
         const axis = ro.offsetRay(v, wn) - p;
         const sl = math.squaredLength3(axis);
         const d = @sqrt(sl);
-        const dir = axis / @splat(4, d);
+        const dir = axis / @as(Vec4f, @splat(d));
         const c = -math.dot3(wn, dir);
 
         if (c < Dot_min) {
@@ -599,7 +600,7 @@ pub const Mesh = struct {
 
         const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
         const lca = math.length3(ca);
-        const sn = ca / @splat(4, lca);
+        const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
@@ -719,17 +720,17 @@ pub const Mesh = struct {
             const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
 
             if (@fabs(ng[0]) > @fabs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @splat(4, @sqrt(ng[0] * ng[0] + ng[2] * ng[2]));
+                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
             } else {
-                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @splat(4, @sqrt(ng[1] * ng[1] + ng[2] * ng[2]));
+                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
             }
 
             dpdv = math.cross3(ng, dpdu);
         } else {
             const invdet = 1.0 / determinant;
 
-            dpdu = @splat(4, invdet) * (@splat(4, duv12[1]) * dp02 - @splat(4, duv02[1]) * dp12);
-            dpdv = @splat(4, invdet) * (@splat(4, -duv12[0]) * dp02 + @splat(4, duv02[0]) * dp12);
+            dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
+            dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
         }
 
         return .{ .dpdu = dpdu, .dpdv = dpdv };

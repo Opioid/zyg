@@ -43,8 +43,8 @@ pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
             const u = 1.0 - t;
             return @mulAdd(f32, u, a, t * b);
         },
-        .Vector => |v| {
-            const u = @splat(v.len, @as(v.child, 1.0)) - t;
+        .Vector => {
+            const u = @as(@TypeOf(a), @splat(1.0)) - t;
             return @mulAdd(@TypeOf(a), u, a, t * b);
         },
         else => comptime unreachable,
@@ -73,14 +73,12 @@ pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
 
             return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
         },
-        .Vector => |v| {
-            const l = comptime v.len;
+        .Vector => {
+            const vs: T = @splat(s);
+            const vt: T = @splat(t);
 
-            const vs = @splat(l, s);
-            const vt = @splat(l, t);
-
-            const _s = @splat(l, @as(f32, 1.0)) - vs;
-            const _t = @splat(l, @as(f32, 1.0)) - vt;
+            const _s: T = @as(T, @splat(1.0)) - vs;
+            const _t: T = @as(T, @splat(1.0)) - vt;
 
             return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
         },

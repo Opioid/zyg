@@ -37,10 +37,10 @@ pub const Material = struct {
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
 
-    color: Vec4f = @splat(4, @as(f32, 0.5)),
-    checkers: Vec4f = @splat(4, @as(f32, 0.0)),
-    coating_absorption_coef: Vec4f = @splat(4, @as(f32, 0.0)),
-    flakes_color: Vec4f = @splat(4, @as(f32, 0.8)),
+    color: Vec4f = @splat(0.5),
+    checkers: Vec4f = @splat(0.0),
+    coating_absorption_coef: Vec4f = @splat(0.0),
+    flakes_color: Vec4f = @splat(0.8),
 
     roughness: f32 = 0.8,
     anisotropy: f32 = 0.0,
@@ -255,7 +255,7 @@ pub const Material = struct {
                 const cos_cone = 1.0 - (2.0 * a2_cone) / (1.0 + a2_cone);
 
                 var n_dot_h: f32 = undefined;
-                const m = ggx.Aniso.sample(wo, @splat(2, fa2), xi, result.super.frame, &n_dot_h);
+                const m = ggx.Aniso.sample(wo, @splat(fa2), xi, result.super.frame, &n_dot_h);
 
                 result.metallic = 1.0;
                 result.f0 = self.flakes_color;
@@ -284,7 +284,7 @@ pub const Material = struct {
 
     fn sampleFlake(uv: Vec2f, res: f32, coverage: f32) ?Vec2f {
         const ij = gridCell(uv, res);
-        const suv = @splat(2, res) * uv;
+        const suv = @as(Vec2f, @splat(res)) * uv;
 
         var nearest_d: f32 = std.math.floatMax(f32);
         var nearest_r: f32 = undefined;
@@ -368,7 +368,7 @@ pub const Material = struct {
             return .{ r * r, rv * rv };
         }
 
-        return @splat(2, r * r);
+        return @splat(r * r);
     }
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
@@ -376,23 +376,23 @@ pub const Material = struct {
     fn analyticCheckers(self: *const Material, rs: Renderstate, sampler_key: ts.Key, worker: *const Worker) Vec4f {
         const checkers_scale = self.checkers[3];
 
-        const dd = @splat(4, checkers_scale) * worker.screenspaceDifferential(rs);
+        const dd = @as(Vec4f, @splat(checkers_scale)) * worker.screenspaceDifferential(rs);
 
         const t = checkersGrad(
-            @splat(2, checkers_scale) * sampler_key.address.address2(rs.uv),
+            @as(Vec2f, @splat(checkers_scale)) * sampler_key.address.address2(rs.uv),
             .{ dd[0], dd[1] },
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp(self.color, self.checkers, @splat(4, t));
+        return math.lerp(self.color, self.checkers, @splat(t));
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
         // filter kernel
-        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @splat(2, @as(f32, 0.0001));
+        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @as(Vec2f, @splat(0.0001));
 
         // analytical integral (box filter)
-        const i = (tri(uv + @splat(2, @as(f32, 0.5)) * w) - tri(uv - @splat(2, @as(f32, 0.5)) * w)) / w;
+        const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
 
         // xor pattern
         return 0.5 - 0.5 * i[0] * i[1];

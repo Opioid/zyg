@@ -78,7 +78,7 @@ pub const Material = union(enum) {
             .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
             .Substitute => |*m| m.prepareSampling(extent, scene),
             .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
-            else => @splat(4, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -161,7 +161,7 @@ pub const Material = union(enum) {
 
         switch (self.*) {
             .Volumetric => |*m| {
-                const d = @splat(4, m.density(uvw, sampler, scene));
+                const d: Vec4f = @splat(m.density(uvw, sampler, scene));
                 return .{ .a = d * cc.a, .s = d * cc.s };
             },
             else => {
@@ -223,7 +223,7 @@ pub const Material = union(enum) {
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
-            else => @splat(4, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -263,7 +263,7 @@ pub const Material = union(enum) {
             },
             else => {
                 const o = self.opacity(uv, sampler, scene);
-                return if (o < 1.0) @splat(4, 1.0 - o) else null;
+                return if (o < 1.0) @splat(1.0 - o) else null;
             },
         }
     }

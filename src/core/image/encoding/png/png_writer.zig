@@ -9,6 +9,7 @@ const enc = base.encoding;
 const spectrum = base.spectrum;
 const math = base.math;
 const Vec4i = math.Vec4i;
+const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -65,7 +66,7 @@ pub const Writer = struct {
         defer alloc.free(buffer);
 
         for (image.pixels, 0..) |p, i| {
-            const srgb = @splat(4, factor) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
+            const srgb = @as(Vec4f, @splat(factor)) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
 
             buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
             buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[1]));

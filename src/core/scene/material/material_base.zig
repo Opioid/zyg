@@ -144,7 +144,7 @@ pub const Base = struct {
             return Rainbow.Rainbow[Rainbow.Num_bands - 1];
         }
 
-        return @splat(4, value) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @splat(4, frac));
+        return @as(Vec4f, @splat(value)) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @as(Vec4f, @splat(frac)));
     }
 
     var SR_low: u32 = 16;

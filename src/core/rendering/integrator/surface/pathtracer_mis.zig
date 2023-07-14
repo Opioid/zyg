@@ -40,10 +40,10 @@ pub const PathtracerMIS = struct {
 
         var bxdf_pdf: f32 = 0.0;
 
-        var throughput = @splat(4, @as(f32, 1.0));
-        var old_throughput = @splat(4, @as(f32, 1.0));
-        var result = @splat(4, @as(f32, 0.0));
-        var geo_n = @splat(4, @as(f32, 0.0));
+        var throughput: Vec4f = @splat(1.0);
+        var old_throughput: Vec4f = @splat(1.0);
+        var result: Vec4f = @splat(0.0);
+        var geo_n: Vec4f = @splat(0.0);
 
         var isec = Intersection{};
 
@@ -131,7 +131,7 @@ pub const PathtracerMIS = struct {
             }
 
             old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 vertex.depth += 1;
@@ -172,7 +172,7 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
-        var result = @splat(4, @as(f32, 0.0));
+        var result: Vec4f = @splat(0.0);
 
         if (!mat_sample.canEvaluate()) {
             return result;
@@ -215,7 +215,7 @@ pub const PathtracerMIS = struct {
             mat_sample.isTranslucent(),
             sampler,
             worker.scene,
-        ) orelse return @splat(4, @as(f32, 0.0));
+        ) orelse return @splat(0.0);
 
         var shadow_vertex = Vertex.init(
             p,
@@ -227,7 +227,7 @@ pub const PathtracerMIS = struct {
             history.time,
         );
 
-        const tr = worker.visibility(&shadow_vertex, isec, sampler) orelse return @splat(4, @as(f32, 0.0));
+        const tr = worker.visibility(&shadow_vertex, isec, sampler) orelse return @splat(0.0);
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 
@@ -236,7 +236,7 @@ pub const PathtracerMIS = struct {
         const light_pdf = light_sample.pdf() * light_weight;
         const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
 
-        return @splat(4, weight) * (tr * radiance * bxdf.reflection);
+        return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf.reflection);
     }
 
     fn connectLight(
@@ -256,7 +256,7 @@ pub const PathtracerMIS = struct {
             sampler,
             scene,
             pure_emissive,
-        ) orelse return @splat(4, @as(f32, 0.0));
+        ) orelse return @splat(0.0);
 
         const light_id = isec.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
@@ -272,7 +272,7 @@ pub const PathtracerMIS = struct {
         const pdf = light.pdf(vertex.ray, geo_n, isec, translucent, scene);
         const weight = hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
 
-        return @splat(4, weight) * energy;
+        return @as(Vec4f, @splat(weight)) * energy;
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {

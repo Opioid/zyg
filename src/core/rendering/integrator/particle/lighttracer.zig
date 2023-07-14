@@ -60,7 +60,7 @@ pub const Lighttracer = struct {
 
         var isec = Intersection{};
 
-        if (!worker.nextEvent(&vertex, @splat(4, @as(f32, 1.0)), &isec, sampler)) {
+        if (!worker.nextEvent(&vertex, @splat(1.0), &isec, sampler)) {
             return;
         }
 
@@ -72,7 +72,7 @@ pub const Lighttracer = struct {
 
         const throughput = isec.volume.tr;
 
-        const initrad = light.evaluateFrom(isec.geo.p, light_sample, sampler, worker.scene) / @splat(4, light_sample.pdf());
+        const initrad = light.evaluateFrom(isec.geo.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
         const radiance = throughput * initrad;
 
         worker.interface_stack.clear();
@@ -154,15 +154,15 @@ pub const Lighttracer = struct {
                 vertex.wavelength = sample_result.wavelength;
             }
 
-            radiance *= sample_result.reflection / @splat(4, sample_result.pdf);
+            radiance *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
                 const ior = worker.interfaceChangeIor(sample_result.wi, isec.*, sampler);
                 const eta = ior.eta_i / ior.eta_t;
-                radiance *= @splat(4, eta * eta);
+                radiance *= @as(Vec4f, @splat(eta * eta));
             }
 
-            if (!worker.nextEvent(vertex, @splat(4, @as(f32, 1.0)), isec, sampler)) {
+            if (!worker.nextEvent(vertex, @splat(1.0), isec, sampler)) {
                 break;
             }
 
@@ -250,7 +250,7 @@ pub const Lighttracer = struct {
             nsc *= eta * eta;
         }
 
-        const result = @splat(4, camera_sample.pdf * nsc) * (tr * radiance * bxdf.reflection);
+        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * radiance * bxdf.reflection);
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;

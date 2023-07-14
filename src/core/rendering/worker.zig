@@ -125,7 +125,7 @@ pub const Worker = struct {
         isolated_bounds[3] -= isolated_bounds[1];
 
         const fr = sensor.filterRadiusInt();
-        const r = camera.resolution + @splat(2, 2 * fr);
+        const r = camera.resolution + @as(Vec2i, @splat(2 * fr));
         const a = @as(u32, @intCast(r[0])) * @as(u32, @intCast(r[1]));
         const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
@@ -148,7 +148,7 @@ pub const Worker = struct {
 
                 self.samplers[0].startPixel(tsi, seed);
 
-                self.photon = @splat(4, @as(f32, 0.0));
+                self.photon = @splat(0.0);
 
                 const pixel = Vec2i{ x, y };
 
@@ -164,7 +164,7 @@ pub const Worker = struct {
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
-                        photon /= @splat(4, photon[3]);
+                        photon /= @as(Vec4f, @splat(photon[3]));
                         photon[3] = 0.0;
                     }
 
@@ -275,7 +275,7 @@ pub const Worker = struct {
                         const vbh = material.super().border(wi, n);
                         const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
 
-                        return @splat(4, vbh * nsc) * tv * tr;
+                        return @as(Vec4f, @splat(vbh * nsc)) * tv * tr;
                     }
                 }
 
@@ -461,8 +461,8 @@ pub const Worker = struct {
         const tx = -(math.dot3(n, rd.x_origin) - d) / math.dot3(n, rd.x_direction);
         const ty = -(math.dot3(n, rd.y_origin) - d) / math.dot3(n, rd.y_direction);
 
-        const px = rd.x_origin + @splat(4, tx) * rd.x_direction;
-        const py = rd.y_origin + @splat(4, ty) * rd.y_direction;
+        const px = rd.x_origin + @as(Vec4f, @splat(tx)) * rd.x_direction;
+        const py = rd.y_origin + @as(Vec4f, @splat(ty)) * rd.y_direction;
 
         // Compute uv offsets at offset-ray isec points
         // Choose two dimensions to use for ray offset computations
@@ -486,7 +486,7 @@ pub const Worker = struct {
         const det = a[0][0] * a[1][1] - a[0][1] * a[1][0];
 
         if (@fabs(det) < 1.0e-10) {
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
         }
 
         const dudx = (a[1][1] * bx[0] - a[0][1] * bx[1]) / det;

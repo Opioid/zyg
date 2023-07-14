@@ -18,8 +18,8 @@ pub const Sample = struct {
         var super = Base.init(
             rs,
             wo,
-            @splat(4, @as(f32, 0.0)),
-            @splat(2, @as(f32, 1.0)),
+            @splat(0.0),
+            @splat(1.0),
             0.0,
         );
 
@@ -37,7 +37,7 @@ pub const Sample = struct {
 
         const phase = phaseHg(wo_dot_wi, g);
 
-        return bxdf.Result.init(@splat(4, phase), phase);
+        return bxdf.Result.init(@splat(phase), phase);
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
@@ -64,7 +64,7 @@ pub const Sample = struct {
         const phase = phaseHg(-cos_theta, g);
 
         return .{
-            .reflection = @splat(4, phase),
+            .reflection = @splat(phase),
             .wi = wi,
             .h = undefined,
             .pdf = phase,

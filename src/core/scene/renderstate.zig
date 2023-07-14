@@ -57,7 +57,7 @@ pub const Renderstate = struct {
         if (alpha[0] <= ggx.Min_alpha and .Rough == self.caustics) {
             const l = math.length3(self.p - self.ray_p);
             const m = math.min(0.1 * (1.0 + l), 1.0);
-            return math.max2(alpha, @splat(2, m));
+            return math.max2(alpha, @as(Vec2f, @splat(m)));
         }
 
         return alpha;

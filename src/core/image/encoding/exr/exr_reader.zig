@@ -62,8 +62,8 @@ pub const Reader = struct {
 
         var compression = exr.Compression.Undefined;
 
-        var data_window = @splat(4, @as(i32, 0));
-        var display_window = @splat(4, @as(i32, 0));
+        var data_window: Vec4i = @splat(0);
+        var display_window: Vec4i = @splat(0);
 
         while (true) {
             name_fbs.reset();
@@ -141,7 +141,7 @@ pub const Reader = struct {
 
         const data_xy = Vec2i{ data_window[0], data_window[1] };
         const data_zw = Vec2i{ data_window[2], data_window[3] };
-        const data_dim = (data_zw - data_xy) + @splat(2, @as(i32, 1));
+        const data_dim = (data_zw - data_xy) + @as(Vec2i, @splat(1));
 
         const width = @as(u32, @intCast(data_dim[0]));
         const height = @as(u32, @intCast(data_dim[1]));
@@ -163,7 +163,7 @@ pub const Reader = struct {
 
         const display_xy = Vec2i{ display_window[0], display_window[1] };
         const display_zw = Vec2i{ display_window[2], display_window[3] };
-        const display_dim = (display_zw - display_xy) + @splat(2, @as(i32, 1));
+        const display_dim = (display_zw - display_xy) + @as(Vec2i, @splat(1));
 
         const display_width = @as(u32, @intCast(display_dim[0]));
         const display_height = @as(u32, @intCast(display_dim[1]));

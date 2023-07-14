@@ -176,7 +176,7 @@ pub const Shaper = struct {
         const so = 0.5 * ss;
         const ss2 = 1.0 / @as(f32, @floatFromInt(Sub_samples * Sub_samples));
 
-        const r = @splat(2, shape.radius());
+        const r: Vec2f = @splat(shape.radius());
         const min = p - r;
         const max = p + r;
         const begin = Vec2i{ @as(i32, @intFromFloat(min[0] * end_x)), @as(i32, @intFromFloat(min[1] * end_y)) };
@@ -223,7 +223,7 @@ pub const Shaper = struct {
 
                     var pixel = &self.pixels[@as(usize, @intCast(wy * dim[0] + wx))];
                     const old: Vec4f = pixel.v;
-                    pixel.v = math.lerp(old, color, @splat(4, w));
+                    pixel.v = math.lerp(old, color, @splat(w));
                 }
             }
         }

@@ -6,10 +6,10 @@ const mima = @import("minmax.zig");
 const std = @import("std");
 
 pub fn diskConcentric(uv: Vec2f) Vec2f {
-    const s = (uv * @splat(2, @as(f32, 2.0))) - @splat(2, @as(f32, 1.0));
+    const s = (uv * @as(Vec2f, @splat(2.0))) - @as(Vec2f, @splat(1.0));
 
     if (0.0 == s[0] and 0.0 == s[1]) {
-        return @splat(2, @as(f32, 0.0));
+        return @splat(0.0);
     }
 
     var r: f32 = undefined;
@@ -31,7 +31,7 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
 
 pub fn orientedDiskConcentric(uv: Vec2f, x: Vec4f, y: Vec4f) Vec4f {
     const d = diskConcentric(uv);
-    return @splat(4, d[0]) * x + @splat(4, d[1]) * y;
+    return @as(Vec4f, @splat(d[0])) * x + @as(Vec4f, @splat(d[1])) * y;
 }
 
 // pub fn triangleUniform(uv: Vec2f) Vec2f {
@@ -62,7 +62,7 @@ pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const xy = diskConcentric(uv);
     const za = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
 
-    return @splat(4, xy[0]) * x + @splat(4, xy[1]) * y + @splat(4, za) * z;
+    return @as(Vec4f, @splat(xy[0])) * x + @as(Vec4f, @splat(xy[1])) * y + @as(Vec4f, @splat(za)) * z;
 }
 
 pub fn hemisphereUniform(uv: Vec2f) Vec4f {
@@ -84,7 +84,7 @@ pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f 
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
-    return @splat(4, cos_phi * r) * x + @splat(4, sin_phi * r) * y + @splat(4, za) * z;
+    return @as(Vec4f, @splat(cos_phi * r)) * x + @as(Vec4f, @splat(sin_phi * r)) * y + @as(Vec4f, @splat(za)) * z;
 }
 
 pub fn sphereUniform(uv: Vec2f) Vec4f {
@@ -102,7 +102,7 @@ pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Ve
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
-    return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
+    return @as(Vec4f, @splat(cos_phi * sin_theta)) * x + @as(Vec4f, @splat(sin_phi * sin_theta)) * y + @as(Vec4f, @splat(cos_theta)) * z;
 }
 
 pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
@@ -113,14 +113,14 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
-    return @splat(4, cos_phi * sin_theta) * x + @splat(4, sin_phi * sin_theta) * y + @splat(4, cos_theta) * z;
+    return @as(Vec4f, @splat(cos_phi * sin_theta)) * x + @as(Vec4f, @splat(sin_phi * sin_theta)) * y + @as(Vec4f, @splat(cos_theta)) * z;
 }
 
 pub fn orientedConeCosine(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
-    const xy = @splat(2, @sqrt(1.0 - cos_theta_max * cos_theta_max)) * diskConcentric(uv);
+    const xy = @as(Vec2f, @splat(@sqrt(1.0 - cos_theta_max * cos_theta_max))) * diskConcentric(uv);
     const za = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
 
-    return @splat(4, xy[0]) * x + @splat(4, xy[1]) * y + @splat(4, za) * z;
+    return @as(Vec4f, @splat(xy[0])) * x + @as(Vec4f, @splat(xy[1])) * y + @as(Vec4f, @splat(za)) * z;
 }
 
 pub const Eps: f32 = 1.0e-20;
@@ -139,10 +139,10 @@ fn signNotZero(v: Vec2f) Vec2f {
 
 pub fn octEncode(v: Vec4f) Vec2f {
     const linorm = @fabs(v[0]) + @fabs(v[1]) + @fabs(v[2]);
-    var o = Vec2f{ v[0], v[1] } * @splat(2, 1.0 / linorm);
+    var o = Vec2f{ v[0], v[1] } * @as(Vec2f, @splat(1.0 / linorm));
 
     if (v[2] >= 0.0) {
-        return (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
+        return (@as(Vec2f, @splat(1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
     }
 
     return o;
@@ -151,7 +151,7 @@ pub fn octEncode(v: Vec4f) Vec2f {
 pub fn octDecode(o: Vec2f) Vec4f {
     var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
     if (v[2] >= 0.0) {
-        const xy = (@splat(2, @as(f32, 1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
+        const xy = (@as(Vec2f, @splat(1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
         v[0] = xy[0];
         v[1] = xy[1];
     }

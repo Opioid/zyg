@@ -31,7 +31,7 @@ pub const Multi = struct {
         const d = ray.maxT();
 
         if (ro.offsetF(ray.minT()) >= d) {
-            return @splat(4, @as(f32, 1.0));
+            return @splat(1.0);
         }
 
         if (material.heterogeneousVolume()) {
@@ -59,7 +59,7 @@ pub const Multi = struct {
         }
 
         if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
-            return Volume.initPass(@splat(4, @as(f32, 1.0)));
+            return Volume.initPass(@splat(1.0));
         }
 
         if (material.volumetricTree()) |tree| {
@@ -67,7 +67,7 @@ pub const Multi = struct {
 
             const srs = material.super().similarityRelationScale(depth);
 
-            var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
+            var result = Volume.initPass(@splat(1.0));
 
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
@@ -122,7 +122,7 @@ pub const Multi = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), sampler, worker.scene);
+            const cce = material.collisionCoefficientsEmission(@splat(0.0), sampler, worker.scene);
             return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
         }
 

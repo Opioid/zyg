@@ -185,7 +185,7 @@ pub const Tree = struct {
     pub fn visibility(self: Tree, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
-        var vis = @splat(4, @as(f32, 1.0));
+        var vis: Vec4f = @splat(1.0);
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
@@ -244,7 +244,7 @@ pub const Tree = struct {
     ) bool {
         var stack = NodeStack{};
 
-        var result = Volume.initPass(@splat(4, @as(f32, 1.0)));
+        var result = Volume.initPass(@splat(1.0));
         var prop = Prop.Null;
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 

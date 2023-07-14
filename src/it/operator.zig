@@ -3,6 +3,7 @@ const scn = core.scn;
 
 const base = @import("base");
 const math = base.math;
+const Vec4f = math.Vec4f;
 const Pack4f = math.Pack4f;
 const Threads = base.thread.Pool;
 
@@ -95,7 +96,7 @@ pub const Operator = struct {
             const dim = texture.description(self.scene).dimensions;
             const width = dim[0];
 
-            const factor = @splat(4, if (.Average == self.class) 1.0 / @as(f32, @floatFromInt(self.textures.items.len)) else 1.0);
+            const factor: Vec4f = @splat(if (.Average == self.class) 1.0 / @as(f32, @floatFromInt(self.textures.items.len)) else 1.0);
 
             var y = begin;
             while (y < end) : (y += 1) {
@@ -123,7 +124,7 @@ pub const Operator = struct {
 
                             for (self.textures.items[current + 1 ..]) |t| {
                                 const other = t.get2D_4(ix, iy, self.scene);
-                                color += other * @splat(4, 1.0 - color[3]);
+                                color += other * @as(Vec4f, @splat(1.0 - color[3]));
                             }
 
                             break :blk color;

@@ -26,7 +26,7 @@ pub const Cube = struct {
         const local_dir = trafo.worldToObjectVector(ray.direction);
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
         const hit_t = aabb.intersectP(local_ray) orelse return false;
         if (hit_t > ray.maxT()) {
             return false;
@@ -37,11 +37,11 @@ pub const Cube = struct {
         isec.p = ray.point(hit_t);
 
         const local_p = local_ray.point(hit_t);
-        const distance = @fabs(@splat(4, @as(f32, 1.0)) - @fabs(local_p));
+        const distance = @fabs(@as(Vec4f, @splat(1.0)) - @fabs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
-        const n = @splat(4, s) * trafo.rotation.r[i];
+        const n = @as(Vec4f, @splat(s)) * trafo.rotation.r[i];
 
         isec.part = 0;
         isec.primitive = 0;
@@ -62,7 +62,7 @@ pub const Cube = struct {
         const local_dir = trafo.worldToObjectVector(ray.direction);
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
+        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
         return aabb.intersect(local_ray);
     }
 
@@ -73,7 +73,7 @@ pub const Cube = struct {
         _ = sampler;
         _ = scene;
 
-        return @splat(4, @as(f32, 1.0));
+        return @splat(1.0);
     }
 
     pub fn transmittance(
@@ -88,8 +88,8 @@ pub const Cube = struct {
         const local_dir = trafo.worldToObjectVector(ray.direction);
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        const hit_t = aabb.intersectP2(local_ray) orelse return @splat(4, @as(f32, 1.0));
+        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const hit_t = aabb.intersectP2(local_ray) orelse return @splat(1.0);
 
         const start = math.max(hit_t[0], ray.minT());
         const end = math.min(hit_t[1], ray.maxT());
@@ -112,8 +112,8 @@ pub const Cube = struct {
         const local_dir = trafo.worldToObjectVector(ray.direction);
         const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(4, @as(f32, 1.0)));
+        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(1.0));
 
         const start = math.max(hit_t[0], ray.minT());
         const end = math.min(hit_t[1], ray.maxT());
@@ -125,19 +125,19 @@ pub const Cube = struct {
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
         const r3 = sampler.sample3D();
-        const xyz = @splat(4, @as(f32, 2.0)) * (r3 - @splat(4, @as(f32, 0.5)));
+        const xyz = @as(Vec4f, @splat(2.0)) * (r3 - @as(Vec4f, @splat(0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
         const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
-            axis / @splat(4, t),
-            @splat(4, @as(f32, 0.0)),
+            axis / @as(Vec4f, @splat(t)),
+            @splat(0.0),
             r3,
             trafo,
             sl / volume,
@@ -146,19 +146,19 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo) SampleTo {
-        const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
+        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
         const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
-            axis / @splat(4, t),
-            @splat(4, @as(f32, 0.0)),
+            axis / @as(Vec4f, @splat(t)),
+            @splat(0.0),
             uvw,
             trafo,
             sl / volume,
@@ -167,18 +167,18 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) SampleFrom {
-        const xyz = @splat(4, @as(f32, 2.0)) * (uvw - @splat(4, @as(f32, 0.5)));
+        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
         const wp = trafo.objectToWorldPoint(xyz);
 
         const dir = math.smpl.sphereUniform(importance_uv);
 
-        const d = @splat(4, @as(f32, 2.0)) * trafo.scale();
+        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
         const volume = d[0] * d[1] * d[2];
 
         return SampleFrom.init(
             wp,
             dir,
-            @splat(4, @as(f32, 0.0)),
+            @splat(0.0),
             uvw,
             importance_uv,
             trafo,
@@ -187,7 +187,7 @@ pub const Cube = struct {
     }
 
     pub fn volumePdf(ray: Ray, scale: Vec4f) f32 {
-        const d = @splat(4, @as(f32, 2.0)) * scale;
+        const d = @as(Vec4f, @splat(2.0)) * scale;
         const volume = d[0] * d[1] * d[2];
 
         const t = ray.maxT();

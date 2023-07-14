@@ -369,7 +369,7 @@ pub const Reader = struct {
             while (x < d[0]) : (x += 1) {
                 const u = idf * (@as(f32, @floatFromInt(x)) + 0.5);
 
-                const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
+                const dir = math.smpl.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
                 const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });
 
                 const value = data.sample(ll[0], ll[1]);

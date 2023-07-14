@@ -52,7 +52,7 @@ pub const Buffer = struct {
         const encoding = class.encoding();
         if (.Color == encoding or .Normal == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
-                const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
+                const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @as(Vec4f, @splat(p.v[3]));
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
             }
         } else {
@@ -63,7 +63,7 @@ pub const Buffer = struct {
     }
 
     pub fn addPixel(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
-        const wc = @splat(4, weight) * value;
+        const wc = @as(Vec4f, @splat(weight)) * value;
 
         const pixels = self.buffers[slot];
         var dest: Vec4f = pixels[id].v;

@@ -33,7 +33,7 @@ pub const Canopy = struct {
         };
 
         // This is nonsense
-        isec.p = @splat(4, @as(f32, ro.Ray_max_t)) * ray.direction;
+        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
@@ -62,7 +62,7 @@ pub const Canopy = struct {
 
         return SampleTo.init(
             dir,
-            @splat(4, @as(f32, 0.0)),
+            @splat(0.0),
             uvw,
             trafo,
             1.0 / (2.0 * std.math.pi),
@@ -81,7 +81,7 @@ pub const Canopy = struct {
 
         return SampleTo.init(
             trafo.rotation.transformVector(dir),
-            @splat(4, @as(f32, 0.0)),
+            @splat(0.0),
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / (2.0 * std.math.pi),
@@ -114,10 +114,10 @@ pub const Canopy = struct {
 
         const ls_bounds = bounds.transformTransposed(rotation);
         const ls_extent = ls_bounds.extent();
-        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const ls_rect = (importance_uv - @as(Vec2f, @splat(0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
 
-        const offset = @splat(4, ls_extent[2]) * dir;
+        const offset = @as(Vec4f, @splat(ls_extent[2])) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         return SampleFrom.init(

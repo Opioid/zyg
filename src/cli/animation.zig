@@ -115,12 +115,12 @@ fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Ve
         return p1;
     }
 
-    const A1 = @splat(4, (t1 - tt) / (t1 - t0)) * p0 + @splat(4, (tt - t0) / (t1 - t0)) * p1;
-    const A2 = @splat(4, (t2 - tt) / (t2 - t1)) * p1 + @splat(4, (tt - t1) / (t2 - t1)) * p2;
-    const A3 = @splat(4, (t3 - tt) / (t3 - t2)) * p2 + @splat(4, (tt - t2) / (t3 - t2)) * p3;
-    const B1 = @splat(4, (t2 - tt) / (t2 - t0)) * A1 + @splat(4, (tt - t0) / (t2 - t0)) * A2;
-    const B2 = @splat(4, (t3 - tt) / (t3 - t1)) * A2 + @splat(4, (tt - t1) / (t3 - t1)) * A3;
-    const C = @splat(4, (t2 - tt) / (t2 - t1)) * B1 + @splat(4, (tt - t1) / (t2 - t1)) * B2;
+    const A1 = @as(Vec4f, @splat((t1 - tt) / (t1 - t0))) * p0 + @as(Vec4f, @splat((tt - t0) / (t1 - t0))) * p1;
+    const A2 = @as(Vec4f, @splat((t2 - tt) / (t2 - t1))) * p1 + @as(Vec4f, @splat((tt - t1) / (t2 - t1))) * p2;
+    const A3 = @as(Vec4f, @splat((t3 - tt) / (t3 - t2))) * p2 + @as(Vec4f, @splat((tt - t2) / (t3 - t2))) * p3;
+    const B1 = @as(Vec4f, @splat((t2 - tt) / (t2 - t0))) * A1 + @as(Vec4f, @splat((tt - t0) / (t2 - t0))) * A2;
+    const B2 = @as(Vec4f, @splat((t3 - tt) / (t3 - t1))) * A2 + @as(Vec4f, @splat((tt - t1) / (t3 - t1))) * A3;
+    const C = @as(Vec4f, @splat((t2 - tt) / (t2 - t1))) * B1 + @as(Vec4f, @splat((tt - t1) / (t2 - t1))) * B2;
 
     return C;
 }
@@ -128,7 +128,7 @@ fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Ve
 fn interpolate(f0: Transformation, f1: Transformation, f2: Transformation, f3: Transformation, t: f32) Transformation {
     return .{
         .position = catmullRom(f0.position, f1.position, f2.position, f3.position, t, 0.5),
-        .scale = math.lerp(f1.scale, f2.scale, @splat(4, t)),
+        .scale = math.lerp(f1.scale, f2.scale, @splat(t)),
         .rotation = math.quaternion.slerp(f1.rotation, f2.rotation, t),
     };
 }

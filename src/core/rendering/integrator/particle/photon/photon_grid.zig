@@ -39,7 +39,7 @@ pub const Grid = struct {
 
     num_paths: f64 = undefined,
 
-    dimensions: Vec4i = @splat(4, @as(i32, 0)),
+    dimensions: Vec4i = @splat(0),
 
     local_to_texture: Vec4f = undefined,
 
@@ -62,14 +62,14 @@ pub const Grid = struct {
         self.aabb = aabb;
 
         const diameter = 2.0 * self.search_radius;
-        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))) + @splat(4, @as(i32, 2));
+        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @as(Vec4f, @splat(diameter * self.grid_cell_factor)))) + @as(Vec4i, @splat(2));
 
         if (!math.equal(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;
 
-            self.local_to_texture = @splat(4, @as(f32, 1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @splat(4, @as(i32, 2)));
+            self.local_to_texture = @as(Vec4f, @splat(1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @as(Vec4i, @splat(2)));
 
             const num_cells = @as(usize, @intCast(dimensions[0])) * @as(usize, @intCast(dimensions[1])) * @as(usize, @intCast(dimensions[2])) + 1;
 
@@ -120,13 +120,13 @@ pub const Grid = struct {
             // 00, 00, 01
             self.adjacencies[1] = .{
                 .num_cells = 2,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0__0_p1), .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ .{ 0, 0 }, @splat(o__0__0_p1), .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 00, 10
             self.adjacencies[2] = .{
                 .num_cells = 2,
-                .cells = .{ @splat(2, o__0__0_m1), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ @splat(o__0__0_m1), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
             };
             self.adjacencies[3] = .{
                 .num_cells = 0,
@@ -136,19 +136,19 @@ pub const Grid = struct {
             // 00, 01, 00
             self.adjacencies[4] = .{
                 .num_cells = 2,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0_p1__0), .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ .{ 0, 0 }, @splat(o__0_p1__0), .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 01, 01
             self.adjacencies[5] = .{
                 .num_cells = 4,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0_p1__0), @splat(2, o__0__0_p1), @splat(2, o__0_p1_p1) },
+                .cells = .{ .{ 0, 0 }, @splat(o__0_p1__0), @splat(o__0__0_p1), @splat(o__0_p1_p1) },
             };
 
             // 00, 01, 10
             self.adjacencies[6] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0__0_m1), @splat(2, o__0_p1_m1), .{ 0, 0 }, @splat(2, o__0_p1__0) },
+                .cells = .{ @splat(o__0__0_m1), @splat(o__0_p1_m1), .{ 0, 0 }, @splat(o__0_p1__0) },
             };
             self.adjacencies[7] = .{
                 .num_cells = 0,
@@ -158,19 +158,19 @@ pub const Grid = struct {
             // 00, 10, 00
             self.adjacencies[8] = .{
                 .num_cells = 2,
-                .cells = .{ @splat(2, o__0_m1__0), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ @splat(o__0_m1__0), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 10, 01
             self.adjacencies[9] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0_m1__0), @splat(2, o__0_m1_p1), .{ 0, 0 }, @splat(2, o__0__0_p1) },
+                .cells = .{ @splat(o__0_m1__0), @splat(o__0_m1_p1), .{ 0, 0 }, @splat(o__0__0_p1) },
             };
 
             // 00, 10, 10
             self.adjacencies[10] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0_m1_m1), @splat(2, o__0__0_m1), @splat(2, o__0_m1__0), .{ 0, 0 } },
+                .cells = .{ @splat(o__0_m1_m1), @splat(o__0__0_m1), @splat(o__0_m1__0), .{ 0, 0 } },
             };
             self.adjacencies[11] = .{
                 .num_cells = 0,
@@ -390,7 +390,7 @@ pub const Grid = struct {
 
             var a_alpha = Vec4f{ a.alpha[0], a.alpha[1], a.alpha[2], 0.0 };
             var total_weight = math.average3(a_alpha);
-            var position = @splat(4, total_weight) * a.p;
+            var position = @as(Vec4f, @splat(total_weight)) * a.p;
             var wi = a.wi;
 
             var local_reduced: u32 = 0;
@@ -432,7 +432,7 @@ pub const Grid = struct {
                     }
 
                     total_weight += weight;
-                    position += @splat(4, weight) * b.p;
+                    position += @as(Vec4f, @splat(weight)) * b.p;
                     local_reduced += 1;
                 }
             }
@@ -442,7 +442,7 @@ pub const Grid = struct {
                     a.alpha[0] = -1.0;
                     local_reduced += 1;
                 } else {
-                    a.p = position / @splat(4, total_weight);
+                    a.p = position / @as(Vec4f, @splat(total_weight));
                     a.wi = wi;
                     a.alpha[0] = a_alpha[0];
                     a.alpha[1] = a_alpha[1];
@@ -459,7 +459,7 @@ pub const Grid = struct {
     }
 
     fn map1(self: *const Self, v: Vec4f) u64 {
-        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @splat(4, @as(i32, 1));
+        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @as(Vec4i, @splat(1));
         return @as(u64, @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
             @as(i64, c[0])));
@@ -476,7 +476,7 @@ pub const Grid = struct {
 
         adjacents.* = adj;
 
-        return c + @splat(4, @as(i32, 1));
+        return c + @as(Vec4i, @splat(1));
     }
 
     const Adjacent = enum(u8) {
@@ -531,7 +531,7 @@ pub const Grid = struct {
     }
 
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
-        var result = @splat(4, @as(f32, 0.0));
+        var result: Vec4f = @splat(0.0);
 
         const position = isec.geo.p;
 
@@ -568,7 +568,7 @@ pub const Grid = struct {
 
                             const bxdf = sample.evaluate(p.wi);
 
-                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                             const k = coneFilter(distance2, inv_radius2);
 
@@ -576,18 +576,18 @@ pub const Grid = struct {
 
                             const bxdf = sample.evaluate(p.wi);
 
-                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         }
                     }
                 }
             }
         }
 
-        return result * @splat(4, self.surface_normalization);
+        return result * @as(Vec4f, @splat(self.surface_normalization));
     }
 
     pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
-        var result = @splat(4, @as(f32, 0.0));
+        var result: Vec4f = @splat(0.0);
 
         const position = isec.geo.p;
 
@@ -636,7 +636,7 @@ pub const Grid = struct {
                 const normalization = @as(f32, @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3)))));
                 const mu_s = scatteringCoefficient(isec, sampler, scene);
 
-                result /= @splat(4, normalization) * mu_s;
+                result /= @as(Vec4f, @splat(normalization)) * mu_s;
             } else {
                 const two_sided = isec.material(scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
@@ -651,7 +651,7 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                         const k = coneFilter(entry.d2, inv_max_radius2);
 
@@ -659,13 +659,13 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }
                 }
 
                 const normalization = @as(f32, @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2)))));
 
-                result /= @splat(4, normalization);
+                result /= @as(Vec4f, @splat(normalization));
             }
         }
 

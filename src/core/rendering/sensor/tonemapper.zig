@@ -18,7 +18,7 @@ pub const Tonemapper = struct {
 
     pub fn tonemap(self: Tonemapper, color: Vec4f) Vec4f {
         const factor = self.exposure_factor;
-        const scaled = @splat(4, factor) * color;
+        const scaled = @as(Vec4f, @splat(factor)) * color;
 
         switch (self.class) {
             .ACES => {

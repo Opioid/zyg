@@ -43,14 +43,14 @@ pub const Sample = union(enum) {
 
     pub fn aovAlbedo(self: *const Sample) Vec4f {
         return switch (self.*) {
-            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @splat(4, s.metallic)),
+            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @splat(s.metallic)),
             inline else => |*s| s.super.albedo,
         };
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         return switch (self.*) {
-            .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),
+            .Light, .Null => bxdf.Result.init(@splat(0.0), 0.0),
             inline else => |*s| s.evaluate(wi),
         };
     }

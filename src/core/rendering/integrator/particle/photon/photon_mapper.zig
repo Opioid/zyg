@@ -13,6 +13,7 @@ const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
+const Vec4f = math.Vec4f;
 const AABB = math.AABB;
 const RNG = base.rnd.Generator;
 
@@ -125,7 +126,7 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&vertex, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
+            if (!worker.nextEvent(&vertex, @splat(1.0), &isec, &self.sampler)) {
                 continue;
             }
 
@@ -135,7 +136,7 @@ pub const Mapper = struct {
 
             var throughput = isec.volume.tr;
 
-            var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @splat(4, light_sample.pdf());
+            var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= throughput;
 
             while (vertex.depth < self.settings.max_bounces) {
@@ -170,7 +171,7 @@ pub const Mapper = struct {
                             if (isec.subsurface() and material_ior > 1.0) {
                                 const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
-                                radi *= @splat(4, eta * eta);
+                                radi *= @as(Vec4f, @splat(eta * eta));
                             }
 
                             self.photons[num_photons] = Photon{
@@ -193,7 +194,7 @@ pub const Mapper = struct {
                         caustic_path = true;
                     }
 
-                    const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
+                    const nr = radiance * sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                     const avg = math.average3(nr) / math.max(math.average3(radiance), 0.000001);
                     const continue_prob = math.min(1.0, avg);
@@ -202,7 +203,7 @@ pub const Mapper = struct {
                         break;
                     }
 
-                    radiance = nr / @splat(4, continue_prob);
+                    radiance = nr / @as(Vec4f, @splat(continue_prob));
                 }
 
                 if (sample_result.class.straight) {
@@ -226,7 +227,7 @@ pub const Mapper = struct {
                 if (sample_result.class.transmission) {
                     const ior = worker.interfaceChangeIor(sample_result.wi, isec, &self.sampler);
                     const eta = ior.eta_i / ior.eta_t;
-                    radiance *= @splat(4, eta * eta);
+                    radiance *= @as(Vec4f, @splat(eta * eta));
                 }
 
                 if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {

@@ -58,10 +58,10 @@ pub const TileQueue = struct {
         start[1] = @divTrunc(current, self.tiles_per_row);
         start[0] = current - start[1] * self.tiles_per_row;
 
-        start *= @splat(2, tile_dimensions);
+        start *= @splat(tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
 
-        var end = @min(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
+        var end = @min(start + @as(Vec2i, @splat(tile_dimensions)), Vec2i{ crop[2], crop[3] });
 
         if (crop[1] == start[1]) {
             start[1] -= filter_radius;
@@ -79,7 +79,7 @@ pub const TileQueue = struct {
             end[0] += filter_radius;
         }
 
-        const back = end - @splat(2, @as(i32, 1));
+        const back = end - @as(Vec2i, @splat(1));
         return Vec4i{ start[0], start[1], back[0], back[1] };
     }
 };

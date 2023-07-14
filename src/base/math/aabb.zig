@@ -19,11 +19,11 @@ pub const AABB = struct {
     }
 
     pub fn position(self: AABB) Vec4f {
-        return @splat(4, @as(f32, 0.5)) * (self.bounds[0] + self.bounds[1]);
+        return @as(Vec4f, @splat(0.5)) * (self.bounds[0] + self.bounds[1]);
     }
 
     pub fn halfsize(self: AABB) Vec4f {
-        return @splat(4, @as(f32, 0.5)) * (self.bounds[1] - self.bounds[0]);
+        return @as(Vec4f, @splat(0.5)) * (self.bounds[1] - self.bounds[0]);
     }
 
     pub fn extent(self: AABB) Vec4f {
@@ -114,13 +114,13 @@ pub const AABB = struct {
     }
 
     pub fn scale(self: *AABB, s: f32) void {
-        const v = @splat(4, s) * self.halfsize();
+        const v = @as(Vec4f, @splat(s)) * self.halfsize();
         self.bounds[0] -= v;
         self.bounds[1] += v;
     }
 
     pub fn add(self: *AABB, s: f32) void {
-        const v = @splat(4, s);
+        const v: Vec4f = @splat(s);
         self.bounds[0] -= v;
         self.bounds[1] += v;
     }
@@ -141,16 +141,16 @@ pub const AABB = struct {
 
     pub fn transform(self: AABB, m: Mat4x4) AABB {
         const mx = m.r[0];
-        const xa = mx * @splat(4, self.bounds[0][0]);
-        const xb = mx * @splat(4, self.bounds[1][0]);
+        const xa = mx * @as(Vec4f, @splat(self.bounds[0][0]));
+        const xb = mx * @as(Vec4f, @splat(self.bounds[1][0]));
 
         const my = m.r[1];
-        const ya = my * @splat(4, self.bounds[0][1]);
-        const yb = my * @splat(4, self.bounds[1][1]);
+        const ya = my * @as(Vec4f, @splat(self.bounds[0][1]));
+        const yb = my * @as(Vec4f, @splat(self.bounds[1][1]));
 
         const mz = m.r[2];
-        const za = mz * @splat(4, self.bounds[0][2]);
-        const zb = mz * @splat(4, self.bounds[1][2]);
+        const za = mz * @as(Vec4f, @splat(self.bounds[0][2]));
+        const zb = mz * @as(Vec4f, @splat(self.bounds[1][2]));
 
         const mw = m.r[3];
 
@@ -162,21 +162,21 @@ pub const AABB = struct {
 
     pub fn transformTransposed(self: AABB, m: Mat3x3) AABB {
         const mx = Vec4f{ m.r[0][0], m.r[1][0], m.r[2][0], 0.0 };
-        const xa = @splat(4, self.bounds[0][0]) * mx;
-        const xb = @splat(4, self.bounds[1][0]) * mx;
+        const xa = @as(Vec4f, @splat(self.bounds[0][0])) * mx;
+        const xb = @as(Vec4f, @splat(self.bounds[1][0])) * mx;
 
         const my = Vec4f{ m.r[0][1], m.r[1][1], m.r[2][1], 0.0 };
-        const ya = @splat(4, self.bounds[0][1]) * my;
-        const yb = @splat(4, self.bounds[1][1]) * my;
+        const ya = @as(Vec4f, @splat(self.bounds[0][1])) * my;
+        const yb = @as(Vec4f, @splat(self.bounds[1][1])) * my;
 
         const mz = Vec4f{ m.r[0][2], m.r[1][2], m.r[2][2], 0.0 };
-        const za = @splat(4, self.bounds[0][2]) * mz;
-        const zb = @splat(4, self.bounds[1][2]) * mz;
+        const za = @as(Vec4f, @splat(self.bounds[0][2])) * mz;
+        const zb = @as(Vec4f, @splat(self.bounds[1][2])) * mz;
 
         const min = math.min4(xa, xb) + math.min4(ya, yb) + math.min4(za, zb);
         const max = math.max4(xa, xb) + math.max4(ya, yb) + math.max4(za, zb);
 
-        const half = @splat(4, @as(f32, 0.5)) * (max - min);
+        const half = @as(Vec4f, @splat(0.5)) * (max - min);
 
         const p = self.position();
 
@@ -213,4 +213,4 @@ pub const AABB = struct {
     }
 };
 
-pub const Empty = AABB.init(@splat(4, @as(f32, std.math.floatMax(f32))), @splat(4, @as(f32, -std.math.floatMax(f32))));
+pub const Empty = AABB.init(@splat(std.math.floatMax(f32)), @splat(-std.math.floatMax(f32)));

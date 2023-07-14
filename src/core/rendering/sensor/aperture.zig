@@ -45,10 +45,10 @@ pub const Aperture = struct {
 
     pub fn sample(self: Aperture, uv: Vec2f) Vec2f {
         const s = if (self.distribution.marginal.size > 0)
-            @splat(2, @as(f32, 2.0)) * self.distribution.sampleContinuous(uv).uv - @splat(2, @as(f32, 1.0))
+            @as(Vec2f, @splat(2.0)) * self.distribution.sampleContinuous(uv).uv - @as(Vec2f, @splat(1.0))
         else
             math.smpl.diskConcentric(uv);
 
-        return s * @splat(2, self.radius);
+        return s * @as(Vec2f, @splat(self.radius));
     }
 };

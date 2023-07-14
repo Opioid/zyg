@@ -28,9 +28,9 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var throughput = @splat(4, @as(f32, 1.0));
-        var old_throughput = @splat(4, @as(f32, 1.0));
-        var result = @splat(4, @as(f32, 0.0));
+        var throughput: Vec4f = @splat(1.0);
+        var old_throughput: Vec4f = @splat(1.0);
+        var result: Vec4f = @splat(0.0);
 
         var isec = Intersection{};
 
@@ -46,13 +46,13 @@ pub const Pathtracer = struct {
             const wo = -vertex.ray.direction;
 
             var pure_emissive: bool = undefined;
-            const energy = isec.evaluateRadiance(
+            const energy: Vec4f = isec.evaluateRadiance(
                 vertex.ray.origin,
                 wo,
                 sampler,
                 worker.scene,
                 &pure_emissive,
-            ) orelse @splat(4, @as(f32, 0.0));
+            ) orelse @splat(0.0);
 
             result += throughput * energy;
 
@@ -100,7 +100,7 @@ pub const Pathtracer = struct {
             }
 
             old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
                 vertex.depth += 1;

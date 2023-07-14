@@ -24,7 +24,7 @@ pub fn Filtered(comptime T: type) type {
 
         aov: AovBuffer = .{},
 
-        dimensions: Vec2i = @splat(2, @as(i32, 0)),
+        dimensions: Vec2i = @splat(0),
 
         clamp_max: f32,
 
@@ -421,7 +421,7 @@ pub fn Filtered(comptime T: type) type {
 
             if (mc > max) {
                 const r = max / mc;
-                const s = @splat(4, r) * color;
+                const s = @as(Vec4f, @splat(r)) * color;
                 return .{ s[0], s[1], s[2], color[3] };
             }
 

@@ -10,7 +10,7 @@ pub const Result = struct {
     }
 
     pub fn empty() Result {
-        return .{ .reflection = @splat(4, @as(f32, 0.0)) };
+        return .{ .reflection = @splat(0.0) };
     }
 
     pub fn pdf(self: Result) f32 {

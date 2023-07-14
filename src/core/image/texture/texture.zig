@@ -81,7 +81,7 @@ pub const Texture = struct {
             .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
             .Byte2_snorm => enc.cachedSnormToFloat2(image.Byte2.get2D(x, y)),
             .Float2 => image.Float2.get2D(x, y),
-            else => @splat(2, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -110,7 +110,7 @@ pub const Texture = struct {
                 const value = image.Float3.get2D(x, y);
                 return .{ value.v[0], value.v[1], value.v[2], 0.0 };
             },
-            else => @splat(4, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -177,7 +177,7 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Float2 => image.Float2.get3D(x, y, z),
-            else => @splat(2.0, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -186,7 +186,7 @@ pub const Texture = struct {
     }
 
     pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
-        var average = @splat(4, @as(f32, 0.0));
+        var average: Vec4f = @splat(0.0);
 
         const d = self.description(scene).dimensions;
         var y: i32 = 0;
@@ -198,6 +198,6 @@ pub const Texture = struct {
         }
 
         const area = @as(f32, @floatFromInt(d[0])) * @as(f32, @floatFromInt(d[1]));
-        return average / @splat(4, area);
+        return average / @as(Vec4f, @splat(area));
     }
 };

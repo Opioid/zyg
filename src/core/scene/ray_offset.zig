@@ -12,7 +12,7 @@ const float_scale: f32 = 1.0 / 65536.0;
 const int_scale: f32 = 256.0;
 
 pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
-    const of_i = math.vec4fTo4i(@splat(4, int_scale) * Vec4f{ n[0], n[1], n[2], 0.0 });
+    const of_i = math.vec4fTo4i(@as(Vec4f, @splat(int_scale)) * Vec4f{ n[0], n[1], n[2], 0.0 });
 
     const p_i0 = @as(f32, @bitCast(@as(i32, @bitCast(p[0])) + (if (p[0] < 0.0) -of_i[0] else of_i[0])));
     const p_i1 = @as(f32, @bitCast(@as(i32, @bitCast(p[1])) + (if (p[1] < 0.0) -of_i[1] else of_i[1])));

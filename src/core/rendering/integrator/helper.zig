@@ -19,7 +19,7 @@ pub inline fn attenuation1(c: f32, distance: f32) f32 {
 }
 
 pub inline fn attenuation3(c: Vec4f, distance: f32) Vec4f {
-    return @exp(@splat(4, -distance) * c);
+    return @exp(@as(Vec4f, @splat(-distance)) * c);
 }
 
 pub inline fn composeAlpha(radiance: Vec4f, throughput: Vec4f, transparent: bool) Vec4f {
@@ -45,7 +45,7 @@ pub inline fn russianRoulette(new_throughput: *Vec4f, old_throughput: Vec4f, r: 
         return true;
     }
 
-    new_throughput.* /= @splat(4, continuation_probability);
+    new_throughput.* /= @as(Vec4f, @splat(continuation_probability));
 
     return false;
 }

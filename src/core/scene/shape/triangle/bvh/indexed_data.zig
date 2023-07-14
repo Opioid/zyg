@@ -116,20 +116,20 @@ pub const Indexed_data = struct {
         const tna = quaternion.toTN(self.frames[tri.a]);
         const uva = self.uvs[tri.a];
 
-        const tua = @shuffle(f32, tna[0], @splat(4, uva[0]), [_]i32{ 0, 1, 2, -1 });
-        const nva = @shuffle(f32, tna[1], @splat(4, uva[1]), [_]i32{ 0, 1, 2, -1 });
+        const tua = @shuffle(f32, tna[0], @as(Vec4f, @splat(uva[0])), [_]i32{ 0, 1, 2, -1 });
+        const nva = @shuffle(f32, tna[1], @as(Vec4f, @splat(uva[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tnb = quaternion.toTN(self.frames[tri.b]);
         const uvb = self.uvs[tri.b];
 
-        const tub = @shuffle(f32, tnb[0], @splat(4, uvb[0]), [_]i32{ 0, 1, 2, -1 });
-        const nvb = @shuffle(f32, tnb[1], @splat(4, uvb[1]), [_]i32{ 0, 1, 2, -1 });
+        const tub = @shuffle(f32, tnb[0], @as(Vec4f, @splat(uvb[0])), [_]i32{ 0, 1, 2, -1 });
+        const nvb = @shuffle(f32, tnb[1], @as(Vec4f, @splat(uvb[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tnc = quaternion.toTN(self.frames[tri.c]);
         const uvc = self.uvs[tri.c];
 
-        const tuc = @shuffle(f32, tnc[0], @splat(4, uvc[0]), [_]i32{ 0, 1, 2, -1 });
-        const nvc = @shuffle(f32, tnc[1], @splat(4, uvc[1]), [_]i32{ 0, 1, 2, -1 });
+        const tuc = @shuffle(f32, tnc[0], @as(Vec4f, @splat(uvc[0])), [_]i32{ 0, 1, 2, -1 });
+        const nvc = @shuffle(f32, tnc[1], @as(Vec4f, @splat(uvc[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tu = triangle.interpolate3(tua, tub, tuc, u, v);
         const nv = triangle.interpolate3(nva, nvb, nvc, u, v);

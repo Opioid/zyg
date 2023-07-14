@@ -60,6 +60,6 @@ pub const Plane = struct {
             return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene);
         }
 
-        return @splat(4, @as(f32, 1.0));
+        return @splat(1.0);
     }
 };

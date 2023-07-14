@@ -46,6 +46,6 @@ const Clamp = struct {
 
     pub fn coord3(c: Vec4i, end: Vec4i) Vec4i {
         const max = end - Vec4i{ 1, 1, 1, 0 };
-        return @max(@min(c, max), @splat(4, @as(i32, 0)));
+        return @max(@min(c, max), @as(Vec4i, @splat(0)));
     }
 };

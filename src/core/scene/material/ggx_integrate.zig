@@ -29,7 +29,7 @@ fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
     const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlick with f0 == 1.0 always evaluates to 1.0
-    const schlick = fresnel.Schlick.init(@splat(4, @as(f32, 1.0)));
+    const schlick = fresnel.Schlick.init(@splat(1.0));
     const frame = Frame{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
@@ -89,7 +89,7 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
     const calpha = std.math.max(alpha, ggx.Min_alpha);
 
     // Schlickk with f0 == 1.0 always evaluates to 1.0
-    const schlick = fresnel.Schlick.init(@splat(4, f0));
+    const schlick = fresnel.Schlick.init(@splat(f0));
     const frame = Frame{
         .t = .{ 1.0, 0.0, 0.0, 0.0 },
         .b = .{ 0.0, 1.0, 0.0, 0.0 },
@@ -157,7 +157,7 @@ fn integrate_f_s_ss(alpha: f32, f0: f32, ior_t: f32, n_dot_wo: f32, num_samples:
         const xi = math.hammersley(i, num_samples, 0);
 
         var n_dot_h: f32 = undefined;
-        const h = ggx.Aniso.sample(wo, @splat(2, alpha), xi, frame, &n_dot_h);
+        const h = ggx.Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
         const eta = ior.eta_i / ior.eta_t;

@@ -18,6 +18,7 @@ const json = base.json;
 const string = base.string;
 const math = base.math;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
 const Transformation = math.Transformation;
 
 const std = @import("std");
@@ -127,8 +128,8 @@ pub const Loader = struct {
         const parent_id: u32 = Prop.Null;
 
         const parent_trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = @splat(4, @as(f32, 1.0)),
+            .position = @splat(0.0),
+            .scale = @splat(1.0),
             .rotation = math.quaternion.identity,
         };
 
@@ -242,8 +243,8 @@ pub const Loader = struct {
             }
 
             var trafo = Transformation{
-                .position = @splat(4, @as(f32, 0.0)),
-                .scale = @splat(4, @as(f32, 1.0)),
+                .position = @splat(0.0),
+                .scale = @splat(1.0),
                 .rotation = math.quaternion.identity,
             };
 
@@ -268,15 +269,15 @@ pub const Loader = struct {
                 const material = scene.propMaterial(entity_id, 0);
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
-                        const voxel_scale = @splat(4, trafo.scale[0]);
+                        const voxel_scale: Vec4f = @splat(trafo.scale[0]);
                         const dimensions = t.description(scene).dimensions;
-                        var offset = @splat(4, @as(i32, 0));
+                        var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.image)) |meta| {
-                            offset = meta.queryOrDef("offset", @splat(4, @as(i32, 0)));
+                            offset = meta.queryOrDef("offset", @splat(0));
                         }
 
-                        trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
+                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
                         trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(offset);
                     }
                 }
