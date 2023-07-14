@@ -107,7 +107,7 @@ pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Ve
 
 pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
     const cos_theta = (1.0 - uv[0]) + (uv[0] * cos_theta_max);
-    const sin_theta = @sqrt(1.0 - cos_theta * cos_theta);
+    const sin_theta = @sqrt(mima.max(0.0, 1.0 - cos_theta * cos_theta));
 
     const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
@@ -123,7 +123,7 @@ pub fn orientedConeCosine(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: 
     return @as(Vec4f, @splat(xy[0])) * x + @as(Vec4f, @splat(xy[1])) * y + @as(Vec4f, @splat(za)) * z;
 }
 
-pub const Eps: f32 = 1.0e-20;
+const Eps: f32 = 1.0e-20;
 
 pub fn conePdfUniform(cos_theta_max: f32) f32 {
     return 1.0 / ((2.0 * std.math.pi) * mima.max(1.0 - cos_theta_max, Eps));
