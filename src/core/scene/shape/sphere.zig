@@ -227,7 +227,7 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, math.smpl.Eps));
+        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, 0.0));
 
         const z = @splat(4, @sqrt(1.0 / l2)) * v;
         const xy = math.orthonormalBasis3(z);
@@ -319,7 +319,7 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, math.smpl.Eps));
+        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, 0.0));
 
         return math.smpl.conePdfUniform(cos_theta_max);
     }
