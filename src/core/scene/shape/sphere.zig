@@ -227,7 +227,13 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, 0.0));
+        const sin2_theta_max = r2 / l2;
+
+        // Small angles approximation from PBRT
+        const cos_theta_max = if (sin2_theta_max < 0.00068523)
+            1.0 - 0.5 * sin2_theta_max
+        else
+            @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
         const z = @splat(4, @sqrt(1.0 / l2)) * v;
         const xy = math.orthonormalBasis3(z);
@@ -319,7 +325,11 @@ pub const Sphere = struct {
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
-        const cos_theta_max = @sqrt(math.max(1.0 - r2 / l2, 0.0));
+        const sin2_theta_max = r2 / l2;
+        const cos_theta_max = if (sin2_theta_max < 0.00068523)
+            1.0 - 0.5 * sin2_theta_max
+        else
+            @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
         return math.smpl.conePdfUniform(cos_theta_max);
     }
