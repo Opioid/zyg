@@ -70,7 +70,7 @@ pub const Animation = struct {
                     const range = b_time - a_time;
                     const delta = time - a_time;
 
-                    const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, range));
+                    const t = @as(f32, @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(range))));
 
                     // interpolated_frames[i] = f1.lerp(f2, t);
                     interpolated_frames[i] = interpolate(f0, f1, f2, f3, t);
@@ -128,7 +128,7 @@ fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Ve
 fn interpolate(f0: Transformation, f1: Transformation, f2: Transformation, f3: Transformation, t: f32) Transformation {
     return .{
         .position = catmullRom(f0.position, f1.position, f2.position, f3.position, t, 0.5),
-        .scale = math.lerp(f1.scale, f2.scale, t),
+        .scale = math.lerp(f1.scale, f2.scale, @splat(4, t)),
         .rotation = math.quaternion.slerp(f1.rotation, f2.rotation, t),
     };
 }

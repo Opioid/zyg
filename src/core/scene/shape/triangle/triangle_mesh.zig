@@ -12,8 +12,10 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Tree = @import("bvh/triangle_tree.zig").Tree;
+const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
+const LightProperties = @import("../../light/light.zig").Properties;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -69,8 +71,8 @@ pub const Part = struct {
     area: f32 = undefined,
 
     triangle_mapping: [*]u32 = undefined,
-    aabbs: [*]AABB = undefined,
-    cones: [*]Vec4f = undefined,
+
+    tree: *const Tree = undefined,
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
@@ -82,8 +84,6 @@ pub const Part = struct {
         self.variants.deinit(alloc);
 
         const num = self.num_alloc;
-        alloc.free(self.cones[0..num]);
-        alloc.free(self.aabbs[0..num]);
         alloc.free(self.triangle_mapping[0..num]);
     }
 
@@ -102,8 +102,6 @@ pub const Part = struct {
 
         if (0 == self.num_alloc) {
             const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
-            const aabbs = (try alloc.alloc(AABB, num)).ptr;
-            const cones = (try alloc.alloc(Vec4f, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
@@ -111,29 +109,13 @@ pub const Part = struct {
             while (t < len) : (t += 1) {
                 if (tree.data.part(t) == part) {
                     triangle_mapping[mt] = t;
-
-                    const vabc = tree.data.triangleP(t);
-
-                    var box = math.aabb.Empty;
-                    box.insert(vabc[0]);
-                    box.insert(vabc[1]);
-                    box.insert(vabc[2]);
-                    box.cacheRadius();
-                    box.bounds[1][3] = tree.data.area(t);
-
-                    aabbs[mt] = box;
-
-                    const n = tree.data.normal(t);
-                    cones[mt] = Vec4f{ n[0], n[1], n[2], 1.0 };
-
                     mt += 1;
                 }
             }
 
             self.num_alloc = num;
             self.triangle_mapping = triangle_mapping;
-            self.aabbs = aabbs;
-            self.cones = cones;
+            self.tree = tree;
         }
 
         const m = scene.material(material);
@@ -143,7 +125,7 @@ pub const Part = struct {
 
         for (self.variants.items, 0..) |v, i| {
             if (v.matches(material, emission_map, two_sided, scene)) {
-                return @intCast(u32, i);
+                return @intCast(i);
             }
         }
 
@@ -157,7 +139,7 @@ pub const Part = struct {
             .scene = scene,
             .prop_id = prop,
             .part_id = part,
-            .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
+            .estimate_area = @as(f32, @floatFromInt(dimensions[0] * dimensions[1])) / 4.0,
         };
         defer {
             alloc.free(context.powers);
@@ -176,12 +158,13 @@ pub const Part = struct {
         const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
 
         var angle: f32 = 0.0;
-        for (self.cones[0..self.num_alloc]) |n| {
+        for (self.triangle_mapping[0..self.num_alloc]) |t| {
+            const n = self.tree.data.normal(t);
             const c = math.dot3(da, n);
-            angle = std.math.max(angle, std.math.acos(c));
+            angle = math.max(angle, std.math.acos(c));
         }
 
-        const v = @intCast(u32, self.variants.items.len);
+        const v = @as(u32, @intCast(self.variants.items.len));
 
         try self.variants.append(alloc, .{
             .aabb = temp.bb,
@@ -209,11 +192,15 @@ pub const Part = struct {
     }
 
     pub fn lightAabb(self: Part, light: u32) AABB {
-        return self.aabbs[light];
+        const global = self.triangle_mapping[light];
+        const abc = self.tree.data.triangleP(global);
+        return AABB.init(tri.min(abc[0], abc[1], abc[2]), tri.max(abc[0], abc[1], abc[2]));
     }
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
-        return self.cones[light];
+        const global = self.triangle_mapping[light];
+        const n = self.tree.data.normal(global);
+        return .{ n[0], n[1], n[2], 1.0 };
     }
 
     pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
@@ -224,7 +211,36 @@ pub const Part = struct {
     pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
         // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
-        return dist.pdfI(light); // * dist.integral;
+        return dist.pdfI(light);
+    }
+
+    pub fn lightProperties(self: Part, light: u32, variant: u32) LightProperties {
+        const global = self.triangle_mapping[light];
+
+        const abc = self.tree.data.triangleP(global);
+
+        const center = (abc[0] + abc[1] + abc[2]) / @splat(4, @as(f32, 3.0));
+
+        const sra = math.squaredLength3(abc[0] - center);
+        const srb = math.squaredLength3(abc[1] - center);
+        const src = math.squaredLength3(abc[2] - center);
+
+        const radius = @sqrt(math.max(sra, math.max(srb, src)));
+
+        const e1 = abc[1] - abc[0];
+        const e2 = abc[2] - abc[0];
+        const n = math.normalize3(math.cross3(e1, e2));
+
+        // I think it is fine to just give the primitives relative power in this case
+        const dist = self.variants.items[variant].distribution;
+        const pow = dist.pdfI(light);
+
+        return .{
+            .sphere = .{ center[0], center[1], center[2], radius },
+            .cone = .{ n[0], n[1], n[2], 1.0 },
+            .power = pow,
+            .two_sided = self.variants.items[variant].two_sided,
+        };
     }
 
     const Temp = struct {
@@ -253,7 +269,7 @@ pub const Part = struct {
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @ptrCast(*Context, context);
+            const self = @as(*Context, @ptrCast(context));
 
             const emission_map = self.m.emissionMapped();
 
@@ -272,7 +288,7 @@ pub const Part = struct {
 
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+                    const num_samples = @max(@as(u32, @intFromFloat(@round(uv_area * self.estimate_area + 0.5))), 1);
 
                     var radiance = @splat(4, @as(f32, 0.0));
 
@@ -302,9 +318,9 @@ pub const Part = struct {
                 self.powers[i] = pow;
 
                 if (pow > 0.0) {
-                    const n = self.part.cones[i];
+                    const n = self.tree.data.normal(t);
                     temp.dominant_axis += @splat(4, pow) * n;
-                    temp.bb.mergeAssign(self.part.aabbs[i]);
+                    temp.bb.mergeAssign(self.part.lightAabb(@as(u32, @intCast(i))));
                     temp.total_power += pow;
                 }
             }
@@ -319,10 +335,6 @@ pub const Part = struct {
             return 0.5 * @fabs(x[0] * y[1] - x[1] * y[0]);
         }
     };
-
-    pub inline fn primitiveArea(self: Part, id: u32, scale: Vec4f) f32 {
-        return self.aabbs[id].bounds[1][3] * (scale[0] * scale[1]);
-    }
 
     pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
         // _ = p;
@@ -531,7 +543,10 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
-        const sn = part.lightCone(s.offset);
+
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
+        const lca = math.length3(ca);
+        const sn = ca / @splat(4, lca);
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
@@ -548,7 +563,7 @@ pub const Mesh = struct {
             return null;
         }
 
-        const tri_area = part.primitiveArea(s.offset, trafo.scale());
+        const tri_area = 0.5 * lca;
 
         return SampleTo.init(
             dir,
@@ -581,7 +596,10 @@ pub const Mesh = struct {
         var tc: Vec2f = undefined;
         self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
-        const sn = part.lightCone(s.offset);
+
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
+        const lca = math.length3(ca);
+        const sn = ca / @splat(4, lca);
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
@@ -592,7 +610,9 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
-        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * part.primitiveArea(s.offset, trafo.scale());
+        const tri_area = 0.5 * lca;
+
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * tri_area;
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -630,7 +650,9 @@ pub const Mesh = struct {
 
         const part = self.parts[part_id];
         const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
-        const tri_area = part.primitiveArea(pm, isec.trafo.scale());
+
+        const ca = (isec.trafo.scale() * isec.trafo.scale()) * self.tree.data.crossAxis(isec.primitive);
+        const tri_area = 0.5 * math.length3(ca);
 
         return (sl * tri_pdf) / (c * tri_area);
     }

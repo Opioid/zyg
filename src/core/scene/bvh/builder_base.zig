@@ -47,7 +47,7 @@ const Kernel = struct {
         return Kernel{
             .split_candidates = try std.ArrayListUnmanaged(SplitCandidate).initCapacity(
                 alloc,
-                3 + std.math.max(3 * sweep_threshold, 3 * 2 * num_slices),
+                3 + @max(3 * sweep_threshold, 3 * 2 * num_slices),
             ),
         };
     }
@@ -72,7 +72,7 @@ const Kernel = struct {
         var node = &self.build_nodes.items[node_id];
         node.setAABB(aabb);
 
-        const num_primitives = @intCast(u32, references.len);
+        const num_primitives = @as(u32, @intCast(references.len));
         if (num_primitives <= settings.max_primitives) {
             try self.assign(alloc, node, references);
             alloc.free(references);
@@ -95,7 +95,7 @@ const Kernel = struct {
 
             const spo = self.splittingPlane(references, aabb, depth, settings, threads);
             if (spo) |sp| {
-                if (num_primitives <= 0xFF and @intToFloat(f32, num_primitives) <= sp.cost) {
+                if (num_primitives <= 0xFF and @as(f32, @floatFromInt(num_primitives)) <= sp.cost) {
                     try self.assign(alloc, node, references);
                 } else {
                     var references0: References = undefined;
@@ -107,7 +107,7 @@ const Kernel = struct {
                         // It means every triangle was (partially) on the same side of the plane.
                         try self.assign(alloc, node, references);
                     } else {
-                        const child0 = @intCast(u32, self.build_nodes.items.len);
+                        const child0 = @as(u32, @intCast(self.build_nodes.items.len));
 
                         node.setSplitNode(child0);
 
@@ -143,7 +143,7 @@ const Kernel = struct {
 
         self.split_candidates.clearRetainingCapacity();
 
-        const num_references = @intCast(u32, references.len);
+        const num_references = @as(u32, @intCast(references.len));
 
         const position = aabb.position();
 
@@ -163,17 +163,17 @@ const Kernel = struct {
             const min = aabb.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @intToFloat(f32, settings.num_slices);
+            const step = extent[la] / @as(f32, @floatFromInt(settings.num_slices));
 
             const ax = [_]u8{ 0, 1, 2 };
             for (ax) |a| {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @intToFloat(f32, num_steps);
+                const num_steps = @as(u32, @intFromFloat(@ceil(extent_a / step)));
+                const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @intToFloat(f32, i);
+                    const fi = @as(f32, @floatFromInt(i));
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
@@ -196,7 +196,7 @@ const Kernel = struct {
             self.aabb_surface_area = aabb_surface_area;
             self.references = references;
 
-            _ = threads.runRange(self, evaluateRange, 0, @intCast(u32, self.split_candidates.items.len), 0);
+            _ = threads.runRange(self, evaluateRange, 0, @as(u32, @intCast(self.split_candidates.items.len)), 0);
         }
 
         var sc: usize = 0;
@@ -224,7 +224,7 @@ const Kernel = struct {
     fn evaluateRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @ptrCast(*Kernel, context);
+        const self = @as(*Kernel, @ptrCast(context));
 
         const aabb_surface_area = self.aabb_surface_area;
         const references = self.references;
@@ -235,9 +235,9 @@ const Kernel = struct {
     }
 
     pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
-        const num_references = @intCast(u32, references.len);
+        const num_references = @as(u32, @intCast(references.len));
 
-        node.setLeafNode(@intCast(u32, self.reference_ids.items.len), num_references);
+        node.setLeafNode(@as(u32, @intCast(self.reference_ids.items.len)), num_references);
 
         for (references) |r| {
             try self.reference_ids.append(alloc, r.primitive());
@@ -247,7 +247,7 @@ const Kernel = struct {
     pub fn reserve(self: *Kernel, alloc: Allocator, num_primitives: u32, settings: Settings) !void {
         try self.build_nodes.ensureTotalCapacity(
             alloc,
-            std.math.max((3 * num_primitives) / settings.max_primitives, 1),
+            @max((3 * num_primitives) / settings.max_primitives, 1),
         );
         self.build_nodes.clearRetainingCapacity();
         try self.build_nodes.append(alloc, .{});
@@ -290,11 +290,11 @@ pub const Base = struct {
     }
 
     pub fn numReferenceIds(self: *const Base) u32 {
-        return @intCast(u32, self.kernel.reference_ids.items.len);
+        return @as(u32, @intCast(self.kernel.reference_ids.items.len));
     }
 
     pub fn numBuildNodes(self: *const Base) u32 {
-        return @intCast(u32, self.kernel.build_nodes.items.len);
+        return @as(u32, @intCast(self.kernel.build_nodes.items.len));
     }
 
     pub fn split(
@@ -304,14 +304,14 @@ pub const Base = struct {
         aabb: AABB,
         threads: *Threads,
     ) !void {
-        const log2_num_references = std.math.log2(@intToFloat(f32, references.len));
-        self.settings.spatial_split_threshold = @floatToInt(u32, @round(log2_num_references / 2.0));
+        const log2_num_references = std.math.log2(@as(f32, @floatFromInt(references.len)));
+        self.settings.spatial_split_threshold = @intFromFloat(@round(log2_num_references / 2.0));
 
-        self.settings.parallel_build_depth = std.math.min(self.settings.spatial_split_threshold, 6);
+        self.settings.parallel_build_depth = @min(self.settings.spatial_split_threshold, 6);
 
-        const num_tasks = std.math.min(
+        const num_tasks = @min(
             try std.math.powi(u32, 2, self.settings.parallel_build_depth),
-            @intCast(u32, references.len / Parallelize_threshold),
+            @as(u32, @intCast(references.len / Parallelize_threshold)),
         );
 
         var tasks: Tasks = if (num_tasks > 0) try Tasks.initCapacity(alloc, num_tasks) else .{};
@@ -335,7 +335,7 @@ pub const Base = struct {
         self.alloc = alloc;
         self.threads = threads;
         self.tasks = tasks;
-        threads.runParallel(self, workOnTasksParallel, @intCast(u32, tasks.items.len));
+        threads.runParallel(self, workOnTasksParallel, @intCast(tasks.items.len));
 
         for (tasks.items) |t| {
             const children = t.kernel.build_nodes.items;
@@ -348,8 +348,8 @@ pub const Base = struct {
                 continue;
             }
 
-            const node_offset = @intCast(u32, self.kernel.build_nodes.items.len - 1);
-            const reference_offset = @intCast(u32, self.kernel.reference_ids.items.len);
+            const node_offset = @as(u32, @intCast(self.kernel.build_nodes.items.len - 1));
+            const reference_offset = @as(u32, @intCast(self.kernel.reference_ids.items.len));
 
             try self.kernel.reference_ids.appendSlice(alloc, t.kernel.reference_ids.items);
 
@@ -367,9 +367,9 @@ pub const Base = struct {
     fn workOnTasksParallel(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @ptrCast(*Base, context);
+        const self = @as(*Base, @ptrCast(context));
 
-        const num_tasks = @intCast(u32, self.tasks.items.len);
+        const num_tasks = @as(u32, @intCast(self.tasks.items.len));
 
         while (true) {
             const current = @atomicRmw(u32, &self.current_task, .Add, 1, .Monotonic);
@@ -379,7 +379,7 @@ pub const Base = struct {
             }
 
             var t = &self.tasks.items[current];
-            t.kernel.reserve(self.alloc, @intCast(u32, t.references.len), self.settings) catch {};
+            t.kernel.reserve(self.alloc, @intCast(t.references.len), self.settings) catch {};
             t.kernel.split(self.alloc, 0, t.references, t.aabb, t.depth, self.settings, self.threads, self.tasks) catch {};
         }
     }

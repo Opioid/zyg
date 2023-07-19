@@ -124,7 +124,7 @@ pub const Material = struct {
         const N = 1.5396 / (size * size);
         const K = 4.0;
 
-        self.flakes_res = std.math.max(4.0, @ceil(@sqrt(N / K)));
+        self.flakes_res = math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
@@ -270,15 +270,15 @@ pub const Material = struct {
     }
 
     fn flakesA2cone(alpha: f32) f32 {
-        comptime var target_angle = math.solidAngleCone(@cos(math.degreesToRadians(7.0)));
+        comptime var target_angle = math.solidAngleOfCone(@cos(math.degreesToRadians(7.0)));
         comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
 
-        return std.math.min(limit, 0.5 * alpha);
+        return math.min(limit, 0.5 * alpha);
     }
 
     fn gridCell(uv: Vec2f, res: f32) Vec2i {
-        const i: i32 = @floatToInt(i32, res * @mod(uv[0], 1.0));
-        const j: i32 = @floatToInt(i32, res * @mod(uv[1], 1.0));
+        const i: i32 = @intFromFloat(res * @mod(uv[0], 1.0));
+        const j: i32 = @intFromFloat(res * @mod(uv[1], 1.0));
         return .{ i, j };
     }
 
@@ -286,7 +286,7 @@ pub const Material = struct {
         const ij = gridCell(uv, res);
         const suv = @splat(2, res) * uv;
 
-        var nearest_d: f32 = std.math.f32_max;
+        var nearest_d: f32 = std.math.floatMax(f32);
         var nearest_r: f32 = undefined;
         var nearest_xi: Vec2f = undefined;
 
@@ -294,7 +294,7 @@ pub const Material = struct {
         while (ii <= ij[0] + 1) : (ii += 1) {
             var jj = ij[1] - 1;
             while (jj <= ij[1] + 1) : (jj += 1) {
-                const fij = Vec2f{ @intToFloat(f32, ii), @intToFloat(f32, jj) };
+                const fij = Vec2f{ @floatFromInt(ii), @floatFromInt(jj) };
 
                 var rng = base.rnd.SingleGenerator.init(fuse(ii, jj));
 
@@ -318,7 +318,7 @@ pub const Material = struct {
     }
 
     fn fuse(a: i32, b: i32) u64 {
-        return (@as(u64, @bitCast(u32, a)) << 32) | @as(u64, @bitCast(u32, b));
+        return (@as(u64, @as(u32, @bitCast(a))) << 32) | @as(u64, @as(u32, @bitCast(b)));
     }
 
     pub fn evaluateRadiance(
@@ -384,7 +384,7 @@ pub const Material = struct {
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp(self.color, self.checkers, t);
+        return math.lerp(self.color, self.checkers, @splat(4, t));
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {

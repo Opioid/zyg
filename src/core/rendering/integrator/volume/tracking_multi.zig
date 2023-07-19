@@ -1,5 +1,5 @@
 const tracking = @import("tracking.zig");
-const Ray = @import("../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
@@ -130,7 +130,7 @@ pub const Multi = struct {
     }
 
     pub fn integrate(
-        ray: *Ray,
+        vertex: *Vertex,
         throughput: Vec4f,
         isec: *Intersection,
         sampler: *Sampler,
@@ -140,27 +140,27 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.intersectProp(isec.prop, ray, .Normal, &isec.geo)) {
+            if (!worker.intersectProp(isec.prop, vertex, .Normal, &isec.geo)) {
                 return false;
             }
         } else {
-            const ray_max_t = ray.ray.maxT();
-            const limit = worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t;
-            ray.ray.setMaxT(std.math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(ray, sampler, isec)) {
-                ray.ray.setMinMaxT(ray.ray.maxT(), ray_max_t);
+            const ray_max_t = vertex.ray.maxT();
+            const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.ray) orelse ray_max_t;
+            vertex.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
+            if (!worker.intersectAndResolveMask(vertex, sampler, isec)) {
+                vertex.ray.setMinMaxT(vertex.ray.maxT(), ray_max_t);
                 return false;
             }
 
             // This test is intended to catch corner cases where we actually left the scattering medium,
             // but the intersection point was too close to detect.
             var missed = false;
-            if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
-                const v = -ray.ray.direction;
+            if (!interface.matches(isec.*) or !isec.sameHemisphere(vertex.ray.direction)) {
+                const v = -vertex.ray.direction;
 
-                var tray = Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
+                var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
                 var nisec = shp.Intersection{};
-                if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
+                if (worker.intersectProp(interface.prop, &tvertex, .Normal, &nisec)) {
                     missed = math.dot3(nisec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
@@ -168,15 +168,15 @@ pub const Multi = struct {
             }
 
             if (missed) {
-                ray.ray.setMinMaxT(std.math.min(ro.offsetF(ray.ray.maxT()), ray_max_t), ray_max_t);
+                vertex.ray.setMinMaxT(math.min(ro.offsetF(vertex.ray.maxT()), ray_max_t), ray_max_t);
                 return false;
             }
         }
 
         const tray = if (material.heterogeneousVolume())
-            worker.scene.propTransformationAt(interface.prop, ray.time).worldToObjectRay(ray.ray)
+            worker.scene.propTransformationAt(interface.prop, vertex.time).worldToObjectRay(vertex.ray)
         else
-            ray.ray;
+            vertex.ray;
 
         var result = propScatter(
             tray,
@@ -184,14 +184,14 @@ pub const Multi = struct {
             material,
             interface.cc,
             interface.prop,
-            ray.depth,
+            vertex.depth,
             sampler,
             worker,
         );
 
         if (.Scatter == result.event) {
             isec.prop = interface.prop;
-            isec.geo.p = ray.ray.point(result.t);
+            isec.geo.p = vertex.ray.point(result.t);
             isec.geo.part = interface.part;
         }
 

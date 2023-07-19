@@ -71,7 +71,7 @@ pub const Grid = struct {
 
             self.local_to_texture = @splat(4, @as(f32, 1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @splat(4, @as(i32, 2)));
 
-            const num_cells = @intCast(usize, dimensions[0]) * @intCast(usize, dimensions[1]) * @intCast(usize, dimensions[2]) + 1;
+            const num_cells = @as(usize, @intCast(dimensions[0])) * @as(usize, @intCast(dimensions[1])) * @as(usize, @intCast(dimensions[2])) + 1;
 
             self.grid = try alloc.realloc(self.grid, num_cells);
 
@@ -363,7 +363,7 @@ pub const Grid = struct {
         // return @intCast(u32, base.memory.partition(Photon, photons, {}, alphaPositive));
 
         _ = threads;
-        return @intCast(u32, photons.len);
+        return @as(u32, @intCast(photons.len));
     }
 
     fn alphaPositive(context: void, p: Photon) bool {
@@ -373,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*Self, context);
+        const self = @as(*Self, @ptrFromInt(context));
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
@@ -398,8 +398,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                const jlen = std.math.min(cell[1], end);
-                var j = std.math.max(cell[0], i + 1);
+                const jlen = @min(cell[1], end);
+                var j = @max(cell[0], i + 1);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -418,7 +418,7 @@ pub const Grid = struct {
                     const b_alpha = Vec4f{ b.alpha[0], b.alpha[1], b.alpha[2], 0.0 };
                     const weight = math.average3(b_alpha);
                     const ratio = if (total_weight > weight) weight / total_weight else total_weight / weight;
-                    const threshold = std.math.max(ratio - 0.1, 0.0);
+                    const threshold = math.max(ratio - 0.1, 0.0);
 
                     if (math.dot3(wi, b.wi) < threshold) {
                         continue;
@@ -460,9 +460,9 @@ pub const Grid = struct {
 
     fn map1(self: *const Self, v: Vec4f) u64 {
         const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @splat(4, @as(i32, 1));
-        return @intCast(u64, (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
+        return @as(u64, @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
-            @as(i64, c[0]));
+            @as(i64, c[0])));
     }
 
     fn map3(self: *const Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
@@ -487,14 +487,14 @@ pub const Grid = struct {
 
     fn adjacent(s: f32, cell_bound: f32) u8 {
         if (s < cell_bound) {
-            return @enumToInt(Adjacent.Negative);
+            return @intFromEnum(Adjacent.Negative);
         }
 
         if (s > (1.0 - cell_bound)) {
-            return @enumToInt(Adjacent.Positive);
+            return @intFromEnum(Adjacent.Positive);
         }
 
-        return @enumToInt(Adjacent.None);
+        return @intFromEnum(Adjacent.None);
     }
 
     fn adjacentCells(self: *const Self, v: Vec4f, cell_bound: f32) Adjacency {
@@ -510,8 +510,8 @@ pub const Grid = struct {
         result.num_cells = adjacency.num_cells;
 
         for (adjacency.cells[0..adjacency.num_cells], 0..) |cell, i| {
-            result.cells[i][0] = self.grid[@intCast(usize, @as(i64, cell[0]) + ic)];
-            result.cells[i][1] = self.grid[@intCast(usize, @as(i64, cell[1]) + ic + 1)];
+            result.cells[i][0] = self.grid[@as(usize, @intCast(@as(i64, cell[0]) + ic))];
+            result.cells[i][1] = self.grid[@as(usize, @intCast(@as(i64, cell[1]) + ic + 1))];
         }
 
         return result;
@@ -525,9 +525,9 @@ pub const Grid = struct {
         // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
 
         // cone
-        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @as(f32, @floatFromInt(num_paths)) * radius2);
 
-        self.num_paths = @intToFloat(f64, num_paths);
+        self.num_paths = @as(f64, @floatFromInt(num_paths));
     }
 
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
@@ -613,7 +613,7 @@ pub const Grid = struct {
 
                 const distance2 = math.squaredDistance3(p.p, position);
                 if (distance2 < radius2) {
-                    buffer.consider(.{ .id = cell[0] + @intCast(u32, i), .d2 = distance2 });
+                    buffer.consider(.{ .id = cell[0] + @as(u32, @intCast(i)), .d2 = distance2 });
                 }
             }
         }
@@ -633,7 +633,7 @@ pub const Grid = struct {
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
 
-                const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
+                const normalization = @as(f32, @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3)))));
                 const mu_s = scatteringCoefficient(isec, sampler, scene);
 
                 result /= @splat(4, normalization) * mu_s;
@@ -663,7 +663,7 @@ pub const Grid = struct {
                     }
                 }
 
-                const normalization = @floatCast(f32, (((1.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius2)));
+                const normalization = @as(f32, @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2)))));
 
                 result /= @splat(4, normalization);
             }
@@ -720,7 +720,7 @@ const Buffer = struct {
 
         if (lb < num) {
             const begin = lb + 1;
-            const end = std.math.min(num + 1, self.entries.len);
+            const end = @min(num + 1, self.entries.len);
             const range = end - begin;
             std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
 

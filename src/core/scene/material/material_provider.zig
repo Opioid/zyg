@@ -33,19 +33,14 @@ pub const Provider = struct {
 
     const Tex = enum { All, No, DWIM };
 
-    parser: std.json.Parser,
-
     tex: Tex = .All,
 
     force_debug_material: bool = false,
 
-    pub fn init(alloc: Allocator) Provider {
-        return .{ .parser = std.json.Parser.init(alloc, .alloc_if_needed) };
-    }
-
     pub fn deinit(self: *Provider, alloc: Allocator) void {
+        _ = self;
         _ = alloc;
-        self.parser.deinit();
+        //  self.parser.deinit();
     }
 
     pub fn setSettings(self: *Provider, no_tex: bool, no_tex_dwim: bool, force_debug_material: bool) void {
@@ -76,11 +71,10 @@ pub const Provider = struct {
 
         stream.deinit();
 
-        defer self.parser.reset();
-        var document = try self.parser.parse(buffer);
-        defer document.deinit();
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+        defer parsed.deinit();
 
-        const root = document.root;
+        const root = parsed.value;
 
         var material = try self.loadMaterial(alloc, root, resources);
 
@@ -97,7 +91,7 @@ pub const Provider = struct {
     ) !Material {
         _ = options;
 
-        const value = @ptrCast(*const std.json.Value, data);
+        const value = @as(*const std.json.Value, @ptrCast(data));
 
         var material = try self.loadMaterial(alloc, value.*, resources);
         try material.commit(alloc, resources.scene, resources.threads);
@@ -360,7 +354,13 @@ pub const Provider = struct {
         return Material{ .Volumetric = material };
     }
 
-    fn updateVolumetric(self: *Provider, alloc: Allocator, material: *mat.Volumetric, value: std.json.Value, resources: *Resources) void {
+    fn updateVolumetric(
+        self: *Provider,
+        alloc: Allocator,
+        material: *mat.Volumetric,
+        value: std.json.Value,
+        resources: *Resources,
+    ) void {
         var color = @splat(4, @as(f32, 0.5));
 
         var attenuation_color = @splat(4, @as(f32, 1.0));
@@ -551,8 +551,8 @@ fn mapColor(color: Vec4f) Vec4f {
 fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
         .array => mapColor(json.readVec4f3(value)),
-        .integer => |i| mapColor(@splat(4, @intToFloat(f32, i))),
-        .float => |f| mapColor(@splat(4, @floatCast(f32, f))),
+        .integer => |i| mapColor(@splat(4, @as(f32, @floatFromInt(i)))),
+        .float => |f| mapColor(@splat(4, @as(f32, @floatCast(f)))),
         .object => |o| {
             var rgb = @splat(4, @as(f32, 0.0));
             var linear = true;
@@ -563,7 +563,7 @@ fn readColor(value: std.json.Value) Vec4f {
                     rgb = readColor(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = json.readFloat(f32, entry.value_ptr.*);
-                    rgb = spectrum.blackbody(std.math.max(800.0, temperature));
+                    rgb = spectrum.blackbody(math.max(800.0, temperature));
                 } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
                     linear = json.readBool(entry.value_ptr.*);
                 }

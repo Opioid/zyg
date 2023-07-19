@@ -29,7 +29,7 @@ pub const Builder = struct {
         aabbs: []const AABB,
         threads: *Threads,
     ) !void {
-        const num_primitives = @intCast(u32, indices.len);
+        const num_primitives = @as(u32, @intCast(indices.len));
 
         try self.super.reserve(alloc, num_primitives);
 

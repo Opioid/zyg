@@ -44,8 +44,9 @@ pub const Sample = struct {
         volumetric: bool,
     ) Sample {
         const color = @splat(4, 1.0 - metallic) * albedo;
+        const reg_alpha = rs.regularizeAlpha(alpha);
 
-        var super = Base.init(rs, wo, color, alpha, 0.0);
+        var super = Base.init(rs, wo, color, reg_alpha, 0.0);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 
@@ -53,7 +54,7 @@ pub const Sample = struct {
 
         return .{
             .super = super,
-            .f0 = math.lerp(@splat(4, f0), albedo, metallic),
+            .f0 = math.lerp(@splat(4, f0), albedo, @splat(4, metallic)),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
         };
@@ -218,7 +219,7 @@ pub const Sample = struct {
         if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
             const r = math.reflect3(frame.n, wo);
-            const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+            const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
             return bxdf.Result.init(@splat(4, n_dot_wi * f) * self.f0, f);
         }
@@ -360,7 +361,7 @@ pub const Sample = struct {
             const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
             const wi_dot_h = hlp.clampDot(wi, h);
 
-            const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleCone(cos_cone) else 0.0;
+            const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
             const n_dot_wi = frame.clampNdot(wi);
 
@@ -430,7 +431,7 @@ pub const Sample = struct {
     }
 
     fn diffuseFresnelHack(n_dot_wi: f32, n_dot_wo: f32, f0: f32) f32 {
-        return fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), f0);
+        return fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), f0);
     }
 
     fn volumetricEvaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
@@ -482,7 +483,7 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
             return bxdf.Result.init(
-                @splat(4, std.math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
+                @splat(4, math.min(n_dot_wi, n_dot_wo) * comp) * gg.reflection,
                 gg.pdf(),
             );
         }
@@ -531,7 +532,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
         const quo_ior = self.ior;
-        if (quo_ior.eta_i == quo_ior.eta_t) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;
@@ -648,7 +649,7 @@ pub const Sample = struct {
     fn coatedVolumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         const wo = self.super.wo;
         const quo_ior = self.ior;
-        if (quo_ior.eta_i == quo_ior.eta_t) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
             result.reflection = @splat(4, @as(f32, 1.0));
             result.wi = -wo;
             result.pdf = 1.0;

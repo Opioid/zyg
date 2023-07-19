@@ -108,13 +108,13 @@ fn hash(i: u32) u32 {
     return x;
 }
 
-const S: f32 = 1.0 / @intToFloat(f32, 1 << 32);
+const S: f32 = 1.0 / @as(f32, @floatFromInt(1 << 32));
 
 fn sobolOwen(scrambled_index: u32, seed: u32, dim: u32) f32 {
     const sob = sobol(scrambled_index, dim);
     const hc = hashCombine(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
-    return @intToFloat(f32, nus) * S;
+    return @as(f32, @floatFromInt(nus)) * S;
 }
 
 fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {
@@ -198,7 +198,7 @@ fn sobol(index: u32, dim: u32) u32 {
     var x: u32 = 0;
     var bit: u32 = 0;
     while (bit < 32) : (bit += 1) {
-        const mask = (index >> @truncate(u5, bit)) & 1;
+        const mask = (index >> @as(u5, @truncate(bit))) & 1;
         x ^= mask * Directions[dim][bit];
     }
     return x;
@@ -209,7 +209,7 @@ fn sobol2(index: u32, dim: u32) Vec2u {
     var x1: u32 = 0;
     var bit: u32 = 0;
     while (bit < 32) : (bit += 1) {
-        const mask = (index >> @truncate(u5, bit)) & 1;
+        const mask = (index >> @as(u5, @truncate(bit))) & 1;
         x0 ^= mask * Directions[dim][bit];
         x1 ^= mask * Directions[dim + 1][bit];
     }
@@ -222,7 +222,7 @@ fn sobol3(index: u32, dim: u32) Vec4u {
     var x2: u32 = 0;
     var bit: u32 = 0;
     while (bit < 32) : (bit += 1) {
-        const mask = (index >> @truncate(u5, bit)) & 1;
+        const mask = (index >> @as(u5, @truncate(bit))) & 1;
         x0 ^= mask * Directions[dim][bit];
         x1 ^= mask * Directions[dim + 1][bit];
         x2 ^= mask * Directions[dim + 2][bit];
@@ -237,7 +237,7 @@ fn sobol4(index: u32, dim: u32) Vec4u {
     var x3: u32 = 0;
     var bit: u32 = 0;
     while (bit < 32) : (bit += 1) {
-        const mask = (index >> @truncate(u5, bit)) & 1;
+        const mask = (index >> @as(u5, @truncate(bit))) & 1;
         x0 ^= mask * Directions[dim][bit];
         x1 ^= mask * Directions[dim + 1][bit];
         x2 ^= mask * Directions[dim + 2][bit];

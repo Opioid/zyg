@@ -32,7 +32,7 @@ pub const Srgb = struct {
 
     pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, crop: Vec4i, encoding: Encoding, threads: *Threads) !u32 {
         const d = image.description.dimensions;
-        const num_pixels = @intCast(u32, d[0] * d[1]);
+        const num_pixels = @as(u32, @intCast(d[0] * d[1]));
 
         const xy = Vec2i{ crop[0], crop[1] };
         const zw = Vec2i{ crop[2], crop[3] };
@@ -40,7 +40,7 @@ pub const Srgb = struct {
 
         var num_channels: u32 = 3;
 
-        var mind: f32 = std.math.f32_max;
+        var mind: f32 = std.math.floatMax(f32);
         var maxd: f32 = 0.0;
 
         switch (encoding) {
@@ -51,16 +51,16 @@ pub const Srgb = struct {
 
                 var y = crop[1];
                 while (y < crop[3]) : (y += 1) {
-                    var i = @intCast(u32, y * d[0] + crop[0]);
+                    var i = @as(u32, @intCast(y * d[0] + crop[0]));
 
                     var x = crop[1];
                     while (x < crop[2]) : (x += 1) {
                         const depth = image.pixels[i].v[0];
 
-                        mind = std.math.min(mind, depth);
+                        mind = math.min(mind, depth);
 
                         if (depth < ro.Almost_ray_max_t) {
-                            maxd = std.math.max(maxd, depth);
+                            maxd = math.max(maxd, depth);
                         }
 
                         i += 1;
@@ -88,7 +88,7 @@ pub const Srgb = struct {
             @memset(self.buffer[0..num_bytes], 0);
         }
 
-        _ = threads.runRange(self, toSrgbRange, 0, @intCast(u32, dim[1]), 0);
+        _ = threads.runRange(self, toSrgbRange, 0, @as(u32, @intCast(dim[1])), 0);
 
         return num_channels;
     }
@@ -96,22 +96,22 @@ pub const Srgb = struct {
     fn toSrgbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @ptrCast(*Srgb, @alignCast(16, context));
+        const self = @as(*Srgb, @ptrCast(@alignCast(context)));
 
         self.toSrgbBuffer(begin, end);
     }
 
     fn toSrgbBuffer(self: *Srgb, begin: u32, end: u32) void {
         const d = self.image.description.dimensions;
-        const data_width = @intCast(u32, d[0]);
+        const data_width = @as(u32, @intCast(d[0]));
 
         const crop = self.crop;
         const xy = Vec2i{ crop[0], crop[1] };
         const zw = Vec2i{ crop[2], crop[3] };
         const dim = zw - xy;
-        const width = @intCast(u32, dim[0]);
-        const x_start = @intCast(u32, crop[0]);
-        const y_start = @intCast(u32, crop[1]);
+        const width = @as(u32, @intCast(dim[0]));
+        const x_start = @as(u32, @intCast(crop[0]));
+        const y_start = @as(u32, @intCast(crop[1]));
 
         const y_end = y_start + end;
 
@@ -138,7 +138,7 @@ pub const Srgb = struct {
                                 spectrum.linearToGamma_sRGB(p.v[0]),
                                 spectrum.linearToGamma_sRGB(p.v[1]),
                                 spectrum.linearToGamma_sRGB(p.v[2]),
-                                std.math.min(p.v[3], 1.0),
+                                math.min(p.v[3], 1.0),
                             };
 
                             const cf = @splat(4, @as(f32, 255.0)) * color;
@@ -161,10 +161,10 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 4 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 4 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 4 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
-                            buffer[i * 4 + 3] = enc.floatToUnorm(std.math.min(p.v[3], 1.0));
+                            buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 4 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 4 + 3] = enc.floatToUnorm8(math.min(p.v[3], 1.0));
 
                             i += 1;
                         }
@@ -206,9 +206,9 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 3 + 2] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 3 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
+                            buffer[i * 3 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
+                            buffer[i * 3 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
 
                             i += 1;
                         }
@@ -226,7 +226,7 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const depth = image.pixels[i].v[0];
 
-                        buffer[i] = enc.floatToUnorm(math.saturate(1.0 - (depth - mind) / range));
+                        buffer[i] = enc.floatToUnorm8(math.saturate(1.0 - (depth - mind) / range));
 
                         i += 1;
                     }
@@ -238,7 +238,7 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const f = image.pixels[i].v[0];
 
-                        buffer[i] = enc.floatToUnorm(math.saturate(f));
+                        buffer[i] = enc.floatToUnorm8(math.saturate(f));
 
                         i += 1;
                     }
@@ -248,12 +248,12 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const id = @floatToInt(u32, image.pixels[i].v[0]);
+                        const id = @as(u32, @intFromFloat(image.pixels[i].v[0]));
                         const mid = (id *% 9795927) % 16777216;
 
-                        buffer[i * 3 + 0] = @truncate(u8, mid >> 16);
-                        buffer[i * 3 + 1] = @truncate(u8, mid >> 8);
-                        buffer[i * 3 + 2] = @truncate(u8, mid);
+                        buffer[i * 3 + 0] = @truncate(mid >> 16);
+                        buffer[i * 3 + 1] = @truncate(mid >> 8);
+                        buffer[i * 3 + 2] = @truncate(mid);
 
                         i += 1;
                     }
@@ -265,9 +265,9 @@ pub const Srgb = struct {
                     while (x < width) : (x += 1) {
                         const p = image.pixels[i];
 
-                        buffer[i * 3 + 0] = enc.floatToUnorm(math.saturate(0.5 * (p.v[0] + 1.0)));
-                        buffer[i * 3 + 1] = enc.floatToUnorm(math.saturate(0.5 * (p.v[1] + 1.0)));
-                        buffer[i * 3 + 2] = enc.floatToUnorm(math.saturate(0.5 * (p.v[2] + 1.0)));
+                        buffer[i * 3 + 0] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[0] + 1.0)));
+                        buffer[i * 3 + 1] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[1] + 1.0)));
+                        buffer[i * 3 + 2] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[2] + 1.0)));
 
                         i += 1;
                     }
@@ -277,6 +277,6 @@ pub const Srgb = struct {
     }
 
     fn goldenRatio(n: u32) f32 {
-        return math.frac(@intToFloat(f32, n) * 0.618033988749894);
+        return math.frac(@as(f32, @floatFromInt(n)) * 0.618033988749894);
     }
 };

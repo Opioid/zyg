@@ -44,14 +44,14 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const anyopaque, self.srgb.buffer.ptr),
+            @as(*const anyopaque, @ptrCast(self.srgb.buffer.ptr)),
             d[0],
             d[1],
-            @intCast(c_int, num_channels),
+            @as(c_int, @intCast(num_channels)),
             &buffer_len,
         );
 
-        try writer.writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try writer.writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
         c.mz_free(png);
     }
@@ -59,7 +59,7 @@ pub const Writer = struct {
     pub fn writeFloat3Scaled(alloc: Allocator, image: Float3, factor: f32) !void {
         const d = image.description.dimensions;
 
-        const num_pixels = @intCast(u32, d[0] * d[1]);
+        const num_pixels = @as(u32, @intCast(d[0] * d[1]));
 
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
@@ -74,7 +74,7 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const anyopaque, buffer.ptr),
+            @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
@@ -84,7 +84,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
         defer file.close();
 
-        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
         c.mz_free(png);
     }
@@ -92,7 +92,7 @@ pub const Writer = struct {
     pub fn writeFloat3Normal(alloc: Allocator, image: Float3) !void {
         const d = image.description.dimensions;
 
-        const num_pixels = @intCast(u32, d[0] * d[1]);
+        const num_pixels = @as(u32, @intCast(d[0] * d[1]));
 
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
@@ -105,7 +105,7 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const anyopaque, buffer.ptr),
+            @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
@@ -115,7 +115,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
         defer file.close();
 
-        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
         c.mz_free(png);
     }
@@ -129,7 +129,7 @@ pub const Writer = struct {
         max: f32,
         name: []const u8,
     ) !void {
-        const num_pixels = @intCast(u32, width * height);
+        const num_pixels = @as(u32, @intCast(width * height));
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 
@@ -145,7 +145,7 @@ pub const Writer = struct {
 
         var buffer_len: usize = 0;
         const png = c.tdefl_write_image_to_png_file_in_memory(
-            @ptrCast(*const anyopaque, buffer.ptr),
+            @as(*const anyopaque, @ptrCast(buffer.ptr)),
             width,
             height,
             3,
@@ -155,7 +155,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
-        try file.writer().writeAll(@ptrCast([*]const u8, png)[0..buffer_len]);
+        try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
         c.mz_free(png);
     }

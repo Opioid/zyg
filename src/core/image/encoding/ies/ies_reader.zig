@@ -162,10 +162,10 @@ const Data = struct {
 
             // return math.bilinear1(ins, d_theta, d_phi);
 
-            const ivit = @intCast(i32, vit);
-            const ihit = @intCast(i32, hit);
-            const inv = @intCast(i32, num_vangles);
-            const inh = @intCast(i32, num_hangles);
+            const ivit = @as(i32, @intCast(vit));
+            const ihit = @as(i32, @intCast(hit));
+            const inv = @as(i32, @intCast(num_vangles));
+            const inh = @as(i32, @intCast(num_hangles));
 
             const vm1 = offset(ivit, -1, inv);
             const vp0 = offset(ivit, 0, inv);
@@ -207,10 +207,10 @@ const Data = struct {
         const y = x + i;
 
         if (y < 0) {
-            return @intCast(u32, 1 - y);
+            return @as(u32, @intCast(1 - y));
         }
 
-        return @intCast(u32, if (y >= b) (b - i) else y);
+        return @as(u32, @intCast(if (y >= b) (b - i) else y));
     }
 
     pub fn catmullRom(c: *const [4]f32, t: f32) f32 {
@@ -332,7 +332,7 @@ pub const Reader = struct {
         data.vertical_angles.items[0] = p;
         for (data.vertical_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = std.math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @fabs(c - p));
             a.* = c;
             p = c;
         }
@@ -341,7 +341,7 @@ pub const Reader = struct {
         data.horizontal_angles.items[0] = p;
         for (data.horizontal_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = std.math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @fabs(c - p));
             a.* = c;
             p = c;
         }
@@ -349,32 +349,32 @@ pub const Reader = struct {
         var mi: f32 = 0.0;
         for (data.intensities.items) |*i| {
             const v = try std.fmt.parseFloat(f32, try tokenizer.next());
-            mi = std.math.max(mi, v);
+            mi = math.max(mi, v);
             i.* = v;
         }
 
-        const res = @floatToInt(i32, 360.0 / min_angle + 0.5);
+        const res = @as(i32, @intFromFloat(360.0 / min_angle + 0.5));
         const d = Vec2i{ res, res };
 
         var image = try img.Half1.init(alloc, img.Description.init2D(d));
 
-        const idf = 1.0 / @intToFloat(f32, res);
+        const idf = 1.0 / @as(f32, @floatFromInt(res));
         const imi = 1.0 / mi;
 
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
-            const v = idf * (@intToFloat(f32, y) + 0.5);
+            const v = idf * (@as(f32, @floatFromInt(y)) + 0.5);
 
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
-                const u = idf * (@intToFloat(f32, x) + 0.5);
+                const u = idf * (@as(f32, @floatFromInt(x)) + 0.5);
 
                 const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
                 const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });
 
                 const value = data.sample(ll[0], ll[1]);
 
-                image.set2D(x, y, @floatCast(f16, math.saturate(value * imi)));
+                image.set2D(x, y, @floatCast(math.saturate(value * imi)));
             }
         }
 

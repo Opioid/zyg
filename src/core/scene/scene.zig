@@ -1,7 +1,9 @@
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
 const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
-const Light = @import("light/light.zig").Light;
+const lgt = @import("light/light.zig");
+const Light = lgt.Light;
+const LightProperties = lgt.Properties;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const Intersection = @import("prop/intersection.zig").Intersection;
@@ -11,7 +13,7 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
-const Ray = @import("ray.zig").Ray;
+const Vertex = @import("vertex.zig").Vertex;
 const Image = @import("../image/image.zig").Image;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
@@ -37,10 +39,10 @@ pub const Scene = struct {
     pub const Units_per_second: u64 = 705600000;
     pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;
-    const Interval = 1.0 / @intToFloat(f32, Num_steps);
+    const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @floatToInt(u64, @round(@intToFloat(f64, Units_per_second) * dtime));
+        return @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Units_per_second)) * dtime)));
     }
 
     pub const Num_reserved_props = 32;
@@ -260,16 +262,16 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, ray: *Ray, ipo: Interpolation, isec: *Intersection) bool {
-        return self.prop_bvh.intersect(ray, self, ipo, isec);
+    pub fn intersect(self: *const Scene, vertex: *Vertex, ipo: Interpolation, isec: *Intersection) bool {
+        return self.prop_bvh.intersect(vertex, self, ipo, isec);
     }
 
-    pub fn visibility(self: *const Scene, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(ray, sampler, worker);
+            return self.prop_bvh.visibility(vertex, sampler, worker);
         }
 
-        if (self.prop_bvh.intersectP(ray, self)) {
+        if (self.prop_bvh.intersectP(vertex, self)) {
             return null;
         }
 
@@ -278,7 +280,7 @@ pub const Scene = struct {
 
     pub fn scatter(
         self: *const Scene,
-        ray: *Ray,
+        vertex: *Vertex,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
@@ -289,7 +291,7 @@ pub const Scene = struct {
             return false;
         }
 
-        return self.volume_bvh.scatter(ray, throughput, sampler, worker, isec);
+        return self.volume_bvh.scatter(vertex, throughput, sampler, worker, isec);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
@@ -305,7 +307,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@enumToInt(ShapeID.Plane), &.{}, self);
+        self.props.items[p].configure(@intFromEnum(ShapeID.Plane), &.{}, self);
 
         return p;
     }
@@ -318,7 +320,7 @@ pub const Scene = struct {
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
-        const parts_start = @intCast(u32, self.material_ids.items.len);
+        const parts_start = @as(u32, @intCast(self.material_ids.items.len));
         self.prop_parts.items[p] = parts_start;
 
         var i: u32 = 0;
@@ -400,9 +402,9 @@ pub const Scene = struct {
         const a_time = self.current_time_start + i * Tick_duration;
         const delta = time - a_time;
 
-        const t = @floatCast(f32, @intToFloat(f64, delta) / @intToFloat(f64, Tick_duration));
+        const t = @as(f32, @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration))));
 
-        return .{ .f = @intCast(u32, i), .w = t };
+        return .{ .f = @as(u32, @intCast(i)), .w = t };
     }
 
     pub fn propWorldPosition(self: *const Scene, entity: u32) Vec4f {
@@ -434,7 +436,7 @@ pub const Scene = struct {
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-        const current_len = @intCast(u32, self.keyframes.items.len);
+        const current_len = @as(u32, @intCast(self.keyframes.items.len));
         self.prop_frames.items[entity] = current_len;
 
         const num_frames = self.num_interpolation_frames;
@@ -485,7 +487,7 @@ pub const Scene = struct {
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = @intCast(u32, light_id);
+        self.light_ids.items[p] = @as(u32, @intCast(light_id));
 
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
@@ -554,17 +556,17 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
-        self.light_aabbs.items[light_id].bounds[1][3] = math.hmax3(
+        self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(
             self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
         );
     }
 
-    pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: Ray) bool {
-        return self.prop_aabbs.items[entity].intersect(ray.ray);
+    pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: math.Ray) bool {
+        return self.prop_aabbs.items[entity].intersect(ray);
     }
 
-    pub fn propAabbIntersectP(self: *const Scene, entity: u32, ray: Ray) ?f32 {
-        return self.prop_aabbs.items[entity].intersectP(ray.ray);
+    pub fn propAabbIntersectP(self: *const Scene, entity: u32, ray: math.Ray) ?f32 {
+        return self.prop_aabbs.items[entity].intersectP(ray);
     }
 
     pub fn propRadius(self: *const Scene, entity: u32) f32 {
@@ -611,7 +613,7 @@ pub const Scene = struct {
     }
 
     pub fn numLights(self: *const Scene) u32 {
-        return @intCast(u32, self.lights.items.len);
+        return @as(u32, @intCast(self.lights.items.len));
     }
 
     pub fn light(self: *const Scene, id: u32) Light {
@@ -662,7 +664,7 @@ pub const Scene = struct {
 
     pub fn lightPower(self: *const Scene, variant: u32, light_id: usize) f32 {
         _ = variant;
-        return self.light_aabbs.items[light_id].bounds[1][3];
+        return self.light_aabbs.items[light_id].bounds[0][3];
     }
 
     pub fn lightAabb(self: *const Scene, light_id: usize) AABB {
@@ -673,6 +675,20 @@ pub const Scene = struct {
         return self.light_cones.items[light_id];
     }
 
+    pub fn lightProperties(self: *const Scene, light_id: u32, variant: u32) LightProperties {
+        _ = variant;
+
+        const box = self.light_aabbs.items[light_id];
+        const pos = box.position();
+
+        return .{
+            .sphere = .{ pos[0], pos[1], pos[2], box.cachedRadius() },
+            .cone = self.light_cones.items[light_id],
+            .power = self.light_aabbs.items[light_id].bounds[0][3],
+            .two_sided = self.lights.items[light_id].two_sided,
+        };
+    }
+
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
         try self.props.append(alloc, .{});
         try self.prop_world_transformations.append(alloc, .{});
@@ -680,7 +696,7 @@ pub const Scene = struct {
         try self.prop_frames.append(alloc, Null);
         try self.prop_aabbs.append(alloc, .{});
 
-        return @intCast(u32, self.props.items.len - 1);
+        return @as(u32, @intCast(self.props.items.len - 1));
     }
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
@@ -696,12 +712,12 @@ pub const Scene = struct {
 
     pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
         try self.images.append(alloc, item);
-        return @intCast(u32, self.images.items.len - 1);
+        return @as(u32, @intCast(self.images.items.len - 1));
     }
 
     pub fn createMaterial(self: *Scene, alloc: Allocator, item: Material) !u32 {
         try self.materials.append(alloc, item);
-        return @intCast(u32, self.materials.items.len - 1);
+        return @as(u32, @intCast(self.materials.items.len - 1));
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
@@ -758,7 +774,7 @@ pub const Scene = struct {
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
-        const a: u32 = std.math.max(@intCast(u32, frame_duration / Tick_duration), 1);
+        const a: u32 = @max(@as(u32, @intCast(frame_duration / Tick_duration)), 1);
         const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
         const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
 

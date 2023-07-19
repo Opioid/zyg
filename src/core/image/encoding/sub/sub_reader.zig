@@ -34,13 +34,12 @@ pub const Reader = struct {
 
         _ = try stream.read(json_string);
 
-        var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-        defer parser.deinit();
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string, .{});
+        defer parsed.deinit();
 
-        var document = try parser.parse(json_string);
-        defer document.deinit();
+        const root = parsed.value;
 
-        const image_node = document.root.object.get("image") orelse return Error.NoImageDeclaration;
+        const image_node = root.object.get("image") orelse return Error.NoImageDeclaration;
 
         const description_node = image_node.object.get("description") orelse return Error.NoImageDescription;
 
@@ -132,7 +131,7 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: f32 = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        try image.storeSequentially(alloc, @intCast(i64, i), val);
+                        try image.storeSequentially(alloc, @intCast(i), val);
                     }
                 }
 

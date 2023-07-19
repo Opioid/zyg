@@ -33,12 +33,12 @@ pub const Node = packed struct {
 
     pub fn setChildren(self: *Node, id: u32) void {
         self.has_children = 1;
-        self.children_or_data = @intCast(u31, id);
+        self.children_or_data = @intCast(id);
     }
 
     pub fn setData(self: *Node, id: u32) void {
         self.has_children = 0;
-        self.children_or_data = @intCast(u31, id);
+        self.children_or_data = @intCast(id);
     }
 
     pub fn setEmpty(self: *Node) void {
@@ -59,7 +59,7 @@ pub const Gridtree = struct {
     num_data: u32 = 0,
 
     pub const Log2_cell_dim: u5 = 6;
-    pub const Log2_cell_dim4 = std.meta.Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
+    pub const Log2_cell_dim4 = @Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
     pub const Cell_dim: i32 = 1 << Log2_cell_dim;
     pub const Cell_dim4 = @splat(4, Cell_dim);
 

@@ -30,7 +30,7 @@ pub fn testSize() void {
     testType(smpl.To, "SampleTo", 112);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
-    testType(LightNode, "LightNode", 48);
+    testType(LightNode, "LightNode", 32);
     testType(intf.Interface, "Interface", 48);
     testType(intf.Stack, "InterfaceStack", 400);
     testType(mt.Material, "Material", 368);

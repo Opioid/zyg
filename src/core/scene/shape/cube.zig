@@ -91,8 +91,8 @@ pub const Cube = struct {
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         const hit_t = aabb.intersectP2(local_ray) orelse return @splat(4, @as(f32, 1.0));
 
-        const start = std.math.max(hit_t[0], ray.minT());
-        const end = std.math.min(hit_t[1], ray.maxT());
+        const start = math.max(hit_t[0], ray.minT());
+        const end = math.min(hit_t[1], ray.maxT());
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);
@@ -115,8 +115,8 @@ pub const Cube = struct {
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(4, @as(f32, 1.0)));
 
-        const start = std.math.max(hit_t[0], ray.minT());
-        const end = std.math.min(hit_t[1], ray.maxT());
+        const start = math.max(hit_t[0], ray.minT());
+        const end = math.min(hit_t[1], ray.maxT());
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);

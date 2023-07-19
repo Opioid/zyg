@@ -27,8 +27,8 @@ pub fn readBoolMember(value: Value, name: []const u8, default: bool) bool {
 
 pub fn readFloat(comptime T: type, value: Value) T {
     return switch (value) {
-        .integer => |int| @intToFloat(T, int),
-        .float => |float| @floatCast(T, float),
+        .integer => |int| @floatFromInt(int),
+        .float => |float| @floatCast(float),
         else => 0.0,
     };
 }
@@ -40,19 +40,19 @@ pub fn readFloatMember(value: Value, name: []const u8, default: f32) f32 {
 }
 
 pub fn readUInt(value: Value) u32 {
-    return @truncate(u32, @bitCast(u64, value.integer));
+    return @truncate(@as(u64, @bitCast(value.integer)));
 }
 
 pub fn readUIntMember(value: Value, name: []const u8, default: u32) u32 {
     const member = value.object.get(name) orelse return default;
 
-    return @truncate(u32, @bitCast(u64, member.integer));
+    return @truncate(@as(u64, @bitCast(member.integer)));
 }
 
 pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
     const member = value.object.get(name) orelse return default;
 
-    return @bitCast(u64, member.integer);
+    return @bitCast(member.integer);
 }
 
 pub fn readVec2f(value: Value) Vec2f {
@@ -66,8 +66,8 @@ pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
     const member = value.object.get(name) orelse return default;
 
     return .{
-        @intCast(i32, member.array.items[0].integer),
-        @intCast(i32, member.array.items[1].integer),
+        @intCast(member.array.items[0].integer),
+        @intCast(member.array.items[1].integer),
     };
 }
 
@@ -75,9 +75,9 @@ pub fn readVec4i3Member(value: Value, name: []const u8, default: Vec4i) Vec4i {
     const member = value.object.get(name) orelse return default;
 
     return .{
-        @intCast(i32, member.array.items[0].integer),
-        @intCast(i32, member.array.items[1].integer),
-        @intCast(i32, member.array.items[2].integer),
+        @intCast(member.array.items[0].integer),
+        @intCast(member.array.items[1].integer),
+        @intCast(member.array.items[2].integer),
         0,
     };
 }
@@ -86,10 +86,10 @@ pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
     const member = value.object.get(name) orelse return default;
 
     return .{
-        @intCast(i32, member.array.items[0].integer),
-        @intCast(i32, member.array.items[1].integer),
-        @intCast(i32, member.array.items[2].integer),
-        @intCast(i32, member.array.items[3].integer),
+        @intCast(member.array.items[0].integer),
+        @intCast(member.array.items[1].integer),
+        @intCast(member.array.items[2].integer),
+        @intCast(member.array.items[3].integer),
     };
 }
 

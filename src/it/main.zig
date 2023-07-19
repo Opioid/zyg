@@ -76,7 +76,7 @@ pub fn main() !void {
         };
 
         try operator.textures.append(alloc, texture);
-        try operator.input_ids.append(alloc, @intCast(u32, i));
+        try operator.input_ids.append(alloc, @intCast(i));
 
         bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }
@@ -129,7 +129,7 @@ fn write(
     defer alloc.free(output_name);
 
     if (.Diff == operator) {
-        var min: f32 = std.math.f32_max;
+        var min: f32 = std.math.floatMax(f32);
         var max: f32 = 0.0;
 
         const desc = target.description;
@@ -142,8 +142,8 @@ fn write(
 
             buffer[i] = v;
 
-            min = std.math.min(v, min);
-            max = std.math.max(v, max);
+            min = math.min(v, min);
+            max = math.max(v, max);
         }
 
         try core.ImageWriter.PngWriter.writeHeatmap(

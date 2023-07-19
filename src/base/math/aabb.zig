@@ -1,5 +1,6 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
+const mima = @import("minmax.zig");
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 const Mat4x4 = @import("matrix4x4.zig").Mat4x4;
 const Ray = @import("ray.zig").Ray;
@@ -45,8 +46,8 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const tboxmin = std.math.max(tmins[0], std.math.max(tmins[1], std.math.max(tmins[2], tmins[3])));
-        const tboxmax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], std.math.min(tmaxs[2], tmaxs[3])));
+        const tboxmin = mima.max(tmins[0], mima.max(tmins[1], mima.max(tmins[2], tmins[3])));
+        const tboxmax = mima.min(tmaxs[0], mima.min(tmaxs[1], mima.min(tmaxs[2], tmaxs[3])));
 
         return tboxmin <= tboxmax;
     }
@@ -61,11 +62,11 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const imin = std.math.max(tmins[0], std.math.max(tmins[1], tmins[2]));
-        const imax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], tmaxs[2]));
+        const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
+        const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
 
-        const tboxmin = std.math.max(imin, tmins[3]);
-        const tboxmax = std.math.min(imax, tmaxs[3]);
+        const tboxmin = mima.max(imin, tmins[3]);
+        const tboxmax = mima.min(imax, tmaxs[3]);
 
         if (tboxmin <= tboxmax) {
             return if (imin < ray.minT()) imax else imin;
@@ -84,11 +85,11 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const imin = std.math.max(tmins[0], std.math.max(tmins[1], tmins[2]));
-        const imax = std.math.min(tmaxs[0], std.math.min(tmaxs[1], tmaxs[2]));
+        const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
+        const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
 
-        const tboxmin = std.math.max(imin, tmins[3]);
-        const tboxmax = std.math.min(imax, tmaxs[3]);
+        const tboxmin = mima.max(imin, tmins[3]);
+        const tboxmax = mima.min(imax, tmaxs[3]);
 
         if (tboxmin <= tboxmax) {
             return .{ imin, imax };
@@ -130,11 +131,12 @@ pub const AABB = struct {
     }
 
     pub fn cachedRadius(self: AABB) f32 {
-        return self.bounds[0][3];
+        return self.bounds[1][3];
     }
 
     pub fn cacheRadius(self: *AABB) void {
-        self.bounds[0][3] = 0.5 * math.length3(self.extent());
+        self.bounds[0][3] = 0.0;
+        self.bounds[1][3] = 0.5 * math.length3(self.extent());
     }
 
     pub fn transform(self: AABB, m: Mat4x4) AABB {
@@ -194,11 +196,11 @@ pub const AABB = struct {
     }
 
     pub fn clipMin(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[0][axis] = std.math.max(d, self.bounds[0][axis]);
+        self.bounds[0][axis] = mima.max(d, self.bounds[0][axis]);
     }
 
     pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
-        self.bounds[1][axis] = std.math.min(d, self.bounds[1][axis]);
+        self.bounds[1][axis] = mima.min(d, self.bounds[1][axis]);
     }
 
     pub fn covers(self: AABB, other: AABB) bool {
@@ -211,4 +213,4 @@ pub const AABB = struct {
     }
 };
 
-pub const Empty = AABB.init(@splat(4, @as(f32, std.math.f32_max)), @splat(4, @as(f32, -std.math.f32_max)));
+pub const Empty = AABB.init(@splat(4, @as(f32, std.math.floatMax(f32))), @splat(4, @as(f32, -std.math.floatMax(f32))));

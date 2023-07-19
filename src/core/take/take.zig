@@ -1,7 +1,10 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
-const LightSampling = @import("../rendering/integrator/helper.zig").LightSampling;
+const hlp = @import("../rendering/integrator/helper.zig");
+const LightSampling = hlp.LightSampling;
+const CausticsPath = hlp.CausticsPath;
+const CausticsResolve = @import("../scene/renderstate.zig").CausticsResolve;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
@@ -66,7 +69,7 @@ pub const View = struct {
 
     pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
-        self.camera.sample_spacing = 1.0 / @sqrt(@intToFloat(f32, spp));
+        self.camera.sample_spacing = 1.0 / @sqrt(@as(f32, @floatFromInt(spp)));
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
@@ -109,7 +112,7 @@ pub const View = struct {
 
         var light_sampling = LightSampling.Adaptive;
 
-        const Default_caustics = true;
+        const Default_caustics_resolve = CausticsResolve.Full;
 
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
@@ -151,19 +154,20 @@ pub const View = struct {
             } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
-                const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
+                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
                 self.surfaces = surface.Factory{ .PT = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
-                        .avoid_caustics = !enable_caustics,
+                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_resolve = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
-                const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics);
+                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
@@ -172,22 +176,29 @@ pub const View = struct {
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
-                        .avoid_caustics = !enable_caustics,
+                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_resolve = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
                 const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
-                const enable_caustics = json.readBoolMember(entry.value_ptr.*, "caustics", Default_caustics) and !lighttracer;
+                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
+
+                var caustics_path: CausticsPath = .Off;
+                if (.Off != caustics_resolve) {
+                    caustics_path = if (lighttracer) .Indirect else .Full;
+                }
 
                 self.surfaces = surface.Factory{ .PTMIS = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
-                        .avoid_caustics = !enable_caustics,
+                        .caustics_path = caustics_path,
+                        .caustics_resolve = caustics_resolve,
                         .photons_not_only_through_specular = !lighttracer,
                     },
                 } };
@@ -200,7 +211,7 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
                 const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
-                MaterialBase.setSimilarityRelationRange(@intCast(u32, sr_range[0]), @intCast(u32, sr_range[1]));
+                MaterialBase.setSimilarityRelationRange(@as(u32, @intCast(sr_range[0])), @as(u32, @intCast(sr_range[1])));
             }
         }
     }
@@ -247,6 +258,26 @@ pub const View = struct {
                 LightTree.Splitting_threshold = st2 * st2;
             }
         }
+    }
+
+    fn readCausticsResolve(value: std.json.Value, default: CausticsResolve) CausticsResolve {
+        const member = value.object.get("caustics") orelse return default;
+
+        switch (member) {
+            .bool => |b| return if (b) .Full else .Off,
+            .string => |str| {
+                if (std.mem.eql(u8, "Off", str)) {
+                    return .Off;
+                } else if (std.mem.eql(u8, "Rough", str)) {
+                    return .Rough;
+                } else if (std.mem.eql(u8, "Full", str)) {
+                    return .Full;
+                }
+            },
+            else => return default,
+        }
+
+        return default;
     }
 };
 
@@ -310,7 +341,7 @@ pub const Take = struct {
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
                 var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 if (0 == framerate) {
-                    framerate = @floatToInt(u32, @round(1.0 / @intToFloat(f64, self.view.camera.frame_step)));
+                    framerate = @as(u32, @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(self.view.camera.frame_step)))));
                 }
 
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);

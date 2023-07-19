@@ -1,5 +1,5 @@
 const spectrum = @import("xyz.zig");
-const math = @import("../math/vector4.zig");
+const math = @import("../math/math.zig");
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -9,13 +9,13 @@ pub fn blackbody(temperature: f32) Vec4f {
     const wl_max = 780.0;
     const wl_step = 5.0;
 
-    const num_steps = @floatToInt(u32, (wl_max - wl_min) / wl_step) + 1;
+    const num_steps = @as(u32, @intFromFloat((wl_max - wl_min) / wl_step)) + 1;
 
     var xyz = @splat(4, @as(f32, 0.0));
     var k: u32 = 0;
     while (k < num_steps) : (k += 1) {
         // convert to nanometer
-        const wl = (wl_min + @intToFloat(f32, k) * wl_step) * 1.0e-9;
+        const wl = (wl_min + @as(f32, @floatFromInt(k)) * wl_step) * 1.0e-9;
         const p = planck(temperature, wl);
 
         xyz[0] += p * color_matching[k][0];
@@ -24,7 +24,7 @@ pub fn blackbody(temperature: f32) Vec4f {
     }
 
     // normalize the result
-    xyz /= @splat(4, std.math.max(xyz[0], std.math.max(xyz[1], xyz[2])));
+    xyz /= @splat(4, math.max(xyz[0], math.max(xyz[1], xyz[2])));
 
     return math.max4(spectrum.XYZ_to_sRGB(xyz), @splat(4, @as(f32, 0.0)));
 }
@@ -70,7 +70,7 @@ const color_matching = [_][3]f32{
 };
 
 pub fn turbo(x: f32) [3]u8 {
-    const i = @floatToInt(u8, x * 255.0 + 0.5);
+    const i = @as(u8, @intFromFloat(x * 255.0 + 0.5));
     return turbo_srgb_bytes[i];
 }
 

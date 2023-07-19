@@ -1,6 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Ray = @import("../ray.zig").Ray;
 const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;
 const shp = @import("../shape/sample.zig");
@@ -13,10 +12,18 @@ const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
+pub const Properties = struct {
+    sphere: Vec4f,
+    cone: Vec4f,
+    power: f32,
+    two_sided: bool,
+};
 
 pub const Light align(16) = struct {
     pub const Class = enum(u8) {

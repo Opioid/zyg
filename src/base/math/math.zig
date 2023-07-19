@@ -5,6 +5,8 @@ pub usingnamespace @import("distribution_1d.zig");
 pub usingnamespace @import("distribution_2d.zig");
 pub usingnamespace @import("distribution_3d.zig");
 pub usingnamespace @import("interpolated_function.zig");
+const minmax = @import("minmax.zig");
+pub usingnamespace minmax;
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;
 pub usingnamespace @import("matrix3x3.zig");
@@ -33,19 +35,18 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
 }
 
 pub inline fn saturate(x: f32) f32 {
-    return std.math.clamp(x, 0.0, 1.0);
+    return minmax.clamp(x, 0.0, 1.0);
 }
 
-pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
+pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
     switch (@typeInfo(@TypeOf(a))) {
         .Float => {
             const u = 1.0 - t;
             return @mulAdd(f32, u, a, t * b);
         },
         .Vector => |v| {
-            const l = comptime v.len;
-            const u = 1.0 - t;
-            return @mulAdd(@TypeOf(a), @splat(l, u), a, @splat(l, t) * b);
+            const u = @splat(v.len, @as(v.child, 1.0)) - t;
+            return @mulAdd(@TypeOf(a), u, a, t * b);
         },
         else => comptime unreachable,
     }
@@ -113,6 +114,10 @@ pub fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
 }
 
-pub inline fn solidAngleCone(c: f32) f32 {
+pub inline fn solidAngleOfCone(c: f32) f32 {
     return (2.0 * std.math.pi) * (1.0 - c);
+}
+
+pub inline fn eq(x: f32, y: f32, comptime eps: f32) bool {
+    return @fabs(x - y) <= eps;
 }

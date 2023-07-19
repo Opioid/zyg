@@ -1,4 +1,5 @@
 const math = @import("vector4.zig");
+const mima = @import("minmax.zig");
 const Vec4f = math.Vec4f;
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 
@@ -24,9 +25,9 @@ pub fn merge(ap: Vec4f, bp: Vec4f) Vec4f {
         std.mem.swap(f32, &a_angle, &b_angle);
     }
 
-    const d_angle = std.math.acos(std.math.clamp(math.dot3(a, b), -1.0, 1.0));
+    const d_angle = std.math.acos(mima.clamp(math.dot3(a, b), -1.0, 1.0));
 
-    if (std.math.min(d_angle + b_angle, std.math.pi) <= a_angle) {
+    if (mima.min(d_angle + b_angle, std.math.pi) <= a_angle) {
         return a;
     }
 

@@ -8,9 +8,9 @@ const cs = @import("../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
-const sr = @import("../scene/ray.zig");
-const Ray = sr.Ray;
-const RayDif = sr.RayDif;
+const vt = @import("../scene/vertex.zig");
+const Vertex = vt.Vertex;
+const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
@@ -48,7 +48,7 @@ pub const Perspective = struct {
 
     sensor: Sensor = .{
         .Opaque = snsr.Filtered(snsr.Opaque).init(
-            std.math.f32_max,
+            std.math.floatMax(f32),
             2.0,
             snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
         ),
@@ -116,7 +116,7 @@ pub const Perspective = struct {
         self.updateFocus(time, scene);
     }
 
-    pub fn generateRay(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Ray {
+    pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
         const coordinates = math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
 
         var direction = self.left_top + self.d_x * @splat(4, coordinates[0]) + self.d_y * @splat(4, coordinates[1]);
@@ -140,7 +140,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 
     pub fn sampleTo(
@@ -190,10 +190,10 @@ pub const Perspective = struct {
         const fx = @floor(x);
         const fy = @floor(y);
 
-        const pixel = Vec2i{ @floatToInt(i32, fx), @floatToInt(i32, fy) };
+        const pixel = Vec2i{ @as(i32, @intFromFloat(fx)), @as(i32, @intFromFloat(fy)) };
 
-        if (@intCast(u32, pixel[0] - bounds[0]) > @intCast(u32, bounds[2]) or
-            @intCast(u32, pixel[1] - bounds[1]) > @intCast(u32, bounds[3]))
+        if (@as(u32, @intCast(pixel[0] - bounds[0])) > @as(u32, @intCast(bounds[2])) or
+            @as(u32, @intCast(pixel[1] - bounds[1])) > @as(u32, @intCast(bounds[3])))
         {
             return null;
         }
@@ -235,10 +235,10 @@ pub const Perspective = struct {
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
-        const delta = @floatCast(f64, frame_delta);
-        const duration = @intToFloat(f64, self.frame_duration);
+        const delta = @as(f64, @floatCast(frame_delta));
+        const duration = @as(f64, @floatFromInt(self.frame_duration));
 
-        const fdi = @floatToInt(u64, @round(delta * duration));
+        const fdi = @as(u64, @intFromFloat(@round(delta * duration)));
 
         return @as(u64, frame) * self.frame_step + fdi;
     }
@@ -255,7 +255,7 @@ pub const Perspective = struct {
                 if (0.0 == fps) {
                     self.frame_step = 0;
                 } else {
-                    self.frame_step = @floatToInt(u64, @round(@intToFloat(f64, Scene.Units_per_second) / fps));
+                    self.frame_step = @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Scene.Units_per_second)) / fps)));
                 }
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
@@ -304,8 +304,8 @@ pub const Perspective = struct {
 
     fn setFocus(self: *Self, focus: Focus) void {
         self.focus = focus;
-        self.focus.point[0] *= @intToFloat(f32, self.resolution[0]);
-        self.focus.point[1] *= @intToFloat(f32, self.resolution[1]);
+        self.focus.point[0] *= @as(f32, @floatFromInt(self.resolution[0]));
+        self.focus.point[1] *= @as(f32, @floatFromInt(self.resolution[1]));
         self.focus_distance = focus.distance;
     }
 
@@ -317,7 +317,7 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var ray = Ray.init(
+            var vertex = Vertex.init(
                 trafo.position,
                 trafo.objectToWorldVector(direction),
                 0.0,
@@ -328,8 +328,8 @@ pub const Perspective = struct {
             );
 
             var isec = Intersection{};
-            if (scene.intersect(&ray, .Normal, &isec)) {
-                self.focus_distance = ray.ray.maxT() + self.focus.point[2];
+            if (scene.intersect(&vertex, .Normal, &isec)) {
+                self.focus_distance = vertex.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
             }

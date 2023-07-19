@@ -56,18 +56,18 @@ pub const Map = struct {
 
         self.grid.initCells(self.photons[0..num_photons]);
 
-        const total_num_photons = @intCast(u32, self.photons.len);
+        const total_num_photons = @as(u32, @intCast(self.photons.len));
 
         const reduced_num = if (num_photons == total_num_photons)
             self.grid.reduce(self.photons, threads)
         else
             num_photons;
 
-        const percentage_left = @intToFloat(f32, reduced_num) / @intToFloat(f32, total_num_photons);
+        const percentage_left = @as(f32, @floatFromInt(reduced_num)) / @as(f32, @floatFromInt(total_num_photons));
 
         std.debug.print(
             "{} left of {} ({}%)\n",
-            .{ reduced_num, total_num_photons, @floatToInt(u32, 100.0 * percentage_left) },
+            .{ reduced_num, total_num_photons, @as(u32, @intFromFloat(100.0 * percentage_left)) },
         );
 
         self.reduced_num = reduced_num;
@@ -108,7 +108,7 @@ pub const Map = struct {
     }
 
     fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @ptrCast(*Self, @alignCast(16, context));
+        const self = @as(*Self, @ptrCast(@alignCast(context)));
 
         var aabb = math.aabb.Empty;
         for (self.photons[begin..end]) |p| {

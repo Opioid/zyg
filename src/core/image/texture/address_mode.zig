@@ -11,14 +11,14 @@ pub const Mode = union(enum) {
 
     pub fn f(m: Mode, x: f32) f32 {
         return switch (m) {
-            .Clamp => std.math.clamp(x, 0.0, 1.0),
+            .Clamp => math.clamp(x, 0.0, 1.0),
             .Repeat => math.frac(x),
         };
     }
 
     pub fn f3(m: Mode, x: Vec4f) Vec4f {
         return switch (m) {
-            .Clamp => math.clamp(x, 0.0, 1.0),
+            .Clamp => math.clamp4(x, 0.0, 1.0),
             .Repeat => math.frac(x),
         };
     }

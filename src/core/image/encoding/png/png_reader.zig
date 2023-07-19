@@ -105,8 +105,8 @@ pub const Reader = struct {
         }
 
         pub fn allocate(self: *Info, alloc: Allocator) !void {
-            const height = @intCast(u32, self.height);
-            const row_size = @intCast(u32, self.width) * self.num_channels;
+            const height = @as(u32, @intCast(self.height));
+            const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
             const buffer_size = row_size * height;
             const num_bytes = buffer_size + row_size;
 
@@ -177,7 +177,7 @@ pub const Reader = struct {
             const buffer_size = 8192;
             var buffer: [buffer_size]u8 = undefined;
 
-            const row_size = @intCast(u32, self.width) * self.num_channels;
+            const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
 
             var filter_byte = true;
             var current_row: u32 = 0;
@@ -205,7 +205,7 @@ pub const Reader = struct {
                     var i: u32 = 0;
                     while (i < decompressed) {
                         if (filter_byte) {
-                            self.filters[current_row] = @intToEnum(Filter, buffer[i]);
+                            self.filters[current_row] = @as(Filter, @enumFromInt(buffer[i]));
                             filter_byte = false;
                             i += 1;
                         } else {
@@ -251,7 +251,7 @@ pub const Reader = struct {
                         }
 
                         var i: u32 = 0;
-                        const len = @intCast(u32, self.width * self.height);
+                        const len = @as(u32, @intCast(self.width * self.height));
                         while (i < len) : (i += 1) {
                             const o = i * self.num_channels;
 
@@ -269,7 +269,7 @@ pub const Reader = struct {
                         @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var i: u32 = 0;
-                        const len = @intCast(u32, self.width * self.height);
+                        const len = @as(u32, @intCast(self.width * self.height));
 
                         if (.YX == swizzle) {
                             while (i < len) : (i += 1) {
@@ -296,7 +296,7 @@ pub const Reader = struct {
                         var color = Pack3b.init1(0);
 
                         var i: u32 = 0;
-                        const len = @intCast(u32, self.width * self.height);
+                        const len = @as(u32, @intCast(self.width * self.height));
                         while (i < len) : (i += 1) {
                             const o = i * self.num_channels;
 
@@ -314,13 +314,13 @@ pub const Reader = struct {
         }
 
         fn numPixelBytes(self: *const Info) u32 {
-            const row_size = @intCast(u32, self.width) * self.num_channels;
-            return row_size * @intCast(u32, self.height);
+            const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
+            return row_size * @as(u32, @intCast(self.height));
         }
 
         fn resolveFilter(self: *const Info) void {
-            const height = @intCast(u32, self.height);
-            const row_size = @intCast(u32, self.width) * self.num_channels;
+            const height = @as(u32, @intCast(self.height));
+            const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
             const bpp = self.bytes_per_pixel;
 
             var current_row_data = self.buffer;
@@ -351,7 +351,7 @@ pub const Reader = struct {
                         for (current_row_data[bpp..row_size], 0..) |*b, i| {
                             const p = @as(u32, previous_row_data[i + bpp]);
                             const a = @as(u32, current_row_data[i]);
-                            b.* +%= @truncate(u8, (a + p) >> 1);
+                            b.* +%= @as(u8, @truncate((a + p) >> 1));
                         }
                     },
                     .Paeth => {
@@ -371,9 +371,9 @@ pub const Reader = struct {
         }
 
         fn paethPredictor(a: u8, b: u8, c: u8) u8 {
-            const A = @intCast(i32, a);
-            const B = @intCast(i32, b);
-            const C = @intCast(i32, c);
+            const A = @as(i32, @intCast(a));
+            const B = @as(i32, @intCast(b));
+            const C = @as(i32, @intCast(c));
             const p = A + B - C;
             const pa = std.math.absInt(p - A) catch unreachable;
             const pb = std.math.absInt(p - B) catch unreachable;
@@ -428,7 +428,7 @@ pub const Reader = struct {
     }
 
     fn createImageAsync(context: ThreadContext) void {
-        const info = @ptrCast(*Info, @alignCast(16, context));
+        const info = @as(*Info, @ptrCast(@alignCast(context)));
 
         info.process() catch {};
     }
@@ -496,8 +496,8 @@ pub const Reader = struct {
     fn parseHeader(self: *Reader, alloc: Allocator, info: *Info) !void {
         const chunk = self.chunk;
 
-        info.width = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[0..4]));
-        info.height = @intCast(i32, std.mem.readIntForeign(u32, chunk.data[4..8]));
+        info.width = @intCast(std.mem.readIntForeign(u32, chunk.data[0..4]));
+        info.height = @intCast(std.mem.readIntForeign(u32, chunk.data[4..8]));
 
         const depth = chunk.data[8];
 
@@ -505,7 +505,7 @@ pub const Reader = struct {
             return Error.PNGBitDepthNotSupported;
         }
 
-        const color_type = @intToEnum(ColorType, chunk.data[9]);
+        const color_type = @as(ColorType, @enumFromInt(chunk.data[9]));
 
         info.num_channels = switch (color_type) {
             .Grayscale => 1,

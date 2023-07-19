@@ -82,7 +82,7 @@ pub const Base = struct {
         distance: f32,
         anisotropy: f32,
     ) void {
-        const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
         const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
 
         self.cc = cc;
@@ -100,10 +100,10 @@ pub const Base = struct {
         return 1.0;
     }
 
-    pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
+    pub fn border(self: *const Base, wo: Vec4f, n: Vec4f) f32 {
         const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
-        const n_dot_wi = std.math.max(math.dot3(n, wi), 0.0);
-        return 1.0 - fresnel.schlick1(n_dot_wi, f0);
+        const a = @fabs(math.dot3(n, wo));
+        return 1.0 - fresnel.schlick1(a, f0);
     }
 
     pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {
@@ -117,7 +117,7 @@ pub const Base = struct {
         }
 
         if (depth < SR_high) {
-            const towards_zero = SR_inv_range * @intToFloat(f32, depth - SR_low);
+            const towards_zero = SR_inv_range * @as(f32, @floatFromInt(depth - SR_low));
             return math.lerp(self.volumetric_anisotropy, 0.0, towards_zero);
         }
 
@@ -134,26 +134,26 @@ pub const Base = struct {
     pub fn spectrumAtWavelength(lambda: f32, value: f32) Vec4f {
         const start = Rainbow.Wavelength_start;
         const end = Rainbow.Wavelength_end;
-        const nb = @intToFloat(f32, Rainbow.Num_bands);
+        const nb = @as(f32, @floatFromInt(Rainbow.Num_bands));
 
         const u = ((lambda - start) / (end - start)) * nb;
-        const id = @floatToInt(u32, u);
-        const frac = u - @intToFloat(f32, id);
+        const id = @as(u32, @intFromFloat(u));
+        const frac = u - @as(f32, @floatFromInt(id));
 
         if (id >= Rainbow.Num_bands - 1) {
             return Rainbow.Rainbow[Rainbow.Num_bands - 1];
         }
 
-        return @splat(4, value) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], frac);
+        return @splat(4, value) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @splat(4, frac));
     }
 
     var SR_low: u32 = 16;
     var SR_high: u32 = 64;
-    var SR_inv_range: f32 = 1.0 / @intToFloat(f32, 64 - 16);
+    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(64 - 16));
 
     pub fn setSimilarityRelationRange(low: u32, high: u32) void {
         SR_low = low;
         SR_high = high;
-        SR_inv_range = 1.0 / @intToFloat(f32, high - low);
+        SR_inv_range = 1.0 / @as(f32, @floatFromInt(high - low));
     }
 };

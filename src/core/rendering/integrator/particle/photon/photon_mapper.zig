@@ -1,6 +1,6 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
-const Ray = @import("../../../../scene/ray.zig").Ray;
+const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
@@ -62,7 +62,7 @@ pub const Mapper = struct {
 
         var i = begin;
         while (i < end) {
-            const max_photons = std.math.min(self.settings.max_bounces, end - i);
+            const max_photons = @min(self.settings.max_bounces, end - i);
             const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
 
             if (result.num_iterations > 0) {
@@ -89,19 +89,16 @@ pub const Mapper = struct {
         // How often should we try to create a valid photon path?
         const Max_iterations = 1024 * 10;
 
-        const Avoid_caustics = false;
-
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
             var caustic_path = false;
-            var from_subsurface = false;
 
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
-            var ray = self.generateLightRay(
+            var vertex = self.generateLightVertex(
                 frame,
                 bounds,
                 worker,
@@ -128,7 +125,7 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&ray, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
+            if (!worker.nextEvent(&vertex, @splat(4, @as(f32, 1.0)), &isec, &self.sampler)) {
                 continue;
             }
 
@@ -141,17 +138,15 @@ pub const Mapper = struct {
             var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @splat(4, light_sample.pdf());
             radiance *= throughput;
 
-            while (ray.depth < self.settings.max_bounces) {
-                const wo = -ray.ray.direction;
+            while (vertex.depth < self.settings.max_bounces) {
+                const wo = -vertex.ray.direction;
 
                 const mat_sample = worker.sampleMaterial(
-                    ray,
-                    wo,
+                    vertex,
                     isec,
                     &self.sampler,
                     0.0,
-                    Avoid_caustics,
-                    from_subsurface,
+                    .Full,
                 );
 
                 if (mat_sample.isPureEmissive()) {
@@ -200,8 +195,8 @@ pub const Mapper = struct {
 
                     const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
 
-                    const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
-                    const continue_prob = std.math.min(1.0, avg);
+                    const avg = math.average3(nr) / math.max(math.average3(radiance), 0.000001);
+                    const continue_prob = math.min(1.0, avg);
 
                     if (self.sampler.sample1D() >= continue_prob) {
                         break;
@@ -211,21 +206,21 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.straight) {
-                    ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
+                    vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
-                        ray.depth += 1;
+                        vertex.depth += 1;
                     }
                 } else {
-                    ray.ray.origin = isec.offsetP(sample_result.wi);
-                    ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    ray.depth += 1;
+                    vertex.ray.origin = isec.offsetP(sample_result.wi);
+                    vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.depth += 1;
 
-                    from_subsurface = false;
+                    vertex.state.from_subsurface = isec.subsurface();
                 }
 
-                if (0.0 == ray.wavelength) {
-                    ray.wavelength = sample_result.wavelength;
+                if (0.0 == vertex.wavelength) {
+                    vertex.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {
@@ -234,9 +229,7 @@ pub const Mapper = struct {
                     radiance *= @splat(4, eta * eta);
                 }
 
-                from_subsurface = from_subsurface or isec.subsurface();
-
-                if (!worker.nextEvent(&ray, throughput, &isec, &self.sampler)) {
+                if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {
                     break;
                 }
 
@@ -259,14 +252,14 @@ pub const Mapper = struct {
         return .{ .num_iterations = 0, .num_photons = 0 };
     }
 
-    fn generateLightRay(
+    fn generateLightVertex(
         self: *Self,
         frame: u32,
         bounds: AABB,
         worker: *Worker,
         light_id: *u32,
         light_sample: *SampleFrom,
-    ) ?Ray {
+    ) ?Vertex {
         const select = self.sampler.sample1D();
         const l = worker.scene.randomLight(select);
 
@@ -278,6 +271,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 };

@@ -72,7 +72,7 @@ pub const Material = struct {
             const s0 = self.sun_radiance.samples[i];
             const s1 = self.sun_radiance.samples[i + 1];
 
-            const v = (@intToFloat(f32, i) + 0.5) / @intToFloat(f32, self.sun_radiance.samples.len);
+            const v = (@as(f32, @floatFromInt(i)) + 0.5) / @as(f32, @floatFromInt(self.sun_radiance.samples.len));
             const wi = Sky.sunWi(rotation, v);
 
             const w = @sin(v);
@@ -111,7 +111,7 @@ pub const Material = struct {
 
         {
             const d = self.emission_map.description(scene).dimensions;
-            const height = @intCast(u32, d[1]);
+            const height = @as(u32, @intCast(d[1]));
 
             var context = Context{
                 .shape = shape,
@@ -168,7 +168,7 @@ pub const Material = struct {
     fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
         const k = wi - rotation.r[2];
         const c = math.dot3(rotation.r[1], k) / Sky.Radius;
-        return std.math.max((c + 1.0) * 0.5, 0.0);
+        return math.max((c + 1.0) * 0.5, 0.0);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -195,11 +195,11 @@ const Context = struct {
     alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @ptrCast(*Context, context);
+        const self = @as(*Context, @ptrCast(context));
 
         const d = self.dimensions;
 
-        var luminance = self.alloc.alloc(f32, @intCast(usize, d[0])) catch return;
+        var luminance = self.alloc.alloc(f32, @as(usize, @intCast(d[0]))) catch return;
         defer self.alloc.free(luminance);
 
         const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(d);
@@ -208,14 +208,14 @@ const Context = struct {
 
         var y = begin;
         while (y < end) : (y += 1) {
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
+            const v = idf[1] * (@as(f32, @floatFromInt(y)) + 0.5);
 
             var x: u32 = 0;
             while (x < d[0]) : (x += 1) {
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
+                const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const li = math.vec3fTo4f(self.image.Float3.get2D(@intCast(i32, x), @intCast(i32, y)));
+                const li = math.vec3fTo4f(self.image.Float3.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y))));
                 const wli = @splat(4, uv_weight) * li;
 
                 avg += Vec4f{ wli[0], wli[1], wli[2], uv_weight };

@@ -29,13 +29,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
-    var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-    defer parser.deinit();
+    var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+    defer parsed.deinit();
 
-    var document = try parser.parse(buffer);
-    defer document.deinit();
-
-    const root = document.root;
+    const root = parsed.value;
 
     if (root.object.get("scene")) |scene_filename| {
         take.scene_filename = try alloc.dupe(u8, scene_filename.string);
@@ -85,13 +82,10 @@ pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *c
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
-    var parser = std.json.Parser.init(alloc, .alloc_if_needed);
-    defer parser.deinit();
+    var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+    defer parsed.deinit();
 
-    var document = try parser.parse(buffer);
-    defer document.deinit();
-
-    const root = document.root;
+    const root = parsed.value;
 
     if (root.object.get("camera")) |camera_node| {
         var iter = camera_node.object.iterator();
@@ -173,7 +167,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
     var alpha_transparency = false;
-    var clamp_max: f32 = std.math.f32_max;
+    var clamp_max: f32 = std.math.floatMax(f32);
 
     var filter_value_ptr: ?*std.json.Value = null;
 
