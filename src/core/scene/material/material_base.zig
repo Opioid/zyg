@@ -82,7 +82,7 @@ pub const Base = struct {
         distance: f32,
         anisotropy: f32,
     ) void {
-        const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
         const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
 
         self.cc = cc;

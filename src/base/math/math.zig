@@ -5,7 +5,8 @@ pub usingnamespace @import("distribution_1d.zig");
 pub usingnamespace @import("distribution_2d.zig");
 pub usingnamespace @import("distribution_3d.zig");
 pub usingnamespace @import("interpolated_function.zig");
-pub usingnamespace @import("minmax.zig");
+const minmax = @import("minmax.zig");
+pub usingnamespace minmax;
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;
 pub usingnamespace @import("matrix3x3.zig");
@@ -34,7 +35,7 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
 }
 
 pub inline fn saturate(x: f32) f32 {
-    return std.math.clamp(x, 0.0, 1.0);
+    return minmax.clamp(x, 0.0, 1.0);
 }
 
 pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
