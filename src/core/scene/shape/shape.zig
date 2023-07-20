@@ -108,7 +108,7 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
-            .CurveMesh => AABB.init(@splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0))),
+            .CurveMesh => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
             .TriangleMesh => |m| m.tree.aabb(),
         };
     }
@@ -165,7 +165,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy => Canopy.intersect(ray, trafo, isec),
             .Cube => Cube.intersect(ray, trafo, ipo, isec),
-            .CurveMesh => false,
+            .CurveMesh => |m| m.intersect(ray, trafo, isec),
             .Disk => Disk.intersect(ray, trafo, isec),
             .DistantSphere => DistantSphere.intersect(ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(ray, trafo, isec),
@@ -180,7 +180,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray, trafo),
-            .CurveMesh => false,
+            .CurveMesh => |m| m.intersectP(ray, trafo),
             .Disk => Disk.intersectP(ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray, trafo),
             .Plane => Plane.intersectP(ray, trafo),
