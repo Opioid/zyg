@@ -63,13 +63,11 @@ pub const Cube = struct {
     }
 
     pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
-        _ = ray;
-        _ = trafo;
         _ = entity;
         _ = sampler;
         _ = scene;
 
-        return @splat(4, @as(f32, 1.0));
+        return if (intersectP(ray, trafo)) null else @splat(4, @as(f32, 1.0));
     }
 
     pub fn transmittance(
@@ -80,19 +78,17 @@ pub const Cube = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) ?Vec4f {
-        const local_origin = trafo.worldToObjectPoint(ray.origin);
-        const local_dir = trafo.worldToObjectVector(ray.direction);
-        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+        var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         const hit_t = aabb.intersectP2(local_ray) orelse return @splat(4, @as(f32, 1.0));
 
         const start = math.max(hit_t[0], ray.minT());
         const end = math.min(hit_t[1], ray.maxT());
+        local_ray.setMinMaxT(start, end);
 
         const material = worker.scene.propMaterial(entity, 0);
-        const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propTransmittance(tray, material, entity, depth, sampler);
+        return worker.propTransmittance(local_ray, material, entity, depth, sampler);
     }
 
     pub fn scatter(
