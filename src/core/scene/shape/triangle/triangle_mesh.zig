@@ -456,9 +456,6 @@ pub const Mesh = struct {
                 isec.b = b_w;
                 isec.n = n_w;
                 isec.uv = uv;
-            } else if (.NoTangentSpace == ipo) {
-                const uv = data.interpolateUv(hit.u, hit.v, hit.index);
-                isec.uv = uv;
             } else {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);

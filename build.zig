@@ -120,7 +120,7 @@ pub fn build(b: *std.Build) void {
             "-t",
             "-4",
             //"--no-tex",
-            "--no-tex-dwim",
+            //"--no-tex-dwim",
             //"--debug-mat",
             "-f",
             "0",
