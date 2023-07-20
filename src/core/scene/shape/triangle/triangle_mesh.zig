@@ -426,9 +426,9 @@ pub const Mesh = struct {
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
-        const tray = trafo.worldToObjectRay(ray.*);
+        const local_ray = trafo.worldToObjectRay(ray.*);
 
-        if (self.tree.intersect(tray)) |hit| {
+        if (self.tree.intersect(local_ray)) |hit| {
             const data = self.tree.data;
 
             ray.setMaxT(hit.t);
@@ -469,8 +469,8 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        const tray = trafo.worldToObjectRay(ray);
-        return self.tree.intersectP(tray);
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersectP(local_ray);
     }
 
     pub fn visibility(
