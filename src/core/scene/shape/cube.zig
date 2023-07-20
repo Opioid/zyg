@@ -22,9 +22,7 @@ const std = @import("std");
 
 pub const Cube = struct {
     pub fn intersect(ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
-        const local_origin = trafo.worldToObjectPoint(ray.origin);
-        const local_dir = trafo.worldToObjectVector(ray.direction);
-        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+        const local_ray = trafo.worldToObjectRay(ray.*);
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         const hit_t = aabb.intersectP(local_ray) orelse return false;
@@ -48,7 +46,7 @@ pub const Cube = struct {
         isec.geo_n = n;
         isec.n = n;
 
-        if (.Normal != ipo) {
+        if (.All == ipo) {
             const tb = math.orthonormalBasis3(n);
             isec.t = tb[0];
             isec.b = tb[1];
@@ -58,9 +56,7 @@ pub const Cube = struct {
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
-        const local_origin = trafo.worldToObjectPoint(ray.origin);
-        const local_dir = trafo.worldToObjectVector(ray.direction);
-        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+        const local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         return aabb.intersect(local_ray);
