@@ -18,9 +18,8 @@ pub const Intersection = struct {
 };
 
 pub const Interpolation = enum {
-    All,
-    NoTangentSpace,
     Normal,
+    All,
 };
 
 pub const Volume = struct {

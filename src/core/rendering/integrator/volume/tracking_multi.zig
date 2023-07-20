@@ -140,7 +140,7 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.intersectProp(isec.prop, vertex, .Normal, &isec.geo)) {
+            if (!worker.propIntersect(isec.prop, vertex, .Normal, &isec.geo)) {
                 return false;
             }
         } else {
@@ -160,7 +160,7 @@ pub const Multi = struct {
 
                 var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
                 var nisec = shp.Intersection{};
-                if (worker.intersectProp(interface.prop, &tvertex, .Normal, &nisec)) {
+                if (worker.propIntersect(interface.prop, &tvertex, .Normal, &nisec)) {
                     missed = math.dot3(nisec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
