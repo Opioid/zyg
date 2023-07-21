@@ -119,7 +119,7 @@ pub const AABB = struct {
         self.bounds[1] += v;
     }
 
-    pub fn add(self: *AABB, s: f32) void {
+    pub fn expand(self: *AABB, s: f32) void {
         const v = @splat(4, s);
         self.bounds[0] -= v;
         self.bounds[1] += v;
