@@ -1,6 +1,7 @@
 const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
-const Mesh = @import("triangle/triangle_mesh.zig").Mesh;
+const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
+const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const vs = @import("triangle/vertex_stream.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
 const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
@@ -123,7 +124,7 @@ pub const Provider = struct {
 
         {
             if (std.mem.eql(u8, "curve", name)) {
-                return .{ .data = .{ .CurveMesh = .{} } };
+                return .{ .data = .{ .CurveMesh = CurveMesh.init() } };
             }
 
             var stream = try resources.fs.readStream(alloc, name);
@@ -170,7 +171,7 @@ pub const Provider = struct {
             }
         }
 
-        var mesh = try Mesh.init(alloc, @intCast(handler.parts.items.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
 
         for (handler.parts.items, 0..) |p, i| {
             mesh.setMaterialForPart(i, p.material_index);
@@ -200,7 +201,7 @@ pub const Provider = struct {
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
-        var mesh = try Mesh.init(alloc, num_parts);
+        var mesh = try TriangleMesh.init(alloc, num_parts);
 
         if (desc.num_parts > 0 and null != desc.parts) {
             for (0..num_parts) |i| {
@@ -375,7 +376,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Mesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !TriangleMesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -564,7 +565,7 @@ pub const Provider = struct {
 
         _ = try stream.read(indices);
 
-        var mesh = try Mesh.init(alloc, @intCast(parts.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(parts.len));
 
         for (parts, 0..) |p, i| {
             if (p.start_index + p.num_indices > num_indices) {

@@ -108,7 +108,7 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
-            .CurveMesh => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
+            .CurveMesh => |m| m.aabb,
             .TriangleMesh => |m| m.tree.aabb(),
         };
     }
@@ -200,6 +200,7 @@ pub const Shape = union(enum) {
     ) ?Vec4f {
         return switch (self) {
             .Cube => Cube.visibility(ray, trafo, entity, sampler, scene),
+            .CurveMesh => |m| m.visibility(ray, trafo),
             .Disk => Disk.visibility(ray, trafo, entity, sampler, scene),
             .Plane => Plane.visibility(ray, trafo, entity, sampler, scene),
             .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),

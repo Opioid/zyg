@@ -1,3 +1,4 @@
+const curve = @import("curve.zig");
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
@@ -11,13 +12,30 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Mesh = struct {
-    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
-        _ = self;
+    points: [4]Vec4f,
+    width: [2]f32,
 
+    aabb: AABB,
+
+    pub fn init() Mesh {
+        const points: [4]Vec4f = .{
+            .{ 0.0, 0.0, 0.0, 0.0 },
+            .{ -0.5, 0.33, 0.0, 0.0 },
+            .{ 0.5, 0.66, 0.0, 0.0 },
+            .{ 0.0, 1.0, 0.0, 0.0 },
+        };
+
+        const width: [2]f32 = .{ 0.2, 0.1 };
+
+        const bounds = curve.cubicBezierBounds(points);
+
+        return .{ .points = points, .width = width, .aabb = bounds };
+    }
+
+    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray.*);
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        const hit_t = aabb.intersectP(local_ray) orelse return false;
+        const hit_t = self.aabb.intersectP(local_ray) orelse return false;
         if (hit_t > ray.maxT()) {
             return false;
         }
@@ -42,11 +60,12 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        _ = self;
-
         const local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        return aabb.intersect(local_ray);
+        return self.aabb.intersect(local_ray);
+    }
+
+    pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
+        return if (self.intersectP(ray, trafo)) null else @splat(4, @as(f32, 1.0));
     }
 };
