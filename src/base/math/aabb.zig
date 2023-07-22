@@ -211,6 +211,17 @@ pub const AABB = struct {
             self.bounds[1][1] >= other.bounds[1][1] and
             self.bounds[1][2] >= other.bounds[1][2];
     }
+
+    pub fn objectToCubeRay(self: AABB, ray: Ray) Ray {
+        const s = self.halfsize();
+
+        return Ray.init(
+            (ray.origin - self.position()) / s,
+            ray.direction / s,
+            ray.minT(),
+            ray.maxT(),
+        );
+    }
 };
 
 pub const Empty = AABB.init(@splat(4, @as(f32, std.math.floatMax(f32))), @splat(4, @as(f32, -std.math.floatMax(f32))));
