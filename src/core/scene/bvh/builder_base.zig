@@ -196,7 +196,7 @@ const Kernel = struct {
             self.aabb_surface_area = aabb_surface_area;
             self.references = references;
 
-            _ = threads.runRange(self, evaluateRange, 0, @as(u32, @intCast(self.split_candidates.items.len)), 0);
+            _ = threads.runRange(self, evaluateRange, 0, @intCast(self.split_candidates.items.len), 0);
         }
 
         var sc: usize = 0;
@@ -237,7 +237,7 @@ const Kernel = struct {
     pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
         const num_references = @as(u32, @intCast(references.len));
 
-        node.setLeafNode(@as(u32, @intCast(self.reference_ids.items.len)), num_references);
+        node.setLeafNode(@intCast(self.reference_ids.items.len), num_references);
 
         for (references) |r| {
             try self.reference_ids.append(alloc, r.primitive());
@@ -290,11 +290,11 @@ pub const Base = struct {
     }
 
     pub fn numReferenceIds(self: *const Base) u32 {
-        return @as(u32, @intCast(self.kernel.reference_ids.items.len));
+        return @intCast(self.kernel.reference_ids.items.len);
     }
 
     pub fn numBuildNodes(self: *const Base) u32 {
-        return @as(u32, @intCast(self.kernel.build_nodes.items.len));
+        return @intCast(self.kernel.build_nodes.items.len);
     }
 
     pub fn split(
