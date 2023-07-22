@@ -11,49 +11,103 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Mesh = struct {
-    points: [4]Vec4f,
-    width: [2]f32,
+    num_curves: u32,
+
+    points: [*]f32,
+    widths: [*]Vec2f,
 
     aabb: AABB,
 
-    pub fn init() Mesh {
-        const points: [4]Vec4f = .{
-            .{ 0.0, 0.0, 0.0, 0.0 },
-            .{ -0.25, 0.33, 0.3, 0.0 },
-            .{ 0.125, 0.66, 0.6, 0.0 },
-            .{ 0.0, 1.0, 0.4, 0.0 },
+    pub fn init(alloc: Allocator) !Mesh {
+        const num_curves: u32 = 2;
+
+        const points = try alloc.alloc(f32, num_curves * 4 * 3 + 1);
+
+        points[0 * 3 + 0] = 0.0;
+        points[0 * 3 + 1] = 0.0;
+        points[0 * 3 + 2] = 0.0;
+
+        points[1 * 3 + 0] = -0.25;
+        points[1 * 3 + 1] = 0.33;
+        points[1 * 3 + 2] = 0.3;
+
+        points[2 * 3 + 0] = 0.125;
+        points[2 * 3 + 1] = 0.66;
+        points[2 * 3 + 2] = 0.6;
+
+        points[3 * 3 + 0] = 0.0;
+        points[3 * 3 + 1] = 1.0;
+        points[3 * 3 + 2] = 0.4;
+
+        points[4 * 3 + 0] = 0.4;
+        points[4 * 3 + 1] = 0.0;
+        points[4 * 3 + 2] = 0.0;
+
+        points[5 * 3 + 0] = 0.15;
+        points[5 * 3 + 1] = 0.33;
+        points[5 * 3 + 2] = 0.6;
+
+        points[6 * 3 + 0] = 0.525;
+        points[6 * 3 + 1] = 0.66;
+        points[6 * 3 + 2] = 0.3;
+
+        points[7 * 3 + 0] = 0.4;
+        points[7 * 3 + 1] = 1.0;
+        points[7 * 3 + 2] = 0.4;
+
+        points[num_curves * 4 * 3] = 0.0;
+
+        const widths = try alloc.alloc(Vec2f, num_curves);
+
+        widths[0] = Vec2f{ 0.2, 0.025 };
+        widths[1] = Vec2f{ 0.1, 0.0125 };
+
+        var bounds = math.aabb.Empty;
+
+        for (0..num_curves) |i| {
+            var box = curve.cubicBezierBounds(curvePoints(points.ptr, @intCast(i)));
+
+            const width = widths[i];
+            box.expand(math.max(width[0], width[1]) * 0.5);
+
+            bounds.mergeAssign(box);
+        }
+
+        return .{ .num_curves = num_curves, .points = points.ptr, .widths = widths.ptr, .aabb = bounds };
+    }
+
+    pub fn deinit(self: *Mesh, alloc: Allocator) void {
+        alloc.free(self.widths[0..self.num_curves]);
+        alloc.free(self.points[0 .. self.num_curves * 4 * 3 + 1]);
+    }
+
+    inline fn curvePoints(points: [*]f32, id: u32) [4]Vec4f {
+        const offset = id * 4 * 3;
+
+        return .{
+            points[offset + 0 ..][0..4].*,
+            points[offset + 3 ..][0..4].*,
+            points[offset + 6 ..][0..4].*,
+            points[offset + 9 ..][0..4].*,
         };
-
-        const width: [2]f32 = .{ 0.2, 0.025 };
-
-        var bounds = curve.cubicBezierBounds(points);
-        bounds.expand(math.max(width[0], width[1]) * 0.5);
-
-        return .{ .points = points, .width = width, .aabb = bounds };
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         var local_ray = trafo.worldToObjectRay(ray.*);
 
-        // const segments = curve.cubicBezierSubdivide(self.points);
-
-        // var cube_ray = local_ray;
-
-        // if (self.intersectSegmentP(local_ray, segments[0..4].*, .{ 0.0, 0.5 })) |result_ray| {
-        //     cube_ray = result_ray;
-        //     local_ray.setMaxT(result_ray.maxT());
-        // }
-
-        // if (self.intersectSegmentP(local_ray, segments[3..7].*, .{ 0.5, 1.0 })) |result_ray| {
-        //     cube_ray = result_ray;
-        //     local_ray.setMaxT(result_ray.maxT());
-        // }
-
         var cube_ray = local_ray;
-        if (self.recursiveIntersectSegment(local_ray, self.points, .{ 0.0, 1.0 }, 0)) |result_ray| {
-            cube_ray = result_ray;
+
+        for (0..self.num_curves) |i| {
+            const id: u32 = @intCast(i);
+            const cp = curvePoints(self.points, id);
+
+            if (self.recursiveIntersectSegment(local_ray, id, cp, .{ 0.0, 1.0 }, 0)) |result_ray| {
+                cube_ray = result_ray;
+                local_ray.setMaxT(result_ray.maxT());
+            }
         }
 
         const hit_t = cube_ray.maxT();
@@ -81,19 +135,20 @@ pub const Mesh = struct {
         return true;
     }
 
-    fn segmentBounds(self: Mesh, points: [4]Vec4f, u_mima: Vec2f) AABB {
+    fn segmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
         var bounds = curve.cubicBezierBounds(points);
 
-        const w0 = math.lerp(self.width[0], self.width[1], u_mima[0]);
-        const w1 = math.lerp(self.width[0], self.width[1], u_mima[1]);
+        const width = self.widths[id];
+        const w0 = math.lerp(width[0], width[1], u_mima[0]);
+        const w1 = math.lerp(width[0], width[1], u_mima[1]);
 
         bounds.expand(math.max(w0, w1) * 0.5);
 
         return bounds;
     }
 
-    fn intersectSegment(self: Mesh, ray: Ray, points: [4]Vec4f, u_mima: Vec2f) ?Ray {
-        const aabb = self.segmentBounds(points, u_mima);
+    fn intersectSegment(self: Mesh, ray: Ray, id: u32, points: [4]Vec4f, u_mima: Vec2f) ?Ray {
+        const aabb = self.segmentBounds(id, points, u_mima);
         var cube_ray = aabb.objectToCubeRay(ray);
 
         const unit = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
@@ -106,9 +161,9 @@ pub const Mesh = struct {
         return cube_ray;
     }
 
-    fn recursiveIntersectSegment(self: Mesh, ray: Ray, points: [4]Vec4f, u_mima: Vec2f, depth: u32) ?Ray {
+    fn recursiveIntersectSegment(self: Mesh, ray: Ray, id: u32, points: [4]Vec4f, u_mima: Vec2f, depth: u32) ?Ray {
         if (5 == depth) {
-            return self.intersectSegment(ray, points, u_mima);
+            return self.intersectSegment(ray, id, points, u_mima);
         }
 
         const segments = curve.cubicBezierSubdivide(points);
@@ -119,12 +174,12 @@ pub const Mesh = struct {
         const u_middle = 0.5 * u_mima[1];
         const next_depth = depth + 1;
 
-        if (self.recursiveIntersectSegment(local_ray, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth)) |result_ray| {
+        if (self.recursiveIntersectSegment(local_ray, id, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth)) |result_ray| {
             cube_ray = result_ray;
             local_ray.setMaxT(result_ray.maxT());
         }
 
-        if (self.recursiveIntersectSegment(local_ray, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth)) |result_ray| {
+        if (self.recursiveIntersectSegment(local_ray, id, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth)) |result_ray| {
             cube_ray = result_ray;
         }
 
@@ -137,17 +192,17 @@ pub const Mesh = struct {
         return cube_ray;
     }
 
-    fn intersectSegmentP(self: Mesh, ray: Ray, points: [4]Vec4f, u_mima: Vec2f) bool {
-        const aabb = self.segmentBounds(points, u_mima);
+    fn intersectSegmentP(self: Mesh, ray: Ray, id: u32, points: [4]Vec4f, u_mima: Vec2f) bool {
+        const aabb = self.segmentBounds(id, points, u_mima);
         var cube_ray = aabb.objectToCubeRay(ray);
 
         const unit = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
         return unit.intersect(cube_ray);
     }
 
-    fn recursiveIntersectSegmentP(self: Mesh, ray: Ray, points: [4]Vec4f, u_mima: Vec2f, depth: u32) bool {
+    fn recursiveIntersectSegmentP(self: Mesh, ray: Ray, id: u32, points: [4]Vec4f, u_mima: Vec2f, depth: u32) bool {
         if (5 == depth) {
-            return self.intersectSegmentP(ray, points, u_mima);
+            return self.intersectSegmentP(ray, id, points, u_mima);
         }
 
         const segments = curve.cubicBezierSubdivide(points);
@@ -155,16 +210,26 @@ pub const Mesh = struct {
         const u_middle = 0.5 * u_mima[1];
         const next_depth = depth + 1;
 
-        if (self.recursiveIntersectSegmentP(ray, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth)) {
+        if (self.recursiveIntersectSegmentP(ray, id, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth)) {
             return true;
         }
 
-        return self.recursiveIntersectSegmentP(ray, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth);
+        return self.recursiveIntersectSegmentP(ray, id, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth);
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
-        return self.recursiveIntersectSegmentP(local_ray, self.points, .{ 0.0, 1.0 }, 0);
+
+        for (0..self.num_curves) |i| {
+            const id: u32 = @intCast(i);
+            const cp = curvePoints(self.points, id);
+
+            if (self.recursiveIntersectSegmentP(local_ray, id, cp, .{ 0.0, 1.0 }, 0)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
