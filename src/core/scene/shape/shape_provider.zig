@@ -3,6 +3,7 @@ const Shape = @import("shape.zig").Shape;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const tvb = @import("triangle/vertex_buffer.zig");
+const cvb = @import("curve/curve_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
 const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
 const Builder = @import("triangle/bvh/triangle_tree_builder.zig").Builder;
@@ -136,7 +137,9 @@ pub const Provider = struct {
                 var mesh = try CurveMesh.init(alloc, num_curves);
 
                 var positions = try alloc.alloc(Pack3f, num_curves * 4);
-                var widths = try alloc.alloc(Vec2f, num_curves);
+                var widths = try alloc.alloc(f32, num_curves * 2);
+
+                var vertices = cvb.Buffer{ .Separate = cvb.Separate.initOwned(positions, widths) };
 
                 var rng = RNG.init(0, 0);
 
@@ -154,20 +157,21 @@ pub const Provider = struct {
 
                         const height = 1.0 + 0.5 * rng.randomFloat();
 
-                        mesh.HACK_setCurve(
-                            id,
-                            .{
-                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
-                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
-                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
-                                .{ ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 0.0 },
-                            },
-                            .{ girth, girth - girth * 0.75 * rng.randomFloat() },
-                        );
+                        positions[id * 4 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 4 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 4 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 4 + 3] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
+
+                        widths[id * 2 + 0] = girth;
+                        widths[id * 2 + 1] = girth - girth * 0.75 * rng.randomFloat();
                     }
                 }
 
+                vertices.copy(mesh.points, mesh.widths, num_curves);
+
                 mesh.HACK_computeBounds();
+
+                vertices.deinit(alloc);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
             }

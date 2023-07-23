@@ -17,76 +17,18 @@ pub const Mesh = struct {
     num_curves: u32,
 
     points: [*]f32,
-    widths: [*]Vec2f,
+    widths: [*]f32,
 
     aabb: AABB = undefined,
 
     pub fn init(alloc: Allocator, num_curves: u32) !Mesh {
         const points = try alloc.alloc(f32, num_curves * 4 * 3 + 1);
 
-        points[0 * 3 + 0] = 0.0;
-        points[0 * 3 + 1] = 0.0;
-        points[0 * 3 + 2] = 0.0;
-
-        points[1 * 3 + 0] = -0.25;
-        points[1 * 3 + 1] = 0.33;
-        points[1 * 3 + 2] = 0.3;
-
-        points[2 * 3 + 0] = 0.125;
-        points[2 * 3 + 1] = 0.66;
-        points[2 * 3 + 2] = 0.6;
-
-        points[3 * 3 + 0] = 0.0;
-        points[3 * 3 + 1] = 1.0;
-        points[3 * 3 + 2] = 0.4;
-
-        points[4 * 3 + 0] = 0.4;
-        points[4 * 3 + 1] = 0.0;
-        points[4 * 3 + 2] = 0.0;
-
-        points[5 * 3 + 0] = 0.15;
-        points[5 * 3 + 1] = 0.33;
-        points[5 * 3 + 2] = 0.6;
-
-        points[6 * 3 + 0] = 0.525;
-        points[6 * 3 + 1] = 0.66;
-        points[6 * 3 + 2] = 0.3;
-
-        points[7 * 3 + 0] = 0.4;
-        points[7 * 3 + 1] = 1.0;
-        points[7 * 3 + 2] = 0.4;
-
         points[num_curves * 4 * 3] = 0.0;
 
-        const widths = try alloc.alloc(Vec2f, num_curves);
-
-        widths[0] = Vec2f{ 0.2, 0.025 };
-        widths[1] = Vec2f{ 0.1, 0.0125 };
+        const widths = try alloc.alloc(f32, num_curves * 2);
 
         return .{ .num_curves = num_curves, .points = points.ptr, .widths = widths.ptr };
-    }
-
-    pub fn HACK_setCurve(self: *Mesh, id: u32, points: [4]Vec4f, width: Vec2f) void {
-        const offset = id * 4 * 3;
-        var dest = self.points[offset .. offset + 4 * 3];
-
-        dest[0] = points[0][0];
-        dest[1] = points[0][1];
-        dest[2] = points[0][2];
-
-        dest[3] = points[1][0];
-        dest[4] = points[1][1];
-        dest[5] = points[1][2];
-
-        dest[6] = points[2][0];
-        dest[7] = points[2][1];
-        dest[8] = points[2][2];
-
-        dest[9] = points[3][0];
-        dest[10] = points[3][1];
-        dest[11] = points[3][2];
-
-        self.widths[id] = width;
     }
 
     pub fn HACK_computeBounds(self: *Mesh) void {
@@ -95,8 +37,9 @@ pub const Mesh = struct {
         for (0..self.num_curves) |i| {
             var box = curve.cubicBezierBounds(self.curvePoints(@intCast(i)));
 
-            const width = self.widths[i];
-            box.expand(math.max(width[0], width[1]) * 0.5);
+            const width0 = self.widths[i * 2 + 0];
+            const width1 = self.widths[i * 2 + 1];
+            box.expand(math.max(width0, width1) * 0.5);
 
             bounds.mergeAssign(box);
         }
@@ -105,7 +48,7 @@ pub const Mesh = struct {
     }
 
     pub fn deinit(self: *Mesh, alloc: Allocator) void {
-        alloc.free(self.widths[0..self.num_curves]);
+        alloc.free(self.widths[0 .. self.num_curves * 2]);
         alloc.free(self.points[0 .. self.num_curves * 4 * 3 + 1]);
     }
 
@@ -130,8 +73,9 @@ pub const Mesh = struct {
             const cp = self.curvePoints(id);
 
             var box = curve.cubicBezierBounds(cp);
-            const width = self.widths[i];
-            box.expand(math.max(width[0], width[1]) * 0.5);
+            const width0 = self.widths[i * 2 + 0];
+            const width1 = self.widths[i * 2 + 1];
+            box.expand(math.max(width0, width1) * 0.5);
             if (!box.intersect(local_ray)) {
                 continue;
             }
@@ -170,9 +114,11 @@ pub const Mesh = struct {
     fn segmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
         var bounds = curve.cubicBezierBounds(points);
 
-        const width = self.widths[id];
-        const w0 = math.lerp(width[0], width[1], u_mima[0]);
-        const w1 = math.lerp(width[0], width[1], u_mima[1]);
+        const width0 = self.widths[id * 2 + 0];
+        const width1 = self.widths[id * 2 + 1];
+
+        const w0 = math.lerp(width0, width1, u_mima[0]);
+        const w1 = math.lerp(width0, width1, u_mima[1]);
 
         bounds.expand(math.max(w0, w1) * 0.5);
 
@@ -182,9 +128,11 @@ pub const Mesh = struct {
     fn linearSegmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
         var bounds = AABB.init(math.min4(points[0], points[3]), math.max4(points[0], points[3]));
 
-        const width = self.widths[id];
-        const w0 = math.lerp(width[0], width[1], u_mima[0]);
-        const w1 = math.lerp(width[0], width[1], u_mima[1]);
+        const width0 = self.widths[id * 2 + 0];
+        const width1 = self.widths[id * 2 + 1];
+
+        const w0 = math.lerp(width0, width1, u_mima[0]);
+        const w1 = math.lerp(width0, width1, u_mima[1]);
 
         bounds.expand(math.max(w0, w1) * 0.5);
 
@@ -269,8 +217,9 @@ pub const Mesh = struct {
             const cp = self.curvePoints(id);
 
             var box = curve.cubicBezierBounds(cp);
-            const width = self.widths[i];
-            box.expand(math.max(width[0], width[1]) * 0.5);
+            const width0 = self.widths[i * 2 + 0];
+            const width1 = self.widths[i * 2 + 1];
+            box.expand(math.max(width0, width1) * 0.5);
             if (!box.intersect(local_ray)) {
                 continue;
             }

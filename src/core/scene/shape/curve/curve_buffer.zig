@@ -15,15 +15,15 @@ pub const Buffer = union(enum) {
         };
     }
 
-    pub fn copy(self: Buffer, positions: [*]f32, widths: [*]f32, count: u32) void {
+    pub fn copy(self: Buffer, points: [*]f32, widths: [*]f32, count: u32) void {
         return switch (self) {
-            inline else => |v| v.copy(positions, frames, uvs, count),
+            inline else => |v| v.copy(points, widths, count),
         };
     }
 };
 
 pub const Separate = struct {
-    positions: []const Pack3f,
+    points: []const Pack3f,
 
     widths: []const f32,
 
@@ -31,9 +31,9 @@ pub const Separate = struct {
 
     const Self = @This();
 
-    pub fn initOwned(positions: []Pack3f, widths: []f32) Self {
+    pub fn initOwned(points: []Pack3f, widths: []f32) Self {
         return .{
-            .positions = positions,
+            .points = points,
             .widths = widths,
             .own = true,
         };
@@ -42,13 +42,15 @@ pub const Separate = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         if (self.own) {
             alloc.free(self.widths);
-            alloc.free(self.positions);
+            alloc.free(self.points);
         }
     }
 
-    pub fn copy(self: Self, positions: [*]f32, widths: [*]f32, count: u32) void {
-        @memcpy(positions[0 .. 4 * 3 * count], @as(f32*, @ptrCast(self.positions)));
+    pub fn copy(self: Self, points: [*]f32, widths: [*]f32, count: u32) void {
+        const num_components = 4 * 3 * count;
+        @memcpy(points[0..num_components], @as([*]const f32, @ptrCast(self.points.ptr))[0..num_components]);
 
-        @memcpy(widths[0 .. 2 * count], self.widths);
+        const num_widths = 2 * count;
+        @memcpy(widths[0..num_widths], self.widths[0..num_widths]);
     }
 };
