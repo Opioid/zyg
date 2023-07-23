@@ -23,6 +23,7 @@ const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
 const ThreadContext = Threads.Context;
 const Variants = base.memory.VariantMap;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -124,7 +125,46 @@ pub const Provider = struct {
 
         {
             if (std.mem.eql(u8, "curve", name)) {
-                return .{ .data = .{ .CurveMesh = try CurveMesh.init(alloc) } };
+                const w: u32 = 32;
+                const h: u32 = 32;
+
+                const fw: f32 = @floatFromInt(w);
+                const fh: f32 = @floatFromInt(h);
+
+                var mesh = try CurveMesh.init(alloc, w * h);
+
+                var rng = RNG.init(0, 0);
+
+                for (0..h) |y| {
+                    for (0..w) |x| {
+                        const id: u32 = @intCast(y * w + x);
+
+                        const fx: f32 = @floatFromInt(x);
+                        const fy: f32 = @floatFromInt(y);
+
+                        const ox = fx - 0.5 * fw;
+                        const oy = fy - 0.5 * fh;
+
+                        const girth = 0.05 * rng.randomFloat();
+
+                        const height = 1.0 + 0.5 * rng.randomFloat();
+
+                        mesh.HACK_setCurve(
+                            id,
+                            .{
+                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
+                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
+                                .{ ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 },
+                                .{ ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 0.0 },
+                            },
+                            .{ girth, girth - girth * 0.75 * rng.randomFloat() },
+                        );
+                    }
+                }
+
+                mesh.HACK_computeBounds();
+
+                return .{ .data = .{ .CurveMesh = mesh } };
             }
 
             var stream = try resources.fs.readStream(alloc, name);
