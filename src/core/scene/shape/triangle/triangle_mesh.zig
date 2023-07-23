@@ -320,7 +320,7 @@ pub const Part = struct {
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
                     temp.dominant_axis += @splat(4, pow) * n;
-                    temp.bb.mergeAssign(self.part.lightAabb(@as(u32, @intCast(i))));
+                    temp.bb.mergeAssign(self.part.lightAabb(@intCast(i)));
                     temp.total_power += pow;
                 }
             }
