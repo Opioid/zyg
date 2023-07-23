@@ -7,7 +7,7 @@ const intf = @import("scene/prop/interface.zig");
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
-const TriangleBvh = @import("scene/shape/triangle/bvh/triangle_tree.zig").Tree;
+const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
 

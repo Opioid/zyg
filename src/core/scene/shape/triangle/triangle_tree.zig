@@ -1,12 +1,12 @@
-pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
-const Trafo = @import("../../../composed_transformation.zig").ComposedTransformation;
-const Scene = @import("../../../scene.zig").Scene;
-const ro = @import("../../../ray_offset.zig");
-const Worker = @import("../../../../rendering/worker.zig").Worker;
-const Node = @import("../../../bvh/node.zig").Node;
-const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
-const Volume = @import("../../../shape/intersection.zig").Volume;
-const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
+pub const Indexed_data = @import("triangle_indexed_data.zig").Indexed_data;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Scene = @import("../../scene.zig").Scene;
+const ro = @import("../../ray_offset.zig");
+const Worker = @import("../../../rendering/worker.zig").Worker;
+const Node = @import("../../bvh/node.zig").Node;
+const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
+const Volume = @import("../../shape/intersection.zig").Volume;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;

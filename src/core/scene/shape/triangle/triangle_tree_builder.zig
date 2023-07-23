@@ -1,9 +1,10 @@
 const Tree = @import("triangle_tree.zig").Tree;
-const tri = @import("../triangle.zig");
+const tri = @import("triangle.zig");
 const IndexTriangle = tri.IndexTriangle;
-const VertexBuffer = @import("../vertex_buffer.zig").Buffer;
-const Reference = @import("../../../bvh/split_candidate.zig").Reference;
-const Base = @import("../../../bvh/builder_base.zig").Base;
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const Reference = @import("../../bvh/split_candidate.zig").Reference;
+const Base = @import("../../bvh/builder_base.zig").Base;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
