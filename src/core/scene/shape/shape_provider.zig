@@ -131,7 +131,12 @@ pub const Provider = struct {
                 const fw: f32 = @floatFromInt(w);
                 const fh: f32 = @floatFromInt(h);
 
-                var mesh = try CurveMesh.init(alloc, w * h);
+                const num_curves = w * h;
+
+                var mesh = try CurveMesh.init(alloc, num_curves);
+
+                var positions = try alloc.alloc(Pack3f, num_curves * 4);
+                var widths = try alloc.alloc(Vec2f, num_curves);
 
                 var rng = RNG.init(0, 0);
 
