@@ -207,10 +207,10 @@ const Data = struct {
         const y = x + i;
 
         if (y < 0) {
-            return @as(u32, @intCast(1 - y));
+            return @intCast(1 - y);
         }
 
-        return @as(u32, @intCast(if (y >= b) (b - i) else y));
+        return @intCast(if (y >= b) (b - i) else y);
     }
 
     pub fn catmullRom(c: *const [4]f32, t: f32) f32 {

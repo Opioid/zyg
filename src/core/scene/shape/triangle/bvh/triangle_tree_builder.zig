@@ -31,7 +31,7 @@ pub const Builder = struct {
         vertices: VertexBuffer,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @as(u32, @intCast(triangles.len)));
+        try self.super.reserve(alloc, @intCast(triangles.len));
 
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
@@ -79,7 +79,7 @@ pub const Builder = struct {
                 const max = tri.max(a, b, c);
 
                 const r = i + begin;
-                self.references[r].set(min, max, @as(u32, @intCast(r)));
+                self.references[r].set(min, max, @intCast(r));
 
                 bounds.bounds[0] = math.min4(bounds.bounds[0], min);
                 bounds.bounds[1] = math.max4(bounds.bounds[1], max);

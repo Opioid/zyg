@@ -98,13 +98,8 @@ pub const Separate = struct {
     }
 
     pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        for (0..count) |i| {
-            const id = i * 3;
-
-            positions[id + 0] = self.positions[i].v[0];
-            positions[id + 1] = self.positions[i].v[1];
-            positions[id + 2] = self.positions[i].v[2];
-        }
+        const num_components = count * 3;
+        @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
         if (count == self.tangents.len) {
             for (0..count) |i| {
@@ -159,13 +154,8 @@ pub const SeparateQuat = struct {
     }
 
     pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        for (0..count) |i| {
-            const id = i * 3;
-
-            positions[id + 0] = self.positions[i].v[0];
-            positions[id + 1] = self.positions[i].v[1];
-            positions[id + 2] = self.positions[i].v[2];
-        }
+        const num_components = count * 3;
+        @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
         for (self.ts[0..count], 0..count) |ts, i| {
             frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
