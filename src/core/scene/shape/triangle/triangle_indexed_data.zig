@@ -1,5 +1,5 @@
-const VertexBuffer = @import("../vertex_buffer.zig").Buffer;
-const triangle = @import("../triangle.zig");
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const triangle = @import("triangle.zig");
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
