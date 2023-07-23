@@ -2,7 +2,7 @@ const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
-const vs = @import("triangle/vertex_stream.zig");
+const tvb = @import("triangle/vertex_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
 const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
 const Builder = @import("triangle/bvh/triangle_tree_builder.zig").Builder;
@@ -92,7 +92,7 @@ pub const Provider = struct {
     tree: Tree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
-    vertices: vs.VertexStream = undefined,
+    vertices: tvb.Buffer = undefined,
     desc: Description = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
@@ -267,7 +267,7 @@ pub const Provider = struct {
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+        const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
             handler.positions.items,
             handler.normals.items,
             handler.tangents.items,
@@ -542,7 +542,7 @@ pub const Provider = struct {
 
         try stream.seekTo(binary_start + vertices_offset);
 
-        var vertices: vs.VertexStream = undefined;
+        var vertices: tvb.Buffer = undefined;
 
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
@@ -557,7 +557,7 @@ pub const Provider = struct {
                 var uvs = try alloc.alloc(Vec2f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                vertices = vs.VertexStream{ .SeparateQuat = vs.SeparateQuat.init(
+                vertices = tvb.Buffer{ .SeparateQuat = tvb.SeparateQuat.init(
                     positions,
                     ts,
                     uvs,
@@ -576,7 +576,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
@@ -584,7 +584,7 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         &.{},
@@ -713,7 +713,7 @@ pub const Provider = struct {
 
         const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
 
-        const vertices = vs.VertexStream{ .C = vs.CAPI.init(
+        const vertices = tvb.Buffer{ .C = tvb.CAPI.init(
             desc.num_vertices,
             desc.positions_stride,
             desc.normals_stride,
@@ -732,7 +732,7 @@ pub const Provider = struct {
         alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: vs.VertexStream,
+        vertices: tvb.Buffer,
         threads: *Threads,
     ) !void {
         var builder = try Builder.init(alloc, 16, 64, 4);
