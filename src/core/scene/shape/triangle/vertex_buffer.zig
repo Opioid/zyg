@@ -9,26 +9,26 @@ const Quaternion = math.Quaternion;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const VertexStream = union(enum) {
+pub const Buffer = union(enum) {
     C: CAPI,
     Separate: Separate,
     SeparateQuat: SeparateQuat,
 
-    pub fn deinit(self: *VertexStream, alloc: Allocator) void {
+    pub fn deinit(self: *Buffer, alloc: Allocator) void {
         return switch (self.*) {
             .C => {},
             inline else => |*v| v.deinit(alloc),
         };
     }
 
-    pub fn numVertices(self: VertexStream) u32 {
+    pub fn numVertices(self: Buffer) u32 {
         return switch (self) {
             .C => |c| c.num_vertices,
             inline else => |v| @intCast(v.positions.len),
         };
     }
 
-    pub fn position(self: VertexStream, i: u32) Vec4f {
+    pub fn position(self: Buffer, i: u32) Vec4f {
         switch (self) {
             .C => |v| {
                 const id = i * v.positions_stride;
@@ -41,13 +41,13 @@ pub const VertexStream = union(enum) {
         }
     }
 
-    pub fn copy(self: VertexStream, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Buffer, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(positions, frames, uvs, count),
         };
     }
 
-    pub fn bitangentSign(self: VertexStream, i: u32) bool {
+    pub fn bitangentSign(self: Buffer, i: u32) bool {
         return switch (self) {
             inline else => |v| v.bitangentSign(i),
         };

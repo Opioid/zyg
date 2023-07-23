@@ -96,7 +96,7 @@ pub const Pool = struct {
         }
 
         self.waitAll(num_tasks);
-    }g
+    }
 
     const Cache_line = 64;
 
