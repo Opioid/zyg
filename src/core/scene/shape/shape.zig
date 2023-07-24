@@ -108,8 +108,7 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
-            .CurveMesh => |m| m.aabb,
-            .TriangleMesh => |m| m.tree.aabb(),
+            inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
         };
     }
 

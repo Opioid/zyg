@@ -20,6 +20,18 @@ pub const Buffer = union(enum) {
             inline else => |v| v.copy(points, widths, count),
         };
     }
+
+    pub fn curvePoints(self: Buffer, id: u32) [4]Vec4f {
+        return switch (self) {
+            inline else => |v| v.curvePoints(id),
+        };
+    }
+
+    pub fn curveWidth(self: Buffer, id: u32) Vec2f {
+        return switch (self) {
+            inline else => |v| v.curveWidth(id),
+        };
+    }
 };
 
 pub const Separate = struct {
@@ -52,5 +64,22 @@ pub const Separate = struct {
 
         const num_widths = 2 * count;
         @memcpy(widths[0..num_widths], self.widths[0..num_widths]);
+    }
+
+    pub fn curvePoints(self: Self, id: u32) [4]Vec4f {
+        const offset = id * 4;
+
+        return .{
+            math.vec3fTo4f(self.points[offset + 0]),
+            math.vec3fTo4f(self.points[offset + 1]),
+            math.vec3fTo4f(self.points[offset + 2]),
+            math.vec3fTo4f(self.points[offset + 3]),
+        };
+    }
+
+    pub fn curveWidth(self: Self, id: u32) Vec2f {
+        const offset = id * 2;
+
+        return .{ self.widths[offset + 0], self.widths[offset + 1] };
     }
 };

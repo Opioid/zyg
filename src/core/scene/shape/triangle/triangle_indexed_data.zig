@@ -11,7 +11,7 @@ const quaternion = math.quaternion;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Indexed_data = struct {
+pub const IndexedData = struct {
     const Triangle = packed struct {
         a: u32,
         b: u32,
@@ -54,12 +54,12 @@ pub const Indexed_data = struct {
 
     pub fn setTriangle(
         self: *Self,
+        triangle_id: u32,
         a: u32,
         b: u32,
         c: u32,
         p: u32,
         vertices: VertexBuffer,
-        triangle_id: u32,
     ) void {
         const abts = vertices.bitangentSign(a);
         const bbts = vertices.bitangentSign(b);

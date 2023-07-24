@@ -5,8 +5,9 @@ const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const tvb = @import("triangle/vertex_buffer.zig");
 const cvb = @import("curve/curve_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
-const Tree = @import("triangle/triangle_tree.zig").Tree;
-const Builder = @import("triangle/triangle_tree_builder.zig").Builder;
+const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
+const TriangleBuilder = @import("triangle/triangle_tree_builder.zig").Builder;
+const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Result = @import("../../resource/result.zig").Result;
 const file = @import("../../file/file.zig");
@@ -90,7 +91,7 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: Tree = .{},
+    tree: TriangleTree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: tvb.Buffer = undefined,
@@ -111,7 +112,7 @@ pub const Provider = struct {
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
                 .TriangleMesh => |*m| {
-                    std.mem.swap(Tree, &m.tree, &self.tree);
+                    std.mem.swap(TriangleTree, &m.tree, &self.tree);
                     m.calculateAreas();
                 },
                 else => {},
@@ -134,7 +135,7 @@ pub const Provider = struct {
 
                 const num_curves = w * h;
 
-                var mesh = try CurveMesh.init(alloc, num_curves);
+                var mesh = CurveMesh{};
 
                 var positions = try alloc.alloc(Pack3f, num_curves * 4);
                 var widths = try alloc.alloc(f32, num_curves * 2);
@@ -167,9 +168,10 @@ pub const Provider = struct {
                     }
                 }
 
-                vertices.copy(mesh.points, mesh.widths, num_curves);
+                var builder = try CurveBuilder.init(alloc, 16, 64, 4);
+                defer builder.deinit(alloc);
 
-                mesh.HACK_computeBounds();
+                try builder.build(alloc, &mesh.tree, num_curves, vertices, resources.threads);
 
                 vertices.deinit(alloc);
 
@@ -739,12 +741,12 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *Tree,
+        tree: *TriangleTree,
         triangles: []const IndexTriangle,
         vertices: tvb.Buffer,
         threads: *Threads,
     ) !void {
-        var builder = try Builder.init(alloc, 16, 64, 4);
+        var builder = try TriangleBuilder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
         try builder.build(alloc, tree, triangles, vertices, threads);

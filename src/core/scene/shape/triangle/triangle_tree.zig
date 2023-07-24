@@ -1,4 +1,4 @@
-pub const Indexed_data = @import("triangle_indexed_data.zig").Indexed_data;
+pub const IndexedData = @import("triangle_indexed_data.zig").IndexedData;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
 const ro = @import("../../ray_offset.zig");
@@ -26,7 +26,7 @@ pub const Tree = struct {
     };
 
     nodes: []Node = &.{},
-    data: Indexed_data = .{},
+    data: IndexedData = .{},
 
     pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         self.nodes = try alloc.alloc(Node, num_nodes);
