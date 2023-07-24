@@ -28,10 +28,6 @@ pub const Mesh = struct {
 
         const hit_t = cube_ray.maxT();
 
-        if (ray.maxT() == hit_t) {
-            return false;
-        }
-
         ray.setMaxT(hit_t);
 
         isec.p = ray.point(hit_t);
