@@ -154,7 +154,7 @@ pub const Provider = struct {
                         const ox = fx - 0.5 * fw;
                         const oy = fy - 0.5 * fh;
 
-                        const girth = 0.05 * rng.randomFloat();
+                        const girth = 0.025 + 0.025 * rng.randomFloat();
 
                         const height = 1.0 + 0.5 * rng.randomFloat();
 

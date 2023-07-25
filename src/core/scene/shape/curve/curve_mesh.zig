@@ -25,21 +25,12 @@ pub const Mesh = struct {
         var local_ray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(local_ray)) |hit| {
-
-            //  const hit_t = cube_ray.maxT();
-
             ray.setMaxT(hit.t);
 
-            //      isec.p = ray.point(hit_t);
+            isec.p = ray.point(hit.t);
+            //isec.p = trafo.objectToWorldPoint(hit.p);
 
-            isec.p = trafo.objectToWorldPoint(hit.p);
-
-            const cube_p = hit.cube_p;
-            const distance = @fabs(@splat(4, @as(f32, 1.0)) - @fabs(cube_p));
-
-            const i = math.indexMinComponent3(distance);
-            const s = std.math.copysign(@as(f32, 1.0), cube_p[i]);
-            const n = @splat(4, s) * trafo.rotation.r[i];
+            const n = trafo.objectToWorldNormal(hit.n);
 
             isec.part = 0;
             isec.primitive = 0;

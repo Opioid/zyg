@@ -177,9 +177,7 @@ pub const Mat4x4 = struct {
         return result + self.r[3];
     }
 
-    pub fn transformPointTransposed(self: Mat4x4, p: Vec4f) Vec4f {
-        const v = p - self.r[3];
-
+    pub inline fn transformVectorTransposed(self: Mat4x4, v: Vec4f) Vec4f {
         const vx = v * self.r[0];
         const vy = v * self.r[1];
         const vz = v * self.r[2];
@@ -190,6 +188,10 @@ pub const Mat4x4 = struct {
             vz[0] + vz[1] + vz[2],
             0.0,
         };
+    }
+
+    pub fn transformPointTransposed(self: Mat4x4, p: Vec4f) Vec4f {
+        return self.transformVectorTransposed(p - self.r[3]);
     }
 
     pub fn affineInverted(self: Mat4x4) Mat4x4 {
