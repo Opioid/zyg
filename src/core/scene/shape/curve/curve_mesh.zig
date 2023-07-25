@@ -24,27 +24,32 @@ pub const Mesh = struct {
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         var local_ray = trafo.worldToObjectRay(ray.*);
 
-        const cube_ray = self.tree.intersect(local_ray) orelse return false;
+        if (self.tree.intersect(local_ray)) |hit| {
 
-        const hit_t = cube_ray.maxT();
+            //  const hit_t = cube_ray.maxT();
 
-        ray.setMaxT(hit_t);
+            ray.setMaxT(hit.t);
 
-        isec.p = ray.point(hit_t);
+            //      isec.p = ray.point(hit_t);
 
-        const cube_p = cube_ray.point(hit_t);
-        const distance = @fabs(@splat(4, @as(f32, 1.0)) - @fabs(cube_p));
+            isec.p = trafo.objectToWorldPoint(hit.p);
 
-        const i = math.indexMinComponent3(distance);
-        const s = std.math.copysign(@as(f32, 1.0), cube_p[i]);
-        const n = @splat(4, s) * trafo.rotation.r[i];
+            const cube_p = hit.cube_p;
+            const distance = @fabs(@splat(4, @as(f32, 1.0)) - @fabs(cube_p));
 
-        isec.part = 0;
-        isec.primitive = 0;
-        isec.geo_n = n;
-        isec.n = n;
+            const i = math.indexMinComponent3(distance);
+            const s = std.math.copysign(@as(f32, 1.0), cube_p[i]);
+            const n = @splat(4, s) * trafo.rotation.r[i];
 
-        return true;
+            isec.part = 0;
+            isec.primitive = 0;
+            isec.geo_n = n;
+            isec.n = n;
+
+            return true;
+        }
+
+        return false;
     }
 
     fn segmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {

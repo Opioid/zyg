@@ -12,6 +12,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
+    pub const Intersection = struct {
+        p: Vec4f = undefined,
+        cube_p: Vec4f = undefined,
+        t: f32 = undefined,
+    };
+
     num_indices: u32 = 0,
     num_curves: u32 = 0,
 
@@ -60,7 +66,7 @@ pub const IndexedData = struct {
     //     return self.recursiveIntersectSegment(ray, index, cp, .{ 0.0, 1.0 }, 0);
     // }
 
-    pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Ray {
+    pub fn intersect(self: *const Self, ray: Ray, id: u32, isec: *Intersection) bool {
         const index = self.indices[id];
 
         const cp = self.curvePoints(index);
@@ -92,13 +98,13 @@ pub const IndexedData = struct {
         const width1 = self.widths[index * 2 + 1];
         box.expand(math.max(width0, width1) * 0.5);
 
-        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.normalize3(ray.direction) * ray.maxT(), 0.0 });
+        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
 
         if (!box.overlaps(ray_bounds)) {
-            return null;
+            return false;
         }
 
-        return self.recursiveIntersectSegment(ray, index, cp, .{ 0.0, 1.0 }, 0);
+        return self.recursiveIntersectSegment(ray, index, cp, .{ 0.0, 1.0 }, 0, isec);
     }
 
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
@@ -142,35 +148,34 @@ pub const IndexedData = struct {
         return self.recursiveIntersectSegmentP(ray, index, cp, .{ 0.0, 1.0 }, 0);
     }
 
-    fn recursiveIntersectSegment(self: *const Self, ray: Ray, index: u32, points: [4]Vec4f, u_mima: Vec2f, depth: u32) ?Ray {
+    fn recursiveIntersectSegment(
+        self: *const Self,
+        ray: Ray,
+        index: u32,
+        points: [4]Vec4f,
+        u_mima: Vec2f,
+        depth: u32,
+        isec: *Intersection,
+    ) bool {
         if (5 == depth) {
-            return self.intersectSegment(ray, index, points, u_mima);
+            return self.intersectSegment(ray, index, points, u_mima, isec);
         }
 
         const segments = curve.cubicBezierSubdivide(points);
 
         var local_ray = ray;
-        var cube_ray = ray;
 
         const u_middle = 0.5 * u_mima[1];
         const next_depth = depth + 1;
 
-        if (self.recursiveIntersectSegment(local_ray, index, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth)) |result_ray| {
-            cube_ray = result_ray;
-            local_ray.setMaxT(result_ray.maxT());
+        const hit0 = self.recursiveIntersectSegment(local_ray, index, segments[0..4].*, .{ u_mima[0], u_middle }, next_depth, isec);
+        if (hit0) {
+            local_ray.setMaxT(isec.t);
         }
 
-        if (self.recursiveIntersectSegment(local_ray, index, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth)) |result_ray| {
-            cube_ray = result_ray;
-        }
+        const hit1 = self.recursiveIntersectSegment(local_ray, index, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth, isec);
 
-        const hit_t = cube_ray.maxT();
-
-        if (ray.maxT() == hit_t) {
-            return null;
-        }
-
-        return cube_ray;
+        return hit0 or hit1;
     }
 
     fn recursiveIntersectSegmentP(self: *const Self, ray: Ray, index: u32, points: [4]Vec4f, u_mima: Vec2f, depth: u32) bool {
@@ -190,18 +195,20 @@ pub const IndexedData = struct {
         return self.recursiveIntersectSegmentP(ray, index, segments[3..7].*, .{ u_middle, u_mima[1] }, next_depth);
     }
 
-    fn intersectSegment(self: *const Self, ray: Ray, index: u32, points: [4]Vec4f, u_mima: Vec2f) ?Ray {
+    fn intersectSegment(self: *const Self, ray: Ray, index: u32, points: [4]Vec4f, u_mima: Vec2f, isec: *Intersection) bool {
         const aabb = self.linearSegmentBounds(index, points, u_mima);
         var cube_ray = aabb.objectToCubeRay(ray);
 
         const unit = AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0)));
-        const hit_t = unit.intersectP(cube_ray) orelse return null;
+        const hit_t = unit.intersectP(cube_ray) orelse return false;
         if (hit_t > ray.maxT()) {
-            return null;
+            return false;
         }
 
-        cube_ray.setMaxT(hit_t);
-        return cube_ray;
+        isec.t = hit_t;
+        isec.p = ray.point(hit_t);
+        isec.cube_p = cube_ray.point(hit_t);
+        return true;
     }
 
     fn intersectSegmentP(self: *const Self, ray: Ray, index: u32, points: [4]Vec4f, u_mima: Vec2f) bool {

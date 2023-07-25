@@ -5,6 +5,7 @@ const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 const std = @import("std");
@@ -27,13 +28,13 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) ?Ray {
+    pub fn intersect(self: Tree, ray: Ray) ?IndexedData.Intersection {
         var tray = ray;
-        var cube_ray = ray;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
+        var isec: IndexedData.Intersection = .{};
         var index: u32 = 0xFFFFFFFF;
 
         const nodes = self.nodes;
@@ -45,9 +46,8 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(tray, i)) |result_ray| {
-                        cube_ray = result_ray;
-                        tray.setMaxT(result_ray.maxT());
+                    if (self.data.intersect(tray, i, &isec)) {
+                        tray.setMaxT(isec.t);
                         index = i;
                     }
                 }
@@ -78,7 +78,7 @@ pub const Tree = struct {
         }
 
         if (0xFFFFFFFF != index) {
-            return cube_ray;
+            return isec;
         } else {
             return null;
         }
