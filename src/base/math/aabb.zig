@@ -212,6 +212,15 @@ pub const AABB = struct {
             self.bounds[1][2] >= other.bounds[1][2];
     }
 
+    pub fn overlaps(self: AABB, other: AABB) bool {
+        return self.bounds[0][0] <= other.bounds[1][0] and
+            self.bounds[0][1] <= other.bounds[1][1] and
+            self.bounds[0][2] <= other.bounds[1][2] and
+            self.bounds[1][0] >= other.bounds[0][0] and
+            self.bounds[1][1] >= other.bounds[0][1] and
+            self.bounds[1][2] >= other.bounds[0][2];
+    }
+
     pub fn objectToCubeRay(self: AABB, ray: Ray) Ray {
         const s = self.halfsize();
 

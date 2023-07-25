@@ -5,6 +5,7 @@ const math = @import("base").math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat4x4 = math.Mat4x4;
 const Ray = math.Ray;
 
 const std = @import("std");
@@ -43,16 +44,57 @@ pub const IndexedData = struct {
         self.indices[curve_id] = index;
     }
 
+    // pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Ray {
+    //     const index = self.indices[id];
+
+    //     const cp = self.curvePoints(index);
+    //     var box = curve.cubicBezierBounds(cp);
+    //     const width0 = self.widths[index * 2 + 0];
+    //     const width1 = self.widths[index * 2 + 1];
+    //     box.expand(math.max(width0, width1) * 0.5);
+
+    //     if (!box.intersect(ray)) {
+    //         return null;
+    //     }
+
+    //     return self.recursiveIntersectSegment(ray, index, cp, .{ 0.0, 1.0 }, 0);
+    // }
+
     pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Ray {
         const index = self.indices[id];
 
         const cp = self.curvePoints(index);
-        var box = curve.cubicBezierBounds(cp);
+
+        var dx = math.cross3(ray.direction, cp[3] - cp[0]);
+        if (0.0 == math.squaredLength3(dx)) {
+            dx = math.tangent3(ray.direction);
+        }
+
+        const rayToObject = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
+        // const objectToRay = rayToObject.affineInverted();
+
+        // const cpr: [4]Vec4f = .{
+        //     objectToRay.transformPoint(cp[0]),
+        //     objectToRay.transformPoint(cp[1]),
+        //     objectToRay.transformPoint(cp[2]),
+        //     objectToRay.transformPoint(cp[3]),
+        // };
+
+        const cpr: [4]Vec4f = .{
+            rayToObject.transformPointTransposed(cp[0]),
+            rayToObject.transformPointTransposed(cp[1]),
+            rayToObject.transformPointTransposed(cp[2]),
+            rayToObject.transformPointTransposed(cp[3]),
+        };
+
+        var box = curve.cubicBezierBounds(cpr);
         const width0 = self.widths[index * 2 + 0];
         const width1 = self.widths[index * 2 + 1];
         box.expand(math.max(width0, width1) * 0.5);
 
-        if (!box.intersect(ray)) {
+        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.normalize3(ray.direction) * ray.maxT(), 0.0 });
+
+        if (!box.overlaps(ray_bounds)) {
             return null;
         }
 
@@ -63,12 +105,37 @@ pub const IndexedData = struct {
         const index = self.indices[id];
 
         const cp = self.curvePoints(index);
-        var box = curve.cubicBezierBounds(cp);
+
+        var dx = math.cross3(ray.direction, cp[3] - cp[0]);
+        if (0.0 == math.squaredLength3(dx)) {
+            dx = math.tangent3(ray.direction);
+        }
+
+        const rayToObject = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
+        // const objectToRay = rayToObject.affineInverted();
+
+        // const cpr: [4]Vec4f = .{
+        //     objectToRay.transformPoint(cp[0]),
+        //     objectToRay.transformPoint(cp[1]),
+        //     objectToRay.transformPoint(cp[2]),
+        //     objectToRay.transformPoint(cp[3]),
+        // };
+
+        const cpr: [4]Vec4f = .{
+            rayToObject.transformPointTransposed(cp[0]),
+            rayToObject.transformPointTransposed(cp[1]),
+            rayToObject.transformPointTransposed(cp[2]),
+            rayToObject.transformPointTransposed(cp[3]),
+        };
+
+        var box = curve.cubicBezierBounds(cpr);
         const width0 = self.widths[index * 2 + 0];
         const width1 = self.widths[index * 2 + 1];
         box.expand(math.max(width0, width1) * 0.5);
 
-        if (!box.intersect(ray)) {
+        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
+
+        if (!box.overlaps(ray_bounds)) {
             return false;
         }
 

@@ -61,6 +61,30 @@ pub const Mat4x4 = struct {
         );
     }
 
+    pub fn initLookAt(pos: Vec4f, dir: Vec4f, up: Vec4f) Mat4x4 {
+        const right = math.normalize3(math.cross3(up, dir));
+        const new_up = math.cross3(dir, right);
+
+        return init16(
+            right[0],
+            right[1],
+            right[2],
+            0.0,
+            new_up[0],
+            new_up[1],
+            new_up[2],
+            0.0,
+            dir[0],
+            dir[1],
+            dir[2],
+            0.0,
+            pos[0],
+            pos[1],
+            pos[2],
+            1.0,
+        );
+    }
+
     pub fn compose(basis: Mat3x3, scale: Vec4f, origin: Vec4f) Mat4x4 {
         return init16(
             basis.r[0][0] * scale[0],
@@ -151,6 +175,21 @@ pub const Mat4x4 = struct {
         temp = temp * self.r[2];
         result = result + temp;
         return result + self.r[3];
+    }
+
+    pub fn transformPointTransposed(self: Mat4x4, p: Vec4f) Vec4f {
+        const v = p - self.r[3];
+
+        const vx = v * self.r[0];
+        const vy = v * self.r[1];
+        const vz = v * self.r[2];
+
+        return .{
+            vx[0] + vx[1] + vx[2],
+            vy[0] + vy[1] + vy[2],
+            vz[0] + vz[1] + vz[2],
+            0.0,
+        };
     }
 
     pub fn affineInverted(self: Mat4x4) Mat4x4 {
