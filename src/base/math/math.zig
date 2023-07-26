@@ -40,7 +40,7 @@ pub inline fn saturate(x: f32) f32 {
 
 pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
     switch (@typeInfo(@TypeOf(a))) {
-        .Float => {
+        inline .ComptimeFloat, .Float => {
             const u = 1.0 - t;
             return @mulAdd(f32, u, a, t * b);
         },

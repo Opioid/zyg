@@ -27,17 +27,18 @@ pub const Mesh = struct {
         if (self.tree.intersect(local_ray)) |hit| {
             ray.setMaxT(hit.t);
 
-            const geo_n = trafo.objectToWorldNormal(hit.geo_n);
-            const width = self.tree.data.curveWidth(hit.index, hit.u);
-
-            isec.p = ray.point(hit.t) + @splat(4, @as(f32, 0.5) * width) * geo_n;
-
             const t = math.normalize3(trafo.objectToWorldNormal(hit.dpdu));
             const b = math.normalize3(trafo.objectToWorldNormal(hit.dpdv));
             const n = math.cross3(t, b);
 
+            const geo_n = trafo.objectToWorldNormal(hit.geo_n);
+            const width = self.tree.data.curveWidth(hit.index, hit.u);
+
+            const d = math.dot3(geo_n, n);
+            isec.p = ray.point(hit.t) + @splat(4, @as(f32, 0.5 * d) * width) * geo_n;
+
             isec.part = 0;
-            isec.primitive = 0;
+            isec.primitive = hit.index;
             isec.t = t;
             isec.b = b;
             isec.n = n;
@@ -47,34 +48,6 @@ pub const Mesh = struct {
         }
 
         return false;
-    }
-
-    fn segmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
-        var bounds = curve.cubicBezierBounds(points);
-
-        const width0 = self.tree.data.widths[id * 2 + 0];
-        const width1 = self.tree.data.widths[id * 2 + 1];
-
-        const w0 = math.lerp(width0, width1, u_mima[0]);
-        const w1 = math.lerp(width0, width1, u_mima[1]);
-
-        bounds.expand(math.max(w0, w1) * 0.5);
-
-        return bounds;
-    }
-
-    fn linearSegmentBounds(self: Mesh, id: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
-        var bounds = AABB.init(math.min4(points[0], points[3]), math.max4(points[0], points[3]));
-
-        const width0 = self.tree.data.widths[id * 2 + 0];
-        const width1 = self.tree.data.widths[id * 2 + 1];
-
-        const w0 = math.lerp(width0, width1, u_mima[0]);
-        const w1 = math.lerp(width0, width1, u_mima[1]);
-
-        bounds.expand(math.max(w0, w1) * 0.5);
-
-        return bounds;
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {

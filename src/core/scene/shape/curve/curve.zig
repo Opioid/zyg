@@ -57,10 +57,12 @@ pub fn cubicBezierEvaluateWithDerivative(cp: [4]Vec4f, u: f32) [2]Vec4f {
     };
 
     var deriv: Vec4f = undefined;
-    if (math.squaredLength3(cp2[1] - cp2[0]) > 0.0) {
-        deriv = @splat(4, @as(f32, 3.0)) * (cp2[1] - cp2[0]);
+
+    const axis = cp2[0] - cp2[1];
+    if (math.squaredLength3(axis) > 0.0) {
+        deriv = @splat(4, @as(f32, 3.0)) * axis;
     } else {
-        deriv = cp[3] - cp[0];
+        deriv = cp[0] - cp[3];
     }
 
     return .{ math.lerp(cp2[0], cp2[1], uv), deriv };
@@ -80,10 +82,10 @@ pub fn cubicBezierEvaluateDerivative(cp: [4]Vec4f, u: f32) Vec4f {
         math.lerp(cp1[1], cp1[2], uv),
     };
 
-    const axis = cp2[1] - cp2[0];
+    const axis = cp2[0] - cp2[1];
     if (math.squaredLength3(axis) > 0.0) {
         return @splat(4, @as(f32, 3.0)) * axis;
     } else {
-        return cp[3] - cp[0];
+        return cp[0] - cp[3];
     }
 }

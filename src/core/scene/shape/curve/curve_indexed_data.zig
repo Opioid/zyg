@@ -5,7 +5,7 @@ const math = @import("base").math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-const Mat3x3 = math.Mat3x3;
+const Mat2x3 = math.Mat2x3;
 const Mat4x4 = math.Mat4x4;
 const Ray = math.Ray;
 
@@ -82,17 +82,6 @@ pub const IndexedData = struct {
             ray_to_object.transformPointTransposed(cp[3]),
         };
 
-        var box = curve.cubicBezierBounds(cpr);
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
-        box.expand(math.max(width0, width1) * 0.5);
-
-        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
-
-        if (!box.overlaps(ray_bounds)) {
-            return false;
-        }
-
         return self.recursiveIntersectSegment(ray, ray_to_object, index, cpr, .{ 0.0, 1.0 }, 5, isec);
     }
 
@@ -115,17 +104,6 @@ pub const IndexedData = struct {
             rayToObject.transformPointTransposed(cp[3]),
         };
 
-        var box = curve.cubicBezierBounds(cpr);
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
-        box.expand(math.max(width0, width1) * 0.5);
-
-        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
-
-        if (!box.overlaps(ray_bounds)) {
-            return false;
-        }
-
         return self.recursiveIntersectSegmentP(ray, index, cpr, .{ 0.0, 1.0 }, 5);
     }
 
@@ -139,6 +117,12 @@ pub const IndexedData = struct {
         depth: u32,
         isec: *Intersection,
     ) bool {
+        const curve_bounds = self.segmentBounds(index, cp, u_range);
+        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
+        if (!curve_bounds.overlaps(ray_bounds)) {
+            return false;
+        }
+
         if (0 == depth) {
             return self.intersectSegment(ray, ray_to_object, index, cp, u_range, isec);
         }
@@ -215,8 +199,7 @@ pub const IndexedData = struct {
             return false;
         }
 
-        const crap = curve.cubicBezierEvaluateDerivative(self.curvePoints(index), u);
-        const dpdu = -Vec4f{ crap[0], crap[1], crap[2], 0.0 };
+        const dpdu = curve.cubicBezierEvaluateDerivative(self.curvePoints(index), u);
 
         const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);
         var dpdv_plane = math.normalize3(Vec4f{ dpdu_plane[1], -dpdu_plane[0], 0.0, 0.0 }) * @splat(4, hit_width);
@@ -228,17 +211,17 @@ pub const IndexedData = struct {
             const dpcdw = eval[1];
 
             const pt_curve_dist = @sqrt(pt_curve_dist2);
-            const edge_func = -pc[1] * dpcdw[0] + pc[0] * dpcdw[1];
+            const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
             const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
 
-            const theta = math.lerp(math.degreesToRadians(@as(f32, -90.0)), math.degreesToRadians(@as(f32, 90.0)), v);
-            const rot = Mat3x3.initRotation(dpdu_plane, theta);
+            const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
+            const rot = Mat2x3.initRotation(dpdu_plane, theta);
             dpdv_plane = rot.transformVector(dpdv_plane);
+
+            //  std.debug.print("{}\n", .{dpdv_plane});
         }
 
         const dpdv = ray_to_object.transformVector(dpdv_plane);
-
-        //   std.debug.print("{}\n", .{dpdu_plane});
 
         isec.geo_n = geo_n;
         isec.dpdu = dpdu;
@@ -249,6 +232,12 @@ pub const IndexedData = struct {
     }
 
     fn recursiveIntersectSegmentP(self: *const Self, ray: Ray, index: u32, cp: [4]Vec4f, u_range: Vec2f, depth: u32) bool {
+        const curve_bounds = self.segmentBounds(index, cp, u_range);
+        const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
+        if (!curve_bounds.overlaps(ray_bounds)) {
+            return false;
+        }
+
         if (0 == depth) {
             return self.intersectSegmentP(ray, index, cp, u_range);
         }
@@ -314,18 +303,14 @@ pub const IndexedData = struct {
         return true;
     }
 
-    fn linearSegmentBounds(self: *const Self, index: u32, points: [4]Vec4f, u_mima: Vec2f) AABB {
-        var bounds = AABB.init(math.min4(points[0], points[3]), math.max4(points[0], points[3]));
-
+    fn segmentBounds(self: *const Self, index: u32, cp: [4]Vec4f, u_range: Vec2f) AABB {
+        var box = curve.cubicBezierBounds(cp);
         const width0 = self.widths[index * 2 + 0];
         const width1 = self.widths[index * 2 + 1];
-
-        const w0 = math.lerp(width0, width1, u_mima[0]);
-        const w1 = math.lerp(width0, width1, u_mima[1]);
-
-        bounds.expand(math.max(w0, w1) * 0.5);
-
-        return bounds;
+        const w0 = math.lerp(width0, width1, u_range[0]);
+        const w1 = math.lerp(width0, width1, u_range[1]);
+        box.expand(math.max(w0, w1) * 0.5);
+        return box;
     }
 
     inline fn curvePoints(self: *const Self, index: u32) [4]Vec4f {
