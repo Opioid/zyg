@@ -35,7 +35,6 @@ pub const Tree = struct {
         var n: u32 = 0;
 
         var isec: IndexedData.Intersection = .{};
-        var index: u32 = 0xFFFFFFFF;
 
         const nodes = self.nodes;
 
@@ -48,7 +47,7 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i, &isec)) {
                         tray.setMaxT(isec.t);
-                        index = i;
+                        isec.index = i;
                     }
                 }
 
@@ -77,7 +76,7 @@ pub const Tree = struct {
             }
         }
 
-        if (0xFFFFFFFF != index) {
+        if (0xFFFFFFFF != isec.index) {
             return isec;
         } else {
             return null;

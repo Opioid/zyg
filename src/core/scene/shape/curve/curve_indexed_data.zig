@@ -5,6 +5,7 @@ const math = @import("base").math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
 const Mat4x4 = math.Mat4x4;
 const Ray = math.Ray;
 
@@ -13,9 +14,12 @@ const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
     pub const Intersection = struct {
-        p: Vec4f = undefined,
-        n: Vec4f = undefined,
+        geo_n: Vec4f = undefined,
+        dpdu: Vec4f = undefined,
+        dpdv: Vec4f = undefined,
         t: f32 = undefined,
+        u: f32 = undefined,
+        index: u32 = 0xFFFFFFFF,
     };
 
     num_indices: u32 = 0,
@@ -48,6 +52,15 @@ pub const IndexedData = struct {
 
     pub fn setCurve(self: *Self, curve_id: u32, index: u32) void {
         self.indices[curve_id] = index;
+    }
+
+    pub fn curveWidth(self: *const Self, id: u32, u: f32) f32 {
+        const index = self.indices[id];
+
+        const width0 = self.widths[index * 2 + 0];
+        const width1 = self.widths[index * 2 + 1];
+
+        return math.lerp(width0, width1, u);
     }
 
     pub fn intersect(self: *const Self, ray: Ray, id: u32, isec: *Intersection) bool {
@@ -202,24 +215,36 @@ pub const IndexedData = struct {
             return false;
         }
 
-        const dpcdw = eval[1];
-
-        const pt_curve_dist = @sqrt(pt_curve_dist2);
-        const edge_func = -pc[1] * dpcdw[0] + pc[0] * dpcdw[1];
-        const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
-
-        _ = v;
-
-        const dpdu = curve.cubicBezierEvaluateDerivative(self.curvePoints(index), u);
+        const crap = curve.cubicBezierEvaluateDerivative(self.curvePoints(index), u);
+        const dpdu = -Vec4f{ crap[0], crap[1], crap[2], 0.0 };
 
         const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);
-        const dpdv_plane = math.normalize3(Vec4f{ -dpdu_plane[1], dpdu_plane[0], 0.0, 0.0 }) * @splat(4, hit_width);
+        var dpdv_plane = math.normalize3(Vec4f{ dpdu_plane[1], -dpdu_plane[0], 0.0, 0.0 }) * @splat(4, hit_width);
+
+        const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
+
+        {
+            // Rotate dpdv_plane to give cylindrical appearance
+            const dpcdw = eval[1];
+
+            const pt_curve_dist = @sqrt(pt_curve_dist2);
+            const edge_func = -pc[1] * dpcdw[0] + pc[0] * dpcdw[1];
+            const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
+
+            const theta = math.lerp(math.degreesToRadians(@as(f32, -90.0)), math.degreesToRadians(@as(f32, 90.0)), v);
+            const rot = Mat3x3.initRotation(dpdu_plane, theta);
+            dpdv_plane = rot.transformVector(dpdv_plane);
+        }
 
         const dpdv = ray_to_object.transformVector(dpdv_plane);
 
+        //   std.debug.print("{}\n", .{dpdu_plane});
+
+        isec.geo_n = geo_n;
+        isec.dpdu = dpdu;
+        isec.dpdv = dpdv;
         isec.t = hit_t;
-        isec.p = ray.point(hit_t);
-        isec.n = -math.normalize3(math.cross3(dpdu, dpdv));
+        isec.u = u;
         return true;
     }
 

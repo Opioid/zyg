@@ -27,15 +27,21 @@ pub const Mesh = struct {
         if (self.tree.intersect(local_ray)) |hit| {
             ray.setMaxT(hit.t);
 
-            isec.p = ray.point(hit.t);
-            //isec.p = trafo.objectToWorldPoint(hit.p);
+            const geo_n = trafo.objectToWorldNormal(hit.geo_n);
+            const width = self.tree.data.curveWidth(hit.index, hit.u);
 
-            const n = trafo.objectToWorldNormal(hit.n);
+            isec.p = ray.point(hit.t) + @splat(4, @as(f32, 0.5) * width) * geo_n;
+
+            const t = math.normalize3(trafo.objectToWorldNormal(hit.dpdu));
+            const b = math.normalize3(trafo.objectToWorldNormal(hit.dpdv));
+            const n = math.cross3(t, b);
 
             isec.part = 0;
             isec.primitive = 0;
-            isec.geo_n = n;
+            isec.t = t;
+            isec.b = b;
             isec.n = n;
+            isec.geo_n = geo_n;
 
             return true;
         }

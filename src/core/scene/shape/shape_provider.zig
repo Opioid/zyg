@@ -127,6 +127,8 @@ pub const Provider = struct {
 
         {
             if (std.mem.eql(u8, "curve", name)) {
+                var mesh = CurveMesh{};
+
                 const w: u32 = 32;
                 const h: u32 = 32;
 
@@ -134,8 +136,6 @@ pub const Provider = struct {
                 const fh: f32 = @floatFromInt(h);
 
                 const num_curves = w * h;
-
-                var mesh = CurveMesh{};
 
                 var positions = try alloc.alloc(Pack3f, num_curves * 4);
                 var widths = try alloc.alloc(f32, num_curves * 2);
@@ -163,10 +163,30 @@ pub const Provider = struct {
                         positions[id * 4 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
                         positions[id * 4 + 3] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
 
+                        // positions[id * 4 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.0 * height, oy * 0.2 + 0.2 * (0.5));
+                        // positions[id * 4 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.33 * height, oy * 0.2 + 0.2 * (0.5));
+                        // positions[id * 4 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.66 * height, oy * 0.2 + 0.2 * (0.5));
+                        // positions[id * 4 + 3] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 1.0 * height, oy * 0.2 + 0.2 * (0.5));
+
                         widths[id * 2 + 0] = girth;
                         widths[id * 2 + 1] = girth - girth * 0.75 * rng.randomFloat();
                     }
                 }
+
+                // const num_curves: u32 = 1;
+
+                // var positions = try alloc.alloc(Pack3f, 1 * 4);
+                // var widths = try alloc.alloc(f32, 1 * 2);
+
+                // var vertices = cvb.Buffer{ .Separate = cvb.Separate.initOwned(positions, widths) };
+
+                // positions[0] = Pack3f.init3(0.0, 0.0, 0.0);
+                // positions[1] = Pack3f.init3(0.0, 0.5, 0.0);
+                // positions[2] = Pack3f.init3(0.0, 1.0, 0.0);
+                // positions[3] = Pack3f.init3(0.0, 1.5, 0.0);
+
+                // widths[0] = 0.5;
+                // widths[1] = 0.25;
 
                 var builder = try CurveBuilder.init(alloc, 16, 64, 4);
                 defer builder.deinit(alloc);

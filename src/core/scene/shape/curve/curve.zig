@@ -80,8 +80,9 @@ pub fn cubicBezierEvaluateDerivative(cp: [4]Vec4f, u: f32) Vec4f {
         math.lerp(cp1[1], cp1[2], uv),
     };
 
-    if (math.squaredLength3(cp2[1] - cp2[0]) > 0.0) {
-        return @splat(4, @as(f32, 3.0)) * (cp2[1] - cp2[0]);
+    const axis = cp2[1] - cp2[0];
+    if (math.squaredLength3(axis) > 0.0) {
+        return @splat(4, @as(f32, 3.0)) * axis;
     } else {
         return cp[3] - cp[0];
     }
