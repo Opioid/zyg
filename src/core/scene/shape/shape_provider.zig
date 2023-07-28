@@ -135,7 +135,7 @@ pub const Provider = struct {
                 const fw: f32 = @floatFromInt(w);
                 const fh: f32 = @floatFromInt(h);
 
-                const num_curves = w * h;
+                const num_curves = 2 * w * h;
 
                 var positions = try alloc.alloc(Pack3f, num_curves * 4);
                 var widths = try alloc.alloc(f32, num_curves * 2);
@@ -158,18 +158,20 @@ pub const Provider = struct {
 
                         const height = 1.0 + 0.5 * rng.randomFloat();
 
-                        positions[id * 4 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 4 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 4 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 4 + 3] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 3] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
 
-                        // positions[id * 4 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.0 * height, oy * 0.2 + 0.2 * (0.5));
-                        // positions[id * 4 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.33 * height, oy * 0.2 + 0.2 * (0.5));
-                        // positions[id * 4 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 0.66 * height, oy * 0.2 + 0.2 * (0.5));
-                        // positions[id * 4 + 3] = Pack3f.init3(ox * 0.2 + 0.2 * (0.5), 1.0 * height, oy * 0.2 + 0.2 * (0.5));
+                        positions[id * 8 + 4] = positions[id * 8 + 3];
+                        positions[id * 8 + 5] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.2 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 6] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.4 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
+                        positions[id * 8 + 7] = Pack3f.init3(ox * 0.2 + 0.4 * (rng.randomFloat() - 0.5), 1.6 * height, oy * 0.2 + 0.4 * (rng.randomFloat() - 0.5));
 
-                        widths[id * 2 + 0] = girth;
-                        widths[id * 2 + 1] = girth - girth * 0.75 * rng.randomFloat();
+                        widths[id * 4 + 0] = girth;
+                        widths[id * 4 + 1] = girth - girth * 0.75 * rng.randomFloat();
+                        widths[id * 4 + 2] = widths[id * 4 + 1];
+                        widths[id * 4 + 3] = 0.0;
                     }
                 }
 

@@ -68,6 +68,8 @@ pub const IndexedData = struct {
 
         const cp = self.curvePoints(index);
 
+        const depth = self.refinementDepth(index, cp);
+
         var dx = math.cross3(ray.direction, cp[3] - cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
             dx = math.tangent3(ray.direction);
@@ -82,13 +84,15 @@ pub const IndexedData = struct {
             ray_to_object.transformPointTransposed(cp[3]),
         };
 
-        return self.recursiveIntersectSegment(ray, ray_to_object, index, cpr, .{ 0.0, 1.0 }, 5, isec);
+        return self.recursiveIntersectSegment(ray, ray_to_object, index, cpr, .{ 0.0, 1.0 }, depth, isec);
     }
 
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
         const index = self.indices[id];
 
         const cp = self.curvePoints(index);
+
+        const depth = self.refinementDepth(index, cp);
 
         var dx = math.cross3(ray.direction, cp[3] - cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
@@ -104,7 +108,7 @@ pub const IndexedData = struct {
             rayToObject.transformPointTransposed(cp[3]),
         };
 
-        return self.recursiveIntersectSegmentP(ray, index, cpr, .{ 0.0, 1.0 }, 5);
+        return self.recursiveIntersectSegmentP(ray, index, cpr, .{ 0.0, 1.0 }, depth);
     }
 
     fn recursiveIntersectSegment(
@@ -153,15 +157,7 @@ pub const IndexedData = struct {
         u_range: Vec2f,
         isec: *Intersection,
     ) bool {
-        // Test sample point against tangent perpendicular at curve start
-        const edge0 = (cp[1][1] - cp[0][1]) * -cp[0][1] + cp[0][0] * (cp[0][0] - cp[1][0]);
-        if (edge0 < 0.0) {
-            return false;
-        }
-
-        // Test sample point against tangent perpendicular at curve end
-        const edge1 = (cp[2][1] - cp[3][1]) * -cp[3][1] + cp[3][0] * (cp[3][0] - cp[2][0]);
-        if (edge1 < 0.0) {
+        if (!testTangents(cp)) {
             return false;
         }
 
@@ -217,8 +213,6 @@ pub const IndexedData = struct {
             const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
             const rot = Mat2x3.initRotation(dpdu_plane, theta);
             dpdv_plane = rot.transformVector(dpdv_plane);
-
-            //  std.debug.print("{}\n", .{dpdv_plane});
         }
 
         const dpdv = ray_to_object.transformVector(dpdv_plane);
@@ -255,15 +249,7 @@ pub const IndexedData = struct {
     }
 
     fn intersectSegmentP(self: *const Self, ray: Ray, index: u32, cp: [4]Vec4f, u_range: Vec2f) bool {
-        // Test sample point against tangent perpendicular at curve start
-        const edge0 = (cp[1][1] - cp[0][1]) * -cp[0][1] + cp[0][0] * (cp[0][0] - cp[1][0]);
-        if (edge0 < 0.0) {
-            return false;
-        }
-
-        // Test sample point against tangent perpendicular at curve end
-        const edge1 = (cp[2][1] - cp[3][1]) * -cp[3][1] + cp[3][0] * (cp[3][0] - cp[2][0]);
-        if (edge1 < 0.0) {
+        if (!testTangents(cp)) {
             return false;
         }
 
@@ -322,5 +308,57 @@ pub const IndexedData = struct {
             self.points[offset + 6 ..][0..4].*,
             self.points[offset + 9 ..][0..4].*,
         };
+    }
+
+    inline fn testTangents(cp: [4]Vec4f) bool {
+        // Test sample point against tangent perpendicular at curve start
+        const edge0 = -cp[0][1] * (cp[1][1] - cp[0][1]) + cp[0][0] * (cp[0][0] - cp[1][0]);
+        if (edge0 < 0.0) {
+            return false;
+        }
+
+        // Test sample point against tangent perpendicular at curve end
+        const edge1 = -cp[3][1] * (cp[2][1] - cp[3][1]) + cp[3][0] * (cp[3][0] - cp[2][0]);
+        if (edge1 < 0.0) {
+            return false;
+        }
+
+        return true;
+    }
+
+    fn refinementDepth(self: *const Self, index: u32, cp: [4]Vec4f) u32 {
+        var l: f32 = 0.0;
+        for (0..2) |i| {
+            const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
+            l = math.max(l, math.hmax3(v));
+        }
+
+        if (l > 0.0) {
+            const width0 = self.widths[index * 2 + 0];
+            const width1 = self.widths[index * 2 + 1];
+            const eps = math.max(width0, width1) * 0.05; // width / 20
+            // Compute log base 4 by dividing log2 in half.
+            const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
+            return std.math.clamp(@as(u32, @intCast(r0)) + 1, 0, 10);
+        }
+
+        return 0;
+    }
+
+    inline fn exponent(v: f32) i32 {
+        return (@as(i32, @bitCast(v)) >> 23) - 127;
+    }
+
+    inline fn significand(v: f32) i32 {
+        return @as(i32, @bitCast(v)) & ((1 << 23) - 1);
+    }
+
+    fn log2int(v: f32) i32 {
+        if (v < 1.0) {
+            return -log2int(1.0 / v);
+        }
+
+        const midsignif = 0b00000000001101010000010011110011;
+        return exponent(v) + @as(i32, if (significand(v) >= midsignif) 1 else 0);
     }
 };
