@@ -15,6 +15,12 @@ pub const Buffer = union(enum) {
         };
     }
 
+    pub fn numCurves(self: Buffer) u32 {
+        return switch (self) {
+            inline else => |v| v.numCurves(),
+        };
+    }
+
     pub fn copy(self: Buffer, points: [*]f32, widths: [*]f32, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(points, widths, count),
@@ -56,6 +62,14 @@ pub const Separate = struct {
             alloc.free(self.widths);
             alloc.free(self.points);
         }
+    }
+
+    pub fn numCurves(self: Self) u32 {
+        //   return @intCast(self.points.len / 4);
+
+        const nc: u32 = @intCast(self.points.len / 4);
+
+        return @min(nc, nc / 1);
     }
 
     pub fn copy(self: Self, points: [*]f32, widths: [*]f32, count: u32) void {

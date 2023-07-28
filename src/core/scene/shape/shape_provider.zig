@@ -3,11 +3,11 @@ const Shape = @import("shape.zig").Shape;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const tvb = @import("triangle/vertex_buffer.zig");
-const cvb = @import("curve/curve_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
 const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
 const TriangleBuilder = @import("triangle/triangle_tree_builder.zig").Builder;
 const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
+const HairReader = @import("curve/hair_reader.zig").Reader;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Result = @import("../../resource/result.zig").Result;
 const file = @import("../../file/file.zig");
@@ -126,84 +126,22 @@ pub const Provider = struct {
         var handler = Handler{};
 
         {
-            if (std.mem.eql(u8, "curve", name)) {
+            var stream = try resources.fs.readStream(alloc, name);
+            defer stream.deinit();
+
+            if (file.Type.HAIR == file.queryType(&stream)) {
+                var vertices = try HairReader.read(alloc, &stream);
+                defer vertices.deinit(alloc);
+
                 var mesh = CurveMesh{};
-
-                const w: u32 = 32;
-                const h: u32 = 32;
-
-                const fw: f32 = @floatFromInt(w);
-                const fh: f32 = @floatFromInt(h);
-
-                const num_curves = 2 * w * h;
-
-                var positions = try alloc.alloc(Pack3f, num_curves * 4);
-                var widths = try alloc.alloc(f32, num_curves * 2);
-
-                var vertices = cvb.Buffer{ .Separate = cvb.Separate.initOwned(positions, widths) };
-
-                var rng = RNG.init(0, 0);
-
-                for (0..h) |y| {
-                    for (0..w) |x| {
-                        const id: u32 = @intCast(y * w + x);
-
-                        const fx: f32 = @floatFromInt(x);
-                        const fy: f32 = @floatFromInt(y);
-
-                        const ox = fx - 0.5 * fw;
-                        const oy = fy - 0.5 * fh;
-
-                        const girth = 0.025 + 0.025 * rng.randomFloat();
-
-                        const height = 1.0 + 0.5 * rng.randomFloat();
-
-                        positions[id * 8 + 0] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.0 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 8 + 1] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.33 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 8 + 2] = Pack3f.init3(ox * 0.2 + 0.2 * (rng.randomFloat() - 0.5), 0.66 * height, oy * 0.2 + 0.2 * (rng.randomFloat() - 0.5));
-                        positions[id * 8 + 3] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.0 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
-
-                        positions[id * 8 + 4] = positions[id * 8 + 3];
-                        positions[id * 8 + 5] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.2 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
-                        positions[id * 8 + 6] = Pack3f.init3(ox * 0.2 + 0.3 * (rng.randomFloat() - 0.5), 1.4 * height, oy * 0.2 + 0.3 * (rng.randomFloat() - 0.5));
-                        positions[id * 8 + 7] = Pack3f.init3(ox * 0.2 + 0.4 * (rng.randomFloat() - 0.5), 1.6 * height, oy * 0.2 + 0.4 * (rng.randomFloat() - 0.5));
-
-                        widths[id * 4 + 0] = girth;
-                        widths[id * 4 + 1] = girth - girth * 0.75 * rng.randomFloat();
-                        widths[id * 4 + 2] = widths[id * 4 + 1];
-                        widths[id * 4 + 3] = 0.0;
-                    }
-                }
-
-                // const num_curves: u32 = 1;
-
-                // var positions = try alloc.alloc(Pack3f, 1 * 4);
-                // var widths = try alloc.alloc(f32, 1 * 2);
-
-                // var vertices = cvb.Buffer{ .Separate = cvb.Separate.initOwned(positions, widths) };
-
-                // positions[0] = Pack3f.init3(0.0, 0.0, 0.0);
-                // positions[1] = Pack3f.init3(0.0, 0.5, 0.0);
-                // positions[2] = Pack3f.init3(0.0, 1.0, 0.0);
-                // positions[3] = Pack3f.init3(0.0, 1.5, 0.0);
-
-                // widths[0] = 0.5;
-                // widths[1] = 0.25;
 
                 var builder = try CurveBuilder.init(alloc, 16, 64, 4);
                 defer builder.deinit(alloc);
 
-                try builder.build(alloc, &mesh.tree, num_curves, vertices, resources.threads);
-
-                vertices.deinit(alloc);
+                try builder.build(alloc, &mesh.tree, vertices, resources.threads);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
-            }
-
-            var stream = try resources.fs.readStream(alloc, name);
-            defer stream.deinit();
-
-            if (file.Type.SUB == file.queryType(&stream)) {
+            } else if (file.Type.SUB == file.queryType(&stream)) {
                 const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;

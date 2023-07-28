@@ -327,22 +327,28 @@ pub const IndexedData = struct {
     }
 
     fn refinementDepth(self: *const Self, index: u32, cp: [4]Vec4f) u32 {
-        var l: f32 = 0.0;
-        for (0..2) |i| {
-            const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
-            l = math.max(l, math.hmax3(v));
-        }
+        // var l: f32 = 0.0;
+        // for (0..2) |i| {
+        //     const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
+        //     l = math.max(l, math.hmax3(v));
+        // }
 
-        if (l > 0.0) {
-            const width0 = self.widths[index * 2 + 0];
-            const width1 = self.widths[index * 2 + 1];
-            const eps = math.max(width0, width1) * 0.05; // width / 20
-            // Compute log base 4 by dividing log2 in half.
-            const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
-            return std.math.clamp(@as(u32, @intCast(r0)) + 1, 0, 10);
-        }
+        // if (l > 0.0) {
+        //     const width0 = self.widths[index * 2 + 0];
+        //     const width1 = self.widths[index * 2 + 1];
+        //     const eps = math.max(width0, width1) * 0.05; // width / 20
+        //     // Compute log base 4 by dividing log2 in half.
+        //     const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
+        //     return std.math.clamp(@as(u32, @intCast(r0)) + 1, 0, 10);
+        // }
 
-        return 0;
+        // return 0;
+
+        _ = self;
+        _ = index;
+        _ = cp;
+
+        return 5;
     }
 
     inline fn exponent(v: f32) i32 {

@@ -23,14 +23,9 @@ pub const Builder = struct {
         self.super.deinit(alloc);
     }
 
-    pub fn build(
-        self: *Builder,
-        alloc: Allocator,
-        tree: *Tree,
-        num_curves: u32,
-        curves: CurveBuffer,
-        threads: *Threads,
-    ) !void {
+    pub fn build(self: *Builder, alloc: Allocator, tree: *Tree, curves: CurveBuffer, threads: *Threads) !void {
+        const num_curves = curves.numCurves();
+
         try self.super.reserve(alloc, num_curves);
 
         var context = ReferencesContext{

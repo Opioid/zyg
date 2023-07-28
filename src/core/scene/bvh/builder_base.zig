@@ -120,10 +120,10 @@ const Kernel = struct {
                     }
                 }
             } else {
-                if (num_primitives <= 0xFF) {
+                if (num_primitives <= 0x1FF) {
                     try self.assign(alloc, node, references);
                 } else {
-                    log.err("Cannot split node further", .{});
+                    log.err("Cannot split node further with {} primitives", .{num_primitives});
                 }
             }
         }
@@ -202,10 +202,10 @@ const Kernel = struct {
         var sc: usize = 0;
         var min_cost = self.split_candidates.items[0].cost;
 
-        for (self.split_candidates.items[1..], 0..) |c, i| {
+        for (self.split_candidates.items[1..], 1..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
-                sc = i + 1;
+                sc = i;
                 min_cost = cost;
             }
         }

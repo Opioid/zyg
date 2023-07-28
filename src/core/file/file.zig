@@ -6,6 +6,7 @@ pub const Type = enum {
     Undefined,
     EXR,
     GZIP,
+    HAIR,
     IES,
     PNG,
     RGBE,
@@ -27,6 +28,10 @@ pub fn queryType(stream: *ReadStream) Type {
 
     if (std.mem.startsWith(u8, &header, "\x1f\x8b")) {
         return .GZIP;
+    }
+
+    if (std.mem.startsWith(u8, &header, "HAIR")) {
+        return .HAIR;
     }
 
     if (std.mem.startsWith(u8, &header, "IES")) {
