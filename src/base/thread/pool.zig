@@ -49,7 +49,7 @@ pub const Pool = struct {
         if (request <= 0) {
             const num_threads = @as(i32, @intCast(available)) + request;
 
-            return @as(u32, @intCast(@max(num_threads, 1)));
+            return @intCast(@max(num_threads, 1));
         }
 
         return @min(available, @as(u32, @intCast(@max(request, 1))));
@@ -76,7 +76,7 @@ pub const Pool = struct {
     }
 
     pub fn numThreads(self: *const Pool) u32 {
-        return @as(u32, @intCast(self.uniques.len));
+        return @intCast(self.uniques.len);
     }
 
     pub fn runParallel(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {

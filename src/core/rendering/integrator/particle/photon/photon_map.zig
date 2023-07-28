@@ -102,7 +102,7 @@ pub const Map = struct {
             aabb.mergeAssign(b);
         }
 
-        aabb.add(0.0001);
+        aabb.expand(0.0001);
 
         return aabb;
     }

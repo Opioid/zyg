@@ -404,7 +404,7 @@ pub const Scene = struct {
 
         const t = @as(f32, @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration))));
 
-        return .{ .f = @as(u32, @intCast(i)), .w = t };
+        return .{ .f = @intCast(i), .w = t };
     }
 
     pub fn propWorldPosition(self: *const Scene, entity: u32) Vec4f {
@@ -487,7 +487,7 @@ pub const Scene = struct {
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = @as(u32, @intCast(light_id));
+        self.light_ids.items[p] = @intCast(light_id);
 
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
@@ -613,7 +613,7 @@ pub const Scene = struct {
     }
 
     pub fn numLights(self: *const Scene) u32 {
-        return @as(u32, @intCast(self.lights.items.len));
+        return @intCast(self.lights.items.len);
     }
 
     pub fn light(self: *const Scene, id: u32) Light {
@@ -696,7 +696,7 @@ pub const Scene = struct {
         try self.prop_frames.append(alloc, Null);
         try self.prop_aabbs.append(alloc, .{});
 
-        return @as(u32, @intCast(self.props.items.len - 1));
+        return @intCast(self.props.items.len - 1);
     }
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
@@ -712,12 +712,12 @@ pub const Scene = struct {
 
     pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
         try self.images.append(alloc, item);
-        return @as(u32, @intCast(self.images.items.len - 1));
+        return @intCast(self.images.items.len - 1);
     }
 
     pub fn createMaterial(self: *Scene, alloc: Allocator, item: Material) !u32 {
         try self.materials.append(alloc, item);
-        return @as(u32, @intCast(self.materials.items.len - 1));
+        return @intCast(self.materials.items.len - 1);
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {

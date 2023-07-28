@@ -1,9 +1,10 @@
 const Tree = @import("triangle_tree.zig").Tree;
-const tri = @import("../triangle.zig");
+const tri = @import("triangle.zig");
 const IndexTriangle = tri.IndexTriangle;
-const VertexStream = @import("../vertex_stream.zig").VertexStream;
-const Reference = @import("../../../bvh/split_candidate.zig").Reference;
-const Base = @import("../../../bvh/builder_base.zig").Base;
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const Reference = @import("../../bvh/split_candidate.zig").Reference;
+const Base = @import("../../bvh/builder_base.zig").Base;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -28,10 +29,10 @@ pub const Builder = struct {
         alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: VertexStream,
+        vertices: VertexBuffer,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @as(u32, @intCast(triangles.len)));
+        try self.super.reserve(alloc, @intCast(triangles.len));
 
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
@@ -63,7 +64,7 @@ pub const Builder = struct {
         references: []Reference,
         aabbs: []AABB,
         triangles: [*]const IndexTriangle,
-        vertices: *const VertexStream,
+        vertices: *const VertexBuffer,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @as(*ReferencesContext, @ptrCast(@alignCast(context)));
@@ -79,7 +80,7 @@ pub const Builder = struct {
                 const max = tri.max(a, b, c);
 
                 const r = i + begin;
-                self.references[r].set(min, max, @as(u32, @intCast(r)));
+                self.references[r].set(min, max, @intCast(r));
 
                 bounds.bounds[0] = math.min4(bounds.bounds[0], min);
                 bounds.bounds[1] = math.max4(bounds.bounds[1], max);
@@ -95,7 +96,7 @@ pub const Builder = struct {
         dest_node: u32,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: VertexStream,
+        vertices: VertexBuffer,
         current_triangle: *u32,
     ) void {
         const node = self.super.kernel.build_nodes.items[source_node];

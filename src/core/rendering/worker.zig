@@ -331,7 +331,7 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn intersectProp(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *shp.Intersection) bool {
+    pub fn propIntersect(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *shp.Intersection) bool {
         return self.scene.prop(entity).intersect(entity, vertex, self.scene, ipo, isec);
     }
 

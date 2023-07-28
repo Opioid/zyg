@@ -11,7 +11,7 @@ const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-const Tree = @import("bvh/triangle_tree.zig").Tree;
+const Tree = @import("triangle_tree.zig").Tree;
 const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
@@ -321,7 +321,7 @@ pub const Part = struct {
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
                     temp.dominant_axis += @as(Vec4f, @splat(pow)) * n;
-                    temp.bb.mergeAssign(self.part.lightAabb(@as(u32, @intCast(i))));
+                    temp.bb.mergeAssign(self.part.lightAabb(@intCast(i)));
                     temp.total_power += pow;
                 }
             }
@@ -427,9 +427,9 @@ pub const Mesh = struct {
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
-        const tray = trafo.worldToObjectRay(ray.*);
+        const local_ray = trafo.worldToObjectRay(ray.*);
 
-        if (self.tree.intersect(tray)) |hit| {
+        if (self.tree.intersect(local_ray)) |hit| {
             const data = self.tree.data;
 
             ray.setMaxT(hit.t);
@@ -457,9 +457,6 @@ pub const Mesh = struct {
                 isec.b = b_w;
                 isec.n = n_w;
                 isec.uv = uv;
-            } else if (.NoTangentSpace == ipo) {
-                const uv = data.interpolateUv(hit.u, hit.v, hit.index);
-                isec.uv = uv;
             } else {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);
@@ -473,8 +470,8 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        const tray = trafo.worldToObjectRay(ray);
-        return self.tree.intersectP(tray);
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersectP(local_ray);
     }
 
     pub fn visibility(

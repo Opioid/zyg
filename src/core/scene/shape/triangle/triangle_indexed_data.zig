@@ -1,5 +1,5 @@
-const VertexStream = @import("../vertex_stream.zig").VertexStream;
-const triangle = @import("../triangle.zig");
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const triangle = @import("triangle.zig");
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -37,7 +37,7 @@ pub const Indexed_data = struct {
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
-    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexStream) !void {
+    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexBuffer) !void {
         const num_vertices = vertices.numVertices();
 
         self.num_triangles = num_triangles;
@@ -58,7 +58,7 @@ pub const Indexed_data = struct {
         b: u32,
         c: u32,
         p: u32,
-        vertices: VertexStream,
+        vertices: VertexBuffer,
         triangle_id: u32,
     ) void {
         const abts = vertices.bitangentSign(a);
