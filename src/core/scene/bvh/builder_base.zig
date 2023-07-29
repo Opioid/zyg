@@ -304,6 +304,9 @@ pub const Base = struct {
         aabb: AABB,
         threads: *Threads,
     ) !void {
+        try self.kernel.reserve(alloc, @intCast(references.len), self.settings);
+        self.current_node = 0;
+
         const log2_num_references = std.math.log2(@as(f32, @floatFromInt(references.len)));
         self.settings.spatial_split_threshold = @intFromFloat(@round(log2_num_references / 2.0));
 
@@ -382,12 +385,6 @@ pub const Base = struct {
             t.kernel.reserve(self.alloc, @intCast(t.references.len), self.settings) catch {};
             t.kernel.split(self.alloc, 0, t.references, t.aabb, t.depth, self.settings, self.threads, self.tasks) catch {};
         }
-    }
-
-    pub fn reserve(self: *Base, alloc: Allocator, num_primitives: u32) !void {
-        try self.kernel.reserve(alloc, num_primitives, self.settings);
-
-        self.current_node = 0;
     }
 
     pub fn newNode(self: *Base) void {

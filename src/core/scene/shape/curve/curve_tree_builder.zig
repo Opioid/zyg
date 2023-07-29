@@ -34,8 +34,6 @@ pub const Builder = struct {
     ) !void {
         const num_curves: u32 = @intCast(curves.len);
 
-        try self.super.reserve(alloc, num_curves);
-
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, num_curves),
             .aabbs = try alloc.alloc(AABB, threads.numThreads()),

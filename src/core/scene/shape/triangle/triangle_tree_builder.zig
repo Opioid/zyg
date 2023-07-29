@@ -32,8 +32,6 @@ pub const Builder = struct {
         vertices: VertexBuffer,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @intCast(triangles.len));
-
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
             .aabbs = try alloc.alloc(AABB, threads.numThreads()),

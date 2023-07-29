@@ -29,9 +29,7 @@ pub const Builder = struct {
         aabbs: []const AABB,
         threads: *Threads,
     ) !void {
-        const num_primitives = @as(u32, @intCast(indices.len));
-
-        try self.super.reserve(alloc, num_primitives);
+        const num_primitives: u32 = @intCast(indices.len);
 
         if (0 == num_primitives) {
             try tree.allocateIndices(alloc, 0);
