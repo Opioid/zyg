@@ -35,6 +35,11 @@ pub const AABB = struct {
         return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
     }
 
+    pub fn volume(self: AABB) f32 {
+        const d = self.bounds[1] - self.bounds[0];
+        return d[0] * d[1] * d[2];
+    }
+
     // Raytracing Gems 2 - chapter 2
     pub fn intersect(self: AABB, ray: Ray) bool {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;

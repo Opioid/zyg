@@ -121,7 +121,7 @@ const Kernel = struct {
                     }
                 }
             } else {
-                if (num_primitives <= 0x1FF) {
+                if (num_primitives <= 0x2FF) {
                     try self.assign(alloc, node, references);
                 } else {
                     log.err("Cannot split node further with {} primitives", .{num_primitives});

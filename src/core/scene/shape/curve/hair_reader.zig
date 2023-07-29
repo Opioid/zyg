@@ -188,7 +188,7 @@ pub const Reader = struct {
 
             if (rem > 0) {
                 curves[cc].pos = dest_p_count - 1;
-                curves[cc].width = dest_w_count;
+                curves[cc].width = dest_w_count - 1;
 
                 cc += 1;
 
