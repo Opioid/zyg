@@ -113,17 +113,10 @@ pub const IndexedData = struct {
     pub fn intersect(self: *const Self, ray: Ray, id: u32, isec: *Intersection) bool {
         const index = self.indices[id];
 
-        // const cp = self.curvePoints(index.p);
-        // const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
-
-        // const u_range = Vec2f{ 0.0, 1.0 };
-
-        // const depth = 5; //refinementDepth(cp, width);
-
         const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = 3; //refinementDepth(cp, width);
+        const depth = refinementDepth(partition.cp, width, partition.u_range);
 
         var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
@@ -148,7 +141,7 @@ pub const IndexedData = struct {
         const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = 3; //refinementDepth(cp, width);
+        const depth = refinementDepth(partition.cp, width, partition.u_range);
 
         var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
@@ -378,26 +371,23 @@ pub const IndexedData = struct {
         return true;
     }
 
-    fn refinementDepth(cp: [4]Vec4f, width: Vec2f) u32 {
-        // var l: f32 = 0.0;
-        // for (0..2) |i| {
-        //     const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
-        //     l = math.max(l, math.hmax3(v));
-        // }
+    fn refinementDepth(cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) u32 {
+        var l: f32 = 0.0;
+        for (0..2) |i| {
+            const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
+            l = math.max(l, math.hmax3(v));
+        }
 
-        // if (l > 0.0) {
-        //     const eps = math.max(width[0], width[1]) * 0.05; // width / 20
-        //     // Compute log base 4 by dividing log2 in half.
-        //     const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
-        //     return std.math.clamp(@as(u32, @intCast(r0)) + 1, 0, 10);
-        // }
+        if (l > 0.0) {
+            const w0 = math.lerp(width[0], width[1], u_range[0]);
+            const w1 = math.lerp(width[0], width[1], u_range[1]);
+            const eps = math.max(w0, w1) * 0.05; // width / 20
+            // Compute log base 4 by dividing log2 in half.
+            const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
+            return std.math.clamp(@as(u32, @intCast(r0)), 0, 10);
+        }
 
-        // return 0;
-
-        _ = cp;
-        _ = width;
-
-        return 5;
+        return 0;
     }
 
     inline fn exponent(v: f32) i32 {

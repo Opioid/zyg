@@ -73,7 +73,7 @@ const Kernel = struct {
         var node = &self.build_nodes.items[node_id];
         node.setAABB(aabb);
 
-        const num_primitives = @as(u32, @intCast(references.len));
+        const num_primitives: u32 = @intCast(references.len);
         if (num_primitives <= settings.max_primitives) {
             try self.assign(alloc, node, references);
             alloc.free(references);
@@ -103,12 +103,12 @@ const Kernel = struct {
                     var references1: References = undefined;
                     try sp.distribute(alloc, references, &references0, &references1);
 
-                    if (num_primitives <= 0xFF and (0 == references0.items.len or 0 == references1.items.len)) {
+                    if (num_primitives <= 0x2FF and (0 == references0.items.len or 0 == references1.items.len)) {
                         // This can happen if we didn't find a good splitting plane.
                         // It means every triangle was (partially) on the same side of the plane.
                         try self.assign(alloc, node, references);
                     } else {
-                        const child0 = @as(u32, @intCast(self.build_nodes.items.len));
+                        const child0: u32 = @intCast(self.build_nodes.items.len);
 
                         node.setSplitNode(child0);
 
@@ -144,7 +144,7 @@ const Kernel = struct {
 
         self.split_candidates.clearRetainingCapacity();
 
-        const num_references = @as(u32, @intCast(references.len));
+        const num_references: u32 = @intCast(references.len);
 
         const position = aabb.position();
 
@@ -166,22 +166,21 @@ const Kernel = struct {
             const la = math.indexMaxComponent3(extent);
             const step = extent[la] / @as(f32, @floatFromInt(settings.num_slices));
 
-            const ax = [_]u8{ 0, 1, 2 };
-            for (ax) |a| {
+            for (0..3) |a| {
+                const a8: u8 = @intCast(a);
                 const extent_a = extent[a];
-                const num_steps = @as(u32, @intFromFloat(@ceil(extent_a / step)));
+                const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
                 const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
-                var i: u32 = 1;
-                while (i < num_steps) : (i += 1) {
+                for (1..num_steps) |i| {
                     const fi = @as(f32, @floatFromInt(i));
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
-                    self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a, slice, false));
+                    self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a8, slice, false));
 
                     if (depth < settings.spatial_split_threshold) {
-                        self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a, slice, true));
+                        self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a8, slice, true));
                     }
                 }
             }
@@ -373,7 +372,7 @@ pub const Base = struct {
 
         const self = @as(*Base, @ptrCast(context));
 
-        const num_tasks = @as(u32, @intCast(self.tasks.items.len));
+        const num_tasks: u32 = @intCast(self.tasks.items.len);
 
         while (true) {
             const current = @atomicRmw(u32, &self.current_task, .Add, 1, .Monotonic);

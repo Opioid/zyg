@@ -30,7 +30,7 @@ pub fn cubicBezierSubdivide(cp: [4]Vec4f) [7]Vec4f {
     };
 }
 
-pub fn cubicBezierSubdivide2_0(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide2_0(cp: [4]Vec4f) [4]Vec4f {
     const two = @splat(4, @as(f32, 2.0));
     const three = @splat(4, @as(f32, 3.0));
 
@@ -42,7 +42,7 @@ pub fn cubicBezierSubdivide2_0(cp: [4]Vec4f) [4]Vec4f {
     };
 }
 
-pub fn cubicBezierSubdivide2_1(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide2_1(cp: [4]Vec4f) [4]Vec4f {
     const two = @splat(4, @as(f32, 2.0));
     const three = @splat(4, @as(f32, 3.0));
 
