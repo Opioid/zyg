@@ -1,6 +1,7 @@
 const Tree = @import("curve_tree.zig").Tree;
 const CurveBuffer = @import("curve_buffer.zig").Buffer;
-const curve = @import("curve.zig");
+const crv = @import("curve.zig");
+const IndexCurve = crv.IndexCurve;
 const Reference = @import("../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../bvh/builder_base.zig").Base;
 
@@ -23,16 +24,23 @@ pub const Builder = struct {
         self.super.deinit(alloc);
     }
 
-    pub fn build(self: *Builder, alloc: Allocator, tree: *Tree, curves: CurveBuffer, threads: *Threads) !void {
-        const num_curves = curves.numCurves();
+    pub fn build(
+        self: *Builder,
+        alloc: Allocator,
+        tree: *Tree,
+        curves: []const IndexCurve,
+        vertices: CurveBuffer,
+        threads: *Threads,
+    ) !void {
+        const num_curves: u32 = @intCast(curves.len);
 
         try self.super.reserve(alloc, num_curves);
 
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, num_curves),
             .aabbs = try alloc.alloc(AABB, threads.numThreads()),
-            .num_curves = num_curves,
-            .curves = &curves,
+            .curves = curves.ptr,
+            .vertices = &vertices,
         };
 
         const num = threads.runRange(&context, ReferencesContext.run, 0, num_curves, @sizeOf(Reference));
@@ -46,19 +54,19 @@ pub const Builder = struct {
 
         try self.super.split(alloc, context.references, bounds, threads);
 
-        try tree.data.allocateCurves(alloc, self.super.numReferenceIds(), num_curves, curves);
+        try tree.data.allocateCurves(alloc, self.super.numReferenceIds(), vertices);
         try tree.allocateNodes(alloc, self.super.numBuildNodes());
 
         var current_curve: u32 = 0;
         self.super.newNode();
-        self.serialize(0, 0, tree, curves, &current_curve);
+        self.serialize(0, 0, tree, curves, vertices, &current_curve);
     }
 
     const ReferencesContext = struct {
         references: []Reference,
         aabbs: []AABB,
-        num_curves: u32,
-        curves: *const CurveBuffer,
+        curves: [*]const IndexCurve,
+        vertices: *const CurveBuffer,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self = @as(*ReferencesContext, @ptrCast(@alignCast(context)));
@@ -67,11 +75,12 @@ pub const Builder = struct {
 
             for (begin..end) |i| {
                 const index: u32 = @intCast(i);
+                const curve = self.curves[i];
 
-                const cp = self.curves.curvePoints(index);
-                const width = self.curves.curveWidth(index);
+                const cp = self.vertices.curvePoints(curve.pos);
+                const width = self.vertices.curveWidth(curve.width);
 
-                var box = curve.cubicBezierBounds(cp);
+                var box = crv.cubicBezierBounds(cp);
                 box.expand(math.max(width[0], width[1]) * 0.5);
 
                 const min = box.bounds[0];
@@ -92,7 +101,8 @@ pub const Builder = struct {
         source_node: u32,
         dest_node: u32,
         tree: *Tree,
-        curves: CurveBuffer,
+        curves: []const IndexCurve,
+        vertices: CurveBuffer,
         current_curve: *u32,
     ) void {
         const node = self.super.kernel.build_nodes.items[source_node];
@@ -108,8 +118,8 @@ pub const Builder = struct {
 
             const source_child0 = node.children();
 
-            self.serialize(source_child0, child0, tree, curves, current_curve);
-            self.serialize(source_child0 + 1, child0 + 1, tree, curves, current_curve);
+            self.serialize(source_child0, child0, tree, curves, vertices, current_curve);
+            self.serialize(source_child0 + 1, child0 + 1, tree, curves, vertices, current_curve);
         } else {
             var i = current_curve.*;
             const num = node.numIndices();
@@ -121,7 +131,7 @@ pub const Builder = struct {
             var end = ro + num;
 
             while (p < end) : (p += 1) {
-                const c = self.super.kernel.reference_ids.items[p];
+                const c = curves[self.super.kernel.reference_ids.items[p]];
                 tree.data.setCurve(i, c);
 
                 i += 1;

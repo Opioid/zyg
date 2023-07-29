@@ -15,27 +15,33 @@ pub const Buffer = union(enum) {
         };
     }
 
-    pub fn numCurves(self: Buffer) u32 {
+    pub fn numPoints(self: Buffer) u32 {
         return switch (self) {
-            inline else => |v| v.numCurves(),
+            inline else => |v| v.numPoints(),
         };
     }
 
-    pub fn copy(self: Buffer, points: [*]f32, widths: [*]f32, count: u32) void {
+    pub fn numWidths(self: Buffer) u32 {
         return switch (self) {
-            inline else => |v| v.copy(points, widths, count),
+            inline else => |v| v.numWidths(),
         };
     }
 
-    pub fn curvePoints(self: Buffer, id: u32) [4]Vec4f {
+    pub fn copy(self: Buffer, points: [*]f32, widths: [*]f32) void {
         return switch (self) {
-            inline else => |v| v.curvePoints(id),
+            inline else => |v| v.copy(points, widths),
         };
     }
 
-    pub fn curveWidth(self: Buffer, id: u32) Vec2f {
+    pub fn curvePoints(self: Buffer, index: u32) [4]Vec4f {
         return switch (self) {
-            inline else => |v| v.curveWidth(id),
+            inline else => |v| v.curvePoints(index),
+        };
+    }
+
+    pub fn curveWidth(self: Buffer, index: u32) Vec2f {
+        return switch (self) {
+            inline else => |v| v.curveWidth(index),
         };
     }
 };
@@ -64,36 +70,31 @@ pub const Separate = struct {
         }
     }
 
-    pub fn numCurves(self: Self) u32 {
-        //   return @intCast(self.points.len / 4);
-
-        const nc: u32 = @intCast(self.points.len / 4);
-
-        return @min(nc, nc / 1);
+    pub fn numPoints(self: Self) u32 {
+        return @intCast(self.points.len);
     }
 
-    pub fn copy(self: Self, points: [*]f32, widths: [*]f32, count: u32) void {
-        const num_components = 4 * 3 * count;
+    pub fn numWidths(self: Self) u32 {
+        return @intCast(self.widths.len);
+    }
+
+    pub fn copy(self: Self, points: [*]f32, widths: [*]f32) void {
+        const num_components = self.points.len * 3;
         @memcpy(points[0..num_components], @as([*]const f32, @ptrCast(self.points.ptr))[0..num_components]);
 
-        const num_widths = 2 * count;
-        @memcpy(widths[0..num_widths], self.widths[0..num_widths]);
+        @memcpy(widths[0..self.widths.len], self.widths);
     }
 
-    pub fn curvePoints(self: Self, id: u32) [4]Vec4f {
-        const offset = id * 4;
-
+    pub fn curvePoints(self: Self, index: u32) [4]Vec4f {
         return .{
-            math.vec3fTo4f(self.points[offset + 0]),
-            math.vec3fTo4f(self.points[offset + 1]),
-            math.vec3fTo4f(self.points[offset + 2]),
-            math.vec3fTo4f(self.points[offset + 3]),
+            math.vec3fTo4f(self.points[index + 0]),
+            math.vec3fTo4f(self.points[index + 1]),
+            math.vec3fTo4f(self.points[index + 2]),
+            math.vec3fTo4f(self.points[index + 3]),
         };
     }
 
-    pub fn curveWidth(self: Self, id: u32) Vec2f {
-        const offset = id * 2;
-
-        return .{ self.widths[offset + 0], self.widths[offset + 1] };
+    pub fn curveWidth(self: Self, index: u32) Vec2f {
+        return .{ self.widths[index + 0], self.widths[index + 1] };
     }
 };

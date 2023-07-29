@@ -130,15 +130,18 @@ pub const Provider = struct {
             defer stream.deinit();
 
             if (file.Type.HAIR == file.queryType(&stream)) {
-                var vertices = try HairReader.read(alloc, &stream);
-                defer vertices.deinit(alloc);
+                var curves = try HairReader.read(alloc, &stream);
+                defer {
+                    alloc.free(curves.curves);
+                    curves.vertices.deinit(alloc);
+                }
 
                 var mesh = CurveMesh{};
 
                 var builder = try CurveBuilder.init(alloc, 16, 64, 4);
                 defer builder.deinit(alloc);
 
-                try builder.build(alloc, &mesh.tree, vertices, resources.threads);
+                try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
             } else if (file.Type.SUB == file.queryType(&stream)) {

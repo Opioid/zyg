@@ -1,5 +1,6 @@
 const CurveBuffer = @import("curve_buffer.zig").Buffer;
 const curve = @import("curve.zig");
+const IndexCurve = curve.IndexCurve;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -13,6 +14,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
+    pub const Segment = struct {
+        p: u32,
+        w: u32,
+    };
+
     pub const Intersection = struct {
         geo_n: Vec4f = undefined,
         dpdu: Vec4f = undefined,
@@ -23,42 +29,48 @@ pub const IndexedData = struct {
     };
 
     num_indices: u32 = 0,
-    num_curves: u32 = 0,
 
-    indices: [*]u32 = undefined,
+    num_points: u32 = 0,
+    num_widths: u32 = 0,
+
+    indices: [*]Segment = undefined,
     points: [*]f32 = undefined,
     widths: [*]f32 = undefined,
 
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.widths[0 .. self.num_curves * 2]);
-        alloc.free(self.points[0 .. self.num_curves * 4 * 3 + 1]);
+        alloc.free(self.widths[0..self.num_widths]);
+        alloc.free(self.points[0 .. self.num_points * 3 + 1]);
         alloc.free(self.indices[0..self.num_indices]);
     }
 
-    pub fn allocateCurves(self: *Self, alloc: Allocator, num_indices: u32, num_curves: u32, curves: CurveBuffer) !void {
+    pub fn allocateCurves(self: *Self, alloc: Allocator, num_indices: u32, curves: CurveBuffer) !void {
         self.num_indices = num_indices;
-        self.num_curves = num_curves;
 
-        self.indices = (try alloc.alloc(u32, num_indices)).ptr;
+        const num_points = curves.numPoints();
+        const num_widths = curves.numWidths();
+        self.num_points = num_points;
+        self.num_widths = num_widths;
 
-        self.points = (try alloc.alloc(f32, num_curves * 4 * 3 + 1)).ptr;
-        self.widths = (try alloc.alloc(f32, num_curves * 2)).ptr;
+        self.indices = (try alloc.alloc(Segment, num_indices)).ptr;
 
-        curves.copy(self.points, self.widths, num_curves);
-        self.points[num_curves * 4 * 3] = 0.0;
+        self.points = (try alloc.alloc(f32, num_points * 3 + 1)).ptr;
+        self.widths = (try alloc.alloc(f32, num_widths)).ptr;
+
+        curves.copy(self.points, self.widths);
+        self.points[num_points * 3] = 0.0;
     }
 
-    pub fn setCurve(self: *Self, curve_id: u32, index: u32) void {
-        self.indices[curve_id] = index;
+    pub fn setCurve(self: *Self, curve_id: u32, index: IndexCurve) void {
+        self.indices[curve_id] = .{ .p = index.pos, .w = index.width };
     }
 
     pub fn curveWidth(self: *const Self, id: u32, u: f32) f32 {
-        const index = self.indices[id];
+        const index = self.indices[id].w;
 
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
+        const width0 = self.widths[index + 0];
+        const width1 = self.widths[index + 1];
 
         return math.lerp(width0, width1, u);
     }
@@ -66,9 +78,10 @@ pub const IndexedData = struct {
     pub fn intersect(self: *const Self, ray: Ray, id: u32, isec: *Intersection) bool {
         const index = self.indices[id];
 
-        const cp = self.curvePoints(index);
+        const cp = self.curvePoints(index.p);
+        const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = self.refinementDepth(index, cp);
+        const depth = refinementDepth(cp, width);
 
         var dx = math.cross3(ray.direction, cp[3] - cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
@@ -84,15 +97,16 @@ pub const IndexedData = struct {
             ray_to_object.transformPointTransposed(cp[3]),
         };
 
-        return self.recursiveIntersectSegment(ray, ray_to_object, index, cpr, .{ 0.0, 1.0 }, depth, isec);
+        return self.recursiveIntersectSegment(ray, ray_to_object, index.p, cpr, width, .{ 0.0, 1.0 }, depth, isec);
     }
 
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
         const index = self.indices[id];
 
-        const cp = self.curvePoints(index);
+        const cp = self.curvePoints(index.p);
+        const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = self.refinementDepth(index, cp);
+        const depth = refinementDepth(cp, width);
 
         var dx = math.cross3(ray.direction, cp[3] - cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
@@ -108,27 +122,28 @@ pub const IndexedData = struct {
             rayToObject.transformPointTransposed(cp[3]),
         };
 
-        return self.recursiveIntersectSegmentP(ray, index, cpr, .{ 0.0, 1.0 }, depth);
+        return recursiveIntersectSegmentP(ray, cpr, width, .{ 0.0, 1.0 }, depth);
     }
 
     fn recursiveIntersectSegment(
         self: *const Self,
         ray: Ray,
         ray_to_object: Mat4x4,
-        index: u32,
+        pos_index: u32,
         cp: [4]Vec4f,
+        width: Vec2f,
         u_range: Vec2f,
         depth: u32,
         isec: *Intersection,
     ) bool {
-        const curve_bounds = self.segmentBounds(index, cp, u_range);
+        const curve_bounds = segmentBounds(cp, width, u_range);
         const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
             return false;
         }
 
         if (0 == depth) {
-            return self.intersectSegment(ray, ray_to_object, index, cp, u_range, isec);
+            return self.intersectSegment(ray, ray_to_object, pos_index, cp, width, u_range, isec);
         }
 
         const segments = curve.cubicBezierSubdivide(cp);
@@ -138,12 +153,12 @@ pub const IndexedData = struct {
         const u_middle = 0.5 * (u_range[0] + u_range[1]);
         const next_depth = depth - 1;
 
-        const hit0 = self.recursiveIntersectSegment(tray, ray_to_object, index, segments[0..4].*, .{ u_range[0], u_middle }, next_depth, isec);
+        const hit0 = self.recursiveIntersectSegment(tray, ray_to_object, pos_index, segments[0..4].*, width, .{ u_range[0], u_middle }, next_depth, isec);
         if (hit0) {
             tray.setMaxT(isec.t);
         }
 
-        const hit1 = self.recursiveIntersectSegment(tray, ray_to_object, index, segments[3..7].*, .{ u_middle, u_range[1] }, next_depth, isec);
+        const hit1 = self.recursiveIntersectSegment(tray, ray_to_object, pos_index, segments[3..7].*, width, .{ u_middle, u_range[1] }, next_depth, isec);
 
         return hit0 or hit1;
     }
@@ -152,8 +167,9 @@ pub const IndexedData = struct {
         self: *const Self,
         ray: Ray,
         ray_to_object: Mat4x4,
-        index: u32,
+        pos_index: u32,
         cp: [4]Vec4f,
+        width: Vec2f,
         u_range: Vec2f,
         isec: *Intersection,
     ) bool {
@@ -173,9 +189,7 @@ pub const IndexedData = struct {
         // Compute u coordinate of curve intersection point and _hitWidth_
         const u = math.clamp(math.lerp(u_range[0], u_range[1], w), u_range[0], u_range[1]);
 
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
-        const hit_width = math.lerp(width0, width1, u);
+        const hit_width = math.lerp(width[0], width[1], u);
 
         const eval = curve.cubicBezierEvaluateWithDerivative(cp, math.clamp(w, 0.0, 1.0));
         const pc = eval[0];
@@ -195,7 +209,7 @@ pub const IndexedData = struct {
             return false;
         }
 
-        const dpdu = curve.cubicBezierEvaluateDerivative(self.curvePoints(index), u);
+        const dpdu = curve.cubicBezierEvaluateDerivative(self.curvePoints(pos_index), u);
 
         const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);
         var dpdv_plane = math.normalize3(Vec4f{ dpdu_plane[1], -dpdu_plane[0], 0.0, 0.0 }) * @splat(4, hit_width);
@@ -225,15 +239,15 @@ pub const IndexedData = struct {
         return true;
     }
 
-    fn recursiveIntersectSegmentP(self: *const Self, ray: Ray, index: u32, cp: [4]Vec4f, u_range: Vec2f, depth: u32) bool {
-        const curve_bounds = self.segmentBounds(index, cp, u_range);
+    fn recursiveIntersectSegmentP(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f, depth: u32) bool {
+        const curve_bounds = segmentBounds(cp, width, u_range);
         const ray_bounds = AABB.init(@splat(4, @as(f32, 0.0)), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
             return false;
         }
 
         if (0 == depth) {
-            return self.intersectSegmentP(ray, index, cp, u_range);
+            return intersectSegmentP(ray, cp, width, u_range);
         }
 
         const segments = curve.cubicBezierSubdivide(cp);
@@ -241,14 +255,14 @@ pub const IndexedData = struct {
         const u_middle = 0.5 * (u_range[0] + u_range[1]);
         const next_depth = depth - 1;
 
-        if (self.recursiveIntersectSegmentP(ray, index, segments[0..4].*, .{ u_range[0], u_middle }, next_depth)) {
+        if (recursiveIntersectSegmentP(ray, segments[0..4].*, width, .{ u_range[0], u_middle }, next_depth)) {
             return true;
         }
 
-        return self.recursiveIntersectSegmentP(ray, index, segments[3..7].*, .{ u_middle, u_range[1] }, next_depth);
+        return recursiveIntersectSegmentP(ray, segments[3..7].*, width, .{ u_middle, u_range[1] }, next_depth);
     }
 
-    fn intersectSegmentP(self: *const Self, ray: Ray, index: u32, cp: [4]Vec4f, u_range: Vec2f) bool {
+    fn intersectSegmentP(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) bool {
         if (!testTangents(cp)) {
             return false;
         }
@@ -265,9 +279,7 @@ pub const IndexedData = struct {
         // Compute u coordinate of curve intersection point and _hitWidth_
         const u = math.clamp(math.lerp(u_range[0], u_range[1], w), u_range[0], u_range[1]);
 
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
-        const hit_width = math.lerp(width0, width1, u);
+        const hit_width = math.lerp(width[0], width[1], u);
 
         const pc = curve.cubicBezierEvaluate(cp, math.clamp(w, 0.0, 1.0));
 
@@ -289,18 +301,16 @@ pub const IndexedData = struct {
         return true;
     }
 
-    fn segmentBounds(self: *const Self, index: u32, cp: [4]Vec4f, u_range: Vec2f) AABB {
+    fn segmentBounds(cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) AABB {
         var box = curve.cubicBezierBounds(cp);
-        const width0 = self.widths[index * 2 + 0];
-        const width1 = self.widths[index * 2 + 1];
-        const w0 = math.lerp(width0, width1, u_range[0]);
-        const w1 = math.lerp(width0, width1, u_range[1]);
+        const w0 = math.lerp(width[0], width[1], u_range[0]);
+        const w1 = math.lerp(width[0], width[1], u_range[1]);
         box.expand(math.max(w0, w1) * 0.5);
         return box;
     }
 
     inline fn curvePoints(self: *const Self, index: u32) [4]Vec4f {
-        const offset = index * 4 * 3;
+        const offset = index * 3;
 
         return .{
             self.points[offset + 0 ..][0..4].*,
@@ -326,7 +336,7 @@ pub const IndexedData = struct {
         return true;
     }
 
-    fn refinementDepth(self: *const Self, index: u32, cp: [4]Vec4f) u32 {
+    fn refinementDepth(cp: [4]Vec4f, width: Vec2f) u32 {
         // var l: f32 = 0.0;
         // for (0..2) |i| {
         //     const v = @fabs(cp[i] - @splat(4, @as(f32, 2.0)) * cp[i + 1] + cp[i + 2]);
@@ -334,9 +344,7 @@ pub const IndexedData = struct {
         // }
 
         // if (l > 0.0) {
-        //     const width0 = self.widths[index * 2 + 0];
-        //     const width1 = self.widths[index * 2 + 1];
-        //     const eps = math.max(width0, width1) * 0.05; // width / 20
+        //     const eps = math.max(width[0], width[1]) * 0.05; // width / 20
         //     // Compute log base 4 by dividing log2 in half.
         //     const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
         //     return std.math.clamp(@as(u32, @intCast(r0)) + 1, 0, 10);
@@ -344,9 +352,8 @@ pub const IndexedData = struct {
 
         // return 0;
 
-        _ = self;
-        _ = index;
         _ = cp;
+        _ = width;
 
         return 5;
     }
