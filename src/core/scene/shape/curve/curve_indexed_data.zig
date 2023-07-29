@@ -251,18 +251,18 @@ pub const IndexedData = struct {
 
         const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
 
-        {
-            // Rotate dpdv_plane to give cylindrical appearance
-            const dpcdw = eval[1];
+        // {
+        //     // Rotate dpdv_plane to give cylindrical appearance
+        //     const dpcdw = eval[1];
 
-            const pt_curve_dist = @sqrt(pt_curve_dist2);
-            const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
-            const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
+        //     const pt_curve_dist = @sqrt(pt_curve_dist2);
+        //     const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
+        //     const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
 
-            const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
-            const rot = Mat2x3.initRotation(dpdu_plane, theta);
-            dpdv_plane = rot.transformVector(dpdv_plane);
-        }
+        //     const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
+        //     const rot = Mat2x3.initRotation(dpdu_plane, theta);
+        //     dpdv_plane = rot.transformVector(dpdv_plane);
+        // }
 
         const dpdv = ray_to_object.transformVector(dpdv_plane);
 

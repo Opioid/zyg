@@ -35,7 +35,7 @@ pub const Mesh = struct {
             const width = self.tree.data.curveWidth(hit.index, hit.u);
 
             const d = math.dot3(geo_n, n);
-            isec.p = ray.point(hit.t) + @splat(4, @as(f32, 0.5 * d) * width) * geo_n;
+            isec.p = ray.point(hit.t) + @splat(4, 0.5 * d * width) * geo_n;
 
             isec.part = 0;
             isec.primitive = hit.index;
