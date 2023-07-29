@@ -30,6 +30,46 @@ pub fn cubicBezierSubdivide(cp: [4]Vec4f) [7]Vec4f {
     };
 }
 
+pub fn cubicBezierSubdivide2_0(cp: [4]Vec4f) [4]Vec4f {
+    const two = @splat(4, @as(f32, 2.0));
+    const three = @splat(4, @as(f32, 3.0));
+
+    return .{
+        cp[0],
+        (cp[0] + cp[1]) / two,
+        (cp[0] + two * cp[1] + cp[2]) / @splat(4, @as(f32, 4.0)),
+        (cp[0] + three * cp[1] + three * cp[2] + cp[3]) / @splat(4, @as(f32, 8.0)),
+    };
+}
+
+pub fn cubicBezierSubdivide2_1(cp: [4]Vec4f) [4]Vec4f {
+    const two = @splat(4, @as(f32, 2.0));
+    const three = @splat(4, @as(f32, 3.0));
+
+    return .{
+        (cp[0] + three * cp[1] + three * cp[2] + cp[3]) / @splat(4, @as(f32, 8.0)),
+        (cp[1] + two * cp[2] + cp[3]) / @splat(4, @as(f32, 4.0)),
+        (cp[2] + cp[3]) / two,
+        cp[3],
+    };
+}
+
+pub fn cubicBezierSubdivide4_0(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide2_0(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide4_1(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide2_1(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide4_2(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide2_0(cubicBezierSubdivide2_1(cp));
+}
+
+pub fn cubicBezierSubdivide4_3(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide2_1(cubicBezierSubdivide2_1(cp));
+}
+
 pub fn cubicBezierEvaluate(cp: [4]Vec4f, u: f32) Vec4f {
     const uv = @splat(4, u);
 

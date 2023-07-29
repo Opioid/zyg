@@ -4,6 +4,7 @@ const spc = @import("split_candidate.zig");
 const SplitCandidate = spc.SplitCandidate;
 const Reference = spc.Reference;
 const References = spc.References;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;

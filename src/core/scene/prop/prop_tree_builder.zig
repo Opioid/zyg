@@ -46,8 +46,7 @@ pub const Builder = struct {
 
             references[i].set(b.bounds[0], b.bounds[1], prop);
 
-            bounds.bounds[0] = math.min4(bounds.bounds[0], b.bounds[0]);
-            bounds.bounds[1] = math.max4(bounds.bounds[1], b.bounds[1]);
+            bounds.mergeAssign(b);
         }
 
         try self.super.split(alloc, references, bounds, threads);

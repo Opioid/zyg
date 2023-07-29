@@ -34,6 +34,7 @@ pub const IndexedData = struct {
     num_widths: u32 = 0,
 
     indices: [*]Segment = undefined,
+    partitions: [*]u8 = undefined,
     points: [*]f32 = undefined,
     widths: [*]f32 = undefined,
 
@@ -42,6 +43,7 @@ pub const IndexedData = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.widths[0..self.num_widths]);
         alloc.free(self.points[0 .. self.num_points * 3 + 1]);
+        alloc.free(self.partitions[0..self.num_indices]);
         alloc.free(self.indices[0..self.num_indices]);
     }
 
@@ -54,6 +56,7 @@ pub const IndexedData = struct {
         self.num_widths = num_widths;
 
         self.indices = (try alloc.alloc(Segment, num_indices)).ptr;
+        self.partitions = (try alloc.alloc(u8, num_indices)).ptr;
 
         self.points = (try alloc.alloc(f32, num_points * 3 + 1)).ptr;
         self.widths = (try alloc.alloc(f32, num_widths)).ptr;
@@ -62,8 +65,9 @@ pub const IndexedData = struct {
         self.points[num_points * 3] = 0.0;
     }
 
-    pub fn setCurve(self: *Self, curve_id: u32, index: IndexCurve) void {
+    pub fn setCurve(self: *Self, curve_id: u32, index: IndexCurve, partition: u8) void {
         self.indices[curve_id] = .{ .p = index.pos, .w = index.width };
+        self.partitions[curve_id] = partition;
     }
 
     pub fn curveWidth(self: *const Self, id: u32, u: f32) f32 {
@@ -75,15 +79,53 @@ pub const IndexedData = struct {
         return math.lerp(width0, width1, u);
     }
 
+    const Partition = struct {
+        cp: [4]Vec4f,
+        u_range: Vec2f,
+    };
+
+    fn curvePartition(cp: [4]Vec4f, p: u32) Partition {
+        if (1 == p) {
+            return .{
+                .cp = curve.cubicBezierSubdivide4_0(cp),
+                .u_range = .{ 0.0, 0.25 },
+            };
+        } else if (2 == p) {
+            return .{
+                .cp = curve.cubicBezierSubdivide4_1(cp),
+                .u_range = .{ 0.25, 0.5 },
+            };
+        } else if (3 == p) {
+            return .{
+                .cp = curve.cubicBezierSubdivide4_2(cp),
+                .u_range = .{ 0.5, 0.75 },
+            };
+        } else if (4 == p) {
+            return .{
+                .cp = curve.cubicBezierSubdivide4_3(cp),
+                .u_range = .{ 0.75, 1.0 },
+            };
+        }
+
+        return .{ .cp = cp, .u_range = .{ 0.0, 1.0 } };
+    }
+
     pub fn intersect(self: *const Self, ray: Ray, id: u32, isec: *Intersection) bool {
         const index = self.indices[id];
 
-        const cp = self.curvePoints(index.p);
+        // const cp = self.curvePoints(index.p);
+        // const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
+
+        // const u_range = Vec2f{ 0.0, 1.0 };
+
+        // const depth = 5; //refinementDepth(cp, width);
+
+        const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = refinementDepth(cp, width);
+        const depth = 3; //refinementDepth(cp, width);
 
-        var dx = math.cross3(ray.direction, cp[3] - cp[0]);
+        var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
             dx = math.tangent3(ray.direction);
         }
@@ -91,24 +133,24 @@ pub const IndexedData = struct {
         const ray_to_object = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
 
         const cpr: [4]Vec4f = .{
-            ray_to_object.transformPointTransposed(cp[0]),
-            ray_to_object.transformPointTransposed(cp[1]),
-            ray_to_object.transformPointTransposed(cp[2]),
-            ray_to_object.transformPointTransposed(cp[3]),
+            ray_to_object.transformPointTransposed(partition.cp[0]),
+            ray_to_object.transformPointTransposed(partition.cp[1]),
+            ray_to_object.transformPointTransposed(partition.cp[2]),
+            ray_to_object.transformPointTransposed(partition.cp[3]),
         };
 
-        return self.recursiveIntersectSegment(ray, ray_to_object, index.p, cpr, width, .{ 0.0, 1.0 }, depth, isec);
+        return self.recursiveIntersectSegment(ray, ray_to_object, index.p, cpr, width, partition.u_range, depth, isec);
     }
 
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
         const index = self.indices[id];
 
-        const cp = self.curvePoints(index.p);
+        const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
-        const depth = refinementDepth(cp, width);
+        const depth = 3; //refinementDepth(cp, width);
 
-        var dx = math.cross3(ray.direction, cp[3] - cp[0]);
+        var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
             dx = math.tangent3(ray.direction);
         }
@@ -116,13 +158,13 @@ pub const IndexedData = struct {
         const rayToObject = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
 
         const cpr: [4]Vec4f = .{
-            rayToObject.transformPointTransposed(cp[0]),
-            rayToObject.transformPointTransposed(cp[1]),
-            rayToObject.transformPointTransposed(cp[2]),
-            rayToObject.transformPointTransposed(cp[3]),
+            rayToObject.transformPointTransposed(partition.cp[0]),
+            rayToObject.transformPointTransposed(partition.cp[1]),
+            rayToObject.transformPointTransposed(partition.cp[2]),
+            rayToObject.transformPointTransposed(partition.cp[3]),
         };
 
-        return recursiveIntersectSegmentP(ray, cpr, width, .{ 0.0, 1.0 }, depth);
+        return recursiveIntersectSegmentP(ray, cpr, width, partition.u_range, depth);
     }
 
     fn recursiveIntersectSegment(
