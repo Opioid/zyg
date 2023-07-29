@@ -14,6 +14,15 @@ pub const Reference = struct {
 
     bounds: [2]Vector align(16),
 
+    pub fn init(box: AABB, prim: u32) Reference {
+        return .{
+            .bounds = .{
+                .{ .v = .{ box.bounds[0][0], box.bounds[0][1], box.bounds[0][2] }, .index = prim },
+                .{ .v = .{ box.bounds[1][0], box.bounds[1][1], box.bounds[1][2] }, .index = 0 },
+            },
+        };
+    }
+
     pub fn aabb(self: Reference) AABB {
         return AABB.init(
             .{ self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2], 0.0 },
@@ -27,6 +36,10 @@ pub const Reference = struct {
 
     pub fn primitive(self: Reference) u32 {
         return self.bounds[0].index;
+    }
+
+    pub fn incrPrimitive(self: *Reference, d: u32) void {
+        self.bounds[0].index += d;
     }
 
     pub fn set(self: *Reference, min: Vec4f, max: Vec4f, prim: u32) void {

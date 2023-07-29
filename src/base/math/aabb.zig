@@ -35,6 +35,11 @@ pub const AABB = struct {
         return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
     }
 
+    pub fn volume(self: AABB) f32 {
+        const d = self.bounds[1] - self.bounds[0];
+        return d[0] * d[1] * d[2];
+    }
+
     // Raytracing Gems 2 - chapter 2
     pub fn intersect(self: AABB, ray: Ray) bool {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
@@ -210,6 +215,26 @@ pub const AABB = struct {
             self.bounds[1][0] >= other.bounds[1][0] and
             self.bounds[1][1] >= other.bounds[1][1] and
             self.bounds[1][2] >= other.bounds[1][2];
+    }
+
+    pub fn overlaps(self: AABB, other: AABB) bool {
+        return self.bounds[0][0] <= other.bounds[1][0] and
+            self.bounds[0][1] <= other.bounds[1][1] and
+            self.bounds[0][2] <= other.bounds[1][2] and
+            self.bounds[1][0] >= other.bounds[0][0] and
+            self.bounds[1][1] >= other.bounds[0][1] and
+            self.bounds[1][2] >= other.bounds[0][2];
+    }
+
+    pub fn objectToCubeRay(self: AABB, ray: Ray) Ray {
+        const s = self.halfsize();
+
+        return Ray.init(
+            (ray.origin - self.position()) / s,
+            ray.direction / s,
+            ray.minT(),
+            ray.maxT(),
+        );
     }
 };
 

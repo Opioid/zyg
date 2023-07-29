@@ -126,8 +126,8 @@ pub const GzipReadStream = struct {
 
         if (buffer_offset >= 0 and buffer_offset < buffer_len) {
             const d = @as(i64, self.buffer_head) - buffer_offset;
-            self.buffer_head = @as(u32, @intCast(buffer_offset));
-            self.buffer_count = @as(u32, @intCast(@as(i64, self.buffer_count) + d));
+            self.buffer_head = @intCast(buffer_offset);
+            self.buffer_count = @intCast(@as(i64, self.buffer_count) + d);
         } else {
             if (buffer_offset < 0) {
                 try self.stream.seekTo(self.data_start);
@@ -157,7 +157,7 @@ pub const GzipReadStream = struct {
 
     pub fn seekBy(self: *Self, count: u64) !void {
         const cur = self.z_stream.total_out - self.buffer_count;
-        try self.stream.seekTo(cur + count);
+        try self.seekTo(cur + count);
     }
 
     fn initZstream(self: *Self) !void {

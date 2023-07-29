@@ -32,8 +32,6 @@ pub const Builder = struct {
         vertices: VertexBuffer,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @intCast(triangles.len));
-
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
             .aabbs = try alloc.alloc(AABB, threads.numThreads()),
@@ -126,7 +124,7 @@ pub const Builder = struct {
 
             while (p < end) : (p += 1) {
                 const t = triangles[self.super.kernel.reference_ids.items[p]];
-                tree.data.setTriangle(t.i[0], t.i[1], t.i[2], t.part, vertices, i);
+                tree.data.setTriangle(i, t.i[0], t.i[1], t.i[2], t.part, vertices);
 
                 i += 1;
             }

@@ -1,5 +1,6 @@
 pub const Canopy = @import("canopy.zig").Canopy;
 pub const Cube = @import("cube.zig").Cube;
+pub const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 pub const Disk = @import("disk.zig").Disk;
 pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
@@ -36,6 +37,7 @@ const Allocator = std.mem.Allocator;
 pub const Shape = union(enum) {
     Canopy: Canopy,
     Cube: Cube,
+    CurveMesh: CurveMesh,
     Disk: Disk,
     DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
@@ -46,7 +48,7 @@ pub const Shape = union(enum) {
 
     pub fn deinit(self: *Shape, alloc: Allocator) void {
         switch (self.*) {
-            .TriangleMesh => |*m| m.deinit(alloc),
+            inline .CurveMesh, .TriangleMesh => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -89,14 +91,14 @@ pub const Shape = union(enum) {
 
     pub fn analytical(self: Shape) bool {
         return switch (self) {
-            .TriangleMesh => false,
+            .CurveMesh, .TriangleMesh => false,
             else => true,
         };
     }
 
     pub fn complex(self: Shape) bool {
         return switch (self) {
-            .TriangleMesh => true,
+            .CurveMesh, .TriangleMesh => true,
             else => false,
         };
     }
@@ -106,7 +108,7 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
-            .TriangleMesh => |m| m.tree.aabb(),
+            inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
         };
     }
 
@@ -133,6 +135,7 @@ pub const Shape = union(enum) {
                 const d = @as(Vec4f, @splat(2.0)) * scale;
                 return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
             },
+            .CurveMesh => 0.0,
             .Disk => std.math.pi * (scale[0] * scale[0]),
 
             // This calculates the solid angle, not the area!
@@ -142,6 +145,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
+
             .TriangleMesh => |m| m.area(part, scale),
         };
     }
@@ -160,6 +164,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy => Canopy.intersect(ray, trafo, isec),
             .Cube => Cube.intersect(ray, trafo, ipo, isec),
+            .CurveMesh => |m| m.intersect(ray, trafo, isec),
             .Disk => Disk.intersect(ray, trafo, isec),
             .DistantSphere => DistantSphere.intersect(ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(ray, trafo, isec),
@@ -174,6 +179,7 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray, trafo),
+            .CurveMesh => |m| m.intersectP(ray, trafo),
             .Disk => Disk.intersectP(ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray, trafo),
             .Plane => Plane.intersectP(ray, trafo),
@@ -193,6 +199,7 @@ pub const Shape = union(enum) {
     ) ?Vec4f {
         return switch (self) {
             .Cube => Cube.visibility(ray, trafo, entity, sampler, scene),
+            .CurveMesh => |m| m.visibility(ray, trafo),
             .Disk => Disk.visibility(ray, trafo, entity, sampler, scene),
             .Plane => Plane.visibility(ray, trafo, entity, sampler, scene),
             .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),
@@ -360,8 +367,9 @@ pub const Shape = union(enum) {
         total_sphere: bool,
     ) f32 {
         return switch (self) {
-            .Cube, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
+            .Cube, .Plane => 0.0,
+            .CurveMesh => 0.0,
             .Disk => Disk.pdf(ray, isec.trafo, two_sided),
             .DistantSphere => DistantSphere.pdf(isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),

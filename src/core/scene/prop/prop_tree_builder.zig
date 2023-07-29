@@ -29,9 +29,7 @@ pub const Builder = struct {
         aabbs: []const AABB,
         threads: *Threads,
     ) !void {
-        const num_primitives = @as(u32, @intCast(indices.len));
-
-        try self.super.reserve(alloc, num_primitives);
+        const num_primitives: u32 = @intCast(indices.len);
 
         if (0 == num_primitives) {
             try tree.allocateIndices(alloc, 0);
@@ -48,8 +46,7 @@ pub const Builder = struct {
 
             references[i].set(b.bounds[0], b.bounds[1], prop);
 
-            bounds.bounds[0] = math.min4(bounds.bounds[0], b.bounds[0]);
-            bounds.bounds[1] = math.max4(bounds.bounds[1], b.bounds[1]);
+            bounds.mergeAssign(b);
         }
 
         try self.super.split(alloc, references, bounds, threads);

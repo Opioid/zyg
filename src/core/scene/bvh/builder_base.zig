@@ -4,6 +4,7 @@ const spc = @import("split_candidate.zig");
 const SplitCandidate = spc.SplitCandidate;
 const Reference = spc.Reference;
 const References = spc.References;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -72,7 +73,7 @@ const Kernel = struct {
         var node = &self.build_nodes.items[node_id];
         node.setAABB(aabb);
 
-        const num_primitives = @as(u32, @intCast(references.len));
+        const num_primitives: u32 = @intCast(references.len);
         if (num_primitives <= settings.max_primitives) {
             try self.assign(alloc, node, references);
             alloc.free(references);
@@ -102,12 +103,12 @@ const Kernel = struct {
                     var references1: References = undefined;
                     try sp.distribute(alloc, references, &references0, &references1);
 
-                    if (num_primitives <= 0xFF and (0 == references0.items.len or 0 == references1.items.len)) {
+                    if (num_primitives <= 0x2FF and (0 == references0.items.len or 0 == references1.items.len)) {
                         // This can happen if we didn't find a good splitting plane.
                         // It means every triangle was (partially) on the same side of the plane.
                         try self.assign(alloc, node, references);
                     } else {
-                        const child0 = @as(u32, @intCast(self.build_nodes.items.len));
+                        const child0: u32 = @intCast(self.build_nodes.items.len);
 
                         node.setSplitNode(child0);
 
@@ -120,10 +121,10 @@ const Kernel = struct {
                     }
                 }
             } else {
-                if (num_primitives <= 0xFF) {
+                if (num_primitives <= 0x2FF) {
                     try self.assign(alloc, node, references);
                 } else {
-                    log.err("Cannot split node further", .{});
+                    log.err("Cannot split node further with {} primitives", .{num_primitives});
                 }
             }
         }
@@ -143,7 +144,7 @@ const Kernel = struct {
 
         self.split_candidates.clearRetainingCapacity();
 
-        const num_references = @as(u32, @intCast(references.len));
+        const num_references: u32 = @intCast(references.len);
 
         const position = aabb.position();
 
@@ -165,22 +166,21 @@ const Kernel = struct {
             const la = math.indexMaxComponent3(extent);
             const step = extent[la] / @as(f32, @floatFromInt(settings.num_slices));
 
-            const ax = [_]u8{ 0, 1, 2 };
-            for (ax) |a| {
+            for (0..3) |a| {
+                const a8: u8 = @intCast(a);
                 const extent_a = extent[a];
-                const num_steps = @as(u32, @intFromFloat(@ceil(extent_a / step)));
+                const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
                 const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
-                var i: u32 = 1;
-                while (i < num_steps) : (i += 1) {
+                for (1..num_steps) |i| {
                     const fi = @as(f32, @floatFromInt(i));
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
-                    self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a, slice, false));
+                    self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a8, slice, false));
 
                     if (depth < settings.spatial_split_threshold) {
-                        self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a, slice, true));
+                        self.split_candidates.appendAssumeCapacity(SplitCandidate.init(a8, slice, true));
                     }
                 }
             }
@@ -202,10 +202,10 @@ const Kernel = struct {
         var sc: usize = 0;
         var min_cost = self.split_candidates.items[0].cost;
 
-        for (self.split_candidates.items[1..], 0..) |c, i| {
+        for (self.split_candidates.items[1..], 1..) |c, i| {
             const cost = c.cost;
             if (cost < min_cost) {
-                sc = i + 1;
+                sc = i;
                 min_cost = cost;
             }
         }
@@ -304,6 +304,9 @@ pub const Base = struct {
         aabb: AABB,
         threads: *Threads,
     ) !void {
+        try self.kernel.reserve(alloc, @intCast(references.len), self.settings);
+        self.current_node = 0;
+
         const log2_num_references = std.math.log2(@as(f32, @floatFromInt(references.len)));
         self.settings.spatial_split_threshold = @intFromFloat(@round(log2_num_references / 2.0));
 
@@ -369,7 +372,7 @@ pub const Base = struct {
 
         const self = @as(*Base, @ptrCast(context));
 
-        const num_tasks = @as(u32, @intCast(self.tasks.items.len));
+        const num_tasks: u32 = @intCast(self.tasks.items.len);
 
         while (true) {
             const current = @atomicRmw(u32, &self.current_task, .Add, 1, .Monotonic);
@@ -382,12 +385,6 @@ pub const Base = struct {
             t.kernel.reserve(self.alloc, @intCast(t.references.len), self.settings) catch {};
             t.kernel.split(self.alloc, 0, t.references, t.aabb, t.depth, self.settings, self.threads, self.tasks) catch {};
         }
-    }
-
-    pub fn reserve(self: *Base, alloc: Allocator, num_primitives: u32) !void {
-        try self.kernel.reserve(alloc, num_primitives, self.settings);
-
-        self.current_node = 0;
     }
 
     pub fn newNode(self: *Base) void {
