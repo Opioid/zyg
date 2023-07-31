@@ -82,6 +82,7 @@ const KeyContext = struct {
 
 pub const Loader = struct {
     const Error = error{
+        OutOfMemory,
         UndefinedShape,
     };
 
@@ -215,7 +216,7 @@ pub const Loader = struct {
         animated: bool,
         local_materials: LocalMaterials,
         graph: *Graph,
-    ) !void {
+    ) Error!void {
         const scene = &graph.scene;
 
         for (value.array.items) |entity| {
