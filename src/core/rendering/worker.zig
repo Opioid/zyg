@@ -402,14 +402,11 @@ pub const Worker = struct {
         alpha: f32,
         caustics: CausticsResolve,
     ) MaterialSample {
-        const material = isec.material(self.scene);
-
-        const wi = vertex.ray.direction;
         const wo = -vertex.ray.direction;
-
+        const material = isec.material(self.scene);
         const straight_border = vertex.state.from_subsurface;
 
-        if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and isec.sameHemisphere(wi)) {
+        if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and !isec.sameHemisphere(wo)) {
             const geo_n = isec.geo.geo_n;
             const n = isec.geo.n;
 
