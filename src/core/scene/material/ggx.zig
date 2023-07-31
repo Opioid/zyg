@@ -237,10 +237,10 @@ pub const Iso = struct {
     }
 
     fn visibilityAndG1Wo(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) Vec2f {
-        const n_dot = Vec4f{ n_dot_wi, n_dot_wo, 0.0, 0.0 };
+        const n_dot = Vec2f{ n_dot_wi, n_dot_wo };
         const a2: Vec2f = @splat(alpha2);
 
-        const t = @sqrt(a2 + (@as(Vec4f, @splat(1.0)) - a2) * (n_dot * n_dot));
+        const t = @sqrt(a2 + (@as(Vec2f, @splat(1.0)) - a2) * (n_dot * n_dot));
 
         const t_wi = t[0];
         const t_wo = t[1];

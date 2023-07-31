@@ -114,7 +114,7 @@ pub const Material = struct {
 
         const d = self.density_map.description(scene).dimensions;
 
-        var luminance: Vec4f = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(0.0);
+        var luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(0.0);
         defer alloc.free(luminance);
 
         var avg: Vec4f = @splat(0.0);

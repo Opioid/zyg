@@ -171,15 +171,14 @@ pub const Material = union(enum) {
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
-        const sup = self.super();
-        const cc = sup.cc;
-
         switch (self.*) {
             .Volumetric => |*m| {
                 return m.collisionCoefficientsEmission(uvw, sampler, scene);
             },
             else => {
-                const e = self.super().emittance.value;
+                const sup = self.super();
+                const cc = sup.cc;
+                const e = sup.emittance.value;
 
                 const color_map = sup.color_map;
                 if (color_map.valid()) {

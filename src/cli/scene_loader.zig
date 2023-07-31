@@ -274,7 +274,7 @@ pub const Loader = struct {
                         var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.image)) |meta| {
-                            offset = meta.queryOrDef("offset", @splat(0));
+                            offset = meta.queryOrDef("offset", offset);
                         }
 
                         trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * math.vec4iTo4f(dimensions);

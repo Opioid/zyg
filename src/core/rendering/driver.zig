@@ -158,8 +158,8 @@ pub const Driver = struct {
         }
 
         const camera_pos = self.scene.propWorldPosition(camera.entity);
-
         const start = @as(u64, frame) * camera.frame_step;
+
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
         camera.update(start, self.scene);

@@ -129,7 +129,7 @@ export fn su_mount(folder: [*:0]const u8) i32 {
 
 export fn su_perspective_camera_create(width: u32, height: u32) i32 {
     if (engine) |*e| {
-        const resolution = Vec2i{ @as(i32, @intCast(width)), @as(i32, @intCast(height)) };
+        const resolution = Vec2i{ @intCast(width), @intCast(height) };
         const crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
 
         var camera = &e.take.view.camera;

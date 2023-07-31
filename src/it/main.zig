@@ -6,7 +6,6 @@ const log = core.log;
 const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
-const thread = base.thread;
 const tk = core.tk;
 
 const base = @import("base");

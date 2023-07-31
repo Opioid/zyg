@@ -105,7 +105,7 @@ fn getT(p0: Vec4f, p1: Vec4f, t: f32, alpha: f32) f32 {
 
 // Centripetal Catmull–Rom spline
 fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Vec4f {
-    const t0 = @as(f32, 0.0);
+    const t0: f32 = 0.0;
     const t1 = getT(p0, p1, t0, alpha);
     const t2 = getT(p1, p2, t1, alpha);
     const t3 = getT(p2, p3, t2, alpha);
@@ -128,7 +128,7 @@ fn catmullRom(p0: Vec4f, p1: Vec4f, p2: Vec4f, p3: Vec4f, t: f32, alpha: f32) Ve
 fn interpolate(f0: Transformation, f1: Transformation, f2: Transformation, f3: Transformation, t: f32) Transformation {
     return .{
         .position = catmullRom(f0.position, f1.position, f2.position, f3.position, t, 0.5),
-        .scale = math.lerp(f1.scale, f2.scale, @splat(t)),
+        .scale = math.lerp(f1.scale, f2.scale, @as(Vec4f, @splat(t))),
         .rotation = math.quaternion.slerp(f1.rotation, f2.rotation, t),
     };
 }

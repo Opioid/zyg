@@ -306,7 +306,7 @@ const SkyContext = struct {
 
         const l = math.length2(disk);
         if (l >= 1.0 - e) {
-            disk /= @as(Vec4f, @splat(l + e));
+            disk /= @splat(l + e);
         }
 
         const dir = Canopy.diskToHemisphereEquidistant(disk);

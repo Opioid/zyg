@@ -33,7 +33,7 @@ pub const PathtracerDL = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
         var throughput: Vec4f = @splat(1.0);
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
@@ -144,7 +144,7 @@ pub const PathtracerDL = struct {
     }
 
     fn directLight(
-        self: *Self,
+        self: *const Self,
         vertex: Vertex,
         isec: Intersection,
         mat_sample: *const MaterialSample,

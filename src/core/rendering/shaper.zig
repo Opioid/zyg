@@ -168,8 +168,8 @@ pub const Shaper = struct {
 
     fn drawShape(self: *Self, color: Vec4f, p: Vec2f, shape: Shape) void {
         const dim = self.dimensions;
-        const end_x = @as(f32, @floatFromInt(dim[0]));
-        const end_y = @as(f32, @floatFromInt(dim[1]));
+        const end_x: f32 = @floatFromInt(dim[0]);
+        const end_y: f32 = @floatFromInt(dim[1]);
         const ss = 1.0 / @as(f32, @floatFromInt(Sub_samples));
         const ssx = ss / end_x;
         const ssy = ss / end_y;
@@ -179,8 +179,8 @@ pub const Shaper = struct {
         const r: Vec2f = @splat(shape.radius());
         const min = p - r;
         const max = p + r;
-        const begin = Vec2i{ @as(i32, @intFromFloat(min[0] * end_x)), @as(i32, @intFromFloat(min[1] * end_y)) };
-        const end = Vec2i{ @as(i32, @intFromFloat(max[0] * end_x)), @as(i32, @intFromFloat(max[1] * end_y)) };
+        const begin = Vec2i{ @intFromFloat(min[0] * end_x), @intFromFloat(min[1] * end_y) };
+        const end = Vec2i{ @intFromFloat(max[0] * end_x), @intFromFloat(max[1] * end_y) };
 
         var y = begin[1];
         while (y < end[1]) : (y += 1) {
@@ -223,7 +223,7 @@ pub const Shaper = struct {
 
                     var pixel = &self.pixels[@as(usize, @intCast(wy * dim[0] + wx))];
                     const old: Vec4f = pixel.v;
-                    pixel.v = math.lerp(old, color, @splat(w));
+                    pixel.v = math.lerp(old, color, @as(Vec4f, @splat(w)));
                 }
             }
         }

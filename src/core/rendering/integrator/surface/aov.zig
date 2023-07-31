@@ -40,7 +40,7 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
         var isec = Intersection{};
         var sampler = worker.pickSampler(0);
 
@@ -59,7 +59,7 @@ pub const AOV = struct {
         return isec.volume.tr * result;
     }
 
-    fn ao(self: *Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
@@ -99,7 +99,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.ray.direction;
@@ -126,7 +126,7 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
@@ -145,7 +145,7 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+    fn side(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
@@ -159,7 +159,7 @@ pub const AOV = struct {
         return if (same_side) Vec4f{ 0.2, 1.0, 0.1, 0.0 } else Vec4f{ 1.0, 0.1, 0.2, 0.0 };
     }
 
-    fn photons(self: *Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {
+    fn photons(self: *const Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {
         var throughput: Vec4f = @splat(1.0);
 
         var i: u32 = 0;

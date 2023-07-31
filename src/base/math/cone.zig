@@ -9,7 +9,7 @@ pub fn merge(ap: Vec4f, bp: Vec4f) Vec4f {
     var a = ap;
     var b = bp;
 
-    if (math.equal(@splat(1.0), a)) {
+    if (math.equal(@as(Vec4f, @splat(1.0)), a)) {
         return b;
     }
 

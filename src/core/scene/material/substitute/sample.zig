@@ -54,7 +54,7 @@ pub const Sample = struct {
 
         return .{
             .super = super,
-            .f0 = math.lerp(@splat(f0), albedo, @splat(metallic)),
+            .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
         };

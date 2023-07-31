@@ -84,7 +84,7 @@ pub const Perspective = struct {
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
         self.resolution = resolution;
 
-        var cc = @max(crop, @as(Vec4i, @splat(0)));
+        var cc: Vec4i = @max(crop, @as(Vec4i, @splat(0)));
         cc[2] = @min(cc[2], resolution[0]);
         cc[3] = @min(cc[3], resolution[1]);
         cc[0] = @min(cc[0], cc[2]);

@@ -14,13 +14,14 @@ const ro = @import("../../../scene/ray_offset.zig");
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
     pub fn propTransmittance(
-        ray: math.Ray,
+        ray: Ray,
         material: *const Material,
         cc: CC,
         prop: u32,
@@ -42,7 +43,7 @@ pub const Multi = struct {
     }
 
     pub fn propScatter(
-        ray: math.Ray,
+        ray: Ray,
         throughput: Vec4f,
         material: *const Material,
         cc: CC,

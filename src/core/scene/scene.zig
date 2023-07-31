@@ -523,8 +523,8 @@ pub const Scene = struct {
             var tc = rotation.transformVector(part_cone);
             var cone = Vec4f{ tc[0], tc[1], tc[2], part_cone[3] };
 
-            var i: u32 = 0;
             const len = self.num_interpolation_frames - 1;
+            var i: u32 = 0;
             while (i < len) : (i += 1) {
                 const a = frames[i];
                 const b = frames[i + 1];
@@ -701,7 +701,7 @@ pub const Scene = struct {
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
         try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
-        try self.light_aabbs.append(alloc, AABB.init(@splat(0.0)), @splat(0.0));
+        try self.light_aabbs.append(alloc, AABB.init(@splat(0.0), @splat(0.0)));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }
 

@@ -28,7 +28,7 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn li(self: *Integrator, vertex: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *const Integrator, vertex: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
         return switch (self.*) {
             .PTMIS => |*i| i.li(vertex, gather_photons, worker),
             inline else => |*i| i.li(vertex, worker),
