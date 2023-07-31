@@ -67,13 +67,15 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.ray.direction;
-
         const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
-        var occlusion_vertex: Vertex = undefined;
+        if (worker.aov.active()) {
+            worker.commonAOV(@splat(1.0), vertex, isec, &mat_sample);
+        }
 
         const origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
 
+        var occlusion_vertex: Vertex = undefined;
         occlusion_vertex.time = vertex.time;
 
         var i = self.settings.num_samples;
@@ -121,7 +123,7 @@ pub const AOV = struct {
             else => return .{ 0.0, 0.0, 0.0, 1.0 },
         }
 
-        vec = Vec4f{ vec[0], vec[1], vec[2], 1.0 };
+        vec = .{ vec[0], vec[1], vec[2], 1.0 };
 
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
@@ -132,7 +134,6 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.ray.direction;
-
         const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
@@ -156,7 +157,7 @@ pub const AOV = struct {
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
         const same_side = math.dot3(n, super.shadingNormal()) > 0.0;
-        return if (same_side) Vec4f{ 0.2, 1.0, 0.1, 0.0 } else Vec4f{ 1.0, 0.1, 0.2, 0.0 };
+        return if (same_side) .{ 0.2, 1.0, 0.1, 0.0 } else .{ 1.0, 0.1, 0.2, 0.0 };
     }
 
     fn photons(self: *const Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {

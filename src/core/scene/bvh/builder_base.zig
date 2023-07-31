@@ -169,7 +169,7 @@ const Kernel = struct {
             for (0..3) |a| {
                 const a8: u8 = @intCast(a);
                 const extent_a = extent[a];
-                const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
+                const num_steps = @max(1, @as(u32, @intFromFloat(@ceil(extent_a / step))));
                 const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
                 for (1..num_steps) |i| {
