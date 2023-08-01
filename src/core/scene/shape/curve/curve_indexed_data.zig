@@ -178,6 +178,28 @@ pub const IndexedData = struct {
 
         const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
 
+        {
+            // Rotate dpdv_plane to give cylindrical appearance
+            const cpr: [4]Vec4f = .{
+                ray_to_object.transformPointTransposed(cp[0]),
+                ray_to_object.transformPointTransposed(cp[1]),
+                ray_to_object.transformPointTransposed(cp[2]),
+                ray_to_object.transformPointTransposed(cp[3]),
+            };
+
+            const eval = curve.cubicBezierEvaluateWithDerivative(cpr, u);
+            const pc = eval[0];
+            const dpcdw = eval[1];
+
+            const pt_curve_dist = @sqrt(pc[0] * pc[0] + pc[1] * pc[1]);
+            const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
+            const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
+
+            const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
+            const rot = Mat2x3.initRotation(dpdu_plane, theta);
+            dpdv_plane = rot.transformVector(dpdv_plane);
+        }
+
         const dpdv = ray_to_object.transformVector(dpdv_plane);
 
         return .{
@@ -243,8 +265,7 @@ pub const IndexedData = struct {
 
         const hit_width = math.lerp(width[0], width[1], u);
 
-        const eval = curve.cubicBezierEvaluateWithDerivative(cp, math.clamp(w, 0.0, 1.0));
-        const pc = eval[0];
+        const pc = curve.cubicBezierEvaluate(cp, math.clamp(w, 0.0, 1.0));
 
         const pt_curve_dist2 = pc[0] * pc[0] + pc[1] * pc[1];
         if (pt_curve_dist2 > (hit_width * hit_width) * 0.25) {
@@ -260,32 +281,6 @@ pub const IndexedData = struct {
         if (hit_t > ray.maxT()) {
             return null;
         }
-
-        // const dpdu = curve.cubicBezierEvaluateDerivative(self.curvePoints(pos_index), u);
-
-        // const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);
-        // var dpdv_plane = math.normalize3(Vec4f{ dpdu_plane[1], -dpdu_plane[0], 0.0, 0.0 }) * @as(Vec4f, @splat(hit_width));
-
-        // const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
-
-        // {
-        //     // Rotate dpdv_plane to give cylindrical appearance
-        //     const dpcdw = eval[1];
-
-        //     const pt_curve_dist = @sqrt(pt_curve_dist2);
-        //     const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
-        //     const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
-
-        //     const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
-        //     const rot = Mat2x3.initRotation(dpdu_plane, theta);
-        //     dpdv_plane = rot.transformVector(dpdv_plane);
-        // }
-
-        //     const dpdv = ray_to_object.transformVector(dpdv_plane);
-
-        //    isec.geo_n = geo_n;
-        //     isec.dpdu = dpdu;
-        //     isec.dpdv = dpdv;
 
         return .{ .t = hit_t, .u = u };
     }
