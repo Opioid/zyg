@@ -27,15 +27,16 @@ pub const Mesh = struct {
         if (self.tree.intersect(local_ray)) |hit| {
             ray.setMaxT(hit.t);
 
-            const t = math.normalize3(trafo.objectToWorldNormal(hit.dpdu));
-            const b = math.normalize3(trafo.objectToWorldNormal(hit.dpdv));
+            const data = self.tree.data.interpolateData(local_ray, hit.index, hit.u);
+
+            const t = math.normalize3(trafo.objectToWorldNormal(data.dpdu));
+            const b = math.normalize3(trafo.objectToWorldNormal(data.dpdv));
             const n = math.cross3(t, b);
 
-            const geo_n = trafo.objectToWorldNormal(hit.geo_n);
-            const width = self.tree.data.curveWidth(hit.index, hit.u);
+            const geo_n = trafo.objectToWorldNormal(data.geo_n);
 
             const d = math.dot3(geo_n, n);
-            isec.p = ray.point(hit.t) + @as(Vec4f, @splat(0.5 * d * width)) * geo_n;
+            isec.p = ray.point(hit.t) + @as(Vec4f, @splat(0.5 * d * data.width)) * geo_n;
 
             isec.part = 0;
             isec.primitive = hit.index;

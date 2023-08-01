@@ -12,6 +12,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
+    pub const Intersection = struct {
+        t: f32 = undefined,
+        u: f32 = undefined,
+        index: u32 = 0xFFFFFFFF,
+    };
+
     nodes: []Node = &.{},
     data: IndexedData = .{},
 
@@ -28,13 +34,13 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) ?IndexedData.Intersection {
+    pub fn intersect(self: Tree, ray: Ray) ?Intersection {
         var tray = ray;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var isec: IndexedData.Intersection = .{};
+        var isec: Intersection = .{};
 
         const nodes = self.nodes;
 
@@ -45,8 +51,10 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(tray, i, &isec)) {
-                        tray.setMaxT(isec.t);
+                    if (self.data.intersect(tray, i)) |hit| {
+                        tray.setMaxT(hit.t);
+                        isec.t = hit.t;
+                        isec.u = hit.u;
                         isec.index = i;
                     }
                 }
