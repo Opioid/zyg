@@ -83,14 +83,14 @@ integrators_desc = """{
 zyg.su_integrators_create(c_char_p(integrators_desc.encode('utf-8')))
 
 material_a_desc = """{
-    "rendering": {
+"rendering": {
     "Substitute": {
         "color": [0, 1, 0.5],
         "roughness": 0.2,
         "metallic": 0
     }
-    }
-    }"""
+}
+}"""
 
 material_a = c_uint(zyg.su_material_create(-1, c_char_p(material_a_desc.encode('utf-8'))));
 
@@ -108,8 +108,7 @@ height = 2
 depth = 1
 stride = 12
 
-image_a = zyg.su_image_create(-1, pixel_type, num_channels, width, height, depth,
-                              stride, image_buffer)
+image_a = zyg.su_image_create(-1, pixel_type, num_channels, width, height, depth, stride, image_buffer)
 
 material_b_desc = """{{
 "rendering": {{
@@ -127,7 +126,7 @@ material_light_desc = """{
 "rendering": {
     "Light": {
         "emittance": {
-           "spectrum": [10000, 10000, 10000]
+           "spectrum": [7000, 7000, 7000]
          }
     }
 }
@@ -135,11 +134,11 @@ material_light_desc = """{
 
 material_light = c_uint(zyg.su_material_create(-1, c_char_p(material_light_desc.encode('utf-8'))));
 
-sphere_a = zyg.su_prop_create(8, 1, byref(material_a))
+sphere_a = zyg.su_prop_create(7, 1, byref(material_a))
 
-plane_a = zyg.su_prop_create(6, 1, byref(material_b))
+plane_a = zyg.su_prop_create(5, 1, byref(material_b))
 
-distant_sphere = zyg.su_prop_create(4, 1, byref(material_light))
+distant_sphere = zyg.su_prop_create(3, 1, byref(material_light))
 zyg.su_light_create(distant_sphere)
 
 Vertices = c_float * 9
@@ -185,7 +184,7 @@ triangle = zyg.su_triangle_mesh_create(-1, num_parts, parts,
                                        positions, vertices_stride,
                                        normals, vertices_stride,
                                        tangents, tangents_stride, 
-                                       uvs, uvs_stride)
+                                       uvs, uvs_stride, False)
 
 triangle_a = zyg.su_prop_create(triangle, 1, byref(material_a))
 
@@ -194,7 +193,7 @@ Transformation = c_float * 16
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
-                                -0.5, 1.0, 0.0, 1.0)
+                                -0.25, 1.0, 0.0, 1.0)
 
 # zyg.su_prop_set_transformation(camera, transformation)
 
@@ -203,7 +202,7 @@ zyg.su_prop_set_transformation_frame(camera, 0, transformation)
 transformation = Transformation(1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
-                                0.5, 1.0, 0.0, 1.0)
+                                0.25, 1.0, 0.0, 1.0)
 
 zyg.su_prop_set_transformation_frame(camera, 1, transformation)
 
