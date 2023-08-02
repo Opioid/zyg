@@ -1,5 +1,5 @@
 const sample = @import("../sample_base.zig");
-const Base = sample.SampleBase;
+const Base = sample.Base;
 const IoR = sample.IoR;
 const Material = @import("../material_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;

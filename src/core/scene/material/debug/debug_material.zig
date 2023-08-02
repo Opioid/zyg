@@ -1,5 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("debug_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 
 const math = @import("base").math;

@@ -1,5 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("glass_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");

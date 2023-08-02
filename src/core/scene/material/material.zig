@@ -1,9 +1,10 @@
-pub const Debug = @import("debug/material.zig").Material;
-pub const Glass = @import("glass/material.zig").Material;
-pub const Light = @import("light/material.zig").Material;
-pub const Substitute = @import("substitute/material.zig").Material;
-pub const Volumetric = @import("volumetric/material.zig").Material;
-const Sky = @import("../../sky/material.zig").Material;
+pub const Debug = @import("debug/debug_material.zig").Material;
+pub const Glass = @import("glass/glass_material.zig").Material;
+pub const Hair = @import("hair/hair_material.zig").Material;
+pub const Light = @import("light/light_material.zig").Material;
+pub const Substitute = @import("substitute/substitute_material.zig").Material;
+pub const Volumetric = @import("volumetric/volumetric_material.zig").Material;
+const Sky = @import("../../sky/sky_material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 pub const Base = @import("material_base.zig").Base;
 const Gridtree = @import("volumetric/gridtree.zig").Gridtree;
@@ -32,6 +33,7 @@ const Allocator = std.mem.Allocator;
 pub const Material = union(enum) {
     Debug: Debug,
     Glass: Glass,
+    Hair: Hair,
     Light: Light,
     Sky: Sky,
     Substitute: Substitute,
@@ -54,7 +56,7 @@ pub const Material = union(enum) {
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         switch (self.*) {
-            .Debug => {},
+            .Debug, .Hair => {},
             .Volumetric => |*m| try m.commit(alloc, scene, threads),
             inline else => |*m| m.commit(),
         }
@@ -198,6 +200,7 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, sampler, worker.scene) },
+            .Hair => |*h| .{ .Hair = h.sample(wo, rs, sampler) },
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, sampler, worker),

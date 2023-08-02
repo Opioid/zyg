@@ -1,21 +1,21 @@
-const Base = @import("../sample_base.zig").SampleBase;
+const sample = @import("../sample_base.zig");
+const Base = sample.Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const bxdf = @import("../bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const bxdf = @import("../bxdf.zig");
 
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 pub const Sample = struct {
     super: Base,
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
+    pub fn init(rs: Renderstate, wo: Vec4f, color: Vec4f) Sample {
         return .{ .super = Base.init(
             rs,
             wo,
-            albedo,
+            color,
             @splat(1.0),
             0.0,
         ) };

@@ -1,4 +1,4 @@
-const Base = @import("../sample_base.zig").SampleBase;
+const Base = @import("../sample_base.zig").Base;
 const bxdf = @import("../bxdf.zig");
 
 const base = @import("base");

@@ -1,10 +1,11 @@
-const Debug = @import("debug/sample.zig").Sample;
-const Glass = @import("glass/sample.zig").Sample;
-const Light = @import("light/sample.zig").Sample;
-const Null = @import("null/sample.zig").Sample;
-const Substitute = @import("substitute/sample.zig").Sample;
-const Volumetric = @import("volumetric/sample.zig").Sample;
-const Base = @import("sample_base.zig").SampleBase;
+const Debug = @import("debug/debug_sample.zig").Sample;
+const Glass = @import("glass/glass_sample.zig").Sample;
+const Hair = @import("hair/hair_sample.zig").Sample;
+const Light = @import("light/light_sample.zig").Sample;
+const Null = @import("null/null_sample.zig").Sample;
+const Substitute = @import("substitute/substitute_sample.zig").Sample;
+const Volumetric = @import("volumetric/volumetric_sample.zig").Sample;
+const Base = @import("sample_base.zig").Base;
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
@@ -15,6 +16,7 @@ const Vec4f = math.Vec4f;
 pub const Sample = union(enum) {
     Debug: Debug,
     Glass: Glass,
+    Hair: Hair,
     Light: Light,
     Null: Null,
     Substitute: Substitute,

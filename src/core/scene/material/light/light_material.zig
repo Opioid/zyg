@@ -1,5 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("light_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;

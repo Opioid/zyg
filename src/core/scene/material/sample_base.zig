@@ -92,7 +92,7 @@ pub const Frame = struct {
     }
 };
 
-pub const SampleBase = struct {
+pub const Base = struct {
     pub const Properties = packed struct {
         translucent: bool = false,
         can_evaluate: bool = false,
@@ -116,7 +116,7 @@ pub const SampleBase = struct {
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) Self {
         return .{
             .geo_n = rs.geo_n,
             .n = rs.n,
@@ -128,7 +128,7 @@ pub const SampleBase = struct {
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) SampleBase {
+    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) Self {
         return .{
             .geo_n = geo_n,
             .n = n,

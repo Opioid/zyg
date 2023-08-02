@@ -1,6 +1,6 @@
 const Sky = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
-const Sample = @import("../scene/material/light/sample.zig").Sample;
+const Sample = @import("../scene/material/light/light_sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Emittance = @import("../scene/light/emittance.zig").Emittance;
 const Scene = @import("../scene/scene.zig").Scene;

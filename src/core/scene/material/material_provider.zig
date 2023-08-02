@@ -106,10 +106,11 @@ pub const Provider = struct {
         resources: *Resources,
     ) !void {
         switch (material.*) {
-            .Glass => |*g| self.updateGlass(alloc, g, value, resources),
-            .Light => |*g| self.updateLight(alloc, g, value, resources),
-            .Substitute => |*g| self.updateSubstitute(alloc, g, value, resources),
-            .Volumetric => |*g| self.updateVolumetric(alloc, g, value, resources),
+            .Glass => |*m| self.updateGlass(alloc, m, value, resources),
+            .Hair => |*m| updateHair(m, value),
+            .Light => |*m| self.updateLight(alloc, m, value, resources),
+            .Substitute => |*m| self.updateSubstitute(alloc, m, value, resources),
+            .Volumetric => |*m| self.updateVolumetric(alloc, m, value, resources),
             else => {},
         }
 
@@ -138,6 +139,8 @@ pub const Provider = struct {
                     return Material{ .Debug = mat.Debug.init() };
                 } else if (std.mem.eql(u8, "Glass", entry.key_ptr.*)) {
                     return self.loadGlass(alloc, entry.value_ptr.*, resources);
+                } else if (std.mem.eql(u8, "Hair", entry.key_ptr.*)) {
+                    return loadHair(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "Light", entry.key_ptr.*)) {
                     return self.loadLight(alloc, entry.value_ptr.*, resources);
                 } else if (std.mem.eql(u8, "Substitute", entry.key_ptr.*)) {
@@ -190,6 +193,26 @@ pub const Provider = struct {
 
         material.super.setVolumetric(attenuation_color, @splat(0.0), material.super.attenuation_distance, 0.0);
     }
+
+    fn loadHair(value: std.json.Value) Material {
+        var material = mat.Hair{ .super = .{
+            .ior = 1.46,
+        } };
+
+        updateHair(&material, value);
+
+        return Material{ .Hair = material };
+    }
+
+    fn updateHair(material: *mat.Hair, value: std.json.Value) void {
+        var iter = value.object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
+                material.color = readColor(entry.value_ptr.*);
+            }
+        }
+    }
+
     fn loadLight(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
         var material = mat.Light{};
 
