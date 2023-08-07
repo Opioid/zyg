@@ -35,6 +35,11 @@ pub const Reader = struct {
     };
 
     pub fn read(alloc: Allocator, stream: *ReadStream) !Result {
+        const generic = false;
+        if (generic) {
+            return try genericCrap(alloc);
+        }
+
         var header: [4]u8 = undefined;
         _ = stream.read(&header) catch {
             return Error.BadSignature;
@@ -69,9 +74,6 @@ pub const Reader = struct {
         // var info: [88]u8 = undefined;
         // _ = try stream.read(&info);
         try stream.seekBy(88);
-
-        // try stream.seekTo(0);
-        // try stream.seekTo(128);
 
         var segments: []u16 = &.{};
         defer alloc.free(segments);
@@ -108,46 +110,6 @@ pub const Reader = struct {
             num_positions += strand_curves * 3 + 1;
             num_widths += strand_curves + 1;
         }
-
-        // var curves = try alloc.alloc(IndexCurve, num_curves);
-        // var positions = try alloc.alloc(Pack3f, num_curves * 4);
-        // var widths = try alloc.alloc(f32, num_curves * 2);
-
-        // for (curves, 0..) |*c, i| {
-        //     c.pos = @intCast(i * 4);
-        //     c.width = @intCast(i * 2);
-        // }
-
-        // var source_count: u32 = 0;
-        // var dest_count: u32 = 0;
-
-        // for (0..num_strands) |i| {
-        //     const strand_segments = if (segments.len > 0) @as(u32, segments[i]) else default_num_segments;
-
-        //     for (0..strand_segments / 3) |_| {
-        //         positions[dest_count + 0] = fromHAIRspace(vertices[source_count + 0]);
-        //         positions[dest_count + 1] = fromHAIRspace(vertices[source_count + 1]);
-        //         positions[dest_count + 2] = fromHAIRspace(vertices[source_count + 2]);
-        //         positions[dest_count + 3] = fromHAIRspace(vertices[source_count + 3]);
-
-        //         dest_count += 4;
-        //         source_count += 3;
-        //     }
-
-        //     const rem = strand_segments % 3;
-
-        //     if (rem > 0) {
-        //         positions[dest_count + 0] = fromHAIRspace(vertices[source_count + 0]);
-        //         positions[dest_count + 1] = fromHAIRspace(vertices[source_count + 1]);
-        //         positions[dest_count + 2] = fromHAIRspace(vertices[source_count + @min(2, rem)]);
-        //         positions[dest_count + 3] = fromHAIRspace(vertices[source_count + @min(2, rem)]);
-
-        //         dest_p_count += 4;
-        //         source_count += rem;
-        //     }
-
-        //     source_count += 1;
-        // }
 
         var curves = try alloc.alloc(IndexCurve, num_curves);
         var positions = try alloc.alloc(Pack3f, num_positions);
@@ -216,5 +178,37 @@ pub const Reader = struct {
     fn fromHAIRspace(p: Pack3f) Pack3f {
         const s = comptime 0.01;
         return Pack3f.init3(-p.v[1] * s, p.v[2] * s, p.v[0] * s);
+    }
+
+    fn genericCrap(alloc: Allocator) !Result {
+        const num_curves: u32 = 2;
+        const num_positions: u32 = 7;
+        const num_widths: u32 = 3;
+
+        var curves = try alloc.alloc(IndexCurve, num_curves);
+        var positions = try alloc.alloc(Pack3f, num_positions);
+        var widths = try alloc.alloc(f32, num_widths);
+
+        curves[0].pos = 0;
+        curves[0].width = 0;
+        curves[1].pos = 3;
+        curves[1].width = 1;
+
+        positions[0] = Pack3f.init3(-0.1, -0.5, 0.0);
+        positions[1] = Pack3f.init3(-0.05, -0.25, 0.1);
+        positions[2] = Pack3f.init3(0.0, 0.0, 0.2);
+        positions[3] = Pack3f.init3(0.2, 0.25, 0.3);
+        positions[4] = Pack3f.init3(0.325, 0.4, 0.4);
+        positions[5] = Pack3f.init3(0.1, 0.5, -0.1);
+        positions[6] = Pack3f.init3(0.0, 0.6, -0.3);
+
+        widths[0] = 0.2;
+        widths[1] = 0.05;
+        widths[2] = 0.001;
+
+        return .{
+            .curves = curves,
+            .vertices = cvb.Buffer{ .Separate = cvb.Separate.initOwned(positions, widths) },
+        };
     }
 };

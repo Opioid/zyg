@@ -257,7 +257,7 @@ pub const Worker = struct {
             const ray_max_t = vertex.ray.maxT();
             const prop = isec.prop;
 
-            var nisec: shp.Intersection = .{};
+            var nisec: shp.Intersection = undefined;
             const hit = self.scene.prop(prop).intersectSSS(prop, vertex, self.scene, &nisec);
 
             if (hit) {

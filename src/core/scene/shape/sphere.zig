@@ -27,6 +27,7 @@ pub const Sphere = struct {
         isec.p = p;
         isec.geo_n = n;
         isec.n = n;
+        isec.offset = 0.0;
         isec.part = 0;
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));

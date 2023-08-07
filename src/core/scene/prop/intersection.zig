@@ -126,28 +126,26 @@ pub const Intersection = struct {
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
-        const n = self.geo.geo_n;
-        return ro.offsetRay(p, if (self.sameHemisphere(v)) n else -n);
+        const n = if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n;
+        return ro.offsetRay(p + @as(Vec4f, @splat(self.geo.offset)) * n, n);
     }
 
     pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
         const p = self.geo.p;
 
         if (translucent) {
-            const t = math.hmax3(@fabs(p * geo_n));
+            const t = math.hmax3(@fabs(p * geo_n)) + self.geo.offset;
             const d = ro.offsetF(t) - t;
-
             return .{ p[0], p[1], p[2], d };
         }
 
-        return ro.offsetRay(p, geo_n);
+        return ro.offsetRay(p + @as(Vec4f, @splat(self.geo.offset)) * geo_n, geo_n);
     }
 
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.geo.p;
         const n = self.geo.geo_n;
-
-        const t = math.hmax3(@fabs(p * n));
+        const t = math.hmax3(@fabs(p * n)) + self.geo.offset;
         return ro.offsetF(t + min_t) - t;
     }
 };

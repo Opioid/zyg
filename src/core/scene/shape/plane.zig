@@ -26,6 +26,7 @@ pub const Plane = struct {
             isec.b = b;
             isec.n = n;
             isec.uv = Vec2f{ math.dot3(t, k), math.dot3(b, k) };
+            isec.offset = 0.0;
             isec.part = 0;
 
             ray.setMaxT(hit_t);

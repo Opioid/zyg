@@ -35,15 +35,15 @@ pub const Mesh = struct {
 
             const geo_n = trafo.objectToWorldNormal(data.geo_n);
 
-            const d = math.dot3(geo_n, n);
-            isec.p = ray.point(hit.t) + @as(Vec4f, @splat(0.5 * d * data.width)) * geo_n;
-
-            isec.part = 0;
-            isec.primitive = hit.index;
+            isec.p = ray.point(hit.t);
             isec.t = t;
             isec.b = b;
             isec.n = n;
             isec.geo_n = geo_n;
+            isec.uv = .{ hit.u, data.v };
+            isec.offset = @fabs(data.v - 0.5) * data.width;
+            isec.part = 0;
+            isec.primitive = hit.index;
 
             return true;
         }

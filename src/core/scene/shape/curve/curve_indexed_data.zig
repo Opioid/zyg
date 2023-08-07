@@ -28,6 +28,7 @@ pub const IndexedData = struct {
         geo_n: Vec4f = undefined,
         dpdu: Vec4f = undefined,
         dpdv: Vec4f = undefined,
+        v: f32 = undefined,
         width: f32 = undefined,
     };
 
@@ -178,27 +179,27 @@ pub const IndexedData = struct {
 
         const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
 
-        {
-            // Rotate dpdv_plane to give cylindrical appearance
-            const cpr: [4]Vec4f = .{
-                ray_to_object.transformPointTransposed(cp[0]),
-                ray_to_object.transformPointTransposed(cp[1]),
-                ray_to_object.transformPointTransposed(cp[2]),
-                ray_to_object.transformPointTransposed(cp[3]),
-            };
+        const cpr: [4]Vec4f = .{
+            ray_to_object.transformPointTransposed(cp[0]),
+            ray_to_object.transformPointTransposed(cp[1]),
+            ray_to_object.transformPointTransposed(cp[2]),
+            ray_to_object.transformPointTransposed(cp[3]),
+        };
 
-            const eval = curve.cubicBezierEvaluateWithDerivative(cpr, u);
-            const pc = eval[0];
-            const dpcdw = eval[1];
+        const eval = curve.cubicBezierEvaluateWithDerivative(cpr, u);
+        const pc = eval[0];
+        const dpcdw = eval[1];
 
-            const pt_curve_dist = @sqrt(pc[0] * pc[0] + pc[1] * pc[1]);
-            const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
-            const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
+        const pt_curve_dist = @sqrt(pc[0] * pc[0] + pc[1] * pc[1]);
+        const edge_func = pc[1] * dpcdw[0] + -pc[0] * dpcdw[1];
+        const v = if (edge_func > 0.0) 0.5 + pt_curve_dist / hit_width else 0.5 - pt_curve_dist / hit_width;
 
-            const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
-            const rot = Mat2x3.initRotation(dpdu_plane, theta);
-            dpdv_plane = rot.transformVector(dpdv_plane);
-        }
+        // {
+        //     // Rotate dpdv_plane to give cylindrical appearance
+        //     const theta = math.lerp(-0.5 * std.math.pi, 0.5 * std.math.pi, v);
+        //     const rot = Mat2x3.initRotation(dpdu_plane, theta);
+        //     dpdv_plane = rot.transformVector(dpdv_plane);
+        // }
 
         const dpdv = ray_to_object.transformVector(dpdv_plane);
 
@@ -206,6 +207,7 @@ pub const IndexedData = struct {
             .geo_n = geo_n,
             .dpdu = dpdu,
             .dpdv = dpdv,
+            .v = v,
             .width = hit_width,
         };
     }
@@ -395,7 +397,7 @@ pub const IndexedData = struct {
             const eps = math.max(w0, w1) * 0.05; // width / 20
             // Compute log base 4 by dividing log2 in half.
             const r0 = @divTrunc(log2int(1.41421356237 * 6.0 * l / (8.0 * eps)), 2);
-            return std.math.clamp(@as(u32, @intCast(r0)), 0, 10);
+            return @intCast(std.math.clamp(@as(i32, @intCast(r0)), 0, 10));
         }
 
         return 0;

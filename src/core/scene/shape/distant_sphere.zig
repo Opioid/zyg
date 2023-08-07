@@ -40,6 +40,7 @@ pub const DistantSphere = struct {
             isec.uv[0] = (math.dot3(isec.t, sk) + 1.0) * 0.5;
             isec.uv[1] = (math.dot3(isec.b, sk) + 1.0) * 0.5;
 
+            isec.offset = 0.0;
             isec.part = 0;
             isec.primitive = 0;
 

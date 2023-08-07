@@ -160,7 +160,7 @@ pub const Multi = struct {
                 const v = -vertex.ray.direction;
 
                 var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
-                var nisec = shp.Intersection{};
+                var nisec: shp.Intersection = undefined;
                 if (worker.propIntersect(interface.prop, &tvertex, .Normal, &nisec)) {
                     missed = math.dot3(nisec.geo_n, v) <= 0.0;
                 } else {

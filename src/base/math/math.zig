@@ -60,10 +60,37 @@ pub fn pow2(x: f32) f32 {
     return x * x;
 }
 
+pub fn pow3(x: f32) f32 {
+    const x2 = x * x;
+    return x2 * x;
+}
+
+pub fn pow4(x: f32) f32 {
+    const x2 = x * x;
+    return x2 * x2;
+}
+
 pub fn pow5(x: f32) f32 {
     const x2 = x * x;
     const x4 = x2 * x2;
     return x4 * x;
+}
+
+pub fn pow20(x: f32) f32 {
+    const x2 = x * x;
+    const x4 = x2 * x2;
+    const x8 = x4 * x4;
+    const x16 = x8 * x8;
+    return x16 * x4;
+}
+
+pub fn pow22(x: f32) f32 {
+    const x2 = x * x;
+    const x4 = x2 * x2;
+    const x6 = x4 * x2;
+    const x8 = x4 * x4;
+    const x16 = x8 * x8;
+    return x16 * x6;
 }
 
 pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {

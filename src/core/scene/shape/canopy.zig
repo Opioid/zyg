@@ -40,6 +40,7 @@ pub const Canopy = struct {
         isec.b = trafo.rotation.r[1];
         isec.n = n;
         isec.part = 0;
+        isec.offset = 0.0;
         isec.primitive = 0;
 
         ray.setMaxT(ro.Ray_max_t);

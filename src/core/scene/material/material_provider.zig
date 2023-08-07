@@ -196,7 +196,7 @@ pub const Provider = struct {
 
     fn loadHair(value: std.json.Value) Material {
         var material = mat.Hair{ .super = .{
-            .ior = 1.46,
+            .ior = 1.55,
         } };
 
         updateHair(&material, value);
@@ -209,6 +209,10 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 material.color = readColor(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
+                material.roughness = json.readVec2f(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "width", entry.key_ptr.*)) {
+                material.width = json.readFloat(f32, entry.value_ptr.*);
             }
         }
     }

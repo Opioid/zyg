@@ -41,6 +41,7 @@ pub const Cube = struct {
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
         const n = @as(Vec4f, @splat(s)) * trafo.rotation.r[i];
 
+        isec.offset = 0.0;
         isec.part = 0;
         isec.primitive = 0;
         isec.geo_n = n;

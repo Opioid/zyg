@@ -440,6 +440,7 @@ pub const Mesh = struct {
             const geo_n = data.normal(hit.index);
             isec.geo_n = trafo.rotation.transformVector(geo_n);
 
+            isec.offset = 0.0;
             isec.part = data.part(hit.index);
             isec.primitive = hit.index;
 

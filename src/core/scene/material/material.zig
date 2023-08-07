@@ -56,7 +56,7 @@ pub const Material = union(enum) {
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         switch (self.*) {
-            .Debug, .Hair => {},
+            .Debug => {},
             .Volumetric => |*m| try m.commit(alloc, scene, threads),
             inline else => |*m| m.commit(),
         }
