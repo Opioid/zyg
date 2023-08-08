@@ -37,6 +37,7 @@ pub const InfiniteSphere = struct {
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;
+        isec.offset = 0.0;
         isec.part = 0;
         isec.primitive = 0;
 

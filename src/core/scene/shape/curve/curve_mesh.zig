@@ -31,7 +31,7 @@ pub const Mesh = struct {
 
             const t = math.normalize3(trafo.objectToWorldNormal(data.dpdu));
             const b = math.normalize3(trafo.objectToWorldNormal(data.dpdv));
-            const n = math.cross3(t, b);
+            const n = math.cross3(b, t);
 
             const geo_n = trafo.objectToWorldNormal(data.geo_n);
 
