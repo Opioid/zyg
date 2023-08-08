@@ -161,6 +161,10 @@ pub const Light align(16) = struct {
         };
     }
 
+    pub fn shadowRay(self: Light, origin: Vec4f, sample: SampleTo, scene: *const Scene) Ray {
+        return scene.propShape(self.prop).shadowRay(origin, sample);
+    }
+
     fn propSampleTo(
         self: Light,
         p: Vec4f,

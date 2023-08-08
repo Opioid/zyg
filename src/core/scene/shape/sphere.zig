@@ -250,13 +250,16 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t = b - dist;
 
+            const lp = p + @as(Vec4f, @splat(t)) * dir;
+            const n = math.normalize3(lp - trafo.position);
+
             return SampleTo.init(
+                lp,
+                n,
                 dir,
-                trafo.rotation.r[2],
                 @splat(0.0),
                 trafo,
                 math.smpl.conePdfUniform(cos_theta_max),
-                ro.offsetB(t),
             );
         }
 
@@ -291,12 +294,12 @@ pub const Sphere = struct {
         const area = (4.0 * std.math.pi) * (r * r);
 
         return SampleTo.init(
-            dir,
+            ws,
             wn,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             sl / (c * area * sin_theta),
-            ro.offsetB(t),
         );
     }
 

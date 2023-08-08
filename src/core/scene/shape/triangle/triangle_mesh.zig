@@ -552,7 +552,7 @@ pub const Mesh = struct {
             wn = -wn;
         }
 
-        const axis = ro.offsetRay(v, wn) - p;
+        const axis = v - p;
         const sl = math.squaredLength3(axis);
         const d = @sqrt(sl);
         const dir = axis / @as(Vec4f, @splat(d));
@@ -565,12 +565,12 @@ pub const Mesh = struct {
         const tri_area = 0.5 * lca;
 
         return SampleTo.init(
-            dir,
+            v,
             wn,
+            dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
             trafo,
             (sl * s.pdf) / (c * tri_area),
-            d,
         );
     }
 

@@ -119,7 +119,7 @@ pub const Disk = struct {
             wn = -wn;
         }
 
-        const axis = ro.offsetRay(ws, wn) - p;
+        const axis = ws - p;
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
         const dir = axis / @as(Vec4f, @splat(t));
@@ -132,7 +132,7 @@ pub const Disk = struct {
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        return SampleTo.init(dir, wn, @splat(0.0), trafo, sl / (c * area), t);
+        return SampleTo.init(ws, wn, dir, @splat(0.0), trafo, sl / (c * area));
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
@@ -152,7 +152,7 @@ pub const Disk = struct {
                 wn = -wn;
             }
 
-            const axis = ro.offsetRay(ws, wn) - p;
+            const axis = ws - p;
             const sl = math.squaredLength3(axis);
             const t = @sqrt(sl);
             const dir = axis / @as(Vec4f, @splat(t));
@@ -164,7 +164,7 @@ pub const Disk = struct {
 
             const area = std.math.pi * (radius * radius);
 
-            return SampleTo.init(dir, wn, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area), t);
+            return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area));
         }
 
         return null;

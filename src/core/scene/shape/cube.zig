@@ -129,12 +129,12 @@ pub const Cube = struct {
         const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
-            axis / @as(Vec4f, @splat(t)),
+            wp,
             @splat(0.0),
+            axis / @as(Vec4f, @splat(t)),
             r3,
             trafo,
             sl / volume,
-            t,
         );
     }
 
@@ -150,12 +150,12 @@ pub const Cube = struct {
         const volume = d[0] * d[1] * d[2];
 
         return SampleTo.init(
-            axis / @as(Vec4f, @splat(t)),
+            wp,
             @splat(0.0),
+            axis / @as(Vec4f, @splat(t)),
             uvw,
             trafo,
             sl / volume,
-            t,
         );
     }
 

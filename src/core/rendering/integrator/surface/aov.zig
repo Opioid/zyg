@@ -73,7 +73,7 @@ pub const AOV = struct {
             worker.commonAOV(@splat(1.0), vertex, isec, &mat_sample);
         }
 
-        const origin = isec.offsetPN(mat_sample.super().geometricNormal(), false);
+        const origin = isec.offsetP(mat_sample.super().geometricNormal());
 
         var occlusion_vertex: Vertex = undefined;
         occlusion_vertex.time = vertex.time;
@@ -137,7 +137,7 @@ pub const AOV = struct {
         const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
-        const p = isec.offsetPN(n, false);
+        const p = isec.offsetP(n);
 
         const lights = worker.randomLightSpatial(p, n, false, sampler.sample1D(), true);
 

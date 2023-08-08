@@ -74,15 +74,16 @@ pub const DistantSphere = struct {
         const radius = trafo.scaleX();
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
+        const dir = math.normalize3(ws - trafo.rotation.r[2]);
         const solid_angle = solidAngle(radius);
 
         return SampleTo.init(
-            math.normalize3(ws - trafo.rotation.r[2]),
-            @splat(0.0),
+            @as(Vec4f, @splat(ro.Almost_ray_max_t)) * dir,
+            trafo.rotation.r[2],
+            dir,
             @splat(0.0),
             trafo,
             1.0 / solid_angle,
-            ro.Almost_ray_max_t,
         );
     }
 

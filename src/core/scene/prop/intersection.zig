@@ -126,6 +126,11 @@ pub const Intersection = struct {
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
+
+        if (self.subsurface()) {
+            return p;
+        }
+
         const n = if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n;
         return ro.offsetRay(p + @as(Vec4f, @splat(self.geo.offset)) * n, n);
     }

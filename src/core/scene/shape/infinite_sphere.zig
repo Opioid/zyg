@@ -75,12 +75,12 @@ pub const InfiniteSphere = struct {
         };
 
         return SampleTo.init(
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
             dir,
-            trafo.rotation.r[2],
             uvw,
             trafo,
             pdf_,
-            ro.Ray_max_t,
         );
     }
 
@@ -94,15 +94,16 @@ pub const InfiniteSphere = struct {
         const sin_theta = @sin(theta);
         const cos_theta = @cos(theta);
 
-        const dir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const dir = trafo.rotation.transformVector(ldir);
 
         return SampleTo.init(
-            trafo.rotation.transformVector(dir),
-            trafo.rotation.r[2],
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / ((4.0 * std.math.pi) * sin_theta),
-            ro.Ray_max_t,
         );
     }
 

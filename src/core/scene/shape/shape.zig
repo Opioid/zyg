@@ -314,6 +314,24 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn shadowRay(self: Shape, origin: Vec4f, sample: SampleTo) Ray {
+        return switch (self) {
+            .Canopy, .InfiniteSphere => Ray.init(origin, sample.wi, 0.0, ro.Ray_max_t),
+            .DistantSphere => Ray.init(origin, sample.wi, 0.0, ro.Almost_ray_max_t),
+            else => {
+                const light_pos = ro.offsetRay(sample.p, sample.n);
+                const shadow_axis = light_pos - origin;
+                const shadow_len = math.length3(shadow_axis);
+                return Ray.init(
+                    origin,
+                    shadow_axis / @as(Vec4f, @splat(shadow_len)),
+                    0.0,
+                    shadow_len,
+                );
+            },
+        };
+    }
+
     pub fn sampleFrom(
         self: Shape,
         part: u32,

@@ -62,12 +62,12 @@ pub const Canopy = struct {
         };
 
         return SampleTo.init(
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
             dir,
-            @splat(0.0),
             uvw,
             trafo,
             1.0 / (2.0 * std.math.pi),
-            ro.Ray_max_t,
         );
     }
 
@@ -78,15 +78,16 @@ pub const Canopy = struct {
             return null;
         }
 
-        const dir = diskToHemisphereEquidistant(disk);
+        const ldir = diskToHemisphereEquidistant(disk);
+        const dir = trafo.rotation.transformVector(ldir);
 
         return SampleTo.init(
-            trafo.rotation.transformVector(dir),
-            @splat(0.0),
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / (2.0 * std.math.pi),
-            ro.Ray_max_t,
         );
     }
 

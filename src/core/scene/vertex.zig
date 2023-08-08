@@ -37,6 +37,16 @@ pub const Vertex = struct {
             .state = .{},
         };
     }
+
+    pub fn initRay(ray: Ray, depth: u32, time: u64) Vertex {
+        return .{
+            .ray = ray,
+            .depth = depth,
+            .wavelength = 0.0,
+            .time = time,
+            .state = .{},
+        };
+    }
 };
 
 pub const RayDif = struct {

@@ -133,7 +133,7 @@ pub const Rectangle = struct {
             wn = -wn;
         }
 
-        const axis = ro.offsetRay(ws, wn) - p;
+        const axis = ws - p;
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
         const dir = axis / @as(Vec4f, @splat(t));
@@ -147,12 +147,12 @@ pub const Rectangle = struct {
         const area = 4.0 * scale[0] * scale[1];
 
         return SampleTo.init(
-            dir,
+            ws,
             wn,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             sl / (c * area),
-            t,
         );
     }
 

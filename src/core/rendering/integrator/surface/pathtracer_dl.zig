@@ -157,15 +157,10 @@ pub const PathtracerDL = struct {
             return result;
         }
 
-        const translucent = mat_sample.isTranslucent();
-
         const n = mat_sample.super().geometricNormal();
-        const p = isec.offsetPN(n, translucent);
+        const p = isec.geo.p;
 
-        var shadow_vertex: Vertex = undefined;
-        shadow_vertex.depth = vertex.depth;
-        shadow_vertex.time = vertex.time;
-        shadow_vertex.wavelength = vertex.wavelength;
+        const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
         const split = self.splitting(vertex.depth);
@@ -183,8 +178,12 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
-            shadow_vertex.ray.origin = p;
-            shadow_vertex.ray.setDirection(light_sample.wi, light_sample.offset());
+            var shadow_vertex = Vertex.initRay(
+                light.shadowRay(isec.offsetP(light_sample.wi), light_sample, worker.scene),
+                vertex.depth,
+                vertex.time,
+            );
+
             const tr = worker.visibility(&shadow_vertex, isec, sampler) orelse continue;
 
             const bxdf = mat_sample.evaluate(light_sample.wi);

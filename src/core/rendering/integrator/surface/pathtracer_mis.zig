@@ -178,20 +178,18 @@ pub const PathtracerMIS = struct {
             return result;
         }
 
-        const translucent = mat_sample.isTranslucent();
-
         const n = mat_sample.super().geometricNormal();
-        const p = isec.offsetPN(n, translucent);
+        const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
         const split = self.splitting(vertex.depth);
 
-        const lights = worker.randomLightSpatial(p, n, translucent, select, split);
+        const lights = worker.randomLightSpatial(isec.geo.p, n, translucent, select, split);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
 
-            result += evaluateLight(light, l.pdf, vertex, p, isec, mat_sample, sampler, worker);
+            result += evaluateLight(light, l.pdf, vertex, isec, mat_sample, sampler, worker);
         }
 
         return result;
@@ -201,13 +199,13 @@ pub const PathtracerMIS = struct {
         light: Light,
         light_weight: f32,
         history: Vertex,
-        p: Vec4f,
         isec: Intersection,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
-        // Light source importance sample
+        const p = isec.geo.p;
+
         const light_sample = light.sampleTo(
             p,
             mat_sample.super().geometricNormal(),
@@ -217,13 +215,9 @@ pub const PathtracerMIS = struct {
             worker.scene,
         ) orelse return @splat(0.0);
 
-        var shadow_vertex = Vertex.init(
-            p,
-            light_sample.wi,
-            p[3],
-            light_sample.offset(),
+        var shadow_vertex = Vertex.initRay(
+            light.shadowRay(isec.offsetP(light_sample.wi), light_sample, worker.scene),
             history.depth,
-            history.wavelength,
             history.time,
         );
 
