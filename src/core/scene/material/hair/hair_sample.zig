@@ -59,14 +59,14 @@ pub const Sample = struct {
         const two = self.super.frame.worldToTangent(self.super.wo);
         const twi = self.super.frame.worldToTangent(wi);
 
-        const sin_theta_o = math.clamp(two[1], -1.0, 1.0);
+        const sin_theta_o = math.clamp(two[0], -1.0, 1.0);
         const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
-        const phi_o = std.math.atan2(f32, two[2], two[0]);
+        const phi_o = std.math.atan2(f32, two[2], two[1]);
         const gamma_o = std.math.asin(self.h);
 
-        const sin_theta_i = math.clamp(twi[1], -1.0, 1.0);
+        const sin_theta_i = math.clamp(twi[0], -1.0, 1.0);
         const cos_theta_i = @sqrt(1.0 - sin_theta_i * sin_theta_i);
-        const phi_i = std.math.atan2(f32, twi[2], twi[0]);
+        const phi_i = std.math.atan2(f32, twi[2], twi[1]);
 
         const eta = self.ior;
         const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;
@@ -149,9 +149,9 @@ pub const Sample = struct {
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         const two = self.super.frame.worldToTangent(self.super.wo);
 
-        const sin_theta_o = math.clamp(two[1], -1.0, 1.0);
+        const sin_theta_o = math.clamp(two[0], -1.0, 1.0);
         const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
-        const phi_o = std.math.atan2(f32, two[2], two[0]);
+        const phi_o = std.math.atan2(f32, two[2], two[1]);
         const gamma_o = std.math.asin(self.h);
 
         const eta = self.ior;
@@ -229,7 +229,7 @@ pub const Sample = struct {
 
         // Compute wi from sampled hair scattering angles
         const phi_i = phi_o + phi;
-        const is = Vec4f{ cos_theta_i * @cos(phi_i), sin_theta_i, cos_theta_i * @sin(phi_i), 0.0 };
+        const is = Vec4f{ sin_theta_i, cos_theta_i * @cos(phi_i), cos_theta_i * @sin(phi_i), 0.0 };
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
         const result = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, gamma_o, gamma_t, a);
