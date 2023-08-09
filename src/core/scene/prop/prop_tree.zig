@@ -299,6 +299,7 @@ pub const Tree = struct {
             isec.prop = prop;
             isec.geo.p = vertex.ray.point(result.t);
             isec.geo.geo_n = -vertex.ray.direction;
+            isec.geo.offset = 0.0;
             isec.geo.part = 0;
             return true;
         }

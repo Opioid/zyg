@@ -177,7 +177,7 @@ pub const IndexedData = struct {
         const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);
         var dpdv_plane = math.normalize3(Vec4f{ dpdu_plane[1], -dpdu_plane[0], 0.0, 0.0 }) * @as(Vec4f, @splat(hit_width));
 
-        const geo_n = math.normalize3(math.cross3(ray_to_object.transformVector(dpdv_plane), dpdu));
+        const geo_n = math.normalize3(math.cross3(dpdu, ray_to_object.transformVector(dpdv_plane)));
 
         const cpr: [4]Vec4f = .{
             ray_to_object.transformPointTransposed(cp[0]),
