@@ -222,7 +222,8 @@ pub const Lighttracer = struct {
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        const p = isec.offsetPN(mat_sample.super().geometricNormal(), mat_sample.isTranslucent());
+        const trafo = worker.scene.propTransformationAt(camera.entity, history.time);
+        const p = isec.offsetP(math.normalize3(trafo.position - isec.geo.p));
 
         const camera_sample = camera.sampleTo(
             filter_crop,

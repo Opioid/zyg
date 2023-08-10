@@ -131,19 +131,6 @@ pub const Intersection = struct {
         return ro.offsetRay(p + @as(Vec4f, @splat(self.geo.offset)) * n, n);
     }
 
-    pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
-        const p = self.geo.p;
-        const offset = self.geo.offset;
-
-        if (translucent) {
-            const t = math.hmax3(@fabs(p * geo_n));
-            const d = ro.offsetF(t) - t;
-            return .{ p[0], p[1], p[2], d + offset };
-        }
-
-        return ro.offsetRay(p + @as(Vec4f, @splat(offset)) * geo_n, geo_n);
-    }
-
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.geo.p;
         const n = self.geo.geo_n;
