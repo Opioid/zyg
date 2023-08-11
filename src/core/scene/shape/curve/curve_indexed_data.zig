@@ -113,12 +113,13 @@ pub const IndexedData = struct {
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
 
-        var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
+        const nd = math.normalize3(ray.direction);
+        var dx = math.cross3(nd, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
-            dx = math.tangent3(ray.direction);
+            dx = math.tangent3(nd);
         }
 
-        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
+        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, nd, dx);
 
         const cpr: [4]Vec4f = .{
             ray_to_object.transformPointTransposed(partition.cp[0]),
@@ -138,12 +139,13 @@ pub const IndexedData = struct {
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
 
-        var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
+        const nd = math.normalize3(ray.direction);
+        var dx = math.cross3(nd, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
-            dx = math.tangent3(ray.direction);
+            dx = math.tangent3(nd);
         }
 
-        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
+        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, nd, dx);
 
         const cpr: [4]Vec4f = .{
             ray_to_object.transformPointTransposed(partition.cp[0]),
@@ -162,12 +164,13 @@ pub const IndexedData = struct {
 
         const partition = curvePartition(cp, self.partitions[id]);
 
-        var dx = math.cross3(ray.direction, partition.cp[3] - partition.cp[0]);
+        const nd = math.normalize3(ray.direction);
+        var dx = math.cross3(nd, partition.cp[3] - partition.cp[0]);
         if (0.0 == math.squaredLength3(dx)) {
-            dx = math.tangent3(ray.direction);
+            dx = math.tangent3(nd);
         }
 
-        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, ray.direction, dx);
+        const ray_to_object = math.Mat4x4.initLookAt(ray.origin, nd, dx);
 
         const dpdu = curve.cubicBezierEvaluateDerivative(cp, u);
 

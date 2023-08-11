@@ -16,11 +16,9 @@ pub const Material = struct {
     super: Base = .{},
 
     color: Vec4f = @splat(0.5),
-    mu_a: Vec4f = undefined,
+    mu_a: Vec4f = @splat(-1.0),
 
     roughness: Vec2f = @splat(0.3),
-
-    width: f32 = 0.001,
 
     v: [MaxP + 1]f32 = undefined,
 
@@ -43,16 +41,17 @@ pub const Material = struct {
         const sqrt_pi_over8 = comptime 0.626657069;
         self.s = sqrt_pi_over8 * (0.265 * beta_n + 1.194 * math.pow2(beta_n) + 5.372 * math.pow22(beta_n));
 
-        const denom = 5.969 -
-            0.215 * beta_n +
-            2.532 * math.pow2(beta_n) -
-            10.73 * math.pow3(beta_n) +
-            5.574 * math.pow4(beta_n) +
-            0.245 * math.pow5(beta_n);
+        if (self.mu_a[0] < 0.0) {
+            const denom = 5.969 -
+                0.215 * beta_n +
+                2.532 * math.pow2(beta_n) -
+                10.73 * math.pow3(beta_n) +
+                5.574 * math.pow4(beta_n) +
+                0.245 * math.pow5(beta_n);
 
-        const sqrt_mu_a = @log(self.color) / @as(Vec4f, @splat(denom));
-
-        self.mu_a = (sqrt_mu_a * sqrt_mu_a) / @as(Vec4f, @splat(self.width));
+            const sqrt_mu_a = @log(self.color) / @as(Vec4f, @splat(denom));
+            self.mu_a = (sqrt_mu_a * sqrt_mu_a);
+        }
 
         self.sin2k_alpha[0] = @sin(self.alpha);
         self.cos2k_alpha[0] = @sqrt(1.0 - self.sin2k_alpha[0] * self.sin2k_alpha[0]);
@@ -63,11 +62,21 @@ pub const Material = struct {
         }
     }
 
+    pub fn setMelanin(self: *Material, eumelanin: f32, pheomelanin: f32) void {
+        self.mu_a = absorptionFromMelanin(eumelanin, pheomelanin);
+    }
+
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler) Sample {
         _ = sampler;
 
         var result = Sample.init(rs, wo, self.mu_a, self.super.ior, self.v, self.s, self.sin2k_alpha, self.cos2k_alpha);
         result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
         return result;
+    }
+
+    fn absorptionFromMelanin(ce: f32, cp: f32) Vec4f {
+        const eumelanin_a = Vec4f{ 0.419, 0.697, 1.37, 0.0 };
+        const pheomelanin_a = Vec4f{ 0.187, 0.4, 1.05, 0.0 };
+        return @as(Vec4f, @splat(ce)) * eumelanin_a + @as(Vec4f, @splat(cp)) * pheomelanin_a;
     }
 };

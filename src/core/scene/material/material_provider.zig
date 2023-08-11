@@ -205,15 +205,24 @@ pub const Provider = struct {
     }
 
     fn updateHair(material: *mat.Hair, value: std.json.Value) void {
+        var eumelanin: f32 = -1.0;
+        var pheomelanin: f32 = 0.0;
+
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 material.color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.roughness = json.readVec2f(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "width", entry.key_ptr.*)) {
-                material.width = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "eumelanin", entry.key_ptr.*)) {
+                eumelanin = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "pheomelanin", entry.key_ptr.*)) {
+                pheomelanin = json.readFloat(f32, entry.value_ptr.*);
             }
+        }
+
+        if (eumelanin > 0.0) {
+            material.setMelanin(eumelanin, pheomelanin);
         }
     }
 

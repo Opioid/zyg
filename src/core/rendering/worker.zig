@@ -295,11 +295,13 @@ pub const Worker = struct {
             self.interface_stack.pop();
         }
 
-        const ray_min_t = vertex.ray.minT();
+        const origin = vertex.ray.origin;
 
         const hit = self.intersectAndResolveMask(vertex, sampler, isec);
 
-        vertex.ray.setMinT(ray_min_t);
+        const dif_t = math.distance3(origin, vertex.ray.origin);
+        vertex.ray.origin = origin;
+        vertex.ray.setMaxT(dif_t + vertex.ray.maxT());
 
         const volume_hit = self.scene.scatter(vertex, throughput, sampler, self, isec);
 
@@ -346,8 +348,9 @@ pub const Worker = struct {
                 break;
             }
 
-            // Slide along ray until opaque surface is found
-            vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
+            // Offset ray until opaque surface is found
+            vertex.ray.origin = isec.offsetP(vertex.ray.direction);
+            vertex.ray.setMaxT(ro.Ray_max_t);
         }
 
         return true;

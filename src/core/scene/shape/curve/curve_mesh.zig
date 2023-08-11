@@ -41,7 +41,7 @@ pub const Mesh = struct {
             isec.n = n;
             isec.geo_n = geo_n;
             isec.uv = .{ hit.u, data.v };
-            isec.offset = @fabs(data.v - 0.5) * data.width;
+            isec.offset = @fabs(data.v - 0.5) * trafo.scaleX() * data.width;
             isec.part = 0;
             isec.primitive = hit.index;
 

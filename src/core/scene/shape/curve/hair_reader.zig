@@ -166,7 +166,7 @@ pub const Reader = struct {
         }
 
         for (widths) |*w| {
-            w.* = default_thickness * 0.01;
+            w.* = default_thickness * 0.004;
         }
 
         return .{
@@ -176,7 +176,7 @@ pub const Reader = struct {
     }
 
     fn fromHAIRspace(p: Pack3f) Pack3f {
-        const s = comptime 0.01;
+        const s = comptime 0.004;
         return Pack3f.init3(-p.v[1] * s, p.v[2] * s, p.v[0] * s);
     }
 
@@ -199,11 +199,11 @@ pub const Reader = struct {
         positions[2] = Pack3f.init3(0.0, 0.0, 0.2);
         positions[3] = Pack3f.init3(0.2, 0.25, 0.3);
         positions[4] = Pack3f.init3(0.325, 0.4, 0.4);
-        positions[5] = Pack3f.init3(0.1, 0.5, -0.1);
-        positions[6] = Pack3f.init3(0.0, 0.6, -0.3);
+        positions[5] = Pack3f.init3(0.15, 0.55, 0.3);
+        positions[6] = Pack3f.init3(0.05, 0.7, 0.2);
 
-        widths[0] = 0.2;
-        widths[1] = 0.05;
+        widths[0] = 0.15;
+        widths[1] = 0.075;
         widths[2] = 0.001;
 
         return .{
