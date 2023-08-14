@@ -11,8 +11,6 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Material = struct {
-    const MaxP = Sample.MaxP;
-
     super: Base = .{},
 
     color: Vec4f = @splat(0.5),
@@ -20,22 +18,19 @@ pub const Material = struct {
 
     roughness: Vec2f = @splat(0.3),
 
-    v: [MaxP + 1]f32 = undefined,
+    v: [3]f32 = undefined,
 
     s: f32 = undefined,
     alpha: f32 = math.degreesToRadians(2.0),
 
-    sin2k_alpha: [MaxP]f32 = undefined,
-    cos2k_alpha: [MaxP]f32 = undefined,
+    sin2k_alpha: [3]f32 = undefined,
+    cos2k_alpha: [3]f32 = undefined,
 
     pub fn commit(self: *Material) void {
         const beta_m = self.roughness[0];
         self.v[0] = math.pow2(0.726 * beta_m + 0.812 * math.pow2(beta_m) + 3.7 * math.pow20(beta_m));
         self.v[1] = 0.25 * self.v[0];
         self.v[2] = 4.0 * self.v[0];
-        for (self.v[3..]) |*v| {
-            v.* = self.v[2];
-        }
 
         const beta_n = self.roughness[1];
         const sqrt_pi_over8 = comptime 0.626657069;
@@ -56,7 +51,7 @@ pub const Material = struct {
         self.sin2k_alpha[0] = @sin(self.alpha);
         self.cos2k_alpha[0] = @sqrt(1.0 - self.sin2k_alpha[0] * self.sin2k_alpha[0]);
 
-        for (1..MaxP) |i| {
+        for (1..3) |i| {
             self.sin2k_alpha[i] = 2.0 * self.cos2k_alpha[i - 1] * self.sin2k_alpha[i - 1];
             self.cos2k_alpha[i] = math.pow2(self.cos2k_alpha[i - 1]) - math.pow2(self.sin2k_alpha[i - 1]);
         }
@@ -69,9 +64,7 @@ pub const Material = struct {
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler) Sample {
         _ = sampler;
 
-        var result = Sample.init(rs, wo, self.mu_a, self.super.ior, self.v, self.s, self.sin2k_alpha, self.cos2k_alpha);
-        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
-        return result;
+        return Sample.init(rs, wo, self.mu_a, self.super.ior, self.v, self.s, self.sin2k_alpha, self.cos2k_alpha);
     }
 
     fn absorptionFromMelanin(ce: f32, cp: f32) Vec4f {

@@ -48,7 +48,6 @@ pub const Buffer = union(enum) {
 
 pub const Separate = struct {
     points: []const Pack3f,
-
     widths: []const f32,
 
     own: bool,

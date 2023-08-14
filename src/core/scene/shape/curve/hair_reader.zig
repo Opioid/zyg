@@ -113,7 +113,7 @@ pub const Reader = struct {
 
         var curves = try alloc.alloc(IndexCurve, num_curves);
         var positions = try alloc.alloc(Pack3f, num_positions);
-        var widths = try alloc.alloc(f32, num_widths);
+        var widths = try alloc.alloc(f32, if (flags.has_thickness) num_widths else 2);
 
         var source_count: u32 = 0;
         var dest_p_count: u32 = 0;
@@ -126,7 +126,7 @@ pub const Reader = struct {
 
             for (0..strand_segments / 3) |_| {
                 curves[cc].pos = dest_p_count;
-                curves[cc].width = dest_w_count;
+                curves[cc].width = if (flags.has_thickness) dest_w_count else 0;
 
                 cc += 1;
 
@@ -150,7 +150,7 @@ pub const Reader = struct {
 
             if (rem > 0) {
                 curves[cc].pos = dest_p_count - 1;
-                curves[cc].width = dest_w_count - 1;
+                curves[cc].width = if (flags.has_thickness) dest_w_count - 1 else 0;
 
                 cc += 1;
 
@@ -166,7 +166,7 @@ pub const Reader = struct {
         }
 
         for (widths) |*w| {
-            w.* = default_thickness * 0.004;
+            w.* = default_thickness * 0.0025;
         }
 
         return .{

@@ -18,21 +18,28 @@ pub const Sample = struct {
     ior: f32,
     h: f32,
 
-    v: [MaxP + 1]f32,
+    sin_theta_o: f32,
+    cos_theta_o: f32,
+    phi_o: f32,
+    gamma_o: f32,
+
+    v: [3]f32,
     s: f32,
 
-    sin2k_alpha: [MaxP]f32,
-    cos2k_alpha: [MaxP]f32,
+    sin2k_alpha: [3]f32,
+    cos2k_alpha: [3]f32,
+
+    ap: [MaxP + 1]bxdf.Result,
 
     pub fn init(
         rs: Renderstate,
         wo: Vec4f,
         color: Vec4f,
         ior: f32,
-        v: [MaxP + 1]f32,
+        v: [3]f32,
         s: f32,
-        sin2k_alpha: [MaxP]f32,
-        cos2k_alpha: [MaxP]f32,
+        sin2k_alpha: [3]f32,
+        cos2k_alpha: [3]f32,
     ) Sample {
         var super = Base.init(
             rs,
@@ -43,26 +50,50 @@ pub const Sample = struct {
         );
 
         super.properties.translucent = true;
+        super.frame.setTangentFrame(rs.t, rs.b, rs.n);
 
-        return .{
-            .super = super,
-            .ior = ior,
-            .h = math.clamp(2.0 * (rs.uv[1] - 0.5), -1.0, 1.0),
-            .v = v,
-            .s = s,
-            .sin2k_alpha = sin2k_alpha,
-            .cos2k_alpha = cos2k_alpha,
-        };
-    }
-
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
-        const two = self.super.frame.worldToTangent(self.super.wo);
-        const twi = self.super.frame.worldToTangent(wi);
+        const two = super.frame.worldToTangent(wo);
 
         const sin_theta_o = math.clamp(two[0], -1.0, 1.0);
         const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
         const phi_o = std.math.atan2(f32, two[2], two[1]);
-        const gamma_o = std.math.asin(self.h);
+
+        const h = math.clamp(2.0 * (rs.uv[1] - 0.5), -1.0, 1.0);
+
+        const eta = ior;
+        const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;
+        const sin_gamma_t = h / etap;
+        const cos_gamma_t = @sqrt(1.0 - sin_gamma_t * sin_gamma_t);
+
+        // Compute the transmittance tr of a single path through the cylinder
+        // We store absorption coefficient in albedo for this material!
+        const sin_theta_t = sin_theta_o / eta;
+        const cos_theta_t = @sqrt(1.0 - sin_theta_t * sin_theta_t);
+        const tr = @exp(-color * @as(Vec4f, @splat(2.0 * cos_gamma_t / cos_theta_t)));
+        const ap = apFunc(cos_theta_o, eta, h, tr);
+
+        return .{
+            .super = super,
+            .ior = ior,
+            .h = h,
+            .sin_theta_o = sin_theta_o,
+            .cos_theta_o = cos_theta_o,
+            .phi_o = phi_o,
+            .gamma_o = std.math.asin(h),
+            .v = v,
+            .s = s,
+            .sin2k_alpha = sin2k_alpha,
+            .cos2k_alpha = cos2k_alpha,
+            .ap = ap,
+        };
+    }
+
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+        const twi = self.super.frame.worldToTangent(wi);
+
+        const sin_theta_o = self.sin_theta_o;
+        const cos_theta_o = self.cos_theta_o;
+        const phi_o = self.phi_o;
 
         const sin_theta_i = math.clamp(twi[0], -1.0, 1.0);
         const cos_theta_i = @sqrt(1.0 - sin_theta_i * sin_theta_i);
@@ -71,22 +102,11 @@ pub const Sample = struct {
         const eta = self.ior;
         const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;
         const sin_gamma_t = self.h / etap;
-        const cos_gamma_t = @sqrt(1.0 - sin_gamma_t * sin_gamma_t);
         const gamma_t = std.math.asin(sin_gamma_t);
 
         const phi = phi_i - phi_o;
 
-        //   const eta = self.ior;
-        // Compute $\cos\,\thetat$ for refracted ray
-        const sin_theta_t = sin_theta_o / eta;
-        const cos_theta_t = @sqrt(1.0 - sin_theta_t * sin_theta_t);
-
-        // Compute the transmittance tr of a single path through the cylinder
-        // We store absorption coefficient in albedo for this material!
-        const tr = @exp(-self.super.albedo * @as(Vec4f, @splat(2.0 * cos_gamma_t / cos_theta_t)));
-        const a = ap(cos_theta_o, eta, self.h, tr);
-
-        return self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, gamma_o, gamma_t, a);
+        return self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
     }
 
     fn eval(
@@ -98,10 +118,10 @@ pub const Sample = struct {
         phi: f32,
         gamma_o: f32,
         gamma_t: f32,
-        a: [MaxP + 1]bxdf.Result,
     ) bxdf.Result {
         const v = self.v;
         const s = self.s;
+        const ap = self.ap;
 
         var fsum: Vec4f = @splat(0.0);
         var pdf_sum: f32 = 0.0;
@@ -127,9 +147,9 @@ pub const Sample = struct {
             // Handle out-of-range cos_thetap_o from scale adjustment
             cos_thetap_o = @fabs(cos_thetap_o);
 
-            const tmp = mp(cos_theta_i, cos_thetap_o, sin_theta_i, sin_thetap_o, v[p]);
+            const tmp = mp(cos_theta_i, cos_thetap_o, sin_theta_i, sin_thetap_o, v[@min(p, 2)]);
             const tnp = np(phi, @floatFromInt(p), s, gamma_o, gamma_t);
-            const ta = a[p];
+            const ta = ap[p];
             const mnp = tmp * tnp;
 
             fsum += @as(Vec4f, @splat(mnp)) * ta.reflection;
@@ -137,8 +157,8 @@ pub const Sample = struct {
         }
 
         // Compute contribution of remaining terms after _pMax_
-        const tmp = mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[MaxP]);
-        const ta = a[MaxP];
+        const tmp = mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[2]);
+        const ta = ap[MaxP];
 
         fsum += @as(Vec4f, @splat(tmp)) * ta.reflection;
         pdf_sum += tmp * ta.pdf();
@@ -147,44 +167,20 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        const two = self.super.frame.worldToTangent(self.super.wo);
-
-        const sin_theta_o = math.clamp(two[0], -1.0, 1.0);
-        const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
-        const phi_o = std.math.atan2(f32, two[2], two[1]);
-        const gamma_o = std.math.asin(self.h);
+        const sin_theta_o = self.sin_theta_o;
+        const cos_theta_o = self.cos_theta_o;
+        const phi_o = self.phi_o;
 
         const eta = self.ior;
-        const sin_theta_t = sin_theta_o / eta;
-        const cos_theta_t = @sqrt(1.0 - sin_theta_t * sin_theta_t);
-
-        const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;
+        const etap = @sqrt(eta * eta - sin_theta_o * sin_theta_o) / cos_theta_o;
         const sin_gamma_t = self.h / etap;
-        const cos_gamma_t = @sqrt(1.0 - sin_gamma_t * sin_gamma_t);
         const gamma_t = std.math.asin(sin_gamma_t);
 
-        // Compute the transmittance tr of a single path through the cylinder
-        // We store absorption coefficient in albedo for this material!
-        const tr = @exp(-self.super.albedo * @as(Vec4f, @splat(2.0 * cos_gamma_t / cos_theta_t)));
-        const a = ap(cos_theta_o, eta, self.h, tr);
+        const r = sampler.sample1D();
 
         var p: u32 = MaxP;
-
-        const r = sampler.sample1D();
-        // if (r < 0.25) {
-        //     p = 0;
-        // } else if (r < 0.5) {
-        //     p = 1;
-        // } else if (r < 0.75) {
-        //     p = 2;
-        // } else {
-        //     p = 3;
-        // }
-
-        //    p = 1;
-
         var cdf: f32 = 0.0;
-        for (a, 0..) |ae, i| {
+        for (self.ap, 0..) |ae, i| {
             cdf += ae.pdf();
             if (cdf >= r) {
                 p = @intCast(i);
@@ -214,7 +210,8 @@ pub const Sample = struct {
 
         const s3d = sampler.sample3D();
 
-        const cos_theta = 1.0 + self.v[p] * @log(math.max(s3d[0], 1e-5) + (1.0 - s3d[0]) * @exp(-2.0 / self.v[p]));
+        const vp = self.v[@min(p, 2)];
+        const cos_theta = 1.0 + vp * @log(math.max(s3d[0], 1e-5) + (1.0 - s3d[0]) * @exp(-2.0 / vp));
         const sin_theta = @sqrt(1.0 - cos_theta * cos_theta);
         const cos_phi = @cos(2.0 * std.math.pi * s3d[1]);
         const sin_theta_i = math.clamp(-cos_theta * sin_thetap_o + sin_theta * cos_phi * cos_thetap_o, -1.0, 1.0);
@@ -222,7 +219,7 @@ pub const Sample = struct {
 
         var phi: f32 = undefined;
         if (p < MaxP) {
-            phi = phiFunc(@floatFromInt(p), gamma_o, gamma_t) + sampleTrimmedLogistic(s3d[2], self.s, -std.math.pi, std.math.pi);
+            phi = phiFunc(@floatFromInt(p), self.gamma_o, gamma_t) + sampleTrimmedLogistic(s3d[2], self.s, -std.math.pi, std.math.pi);
         } else {
             phi = (2.0 * std.math.pi) * s3d[2];
         }
@@ -232,7 +229,7 @@ pub const Sample = struct {
         const is = Vec4f{ sin_theta_i, cos_theta_i * @cos(phi_i), cos_theta_i * @sin(phi_i), 0.0 };
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
-        const result = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, gamma_o, gamma_t, a);
+        const result = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
 
         return .{
             .reflection = result.reflection,
@@ -270,7 +267,7 @@ pub const Sample = struct {
         return trimmedLogistic(dphi, s, -std.math.pi, std.math.pi);
     }
 
-    fn ap(cos_theta_o: f32, eta: f32, h: f32, tr: Vec4f) [MaxP + 1]bxdf.Result {
+    fn apFunc(cos_theta_o: f32, eta: f32, h: f32, tr: Vec4f) [MaxP + 1]bxdf.Result {
         var result: [MaxP + 1]bxdf.Result = undefined;
 
         //  Compute $p=0$ attenuation at initial cylinder intersection

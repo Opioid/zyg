@@ -35,7 +35,10 @@ pub fn testSize() void {
     testType(intf.Stack, "InterfaceStack", 400);
     testType(mt.Material, "Material", 368);
     testType(mt.Substitute, "SubstituteMaterial", 352);
-    testType(mt.Sample, "MaterialSample", 240);
+    testType(mt.Hair, "HairMaterial", 224);
+    testType(mt.Sample, "MaterialSample", 272);
+    testType(mt.Substitute, "SubstituteSample", 352);
+    testType(mt.Hair, "HairSample", 224);
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
