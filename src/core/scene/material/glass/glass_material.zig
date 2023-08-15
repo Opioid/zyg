@@ -84,7 +84,7 @@ pub const Material = struct {
 
             if (sint2 >= 1.0) {
                 if (o < 1.0) {
-                    return @splat(1.0 - o);
+                    return @as(Vec4f, @splat(1.0 - o));
                 }
 
                 return null;
@@ -104,7 +104,7 @@ pub const Material = struct {
         }
 
         if (o < 1.0) {
-            return @splat(1.0 - o);
+            return @as(Vec4f, @splat(1.0 - o));
         }
 
         return null;

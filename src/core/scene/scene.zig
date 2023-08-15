@@ -275,7 +275,7 @@ pub const Scene = struct {
             return null;
         }
 
-        return @splat(1.0);
+        return @as(Vec4f, @splat(1.0));
     }
 
     pub fn scatter(

@@ -61,6 +61,6 @@ pub const Plane = struct {
             return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene);
         }
 
-        return @splat(1.0);
+        return @as(Vec4f, @splat(1.0));
     }
 };

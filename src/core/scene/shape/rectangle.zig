@@ -101,21 +101,21 @@ pub const Rectangle = struct {
 
             const u = math.dot3(t, k / @as(Vec4f, @splat(trafo.scaleX())));
             if (u > 1.0 or u < -1.0) {
-                return @splat(1.0);
+                return @as(Vec4f, @splat(1.0));
             }
 
             const b = -trafo.rotation.r[1];
 
             const v = math.dot3(b, k / @as(Vec4f, @splat(trafo.scaleY())));
             if (v > 1.0 or v < -1.0) {
-                return @splat(1.0);
+                return @as(Vec4f, @splat(1.0));
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
             return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene);
         }
 
-        return @splat(1.0);
+        return @as(Vec4f, @splat(1.0));
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {

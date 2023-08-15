@@ -182,7 +182,7 @@ pub const Sphere = struct {
             return worker.propTransmittance(tray, material, entity, depth, sampler);
         }
 
-        return @splat(1.0);
+        return @as(Vec4f, @splat(1.0));
     }
 
     pub fn scatter(

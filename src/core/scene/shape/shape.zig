@@ -205,7 +205,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),
             .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene),
             .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene),
-            else => @splat(1.0),
+            else => @as(Vec4f, @splat(1.0)),
         };
     }
 
@@ -222,7 +222,7 @@ pub const Shape = union(enum) {
             .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker),
             .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker),
             .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker),
-            else => @splat(1.0),
+            else => @as(Vec4f, @splat(1.0)),
         };
     }
 

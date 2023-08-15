@@ -265,7 +265,7 @@ pub const Material = union(enum) {
             },
             else => {
                 const o = self.opacity(uv, sampler, scene);
-                return if (o < 1.0) @splat(1.0 - o) else null;
+                return if (o < 1.0) @as(Vec4f, @splat(1.0 - o)) else null;
             },
         }
     }

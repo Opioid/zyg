@@ -58,6 +58,6 @@ pub const Mesh = struct {
     }
 
     pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
-        return if (self.intersectP(ray, trafo)) null else @splat(1.0);
+        return if (self.intersectP(ray, trafo)) null else @as(Vec4f, @splat(1.0));
     }
 };

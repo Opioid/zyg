@@ -68,7 +68,7 @@ pub const Cube = struct {
         _ = sampler;
         _ = scene;
 
-        return if (intersectP(ray, trafo)) null else @splat(1.0);
+        return if (intersectP(ray, trafo)) null else @as(Vec4f, @splat(1.0));
     }
 
     pub fn transmittance(
@@ -82,7 +82,7 @@ pub const Cube = struct {
         var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP2(local_ray) orelse return @splat(1.0);
+        const hit_t = aabb.intersectP2(local_ray) orelse return @as(Vec4f, @splat(1.0));
 
         const start = math.max(hit_t[0], ray.minT());
         const end = math.min(hit_t[1], ray.maxT());

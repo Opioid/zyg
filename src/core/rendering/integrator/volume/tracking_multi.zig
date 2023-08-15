@@ -32,7 +32,7 @@ pub const Multi = struct {
         const d = ray.maxT();
 
         if (ro.offsetF(ray.minT()) >= d) {
-            return @splat(1.0);
+            return @as(Vec4f, @splat(1.0));
         }
 
         if (material.heterogeneousVolume()) {

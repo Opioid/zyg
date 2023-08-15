@@ -33,10 +33,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    cli.addIncludePath("thirdparty/include");
-    cli.addIncludePath("src/cli");
-    capi.addIncludePath("thirdparty/include");
-    it.addIncludePath("thirdparty/include");
+    cli.addIncludePath(.{ .path = "thirdparty/include" });
+    cli.addIncludePath(.{ .path = "src/cli" });
+    capi.addIncludePath(.{ .path = "thirdparty/include" });
+    it.addIncludePath(.{ .path = "thirdparty/include" });
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -50,13 +50,13 @@ pub fn build(b: *std.Build) void {
     };
 
     for (csources) |source| {
-        cli.addCSourceFile(source, &cflags);
-        capi.addCSourceFile(source, &cflags);
+        cli.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
+        capi.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
     }
 
-    cli.addCSourceFile("src/cli/any_key.c", &cflags);
+    cli.addCSourceFile(.{ .file = .{ .path = "src/cli/any_key.c" }, .flags = &cflags });
 
-    it.addCSourceFile(csources[0], &cflags);
+    it.addCSourceFile(.{ .file = .{ .path = csources[0] }, .flags = &cflags });
 
     const base = b.createModule(.{
         .source_file = .{ .path = "src/base/base.zig" },

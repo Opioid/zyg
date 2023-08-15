@@ -104,7 +104,7 @@ pub const Disk = struct {
             }
         }
 
-        return @splat(1.0);
+        return @as(Vec4f, @splat(1.0));
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
