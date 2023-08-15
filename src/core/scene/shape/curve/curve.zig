@@ -1,12 +1,81 @@
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const IndexCurve = struct {
     pos: u32 = undefined,
     width: u32 = undefined,
 };
+
+pub const Partition = struct {
+    cp: [4]Vec4f,
+    u_range: Vec2f,
+};
+
+pub fn partition(cp: [4]Vec4f, p: u32) Partition {
+    return switch (p) {
+        1 => .{
+            .cp = cubicBezierSubdivide2_0(cp),
+            .u_range = .{ 0.0, 0.5 },
+        },
+        2 => .{
+            .cp = cubicBezierSubdivide2_1(cp),
+            .u_range = .{ 0.5, 1.0 },
+        },
+        3 => .{
+            .cp = cubicBezierSubdivide4_0(cp),
+            .u_range = .{ 0.0, 0.25 },
+        },
+        4 => .{
+            .cp = cubicBezierSubdivide4_1(cp),
+            .u_range = .{ 0.25, 0.5 },
+        },
+        5 => .{
+            .cp = cubicBezierSubdivide4_2(cp),
+            .u_range = .{ 0.5, 0.75 },
+        },
+        6 => .{
+            .cp = cubicBezierSubdivide4_3(cp),
+            .u_range = .{ 0.75, 1.0 },
+        },
+        7 => .{
+            .cp = cubicBezierSubdivide8_0(cp),
+            .u_range = .{ 0.0, 0.125 },
+        },
+        8 => .{
+            .cp = cubicBezierSubdivide8_1(cp),
+            .u_range = .{ 0.125, 0.25 },
+        },
+        9 => .{
+            .cp = cubicBezierSubdivide8_2(cp),
+            .u_range = .{ 0.25, 0.375 },
+        },
+        10 => .{
+            .cp = cubicBezierSubdivide8_3(cp),
+            .u_range = .{ 0.375, 0.5 },
+        },
+        11 => .{
+            .cp = cubicBezierSubdivide8_4(cp),
+            .u_range = .{ 0.5, 0.625 },
+        },
+        12 => .{
+            .cp = cubicBezierSubdivide8_5(cp),
+            .u_range = .{ 0.625, 0.75 },
+        },
+        13 => .{
+            .cp = cubicBezierSubdivide8_6(cp),
+            .u_range = .{ 0.75, 0.875 },
+        },
+        14 => .{
+            .cp = cubicBezierSubdivide8_7(cp),
+            .u_range = .{ 0.875, 1.0 },
+        },
+
+        else => .{ .cp = cp, .u_range = .{ 0.0, 1.0 } },
+    };
+}
 
 pub fn cubicBezierBounds(cp: [4]Vec4f) AABB {
     var bounds = AABB.init(math.min4(cp[0], cp[1]), math.max4(cp[0], cp[1]));
@@ -68,6 +137,38 @@ pub fn cubicBezierSubdivide4_2(cp: [4]Vec4f) [4]Vec4f {
 
 pub fn cubicBezierSubdivide4_3(cp: [4]Vec4f) [4]Vec4f {
     return cubicBezierSubdivide2_1(cubicBezierSubdivide2_1(cp));
+}
+
+pub fn cubicBezierSubdivide8_0(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_0(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide8_1(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_1(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide8_2(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_2(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide8_3(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_3(cubicBezierSubdivide2_0(cp));
+}
+
+pub fn cubicBezierSubdivide8_4(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_0(cubicBezierSubdivide2_1(cp));
+}
+
+pub fn cubicBezierSubdivide8_5(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_1(cubicBezierSubdivide2_1(cp));
+}
+
+pub fn cubicBezierSubdivide8_6(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_2(cubicBezierSubdivide2_1(cp));
+}
+
+pub fn cubicBezierSubdivide8_7(cp: [4]Vec4f) [4]Vec4f {
+    return cubicBezierSubdivide4_3(cubicBezierSubdivide2_1(cp));
 }
 
 pub fn cubicBezierEvaluate(cp: [4]Vec4f, u: f32) Vec4f {

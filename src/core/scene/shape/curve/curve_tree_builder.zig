@@ -8,6 +8,8 @@ const Base = @import("../../bvh/builder_base.zig").Base;
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
+const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -109,6 +111,49 @@ pub const Builder = struct {
             }
         };
 
+        const PartitionCandidate = struct {
+            const Max = 8;
+
+            cost: f32,
+            count: u32,
+            aabbs: [Max]AABB,
+            partitions: [Max]u8,
+
+            const Self = PartitionCandidate;
+
+            pub fn setPartition(self: *Self, slot: u32, cp: [4]Vec4f, width: Vec2f, p: u8) void {
+                const partition = crv.partition(cp, p);
+
+                var box = crv.cubicBezierBounds(partition.cp);
+                const width0 = math.lerp(width[0], width[1], partition.u_range[0]);
+                const width1 = math.lerp(width[0], width[1], partition.u_range[1]);
+                box.expand(math.max(width0, width1) * 0.5);
+
+                self.aabbs[slot] = box;
+                self.partitions[slot] = p;
+            }
+
+            pub fn eval(self: *Self, count: u32) void {
+                var cost: f32 = 0.0;
+                for (self.aabbs[0..count], self.partitions[0..count]) |b, p| {
+                    var mod: f32 = 1.0;
+
+                    if (1 == p or 2 == p) {
+                        mod = 2.0;
+                    } else if (p >= 3 and p <= 6) {
+                        mod = 4.0;
+                    } else if (p >= 7 and p <= 14) {
+                        mod = 8.0;
+                    }
+
+                    cost += mod * b.volume();
+                }
+
+                self.count = count;
+                self.cost = cost;
+            }
+        };
+
         privates: []Private,
         curves: [*]const IndexCurve,
         vertices: *const CurveBuffer,
@@ -123,6 +168,8 @@ pub const Builder = struct {
             private.reference_to_curve_map = List(u32).initCapacity(self.alloc, self.privates.len) catch return;
             private.partitions = List(u8).initCapacity(self.alloc, self.privates.len) catch return;
 
+            var candidates: [10]PartitionCandidate = undefined;
+
             var bounds = math.aabb.Empty;
 
             var ref_id: u32 = 0;
@@ -134,80 +181,90 @@ pub const Builder = struct {
                 const cp = self.vertices.curvePoints(curve.pos);
                 const width = self.vertices.curveWidth(curve.width);
 
-                var single_box = crv.cubicBezierBounds(cp);
-                single_box.expand(math.max(width[0], width[1]) * 0.5);
+                candidates[0].setPartition(0, cp, width, 0);
+                candidates[0].eval(1);
 
-                var quad_box = math.aabb.Empty;
+                candidates[1].setPartition(0, cp, width, 1);
+                candidates[1].setPartition(1, cp, width, 2);
+                candidates[1].eval(2);
 
-                var box4_0: AABB = undefined;
-                var box4_1: AABB = undefined;
-                var box4_2: AABB = undefined;
-                var box4_3: AABB = undefined;
+                candidates[2].setPartition(0, cp, width, 3);
+                candidates[2].setPartition(1, cp, width, 4);
+                candidates[2].setPartition(2, cp, width, 2);
+                candidates[2].eval(3);
 
-                {
-                    box4_0 = crv.cubicBezierBounds(crv.cubicBezierSubdivide4_0(cp));
-                    const width1 = math.lerp(width[0], width[1], 0.25);
-                    box4_0.expand(math.max(width[0], width1) * 0.5);
+                candidates[3].setPartition(0, cp, width, 1);
+                candidates[3].setPartition(1, cp, width, 5);
+                candidates[3].setPartition(2, cp, width, 6);
+                candidates[3].eval(3);
 
-                    quad_box.mergeAssign(box4_0);
+                candidates[4].setPartition(0, cp, width, 3);
+                candidates[4].setPartition(1, cp, width, 4);
+                candidates[4].setPartition(2, cp, width, 5);
+                candidates[4].setPartition(3, cp, width, 6);
+                candidates[4].eval(4);
+
+                candidates[5].setPartition(0, cp, width, 7);
+                candidates[5].setPartition(1, cp, width, 8);
+                candidates[5].setPartition(2, cp, width, 9);
+                candidates[5].setPartition(3, cp, width, 10);
+                candidates[5].setPartition(4, cp, width, 2);
+                candidates[5].eval(5);
+
+                candidates[6].setPartition(0, cp, width, 1);
+                candidates[6].setPartition(1, cp, width, 11);
+                candidates[6].setPartition(2, cp, width, 12);
+                candidates[6].setPartition(3, cp, width, 13);
+                candidates[6].setPartition(4, cp, width, 14);
+                candidates[6].eval(5);
+
+                candidates[7].setPartition(0, cp, width, 3);
+                candidates[7].setPartition(1, cp, width, 9);
+                candidates[7].setPartition(2, cp, width, 10);
+                candidates[7].setPartition(3, cp, width, 11);
+                candidates[7].setPartition(4, cp, width, 12);
+                candidates[7].setPartition(5, cp, width, 6);
+                candidates[7].eval(6);
+
+                candidates[8].setPartition(0, cp, width, 7);
+                candidates[8].setPartition(1, cp, width, 8);
+                candidates[8].setPartition(2, cp, width, 4);
+                candidates[8].setPartition(3, cp, width, 5);
+                candidates[8].setPartition(4, cp, width, 13);
+                candidates[8].setPartition(5, cp, width, 14);
+                candidates[8].eval(6);
+
+                candidates[9].setPartition(0, cp, width, 7);
+                candidates[9].setPartition(1, cp, width, 8);
+                candidates[9].setPartition(2, cp, width, 9);
+                candidates[9].setPartition(3, cp, width, 10);
+                candidates[9].setPartition(4, cp, width, 11);
+                candidates[9].setPartition(5, cp, width, 12);
+                candidates[9].setPartition(6, cp, width, 13);
+                candidates[9].setPartition(7, cp, width, 14);
+                candidates[9].eval(8);
+
+                var pc: usize = 0;
+                var min_cost = candidates[0].cost;
+
+                for (candidates[1..], 1..) |c, n| {
+                    const cost = c.cost;
+                    if (cost < min_cost) {
+                        pc = n;
+                        min_cost = cost;
+                    }
                 }
 
-                {
-                    box4_1 = crv.cubicBezierBounds(crv.cubicBezierSubdivide4_1(cp));
-                    const width0 = math.lerp(width[0], width[1], 0.25);
-                    const width1 = math.lerp(width[0], width[1], 0.5);
-                    box4_1.expand(math.max(width0, width1) * 0.5);
+                const partition = candidates[pc];
 
-                    quad_box.mergeAssign(box4_1);
-                }
+                for (0..partition.count) |p| {
+                    const box = partition.aabbs[p];
 
-                {
-                    box4_2 = crv.cubicBezierBounds(crv.cubicBezierSubdivide4_2(cp));
-                    const width0 = math.lerp(width[0], width[1], 0.5);
-                    const width1 = math.lerp(width[0], width[1], 0.75);
-                    box4_2.expand(math.max(width0, width1) * 0.5);
-
-                    quad_box.mergeAssign(box4_2);
-                }
-
-                {
-                    box4_3 = crv.cubicBezierBounds(crv.cubicBezierSubdivide4_3(cp));
-                    const width0 = math.lerp(width[0], width[1], 0.75);
-                    box4_3.expand(math.max(width0, width[1]) * 0.5);
-
-                    quad_box.mergeAssign(box4_3);
-                }
-
-                const ratio = (box4_0.volume() + box4_1.volume() + box4_2.volume() + box4_3.volume()) / single_box.volume();
-                if (ratio > 0.75) {
-                    private.references.append(self.alloc, Reference.init(single_box, ref_id)) catch {};
+                    private.references.append(self.alloc, Reference.init(box, ref_id)) catch {};
                     private.reference_to_curve_map.append(self.alloc, index) catch {};
-                    private.partitions.append(self.alloc, 0) catch {};
+                    private.partitions.append(self.alloc, partition.partitions[p]) catch {};
                     ref_id += 1;
-
-                    bounds.mergeAssign(single_box);
-                } else {
-                    private.references.append(self.alloc, Reference.init(box4_0, ref_id)) catch {};
-                    private.reference_to_curve_map.append(self.alloc, index) catch {};
-                    private.partitions.append(self.alloc, 1) catch {};
-                    ref_id += 1;
-
-                    private.references.append(self.alloc, Reference.init(box4_1, ref_id)) catch {};
-                    private.reference_to_curve_map.append(self.alloc, index) catch {};
-                    private.partitions.append(self.alloc, 2) catch {};
-                    ref_id += 1;
-
-                    private.references.append(self.alloc, Reference.init(box4_2, ref_id)) catch {};
-                    private.reference_to_curve_map.append(self.alloc, index) catch {};
-                    private.partitions.append(self.alloc, 3) catch {};
-                    ref_id += 1;
-
-                    private.references.append(self.alloc, Reference.init(box4_3, ref_id)) catch {};
-                    private.reference_to_curve_map.append(self.alloc, index) catch {};
-                    private.partitions.append(self.alloc, 4) catch {};
-                    ref_id += 1;
-
-                    bounds.mergeAssign(quad_box);
+                    bounds.mergeAssign(box);
                 }
             }
 

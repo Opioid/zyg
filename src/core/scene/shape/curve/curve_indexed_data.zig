@@ -74,41 +74,10 @@ pub const IndexedData = struct {
         self.partitions[curve_id] = partition;
     }
 
-    const Partition = struct {
-        cp: [4]Vec4f,
-        u_range: Vec2f,
-    };
-
-    fn curvePartition(cp: [4]Vec4f, p: u32) Partition {
-        if (1 == p) {
-            return .{
-                .cp = curve.cubicBezierSubdivide4_0(cp),
-                .u_range = .{ 0.0, 0.25 },
-            };
-        } else if (2 == p) {
-            return .{
-                .cp = curve.cubicBezierSubdivide4_1(cp),
-                .u_range = .{ 0.25, 0.5 },
-            };
-        } else if (3 == p) {
-            return .{
-                .cp = curve.cubicBezierSubdivide4_2(cp),
-                .u_range = .{ 0.5, 0.75 },
-            };
-        } else if (4 == p) {
-            return .{
-                .cp = curve.cubicBezierSubdivide4_3(cp),
-                .u_range = .{ 0.75, 1.0 },
-            };
-        }
-
-        return .{ .cp = cp, .u_range = .{ 0.0, 1.0 } };
-    }
-
     pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Intersection {
         const index = self.indices[id];
 
-        const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
+        const partition = curve.partition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
@@ -134,7 +103,7 @@ pub const IndexedData = struct {
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
         const index = self.indices[id];
 
-        const partition = curvePartition(self.curvePoints(index.p), self.partitions[id]);
+        const partition = curve.partition(self.curvePoints(index.p), self.partitions[id]);
         const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
@@ -162,7 +131,7 @@ pub const IndexedData = struct {
 
         const cp = self.curvePoints(index.p);
 
-        const partition = curvePartition(cp, self.partitions[id]);
+        const partition = curve.partition(cp, self.partitions[id]);
 
         const nd = math.normalize3(ray.direction);
         var dx = math.cross3(nd, partition.cp[3] - partition.cp[0]);
