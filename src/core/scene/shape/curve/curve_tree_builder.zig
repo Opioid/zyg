@@ -168,7 +168,7 @@ pub const Builder = struct {
             private.reference_to_curve_map = List(u32).initCapacity(self.alloc, self.privates.len) catch return;
             private.partitions = List(u8).initCapacity(self.alloc, self.privates.len) catch return;
 
-            var candidates: [10]PartitionCandidate = undefined;
+            var candidates: [12]PartitionCandidate = undefined;
 
             var bounds = math.aabb.Empty;
 
@@ -218,31 +218,47 @@ pub const Builder = struct {
                 candidates[6].setPartition(4, cp, width, 14);
                 candidates[6].eval(5);
 
-                candidates[7].setPartition(0, cp, width, 3);
-                candidates[7].setPartition(1, cp, width, 9);
-                candidates[7].setPartition(2, cp, width, 10);
-                candidates[7].setPartition(3, cp, width, 11);
-                candidates[7].setPartition(4, cp, width, 12);
+                candidates[7].setPartition(0, cp, width, 7);
+                candidates[7].setPartition(1, cp, width, 8);
+                candidates[7].setPartition(2, cp, width, 9);
+                candidates[7].setPartition(3, cp, width, 10);
+                candidates[7].setPartition(4, cp, width, 5);
                 candidates[7].setPartition(5, cp, width, 6);
                 candidates[7].eval(6);
 
-                candidates[8].setPartition(0, cp, width, 7);
-                candidates[8].setPartition(1, cp, width, 8);
-                candidates[8].setPartition(2, cp, width, 4);
-                candidates[8].setPartition(3, cp, width, 5);
+                candidates[8].setPartition(0, cp, width, 3);
+                candidates[8].setPartition(1, cp, width, 4);
+                candidates[8].setPartition(2, cp, width, 11);
+                candidates[8].setPartition(3, cp, width, 12);
                 candidates[8].setPartition(4, cp, width, 13);
                 candidates[8].setPartition(5, cp, width, 14);
                 candidates[8].eval(6);
 
-                candidates[9].setPartition(0, cp, width, 7);
-                candidates[9].setPartition(1, cp, width, 8);
-                candidates[9].setPartition(2, cp, width, 9);
-                candidates[9].setPartition(3, cp, width, 10);
-                candidates[9].setPartition(4, cp, width, 11);
-                candidates[9].setPartition(5, cp, width, 12);
-                candidates[9].setPartition(6, cp, width, 13);
-                candidates[9].setPartition(7, cp, width, 14);
-                candidates[9].eval(8);
+                candidates[9].setPartition(0, cp, width, 3);
+                candidates[9].setPartition(1, cp, width, 9);
+                candidates[9].setPartition(2, cp, width, 10);
+                candidates[9].setPartition(3, cp, width, 11);
+                candidates[9].setPartition(4, cp, width, 12);
+                candidates[9].setPartition(5, cp, width, 6);
+                candidates[9].eval(6);
+
+                candidates[10].setPartition(0, cp, width, 7);
+                candidates[10].setPartition(1, cp, width, 8);
+                candidates[10].setPartition(2, cp, width, 4);
+                candidates[10].setPartition(3, cp, width, 5);
+                candidates[10].setPartition(4, cp, width, 13);
+                candidates[10].setPartition(5, cp, width, 14);
+                candidates[10].eval(6);
+
+                candidates[11].setPartition(0, cp, width, 7);
+                candidates[11].setPartition(1, cp, width, 8);
+                candidates[11].setPartition(2, cp, width, 9);
+                candidates[11].setPartition(3, cp, width, 10);
+                candidates[11].setPartition(4, cp, width, 11);
+                candidates[11].setPartition(5, cp, width, 12);
+                candidates[11].setPartition(6, cp, width, 13);
+                candidates[11].setPartition(7, cp, width, 14);
+                candidates[11].eval(8);
 
                 var pc: usize = 0;
                 var min_cost = candidates[0].cost;

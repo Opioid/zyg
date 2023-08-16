@@ -123,19 +123,19 @@ pub inline fn cubicBezierSubdivide2_1(cp: [4]Vec4f) [4]Vec4f {
     };
 }
 
-pub fn cubicBezierSubdivide4_0(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide4_0(cp: [4]Vec4f) [4]Vec4f {
     return cubicBezierSubdivide2_0(cubicBezierSubdivide2_0(cp));
 }
 
-pub fn cubicBezierSubdivide4_1(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide4_1(cp: [4]Vec4f) [4]Vec4f {
     return cubicBezierSubdivide2_1(cubicBezierSubdivide2_0(cp));
 }
 
-pub fn cubicBezierSubdivide4_2(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide4_2(cp: [4]Vec4f) [4]Vec4f {
     return cubicBezierSubdivide2_0(cubicBezierSubdivide2_1(cp));
 }
 
-pub fn cubicBezierSubdivide4_3(cp: [4]Vec4f) [4]Vec4f {
+pub inline fn cubicBezierSubdivide4_3(cp: [4]Vec4f) [4]Vec4f {
     return cubicBezierSubdivide2_1(cubicBezierSubdivide2_1(cp));
 }
 
