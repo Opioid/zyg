@@ -136,6 +136,11 @@ pub const Loader = struct {
 
         try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
+        var iter = self.instances.keyIterator();
+        while (iter.next()) |k| {
+            k.deinit(alloc);
+        }
+
         self.instances.clearAndFree(alloc);
 
         self.resources.commitAsync();
