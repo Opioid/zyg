@@ -1,6 +1,5 @@
 const CurveBuffer = @import("curve_buffer.zig").Buffer;
 const curve = @import("curve.zig");
-const IndexCurve = curve.IndexCurve;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -14,30 +13,23 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
-    pub const Segment = struct {
-        p: u32,
-        w: u32,
-    };
-
     pub const Intersection = struct {
-        t: f32 = undefined,
-        u: f32 = undefined,
+        t: f32,
+        u: f32,
     };
 
     pub const Data = struct {
-        geo_n: Vec4f = undefined,
-        dpdu: Vec4f = undefined,
-        dpdv: Vec4f = undefined,
-        v: f32 = undefined,
-        width: f32 = undefined,
+        geo_n: Vec4f,
+        dpdu: Vec4f,
+        dpdv: Vec4f,
+        v: f32,
+        width: f32,
     };
 
     num_indices: u32 = 0,
-
     num_points: u32 = 0,
-    num_widths: u32 = 0,
 
-    indices: [*]Segment = undefined,
+    indices: [*]u32 = undefined,
     partitions: [*]u8 = undefined,
     points: [*]f32 = undefined,
     widths: [*]f32 = undefined,
@@ -45,7 +37,7 @@ pub const IndexedData = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.widths[0..self.num_widths]);
+        alloc.free(self.widths[0..self.num_points]);
         alloc.free(self.points[0 .. self.num_points * 3 + 1]);
         alloc.free(self.partitions[0..self.num_indices]);
         alloc.free(self.indices[0..self.num_indices]);
@@ -55,30 +47,29 @@ pub const IndexedData = struct {
         self.num_indices = num_indices;
 
         const num_points = curves.numPoints();
-        const num_widths = curves.numWidths();
-        self.num_points = num_points;
-        self.num_widths = num_widths;
 
-        self.indices = (try alloc.alloc(Segment, num_indices)).ptr;
+        self.num_points = num_points;
+
+        self.indices = (try alloc.alloc(u32, num_indices)).ptr;
         self.partitions = (try alloc.alloc(u8, num_indices)).ptr;
 
         self.points = (try alloc.alloc(f32, num_points * 3 + 1)).ptr;
-        self.widths = (try alloc.alloc(f32, num_widths)).ptr;
+        self.widths = (try alloc.alloc(f32, num_points)).ptr;
 
         curves.copy(self.points, self.widths);
         self.points[num_points * 3] = 0.0;
     }
 
-    pub fn setCurve(self: *Self, curve_id: u32, index: IndexCurve, partition: u8) void {
-        self.indices[curve_id] = .{ .p = index.pos, .w = index.width };
+    pub fn setCurve(self: *Self, curve_id: u32, index: u32, partition: u8) void {
+        self.indices[curve_id] = index;
         self.partitions[curve_id] = partition;
     }
 
     pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Intersection {
         const index = self.indices[id];
 
-        const partition = curve.partition(self.curvePoints(index.p), self.partitions[id]);
-        const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
+        const partition = curve.partition(self.curvePoints(index), self.partitions[id]);
+        const width = Vec2f{ self.widths[index + 0], self.widths[index + 3] };
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
 
@@ -103,8 +94,8 @@ pub const IndexedData = struct {
     pub fn intersectP(self: *const Self, ray: Ray, id: u32) bool {
         const index = self.indices[id];
 
-        const partition = curve.partition(self.curvePoints(index.p), self.partitions[id]);
-        const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
+        const partition = curve.partition(self.curvePoints(index), self.partitions[id]);
+        const width = Vec2f{ self.widths[index + 0], self.widths[index + 3] };
 
         const depth = refinementDepth(partition.cp, width, partition.u_range);
 
@@ -129,7 +120,7 @@ pub const IndexedData = struct {
     pub fn interpolateData(self: *const Self, ray: Ray, id: u32, u: f32) Data {
         const index = self.indices[id];
 
-        const cp = self.curvePoints(index.p);
+        const cp = self.curvePoints(index);
 
         const partition = curve.partition(cp, self.partitions[id]);
 
@@ -143,7 +134,7 @@ pub const IndexedData = struct {
 
         const dpdu = curve.cubicBezierEvaluateDerivative(cp, u);
 
-        const width = Vec2f{ self.widths[index.w + 0], self.widths[index.w + 1] };
+        const width = Vec2f{ self.widths[index + 0], self.widths[index + 3] };
         const hit_width = math.lerp(width[0], width[1], u);
 
         const dpdu_plane = ray_to_object.transformVectorTransposed(dpdu);

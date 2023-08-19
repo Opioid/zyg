@@ -1,7 +1,6 @@
 const Tree = @import("curve_tree.zig").Tree;
 const CurveBuffer = @import("curve_buffer.zig").Buffer;
 const crv = @import("curve.zig");
-const IndexCurve = crv.IndexCurve;
 const Reference = @import("../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../bvh/builder_base.zig").Base;
 
@@ -31,7 +30,7 @@ pub const Builder = struct {
         self: *Builder,
         alloc: Allocator,
         tree: *Tree,
-        curves: []const IndexCurve,
+        curves: []const u32,
         vertices: CurveBuffer,
         threads: *Threads,
     ) !void {
@@ -94,7 +93,7 @@ pub const Builder = struct {
 
         var current_curve: u32 = 0;
         self.super.newNode();
-        self.serialize(0, 0, tree, curves, reference_to_curve_map, partitions, &current_curve);
+        self.serialize(0, 0, tree, reference_to_curve_map, partitions, &current_curve);
     }
 
     const ReferencesContext = struct {
@@ -119,7 +118,7 @@ pub const Builder = struct {
             aabbs: [Max]AABB,
             partitions: [Max]u8,
 
-            const Self = PartitionCandidate;
+            const Self = @This();
 
             pub fn setPartition(self: *Self, slot: u32, cp: [4]Vec4f, width: Vec2f, p: u8) void {
                 const partition = crv.partition(cp, p);
@@ -155,7 +154,7 @@ pub const Builder = struct {
         };
 
         privates: []Private,
-        curves: [*]const IndexCurve,
+        curves: [*]const u32,
         vertices: *const CurveBuffer,
         alloc: Allocator,
 
@@ -164,120 +163,155 @@ pub const Builder = struct {
 
             var private = &self.privates[id];
 
-            private.references = List(Reference).initCapacity(self.alloc, self.privates.len) catch return;
-            private.reference_to_curve_map = List(u32).initCapacity(self.alloc, self.privates.len) catch return;
-            private.partitions = List(u8).initCapacity(self.alloc, self.privates.len) catch return;
+            const len_estimate = (end - begin) * 4;
 
-            var candidates: [12]PartitionCandidate = undefined;
+            private.references = List(Reference).initCapacity(self.alloc, len_estimate) catch return;
+            private.reference_to_curve_map = List(u32).initCapacity(self.alloc, len_estimate) catch return;
+            private.partitions = List(u8).initCapacity(self.alloc, len_estimate) catch return;
 
             var bounds = math.aabb.Empty;
 
             var ref_id: u32 = 0;
 
             for (begin..end) |i| {
-                const index: u32 = @intCast(i);
                 const curve = self.curves[i];
 
-                const cp = self.vertices.curvePoints(curve.pos);
-                const width = self.vertices.curveWidth(curve.width);
+                const cp = self.vertices.curvePoints(curve);
+                const width = self.vertices.curveWidth(curve);
 
-                candidates[0].setPartition(0, cp, width, 0);
-                candidates[0].eval(1);
+                var candidate_a: PartitionCandidate = undefined;
+                var candidate_b: PartitionCandidate = undefined;
 
-                candidates[1].setPartition(0, cp, width, 1);
-                candidates[1].setPartition(1, cp, width, 2);
-                candidates[1].eval(2);
+                candidate_a.setPartition(0, cp, width, 0);
+                candidate_a.eval(1);
 
-                candidates[2].setPartition(0, cp, width, 3);
-                candidates[2].setPartition(1, cp, width, 4);
-                candidates[2].setPartition(2, cp, width, 2);
-                candidates[2].eval(3);
+                candidate_b.setPartition(0, cp, width, 1);
+                candidate_b.setPartition(1, cp, width, 2);
+                candidate_b.eval(2);
 
-                candidates[3].setPartition(0, cp, width, 1);
-                candidates[3].setPartition(1, cp, width, 5);
-                candidates[3].setPartition(2, cp, width, 6);
-                candidates[3].eval(3);
-
-                candidates[4].setPartition(0, cp, width, 3);
-                candidates[4].setPartition(1, cp, width, 4);
-                candidates[4].setPartition(2, cp, width, 5);
-                candidates[4].setPartition(3, cp, width, 6);
-                candidates[4].eval(4);
-
-                candidates[5].setPartition(0, cp, width, 7);
-                candidates[5].setPartition(1, cp, width, 8);
-                candidates[5].setPartition(2, cp, width, 9);
-                candidates[5].setPartition(3, cp, width, 10);
-                candidates[5].setPartition(4, cp, width, 2);
-                candidates[5].eval(5);
-
-                candidates[6].setPartition(0, cp, width, 1);
-                candidates[6].setPartition(1, cp, width, 11);
-                candidates[6].setPartition(2, cp, width, 12);
-                candidates[6].setPartition(3, cp, width, 13);
-                candidates[6].setPartition(4, cp, width, 14);
-                candidates[6].eval(5);
-
-                candidates[7].setPartition(0, cp, width, 7);
-                candidates[7].setPartition(1, cp, width, 8);
-                candidates[7].setPartition(2, cp, width, 9);
-                candidates[7].setPartition(3, cp, width, 10);
-                candidates[7].setPartition(4, cp, width, 5);
-                candidates[7].setPartition(5, cp, width, 6);
-                candidates[7].eval(6);
-
-                candidates[8].setPartition(0, cp, width, 3);
-                candidates[8].setPartition(1, cp, width, 4);
-                candidates[8].setPartition(2, cp, width, 11);
-                candidates[8].setPartition(3, cp, width, 12);
-                candidates[8].setPartition(4, cp, width, 13);
-                candidates[8].setPartition(5, cp, width, 14);
-                candidates[8].eval(6);
-
-                candidates[9].setPartition(0, cp, width, 3);
-                candidates[9].setPartition(1, cp, width, 9);
-                candidates[9].setPartition(2, cp, width, 10);
-                candidates[9].setPartition(3, cp, width, 11);
-                candidates[9].setPartition(4, cp, width, 12);
-                candidates[9].setPartition(5, cp, width, 6);
-                candidates[9].eval(6);
-
-                candidates[10].setPartition(0, cp, width, 7);
-                candidates[10].setPartition(1, cp, width, 8);
-                candidates[10].setPartition(2, cp, width, 4);
-                candidates[10].setPartition(3, cp, width, 5);
-                candidates[10].setPartition(4, cp, width, 13);
-                candidates[10].setPartition(5, cp, width, 14);
-                candidates[10].eval(6);
-
-                candidates[11].setPartition(0, cp, width, 7);
-                candidates[11].setPartition(1, cp, width, 8);
-                candidates[11].setPartition(2, cp, width, 9);
-                candidates[11].setPartition(3, cp, width, 10);
-                candidates[11].setPartition(4, cp, width, 11);
-                candidates[11].setPartition(5, cp, width, 12);
-                candidates[11].setPartition(6, cp, width, 13);
-                candidates[11].setPartition(7, cp, width, 14);
-                candidates[11].eval(8);
-
-                var pc: usize = 0;
-                var min_cost = candidates[0].cost;
-
-                for (candidates[1..], 1..) |c, n| {
-                    const cost = c.cost;
-                    if (cost < min_cost) {
-                        pc = n;
-                        min_cost = cost;
-                    }
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
                 }
 
-                const partition = candidates[pc];
+                candidate_b.setPartition(0, cp, width, 3);
+                candidate_b.setPartition(1, cp, width, 4);
+                candidate_b.setPartition(2, cp, width, 2);
+                candidate_b.eval(3);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 1);
+                candidate_b.setPartition(1, cp, width, 5);
+                candidate_b.setPartition(2, cp, width, 6);
+                candidate_b.eval(3);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 3);
+                candidate_b.setPartition(1, cp, width, 4);
+                candidate_b.setPartition(2, cp, width, 5);
+                candidate_b.setPartition(3, cp, width, 6);
+                candidate_b.eval(4);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 7);
+                candidate_b.setPartition(1, cp, width, 8);
+                candidate_b.setPartition(2, cp, width, 9);
+                candidate_b.setPartition(3, cp, width, 10);
+                candidate_b.setPartition(4, cp, width, 2);
+                candidate_b.eval(5);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 1);
+                candidate_b.setPartition(1, cp, width, 11);
+                candidate_b.setPartition(2, cp, width, 12);
+                candidate_b.setPartition(3, cp, width, 13);
+                candidate_b.setPartition(4, cp, width, 14);
+                candidate_b.eval(5);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 7);
+                candidate_b.setPartition(1, cp, width, 8);
+                candidate_b.setPartition(2, cp, width, 9);
+                candidate_b.setPartition(3, cp, width, 10);
+                candidate_b.setPartition(4, cp, width, 5);
+                candidate_b.setPartition(5, cp, width, 6);
+                candidate_b.eval(6);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 3);
+                candidate_b.setPartition(1, cp, width, 4);
+                candidate_b.setPartition(2, cp, width, 11);
+                candidate_b.setPartition(3, cp, width, 12);
+                candidate_b.setPartition(4, cp, width, 13);
+                candidate_b.setPartition(5, cp, width, 14);
+                candidate_b.eval(6);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 3);
+                candidate_b.setPartition(1, cp, width, 9);
+                candidate_b.setPartition(2, cp, width, 10);
+                candidate_b.setPartition(3, cp, width, 11);
+                candidate_b.setPartition(4, cp, width, 12);
+                candidate_b.setPartition(5, cp, width, 6);
+                candidate_b.eval(6);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 7);
+                candidate_b.setPartition(1, cp, width, 8);
+                candidate_b.setPartition(2, cp, width, 4);
+                candidate_b.setPartition(3, cp, width, 5);
+                candidate_b.setPartition(4, cp, width, 13);
+                candidate_b.setPartition(5, cp, width, 14);
+                candidate_b.eval(6);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                candidate_b.setPartition(0, cp, width, 7);
+                candidate_b.setPartition(1, cp, width, 8);
+                candidate_b.setPartition(2, cp, width, 9);
+                candidate_b.setPartition(3, cp, width, 10);
+                candidate_b.setPartition(4, cp, width, 11);
+                candidate_b.setPartition(5, cp, width, 12);
+                candidate_b.setPartition(6, cp, width, 13);
+                candidate_b.setPartition(7, cp, width, 14);
+                candidate_b.eval(8);
+
+                if (candidate_b.cost < candidate_a.cost) {
+                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
+                }
+
+                const partition = candidate_a;
 
                 for (0..partition.count) |p| {
                     const box = partition.aabbs[p];
 
                     private.references.append(self.alloc, Reference.init(box, ref_id)) catch {};
-                    private.reference_to_curve_map.append(self.alloc, index) catch {};
+                    private.reference_to_curve_map.append(self.alloc, curve) catch {};
                     private.partitions.append(self.alloc, partition.partitions[p]) catch {};
                     ref_id += 1;
                     bounds.mergeAssign(box);
@@ -293,8 +327,7 @@ pub const Builder = struct {
         source_node: u32,
         dest_node: u32,
         tree: *Tree,
-        curves: []const IndexCurve,
-        reference_to_curve_map: []const u32,
+        curves: []const u32,
         partitions: []const u8,
         current_curve: *u32,
     ) void {
@@ -311,21 +344,19 @@ pub const Builder = struct {
 
             const source_child0 = node.children();
 
-            self.serialize(source_child0, child0, tree, curves, reference_to_curve_map, partitions, current_curve);
-            self.serialize(source_child0 + 1, child0 + 1, tree, curves, reference_to_curve_map, partitions, current_curve);
+            self.serialize(source_child0, child0, tree, curves, partitions, current_curve);
+            self.serialize(source_child0 + 1, child0 + 1, tree, curves, partitions, current_curve);
         } else {
             var i = current_curve.*;
-            const num = node.numIndices();
+
             tree.nodes[dest_node] = n;
 
-            const ro = node.children();
+            const begin = node.children();
+            const end = node.indicesEnd();
 
-            var p = ro;
-            var end = ro + num;
-
-            while (p < end) : (p += 1) {
+            for (begin..end) |p| {
                 const ref = self.super.kernel.reference_ids.items[p];
-                const curve = curves[reference_to_curve_map[ref]];
+                const curve = curves[ref];
                 const partition = partitions[ref];
                 tree.data.setCurve(i, curve, partition);
 

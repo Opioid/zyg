@@ -4,11 +4,6 @@ const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-pub const IndexCurve = struct {
-    pos: u32 = undefined,
-    width: u32 = undefined,
-};
-
 pub const Partition = struct {
     cp: [4]Vec4f,
     u_range: Vec2f,

@@ -114,15 +114,13 @@ pub const Builder = struct {
             self.serialize(source_child0 + 1, child0 + 1, tree, triangles, vertices, current_triangle);
         } else {
             var i = current_triangle.*;
-            const num = node.numIndices();
+
             tree.nodes[dest_node] = n;
 
-            const ro = node.children();
+            const begin = node.children();
+            const end = node.indicesEnd();
 
-            var p = ro;
-            var end = ro + num;
-
-            while (p < end) : (p += 1) {
+            for (begin..end) |p| {
                 const t = triangles[self.super.kernel.reference_ids.items[p]];
                 tree.data.setTriangle(i, t.i[0], t.i[1], t.i[2], t.part, vertices);
 

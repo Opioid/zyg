@@ -1,5 +1,4 @@
 const cvb = @import("curve_buffer.zig");
-const IndexCurve = @import("curve.zig").IndexCurve;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
@@ -15,7 +14,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Reader = struct {
     pub const Result = struct {
-        curves: []IndexCurve,
+        curves: []u32,
         vertices: cvb.Buffer,
     };
 
@@ -111,13 +110,12 @@ pub const Reader = struct {
             num_widths += strand_curves + 1;
         }
 
-        var curves = try alloc.alloc(IndexCurve, num_curves);
+        var curves = try alloc.alloc(u32, num_curves);
         var positions = try alloc.alloc(Pack3f, num_positions);
-        var widths = try alloc.alloc(f32, if (flags.has_thickness) num_widths else 2);
+        var widths = try alloc.alloc(f32, num_positions);
 
         var source_count: u32 = 0;
         var dest_p_count: u32 = 0;
-        var dest_w_count: u32 = 0;
 
         var cc: u32 = 0;
 
@@ -125,8 +123,7 @@ pub const Reader = struct {
             const strand_segments = if (segments.len > 0) @as(u32, segments[i]) else default_num_segments;
 
             for (0..strand_segments / 3) |_| {
-                curves[cc].pos = dest_p_count;
-                curves[cc].width = if (flags.has_thickness) dest_w_count else 0;
+                curves[cc] = dest_p_count;
 
                 cc += 1;
 
@@ -135,22 +132,19 @@ pub const Reader = struct {
                 positions[dest_p_count + 2] = fromHAIRspace(vertices[source_count + 2]);
 
                 dest_p_count += 3;
-                dest_w_count += 1;
                 source_count += 3;
             }
 
             {
                 positions[dest_p_count] = fromHAIRspace(vertices[source_count]);
                 dest_p_count += 1;
-                dest_w_count += 1;
                 source_count += 1;
             }
 
             const rem = strand_segments % 3;
 
             if (rem > 0) {
-                curves[cc].pos = dest_p_count - 1;
-                curves[cc].width = if (flags.has_thickness) dest_w_count - 1 else 0;
+                curves[cc] = dest_p_count - 1;
 
                 cc += 1;
 
@@ -160,7 +154,6 @@ pub const Reader = struct {
                 positions[dest_p_count + 2] = fromHAIRspace(vertices[source_count + end]);
 
                 dest_p_count += 3;
-                dest_w_count += 1;
                 source_count += rem;
             }
         }
@@ -182,17 +175,14 @@ pub const Reader = struct {
 
     fn genericCrap(alloc: Allocator) !Result {
         const num_curves: u32 = 2;
-        const num_positions: u32 = 7;
-        const num_widths: u32 = 3;
+        const num_points: u32 = 7;
 
-        var curves = try alloc.alloc(IndexCurve, num_curves);
-        var positions = try alloc.alloc(Pack3f, num_positions);
-        var widths = try alloc.alloc(f32, num_widths);
+        var curves = try alloc.alloc(u32, num_curves);
+        var positions = try alloc.alloc(Pack3f, num_points);
+        var widths = try alloc.alloc(f32, num_points);
 
-        curves[0].pos = 0;
-        curves[0].width = 0;
-        curves[1].pos = 3;
-        curves[1].width = 1;
+        curves[0] = 0;
+        curves[1] = 3;
 
         positions[0] = Pack3f.init3(-0.1, -0.5, 0.0);
         positions[1] = Pack3f.init3(-0.05, -0.25, 0.1);
@@ -203,8 +193,12 @@ pub const Reader = struct {
         positions[6] = Pack3f.init3(0.05, 0.7, 0.2);
 
         widths[0] = 0.15;
-        widths[1] = 0.075;
-        widths[2] = 0.001;
+        widths[1] = 0.15;
+        widths[2] = 0.15;
+        widths[3] = 0.075;
+        widths[4] = 0.075;
+        widths[5] = 0.075;
+        widths[6] = 0.001;
 
         return .{
             .curves = curves,

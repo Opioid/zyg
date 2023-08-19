@@ -21,12 +21,6 @@ pub const Buffer = union(enum) {
         };
     }
 
-    pub fn numWidths(self: Buffer) u32 {
-        return switch (self) {
-            inline else => |v| v.numWidths(),
-        };
-    }
-
     pub fn copy(self: Buffer, points: [*]f32, widths: [*]f32) void {
         return switch (self) {
             inline else => |v| v.copy(points, widths),
@@ -73,10 +67,6 @@ pub const Separate = struct {
         return @intCast(self.points.len);
     }
 
-    pub fn numWidths(self: Self) u32 {
-        return @intCast(self.widths.len);
-    }
-
     pub fn copy(self: Self, points: [*]f32, widths: [*]f32) void {
         const num_components = self.points.len * 3;
         @memcpy(points[0..num_components], @as([*]const f32, @ptrCast(self.points.ptr))[0..num_components]);
@@ -94,6 +84,6 @@ pub const Separate = struct {
     }
 
     pub fn curveWidth(self: Self, index: u32) Vec2f {
-        return .{ self.widths[index + 0], self.widths[index + 1] };
+        return .{ self.widths[index + 0], self.widths[index + 3] };
     }
 };

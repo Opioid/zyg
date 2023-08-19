@@ -82,7 +82,7 @@ pub const Builder = struct {
             self.serialize(source_child0, child0, tree, current_prop);
             self.serialize(source_child0 + 1, child0 + 1, tree, current_prop);
         } else {
-            var i = current_prop.*;
+            const i = current_prop.*;
             const num = node.numIndices();
             n.setLeafNode(i, num);
             tree.nodes[dest_node] = n;

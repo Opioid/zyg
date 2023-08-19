@@ -235,7 +235,7 @@ const Kernel = struct {
     }
 
     pub fn assign(self: *Kernel, alloc: Allocator, node: *Node, references: []const Reference) !void {
-        const num_references = @as(u32, @intCast(references.len));
+        const num_references: u32 = @intCast(references.len);
 
         node.setLeafNode(@intCast(self.reference_ids.items.len), num_references);
 
@@ -269,12 +269,7 @@ pub const Base = struct {
     threads: *Threads = undefined,
     tasks: *Tasks = undefined,
 
-    pub fn init(
-        alloc: Allocator,
-        num_slices: u32,
-        sweep_threshold: u32,
-        max_primitives: u32,
-    ) !Base {
+    pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !Base {
         return Base{
             .settings = .{
                 .num_slices = num_slices,
@@ -351,8 +346,8 @@ pub const Base = struct {
                 continue;
             }
 
-            const node_offset = @as(u32, @intCast(self.kernel.build_nodes.items.len - 1));
-            const reference_offset = @as(u32, @intCast(self.kernel.reference_ids.items.len));
+            const node_offset: u32 = @intCast(self.kernel.build_nodes.items.len - 1);
+            const reference_offset: u32 = @intCast(self.kernel.reference_ids.items.len);
 
             try self.kernel.reference_ids.appendSlice(alloc, t.kernel.reference_ids.items);
 
