@@ -120,21 +120,20 @@ pub const Builder = struct {
 
             const Self = @This();
 
-            pub fn setPartition(self: *Self, slot: u32, cp: [4]Vec4f, width: Vec2f, p: u8) void {
-                const partition = crv.partition(cp, p);
-
-                var box = crv.cubicBezierBounds(partition.cp);
-                const width0 = math.lerp(width[0], width[1], partition.u_range[0]);
-                const width1 = math.lerp(width[0], width[1], partition.u_range[1]);
-                box.expand(math.max(width0, width1) * 0.5);
-
-                self.aabbs[slot] = box;
-                self.partitions[slot] = p;
-            }
-
-            pub fn eval(self: *Self, count: u32) void {
+            pub fn eval(self: *Self, cp: [4]Vec4f, width: Vec2f, ps: []const u8) void {
                 var cost: f32 = 0.0;
-                for (self.aabbs[0..count], self.partitions[0..count]) |b, p| {
+
+                for (ps, 0..) |p, i| {
+                    const partition = crv.partition(cp, p);
+
+                    var box = crv.cubicBezierBounds(partition.cp);
+                    const width0 = math.lerp(width[0], width[1], partition.u_range[0]);
+                    const width1 = math.lerp(width[0], width[1], partition.u_range[1]);
+                    box.expand(math.max(width0, width1) * 0.5);
+
+                    self.aabbs[i] = box;
+                    self.partitions[i] = p;
+
                     var mod: f32 = 1.0;
 
                     if (1 == p or 2 == p) {
@@ -145,11 +144,17 @@ pub const Builder = struct {
                         mod = 8.0;
                     }
 
-                    cost += mod * b.volume();
+                    cost += mod * box.volume();
                 }
 
-                self.count = count;
+                self.count = @as(u32, @intCast(ps.len));
                 self.cost = cost;
+            }
+
+            pub fn swapLess(a: *Self, b: *Self) void {
+                if (b.cost < a.cost) {
+                    std.mem.swap(Self, a, b);
+                }
             }
         };
 
@@ -182,128 +187,39 @@ pub const Builder = struct {
                 var candidate_a: PartitionCandidate = undefined;
                 var candidate_b: PartitionCandidate = undefined;
 
-                candidate_a.setPartition(0, cp, width, 0);
-                candidate_a.eval(1);
+                candidate_a.eval(cp, width, &.{0});
+                candidate_b.eval(cp, width, &.{ 1, 2 });
+                candidate_a.swapLess(&candidate_b);
 
-                candidate_b.setPartition(0, cp, width, 1);
-                candidate_b.setPartition(1, cp, width, 2);
-                candidate_b.eval(2);
+                candidate_b.eval(cp, width, &.{ 3, 4, 2 });
+                candidate_a.swapLess(&candidate_b);
 
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
+                candidate_b.eval(cp, width, &.{ 1, 5, 6 });
+                candidate_a.swapLess(&candidate_b);
 
-                candidate_b.setPartition(0, cp, width, 3);
-                candidate_b.setPartition(1, cp, width, 4);
-                candidate_b.setPartition(2, cp, width, 2);
-                candidate_b.eval(3);
+                candidate_b.eval(cp, width, &.{ 3, 4, 5, 6 });
+                candidate_a.swapLess(&candidate_b);
 
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
+                candidate_b.eval(cp, width, &.{ 7, 8, 9, 10, 2 });
+                candidate_a.swapLess(&candidate_b);
 
-                candidate_b.setPartition(0, cp, width, 1);
-                candidate_b.setPartition(1, cp, width, 5);
-                candidate_b.setPartition(2, cp, width, 6);
-                candidate_b.eval(3);
+                candidate_b.eval(cp, width, &.{ 1, 11, 12, 13, 14 });
+                candidate_a.swapLess(&candidate_b);
 
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
+                candidate_b.eval(cp, width, &.{ 7, 8, 9, 10, 5, 6 });
+                candidate_a.swapLess(&candidate_b);
 
-                candidate_b.setPartition(0, cp, width, 3);
-                candidate_b.setPartition(1, cp, width, 4);
-                candidate_b.setPartition(2, cp, width, 5);
-                candidate_b.setPartition(3, cp, width, 6);
-                candidate_b.eval(4);
+                candidate_b.eval(cp, width, &.{ 3, 4, 11, 12, 13, 14 });
+                candidate_a.swapLess(&candidate_b);
 
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
+                candidate_b.eval(cp, width, &.{ 3, 9, 10, 11, 12, 6 });
+                candidate_a.swapLess(&candidate_b);
 
-                candidate_b.setPartition(0, cp, width, 7);
-                candidate_b.setPartition(1, cp, width, 8);
-                candidate_b.setPartition(2, cp, width, 9);
-                candidate_b.setPartition(3, cp, width, 10);
-                candidate_b.setPartition(4, cp, width, 2);
-                candidate_b.eval(5);
+                candidate_b.eval(cp, width, &.{ 7, 8, 4, 5, 13, 14 });
+                candidate_a.swapLess(&candidate_b);
 
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 1);
-                candidate_b.setPartition(1, cp, width, 11);
-                candidate_b.setPartition(2, cp, width, 12);
-                candidate_b.setPartition(3, cp, width, 13);
-                candidate_b.setPartition(4, cp, width, 14);
-                candidate_b.eval(5);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 7);
-                candidate_b.setPartition(1, cp, width, 8);
-                candidate_b.setPartition(2, cp, width, 9);
-                candidate_b.setPartition(3, cp, width, 10);
-                candidate_b.setPartition(4, cp, width, 5);
-                candidate_b.setPartition(5, cp, width, 6);
-                candidate_b.eval(6);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 3);
-                candidate_b.setPartition(1, cp, width, 4);
-                candidate_b.setPartition(2, cp, width, 11);
-                candidate_b.setPartition(3, cp, width, 12);
-                candidate_b.setPartition(4, cp, width, 13);
-                candidate_b.setPartition(5, cp, width, 14);
-                candidate_b.eval(6);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 3);
-                candidate_b.setPartition(1, cp, width, 9);
-                candidate_b.setPartition(2, cp, width, 10);
-                candidate_b.setPartition(3, cp, width, 11);
-                candidate_b.setPartition(4, cp, width, 12);
-                candidate_b.setPartition(5, cp, width, 6);
-                candidate_b.eval(6);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 7);
-                candidate_b.setPartition(1, cp, width, 8);
-                candidate_b.setPartition(2, cp, width, 4);
-                candidate_b.setPartition(3, cp, width, 5);
-                candidate_b.setPartition(4, cp, width, 13);
-                candidate_b.setPartition(5, cp, width, 14);
-                candidate_b.eval(6);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
-
-                candidate_b.setPartition(0, cp, width, 7);
-                candidate_b.setPartition(1, cp, width, 8);
-                candidate_b.setPartition(2, cp, width, 9);
-                candidate_b.setPartition(3, cp, width, 10);
-                candidate_b.setPartition(4, cp, width, 11);
-                candidate_b.setPartition(5, cp, width, 12);
-                candidate_b.setPartition(6, cp, width, 13);
-                candidate_b.setPartition(7, cp, width, 14);
-                candidate_b.eval(8);
-
-                if (candidate_b.cost < candidate_a.cost) {
-                    std.mem.swap(PartitionCandidate, &candidate_a, &candidate_b);
-                }
+                candidate_b.eval(cp, width, &.{ 7, 8, 9, 10, 11, 12, 13, 14 });
+                candidate_a.swapLess(&candidate_b);
 
                 const partition = candidate_a;
 
