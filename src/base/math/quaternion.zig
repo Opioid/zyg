@@ -30,7 +30,7 @@ pub fn initFromMat3x3(m: Mat3x3) Quaternion {
         }
     }
 
-    return q * @splat(4, 0.5 / @sqrt(t));
+    return q * @as(Vec4f, @splat(0.5 / @sqrt(t)));
 }
 
 pub fn initFromTN(t: Vec4f, n: Vec4f) Quaternion {
@@ -87,7 +87,7 @@ pub inline fn toMat3x3(q: Quaternion) Mat3x3 {
     const xz = tq[2] * q[0];
     const yz = tq[1] * q[2];
 
-    const w = tq * @splat(4, q[3]);
+    const w = tq * @as(Vec4f, @splat(q[3]));
 
     // diagonal terms
     const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
@@ -133,7 +133,7 @@ pub inline fn toTN(q: Quaternion) [2]Vec4f {
     const xz = tq[2] * q[0];
     const yz = tq[1] * q[2];
 
-    const w = tq * @splat(4, q[3]);
+    const w = tq * @as(Vec4f, @splat(q[3]));
 
     // diagonal terms
     const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
@@ -168,7 +168,7 @@ pub inline fn toNormal(q: Quaternion) Vec4f {
     const xz = tq[2] * q[0];
     const yz = tq[1] * q[2];
 
-    const w = tq * @splat(4, q[3]);
+    const w = tq * @as(Vec4f, @splat(q[3]));
 
     // diagonal terms
     const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
@@ -214,5 +214,5 @@ pub inline fn slerp(a: Quaternion, b: Quaternion, t: f32) Quaternion {
         sclq = t;
     }
 
-    return @splat(4, sclp) * a + @splat(4, sclq) * end;
+    return @as(Vec4f, @splat(sclp)) * a + @as(Vec4f, @splat(sclq)) * end;
 }

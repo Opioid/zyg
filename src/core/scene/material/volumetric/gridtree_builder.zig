@@ -42,7 +42,7 @@ pub const Builder = struct {
 
         var num_cells = d >> Gridtree.Log2_cell_dim4;
 
-        num_cells = num_cells + @min(d - (num_cells << Gridtree.Log2_cell_dim4), @splat(4, @as(i32, 1)));
+        num_cells = num_cells + @min(d - (num_cells << Gridtree.Log2_cell_dim4), @as(Vec4i, @splat(1)));
 
         const cell_len = @as(u32, @intCast(num_cells[0] * num_cells[1] * num_cells[2]));
 
@@ -133,8 +133,8 @@ const Splitter = struct {
         const d = texture.description(scene).dimensions;
 
         // Include 1 additional voxel on each border to account for filtering
-        const minb = @max(box.bounds[0] - @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0)));
-        const maxb = @min(box.bounds[1] + @splat(4, @as(i32, 1)), d);
+        const minb = @max(box.bounds[0] - @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0)));
+        const maxb = @min(box.bounds[1] + @as(Vec4i, @splat(1)), d);
 
         var min_density: f32 = 1.0;
         var max_density: f32 = 0.0;
@@ -193,7 +193,7 @@ const Splitter = struct {
 
         const depthp = depth + 1;
 
-        const half = (box.bounds[1] - box.bounds[0]) >> @splat(4, @as(u5, 1));
+        const half = (box.bounds[1] - box.bounds[0]) >> @as(@Vector(4, u5), @splat(1));
         const center = box.bounds[0] + half;
 
         node.children = try alloc.alloc(BuildNode, 8);
@@ -300,7 +300,7 @@ const Context = struct {
             c[3] = 0;
 
             const min = c << Gridtree.Log2_cell_dim4;
-            const max = min + @splat(4, Gridtree.Cell_dim);
+            const max = min + @as(Vec4i, @splat(Gridtree.Cell_dim));
             const box = Box{ .bounds = .{ min, max } };
 
             splitter.split(

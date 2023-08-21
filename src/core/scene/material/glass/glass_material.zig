@@ -1,5 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("glass_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");
@@ -84,7 +84,7 @@ pub const Material = struct {
 
             if (sint2 >= 1.0) {
                 if (o < 1.0) {
-                    return @splat(4, 1.0 - o);
+                    return @as(Vec4f, @splat(1.0 - o));
                 }
 
                 return null;
@@ -98,13 +98,13 @@ pub const Material = struct {
 
             const attenuation = inthlp.attenuation3(self.super.cc.a, approx_dist);
 
-            const ta = math.min4(@splat(4, 1.0 - o) + attenuation, @splat(4, @as(f32, 1.0)));
+            const ta = math.min4(@as(Vec4f, @splat(1.0 - o)) + attenuation, @splat(1.0));
 
-            return @splat(4, 1.0 - f) * ta;
+            return @as(Vec4f, @splat(1.0 - f)) * ta;
         }
 
         if (o < 1.0) {
-            return @splat(4, 1.0 - o);
+            return @as(Vec4f, @splat(1.0 - o));
         }
 
         return null;

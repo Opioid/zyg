@@ -87,7 +87,7 @@ const SplitCandidate = struct {
     fn evaluateScene(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, scene: *const Scene) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
-        var cones: [2]Vec4f = .{ @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 1.0)) };
+        var cones: [2]Vec4f = .{ @splat(1.0), @splat(1.0) };
         var two_sideds: [2]bool = .{ false, false };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
@@ -141,7 +141,7 @@ const SplitCandidate = struct {
     fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const Part, variant: u32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
-        var dominant_axis: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
+        var dominant_axis: [2]Vec4f = .{ @splat(0.0), @splat(0.0) };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
@@ -157,12 +157,12 @@ const SplitCandidate = struct {
 
             num_sides[side] += 1;
             boxs[side].mergeAssign(box);
-            dominant_axis[side] += @splat(4, power) * n;
+            dominant_axis[side] += @as(Vec4f, @splat(power)) * n;
             powers[side] += power;
         }
 
-        dominant_axis[0] = math.normalize3(dominant_axis[0] / @splat(4, powers[0]));
-        dominant_axis[1] = math.normalize3(dominant_axis[1] / @splat(4, powers[1]));
+        dominant_axis[0] = math.normalize3(dominant_axis[0] / @as(Vec4f, @splat(powers[0])));
+        dominant_axis[1] = math.normalize3(dominant_axis[1] / @as(Vec4f, @splat(powers[1])));
 
         var angles: [2]f32 = .{ 0.0, 0.0 };
 
@@ -291,7 +291,7 @@ pub const Builder = struct {
             self.current_node = 1;
 
             var bounds = math.aabb.Empty;
-            var cone = @splat(4, @as(f32, 1.0));
+            var cone: Vec4f = @splat(1.0);
             var two_sided = false;
             var total_power: f32 = 0.0;
 

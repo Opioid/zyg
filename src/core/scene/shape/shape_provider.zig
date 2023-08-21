@@ -1,10 +1,13 @@
 const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
-const Mesh = @import("triangle/triangle_mesh.zig").Mesh;
-const vs = @import("triangle/vertex_stream.zig");
+const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
+const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
+const tvb = @import("triangle/vertex_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
-const Tree = @import("triangle/bvh/triangle_tree.zig").Tree;
-const Builder = @import("triangle/bvh/triangle_tree_builder.zig").Builder;
+const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
+const TriangleBuilder = @import("triangle/triangle_tree_builder.zig").Builder;
+const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
+const HairReader = @import("curve/hair_reader.zig").Reader;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Result = @import("../../resource/result.zig").Result;
 const file = @import("../../file/file.zig");
@@ -22,6 +25,7 @@ const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
 const ThreadContext = Threads.Context;
 const Variants = base.memory.VariantMap;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -87,10 +91,10 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: Tree = .{},
+    tree: TriangleTree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
-    vertices: vs.VertexStream = undefined,
+    vertices: tvb.Buffer = undefined,
     desc: Description = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
@@ -108,7 +112,7 @@ pub const Provider = struct {
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
                 .TriangleMesh => |*m| {
-                    std.mem.swap(Tree, &m.tree, &self.tree);
+                    std.mem.swap(TriangleTree, &m.tree, &self.tree);
                     m.calculateAreas();
                 },
                 else => {},
@@ -125,7 +129,22 @@ pub const Provider = struct {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
-            if (file.Type.SUB == file.queryType(&stream)) {
+            if (file.Type.HAIR == file.queryType(&stream)) {
+                var curves = try HairReader.read(alloc, &stream);
+                defer {
+                    alloc.free(curves.curves);
+                    curves.vertices.deinit(alloc);
+                }
+
+                var mesh = CurveMesh{};
+
+                var builder = try CurveBuilder.init(alloc, 16, 64, 4);
+                defer builder.deinit(alloc);
+
+                try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
+
+                return .{ .data = .{ .CurveMesh = mesh } };
+            } else if (file.Type.SUB == file.queryType(&stream)) {
                 const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
@@ -166,7 +185,7 @@ pub const Provider = struct {
             }
         }
 
-        var mesh = try Mesh.init(alloc, @intCast(handler.parts.items.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
 
         for (handler.parts.items, 0..) |p, i| {
             mesh.setMaterialForPart(i, p.material_index);
@@ -196,7 +215,7 @@ pub const Provider = struct {
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
-        var mesh = try Mesh.init(alloc, num_parts);
+        var mesh = try TriangleMesh.init(alloc, num_parts);
 
         if (desc.num_parts > 0 and null != desc.parts) {
             for (0..num_parts) |i| {
@@ -222,7 +241,7 @@ pub const Provider = struct {
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+        const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
             handler.positions.items,
             handler.normals.items,
             handler.tangents.items,
@@ -371,7 +390,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Mesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !TriangleMesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -497,7 +516,7 @@ pub const Provider = struct {
 
         try stream.seekTo(binary_start + vertices_offset);
 
-        var vertices: vs.VertexStream = undefined;
+        var vertices: tvb.Buffer = undefined;
 
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
@@ -512,7 +531,7 @@ pub const Provider = struct {
                 var uvs = try alloc.alloc(Vec2f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                vertices = vs.VertexStream{ .SeparateQuat = vs.SeparateQuat.init(
+                vertices = tvb.Buffer{ .SeparateQuat = tvb.SeparateQuat.init(
                     positions,
                     ts,
                     uvs,
@@ -531,7 +550,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
@@ -539,7 +558,7 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         &.{},
@@ -560,7 +579,7 @@ pub const Provider = struct {
 
         _ = try stream.read(indices);
 
-        var mesh = try Mesh.init(alloc, @intCast(parts.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(parts.len));
 
         for (parts, 0..) |p, i| {
             if (p.start_index + p.num_indices > num_indices) {
@@ -668,7 +687,7 @@ pub const Provider = struct {
 
         const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
 
-        const vertices = vs.VertexStream{ .C = vs.CAPI.init(
+        const vertices = tvb.Buffer{ .C = tvb.CAPI.init(
             desc.num_vertices,
             desc.positions_stride,
             desc.normals_stride,
@@ -685,12 +704,12 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *Tree,
+        tree: *TriangleTree,
         triangles: []const IndexTriangle,
-        vertices: vs.VertexStream,
+        vertices: tvb.Buffer,
         threads: *Threads,
     ) !void {
-        var builder = try Builder.init(alloc, 16, 64, 4);
+        var builder = try TriangleBuilder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
         try builder.build(alloc, tree, triangles, vertices, threads);

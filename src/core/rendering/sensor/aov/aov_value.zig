@@ -16,8 +16,8 @@ pub const Value = struct {
 
         pub fn default(class: Class) Vec4f {
             return switch (class) {
-                .Depth => @splat(4, @as(f32, std.math.floatMax(f32))),
-                else => @splat(4, @as(f32, 0.0)),
+                .Depth => @splat(std.math.floatMax(f32)),
+                else => @splat(0.0),
             };
         }
 

@@ -1,4 +1,4 @@
-const Ray = @import("../ray.zig").Ray;
+const Vertex = @import("../vertex.zig").Vertex;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
@@ -103,23 +103,23 @@ pub const Prop = struct {
     pub fn intersect(
         self: Prop,
         entity: u32,
-        ray: *Ray,
+        vertex: *Vertex,
         scene: *const Scene,
         ipo: shp.Interpolation,
         isec: *shp.Intersection,
     ) bool {
-        if (!self.visible(ray.depth)) {
+        if (!self.visible(vertex.depth)) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
             return false;
         }
 
         const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, static);
 
-        if (scene.shape(self.shape).intersect(ray, trafo, ipo, isec)) {
+        if (scene.shape(self.shape).intersect(&vertex.ray, trafo, ipo, isec)) {
             isec.trafo = trafo;
             return true;
         }
@@ -127,71 +127,71 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectSSS(self: Prop, entity: u32, ray: *Ray, scene: *const Scene, isec: *shp.Intersection) bool {
+    pub fn intersectSSS(self: Prop, entity: u32, vertex: *Vertex, scene: *const Scene, isec: *shp.Intersection) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray.*)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
             return false;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
 
-        return scene.shape(self.shape).intersect(ray, trafo, .Normal, isec);
+        return scene.shape(self.shape).intersect(&vertex.ray, trafo, .Normal, isec);
     }
 
-    pub fn intersectP(self: Prop, entity: u32, ray: Ray, scene: *const Scene) bool {
+    pub fn intersectP(self: Prop, entity: u32, vertex: Vertex, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
             return false;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
 
-        return scene.shape(self.shape).intersectP(ray, trafo);
+        return scene.shape(self.shape).intersectP(vertex.ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, ray: Ray, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         const properties = self.properties;
         const scene = worker.scene;
 
         if (!properties.evaluate_visibility) {
-            if (self.intersectP(entity, ray, scene)) {
+            if (self.intersectP(entity, vertex, scene)) {
                 return null;
             }
 
-            return @splat(4, @as(f32, 1.0));
+            return @as(Vec4f, @splat(1.0));
         }
 
         if (!properties.visible_in_shadow) {
-            return @splat(4, @as(f32, 1.0));
+            return @as(Vec4f, @splat(1.0));
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
-            return @splat(4, @as(f32, 1.0));
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
+            return @as(Vec4f, @splat(1.0));
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
 
         if (properties.volume) {
-            return scene.shape(self.shape).transmittance(ray, trafo, entity, sampler, worker);
+            return scene.shape(self.shape).transmittance(vertex.ray, vertex.depth, trafo, entity, sampler, worker);
         } else {
-            return scene.shape(self.shape).visibility(ray, trafo, entity, sampler, scene);
+            return scene.shape(self.shape).visibility(vertex.ray, trafo, entity, sampler, scene);
         }
     }
 
     pub fn scatter(
         self: Prop,
         entity: u32,
-        ray: Ray,
+        vertex: Vertex,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
@@ -199,12 +199,12 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, ray)) {
-            return shp.Volume.initPass(@splat(4, @as(f32, 1.0)));
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, vertex.ray)) {
+            return shp.Volume.initPass(@splat(1.0));
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, ray.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
 
-        return scene.shape(self.shape).scatter(ray, trafo, throughput, entity, sampler, worker);
+        return scene.shape(self.shape).scatter(vertex.ray, vertex.depth, trafo, throughput, entity, sampler, worker);
     }
 };

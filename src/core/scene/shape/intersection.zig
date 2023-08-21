@@ -5,22 +5,23 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Intersection = struct {
-    trafo: Trafo = undefined,
-    p: Vec4f = undefined,
-    geo_n: Vec4f = undefined,
-    t: Vec4f = undefined,
-    b: Vec4f = undefined,
-    n: Vec4f = undefined,
-    uv: Vec2f = undefined,
+    trafo: Trafo,
+    p: Vec4f,
+    geo_n: Vec4f,
+    t: Vec4f,
+    b: Vec4f,
+    n: Vec4f,
+    uv: Vec2f,
 
-    part: u32 = undefined,
-    primitive: u32 = undefined,
+    offset: f32,
+
+    part: u32,
+    primitive: u32,
 };
 
 pub const Interpolation = enum {
-    All,
-    NoTangentSpace,
     Normal,
+    All,
 };
 
 pub const Volume = struct {
@@ -34,7 +35,7 @@ pub const Volume = struct {
 
     pub fn initPass(w: Vec4f) Volume {
         return .{
-            .li = @splat(4, @as(f32, 0.0)),
+            .li = @splat(0.0),
             .tr = w,
             .event = .Pass,
         };

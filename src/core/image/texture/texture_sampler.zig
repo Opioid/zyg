@@ -96,7 +96,7 @@ const Nearest2D = struct {
         const u = adr.u.f(uv[0]);
         const v = adr.v.f(uv[1]);
 
-        const b = d - @splat(2, @as(i32, 1));
+        const b = d - @as(Vec2i, @splat(1));
 
         return .{
             @min(@as(i32, @intFromFloat(u * df[0])), b[0]),
@@ -126,7 +126,7 @@ const LinearStochastic2D = struct {
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address, sampler: *Sampler) Vec2i {
         const df = math.vec2iTo2f(d);
-        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @splat(2, @as(f32, 0.5));
+        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @as(Vec2f, @splat(0.5));
         const fuv = @floor(muv);
         var xy = math.vec2fTo2i(fuv);
 
@@ -224,7 +224,7 @@ const LinearStochastic3D = struct {
         //     0,
         // };
 
-        return adr.u.coord3(xyz + @select(i32, c, @splat(4, @as(i32, 1)), @splat(4, @as(i32, 0))), d);
+        return adr.u.coord3(xyz + @select(i32, c, @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0))), d);
 
         // var r = sampler.sample1D();
 

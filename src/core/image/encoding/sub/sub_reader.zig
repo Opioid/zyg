@@ -43,13 +43,13 @@ pub const Reader = struct {
 
         const description_node = image_node.object.get("description") orelse return Error.NoImageDescription;
 
-        const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(4, @as(i32, -1)));
+        const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(-1));
 
         if (-1 == dimensions[0]) {
             return Error.InvalidDimensions;
         }
 
-        const offset = json.readVec4i3Member(description_node, "offset", @splat(4, @as(i32, 0)));
+        const offset = json.readVec4i3Member(description_node, "offset", @splat(0));
 
         const image_type = try readImageType(description_node);
         //   const topology_node =
@@ -165,7 +165,7 @@ pub const Reader = struct {
                         _ = try stream.read(std.mem.asBytes(&val));
                         image.pixels[i] = val;
                     } else {
-                        image.pixels[i] = @splat(2, @as(f32, 0.0));
+                        image.pixels[i] = @splat(0.0);
                     }
                 }
 

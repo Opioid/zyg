@@ -47,7 +47,7 @@ pub const Transparent = struct {
     pub fn addPixel(self: *Transparent, i: usize, color: Vec4f, weight: f32) Result {
         self.pixel_weights[i] += weight;
 
-        const wc = @splat(4, weight) * color;
+        const wc = @as(Vec4f, @splat(weight)) * color;
         var value: Vec4f = self.pixels[i].v;
         value += wc;
 
@@ -55,11 +55,11 @@ pub const Transparent = struct {
 
         const nw = self.pixel_weights[i];
         const nc = self.pixels[i];
-        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @splat(4, nw) };
+        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @as(Vec4f, @splat(nw)) };
     }
 
     pub fn splatPixelAtomic(self: *Transparent, i: usize, color: Vec4f, weight: f32) void {
-        const wc = @splat(4, weight) * color;
+        const wc = @as(Vec4f, @splat(weight)) * color;
 
         var value = &self.pixels[i];
         _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);
@@ -72,7 +72,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
+            const color = @fabs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
             target[j].v = color;
         }
     }
@@ -82,7 +82,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = weights[j];
-            const color = @fabs(@as(Vec4f, p.v) / @splat(4, weight));
+            const color = @fabs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
             const tm = tonemapper.tonemap(color);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], color[3] };
         }
@@ -93,7 +93,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = weights[j];
-            const color = @as(Vec4f, p.v) / @splat(4, weight);
+            const color = @as(Vec4f, p.v) / @as(Vec4f, @splat(weight));
             const old = target[j];
             const combined = @fabs(color + @as(Vec4f, old.v));
             const tm = tonemapper.tonemap(combined);

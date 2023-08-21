@@ -17,20 +17,20 @@ pub fn dot(p: Vec4f, v: Vec4f) f32 {
 pub fn intersection(p0: Vec4f, p1: Vec4f, p2: Vec4f) Vec4f {
     const n1 = p0; //(p0[0], p0[1], p0[2]);
 
-    const d1 = @splat(4, p0[3]);
+    const d1 = @as(Vec4f, @splat(p0[3]));
 
     const n2 = p1; //(p1[0], p1[1], p1[2]);
 
-    const d2 = @splat(4, p1[3]);
+    const d2 = @as(Vec4f, @splat(p1[3]));
 
     const n3 = p2; //(p2[0], p2[1], p2[2]);
 
-    const d3 = @splat(4, p2[3]);
+    const d3 = @as(Vec4f, @splat(p2[3]));
 
     //    d1 ( N2 * N3 ) + d2 ( N3 * N1 ) + d3 ( N1 * N2 )
     // P = ------------------------------------------------
     //                    N1 . ( N2 * N3 )
 
     return -(d1 * math.cross3(n2, n3) + d2 * math.cross3(n3, n1) + d3 * math.cross3(n1, n2)) /
-        @splat(4, math.dot3(n1, math.cross3(n2, n3)));
+        @as(Vec4f, @splat(math.dot3(n1, math.cross3(n2, n3))));
 }

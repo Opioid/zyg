@@ -82,7 +82,7 @@ pub const Base = struct {
         distance: f32,
         anisotropy: f32,
     ) void {
-        const aniso = std.math.clamp(anisotropy, -0.999, 0.999);
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
         const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
 
         self.cc = cc;
@@ -100,10 +100,10 @@ pub const Base = struct {
         return 1.0;
     }
 
-    pub fn border(self: *const Base, wi: Vec4f, n: Vec4f) f32 {
+    pub fn border(self: *const Base, wo: Vec4f, n: Vec4f) f32 {
         const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
-        const n_dot_wi = math.max(math.dot3(n, wi), 0.0);
-        return 1.0 - fresnel.schlick1(n_dot_wi, f0);
+        const a = @fabs(math.dot3(n, wo));
+        return 1.0 - fresnel.schlick1(a, f0);
     }
 
     pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {
@@ -144,7 +144,7 @@ pub const Base = struct {
             return Rainbow.Rainbow[Rainbow.Num_bands - 1];
         }
 
-        return @splat(4, value) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @splat(4, frac));
+        return @as(Vec4f, @splat(value)) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @as(Vec4f, @splat(frac)));
     }
 
     var SR_low: u32 = 16;

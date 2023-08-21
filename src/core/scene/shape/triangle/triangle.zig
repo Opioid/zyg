@@ -82,12 +82,12 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
 
 pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
-    return a * @splat(2, w) + b * @splat(2, u) + c * @splat(2, v);
+    return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
 }
 
 pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
-    return a * @splat(4, w) + b * @splat(4, u) + c * @splat(4, v);
+    return a * @as(Vec4f, @splat(w)) + b * @as(Vec4f, @splat(u)) + c * @as(Vec4f, @splat(v));
 }
 
 pub fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {

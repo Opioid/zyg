@@ -51,6 +51,6 @@ pub const Ray = struct {
     }
 
     pub inline fn point(self: Ray, t: f32) Vec4f {
-        return self.origin + @splat(4, t) * self.direction;
+        return self.origin + @as(Vec4f, @splat(t)) * self.direction;
     }
 };

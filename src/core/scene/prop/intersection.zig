@@ -1,8 +1,10 @@
 const shp = @import("../shape/intersection.zig");
 const Shape = @import("../shape/shape.zig").Shape;
-const Ray = @import("../ray.zig").Ray;
+const Vertex = @import("../vertex.zig").Vertex;
 const ro = @import("../ray_offset.zig");
-const Renderstate = @import("../renderstate.zig").Renderstate;
+const rst = @import("../renderstate.zig");
+const Renderstate = rst.Renderstate;
+const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -45,9 +47,9 @@ pub const Intersection = struct {
     pub fn sample(
         self: Self,
         wo: Vec4f,
-        ray: Ray,
+        vertex: Vertex,
         sampler: *Sampler,
-        caustics: Renderstate.Caustics,
+        caustics: CausticsResolve,
         worker: *const Worker,
     ) mat.Sample {
         const m = self.material(worker.scene);
@@ -58,7 +60,7 @@ pub const Intersection = struct {
         rs.trafo = self.geo.trafo;
         rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
         rs.t = self.geo.t;
-        rs.b = .{ b[0], b[1], b[2], ray.wavelength };
+        rs.b = .{ b[0], b[1], b[2], vertex.wavelength };
 
         if (m.twoSided() and !self.sameHemisphere(wo)) {
             rs.geo_n = -self.geo.geo_n;
@@ -68,12 +70,14 @@ pub const Intersection = struct {
             rs.n = self.geo.n;
         }
 
+        rs.ray_p = vertex.ray.origin;
+
         rs.uv = self.geo.uv;
         rs.prop = self.prop;
         rs.part = self.geo.part;
         rs.primitive = self.geo.primitive;
-        rs.depth = ray.depth;
-        rs.time = ray.time;
+        rs.depth = vertex.depth;
+        rs.time = vertex.time;
         rs.subsurface = self.subsurface();
         rs.caustics = caustics;
 
@@ -122,28 +126,15 @@ pub const Intersection = struct {
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.geo.p;
-        const n = self.geo.geo_n;
-        return ro.offsetRay(p, if (self.sameHemisphere(v)) n else -n);
-    }
 
-    pub fn offsetPN(self: Self, geo_n: Vec4f, translucent: bool) Vec4f {
-        const p = self.geo.p;
-
-        if (translucent) {
-            const t = math.hmax3(@fabs(p * geo_n));
-            const d = ro.offsetF(t) - t;
-
-            return .{ p[0], p[1], p[2], d };
-        }
-
-        return ro.offsetRay(p, geo_n);
+        const n = if (self.sameHemisphere(v)) self.geo.geo_n else -self.geo.geo_n;
+        return ro.offsetRay(p + @as(Vec4f, @splat(self.geo.offset)) * n, n);
     }
 
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.geo.p;
         const n = self.geo.geo_n;
-
         const t = math.hmax3(@fabs(p * n));
-        return ro.offsetF(t + min_t) - t;
+        return ro.offsetF(t + min_t) - t + self.geo.offset;
     }
 };

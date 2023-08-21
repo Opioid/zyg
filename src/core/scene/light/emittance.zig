@@ -20,7 +20,7 @@ pub const Emittance = struct {
         Radiance,
     };
 
-    value: Vec4f = @splat(4, @as(f32, 0.0)),
+    value: Vec4f = @splat(0.0),
     profile: Texture = .{},
     cos_a: f32 = -1.0,
     quantity: Quantity = .Radiance,
@@ -29,7 +29,7 @@ pub const Emittance = struct {
     pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
         const luminance = spectrum.luminance(color);
 
-        self.value = @splat(4, value / (std.math.pi * luminance)) * color;
+        self.value = @as(Vec4f, @splat(value / (std.math.pi * luminance))) * color;
         self.cos_a = cos_a;
         self.quantity = .Intensity;
     }
@@ -38,7 +38,7 @@ pub const Emittance = struct {
     pub fn setLuminousIntensity(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
         const luminance = spectrum.luminance(color);
 
-        self.value = @splat(4, value / luminance) * color;
+        self.value = @as(Vec4f, @splat(value / luminance)) * color;
         self.cos_a = cos_a;
         self.quantity = .Intensity;
     }
@@ -47,7 +47,7 @@ pub const Emittance = struct {
     pub fn setLuminance(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
         const luminance = spectrum.luminance(color);
 
-        self.value = @splat(4, value / luminance) * color;
+        self.value = @as(Vec4f, @splat(value / luminance)) * color;
         self.cos_a = cos_a;
         self.quantity = .Radiance;
     }
@@ -85,26 +85,26 @@ pub const Emittance = struct {
 
             const lwi = -math.normalize3(trafo.worldToObjectPoint(shading_p));
             const o = math.smpl.octEncode(lwi);
-            const ouv = (o + @splat(2, @as(f32, 1.0))) * @splat(2, @as(f32, 0.5));
+            const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
             pf = ts.sample2D_1(key, self.profile, ouv, sampler, scene);
         }
 
         if (-math.dot3(wi, trafo.rotation.r[2]) < self.cos_a) {
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
         }
 
         if (self.quantity == .Intensity) {
             const area = scene.propShape(prop).area(part, trafo.scale());
-            return @splat(4, pf / area) * self.value;
+            return @as(Vec4f, @splat(pf / area)) * self.value;
         }
 
-        return @splat(4, pf) * self.value;
+        return @as(Vec4f, @splat(pf)) * self.value;
     }
 
     pub fn averageRadiance(self: Emittance, area: f32) Vec4f {
         if (self.quantity == .Intensity) {
-            return self.value / @splat(4, area);
+            return self.value / @as(Vec4f, @splat(area));
         }
 
         return self.value;
@@ -117,7 +117,7 @@ pub const Emittance = struct {
 
         const d = self.profile.description(scene).dimensions;
 
-        const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
+        const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
             @floatFromInt(d[0]),
             @floatFromInt(d[1]),
         };
@@ -135,7 +135,7 @@ pub const Emittance = struct {
                 const s = self.profile.get2D_1(x, y, scene);
 
                 if (s > 0.0) {
-                    const dir = math.smpl.octDecode(@splat(2, @as(f32, 2.0)) * (Vec2f{ u, v } - @splat(2, @as(f32, 0.5))));
+                    const dir = math.smpl.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
                     cos_a = math.min(cos_a, -dir[2]);
                 }
             }

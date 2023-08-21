@@ -1,6 +1,6 @@
 const log = @import("../log.zig");
-const Model = @import("model.zig").Model;
-const SkyMaterial = @import("material.zig").Material;
+const Model = @import("sky_model.zig").Model;
+const SkyMaterial = @import("sky_material.zig").Material;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
@@ -66,8 +66,8 @@ pub const Sky = struct {
         self.sun = sun_prop;
 
         const trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = @splat(4, @as(f32, 1.0)),
+            .position = @splat(0.0),
+            .scale = @splat(1.0),
             .rotation = math.quaternion.initRotationX(math.degreesToRadians(90.0)),
         };
 
@@ -81,7 +81,7 @@ pub const Sky = struct {
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "sun", entry.key_ptr.*)) {
-                const angles = json.readVec4f3Member(entry.value_ptr.*, "rotation", @splat(4, @as(f32, 0.0)));
+                const angles = json.readVec4f3Member(entry.value_ptr.*, "rotation", @splat(0.0));
                 self.sun_rotation = json.createRotationMatrix(angles);
             } else if (std.mem.eql(u8, "turbidity", entry.key_ptr.*)) {
                 self.visibility = Model.turbidityToVisibility(json.readFloat(f32, entry.value_ptr.*));
@@ -115,7 +115,7 @@ pub const Sky = struct {
             scene.propSetFramesScale(self.sun, scale);
         } else {
             const trafo = Transformation{
-                .position = @splat(4, @as(f32, 0.0)),
+                .position = @splat(0.0),
                 .scale = .{ Radius, Radius, Radius, 1.0 },
                 .rotation = math.quaternion.initFromMat3x3(self.sun_rotation),
             };
@@ -276,7 +276,7 @@ const SkyContext = struct {
 
         var rng = RNG{};
 
-        const idf = @splat(2, @as(f32, 1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
+        const idf = @as(Vec2f, @splat(1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
 
         while (true) {
             const y = @atomicRmw(u32, &self.current, .Add, 1, .Monotonic);
@@ -306,7 +306,7 @@ const SkyContext = struct {
 
         const l = math.length2(disk);
         if (l >= 1.0 - e) {
-            disk /= @splat(2, l + e);
+            disk /= @splat(l + e);
         }
 
         const dir = Canopy.diskToHemisphereEquidistant(disk);

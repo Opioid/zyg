@@ -17,7 +17,7 @@ pub const TileQueue = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32) void {
-        const mc = @mod(Vec4i{ crop[0], crop[1], -crop[2], -crop[3] }, @splat(4, @as(i32, 4)));
+        const mc = @mod(Vec4i{ crop[0], crop[1], -crop[2], -crop[3] }, @as(Vec4i, @splat(4)));
 
         var padded_crop: Vec4i = undefined;
         padded_crop[0] = @max(crop[0] - mc[0], 0);
@@ -63,12 +63,12 @@ pub const TileQueue = struct {
         start[1] = @divTrunc(current, self.tiles_per_row);
         start[0] = current - start[1] * self.tiles_per_row;
 
-        start *= @splat(2, tile_dimensions);
+        start *= @splat(tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
 
-        const end = @min(start + @splat(2, tile_dimensions), Vec2i{ crop[2], crop[3] });
+        const end = @min(start + @as(Vec2i, @splat(tile_dimensions)), Vec2i{ crop[2], crop[3] });
+        const back = end - @as(Vec2i, @splat(1));
 
-        const back = end - @splat(2, @as(i32, 1));
         return Vec4i{ start[0], start[1], back[0], back[1] };
     }
 };

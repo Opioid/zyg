@@ -1,5 +1,5 @@
-const VertexStream = @import("../vertex_stream.zig").VertexStream;
-const triangle = @import("../triangle.zig");
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const triangle = @import("triangle.zig");
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -11,7 +11,7 @@ const quaternion = math.quaternion;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Indexed_data = struct {
+pub const IndexedData = struct {
     const Triangle = packed struct {
         a: u32,
         b: u32,
@@ -37,7 +37,7 @@ pub const Indexed_data = struct {
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
-    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexStream) !void {
+    pub fn allocateTriangles(self: *Self, alloc: Allocator, num_triangles: u32, vertices: VertexBuffer) !void {
         const num_vertices = vertices.numVertices();
 
         self.num_triangles = num_triangles;
@@ -54,12 +54,12 @@ pub const Indexed_data = struct {
 
     pub fn setTriangle(
         self: *Self,
+        triangle_id: u32,
         a: u32,
         b: u32,
         c: u32,
         p: u32,
-        vertices: VertexStream,
-        triangle_id: u32,
+        vertices: VertexBuffer,
     ) void {
         const abts = vertices.bitangentSign(a);
         const bbts = vertices.bitangentSign(b);
@@ -116,20 +116,20 @@ pub const Indexed_data = struct {
         const tna = quaternion.toTN(self.frames[tri.a]);
         const uva = self.uvs[tri.a];
 
-        const tua = @shuffle(f32, tna[0], @splat(4, uva[0]), [_]i32{ 0, 1, 2, -1 });
-        const nva = @shuffle(f32, tna[1], @splat(4, uva[1]), [_]i32{ 0, 1, 2, -1 });
+        const tua = @shuffle(f32, tna[0], @as(Vec4f, @splat(uva[0])), [_]i32{ 0, 1, 2, -1 });
+        const nva = @shuffle(f32, tna[1], @as(Vec4f, @splat(uva[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tnb = quaternion.toTN(self.frames[tri.b]);
         const uvb = self.uvs[tri.b];
 
-        const tub = @shuffle(f32, tnb[0], @splat(4, uvb[0]), [_]i32{ 0, 1, 2, -1 });
-        const nvb = @shuffle(f32, tnb[1], @splat(4, uvb[1]), [_]i32{ 0, 1, 2, -1 });
+        const tub = @shuffle(f32, tnb[0], @as(Vec4f, @splat(uvb[0])), [_]i32{ 0, 1, 2, -1 });
+        const nvb = @shuffle(f32, tnb[1], @as(Vec4f, @splat(uvb[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tnc = quaternion.toTN(self.frames[tri.c]);
         const uvc = self.uvs[tri.c];
 
-        const tuc = @shuffle(f32, tnc[0], @splat(4, uvc[0]), [_]i32{ 0, 1, 2, -1 });
-        const nvc = @shuffle(f32, tnc[1], @splat(4, uvc[1]), [_]i32{ 0, 1, 2, -1 });
+        const tuc = @shuffle(f32, tnc[0], @as(Vec4f, @splat(uvc[0])), [_]i32{ 0, 1, 2, -1 });
+        const nvc = @shuffle(f32, tnc[1], @as(Vec4f, @splat(uvc[1])), [_]i32{ 0, 1, 2, -1 });
 
         const tu = triangle.interpolate3(tua, tub, tuc, u, v);
         const nv = triangle.interpolate3(nva, nvb, nvc, u, v);

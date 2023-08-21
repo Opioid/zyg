@@ -1,4 +1,4 @@
-const Base = @import("../sample_base.zig").SampleBase;
+const Base = @import("../sample_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 
@@ -12,8 +12,8 @@ pub const Sample = struct {
         return .{ .super = Base.init(
             rs,
             wo,
-            @splat(4, @as(f32, 0.0)),
-            @splat(2, @as(f32, 1.0)),
+            @splat(0.0),
+            @splat(1.0),
             0.0,
         ) };
     }

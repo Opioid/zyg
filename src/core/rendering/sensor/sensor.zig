@@ -61,7 +61,7 @@ pub const Sensor = union(enum) {
 
     pub fn deinit(self: *Sensor, alloc: Allocator) void {
         switch (self.*) {
-            inline else => |*s| s.sensor.deinit(alloc),
+            inline else => |*s| s.deinit(alloc),
         }
     }
 

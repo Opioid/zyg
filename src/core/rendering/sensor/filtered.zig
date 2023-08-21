@@ -27,7 +27,7 @@ pub fn Filtered(comptime T: type) type {
 
         aov: AovBuffer = .{},
 
-        dimensions: Vec2i = @splat(2, @as(i32, 0)),
+        dimensions: Vec2i = @splat(0),
 
         clamp_max: f32,
 
@@ -97,9 +97,9 @@ pub fn Filtered(comptime T: type) type {
             }
 
             const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
-            const center = math.vec2iTo2f(sample.pixel) + @splat(2, @as(f32, 0.5));
+            const center = math.vec2iTo2f(sample.pixel) + @as(Vec2f, @splat(0.5));
 
-            const filter_uv = @splat(2, self.radius) * (@splat(2, @as(f32, 2.0)) * o - @splat(2, @as(f32, 1.0)));
+            const filter_uv = @as(Vec2f, @splat(self.radius)) * (@as(Vec2f, @splat(2.0)) * o - @as(Vec2f, @splat(1.0)));
             sample.pixel_uv = filter_uv;
 
             return center + filter_uv;
@@ -242,7 +242,7 @@ pub fn Filtered(comptime T: type) type {
 
             if (mc > max) {
                 const r = max / mc;
-                const s = @splat(4, r) * color;
+                const s = @as(Vec4f, @splat(r)) * color;
                 return .{ s[0], s[1], s[2], color[3] };
             }
 

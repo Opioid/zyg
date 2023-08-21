@@ -26,6 +26,7 @@ pub const Plane = struct {
             isec.b = b;
             isec.n = n;
             isec.uv = Vec2f{ math.dot3(t, k), math.dot3(b, k) };
+            isec.offset = 0.0;
             isec.part = 0;
 
             ray.setMaxT(hit_t);
@@ -60,6 +61,6 @@ pub const Plane = struct {
             return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene);
         }
 
-        return @splat(4, @as(f32, 1.0));
+        return @as(Vec4f, @splat(1.0));
     }
 };

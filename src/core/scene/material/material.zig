@@ -1,9 +1,10 @@
-pub const Debug = @import("debug/material.zig").Material;
-pub const Glass = @import("glass/material.zig").Material;
-pub const Light = @import("light/material.zig").Material;
-pub const Substitute = @import("substitute/material.zig").Material;
-pub const Volumetric = @import("volumetric/material.zig").Material;
-const Sky = @import("../../sky/material.zig").Material;
+pub const Debug = @import("debug/debug_material.zig").Material;
+pub const Glass = @import("glass/glass_material.zig").Material;
+pub const Hair = @import("hair/hair_material.zig").Material;
+pub const Light = @import("light/light_material.zig").Material;
+pub const Substitute = @import("substitute/substitute_material.zig").Material;
+pub const Volumetric = @import("volumetric/volumetric_material.zig").Material;
+const Sky = @import("../../sky/sky_material.zig").Material;
 pub const Sample = @import("sample.zig").Sample;
 pub const Base = @import("material_base.zig").Base;
 const Gridtree = @import("volumetric/gridtree.zig").Gridtree;
@@ -32,6 +33,7 @@ const Allocator = std.mem.Allocator;
 pub const Material = union(enum) {
     Debug: Debug,
     Glass: Glass,
+    Hair: Hair,
     Light: Light,
     Sky: Sky,
     Substitute: Substitute,
@@ -78,7 +80,7 @@ pub const Material = union(enum) {
             .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
             .Substitute => |*m| m.prepareSampling(extent, scene),
             .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
-            else => @splat(4, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -161,7 +163,7 @@ pub const Material = union(enum) {
 
         switch (self.*) {
             .Volumetric => |*m| {
-                const d = @splat(4, m.density(uvw, sampler, scene));
+                const d: Vec4f = @splat(m.density(uvw, sampler, scene));
                 return .{ .a = d * cc.a, .s = d * cc.s };
             },
             else => {
@@ -171,15 +173,14 @@ pub const Material = union(enum) {
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
-        const sup = self.super();
-        const cc = sup.cc;
-
         switch (self.*) {
             .Volumetric => |*m| {
                 return m.collisionCoefficientsEmission(uvw, sampler, scene);
             },
             else => {
-                const e = self.super().emittance.value;
+                const sup = self.super();
+                const cc = sup.cc;
+                const e = sup.emittance.value;
 
                 const color_map = sup.color_map;
                 if (color_map.valid()) {
@@ -199,6 +200,7 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
             .Glass => |*g| .{ .Glass = g.sample(wo, rs, sampler, worker.scene) },
+            .Hair => |*h| .{ .Hair = h.sample(wo, rs, sampler) },
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
             .Substitute => |*s| s.sample(wo, rs, sampler, worker),
@@ -223,7 +225,7 @@ pub const Material = union(enum) {
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
-            else => @splat(4, @as(f32, 0.0)),
+            else => @splat(0.0),
         };
     }
 
@@ -263,7 +265,7 @@ pub const Material = union(enum) {
             },
             else => {
                 const o = self.opacity(uv, sampler, scene);
-                return if (o < 1.0) @splat(4, 1.0 - o) else null;
+                return if (o < 1.0) @as(Vec4f, @splat(1.0 - o)) else null;
             },
         }
     }

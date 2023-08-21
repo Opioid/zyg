@@ -32,12 +32,12 @@ pub const Frame = struct {
         //     0.0,
         // };
 
-        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.t;
-        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * self.b;
         result = result + temp;
-        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * self.n;
         return result + temp;
     }
@@ -84,15 +84,15 @@ pub const Frame = struct {
         const t = self.t;
         const b = self.b;
 
-        const sin_a = @splat(4, @sin(a));
-        const cos_a = @splat(4, @cos(a));
+        const sin_a: Vec4f = @splat(@sin(a));
+        const cos_a: Vec4f = @splat(@cos(a));
 
         self.t = cos_a * t + sin_a * b;
         self.b = -sin_a * t + cos_a * b;
     }
 };
 
-pub const SampleBase = struct {
+pub const Base = struct {
     pub const Properties = packed struct {
         translucent: bool = false,
         can_evaluate: bool = false,
@@ -116,7 +116,7 @@ pub const SampleBase = struct {
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) SampleBase {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) Self {
         return .{
             .geo_n = rs.geo_n,
             .n = rs.n,
@@ -128,13 +128,13 @@ pub const SampleBase = struct {
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) SampleBase {
+    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) Self {
         return .{
             .geo_n = geo_n,
             .n = n,
             .wo = wo,
-            .albedo = @splat(4, factor),
-            .alpha = @splat(2, alpha),
+            .albedo = @splat(factor),
+            .alpha = @splat(alpha),
             .thickness = 0.0,
             .properties = .{ .can_evaluate = false },
         };

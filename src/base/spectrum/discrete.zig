@@ -11,7 +11,7 @@ pub fn DiscreteSpectralPowerDistribution(
     return struct {
         values: [N]f32 = undefined,
 
-        var Cie = [_]Vec4f{@splat(4, @as(f32, -1.0))} ** N;
+        var Cie = [_]Vec4f{@splat(-1.0)} ** N;
         const Step = (WL_end - WL_start) / @as(f32, @floatFromInt(N));
 
         pub const Bins = N;
@@ -76,9 +76,9 @@ pub fn DiscreteSpectralPowerDistribution(
         }
 
         pub fn XYZ(self: Self) Vec4f {
-            var tri = @splat(4, @as(f32, 0.0));
+            var tri: Vec4f = @splat(0.0);
             for (self.values, 0..) |v, i| {
-                tri += @splat(4, Step * v) * Cie[i];
+                tri += @as(Vec4f, @splat(Step * v)) * Cie[i];
             }
 
             return tri;
@@ -86,7 +86,7 @@ pub fn DiscreteSpectralPowerDistribution(
 
         pub fn normalizedXYZ(self: Self) Vec4f {
             const Normalization: f32 = 1.0 / 106.856895;
-            return @splat(4, Normalization) * self.XYZ();
+            return @as(Vec4f, @splat(Normalization)) * self.XYZ();
         }
     };
 }

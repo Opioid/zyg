@@ -77,13 +77,13 @@ pub const Model = struct {
     }
 
     pub fn evaluateSky(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const wi_dot_z = std.math.clamp(wi[1], -1.0, 1.0);
+        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
         const theta = std.math.acos(wi_dot_z);
 
-        const cos_gamma = std.math.clamp(-math.dot3(wi, self.sun_direction), -1.0, 1.0);
+        const cos_gamma = math.clamp(-math.dot3(wi, self.sun_direction), -1.0, 1.0);
         const gamma = std.math.acos(cos_gamma);
 
-        const cos_shadow = std.math.clamp(math.dot3(wi, self.shadow_direction), -1.0, 1.0);
+        const cos_shadow = math.clamp(math.dot3(wi, self.shadow_direction), -1.0, 1.0);
         const shadow = std.math.acos(cos_shadow);
 
         var samples: [16]f32 = undefined;
@@ -112,7 +112,7 @@ pub const Model = struct {
     }
 
     pub fn evaluateSkyAndSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const wi_dot_z = std.math.clamp(wi[1], -1.0, 1.0);
+        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
         const theta = std.math.acos(wi_dot_z);
 
         var samples: [16]f32 = undefined;

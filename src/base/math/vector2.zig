@@ -21,7 +21,7 @@ pub inline fn length2(v: Vec2f) f32 {
 
 pub inline fn normalize2(v: Vec2f) Vec2f {
     const i = @sqrt(1.0 / dot2(v, v));
-    return @splat(2, i) * v;
+    return @as(Vec2f, @splat(i)) * v;
 }
 
 pub inline fn min2(a: Vec2f, b: Vec2f) Vec2f {

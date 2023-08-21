@@ -1,10 +1,11 @@
-const Debug = @import("debug/sample.zig").Sample;
-const Glass = @import("glass/sample.zig").Sample;
-const Light = @import("light/sample.zig").Sample;
-const Null = @import("null/sample.zig").Sample;
-const Substitute = @import("substitute/sample.zig").Sample;
-const Volumetric = @import("volumetric/sample.zig").Sample;
-const Base = @import("sample_base.zig").SampleBase;
+const Debug = @import("debug/debug_sample.zig").Sample;
+const Glass = @import("glass/glass_sample.zig").Sample;
+const Hair = @import("hair/hair_sample.zig").Sample;
+const Light = @import("light/light_sample.zig").Sample;
+const Null = @import("null/null_sample.zig").Sample;
+const Substitute = @import("substitute/substitute_sample.zig").Sample;
+const Volumetric = @import("volumetric/volumetric_sample.zig").Sample;
+const Base = @import("sample_base.zig").Base;
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
@@ -15,6 +16,7 @@ const Vec4f = math.Vec4f;
 pub const Sample = union(enum) {
     Debug: Debug,
     Glass: Glass,
+    Hair: Hair,
     Light: Light,
     Null: Null,
     Substitute: Substitute,
@@ -43,14 +45,14 @@ pub const Sample = union(enum) {
 
     pub fn aovAlbedo(self: *const Sample) Vec4f {
         return switch (self.*) {
-            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @splat(4, s.metallic)),
+            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @as(Vec4f, @splat(s.metallic))),
             inline else => |*s| s.super.albedo,
         };
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         return switch (self.*) {
-            .Light, .Null => bxdf.Result.init(@splat(4, @as(f32, 0.0)), 0.0),
+            .Light, .Null => bxdf.Result.init(@splat(0.0), 0.0),
             inline else => |*s| s.evaluate(wi),
         };
     }

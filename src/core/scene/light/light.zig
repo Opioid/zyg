@@ -1,6 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Ray = @import("../ray.zig").Ray;
 const Prop = @import("../prop/prop.zig").Prop;
 const Intersection = @import("../prop/intersection.zig").Intersection;
 const shp = @import("../shape/sample.zig");
@@ -13,6 +12,7 @@ const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -55,13 +55,13 @@ pub const Light align(16) = struct {
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
-        const radiance = @splat(4, extent) * average_radiance;
+        const radiance = @as(Vec4f, @splat(extent)) * average_radiance;
 
         if (scene.propShape(self.prop).finite() or scene_bb.empty()) {
             return radiance;
         }
 
-        return @splat(4, math.squaredLength3(scene_bb.extent())) * radiance;
+        return @as(Vec4f, @splat(math.squaredLength3(scene_bb.extent()))) * radiance;
     }
 
     pub fn sampleTo(self: Light, p: Vec4f, n: Vec4f, time: u64, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {
@@ -159,6 +159,10 @@ pub const Light align(16) = struct {
             .Volume => scene.propShape(self.prop).volumePdf(ray, isec.geo),
             .VolumeImage => self.volumeImagePdf(ray, isec, scene),
         };
+    }
+
+    pub fn shadowRay(self: Light, origin: Vec4f, sample: SampleTo, scene: *const Scene) Ray {
+        return scene.propShape(self.prop).shadowRay(origin, sample);
     }
 
     fn propSampleTo(

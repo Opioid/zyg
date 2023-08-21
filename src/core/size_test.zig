@@ -7,7 +7,7 @@ const intf = @import("scene/prop/interface.zig");
 const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
-const TriangleBvh = @import("scene/shape/triangle/bvh/triangle_tree.zig").Tree;
+const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
 
@@ -26,8 +26,8 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(PropIntersection, "PropIntersection", 240);
-    testType(smpl.To, "SampleTo", 112);
+    testType(PropIntersection, "PropIntersection", 256);
+    testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
@@ -35,7 +35,10 @@ pub fn testSize() void {
     testType(intf.Stack, "InterfaceStack", 400);
     testType(mt.Material, "Material", 368);
     testType(mt.Substitute, "SubstituteMaterial", 352);
-    testType(mt.Sample, "MaterialSample", 240);
+    testType(mt.Hair, "HairMaterial", 224);
+    testType(mt.Sample, "MaterialSample", 272);
+    testType(mt.Substitute, "SubstituteSample", 352);
+    testType(mt.Hair, "HairSample", 224);
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);

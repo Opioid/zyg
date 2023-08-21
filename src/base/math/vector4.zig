@@ -53,11 +53,11 @@ pub inline fn distance3(a: Vec4f, b: Vec4f) f32 {
 }
 
 pub inline fn normalize3(v: Vec4f) Vec4f {
-    return v / @splat(4, length3(v));
+    return v / @as(Vec4f, @splat(length3(v)));
 }
 
 pub inline fn reciprocal3(v: Vec4f) Vec4f {
-    return @splat(4, @as(f32, 1.0)) / v;
+    return @as(Vec4f, @splat(1.0)) / v;
 }
 
 pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
@@ -80,7 +80,7 @@ pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
 }
 
 pub inline fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
-    return @splat(4, 2.0 * dot3(v, n)) * n - v;
+    return @as(Vec4f, @splat(2.0 * dot3(v, n))) * n - v;
 }
 
 pub inline fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
@@ -123,8 +123,8 @@ pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
     };
 }
 
-pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return min4(max4(v, @splat(4, mi)), @splat(4, ma));
+pub inline fn clamp4(v: Vec4f, mi: f32, ma: f32) Vec4f {
+    return min4(max4(v, @splat(mi)), @splat(ma));
 }
 
 pub inline fn hmin3(v: Vec4f) f32 {
@@ -176,7 +176,7 @@ pub inline fn anyGreaterZero3(v: Vec4f) bool {
 }
 
 pub inline fn anyGreaterZero4(v: Vec4f) bool {
-    return @reduce(.Or, v > @splat(4, @as(f32, 0.0)));
+    return @reduce(.Or, v > @as(Vec4f, @splat(0.0)));
 }
 
 pub inline fn anyGreaterEqual4u(a: Vec4u, b: Vec4u) bool {

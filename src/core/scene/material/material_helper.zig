@@ -44,14 +44,14 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
     var tangent: Vec4f = undefined;
     if (b > epsilon) {
         const distance_to_surface_along_normal = @fabs(a) / b;
-        tangent = math.normalize3(r + @splat(4, distance_to_surface_along_normal) * n);
+        tangent = math.normalize3(r + @as(Vec4f, @splat(distance_to_surface_along_normal)) * n);
     } else {
         // For small 'b' (especially when it's zero) it's numerically challenging to compute 'tangent' as we do above.
         // For this configuration shading normal is almost tangential, so use it as a tangent vector.
         tangent = n;
     }
 
-    tangent += @splat(4, epsilon) * ng;
+    tangent += @as(Vec4f, @splat(epsilon)) * ng;
 
     return math.normalize3(wo + tangent);
 }

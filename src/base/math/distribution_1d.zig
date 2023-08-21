@@ -98,7 +98,7 @@ pub const Distribution1D = struct {
 
         if (self.size != data.len + 1) {
             self.cdf = (try alloc.realloc(self.cdf[0..self.size], data.len + 1)).ptr;
-            self.size = @as(u32, @intCast(data.len + 1));
+            self.size = @intCast(data.len + 1);
         }
 
         const ii = 1.0 / integral;
@@ -122,7 +122,7 @@ pub const Distribution1D = struct {
         if (padded_lut_size != self.lut_size) {
             self.lut = (try alloc.realloc(self.lut[0..self.lut_size], padded_lut_size)).ptr;
             self.lut_size = padded_lut_size;
-            self.lut_range = @as(f32, @floatFromInt(lut_size));
+            self.lut_range = @floatFromInt(lut_size);
         }
 
         self.lut[0] = 1;
@@ -131,7 +131,7 @@ pub const Distribution1D = struct {
         for (self.cdf[1..self.size], 1..) |cdf, i| {
             const mapped = self.map(cdf);
             if (mapped > border) {
-                const last = @as(u32, @intCast(i));
+                const last: u32 = @intCast(i);
 
                 for (self.lut[border + 1 .. mapped + 1]) |*lut| {
                     lut.* = last;
@@ -143,7 +143,7 @@ pub const Distribution1D = struct {
     }
 
     fn map(self: Self, s: f32) u32 {
-        return @as(u32, @intFromFloat(s * self.lut_range));
+        return @intFromFloat(s * self.lut_range);
     }
 };
 
@@ -202,7 +202,7 @@ pub fn Distribution1DN(comptime N: u32) type {
 fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
     for (buffer[begin..end], begin..) |b, i| {
         if (b >= key) {
-            return @as(u32, @intCast(i));
+            return @intCast(i);
         }
     }
 

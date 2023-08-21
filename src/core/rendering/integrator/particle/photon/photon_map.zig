@@ -88,7 +88,7 @@ pub const Map = struct {
         scene: *const Scene,
     ) Vec4f {
         if (0 == self.num_paths) {
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
         }
 
         return self.grid.li2(isec, sample, sampler, scene);
@@ -102,7 +102,7 @@ pub const Map = struct {
             aabb.mergeAssign(b);
         }
 
-        aabb.add(0.0001);
+        aabb.expand(0.0001);
 
         return aabb;
     }

@@ -1,12 +1,12 @@
-pub const Indexed_data = @import("indexed_data.zig").Indexed_data;
-const Trafo = @import("../../../composed_transformation.zig").ComposedTransformation;
-const Scene = @import("../../../scene.zig").Scene;
-const ro = @import("../../../ray_offset.zig");
-const Worker = @import("../../../../rendering/worker.zig").Worker;
-const Node = @import("../../../bvh/node.zig").Node;
-const NodeStack = @import("../../../bvh/node_stack.zig").NodeStack;
-const Volume = @import("../../../shape/intersection.zig").Volume;
-const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
+pub const IndexedData = @import("triangle_indexed_data.zig").IndexedData;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Scene = @import("../../scene.zig").Scene;
+const ro = @import("../../ray_offset.zig");
+const Worker = @import("../../../rendering/worker.zig").Worker;
+const Node = @import("../../bvh/node.zig").Node;
+const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
+const Volume = @import("../../shape/intersection.zig").Volume;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -26,7 +26,7 @@ pub const Tree = struct {
     };
 
     nodes: []Node = &.{},
-    data: Indexed_data = .{},
+    data: IndexedData = .{},
 
     pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         self.nodes = try alloc.alloc(Node, num_nodes);
@@ -157,7 +157,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
 
-        var vis = @splat(4, @as(f32, 1.0));
+        var vis: Vec4f = @splat(1.0);
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -221,7 +221,7 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
-        var tr = @splat(4, @as(f32, 1.0));
+        var tr: Vec4f = @splat(1.0);
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
@@ -258,7 +258,7 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
-        var tr = @splat(4, @as(f32, 1.0));
+        var tr: Vec4f = @splat(1.0);
 
         while (true) {
             const hit = self.intersect(tray) orelse break;

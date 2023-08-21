@@ -67,7 +67,7 @@ pub const Writer = struct {
                         buffer[x * 4 + 2] = 0;
                         buffer[x * 4 + 3] = 0;
                     } else {
-                        const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(4, @as(f32, 0.0))));
+                        const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(0.0)));
 
                         buffer[x + width * 0] = rgbe[0];
                         buffer[x + width * 1] = rgbe[1];
@@ -105,7 +105,7 @@ pub const Writer = struct {
                 } else {
                     const p = image.pixels[i];
 
-                    const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(4, @as(f32, 0.0))));
+                    const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(0.0)));
 
                     try writer.writeAll(&rgbe);
                 }

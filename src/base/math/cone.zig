@@ -9,7 +9,7 @@ pub fn merge(ap: Vec4f, bp: Vec4f) Vec4f {
     var a = ap;
     var b = bp;
 
-    if (math.equal(@splat(4, @as(f32, 1.0)), a)) {
+    if (math.equal(@as(Vec4f, @splat(1.0)), a)) {
         return b;
     }
 
@@ -25,7 +25,7 @@ pub fn merge(ap: Vec4f, bp: Vec4f) Vec4f {
         std.mem.swap(f32, &a_angle, &b_angle);
     }
 
-    const d_angle = std.math.acos(std.math.clamp(math.dot3(a, b), -1.0, 1.0));
+    const d_angle = std.math.acos(mima.clamp(math.dot3(a, b), -1.0, 1.0));
 
     if (mima.min(d_angle + b_angle, std.math.pi) <= a_angle) {
         return a;

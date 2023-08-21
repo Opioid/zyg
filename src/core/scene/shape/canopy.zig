@@ -33,13 +33,14 @@ pub const Canopy = struct {
         };
 
         // This is nonsense
-        isec.p = @splat(4, @as(f32, ro.Ray_max_t)) * ray.direction;
+        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;
         isec.part = 0;
+        isec.offset = 0.0;
         isec.primitive = 0;
 
         ray.setMaxT(ro.Ray_max_t);
@@ -61,12 +62,12 @@ pub const Canopy = struct {
         };
 
         return SampleTo.init(
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
             dir,
-            @splat(4, @as(f32, 0.0)),
             uvw,
             trafo,
             1.0 / (2.0 * std.math.pi),
-            ro.Ray_max_t,
         );
     }
 
@@ -77,15 +78,16 @@ pub const Canopy = struct {
             return null;
         }
 
-        const dir = diskToHemisphereEquidistant(disk);
+        const ldir = diskToHemisphereEquidistant(disk);
+        const dir = trafo.rotation.transformVector(ldir);
 
         return SampleTo.init(
-            trafo.rotation.transformVector(dir),
-            @splat(4, @as(f32, 0.0)),
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / (2.0 * std.math.pi),
-            ro.Ray_max_t,
         );
     }
 
@@ -114,10 +116,10 @@ pub const Canopy = struct {
 
         const ls_bounds = bounds.transformTransposed(rotation);
         const ls_extent = ls_bounds.extent();
-        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const ls_rect = (importance_uv - @as(Vec2f, @splat(0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
 
-        const offset = @splat(4, ls_extent[2]) * dir;
+        const offset = @as(Vec4f, @splat(ls_extent[2])) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         return SampleFrom.init(
