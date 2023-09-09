@@ -297,10 +297,11 @@ pub const Tree = struct {
 
         if (.Pass != result.event) {
             isec.prop = prop;
+            isec.part = 0;
             isec.p = vertex.ray.point(result.t);
             isec.geo_n = -vertex.ray.direction;
-            isec.offset = 0.0;
-            isec.part = 0;
+            isec.uvw = result.uvw;
+
             return true;
         }
 

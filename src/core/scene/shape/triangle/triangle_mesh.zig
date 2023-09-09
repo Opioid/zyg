@@ -440,7 +440,6 @@ pub const Mesh = struct {
             const geo_n = data.normal(hit.index);
             isec.geo_n = trafo.rotation.transformVector(geo_n);
 
-            isec.offset = 0.0;
             isec.part = data.part(hit.index);
             isec.primitive = hit.index;
 
@@ -457,7 +456,7 @@ pub const Mesh = struct {
                 isec.t = t_w;
                 isec.b = b_w;
                 isec.n = n_w;
-                isec.uv = uv;
+                isec.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
             } else {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);

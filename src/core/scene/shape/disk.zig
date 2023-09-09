@@ -43,8 +43,7 @@ pub const Disk = struct {
                 isec.b = b;
                 isec.n = normal;
                 isec.geo_n = normal;
-                isec.uv = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-                isec.offset = 0.0;
+                isec.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
                 isec.part = 0;
 
                 ray.setMaxT(hit_t);

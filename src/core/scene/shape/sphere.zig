@@ -27,7 +27,6 @@ pub const Sphere = struct {
         isec.p = p;
         isec.geo_n = n;
         isec.n = n;
-        isec.offset = 0.0;
         isec.part = 0;
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
@@ -48,7 +47,7 @@ pub const Sphere = struct {
 
         isec.t = t;
         isec.b = -math.cross3(t, n);
-        isec.uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
+        isec.uvw = .{ phi * (0.5 * math.pi_inv), theta * math.pi_inv, 0.0, 0.0 };
     }
 
     pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
@@ -340,7 +339,7 @@ pub const Sphere = struct {
 
     pub fn pdfUv(ray: Ray, isec: Intersection) f32 {
         // avoid singularity at poles
-        const sin_theta = math.max(@sin(isec.uv[1] * std.math.pi), 0.00001);
+        const sin_theta = math.max(@sin(isec.uvw[1] * std.math.pi), 0.00001);
 
         const max_t = ray.maxT();
         const sl = max_t * max_t;

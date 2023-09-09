@@ -190,10 +190,11 @@ pub const Multi = struct {
             worker,
         );
 
-        if (.Scatter == result.event) {
+        if (.Pass != result.event) {
             isec.prop = interface.prop;
-            isec.p = vertex.ray.point(result.t);
             isec.part = interface.part;
+            isec.p = vertex.ray.point(result.t);
+            isec.uvw = result.uvw;
         }
 
         isec.setVolume(result);

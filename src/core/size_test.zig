@@ -26,7 +26,7 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(Intersection, "Intersection", 224);
+    testType(Intersection, "Intersection", 208);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);

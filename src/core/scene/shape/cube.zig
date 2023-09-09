@@ -41,11 +41,11 @@ pub const Cube = struct {
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
         const n = @as(Vec4f, @splat(s)) * trafo.rotation.r[i];
 
-        isec.offset = 0.0;
         isec.part = 0;
         isec.primitive = 0;
         isec.geo_n = n;
         isec.n = n;
+        isec.uvw = @splat(0.0);
 
         if (.All == ipo) {
             const tb = math.orthonormalBasis3(n);

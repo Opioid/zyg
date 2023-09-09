@@ -27,6 +27,7 @@ pub const Volume = struct {
         return .{
             .li = @splat(0.0),
             .tr = w,
+            .uvw = @splat(0.0),
             .event = .Pass,
         };
     }
@@ -46,10 +47,7 @@ pub const Intersection = struct {
     n: Vec4f,
     vol_li: Vec4f,
     vol_tr: Vec4f,
-    vol_uvw: Vec4f,
-    uv: Vec2f,
-
-    offset: f32,
+    uvw: Vec4f,
 
     const Self = @This();
 
@@ -57,7 +55,14 @@ pub const Intersection = struct {
         self.event = vol.event;
         self.vol_li = vol.li;
         self.vol_tr = vol.tr;
-        self.vol_uvw = vol.uvw;
+    }
+
+    pub inline fn uv(self: Self) Vec2f {
+        return .{ self.uvw[0], self.uvw[1] };
+    }
+
+    pub inline fn offset(self: Self) f32 {
+        return self.uvw[3];
     }
 
     pub fn material(self: Self, scene: *const Scene) *const mat.Material {
@@ -77,7 +82,7 @@ pub const Intersection = struct {
     }
 
     pub fn opacity(self: Self, sampler: *Sampler, scene: *const Scene) f32 {
-        return self.material(scene).opacity(self.uv, sampler, scene);
+        return self.material(scene).opacity(self.uv(), sampler, scene);
     }
 
     pub inline fn subsurface(self: Self) bool {
@@ -112,7 +117,7 @@ pub const Intersection = struct {
 
         rs.ray_p = vertex.ray.origin;
 
-        rs.uv = self.uv;
+        rs.uv = self.uv();
         rs.prop = self.prop;
         rs.part = self.part;
         rs.primitive = self.primitive;
@@ -146,12 +151,11 @@ pub const Intersection = struct {
             return null;
         }
 
-        const uv = self.uv;
         return m.evaluateRadiance(
             shading_p,
             wo,
             self.geo_n,
-            .{ uv[0], uv[1], 0.0, 0.0 },
+            self.uvw,
             self.trafo,
             self.prop,
             self.part,
@@ -166,16 +170,15 @@ pub const Intersection = struct {
 
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.p;
-
         const n = if (self.sameHemisphere(v)) self.geo_n else -self.geo_n;
-        return ro.offsetRay(p + @as(Vec4f, @splat(self.offset)) * n, n);
+        return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
     }
 
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.p;
         const n = self.geo_n;
         const t = math.hmax3(@fabs(p * n));
-        return ro.offsetF(t + min_t) - t + self.offset;
+        return ro.offsetF(t + min_t) - t + self.offset();
     }
 };
 

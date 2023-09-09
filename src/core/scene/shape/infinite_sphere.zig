@@ -25,9 +25,11 @@ pub const InfiniteSphere = struct {
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
-        isec.uv = Vec2f{
+        isec.uvw = .{
             std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
+            0.0,
+            0.0,
         };
 
         // This is nonsense
@@ -37,7 +39,6 @@ pub const InfiniteSphere = struct {
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];
         isec.n = n;
-        isec.offset = 0.0;
         isec.part = 0;
         isec.primitive = 0;
 
@@ -163,7 +164,7 @@ pub const InfiniteSphere = struct {
 
     pub fn pdfUv(isec: Intersection) f32 {
         // sin_theta because of the uv weight
-        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+        const sin_theta = @sin(isec.uvw[1] * std.math.pi);
 
         if (0.0 == sin_theta) {
             return 0.0;

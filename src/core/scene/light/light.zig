@@ -349,8 +349,7 @@ pub const Light align(16) = struct {
     }
 
     fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
-        const uv = isec.uv;
-        const material_pdf = isec.material(scene).emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
+        const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
         const shape_pdf = scene.propShape(self.prop).pdfUv(ray, isec, self.two_sided);
@@ -359,7 +358,7 @@ pub const Light align(16) = struct {
     }
 
     fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
-        const material_pdf = isec.material(scene).emissionPdf(isec.vol_uvw);
+        const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
         const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec);
 
         return material_pdf * shape_pdf;

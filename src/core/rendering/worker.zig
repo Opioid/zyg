@@ -374,7 +374,7 @@ pub const Worker = struct {
             _ = self.interface_stack.remove(isec);
         } else {
             const material = isec.material(self.scene);
-            const cc = material.collisionCoefficients2D(isec.uv, sampler, self.scene);
+            const cc = material.collisionCoefficients2D(isec.uv(), sampler, self.scene);
             self.interface_stack.push(isec, cc);
         }
     }
@@ -391,7 +391,7 @@ pub const Worker = struct {
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
-        const cc = isec.material(self.scene).collisionCoefficients2D(isec.uv, sampler, self.scene);
+        const cc = isec.material(self.scene).collisionCoefficients2D(isec.uv(), sampler, self.scene);
         self.interface_stack.push(isec, cc);
 
         return ior;
