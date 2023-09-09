@@ -1,8 +1,8 @@
 const Prop = @import("prop.zig").Prop;
-const Intersection = @import("intersection.zig").Intersection;
 const Vertex = @import("../vertex.zig").Vertex;
 const Scene = @import("../scene.zig").Scene;
 const shp = @import("../shape/intersection.zig");
+const Intersection = shp.Intersection;
 const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const Node = @import("../bvh/node.zig").Node;
@@ -83,7 +83,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, vertex, scene, ipo, &isec.geo)) {
+                    if (props[p].intersect(p, vertex, scene, ipo, isec)) {
                         prop = p;
                         hit = true;
                     }
@@ -116,7 +116,7 @@ pub const Tree = struct {
 
         if (vertex.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, vertex, scene, ipo, &isec.geo)) {
+                if (props[p].intersect(p, vertex, scene, ipo, isec)) {
                     prop = p;
                     hit = true;
                 }
@@ -293,14 +293,14 @@ pub const Tree = struct {
             }
         }
 
-        isec.volume = result;
+        isec.setVolume(result);
 
         if (.Pass != result.event) {
             isec.prop = prop;
-            isec.geo.p = vertex.ray.point(result.t);
-            isec.geo.geo_n = -vertex.ray.direction;
-            isec.geo.offset = 0.0;
-            isec.geo.part = 0;
+            isec.p = vertex.ray.point(result.t);
+            isec.geo_n = -vertex.ray.direction;
+            isec.offset = 0.0;
+            isec.part = 0;
             return true;
         }
 

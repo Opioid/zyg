@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -41,7 +41,7 @@ pub const AOV = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var isec = Intersection{};
+        var isec: Intersection = undefined;
         var sampler = worker.pickSampler(0);
 
         if (!worker.nextEvent(vertex, @splat(1.0), &isec, sampler)) {
@@ -56,7 +56,7 @@ pub const AOV = struct {
             .Photons => self.photons(vertex, &isec, worker),
         };
 
-        return isec.volume.tr * result;
+        return isec.vol_tr * result;
     }
 
     fn ao(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
@@ -110,9 +110,9 @@ pub const AOV = struct {
         var vec: Vec4f = undefined;
 
         switch (self.settings.value) {
-            .Tangent => vec = isec.geo.t,
-            .Bitangent => vec = isec.geo.b,
-            .GeometricNormal => vec = isec.geo.geo_n,
+            .Tangent => vec = isec.t,
+            .Bitangent => vec = isec.b,
+            .GeometricNormal => vec = isec.geo_n,
             .ShadingNormal => {
                 if (!mat_sample.super().sameHemisphere(wo)) {
                     return .{ 0.0, 0.0, 0.0, 1.0 };
@@ -224,7 +224,7 @@ pub const AOV = struct {
                 break;
             }
 
-            throughput *= isec.volume.tr;
+            throughput *= isec.vol_tr;
 
             sampler.incrementPadding();
         }

@@ -1,6 +1,6 @@
 const Photon = @import("photon.zig").Photon;
 const Scene = @import("../../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const mat = @import("../../../../scene/material/sample_helper.zig");
@@ -533,7 +533,7 @@ pub const Grid = struct {
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
-        const position = isec.geo.p;
+        const position = isec.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -589,7 +589,7 @@ pub const Grid = struct {
     pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
-        const position = isec.geo.p;
+        const position = isec.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -681,8 +681,8 @@ pub const Grid = struct {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {
-            const trafo = scene.propTransformationAt(isec.prop, scene.current_time_start);
-            const local_position = trafo.worldToObjectPoint(isec.geo.p);
+            const trafo = isec.trafo;
+            const local_position = trafo.worldToObjectPoint(isec.p);
 
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
@@ -690,7 +690,7 @@ pub const Grid = struct {
             return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients2D(isec.geo.uv, sampler, scene).s;
+        return material.collisionCoefficients2D(isec.uv, sampler, scene).s;
     }
 };
 

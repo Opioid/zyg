@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
@@ -38,7 +38,7 @@ pub const PathtracerDL = struct {
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
 
-        var isec = Intersection{};
+        var isec: Intersection = undefined;
 
         while (true) {
             var sampler = worker.pickSampler(vertex.depth);
@@ -47,7 +47,7 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            throughput *= isec.volume.tr;
+            throughput *= isec.vol_tr;
 
             const wo = -vertex.ray.direction;
 
@@ -158,7 +158,7 @@ pub const PathtracerDL = struct {
         }
 
         const n = mat_sample.super().geometricNormal();
-        const p = isec.geo.p;
+        const p = isec.p;
 
         const translucent = mat_sample.isTranslucent();
 

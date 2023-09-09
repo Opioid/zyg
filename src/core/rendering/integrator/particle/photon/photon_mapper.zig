@@ -4,7 +4,7 @@ const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
-const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
 const ro = @import("../../../../scene/ray_offset.zig");
@@ -114,7 +114,7 @@ pub const Mapper = struct {
                 worker.interface_stack.pushVolumeLight(light);
             }
 
-            var isec = Intersection{};
+            var isec: Intersection = undefined;
             // if (!worker.interface_stack.empty()) {
             //     const vr = worker.volume(&ray, throughput, &isec, null, &self.sampler);
             //     throughput = vr.tr;
@@ -130,13 +130,13 @@ pub const Mapper = struct {
                 continue;
             }
 
-            if (.Absorb == isec.volume.event) {
+            if (.Absorb == isec.event) {
                 continue;
             }
 
-            var throughput = isec.volume.tr;
+            var throughput = isec.vol_tr;
 
-            var radiance = light.evaluateFrom(isec.geo.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+            var radiance = light.evaluateFrom(isec.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= throughput;
 
             while (vertex.depth < self.settings.max_bounces) {
@@ -164,7 +164,7 @@ pub const Mapper = struct {
                         (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or bounds.pointInside(isec.geo.p)) {
+                        if (finite_world or bounds.pointInside(isec.p)) {
                             var radi = radiance;
 
                             const material_ior = isec.material(worker.scene).ior();
@@ -175,7 +175,7 @@ pub const Mapper = struct {
                             }
 
                             self.photons[num_photons] = Photon{
-                                .p = isec.geo.p,
+                                .p = isec.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
                                 .volumetric = isec.subsurface(),
@@ -234,11 +234,11 @@ pub const Mapper = struct {
                     break;
                 }
 
-                if (.Absorb == isec.volume.event) {
+                if (.Absorb == isec.event) {
                     break;
                 }
 
-                throughput *= isec.volume.tr;
+                throughput *= isec.vol_tr;
 
                 self.sampler.incrementPadding();
             }

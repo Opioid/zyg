@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Scene = @import("../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
@@ -45,7 +45,7 @@ pub const PathtracerMIS = struct {
         var result: Vec4f = @splat(0.0);
         var geo_n: Vec4f = @splat(0.0);
 
-        var isec = Intersection{};
+        var isec: Intersection = undefined;
 
         while (true) {
             const pr = vertex.state.primary_ray;
@@ -56,7 +56,7 @@ pub const PathtracerMIS = struct {
                 break;
             }
 
-            throughput *= isec.volume.tr;
+            throughput *= isec.vol_tr;
 
             var pure_emissive: bool = undefined;
             const radiance = self.connectLight(
@@ -184,7 +184,7 @@ pub const PathtracerMIS = struct {
         const select = sampler.sample1D();
         const split = self.splitting(vertex.depth);
 
-        const lights = worker.randomLightSpatial(isec.geo.p, n, translucent, select, split);
+        const lights = worker.randomLightSpatial(isec.p, n, translucent, select, split);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
@@ -204,7 +204,7 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
-        const p = isec.geo.p;
+        const p = isec.p;
 
         const light_sample = light.sampleTo(
             p,

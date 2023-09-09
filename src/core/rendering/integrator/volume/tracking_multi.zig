@@ -1,8 +1,8 @@
 const tracking = @import("tracking.zig");
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
+const Intersection = shp.Intersection;
 const Volume = shp.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
@@ -141,7 +141,7 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(isec.prop, vertex, .Normal, &isec.geo)) {
+            if (!worker.propIntersect(isec.prop, vertex, .Normal, isec)) {
                 return false;
             }
         } else {
@@ -160,7 +160,7 @@ pub const Multi = struct {
                 const v = -vertex.ray.direction;
 
                 var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
-                var nisec: shp.Intersection = undefined;
+                var nisec: Intersection = undefined;
                 if (worker.propIntersect(interface.prop, &tvertex, .Normal, &nisec)) {
                     missed = math.dot3(nisec.geo_n, v) <= 0.0;
                 } else {
@@ -192,11 +192,11 @@ pub const Multi = struct {
 
         if (.Scatter == result.event) {
             isec.prop = interface.prop;
-            isec.geo.p = vertex.ray.point(result.t);
-            isec.geo.part = interface.part;
+            isec.p = vertex.ray.point(result.t);
+            isec.part = interface.part;
         }
 
-        isec.volume = result;
+        isec.setVolume(result);
         return true;
     }
 };

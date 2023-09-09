@@ -1,7 +1,7 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Prop = @import("../prop/prop.zig").Prop;
-const Intersection = @import("../prop/intersection.zig").Intersection;
+const Intersection = @import("../shape/intersection.zig").Intersection;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
@@ -151,12 +151,12 @@ pub const Light align(16) = struct {
                 self.variant,
                 ray,
                 n,
-                isec.geo,
+                isec,
                 self.two_sided,
                 total_sphere,
             ),
             .PropImage => self.propImagePdf(ray, isec, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(ray, isec.geo),
+            .Volume => scene.propShape(self.prop).volumePdf(ray, isec),
             .VolumeImage => self.volumeImagePdf(ray, isec, scene),
         };
     }
@@ -349,18 +349,18 @@ pub const Light align(16) = struct {
     }
 
     fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
-        const uv = isec.geo.uv;
+        const uv = isec.uv;
         const material_pdf = isec.material(scene).emissionPdf(.{ uv[0], uv[1], 0.0, 0.0 });
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = scene.propShape(self.prop).pdfUv(ray, isec.geo, self.two_sided);
+        const shape_pdf = scene.propShape(self.prop).pdfUv(ray, isec, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
     fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
-        const material_pdf = isec.material(scene).emissionPdf(isec.volume.uvw);
-        const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec.geo);
+        const material_pdf = isec.material(scene).emissionPdf(isec.vol_uvw);
+        const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec);
 
         return material_pdf * shape_pdf;
     }

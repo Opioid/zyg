@@ -2,7 +2,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
 const ro = @import("../../../scene/ray_offset.zig");
@@ -58,21 +58,21 @@ pub const Lighttracer = struct {
             worker.interface_stack.pushVolumeLight(light);
         }
 
-        var isec = Intersection{};
+        var isec: Intersection = undefined;
 
         if (!worker.nextEvent(&vertex, @splat(1.0), &isec, sampler)) {
             return;
         }
 
-        if (.Absorb == isec.volume.event) {
+        if (.Absorb == isec.event) {
             return;
         }
 
         sampler.incrementPadding();
 
-        const throughput = isec.volume.tr;
+        const throughput = isec.vol_tr;
 
-        const initrad = light.evaluateFrom(isec.geo.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+        const initrad = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
         const radiance = throughput * initrad;
 
         worker.interface_stack.clear();
@@ -166,9 +166,9 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            radiance *= isec.volume.tr;
+            radiance *= isec.vol_tr;
 
-            if (.Absorb == isec.volume.event) {
+            if (.Absorb == isec.event) {
                 break;
             }
 
@@ -223,7 +223,7 @@ pub const Lighttracer = struct {
         filter_crop[3] -= filter_crop[1] + 1;
 
         const trafo = worker.scene.propTransformationAt(camera.entity, history.time);
-        const p = isec.offsetP(math.normalize3(trafo.position - isec.geo.p));
+        const p = isec.offsetP(math.normalize3(trafo.position - isec.p));
 
         const camera_sample = camera.sampleTo(
             filter_crop,
@@ -242,7 +242,7 @@ pub const Lighttracer = struct {
         const bxdf = mat_sample.evaluate(wi);
 
         const n = mat_sample.super().interpolatedNormal();
-        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo.geo_n, n);
+        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
 
         const material_ior = isec.material(worker.scene).ior();
         if (isec.subsurface() and material_ior > 1.0) {
