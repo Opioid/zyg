@@ -221,6 +221,8 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
+        tray.setMaxT(ro.Ray_max_t);
+
         var tr: Vec4f = @splat(1.0);
 
         while (true) {
@@ -228,7 +230,7 @@ pub const Tree = struct {
             const n = data.normal(hit.index);
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.setMaxT(hit.t);
+                tray.setMaxT(math.min(hit.t, ray_max_t));
 
                 tr *= worker.propTransmittance(tray, material, entity, depth, sampler) orelse return null;
             }
@@ -238,7 +240,7 @@ pub const Tree = struct {
                 break;
             }
 
-            tray.setMinMaxT(ray_min_t, ray_max_t);
+            tray.setMinMaxT(ray_min_t, ro.Ray_max_t);
         }
 
         return tr;
@@ -258,6 +260,8 @@ pub const Tree = struct {
         const ray_max_t = ray.maxT();
 
         var tray = ray;
+        tray.setMaxT(ro.Ray_max_t);
+
         var tr: Vec4f = @splat(1.0);
 
         while (true) {
@@ -265,7 +269,7 @@ pub const Tree = struct {
             const n = data.normal(hit.index);
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.setMaxT(hit.t);
+                tray.setMaxT(math.min(hit.t, ray_max_t));
 
                 var result = worker.propScatter(tray, throughput, material, entity, depth, sampler);
 
@@ -282,7 +286,7 @@ pub const Tree = struct {
                 break;
             }
 
-            tray.setMinMaxT(ray_min_t, ray_max_t);
+            tray.setMinMaxT(ray_min_t, ro.Ray_max_t);
         }
 
         return Volume.initPass(tr);

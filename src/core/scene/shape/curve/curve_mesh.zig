@@ -1,7 +1,7 @@
 const curve = @import("curve.zig");
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const int = @import("../intersection.zig");
-const Intersection = int.Intersection;
+const Intersection = @import("../intersection.zig").Intersection;
 const Tree = @import("curve_tree.zig").Tree;
 
 const base = @import("base");
