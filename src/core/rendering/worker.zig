@@ -7,7 +7,6 @@ const rst = @import("../scene/renderstate.zig");
 const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("../scene/prop/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
@@ -16,6 +15,7 @@ const NullSample = @import("../scene/material/null/null_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
+const Intersection = shp.Intersection;
 const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
@@ -370,7 +370,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.geo.part))),
+                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part))),
             );
         }
     }
@@ -382,7 +382,7 @@ pub const Worker = struct {
             const ray_max_t = vertex.ray.maxT();
             const prop = isec.prop;
 
-            var nisec: shp.Intersection = undefined;
+            var nisec: Intersection = undefined;
             const hit = self.scene.prop(prop).intersectSSS(prop, vertex, self.scene, &nisec);
 
             if (hit) {
@@ -458,7 +458,7 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *shp.Intersection) bool {
+    pub fn propIntersect(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *Intersection) bool {
         return self.scene.prop(entity).intersect(entity, vertex, self.scene, ipo, isec);
     }
 
@@ -499,7 +499,7 @@ pub const Worker = struct {
             _ = self.interface_stack.remove(isec);
         } else {
             const material = isec.material(self.scene);
-            const cc = material.collisionCoefficients2D(isec.geo.uv, sampler, self.scene);
+            const cc = material.collisionCoefficients2D(isec.uv(), sampler, self.scene);
             self.interface_stack.push(isec, cc);
         }
     }
@@ -516,7 +516,7 @@ pub const Worker = struct {
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
 
-        const cc = isec.material(self.scene).collisionCoefficients2D(isec.geo.uv, sampler, self.scene);
+        const cc = isec.material(self.scene).collisionCoefficients2D(isec.uv(), sampler, self.scene);
         self.interface_stack.push(isec, cc);
 
         return ior;
@@ -535,8 +535,8 @@ pub const Worker = struct {
         const straight_border = vertex.state.from_subsurface;
 
         if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and !isec.sameHemisphere(wo)) {
-            const geo_n = isec.geo.geo_n;
-            const n = isec.geo.n;
+            const geo_n = isec.geo_n;
+            const n = isec.n;
 
             const vbh = material.super().border(wo, n);
             const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);

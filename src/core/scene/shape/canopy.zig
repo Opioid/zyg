@@ -27,9 +27,11 @@ pub const Canopy = struct {
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
         const disk = hemisphereToDiskEquidistant(xyz);
-        isec.uv = Vec2f{
+        isec.uvw = .{
             0.5 * disk[0] + 0.5,
             0.5 * disk[1] + 0.5,
+            0.0,
+            0.0,
         };
 
         // This is nonsense
@@ -40,7 +42,6 @@ pub const Canopy = struct {
         isec.b = trafo.rotation.r[1];
         isec.n = n;
         isec.part = 0;
-        isec.offset = 0.0;
         isec.primitive = 0;
 
         ray.setMaxT(ro.Ray_max_t);

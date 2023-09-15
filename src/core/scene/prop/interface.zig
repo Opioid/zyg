@@ -1,4 +1,4 @@
-const Intersection = @import("intersection.zig").Intersection;
+const Intersection = @import("../shape/intersection.zig").Intersection;
 const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
 const CC = @import("../material/collision_coefficients.zig").CC;
@@ -20,7 +20,7 @@ pub const Interface = struct {
     }
 
     pub fn matches(self: Interface, isec: Intersection) bool {
-        return self.prop == isec.prop and self.part == isec.geo.part;
+        return self.prop == isec.prop and self.part == isec.part;
     }
 };
 
@@ -82,7 +82,7 @@ pub const Stack = struct {
 
     pub fn push(self: *Stack, isec: Intersection, cc: CC) void {
         if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.geo.part, .cc = cc };
+            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.part, .cc = cc };
             self.index += 1;
         }
     }

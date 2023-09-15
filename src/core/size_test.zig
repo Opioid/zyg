@@ -4,7 +4,7 @@ const BvhNode = @import("scene/bvh/node.zig").Node;
 const LightNode = @import("scene/light/light_tree.zig").Node;
 const mt = @import("scene/material/material.zig");
 const intf = @import("scene/prop/interface.zig");
-const PropIntersection = @import("scene/prop/intersection.zig").Intersection;
+const Intersection = @import("scene/shape/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
@@ -26,7 +26,7 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(PropIntersection, "PropIntersection", 256);
+    testType(Intersection, "Intersection", 208);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);

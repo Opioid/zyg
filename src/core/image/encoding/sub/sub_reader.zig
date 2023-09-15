@@ -34,7 +34,12 @@ pub const Reader = struct {
 
         _ = try stream.read(json_string);
 
-        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string, .{});
+        var json_strlen = json_size;
+        while (0 == json_string[json_strlen - 1]) {
+            json_strlen -= 1;
+        }
+
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string[0..json_strlen], .{});
         defer parsed.deinit();
 
         const root = parsed.value;

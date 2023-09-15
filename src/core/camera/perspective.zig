@@ -12,7 +12,7 @@ const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
-const Intersection = @import("../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
 const tx = @import("../image/texture/texture_provider.zig");
@@ -327,7 +327,7 @@ pub const Perspective = struct {
                 time,
             );
 
-            var isec = Intersection{};
+            var isec: Intersection = undefined;
             if (scene.intersect(&vertex, .Normal, &isec)) {
                 self.focus_distance = vertex.ray.maxT() + self.focus.point[2];
             } else {

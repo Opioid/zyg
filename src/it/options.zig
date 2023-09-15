@@ -98,7 +98,11 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "tone", command)) {
-            self.operator = .Tonemap;
+            if (std.mem.eql(u8, "agx", parameter)) {
+                self.operator = .{ .Tonemap = .{ .AgX = .Substitute } };
+            } else {
+                self.operator = .{ .Tonemap = .ACES };
+            }
         }
     }
 

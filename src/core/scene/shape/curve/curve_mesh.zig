@@ -1,7 +1,7 @@
 const curve = @import("curve.zig");
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const int = @import("../intersection.zig");
-const Intersection = int.Intersection;
+const Intersection = @import("../intersection.zig").Intersection;
 const Tree = @import("curve_tree.zig").Tree;
 
 const base = @import("base");
@@ -35,13 +35,14 @@ pub const Mesh = struct {
 
             const geo_n = trafo.objectToWorldNormal(data.geo_n);
 
+            const offset = @fabs(data.v - 0.5) * trafo.scaleX() * data.width;
+
             isec.p = ray.point(hit.t);
             isec.t = t;
             isec.b = b;
             isec.n = n;
             isec.geo_n = geo_n;
-            isec.uv = .{ hit.u, data.v };
-            isec.offset = @fabs(data.v - 0.5) * trafo.scaleX() * data.width;
+            isec.uvw = .{ hit.u, data.v, 0.0, offset };
             isec.part = 0;
             isec.primitive = hit.index;
 

@@ -155,6 +155,15 @@ pub inline fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
+pub inline fn pow(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.pow(f32, a[0], b[0]),
+        std.math.pow(f32, a[1], b[1]),
+        std.math.pow(f32, a[2], b[2]),
+        std.math.pow(f32, a[3], b[3]),
+    };
+}
+
 pub inline fn equal(a: anytype, b: @TypeOf(a)) bool {
     return @reduce(.And, a == b);
 }

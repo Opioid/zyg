@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
@@ -32,7 +32,7 @@ pub const Pathtracer = struct {
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
 
-        var isec = Intersection{};
+        var isec: Intersection = undefined;
 
         while (true) {
             var sampler = worker.pickSampler(vertex.depth);
@@ -41,7 +41,7 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            throughput *= isec.volume.tr;
+            throughput *= isec.vol_tr;
 
             const wo = -vertex.ray.direction;
 

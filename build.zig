@@ -102,11 +102,11 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
             //"takes/cornell.take",
-            "takes/curve_test.take",
+            //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
-            //"takes/material_test.take",
+            "takes/material_test.take",
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",
@@ -116,7 +116,7 @@ pub fn build(b: *std.Build) void {
             //"takes/flakes.take",
             //"takes/embergen.take",
             //"takes/volume.take",
-            //"takes/intel_sponza_night.take",
+            //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",
             "-4",
@@ -130,7 +130,7 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    // const run_cmd = it.run();
+    // const run_cmd = b.addRunArtifact(it);
     // run_cmd.step.dependOn(b.getInstallStep());
     // run_cmd.cwd = "/home/beni/workspace/sprout/system";
     // if (b.args) |args| {
@@ -141,15 +141,17 @@ pub fn build(b: *std.Build) void {
     //         "-i",
     //         //"image_00000000.exr",
     //         //"image_00000001.exr",
-    //         //"image_00000003.exr",
+    //         //"image_00000064.exr",
     //         //"san_miguel.exr",
+    //         "intel_sponza_day.exr",
     //         //"Round.IES",
-    //         "ScatterLight.IES",
+    //         //"ScatterLight.IES",
     //         "-t",
     //         "-4",
-    //         //"--tone",
+    //         "--tone",
+    //         "agx",
     //         "-e",
-    //         "0.0",
+    //         "-1.0",
     //         "-f",
     //         "png",
     //     });

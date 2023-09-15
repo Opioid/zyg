@@ -37,10 +37,13 @@ pub const DistantSphere = struct {
             const k = ray.direction - n;
             const sk = k / @as(Vec4f, @splat(radius));
 
-            isec.uv[0] = (math.dot3(isec.t, sk) + 1.0) * 0.5;
-            isec.uv[1] = (math.dot3(isec.b, sk) + 1.0) * 0.5;
+            isec.uvw = .{
+                (math.dot3(isec.t, sk) + 1.0) * 0.5,
+                (math.dot3(isec.b, sk) + 1.0) * 0.5,
+                0.0,
+                0.0,
+            };
 
-            isec.offset = 0.0;
             isec.part = 0;
             isec.primitive = 0;
 

@@ -6,8 +6,8 @@ const Light = lgt.Light;
 const LightProperties = lgt.Properties;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
-const Intersection = @import("prop/intersection.zig").Intersection;
 const int = @import("shape/intersection.zig");
+const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
@@ -108,14 +108,14 @@ pub const Scene = struct {
 
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
-        try shapes.append(alloc, Shape{ .Canopy = .{} });
-        try shapes.append(alloc, Shape{ .Cube = .{} });
-        try shapes.append(alloc, Shape{ .Disk = .{} });
-        try shapes.append(alloc, Shape{ .DistantSphere = .{} });
-        try shapes.append(alloc, Shape{ .InfiniteSphere = .{} });
-        try shapes.append(alloc, Shape{ .Plane = .{} });
-        try shapes.append(alloc, Shape{ .Rectangle = .{} });
-        try shapes.append(alloc, Shape{ .Sphere = .{} });
+        try shapes.append(alloc, .{ .Canopy = .{} });
+        try shapes.append(alloc, .{ .Cube = .{} });
+        try shapes.append(alloc, .{ .Disk = .{} });
+        try shapes.append(alloc, .{ .DistantSphere = .{} });
+        try shapes.append(alloc, .{ .InfiniteSphere = .{} });
+        try shapes.append(alloc, .{ .Plane = .{} });
+        try shapes.append(alloc, .{ .Rectangle = .{} });
+        try shapes.append(alloc, .{ .Sphere = .{} });
 
         return Scene{
             .shapes = shapes,
@@ -287,7 +287,7 @@ pub const Scene = struct {
         isec: *Intersection,
     ) bool {
         if (!self.has_volumes) {
-            isec.volume = Volume.initPass(@splat(1.0));
+            isec.setVolume(Volume.initPass(@splat(1.0)));
             return false;
         }
 

@@ -11,12 +11,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Operator = struct {
-    pub const Class = enum {
+    pub const Class = union(enum) {
         Add,
         Average,
         Diff,
         Over,
-        Tonemap,
+        Tonemap: core.Tonemapper.Class,
     };
 
     class: Class,

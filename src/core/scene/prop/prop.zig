@@ -80,6 +80,9 @@ pub const Prop = struct {
         const shape_inst = scene.shape(shape);
         self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
 
+        const mid0 = materials[0];
+        var mono = true;
+
         for (materials) |mid| {
             const m = scene.material(mid);
             if (m.evaluateVisibility()) {
@@ -89,9 +92,13 @@ pub const Prop = struct {
             if (m.caustic()) {
                 self.properties.caustic = true;
             }
+
+            if (mid != mid0) {
+                mono = false;
+            }
         }
 
-        self.properties.volume = shape_inst.finite() and 1 == shape_inst.numParts() and 1.0 == scene.material(materials[0]).ior();
+        self.properties.volume = shape_inst.finite() and mono and 1.0 == scene.material(materials[0]).ior();
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
