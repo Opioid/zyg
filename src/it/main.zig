@@ -59,7 +59,13 @@ pub fn main() !void {
 
     var operator = Operator{
         .class = options.operator,
-        .tonemapper = core.Tonemapper.init(if (.Tonemap == options.operator) .ACES else .Linear, options.exposure),
+        .tonemapper = core.Tonemapper.init(
+            switch (options.operator) {
+                .Tonemap => |tmc| tmc,
+                else => .Linear,
+            },
+            options.exposure,
+        ),
         .scene = &scene,
     };
     defer operator.deinit(alloc);
