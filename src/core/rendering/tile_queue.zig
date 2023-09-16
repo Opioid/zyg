@@ -73,6 +73,55 @@ pub const TileQueue = struct {
     }
 };
 
+pub fn TileStackN(comptime Area: u32) type {
+    return struct {
+        current: u32,
+        end: u32,
+
+        buffer: [Area]Vec4i,
+
+        const Self = @This();
+
+        pub fn empty(self: Self) bool {
+            return 0 == self.end;
+        }
+
+        pub fn clear(self: *Self) void {
+            self.current = 0;
+            self.end = 0;
+        }
+
+        pub fn push(self: *Self, tile: Vec4i) void {
+            if (tile[0] <= tile[2] and tile[1] <= tile[3]) {
+                self.buffer[self.end] = tile;
+                self.end += 1;
+            }
+        }
+
+        pub fn pushQuartet(self: *Self, tile: Vec4i, comptime d: i32) void {
+            const mx = @min(tile[0] + d, tile[2]);
+            const my = @min(tile[1] + d, tile[3]);
+
+            self.push(.{ tile[0], tile[1], mx, my });
+            self.push(.{ mx + 1, tile[1], tile[2], my });
+            self.push(.{ tile[0], my + 1, mx, tile[3] });
+            self.push(.{ mx + 1, my + 1, tile[2], tile[3] });
+        }
+
+        pub fn pop(self: *Self) ?Vec4i {
+            const current = self.current;
+
+            if (current >= self.end) {
+                return null;
+            }
+
+            self.current += 1;
+
+            return self.buffer[current];
+        }
+    };
+}
+
 pub const RangeQueue = struct {
     pub const Result = struct {
         it: u32,

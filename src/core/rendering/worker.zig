@@ -8,6 +8,7 @@ const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const TileStackN = @import("tile_queue.zig").TileStackN;
 const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
@@ -47,6 +48,8 @@ pub const Worker = struct {
     const Tile_area = Tile_dimensions * Tile_dimensions;
     const Tile_cells = 4 + 16 + 64;
 
+    const TileStack = TileStackN(Tile_area);
+
     camera: *cam.Perspective align(64) = undefined,
     scene: *Scene = undefined,
 
@@ -62,12 +65,6 @@ pub const Worker = struct {
     lighttracer: lt.Lighttracer = undefined,
 
     aov: aov.Value = undefined,
-
-    old_ms: [Tile_area]Vec4f = undefined,
-    old_ss: [Tile_area]f32 = undefined,
-    qms: [Tile_area]f32 = undefined,
-    cell_qms: [Tile_cells]f32 = undefined,
-    cell_qms_work: [Tile_cells]f32 = undefined,
 
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
@@ -118,7 +115,7 @@ pub const Worker = struct {
     pub fn render(
         self: *Worker,
         frame: u32,
-        tile: Vec4i,
+        target_tile: Vec4i,
         iteration: u32,
         num_samples: u32,
         num_expected_samples: u32,
@@ -136,169 +133,127 @@ pub const Worker = struct {
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
 
-        //
-        // 0 16 / 1 = 16
-        // 1 16 / 2 = 8
-        // 2 16 / 4 = 4
-        // 3 16 / 8 = 2
-        // 4 16 / 16 = 1
+        var old_ms: [Tile_area]Vec4f = undefined;
+        var old_ss: [Tile_area]f32 = undefined;
 
-        @memset(&self.old_ms, @as(Vec4f, @splat(0.0)));
-        @memset(&self.old_ss, 0.0);
+        @memset(&old_ms, @as(Vec4f, @splat(0.0)));
+        @memset(&old_ss, 0.0);
 
-        var tile_qm_work: f32 = undefined;
+        var tile_stacks: [2]TileStack = undefined;
+
+        var stack_a = &tile_stacks[0];
+        var stack_b = &tile_stacks[1];
+
+        stack_a.clear();
+        stack_a.push(target_tile);
 
         var ss: u32 = 0;
         while (ss < num_samples) {
-            @memcpy(&self.cell_qms, &self.cell_qms_work);
-            @memset(&self.cell_qms_work, 0.0);
-            const tile_qm = tile_qm_work;
-            tile_qm_work = 0.0;
-
             const s_end = @min(ss + step, num_samples);
 
-            const y_back = tile[3];
-            var y: i32 = tile[1];
-            var yy: u32 = 0;
-            while (y <= y_back) : (y += 1) {
-                const x_back = tile[2];
-                var x: i32 = tile[0];
-                var xx: u32 = 0;
-                const pixel_n: u32 = @intCast(y * r[0]);
-                while (x <= x_back) : (x += 1) {
-                    const ii = yy * Tile_dimensions + xx;
-                    const pp = Vec2i{ @intCast(xx), @intCast(yy) };
-                    xx += 1;
+            stack_b.clear();
 
-                    const c1 = 0 + coordToZorder(pp >> @as(@Vector(2, u5), @splat(3)));
-                    const c2 = 4 + coordToZorder(pp >> @as(@Vector(2, u5), @splat(2)));
-                    const c3 = 20 + coordToZorder(pp >> @as(@Vector(2, u5), @splat(1)));
+            while (stack_a.pop()) |tile| {
+                const y_back = tile[3];
+                var y = tile[1];
+                var yy = @rem(y, Tile_dimensions);
 
-                    if (ss >= 1024) {
-                        if (self.qms[ii] < qm_threshold) {
-                            continue;
+                var tile_qm: f32 = 0.0;
+
+                while (y <= y_back) : (y += 1) {
+                    const x_back = tile[2];
+                    var x = tile[0];
+                    var xx = @rem(x, Tile_dimensions);
+                    const pixel_n: u32 = @intCast(y * r[0]);
+
+                    while (x <= x_back) : (x += 1) {
+                        const ii: u32 = @intCast(yy * Tile_dimensions + xx);
+                        xx += 1;
+
+                        const pixel_id = pixel_n + @as(u32, @intCast(x));
+
+                        const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
+                        const tsi: u32 = @truncate(sample_index);
+                        const seed = @as(u32, @truncate(sample_index >> 32)) + so;
+
+                        rng.start(0, sample_index);
+                        self.samplers[0].startPixel(tsi, seed);
+
+                        self.photon = @splat(0.0);
+
+                        const pixel = Vec2i{ x, y };
+
+                        var old_m = old_ms[ii];
+                        var old_s = old_ss[ii];
+
+                        var new_m: Vec4f = undefined;
+                        var new_s: f32 = undefined;
+
+                        for (ss..s_end) |s| {
+                            self.aov.clear();
+
+                            var sample = self.samplers[0].cameraSample(pixel);
+                            var vertex = camera.generateVertex(&sample, frame, scene);
+
+                            self.resetInterfaceStack(&camera.interface_stack);
+                            const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);
+
+                            var photon = self.photon;
+                            if (photon[3] > 0.0) {
+                                photon /= @splat(photon[3]);
+                                photon[3] = 0.0;
+                            }
+
+                            const clamped = sensor.addSample(sample, color + photon, self.aov);
+                            const value = clamped.last;
+
+                            new_m = clamped.mean;
+                            new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
+
+                            // set up for next iteration
+                            old_m = new_m;
+                            old_s = new_s;
+
+                            self.samplers[0].incrementSample();
                         }
-                    } else if (ss >= 512) {
-                        if (self.cell_qms[c3] < qm_threshold) {
-                            continue;
-                        }
-                    } else if (ss >= 256) {
-                        if (self.cell_qms[c2] < qm_threshold) {
-                            continue;
-                        }
-                    } else if (ss >= 128) {
-                        if (self.cell_qms[c1] < qm_threshold) {
-                            continue;
-                        }
-                    } else if (ss >= 64) {
-                        if (tile_qm < qm_threshold) {
-                            continue;
-                        }
+
+                        old_ms[ii] = old_m;
+                        old_ss[ii] = old_s;
+
+                        const variance = new_s * new_m[3];
+                        const mam = math.max(math.hmax3(new_m), 0.0001);
+
+                        const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.4) else @log(math.max(variance, 1.0)) / mam;
+
+                        tile_qm = math.max(tile_qm, qm);
                     }
 
-                    const pixel_id = pixel_n + @as(u32, @intCast(x));
-
-                    const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
-                    const tsi: u32 = @truncate(sample_index);
-                    const seed = @as(u32, @truncate(sample_index >> 32)) + so;
-
-                    rng.start(0, sample_index);
-                    self.samplers[0].startPixel(tsi, seed);
-
-                    self.photon = @splat(0.0);
-
-                    const pixel = Vec2i{ x, y };
-
-                    var old_m = self.old_ms[ii];
-                    var old_s = self.old_ss[ii];
-
-                    var new_m: Vec4f = undefined;
-                    var new_s: f32 = undefined;
-
-                    for (ss..s_end) |s| {
-                        self.aov.clear();
-
-                        var sample = self.samplers[0].cameraSample(pixel);
-                        var vertex = camera.generateVertex(&sample, frame, scene);
-
-                        self.resetInterfaceStack(&camera.interface_stack);
-                        const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);
-
-                        var photon = self.photon;
-                        if (photon[3] > 0.0) {
-                            photon /= @splat(photon[3]);
-                            photon[3] = 0.0;
-                        }
-
-                        const clamped = sensor.addSample(sample, color + photon, self.aov);
-                        const value = clamped.last;
-
-                        new_m = clamped.mean;
-                        new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
-
-                        // set up for next iteration
-                        old_m = new_m;
-                        old_s = new_s;
-
-                        self.samplers[0].incrementSample();
-                    }
-
-                    self.old_ms[ii] = old_m;
-                    self.old_ss[ii] = old_s;
-
-                    const variance = new_s * new_m[3];
-                    const mam = math.max(math.hmax3(new_m), 0.0001);
-
-                    //const qm = if (mam < 1.0) @sqrt(variance / mam) else std.math.pow(f32, variance, 1.0 / 2.4) / mam;
-
-                    const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.4) else @log(math.max(variance, 1.0)) / mam;
-
-                    self.qms[ii] = qm;
-                    tile_qm_work = math.max(tile_qm_work, qm);
-                    self.cell_qms_work[c1] = math.max(self.cell_qms_work[c1], qm);
-                    self.cell_qms_work[c2] = math.max(self.cell_qms_work[c2], qm);
-                    self.cell_qms_work[c3] = math.max(self.cell_qms_work[c3], qm);
+                    yy += 1;
                 }
 
-                yy += 1;
+                if (tile_qm > qm_threshold or (tile_qm > 0.0 and ss < 64)) {
+                    if (ss == 128) {
+                        stack_b.pushQuartet(tile, Tile_dimensions / 2 - 1);
+                    } else if (ss == 256) {
+                        stack_b.pushQuartet(tile, Tile_dimensions / 4 - 1);
+                    } else if (ss == 512) {
+                        stack_b.pushQuartet(tile, Tile_dimensions / 8 - 1);
+                    } else if (ss == 1024) {
+                        stack_b.pushQuartet(tile, Tile_dimensions / 16 - 1);
+                    } else {
+                        stack_b.push(tile);
+                    }
+                }
             }
 
-            if (0.0 == tile_qm_work) {
+            if (stack_b.empty()) {
                 break;
             }
 
             ss += step;
+
+            std.mem.swap(TileStack, stack_a, stack_b);
         }
-    }
-
-    // https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/
-
-    // "Insert" a 0 bit after each of the 16 low bits of x
-    fn part1By1(v: u32) u32 {
-        var x = v & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
-        x = (x ^ (x << 8)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
-        x = (x ^ (x << 4)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
-        x = (x ^ (x << 2)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
-        x = (x ^ (x << 1)) & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
-        return x;
-    }
-
-    // Inverse of Part1By1 - "delete" all odd-indexed bits
-    fn compact1By1(v: u32) u32 {
-        var x = v & 0x55555555; // x = -f-e -d-c -b-a -9-8 -7-6 -5-4 -3-2 -1-0
-        x = (x ^ (x >> 1)) & 0x33333333; // x = --fe --dc --ba --98 --76 --54 --32 --10
-        x = (x ^ (x >> 2)) & 0x0f0f0f0f; // x = ---- fedc ---- ba98 ---- 7654 ---- 3210
-        x = (x ^ (x >> 4)) & 0x00ff00ff; // x = ---- ---- fedc ba98 ---- ---- 7654 3210
-        x = (x ^ (x >> 8)) & 0x0000ffff; // x = ---- ---- ---- ---- fedc ba98 7654 3210
-        return x;
-    }
-
-    fn coordToZorder(v: Vec2i) u32 {
-        return (part1By1(@as(u32, @intCast(v[1]))) << 1) + part1By1(@as(u32, @intCast(v[0])));
-    }
-
-    fn zorderToCoord(z: u32) Vec2i {
-        return .{ @as(i32, @intCast(compact1By1(z >> 0))), @as(i32, @intCast(compact1By1(z >> 1))) };
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
