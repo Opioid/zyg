@@ -5,30 +5,28 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const To = struct {
-    wi: Vec4f,
+    p: Vec4f,
     n: Vec4f,
+    wi: Vec4f,
     uvw: Vec4f,
     trafo: Trafo,
 
-    pub fn init(wi: Vec4f, n: Vec4f, uvw: Vec4f, trafo: Trafo, pdf_: f32, off: f32) To {
+    pub fn init(p: Vec4f, n: Vec4f, wi: Vec4f, uvw: Vec4f, trafo: Trafo, pdf_: f32) To {
         return .{
-            .wi = .{ wi[0], wi[1], wi[2], pdf_ },
-            .n = .{ n[0], n[1], n[2], off },
+            .p = .{ p[0], p[1], p[2], pdf_ },
+            .n = n,
+            .wi = wi,
             .uvw = uvw,
             .trafo = trafo,
         };
     }
 
     pub fn pdf(self: To) f32 {
-        return self.wi[3];
+        return self.p[3];
     }
 
     pub fn mulAssignPdf(self: *To, s: f32) void {
-        self.wi[3] *= s;
-    }
-
-    pub fn offset(self: To) f32 {
-        return self.n[3];
+        self.p[3] *= s;
     }
 };
 

@@ -170,7 +170,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             };
 
             try self.resources.append(alloc, item.data);
-            const id = @intCast(u32, self.resources.items.len - 1);
+            const id = @as(u32, @intCast(self.resources.items.len - 1));
 
             try self.entries.put(
                 alloc,
@@ -189,7 +189,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             self: *Self,
             alloc: Allocator,
             id: u32,
-            data: usize,
+            data: *align(8) const anyopaque,
             options: Variants,
             resources: *Resources,
         ) !u32 {
@@ -207,7 +207,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         }
 
         pub fn getLast(self: *const Self) ?*T {
-            return self.get(@intCast(u32, self.resources.items.len - 1));
+            return self.get(@as(u32, @intCast(self.resources.items.len - 1)));
         }
 
         pub fn getByName(self: *const Self, name: []const u8, options: Variants) ?u32 {
@@ -226,7 +226,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         pub fn store(self: *Self, alloc: Allocator, id: u32, item: T) !u32 {
             if (id >= self.resources.items.len) {
                 try self.resources.append(alloc, item);
-                return @intCast(u32, self.resources.items.len - 1);
+                return @as(u32, @intCast(self.resources.items.len - 1));
             } else {
                 self.resources.items[id].deinit(alloc);
                 self.resources.items[id] = item;

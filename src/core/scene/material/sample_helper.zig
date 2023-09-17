@@ -11,17 +11,17 @@ pub inline fn absDotC(a: Vec4f, b: Vec4f, c: bool) f32 {
 }
 
 pub inline fn clamp(x: f32) f32 {
-    return std.math.clamp(x, Dot_min, 1.0);
+    return math.clamp(x, Dot_min, 1.0);
 }
 
 pub inline fn clampAbs(x: f32) f32 {
-    return std.math.clamp(@fabs(x), Dot_min, 1.0);
+    return math.clamp(@fabs(x), Dot_min, 1.0);
 }
 
 pub inline fn clampDot(a: Vec4f, b: Vec4f) f32 {
-    return std.math.clamp(math.dot3(a, b), Dot_min, 1.0);
+    return math.clamp(math.dot3(a, b), Dot_min, 1.0);
 }
 
 pub inline fn clampAbsDot(a: Vec4f, b: Vec4f) f32 {
-    return std.math.clamp(@fabs(math.dot3(a, b)), Dot_min, 1.0);
+    return math.clamp(@fabs(math.dot3(a, b)), Dot_min, 1.0);
 }

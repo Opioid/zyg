@@ -1,14 +1,17 @@
-const log = @import("../../../log.zig");
-const Mesh = @import("mesh.zig").Mesh;
-const Shape = @import("../shape.zig").Shape;
-const Resources = @import("../../../resource/manager.zig").Manager;
-const Result = @import("../../../resource/result.zig").Result;
-const vs = @import("vertex_stream.zig");
-const IndexTriangle = @import("triangle.zig").IndexTriangle;
-const Tree = @import("bvh/triangle_tree.zig").Tree;
-const Builder = @import("bvh/triangle_tree_builder.zig").Builder;
-const file = @import("../../../file/file.zig");
-const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
+const log = @import("../../log.zig");
+const Shape = @import("shape.zig").Shape;
+const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
+const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
+const tvb = @import("triangle/vertex_buffer.zig");
+const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
+const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
+const TriangleBuilder = @import("triangle/triangle_tree_builder.zig").Builder;
+const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
+const HairReader = @import("curve/hair_reader.zig").Reader;
+const Resources = @import("../../resource/manager.zig").Manager;
+const Result = @import("../../resource/result.zig").Result;
+const file = @import("../../file/file.zig");
+const ReadStream = @import("../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
 const json = base.json;
@@ -22,6 +25,7 @@ const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
 const ThreadContext = Threads.Context;
 const Variants = base.memory.VariantMap;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -68,7 +72,7 @@ const Error = error{
 pub const Provider = struct {
     pub const Description = struct {
         num_parts: u32,
-        num_triangles: u32,
+        num_primitives: u32,
         num_vertices: u32,
         positions_stride: u32,
         normals_stride: u32,
@@ -87,10 +91,10 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: Tree = .{},
+    tree: TriangleTree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
-    vertices: vs.VertexStream = undefined,
+    vertices: tvb.Buffer = undefined,
     desc: Description = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
@@ -108,7 +112,7 @@ pub const Provider = struct {
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
                 .TriangleMesh => |*m| {
-                    std.mem.swap(Tree, &m.tree, &self.tree);
+                    std.mem.swap(TriangleTree, &m.tree, &self.tree);
                     m.calculateAreas();
                 },
                 else => {},
@@ -125,7 +129,22 @@ pub const Provider = struct {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
-            if (file.Type.SUB == file.queryType(&stream)) {
+            if (file.Type.HAIR == file.queryType(&stream)) {
+                var curves = try HairReader.read(alloc, &stream);
+                defer {
+                    alloc.free(curves.curves);
+                    curves.vertices.deinit(alloc);
+                }
+
+                var mesh = CurveMesh{};
+
+                var builder = try CurveBuilder.init(alloc, 16, 64, 4);
+                defer builder.deinit(alloc);
+
+                try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
+
+                return .{ .data = .{ .CurveMesh = mesh } };
+            } else if (file.Type.SUB == file.queryType(&stream)) {
                 const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
@@ -137,18 +156,15 @@ pub const Provider = struct {
             const buffer = try stream.readAll(alloc);
             defer alloc.free(buffer);
 
-            var parser = std.json.Parser.init(alloc, false);
-            defer parser.deinit();
-
-            var document = parser.parse(buffer) catch |e| {
+            var parsed = std.json.parseFromSlice(std.json.Value, alloc, buffer, .{}) catch |e| {
                 log.err("Loading mesh \"{s}\": {}", .{ name, e });
                 return e;
             };
-            defer document.deinit();
+            defer parsed.deinit();
 
-            const root = document.root;
+            const root = parsed.value;
 
-            var iter = root.Object.iterator();
+            var iter = root.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "geometry", entry.key_ptr.*)) {
                     try loadGeometry(alloc, &handler, entry.value_ptr.*);
@@ -165,11 +181,11 @@ pub const Provider = struct {
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
             for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(i);
             }
         }
 
-        var mesh = try Mesh.init(alloc, @intCast(u32, handler.parts.items.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
 
         for (handler.parts.items, 0..) |p, i| {
             mesh.setMaterialForPart(i, p.material_index);
@@ -189,21 +205,20 @@ pub const Provider = struct {
     pub fn loadData(
         self: *Provider,
         alloc: Allocator,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
         resources: *Resources,
     ) !Shape {
         _ = options;
 
-        const desc = @intToPtr(*Description, data);
+        const desc = @as(*const Description, @ptrCast(data));
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
-        var mesh = try Mesh.init(alloc, num_parts);
+        var mesh = try TriangleMesh.init(alloc, num_parts);
 
         if (desc.num_parts > 0 and null != desc.parts) {
-            var i: u32 = 0;
-            while (i < num_parts) : (i += 1) {
+            for (0..num_parts) |i| {
                 mesh.setMaterialForPart(i, desc.parts.?[i * 3 + 2]);
             }
         } else {
@@ -222,11 +237,11 @@ pub const Provider = struct {
     }
 
     fn buildAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @as(*Provider, @ptrCast(context));
 
         const handler = self.handler;
 
-        const vertices = vs.VertexStream{ .Separate = vs.Separate.init(
+        const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
             handler.positions.items,
             handler.normals.items,
             handler.tangents.items,
@@ -240,10 +255,10 @@ pub const Provider = struct {
     }
 
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                const parts = entry.value_ptr.Array.items;
+                const parts = entry.value_ptr.array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
 
@@ -258,10 +273,10 @@ pub const Provider = struct {
                     });
                 }
             } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
-                var viter = entry.value_ptr.Object.iterator();
+                var viter = entry.value_ptr.object.iterator();
                 while (viter.next()) |ventry| {
                     if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
-                        const positions = ventry.value_ptr.Array.items;
+                        const positions = ventry.value_ptr.array.items;
                         const num_positions = positions.len / 3;
 
                         handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
@@ -275,7 +290,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
-                        const normals = ventry.value_ptr.Array.items;
+                        const normals = ventry.value_ptr.array.items;
                         const num_normals = normals.len / 3;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
@@ -289,7 +304,7 @@ pub const Provider = struct {
                             );
                         }
                     } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
-                        const tangents = ventry.value_ptr.*.Array.items;
+                        const tangents = ventry.value_ptr.array.items;
                         const num_tangents = tangents.len / 4;
 
                         handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangents);
@@ -309,7 +324,7 @@ pub const Provider = struct {
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
                         log.warning("It is reading tangent space", .{});
-                        const tangent_spaces = ventry.value_ptr.*.Array.items;
+                        const tangent_spaces = ventry.value_ptr.array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
                         handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
@@ -344,7 +359,7 @@ pub const Provider = struct {
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
-                        const uvs = ventry.value_ptr.Array.items;
+                        const uvs = ventry.value_ptr.array.items;
                         const num_uvs = uvs.len / 2;
 
                         handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
@@ -359,23 +374,23 @@ pub const Provider = struct {
                     }
                 }
             } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                const indices = entry.value_ptr.Array.items;
+                const indices = entry.value_ptr.array.items;
                 const num_triangles = indices.len / 3;
 
                 handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
                 try handler.triangles.resize(alloc, num_triangles);
 
                 for (handler.triangles.items, 0..) |*t, i| {
-                    t.*.i[0] = @intCast(u32, indices[i * 3 + 0].Integer);
-                    t.*.i[1] = @intCast(u32, indices[i * 3 + 1].Integer);
-                    t.*.i[2] = @intCast(u32, indices[i * 3 + 2].Integer);
-                    t.*.part = 0;
+                    t.i[0] = @intCast(indices[i * 3 + 0].integer);
+                    t.i[1] = @intCast(indices[i * 3 + 1].integer);
+                    t.i[2] = @intCast(indices[i * 3 + 2].integer);
+                    t.part = 0;
                 }
             }
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !Mesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !TriangleMesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -405,18 +420,22 @@ pub const Provider = struct {
 
             _ = try stream.read(json_string);
 
-            var parser = std.json.Parser.init(alloc, false);
-            defer parser.deinit();
+            var json_strlen = json_size;
+            while (0 == json_string[json_strlen - 1]) {
+                json_strlen -= 1;
+            }
 
-            var document = try parser.parse(std.mem.sliceTo(json_string, 0));
-            defer document.deinit();
+            var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string[0..json_strlen], .{});
+            defer parsed.deinit();
 
-            const geometry_node = document.root.Object.get("geometry") orelse return Error.NoGeometryNode;
+            const root = parsed.value;
 
-            var iter = geometry_node.Object.iterator();
+            const geometry_node = root.object.get("geometry") orelse return Error.NoGeometryNode;
+
+            var iter = geometry_node.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
-                    const parts_slice = entry.value_ptr.Array.items;
+                    const parts_slice = entry.value_ptr.array.items;
 
                     parts = try alloc.alloc(Part, parts_slice.len);
 
@@ -426,7 +445,7 @@ pub const Provider = struct {
                         parts[i].material_index = json.readUIntMember(p, "material_index", 0);
                     }
                 } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
-                    var viter = entry.value_ptr.Object.iterator();
+                    var viter = entry.value_ptr.object.iterator();
                     while (viter.next()) |vn| {
                         if (std.mem.eql(u8, "binary", vn.key_ptr.*)) {
                             vertices_offset = json.readUInt64Member(vn.value_ptr.*, "offset", 0);
@@ -434,7 +453,7 @@ pub const Provider = struct {
                         } else if (std.mem.eql(u8, "num_vertices", vn.key_ptr.*)) {
                             num_vertices = json.readUInt(vn.value_ptr.*);
                         } else if (std.mem.eql(u8, "layout", vn.key_ptr.*)) {
-                            for (vn.value_ptr.Array.items) |ln| {
+                            for (vn.value_ptr.array.items) |ln| {
                                 const semantic_name = json.readStringMember(ln, "semantic_name", "");
                                 if (std.mem.eql(u8, "Tangent", semantic_name)) {
                                     has_tangents = true;
@@ -455,7 +474,7 @@ pub const Provider = struct {
                         }
                     }
                 } else if (std.mem.eql(u8, "indices", entry.key_ptr.*)) {
-                    var iiter = entry.value_ptr.Object.iterator();
+                    var iiter = entry.value_ptr.object.iterator();
                     while (iiter.next()) |in| {
                         if (std.mem.eql(u8, "binary", in.key_ptr.*)) {
                             indices_offset = json.readUInt64Member(in.value_ptr.*, "offset", 0);
@@ -492,7 +511,7 @@ pub const Provider = struct {
             // Handle legacy files, that curiously worked because of Gzip_stream bug!
             // (seekg() was not implemented properly)
             const Sizeof_vertex = 48;
-            num_vertices = @intCast(u32, vertices_size / Sizeof_vertex);
+            num_vertices = @intCast(vertices_size / Sizeof_vertex);
 
             if (!interleaved_vertex_stream) {
                 const Vertex_unpadded_size = 3 * 4 + 3 * 4 + 3 * 4 + 2 * 4 + 1;
@@ -502,7 +521,7 @@ pub const Provider = struct {
 
         try stream.seekTo(binary_start + vertices_offset);
 
-        var vertices: vs.VertexStream = undefined;
+        var vertices: tvb.Buffer = undefined;
 
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
@@ -517,7 +536,7 @@ pub const Provider = struct {
                 var uvs = try alloc.alloc(Vec2f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                vertices = vs.VertexStream{ .SeparateQuat = vs.SeparateQuat.init(
+                vertices = tvb.Buffer{ .SeparateQuat = tvb.SeparateQuat.init(
                     positions,
                     ts,
                     uvs,
@@ -536,7 +555,7 @@ pub const Provider = struct {
                     var bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         tangents,
@@ -544,7 +563,7 @@ pub const Provider = struct {
                         bts,
                     ) };
                 } else {
-                    vertices = vs.VertexStream{ .Separate = vs.Separate.initOwned(
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
                         &.{},
@@ -556,7 +575,7 @@ pub const Provider = struct {
         }
 
         if (0 == num_indices) {
-            num_indices = @intCast(u32, indices_size / index_bytes);
+            num_indices = @intCast(indices_size / index_bytes);
         }
 
         try stream.seekTo(binary_start + indices_offset);
@@ -565,7 +584,7 @@ pub const Provider = struct {
 
         _ = try stream.read(indices);
 
-        var mesh = try Mesh.init(alloc, @intCast(u32, parts.len));
+        var mesh = try TriangleMesh.init(alloc, @intCast(parts.len));
 
         for (parts, 0..) |p, i| {
             if (p.start_index + p.num_indices > num_indices) {
@@ -593,7 +612,7 @@ pub const Provider = struct {
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @as(*Provider, @ptrCast(context));
 
         const num_triangles = self.num_indices / 3;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
@@ -621,9 +640,9 @@ pub const Provider = struct {
     }
 
     fn buildDescAsync(context: ThreadContext) void {
-        const self = @intToPtr(*Provider, context);
+        const self = @as(*Provider, @ptrCast(context));
 
-        const num_triangles = self.desc.num_triangles;
+        const num_triangles = self.desc.num_primitives;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
@@ -673,7 +692,7 @@ pub const Provider = struct {
 
         const null_floats = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
 
-        const vertices = vs.VertexStream{ .C = vs.CAPI.init(
+        const vertices = tvb.Buffer{ .C = tvb.CAPI.init(
             desc.num_vertices,
             desc.positions_stride,
             desc.normals_stride,
@@ -690,12 +709,12 @@ pub const Provider = struct {
 
     fn buildBVH(
         alloc: Allocator,
-        tree: *Tree,
+        tree: *TriangleTree,
         triangles: []const IndexTriangle,
-        vertices: vs.VertexStream,
+        vertices: tvb.Buffer,
         threads: *Threads,
     ) !void {
-        var builder = try Builder.init(alloc, 16, 64, 4);
+        var builder = try TriangleBuilder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
         try builder.build(alloc, tree, triangles, vertices, threads);
@@ -713,14 +732,12 @@ pub const Provider = struct {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
-                const jj = triangles_start + j;
+            for (triangles[triangles_start..triangles_end], triangles_start..) |*t, j| {
+                t.i[0] = @intCast(indices[j * 3 + 0]);
+                t.i[1] = @intCast(indices[j * 3 + 1]);
+                t.i[2] = @intCast(indices[j * 3 + 2]);
 
-                t.*.i[0] = @intCast(u32, indices[jj * 3 + 0]);
-                t.*.i[1] = @intCast(u32, indices[jj * 3 + 1]);
-                t.*.i[2] = @intCast(u32, indices[jj * 3 + 2]);
-
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(i);
             }
         }
     }
@@ -739,19 +756,17 @@ pub const Provider = struct {
             const triangles_start = p.start_index / 3;
             const triangles_end = (p.start_index + p.num_indices) / 3;
 
-            for (triangles[triangles_start..triangles_end], 0..) |*t, j| {
-                const jj = triangles_start + j;
+            for (triangles[triangles_start..triangles_end], triangles_start..) |*t, j| {
+                const a = previous_index + @as(i32, @intCast(indices[j * 3 + 0]));
+                t.i[0] = @intCast(a);
 
-                const a = previous_index + @intCast(i32, indices[jj * 3 + 0]);
-                t.*.i[0] = @intCast(u32, a);
+                const b = a + @as(i32, @intCast(indices[j * 3 + 1]));
+                t.*.i[1] = @intCast(b);
 
-                const b = a + @intCast(i32, indices[jj * 3 + 1]);
-                t.*.i[1] = @intCast(u32, b);
+                const c = b + @as(i32, @intCast(indices[j * 3 + 2]));
+                t.i[2] = @intCast(c);
 
-                const c = b + @intCast(i32, indices[jj * 3 + 2]);
-                t.*.i[2] = @intCast(u32, c);
-
-                t.*.part = @intCast(u32, i);
+                t.part = @intCast(i);
 
                 previous_index = c;
             }

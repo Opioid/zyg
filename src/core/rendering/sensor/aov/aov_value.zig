@@ -7,21 +7,22 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 
 pub const Value = struct {
-    pub const Class = enum(u5) {
+    pub const Class = enum(u4) {
         Albedo,
         Depth,
         MaterialId,
+        GeometricNormal,
         ShadingNormal,
 
         pub fn default(class: Class) Vec4f {
             return switch (class) {
-                .Depth => @splat(4, @as(f32, std.math.f32_max)),
-                else => @splat(4, @as(f32, 0.0)),
+                .Depth => @splat(std.math.floatMax(f32)),
+                else => @splat(0.0),
             };
         }
 
         pub fn activeIn(class: Class, slots: u32) bool {
-            const bit = @as(u32, 1) << @enumToInt(class);
+            const bit = @as(u32, 1) << @intFromEnum(class);
             return 0 != (slots & bit);
         }
 
@@ -30,7 +31,7 @@ pub const Value = struct {
                 .Albedo => .Color,
                 .Depth => .Depth,
                 .MaterialId => .Id,
-                .ShadingNormal => .Normal,
+                .GeometricNormal, .ShadingNormal => .Normal,
             };
         }
     };
@@ -54,9 +55,9 @@ pub const Value = struct {
             return;
         }
 
-        var i: u5 = 0;
+        var i: u4 = 0;
         while (i < Num_classes) : (i += 1) {
-            const class = @intToEnum(Class, i);
+            const class = @as(Class, @enumFromInt(i));
             if (self.activeClass(class)) {
                 self.values[i] = class.default();
             }
@@ -64,11 +65,11 @@ pub const Value = struct {
     }
 
     pub fn insert3(self: *Value, class: Class, value: Vec4f) void {
-        self.values[@enumToInt(class)] = value;
+        self.values[@intFromEnum(class)] = value;
     }
 
     pub fn insert1(self: *Value, class: Class, value: f32) void {
-        self.values[@enumToInt(class)][0] = value;
+        self.values[@intFromEnum(class)][0] = value;
     }
 };
 
@@ -84,7 +85,7 @@ pub const Factory = struct {
     }
 
     pub fn set(self: *Factory, class: Value.Class, value: bool) void {
-        const bit = @as(u32, 1) << @enumToInt(class);
+        const bit = @as(u32, 1) << @intFromEnum(class);
 
         if (value) {
             self.slots |= bit;

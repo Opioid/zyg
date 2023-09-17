@@ -39,15 +39,15 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 
     const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
 
-    const f_avg = @splat(4, @as(f32, 20.0 / 21.0)) * f0;
+    const f_avg = @as(Vec4f, @splat(20.0 / 21.0)) * f0;
 
-    const f = ((f_avg * f_avg) * @splat(4, e_avg)) / (@splat(4, @as(f32, 1.0)) - f_avg * @splat(4, 1.0 - e_avg));
+    const f = ((f_avg * f_avg) * @as(Vec4f, @splat(e_avg))) / (@as(Vec4f, @splat(1.0)) - f_avg * @as(Vec4f, @splat(1.0 - e_avg)));
 
-    return @splat(4, m) * f;
+    return @as(Vec4f, @splat(m)) * f;
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
-    return std.math.max(roughness, Min_roughness);
+    return math.max(roughness, Min_roughness);
 }
 
 pub fn mapRoughness(roughness: f32) f32 {
@@ -55,7 +55,6 @@ pub fn mapRoughness(roughness: f32) f32 {
 }
 
 const ResultF = struct { r: bxdf.Result, f: Vec4f };
-const ResultF1 = struct { r: bxdf.Result, f: f32 };
 
 pub const Iso = struct {
     pub inline fn reflection(
@@ -87,7 +86,9 @@ pub const Iso = struct {
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
 
-        const refl = @splat(4, d * g[0]) * f;
+        //   fresnel_result.* = f;
+
+        const refl = @as(Vec4f, @splat(d * g[0])) * f;
         const pdf = pdfVisible(d, g[1]);
 
         return .{ .r = bxdf.Result.init(refl, pdf), .f = f };
@@ -103,10 +104,10 @@ pub const Iso = struct {
         result: *bxdf.Sample,
     ) f32 {
         var n_dot_h: f32 = undefined;
-        const h = Aniso.sample(wo, @splat(2, alpha), xi, frame, &n_dot_h);
+        const h = Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
-        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
         const alpha2 = alpha * alpha;
@@ -115,7 +116,7 @@ pub const Iso = struct {
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
 
-        result.reflection = @splat(4, d * g[0]) * f;
+        result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
@@ -134,7 +135,7 @@ pub const Iso = struct {
         alpha: f32,
         ior: IoR,
         fresnel: anytype,
-    ) ResultF1 {
+    ) bxdf.Result {
         const alpha2 = alpha * alpha;
 
         const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
@@ -156,7 +157,7 @@ pub const Iso = struct {
 
         const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
 
-        return .{ .r = bxdf.Result.init(@splat(4, refl), pdf * (abs_wi_dot_h * sqr_eta_t / denom)), .f = f };
+        return bxdf.Result.init(@splat(refl), pdf * f * (abs_wi_dot_h * sqr_eta_t / denom));
     }
 
     pub fn reflectNoFresnel(
@@ -170,7 +171,7 @@ pub const Iso = struct {
         frame: Frame,
         result: *bxdf.Sample,
     ) f32 {
-        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
         const alpha2 = alpha * alpha;
@@ -178,7 +179,7 @@ pub const Iso = struct {
         const d = distribution(n_dot_h, alpha2);
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
 
-        result.reflection = @splat(4, d * g[0]);
+        result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
@@ -205,7 +206,7 @@ pub const Iso = struct {
         const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
         const abs_wo_dot_h = hlp.clampAbs(wo_dot_h);
 
-        const wi = math.normalize3(@splat(4, eta * abs_wo_dot_h - abs_wi_dot_h) * h - @splat(4, eta) * wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(eta * abs_wo_dot_h - abs_wi_dot_h)) * h - @as(Vec4f, @splat(eta)) * wo);
 
         const n_dot_wi = frame.clampAbsNdot(wi);
 
@@ -220,7 +221,7 @@ pub const Iso = struct {
         const sqr_eta_t = ior.eta_t * ior.eta_t;
         const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
 
-        result.reflection = @splat(4, (factor * sqr_eta_t / denom) * refr);
+        result.reflection = @splat((factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.h = h;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
@@ -236,10 +237,10 @@ pub const Iso = struct {
     }
 
     fn visibilityAndG1Wo(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) Vec2f {
-        const n_dot = Vec4f{ n_dot_wi, n_dot_wo, 0.0, 0.0 };
-        const a2 = @splat(4, alpha2);
+        const n_dot = Vec2f{ n_dot_wi, n_dot_wo };
+        const a2: Vec2f = @splat(alpha2);
 
-        const t = @sqrt(a2 + (@splat(4, @as(f32, 1.0)) - a2) * (n_dot * n_dot));
+        const t = @sqrt(a2 + (@as(Vec2f, @splat(1.0)) - a2) * (n_dot * n_dot));
 
         const t_wi = t[0];
         const t_wo = t[1];
@@ -300,7 +301,7 @@ pub const Aniso = struct {
 
         const f = fresnel.f(wo_dot_h);
 
-        const refl = @splat(4, d * g[0]) * f;
+        const refl = @as(Vec4f, @splat(d * g[0])) * f;
         const pdf = pdfVisible(d, g[1]);
 
         return .{ .r = bxdf.Result.init(refl, pdf), .f = f };
@@ -327,7 +328,7 @@ pub const Aniso = struct {
 
         const wo_dot_h = hlp.clampDot(wo, h);
 
-        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
 
@@ -342,7 +343,7 @@ pub const Aniso = struct {
 
         const f = fresnel.f(wo_dot_h);
 
-        result.reflection = @splat(4, d * g[0]) * f;
+        result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
@@ -370,7 +371,7 @@ pub const Aniso = struct {
         const x_dot_h = math.dot3(frame.t, h);
         const y_dot_h = math.dot3(frame.b, h);
 
-        const wi = math.normalize3(@splat(4, 2.0 * wo_dot_h) * h - wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
 
@@ -383,7 +384,7 @@ pub const Aniso = struct {
 
         const g = visibilityAndG1Wo(t_dot_wi, t_dot_wo, b_dot_wi, b_dot_wo, n_dot_wi, n_dot_wo, alpha);
 
-        result.reflection = @splat(4, d * g[0]);
+        result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.h = h;
         result.pdf = pdfVisible(d, g[1]);
@@ -393,34 +394,22 @@ pub const Aniso = struct {
         return n_dot_wi;
     }
 
+    // Sampling Visible GGX Normals with Spherical Caps
+    // Jonathan Dupuy, Anis Benyoub
+    // https://arxiv.org/pdf/2306.05044.pdf
+
     pub fn sample(wo: Vec4f, alpha: Vec2f, xi: Vec2f, frame: Frame, n_dot_h: *f32) Vec4f {
         const lwo = frame.worldToTangent(wo);
-
-        // stretch view
         const v = math.normalize3(.{ alpha[0] * lwo[0], alpha[1] * lwo[1], lwo[2], 0.0 });
 
-        // orthonormal basis
-        const cross_v_z = math.normalize3(.{ v[1], -v[0], 0.0, 0.0 }); // == cross(v, [0, 0, 1])
+        const phi = 2.0 * std.math.pi * xi[0];
+        const z = @mulAdd(f32, 1.0 - xi[1], 1.0 + v[2], -v[2]);
+        const sin_theta = @sqrt(math.saturate(1.0 - z * z));
+        const x = sin_theta * @cos(phi);
+        const y = sin_theta * @sin(phi);
 
-        const t1 = if (v[2] < 0.9999) cross_v_z else Vec4f{ 1.0, 0.0, 0.0, 0.0 };
-        const t2 = Vec4f{ t1[1] * v[2], -t1[0] * v[2], t1[0] * v[1] - t1[1] * v[0], 0.0 };
-
-        // sample point with polar coordinates (r, phi)
-        const a = 1.0 / (1.0 + v[2]);
-        const r = @sqrt(xi[0]);
-        const phi = if (xi[1] < a) (xi[1] / a * std.math.pi) else (std.math.pi + (xi[1] - a) / (1.0 - a) * std.math.pi);
-
-        const sin_phi = @sin(phi);
-        const cos_phi = @cos(phi);
-
-        const p1 = r * cos_phi;
-        const p2 = r * sin_phi * (if (xi[1] < a) 1.0 else v[2]);
-
-        // compute normal
-        var m = @splat(4, p1) * t1 + @splat(4, p2) * t2 + @splat(4, @sqrt(std.math.max(1.0 - p1 * p1 - p2 * p2, 0.0))) * v;
-
-        // unstretch
-        m = math.normalize3(.{ alpha[0] * m[0], alpha[1] * m[1], std.math.max(m[2], 0.0), 0.0 });
+        const h = Vec4f{ x, y, z, 0.0 } + v;
+        const m = math.normalize3(.{ alpha[0] * h[0], alpha[1] * h[1], h[2], 0.0 });
 
         n_dot_h.* = hlp.clamp(m[2]);
 

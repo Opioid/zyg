@@ -1,16 +1,16 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("../sample.zig").Sample;
-const Volumetric = @import("sample.zig").Sample;
+const Sample = @import("volumetric_sample.zig").Sample;
 const Gridtree = @import("gridtree.zig").Gridtree;
 const Builder = @import("gridtree_builder.zig").Builder;
 const ccoef = @import("../collision_coefficients.zig");
 const CC = ccoef.CC;
 const CCE = ccoef.CCE;
-const Null = @import("../null/sample.zig").Sample;
+const Null = @import("../null/null_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const hlp = @import("../material_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
@@ -40,13 +40,13 @@ pub const Material = struct {
 
     tree: Gridtree = .{},
 
-    average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
+    average_emission: Vec4f = @splat(-1.0),
     a_norm: Vec4f = undefined,
     pdf_factor: f32 = undefined,
 
     pub fn init() Material {
         return .{ .super = .{
-            .sampler_key = .{ .filter = .Linear, .address = .{ .u = .Clamp, .v = .Clamp } },
+            .sampler_key = .{ .filter = ts.Default_filter, .address = .{ .u = .Clamp, .v = .Clamp } },
             .ior = 1.0,
         } };
     }
@@ -58,12 +58,13 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
-        self.average_emission = @splat(4, @as(f32, -1.0));
+        self.average_emission = @splat(-1.0);
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
             math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
+        self.super.properties.evaluate_visibility = true;
 
         if (self.density_map.valid()) {
             try Builder.build(
@@ -84,9 +85,8 @@ pub const Material = struct {
 
             self.blackbody = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.2, Num_samples);
 
-            var i: u32 = 0;
-            while (i < Num_samples) : (i += 1) {
-                const t = Start + @intToFloat(f32, i) / @intToFloat(f32, Num_samples - 1) * (End - Start);
+            for (0..Num_samples) |i| {
+                const t = Start + @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(Num_samples - 1)) * (End - Start);
 
                 const c = spectrum.blackbody(t);
 
@@ -114,10 +114,10 @@ pub const Material = struct {
 
         const d = self.density_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @intCast(usize, d[0] * d[1] * d[2])) catch return @splat(4, @as(f32, 0.0));
+        var luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(0.0);
         defer alloc.free(luminance);
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         {
             var context = LuminanceContext{
@@ -125,73 +125,69 @@ pub const Material = struct {
                 .scene = scene,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d[2]), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @as(u32, @intCast(d[2])), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }
 
-        const num_pixels = @intToFloat(f32, d[0] * d[1] * d[2]);
+        const num_pixels = @as(f32, @floatFromInt(d[0] * d[1] * d[2]));
 
-        const average_emission = avg / @splat(4, num_pixels);
+        const average_emission = avg / @as(Vec4f, @splat(num_pixels));
 
         {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
                 .d = d,
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, d[2])) catch
-                    return @splat(4, @as(f32, 0.0)),
+                .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[2]))) catch
+                    return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d[2]), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @as(u32, @intCast(d[2])), 0);
         }
 
         self.distribution.configure(alloc) catch
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
 
         self.average_emission = average_emission;
 
         const cca = self.super.cc.a;
         const majorant_a = math.hmax3(cca);
-        self.a_norm = @splat(4, majorant_a) / cca;
+        self.a_norm = @as(Vec4f, @splat(majorant_a)) / cca;
         self.pdf_factor = num_pixels / majorant_a;
 
         return average_emission;
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
-        if (rs.subsurface) {
-            const gs = self.super.vanDeHulstAnisotropy(rs.depth);
-            return .{ .Volumetric = Volumetric.init(wo, rs, gs) };
-        }
-
-        return .{ .Null = Null.init(wo, rs) };
+        const gs = self.super.vanDeHulstAnisotropy(rs.depth);
+        return Sample.init(wo, rs, gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
 
-        const key = ts.resolveKey(self.super.sampler_key, .Nearest);
+        const key = self.super.sampler_key;
 
         const emission = if (self.temperature_map.valid())
-            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, scene))
+            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene))
         else
             self.super.emittance.value;
 
         if (2 == self.density_map.numChannels()) {
-            const d = ts.sample3D_2(key, self.density_map, uvw, scene);
-            return @splat(4, d[0] * d[1]) * self.a_norm * emission;
+            const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
+            return @as(Vec4f, @splat(d[0] * d[1])) * self.a_norm * emission;
         } else {
-            const d = ts.sample3D_1(key, self.density_map, uvw, scene);
-            return @splat(4, d) * self.a_norm * emission;
+            const d = ts.sample3D_1(key, self.density_map, uvw, sampler, scene);
+            return @as(Vec4f, @splat(d)) * self.a_norm * emission;
         }
     }
 
@@ -212,33 +208,37 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) f32 {
+    pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) f32 {
         if (self.density_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
-            return ts.sample3D_1(key, self.density_map, uvw, scene);
+            return ts.sample3D_1(self.super.sampler_key, self.density_map, uvw, sampler, scene);
         }
 
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, filter: ?ts.Filter, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(
+        self: *const Material,
+        uvw: Vec4f,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
+            const key = self.super.sampler_key;
 
-            const t = ts.sample3D_1(key, self.temperature_map, uvw, scene);
+            const t = ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
-                const d = ts.sample3D_2(key, self.density_map, uvw, scene);
-                const d0 = @splat(4, d[0]);
+                const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
+                const d0: Vec4f = @splat(d[0]);
                 return .{
                     .cc = .{ .a = d0 * cc.a, .s = d0 * cc.s },
-                    .e = @splat(4, d[1]) * e,
+                    .e = @as(Vec4f, @splat(d[1])) * e,
                 };
             } else {
-                const d = @splat(4, ts.sample3D_1(key, self.density_map, uvw, scene));
+                const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
                 return .{
                     .cc = .{ .a = d * cc.a, .s = d * cc.s },
                     .e = d * e,
@@ -246,7 +246,7 @@ pub const Material = struct {
             }
         }
 
-        const d = @splat(4, self.density(uvw, filter, scene));
+        const d: Vec4f = @splat(self.density(uvw, sampler, scene));
         return .{
             .cc = .{ .a = d * cc.a, .s = d * cc.s },
             .e = self.super.emittance.value,
@@ -261,14 +261,14 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*LuminanceContext, context);
+        const self = @as(*LuminanceContext, @ptrCast(context));
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene).dimensions;
-        const width = @intCast(u32, d[0]);
-        const height = @intCast(u32, d[1]);
+        const width = @as(u32, @intCast(d[0]));
+        const height = @as(u32, @intCast(d[1]));
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         if (2 == mat.density_map.numChannels()) {
             var z = begin;
@@ -280,19 +280,19 @@ const LuminanceContext = struct {
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
                         const density = mat.density_map.get3D_2(
-                            @intCast(i32, x),
-                            @intCast(i32, y),
-                            @intCast(i32, z),
+                            @as(i32, @intCast(x)),
+                            @as(i32, @intCast(y)),
+                            @as(i32, @intCast(z)),
                             self.scene,
                         );
                         const t = mat.temperature_map.get3D_1(
-                            @intCast(i32, x),
-                            @intCast(i32, y),
-                            @intCast(i32, z),
+                            @as(i32, @intCast(x)),
+                            @as(i32, @intCast(y)),
+                            @as(i32, @intCast(z)),
                             self.scene,
                         );
                         const c = mat.blackbody.eval(t);
-                        const radiance = @splat(4, density[0] * density[1]) * c;
+                        const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
                         self.luminance[slice + row + x] = spectrum.luminance(radiance);
 
@@ -315,10 +315,10 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*DistributionContext, context);
+        const self = @as(*DistributionContext, @ptrCast(@alignCast(context)));
         const d = self.d;
-        const width = @intCast(u32, d[0]);
-        const height = @intCast(u32, d[1]);
+        const width = @as(u32, @intCast(d[0]));
+        const height = @as(u32, @intCast(d[1]));
 
         var z = begin;
         while (z < end) : (z += 1) {
@@ -333,7 +333,7 @@ const DistributionContext = struct {
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
                     const l = luminance_row[x];
-                    const p = std.math.max(l - self.al, 0.0);
+                    const p = math.max(l - self.al, 0.0);
                     luminance_row[x] = p;
                 }
 

@@ -10,7 +10,7 @@ const Allocator = @import("std").mem.Allocator;
 pub const Buffer = struct {
     slots: u32 = 0,
 
-    buffers: [aov.Value.Num_classes][]Pack4f = .{ &.{}, &.{}, &.{}, &.{} },
+    buffers: [aov.Value.Num_classes][]Pack4f = .{&.{}} ** aov.Value.Num_classes,
 
     const Self = @This();
 
@@ -24,7 +24,7 @@ pub const Buffer = struct {
         self.slots = factory.slots;
 
         for (&self.buffers, 0..) |*b, i| {
-            if (factory.activeClass(@intToEnum(aov.Value.Class, i)) and len > b.len) {
+            if (factory.activeClass(@enumFromInt(i)) and len > b.len) {
                 b.* = try alloc.realloc(b.*, len);
             }
         }
@@ -32,10 +32,10 @@ pub const Buffer = struct {
 
     pub fn clear(self: *Self) void {
         for (&self.buffers, 0..) |*b, i| {
-            const class = @intToEnum(aov.Value.Class, i);
+            const class: aov.Value.Class = @enumFromInt(i);
             if (class.activeIn(self.slots)) {
+                const default = class.default();
                 for (b.*) |*p| {
-                    const default = class.default();
                     p.v = Vec4f{ default[0], default[1], default[2], 0.0 };
                 }
             }
@@ -47,11 +47,12 @@ pub const Buffer = struct {
             return;
         }
 
-        const pixels = self.buffers[@enumToInt(class)];
+        const pixels = self.buffers[@intFromEnum(class)];
 
-        if (.Albedo == class or .ShadingNormal == class) {
+        const encoding = class.encoding();
+        if (.Color == encoding or .Normal == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
-                const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @splat(4, p.v[3]);
+                const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @as(Vec4f, @splat(p.v[3]));
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
             }
         } else {
@@ -62,7 +63,7 @@ pub const Buffer = struct {
     }
 
     pub fn addPixel(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
-        const wc = @splat(4, weight) * value;
+        const wc = @as(Vec4f, @splat(weight)) * value;
 
         const pixels = self.buffers[slot];
         var dest: Vec4f = pixels[id].v;

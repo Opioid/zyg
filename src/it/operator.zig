@@ -3,6 +3,7 @@ const scn = core.scn;
 
 const base = @import("base");
 const math = base.math;
+const Vec4f = math.Vec4f;
 const Pack4f = math.Pack4f;
 const Threads = base.thread.Pool;
 
@@ -10,12 +11,12 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Operator = struct {
-    pub const Class = enum {
+    pub const Class = union(enum) {
         Add,
         Average,
         Diff,
         Over,
-        Tonemap,
+        Tonemap: core.Tonemapper.Class,
     };
 
     class: Class,
@@ -46,24 +47,24 @@ pub const Operator = struct {
 
     pub fn iterations(self: Self) u32 {
         return switch (self.class) {
-            .Diff => @intCast(u32, self.textures.items.len - 1),
-            .Tonemap => @intCast(u32, self.textures.items.len),
+            .Diff => @intCast(self.textures.items.len - 1),
+            .Tonemap => @intCast(self.textures.items.len),
             else => 1,
         };
     }
 
-    pub fn run(self: Self, threads: *Threads) void {
+    pub fn run(self: *Self, threads: *Threads) void {
         const texture = self.textures.items[self.current];
 
         const dim = texture.description(self.scene).dimensions;
 
-        _ = threads.runRange(&self, runRange, 0, @intCast(u32, dim[1]), 0);
+        _ = threads.runRange(self, runRange, 0, @intCast(dim[1]), 0);
     }
 
     fn runRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        var self = @intToPtr(*Self, context);
+        const self = @as(*Self, @ptrCast(@alignCast(context)));
 
         if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
@@ -74,11 +75,11 @@ pub const Operator = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const iy = @intCast(i32, y);
+                const iy = @as(i32, @intCast(y));
 
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const ix = @intCast(i32, x);
+                    const ix = @as(i32, @intCast(x));
 
                     const color_a = texture_a.get2D_4(ix, iy, self.scene);
                     const color_b = texture_b.get2D_4(ix, iy, self.scene);
@@ -95,15 +96,15 @@ pub const Operator = struct {
             const dim = texture.description(self.scene).dimensions;
             const width = dim[0];
 
-            const factor = @splat(4, if (.Average == self.class) 1.0 / @intToFloat(f32, self.textures.items.len) else 1.0);
+            const factor: Vec4f = @splat(if (.Average == self.class) 1.0 / @as(f32, @floatFromInt(self.textures.items.len)) else 1.0);
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const iy = @intCast(i32, y);
+                const iy = @as(i32, @intCast(y));
 
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const ix = @intCast(i32, x);
+                    const ix = @as(i32, @intCast(x));
 
                     const source = texture.get2D_4(ix, iy, self.scene);
 
@@ -123,7 +124,7 @@ pub const Operator = struct {
 
                             for (self.textures.items[current + 1 ..]) |t| {
                                 const other = t.get2D_4(ix, iy, self.scene);
-                                color += other * @splat(4, 1.0 - color[3]);
+                                color += other * @as(Vec4f, @splat(1.0 - color[3]));
                             }
 
                             break :blk color;

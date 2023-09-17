@@ -4,6 +4,7 @@ const Mat3x3 = math.Mat3x3;
 const Mat4x4 = math.Mat4x4;
 const quaternion = math.quaternion;
 const Transformation = math.Transformation;
+const Ray = math.Ray;
 
 pub const ComposedTransformation = struct {
     rotation: Mat3x3 = undefined,
@@ -52,9 +53,9 @@ pub const ComposedTransformation = struct {
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
         const s = self.scale();
 
-        const a = self.rotation.r[0] * @splat(4, s[0]);
-        const b = self.rotation.r[1] * @splat(4, s[1]);
-        const c = self.rotation.r[2] * @splat(4, s[2]);
+        const a = self.rotation.r[0] * @as(Vec4f, @splat(s[0]));
+        const b = self.rotation.r[1] * @as(Vec4f, @splat(s[1]));
+        const c = self.rotation.r[2] * @as(Vec4f, @splat(s[2]));
 
         // return Vec4f{
         //     v[0] * a[0] + v[1] * b[0] + v[2] * c[0],
@@ -63,12 +64,12 @@ pub const ComposedTransformation = struct {
         //     0.0,
         // };
 
-        var result = @splat(4, v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * a;
-        var temp = @splat(4, v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
         temp = temp * b;
         result = result + temp;
-        temp = @splat(4, v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
         temp = temp * c;
         return result + temp;
     }
@@ -94,5 +95,14 @@ pub const ComposedTransformation = struct {
 
     pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {
         return self.rotation.transformVectorTransposed(n);
+    }
+
+    pub fn worldToObjectRay(self: Self, ray: Ray) Ray {
+        return Ray.init(
+            self.worldToObjectPoint(ray.origin),
+            self.worldToObjectVector(ray.direction),
+            ray.minT(),
+            ray.maxT(),
+        );
     }
 };

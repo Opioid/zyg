@@ -1,8 +1,9 @@
 const Photon = @import("photon.zig").Photon;
 const Grid = @import("photon_grid.zig").Grid;
 const Scene = @import("../../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -55,18 +56,18 @@ pub const Map = struct {
 
         self.grid.initCells(self.photons[0..num_photons]);
 
-        const total_num_photons = @intCast(u32, self.photons.len);
+        const total_num_photons = @as(u32, @intCast(self.photons.len));
 
         const reduced_num = if (num_photons == total_num_photons)
             self.grid.reduce(self.photons, threads)
         else
             num_photons;
 
-        const percentage_left = @intToFloat(f32, reduced_num) / @intToFloat(f32, total_num_photons);
+        const percentage_left = @as(f32, @floatFromInt(reduced_num)) / @as(f32, @floatFromInt(total_num_photons));
 
         std.debug.print(
             "{} left of {} ({}%)\n",
-            .{ reduced_num, total_num_photons, @floatToInt(u32, 100.0 * percentage_left) },
+            .{ reduced_num, total_num_photons, @as(u32, @intFromFloat(100.0 * percentage_left)) },
         );
 
         self.reduced_num = reduced_num;
@@ -79,12 +80,18 @@ pub const Map = struct {
         self.grid.setNumPaths(self.num_paths);
     }
 
-    pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(
+        self: *const Self,
+        isec: Intersection,
+        sample: *const MaterialSample,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
         if (0 == self.num_paths) {
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
         }
 
-        return self.grid.li2(isec, sample, scene);
+        return self.grid.li2(isec, sample, sampler, scene);
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {
@@ -95,13 +102,13 @@ pub const Map = struct {
             aabb.mergeAssign(b);
         }
 
-        aabb.add(0.0001);
+        aabb.expand(0.0001);
 
         return aabb;
     }
 
     fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*Self, context);
+        const self = @as(*Self, @ptrCast(@alignCast(context)));
 
         var aabb = math.aabb.Empty;
         for (self.photons[begin..end]) |p| {

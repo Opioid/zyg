@@ -1,9 +1,10 @@
 const Tree = @import("triangle_tree.zig").Tree;
-const tri = @import("../triangle.zig");
+const tri = @import("triangle.zig");
 const IndexTriangle = tri.IndexTriangle;
-const VertexStream = @import("../vertex_stream.zig").VertexStream;
-const Reference = @import("../../../bvh/split_candidate.zig").Reference;
-const Base = @import("../../../bvh/builder_base.zig").Base;
+const VertexBuffer = @import("vertex_buffer.zig").Buffer;
+const Reference = @import("../../bvh/split_candidate.zig").Reference;
+const Base = @import("../../bvh/builder_base.zig").Base;
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -28,11 +29,9 @@ pub const Builder = struct {
         alloc: Allocator,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: VertexStream,
+        vertices: VertexBuffer,
         threads: *Threads,
     ) !void {
-        try self.super.reserve(alloc, @intCast(u32, triangles.len));
-
         var context = ReferencesContext{
             .references = try alloc.alloc(Reference, triangles.len),
             .aabbs = try alloc.alloc(AABB, threads.numThreads()),
@@ -40,7 +39,7 @@ pub const Builder = struct {
             .vertices = &vertices,
         };
 
-        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(u32, triangles.len), @sizeOf(Reference));
+        const num = threads.runRange(&context, ReferencesContext.run, 0, @intCast(triangles.len), @sizeOf(Reference));
 
         var bounds = math.aabb.Empty;
         for (context.aabbs[0..num]) |b| {
@@ -63,10 +62,10 @@ pub const Builder = struct {
         references: []Reference,
         aabbs: []AABB,
         triangles: [*]const IndexTriangle,
-        vertices: *const VertexStream,
+        vertices: *const VertexBuffer,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*ReferencesContext, context);
+            const self = @as(*ReferencesContext, @ptrCast(@alignCast(context)));
 
             var bounds = math.aabb.Empty;
 
@@ -79,7 +78,7 @@ pub const Builder = struct {
                 const max = tri.max(a, b, c);
 
                 const r = i + begin;
-                self.references[r].set(min, max, @intCast(u32, r));
+                self.references[r].set(min, max, @intCast(r));
 
                 bounds.bounds[0] = math.min4(bounds.bounds[0], min);
                 bounds.bounds[1] = math.max4(bounds.bounds[1], max);
@@ -95,7 +94,7 @@ pub const Builder = struct {
         dest_node: u32,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: VertexStream,
+        vertices: VertexBuffer,
         current_triangle: *u32,
     ) void {
         const node = self.super.kernel.build_nodes.items[source_node];
@@ -115,17 +114,15 @@ pub const Builder = struct {
             self.serialize(source_child0 + 1, child0 + 1, tree, triangles, vertices, current_triangle);
         } else {
             var i = current_triangle.*;
-            const num = node.numIndices();
+
             tree.nodes[dest_node] = n;
 
-            const ro = node.children();
+            const begin = node.children();
+            const end = node.indicesEnd();
 
-            var p = ro;
-            var end = ro + num;
-
-            while (p < end) : (p += 1) {
+            for (begin..end) |p| {
                 const t = triangles[self.super.kernel.reference_ids.items[p]];
-                tree.data.setTriangle(t.i[0], t.i[1], t.i[2], t.part, vertices, i);
+                tree.data.setTriangle(i, t.i[0], t.i[1], t.i[2], t.part, vertices);
 
                 i += 1;
             }

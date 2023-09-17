@@ -19,7 +19,7 @@ pub const Lambert = struct {
 
         const n_dot_wi = frame.clampNdot(wi);
 
-        result.reflection = @splat(4, @as(f32, math.pi_inv)) * color;
+        result.reflection = @as(Vec4f, @splat(@as(f32, math.pi_inv))) * color;
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
         result.class = .{ .diffuse = true, .reflection = true };
@@ -82,6 +82,6 @@ pub const Micro = struct {
         const e_wi = E_tex.eval(n_dot_wi, alpha, f0m);
         const e_avg = E_avg_tex.eval(alpha, f0m);
 
-        return @splat(4, ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg))) * color;
+        return @as(Vec4f, @splat(((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg)))) * color;
     }
 };

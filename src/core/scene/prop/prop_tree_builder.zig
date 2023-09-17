@@ -29,9 +29,7 @@ pub const Builder = struct {
         aabbs: []const AABB,
         threads: *Threads,
     ) !void {
-        const num_primitives = @intCast(u32, indices.len);
-
-        try self.super.reserve(alloc, num_primitives);
+        const num_primitives: u32 = @intCast(indices.len);
 
         if (0 == num_primitives) {
             try tree.allocateIndices(alloc, 0);
@@ -48,8 +46,7 @@ pub const Builder = struct {
 
             references[i].set(b.bounds[0], b.bounds[1], prop);
 
-            bounds.bounds[0] = math.min4(bounds.bounds[0], b.bounds[0]);
-            bounds.bounds[1] = math.max4(bounds.bounds[1], b.bounds[1]);
+            bounds.mergeAssign(b);
         }
 
         try self.super.split(alloc, references, bounds, threads);
@@ -85,14 +82,14 @@ pub const Builder = struct {
             self.serialize(source_child0, child0, tree, current_prop);
             self.serialize(source_child0 + 1, child0 + 1, tree, current_prop);
         } else {
-            var i = current_prop.*;
+            const i = current_prop.*;
             const num = node.numIndices();
             n.setLeafNode(i, num);
             tree.nodes[dest_node] = n;
 
             const begin = node.children();
             const indices = self.super.kernel.reference_ids.items[begin .. begin + num];
-            std.mem.copy(u32, tree.indices[i .. i + num], indices);
+            @memcpy(tree.indices[i .. i + num], indices);
 
             current_prop.* += num;
         }

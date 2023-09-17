@@ -5,6 +5,8 @@ pub usingnamespace @import("distribution_1d.zig");
 pub usingnamespace @import("distribution_2d.zig");
 pub usingnamespace @import("distribution_3d.zig");
 pub usingnamespace @import("interpolated_function.zig");
+const minmax = @import("minmax.zig");
+pub usingnamespace minmax;
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;
 pub usingnamespace @import("matrix3x3.zig");
@@ -33,19 +35,18 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
 }
 
 pub inline fn saturate(x: f32) f32 {
-    return std.math.clamp(x, 0.0, 1.0);
+    return minmax.clamp(x, 0.0, 1.0);
 }
 
-pub inline fn lerp(a: anytype, b: anytype, t: f32) @TypeOf(a, b) {
+pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
     switch (@typeInfo(@TypeOf(a))) {
-        .Float => {
+        inline .ComptimeFloat, .Float => {
             const u = 1.0 - t;
             return @mulAdd(f32, u, a, t * b);
         },
-        .Vector => |v| {
-            const l = comptime v.len;
-            const u = 1.0 - t;
-            return @mulAdd(@TypeOf(a), @splat(l, u), a, @splat(l, t) * b);
+        .Vector => {
+            const u = @as(@TypeOf(a), @splat(1.0)) - t;
+            return @mulAdd(@TypeOf(a), u, a, t * b);
         },
         else => comptime unreachable,
     }
@@ -59,10 +60,37 @@ pub fn pow2(x: f32) f32 {
     return x * x;
 }
 
+pub fn pow3(x: f32) f32 {
+    const x2 = x * x;
+    return x2 * x;
+}
+
+pub fn pow4(x: f32) f32 {
+    const x2 = x * x;
+    return x2 * x2;
+}
+
 pub fn pow5(x: f32) f32 {
     const x2 = x * x;
     const x4 = x2 * x2;
     return x4 * x;
+}
+
+pub fn pow20(x: f32) f32 {
+    const x2 = x * x;
+    const x4 = x2 * x2;
+    const x8 = x4 * x4;
+    const x16 = x8 * x8;
+    return x16 * x4;
+}
+
+pub fn pow22(x: f32) f32 {
+    const x2 = x * x;
+    const x4 = x2 * x2;
+    const x6 = x4 * x2;
+    const x8 = x4 * x4;
+    const x16 = x8 * x8;
+    return x16 * x6;
 }
 
 pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
@@ -73,14 +101,12 @@ pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
 
             return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
         },
-        .Vector => |v| {
-            const l = comptime v.len;
+        .Vector => {
+            const vs: T = @splat(s);
+            const vt: T = @splat(t);
 
-            const vs = @splat(l, s);
-            const vt = @splat(l, t);
-
-            const _s = @splat(l, @as(f32, 1.0)) - vs;
-            const _t = @splat(l, @as(f32, 1.0)) - vt;
+            const _s: T = @as(T, @splat(1.0)) - vs;
+            const _t: T = @as(T, @splat(1.0)) - vt;
 
             return _t * (_s * c[0] + vs * c[1]) + vt * (_s * c[2] + vs * c[3]);
         },
@@ -113,6 +139,10 @@ pub fn roundUp(comptime T: type, x: T, m: T) T {
     return ((x + m - 1) / m) * m;
 }
 
-pub inline fn solidAngleCone(c: f32) f32 {
+pub inline fn solidAngleOfCone(c: f32) f32 {
     return (2.0 * std.math.pi) * (1.0 - c);
+}
+
+pub inline fn eq(x: f32, y: f32, comptime eps: f32) bool {
+    return @fabs(x - y) <= eps;
 }

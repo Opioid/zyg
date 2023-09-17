@@ -9,8 +9,8 @@ pub const MaterialProvider = @import("../scene/material/material_provider.zig").
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
-pub const TriangleMeshProvider = @import("../scene/shape/triangle/mesh_provider.zig").Provider;
-const Shapes = Cache(Shape, TriangleMeshProvider);
+pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
+const Shapes = Cache(Shape, ShapeProvider);
 
 const base = @import("base");
 const Threads = base.thread.Pool;
@@ -40,9 +40,9 @@ pub const Manager = struct {
             .scene = scene,
             .threads = threads,
             .fs = try Filesystem.init(alloc),
-            .images = Images.init(ImageProvider{}, &scene.images),
-            .materials = Materials.init(MaterialProvider.init(alloc), &scene.materials),
-            .shapes = Shapes.init(TriangleMeshProvider{}, &scene.shapes),
+            .images = Images.init(.{}, &scene.images),
+            .materials = Materials.init(.{}, &scene.materials),
+            .shapes = Shapes.init(.{}, &scene.shapes),
         };
     }
 
@@ -76,7 +76,7 @@ pub const Manager = struct {
         comptime T: type,
         alloc: Allocator,
         id: u32,
-        data: usize,
+        data: *align(8) const anyopaque,
         options: Variants,
     ) !u32 {
         if (Material == T) {

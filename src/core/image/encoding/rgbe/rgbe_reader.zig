@@ -30,7 +30,7 @@ pub const Reader = struct {
     pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
         const header = try readHeader(stream);
 
-        const dimensions = Vec2i{ @intCast(i32, header.width), @intCast(i32, header.height) };
+        const dimensions = Vec2i{ @intCast(header.width), @intCast(header.height) };
 
         var image = try img.Half3.init(alloc, img.Description.init2D(dimensions));
 
@@ -42,17 +42,21 @@ pub const Reader = struct {
 
     fn readHeader(stream: *ReadStream) !Header {
         var buf: [128]u8 = undefined;
-        {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
+        var fbs = std.io.fixedBufferStream(&buf);
 
-            if (!std.mem.startsWith(u8, line, "#?")) {
+        {
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            if (!std.mem.startsWith(u8, fbs.getWritten(), "#?")) {
                 return Error.BadInitialToken;
             }
         }
 
         var format_specifier: bool = false;
         while (true) {
-            const line = try stream.readUntilDelimiter(&buf, '\n');
+            fbs.reset();
+            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+            const line = fbs.getWritten();
             if (0 == line.len or 0 == line[0]) {
                 // blank lines signifies end of meta data header
                 break;
@@ -67,7 +71,9 @@ pub const Reader = struct {
             return Error.MissingFormatSpecifier;
         }
 
-        var line = try stream.readUntilDelimiter(&buf, '\n');
+        fbs.reset();
+        try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
+        var line = fbs.getWritten();
         var i = (std.mem.indexOfScalar(u8, line, ' ') orelse return Error.MissingImageSizeSpecifier) + 1;
         if (!std.mem.eql(u8, line[0..i], "-Y ")) {
             return Error.MissingImageSizeSpecifier;
@@ -117,9 +123,9 @@ pub const Reader = struct {
 
                 const color = rgbeTofloat3(rgbe);
                 image.pixels[offset] = Pack3h.init3(
-                    @floatCast(f16, color.v[0]),
-                    @floatCast(f16, color.v[1]),
-                    @floatCast(f16, color.v[2]),
+                    @as(f16, @floatCast(color.v[0])),
+                    @as(f16, @floatCast(color.v[1])),
+                    @as(f16, @floatCast(color.v[2])),
                 );
 
                 return try readPixels(stream, scanline_width * num_scanlines - 1, image, 1);
@@ -178,9 +184,9 @@ pub const Reader = struct {
 
                 const color = rgbeTofloat3(rgbe);
                 image.pixels[offset] = Pack3h.init3(
-                    @floatCast(f16, color.v[0]),
-                    @floatCast(f16, color.v[1]),
-                    @floatCast(f16, color.v[2]),
+                    @floatCast(color.v[0]),
+                    @floatCast(color.v[1]),
+                    @floatCast(color.v[2]),
                 );
 
                 offset += 1;
@@ -198,9 +204,9 @@ pub const Reader = struct {
 
             const color = rgbeTofloat3(rgbe);
             image.pixels[o] = Pack3h.init3(
-                @floatCast(f16, color.v[0]),
-                @floatCast(f16, color.v[1]),
-                @floatCast(f16, color.v[2]),
+                @floatCast(color.v[0]),
+                @floatCast(color.v[1]),
+                @floatCast(color.v[2]),
             );
 
             o += 1;
@@ -214,9 +220,9 @@ pub const Reader = struct {
             const f = std.math.scalbn(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
 
             const srgb = Vec4f{
-                (@intToFloat(f32, rgbe[0]) + 0.5) * f,
-                (@intToFloat(f32, rgbe[1]) + 0.5) * f,
-                (@intToFloat(f32, rgbe[2]) + 0.5) * f,
+                (@as(f32, @floatFromInt(rgbe[0])) + 0.5) * f,
+                (@as(f32, @floatFromInt(rgbe[1])) + 0.5) * f,
+                (@as(f32, @floatFromInt(rgbe[2])) + 0.5) * f,
                 0.0,
             };
 

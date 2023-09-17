@@ -1,41 +1,43 @@
 pub const Canopy = @import("canopy.zig").Canopy;
 pub const Cube = @import("cube.zig").Cube;
+pub const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 pub const Disk = @import("disk.zig").Disk;
 pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
 pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
-pub const TriangleMesh = @import("triangle/mesh.zig").Mesh;
-const Ray = @import("../ray.zig").Ray;
+pub const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
-const Filter = @import("../../image/texture/texture_sampler.zig").Filter;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
-    Null,
     Canopy: Canopy,
     Cube: Cube,
+    CurveMesh: CurveMesh,
     Disk: Disk,
     DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
@@ -46,14 +48,13 @@ pub const Shape = union(enum) {
 
     pub fn deinit(self: *Shape, alloc: Allocator) void {
         switch (self.*) {
-            .TriangleMesh => |*m| m.deinit(alloc),
+            inline .CurveMesh, .TriangleMesh => |*m| m.deinit(alloc),
             else => {},
         }
     }
 
     pub fn numParts(self: Shape) u32 {
         return switch (self) {
-            .Null => 0,
             .TriangleMesh => |m| m.numParts(),
             else => 1,
         };
@@ -61,7 +62,6 @@ pub const Shape = union(enum) {
 
     pub fn numMaterials(self: Shape) u32 {
         return switch (self) {
-            .Null => 0,
             .TriangleMesh => |m| m.numMaterials(),
             else => 1,
         };
@@ -91,24 +91,24 @@ pub const Shape = union(enum) {
 
     pub fn analytical(self: Shape) bool {
         return switch (self) {
-            .TriangleMesh => false,
+            .CurveMesh, .TriangleMesh => false,
             else => true,
         };
     }
 
     pub fn complex(self: Shape) bool {
         return switch (self) {
-            .TriangleMesh => true,
+            .CurveMesh, .TriangleMesh => true,
             else => false,
         };
     }
 
     pub fn aabb(self: Shape) AABB {
         return switch (self) {
-            .Null, .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
+            .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, -0.01, 0.0 }, .{ 1.0, 1.0, 0.01, 0.0 }),
-            .Cube, .Sphere => AABB.init(@splat(4, @as(f32, -1.0)), @splat(4, @as(f32, 1.0))),
-            .TriangleMesh => |m| m.tree.aabb(),
+            .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
+            inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
         };
     }
 
@@ -123,18 +123,19 @@ pub const Shape = union(enum) {
         return switch (self) {
             .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
             .TriangleMesh => |m| m.cone(part, variant),
-            else => .{ 0.0, 0.0, 1.0, 0.0 },
+            else => .{ 0.0, 0.0, 1.0, -1.0 },
         };
     }
 
     pub fn area(self: Shape, part: u32, scale: Vec4f) f32 {
         return switch (self) {
-            .Null, .Plane => 0.0,
+            .Plane => 0.0,
             .Canopy => 2.0 * std.math.pi,
             .Cube => {
-                const d = @splat(4, @as(f32, 2.0)) * scale;
+                const d = @as(Vec4f, @splat(2.0)) * scale;
                 return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
             },
+            .CurveMesh => 0.0,
             .Disk => std.math.pi * (scale[0] * scale[0]),
 
             // This calculates the solid angle, not the area!
@@ -144,6 +145,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
+
             .TriangleMesh => |m| m.area(part, scale),
         };
     }
@@ -151,7 +153,7 @@ pub const Shape = union(enum) {
     pub fn volume(self: Shape, scale: Vec4f) f32 {
         return switch (self) {
             .Cube => {
-                const d = @splat(4, @as(f32, 2.0)) * scale;
+                const d = @as(Vec4f, @splat(2.0)) * scale;
                 return d[0] * d[1] * d[2];
             },
             else => 0.0,
@@ -160,29 +162,30 @@ pub const Shape = union(enum) {
 
     pub fn intersect(self: Shape, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         return switch (self) {
-            .Null => false,
-            .Canopy => Canopy.intersect(&ray.ray, trafo, isec),
-            .Cube => Cube.intersect(&ray.ray, trafo, ipo, isec),
-            .Disk => Disk.intersect(&ray.ray, trafo, isec),
-            .DistantSphere => DistantSphere.intersect(&ray.ray, trafo, isec),
-            .InfiniteSphere => InfiniteSphere.intersect(&ray.ray, trafo, isec),
-            .Plane => Plane.intersect(&ray.ray, trafo, isec),
-            .Rectangle => Rectangle.intersect(&ray.ray, trafo, isec),
-            .Sphere => Sphere.intersect(&ray.ray, trafo, isec),
-            .TriangleMesh => |m| m.intersect(&ray.ray, trafo, ipo, isec),
+            .Canopy => Canopy.intersect(ray, trafo, isec),
+            .Cube => Cube.intersect(ray, trafo, ipo, isec),
+            .CurveMesh => |m| m.intersect(ray, trafo, isec),
+            .Disk => Disk.intersect(ray, trafo, isec),
+            .DistantSphere => DistantSphere.intersect(ray, trafo, isec),
+            .InfiniteSphere => InfiniteSphere.intersect(ray, trafo, isec),
+            .Plane => Plane.intersect(ray, trafo, isec),
+            .Rectangle => Rectangle.intersect(ray, trafo, isec),
+            .Sphere => Sphere.intersect(ray, trafo, isec),
+            .TriangleMesh => |m| m.intersect(ray, trafo, ipo, isec),
         };
     }
 
     pub fn intersectP(self: Shape, ray: Ray, trafo: Trafo) bool {
         return switch (self) {
-            .Null, .Canopy, .InfiniteSphere => false,
-            .Cube => Cube.intersectP(ray.ray, trafo),
-            .Disk => Disk.intersectP(ray.ray, trafo),
-            .DistantSphere => DistantSphere.intersectP(ray.ray, trafo),
-            .Plane => Plane.intersectP(ray.ray, trafo),
-            .Rectangle => Rectangle.intersectP(ray.ray, trafo),
-            .Sphere => Sphere.intersectP(ray.ray, trafo),
-            .TriangleMesh => |m| m.intersectP(ray.ray, trafo),
+            .Canopy, .InfiniteSphere => false,
+            .Cube => Cube.intersectP(ray, trafo),
+            .CurveMesh => |m| m.intersectP(ray, trafo),
+            .Disk => Disk.intersectP(ray, trafo),
+            .DistantSphere => DistantSphere.intersectP(ray, trafo),
+            .Plane => Plane.intersectP(ray, trafo),
+            .Rectangle => Rectangle.intersectP(ray, trafo),
+            .Sphere => Sphere.intersectP(ray, trafo),
+            .TriangleMesh => |m| m.intersectP(ray, trafo),
         };
     }
 
@@ -190,20 +193,54 @@ pub const Shape = union(enum) {
         self: Shape,
         ray: Ray,
         trafo: Trafo,
-        entity: usize,
-        filter: ?Filter,
+        entity: u32,
+        sampler: *Sampler,
         scene: *const Scene,
     ) ?Vec4f {
         return switch (self) {
-            .Null, .Canopy, .DistantSphere, .InfiniteSphere => {
-                return @splat(4, @as(f32, 1.0));
-            },
-            .Cube => Cube.visibility(ray.ray, trafo, entity, filter, scene),
-            .Disk => Disk.visibility(ray.ray, trafo, entity, filter, scene),
-            .Plane => Plane.visibility(ray.ray, trafo, entity, filter, scene),
-            .Rectangle => Rectangle.visibility(ray.ray, trafo, entity, filter, scene),
-            .Sphere => Sphere.visibility(ray.ray, trafo, entity, filter, scene),
-            .TriangleMesh => |m| m.visibility(ray.ray, trafo, entity, filter, scene),
+            .Cube => Cube.visibility(ray, trafo, entity, sampler, scene),
+            .CurveMesh => |m| m.visibility(ray, trafo),
+            .Disk => Disk.visibility(ray, trafo, entity, sampler, scene),
+            .Plane => Plane.visibility(ray, trafo, entity, sampler, scene),
+            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),
+            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene),
+            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene),
+            else => @as(Vec4f, @splat(1.0)),
+        };
+    }
+
+    pub fn transmittance(
+        self: Shape,
+        ray: Ray,
+        depth: u32,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) ?Vec4f {
+        return switch (self) {
+            .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker),
+            .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker),
+            .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker),
+            else => @as(Vec4f, @splat(1.0)),
+        };
+    }
+
+    pub fn scatter(
+        self: Shape,
+        ray: Ray,
+        depth: u32,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        return switch (self) {
+            .Cube => Cube.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
+            .Sphere => Sphere.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
+            .TriangleMesh => |m| m.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
+            else => Volume.initPass(@splat(1.0)),
         };
     }
 
@@ -277,6 +314,24 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn shadowRay(self: Shape, origin: Vec4f, sample: SampleTo) Ray {
+        return switch (self) {
+            .Canopy, .InfiniteSphere => Ray.init(origin, sample.wi, 0.0, ro.Ray_max_t),
+            .DistantSphere => Ray.init(origin, sample.wi, 0.0, ro.Almost_ray_max_t),
+            else => {
+                const light_pos = ro.offsetRay(sample.p, sample.n);
+                const shadow_axis = light_pos - origin;
+                const shadow_len = math.length3(shadow_axis);
+                return Ray.init(
+                    origin,
+                    shadow_axis / @as(Vec4f, @splat(shadow_len)),
+                    0.0,
+                    shadow_len,
+                );
+            },
+        };
+    }
+
     pub fn sampleFrom(
         self: Shape,
         part: u32,
@@ -330,31 +385,32 @@ pub const Shape = union(enum) {
         total_sphere: bool,
     ) f32 {
         return switch (self) {
-            .Cube, .Null, .Plane => 0.0,
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
+            .Cube, .Plane => 0.0,
+            .CurveMesh => 0.0,
+            .Disk => Disk.pdf(ray, isec.trafo, two_sided),
             .DistantSphere => DistantSphere.pdf(isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
-            .Sphere => Sphere.pdf(ray.ray, isec.trafo),
-            .TriangleMesh => |m| m.pdf(part, variant, ray.ray, n, isec, two_sided, total_sphere),
+            .Rectangle => Rectangle.pdf(ray, isec.trafo, two_sided),
+            .Sphere => Sphere.pdf(ray, isec.trafo),
+            .TriangleMesh => |m| m.pdf(part, variant, ray, n, isec, two_sided, total_sphere),
         };
     }
 
     pub fn pdfUv(self: Shape, ray: Ray, isec: Intersection, two_sided: bool) f32 {
         return switch (self) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
+            .Disk => Disk.pdf(ray, isec.trafo, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
-            .Rectangle => Rectangle.pdf(ray.ray, isec.trafo, two_sided),
-            .Sphere => Sphere.pdfUv(ray.ray, isec),
+            .Rectangle => Rectangle.pdf(ray, isec.trafo, two_sided),
+            .Sphere => Sphere.pdfUv(ray, isec),
             else => 0.0,
         };
     }
 
     pub fn volumePdf(self: Shape, ray: Ray, isec: Intersection) f32 {
         return switch (self) {
-            .Cube => Cube.volumePdf(ray.ray, isec.trafo.scale()),
+            .Cube => Cube.volumePdf(ray, isec.trafo.scale()),
             else => 0.0,
         };
     }

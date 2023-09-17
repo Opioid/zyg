@@ -41,10 +41,10 @@ pub const Coating = struct {
         const att = self.attenuation(n_dot_wi, n_dot_wo);
 
         if (avoid_caustics and self.alpha <= ggx.Min_alpha) {
-            return .{ .reflection = @splat(4, @as(f32, 0.0)), .attenuation = att, .f = 0.0, .pdf = 0.0 };
+            return .{ .reflection = @splat(0.0), .attenuation = att, .f = 0.0, .pdf = 0.0 };
         }
 
-        const schlick = fresnel.Schlick.init(@splat(4, self.f0));
+        const schlick = fresnel.Schlick.init(@splat(self.f0));
 
         const gg = ggx.Iso.reflectionF(
             h,
@@ -58,7 +58,7 @@ pub const Coating = struct {
 
         const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
         return .{
-            .reflection = @splat(4, ep * self.weight * n_dot_wi) * gg.r.reflection,
+            .reflection = @as(Vec4f, @splat(ep * self.weight * n_dot_wi)) * gg.r.reflection,
             .attenuation = att,
             .f = gg.f[0],
             .pdf = gg.r.pdf(),
@@ -89,18 +89,18 @@ pub const Coating = struct {
         );
 
         const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
-        result.reflection *= @splat(4, ep * self.weight * n_dot_wi) * f;
+        result.reflection *= @as(Vec4f, @splat(ep * self.weight * n_dot_wi)) * f;
 
         return self.attenuation(n_dot_wi, n_dot_wo);
     }
 
     pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
-        const h = ggx.Aniso.sample(wo, @splat(2, self.alpha), xi, Frame.init(self.n), n_dot_h);
+        const h = ggx.Aniso.sample(wo, @splat(self.alpha), xi, Frame.init(self.n), n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
         const f = fresnel.schlick1(wo_dot_h, self.f0);
 
-        result.reflection = @splat(4, f);
+        result.reflection = @splat(f);
         result.h = h;
         result.h_dot_wi = wo_dot_h;
 
@@ -118,10 +118,10 @@ pub const Coating = struct {
     }
 
     pub fn attenuation(self: *const Self, n_dot_wi: f32, n_dot_wo: f32) Vec4f {
-        const f = self.weight * fresnel.schlick1(std.math.min(n_dot_wi, n_dot_wo), self.f0);
+        const f = self.weight * fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), self.f0);
         const d = self.thickness * (1.0 / n_dot_wi + 1.0 / n_dot_wo);
 
         const absorption = inthlp.attenuation3(self.absorption_coef, d);
-        return @splat(4, 1.0 - f) * absorption;
+        return @as(Vec4f, @splat(1.0 - f)) * absorption;
     }
 };

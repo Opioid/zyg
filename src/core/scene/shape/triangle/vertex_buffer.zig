@@ -9,26 +9,26 @@ const Quaternion = math.Quaternion;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const VertexStream = union(enum) {
+pub const Buffer = union(enum) {
     C: CAPI,
     Separate: Separate,
     SeparateQuat: SeparateQuat,
 
-    pub fn deinit(self: *VertexStream, alloc: Allocator) void {
+    pub fn deinit(self: *Buffer, alloc: Allocator) void {
         return switch (self.*) {
             .C => {},
             inline else => |*v| v.deinit(alloc),
         };
     }
 
-    pub fn numVertices(self: VertexStream) u32 {
+    pub fn numVertices(self: Buffer) u32 {
         return switch (self) {
             .C => |c| c.num_vertices,
-            inline else => |v| @intCast(u32, v.positions.len),
+            inline else => |v| @intCast(v.positions.len),
         };
     }
 
-    pub fn position(self: VertexStream, i: u32) Vec4f {
+    pub fn position(self: Buffer, i: u32) Vec4f {
         switch (self) {
             .C => |v| {
                 const id = i * v.positions_stride;
@@ -41,13 +41,13 @@ pub const VertexStream = union(enum) {
         }
     }
 
-    pub fn copy(self: VertexStream, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Buffer, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(positions, frames, uvs, count),
         };
     }
 
-    pub fn bitangentSign(self: VertexStream, i: u32) bool {
+    pub fn bitangentSign(self: Buffer, i: u32) bool {
         return switch (self) {
             inline else => |v| v.bitangentSign(i),
         };
@@ -97,16 +97,12 @@ pub const Separate = struct {
         }
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        const num_components = count * 3;
+        @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
-        i = 0;
         if (count == self.tangents.len) {
-            while (i < count) : (i += 1) {
+            for (0..count) |i| {
                 const n3 = self.normals[i];
                 const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
                 const t3 = self.tangents[i];
@@ -115,7 +111,7 @@ pub const Separate = struct {
                 frames[i] = quaternion.initFromTN(t, n);
             }
         } else {
-            while (i < count) : (i += 1) {
+            for (0..count) |i| {
                 const n3 = self.normals[i];
                 const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
                 const t = math.tangent3(n);
@@ -125,9 +121,9 @@ pub const Separate = struct {
         }
 
         if (count == self.uvs.len) {
-            std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+            @memcpy(uvs[0..count], self.uvs);
         } else {
-            std.mem.set(Vec2f, uvs[0..count], .{ 0.0, 0.0 });
+            @memset(uvs[0..count], .{ 0.0, 0.0 });
         }
     }
 
@@ -157,20 +153,15 @@ pub const SeparateQuat = struct {
         alloc.free(self.positions);
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
-        var i: u32 = 0;
-        while (i < count) : (i += 1) {
-            const p = self.positions[i];
-            positions[i] = .{ p.v[0], p.v[1], p.v[2], 0.0 };
-        }
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+        const num_components = count * 3;
+        @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
-        i = 0;
-        while (i < count) : (i += 1) {
-            const ts = self.ts[i];
+        for (self.ts[0..count], 0..count) |ts, i| {
             frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
         }
 
-        std.mem.copy(Vec2f, uvs[0..count], self.uvs);
+        @memcpy(uvs[0..count], self.uvs);
     }
 
     pub fn bitangentSign(self: Self, i: u32) bool {
@@ -216,11 +207,15 @@ pub const CAPI = struct {
         };
     }
 
-    pub fn copy(self: Self, positions: [*]Vec4f, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
         var i: u32 = 0;
         while (i < count) : (i += 1) {
-            const id = i * self.positions_stride;
-            positions[i] = .{ self.positions[id + 0], self.positions[id + 1], self.positions[id + 2], 0.0 };
+            const dest_id = i * 3;
+            const source_id = i * self.positions_stride;
+
+            positions[dest_id + 0] = self.positions[source_id + 0];
+            positions[dest_id + 1] = self.positions[source_id + 1];
+            positions[dest_id + 2] = self.positions[source_id + 2];
         }
 
         i = 0;

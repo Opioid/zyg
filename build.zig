@@ -33,10 +33,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    cli.addIncludePath("thirdparty/include");
-    cli.addIncludePath("src/cli");
-    capi.addIncludePath("thirdparty/include");
-    it.addIncludePath("thirdparty/include");
+    cli.addIncludePath(.{ .path = "thirdparty/include" });
+    cli.addIncludePath(.{ .path = "src/cli" });
+    capi.addIncludePath(.{ .path = "thirdparty/include" });
+    it.addIncludePath(.{ .path = "thirdparty/include" });
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -50,13 +50,13 @@ pub fn build(b: *std.Build) void {
     };
 
     for (csources) |source| {
-        cli.addCSourceFile(source, &cflags);
-        capi.addCSourceFile(source, &cflags);
+        cli.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
+        capi.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
     }
 
-    cli.addCSourceFile("src/cli/any_key.c", &cflags);
+    cli.addCSourceFile(.{ .file = .{ .path = "src/cli/any_key.c" }, .flags = &cflags });
 
-    it.addCSourceFile(csources[0], &cflags);
+    it.addCSourceFile(.{ .file = .{ .path = csources[0] }, .flags = &cflags });
 
     const base = b.createModule(.{
         .source_file = .{ .path = "src/base/base.zig" },
@@ -73,14 +73,14 @@ pub fn build(b: *std.Build) void {
     cli.linkLibC();
     // cli.sanitize_thread = true;
     cli.strip = true;
-    cli.install();
+    b.installArtifact(cli);
 
     capi.addModule("base", base);
     capi.addModule("core", core);
 
     capi.linkLibC();
     capi.strip = true;
-    capi.install();
+    b.installArtifact(capi);
 
     it.addModule("base", base);
     it.addModule("core", core);
@@ -88,9 +88,9 @@ pub fn build(b: *std.Build) void {
     it.linkLibC();
     // it.sanitize_thread = true;
     it.strip = true;
-    it.install();
+    b.installArtifact(it);
 
-    const run_cmd = cli.run();
+    const run_cmd = b.addRunArtifact(cli);
     run_cmd.step.dependOn(b.getInstallStep());
     run_cmd.cwd = "/home/beni/workspace/sprout/system";
     if (b.args) |args| {
@@ -102,16 +102,19 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
             //"takes/cornell.take",
+            //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
-            //"takes/material_test.take",
+            "takes/material_test.take",
             //"takes/whirligig.take",
             "takes/candle.take",
             //"takes/disney_cloud.take",
             //"takes/rene.take",
+            //"takes/head.take",
             //"takes/flakes.take",
             //"takes/embergen.take",
+            //"takes/volume.take",
             //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",
@@ -126,7 +129,7 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    // const run_cmd = it.run();
+    // const run_cmd = b.addRunArtifact(it);
     // run_cmd.step.dependOn(b.getInstallStep());
     // run_cmd.cwd = "/home/beni/workspace/sprout/system";
     // if (b.args) |args| {
@@ -137,15 +140,17 @@ pub fn build(b: *std.Build) void {
     //         "-i",
     //         //"image_00000000.exr",
     //         //"image_00000001.exr",
-    //         //"image_00000003.exr",
+    //         //"image_00000064.exr",
     //         //"san_miguel.exr",
+    //         "intel_sponza_day.exr",
     //         //"Round.IES",
-    //         "ScatterLight.IES",
+    //         //"ScatterLight.IES",
     //         "-t",
     //         "-4",
-    //         //"--tone",
+    //         "--tone",
+    //         "agx",
     //         "-e",
-    //         "0.0",
+    //         "-1.0",
     //         "-f",
     //         "png",
     //     });

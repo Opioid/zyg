@@ -14,6 +14,15 @@ pub const Reference = struct {
 
     bounds: [2]Vector align(16),
 
+    pub fn init(box: AABB, prim: u32) Reference {
+        return .{
+            .bounds = .{
+                .{ .v = .{ box.bounds[0][0], box.bounds[0][1], box.bounds[0][2] }, .index = prim },
+                .{ .v = .{ box.bounds[1][0], box.bounds[1][1], box.bounds[1][2] }, .index = 0 },
+            },
+        };
+    }
+
     pub fn aabb(self: Reference) AABB {
         return AABB.init(
             .{ self.bounds[0].v[0], self.bounds[0].v[1], self.bounds[0].v[2], 0.0 },
@@ -27,6 +36,10 @@ pub const Reference = struct {
 
     pub fn primitive(self: Reference) u32 {
         return self.bounds[0].index;
+    }
+
+    pub fn incrPrimitive(self: *Reference, d: u32) void {
+        self.bounds[0].index += d;
     }
 
     pub fn set(self: *Reference, min: Vec4f, max: Vec4f, prim: u32) void {
@@ -43,7 +56,7 @@ pub const Reference = struct {
     pub fn clippedMin(self: Reference, d: f32, axis: u8) Reference {
         var bounds0 = self.bounds[0];
 
-        bounds0.v[axis] = std.math.max(d, bounds0.v[axis]);
+        bounds0.v[axis] = math.max(d, bounds0.v[axis]);
 
         return .{ .bounds = .{ bounds0, self.bounds[1] } };
     }
@@ -51,7 +64,7 @@ pub const Reference = struct {
     pub fn clippedMax(self: Reference, d: f32, axis: u8) Reference {
         var bounds1 = self.bounds[1];
 
-        bounds1.v[axis] = std.math.min(d, bounds1.v[axis]);
+        bounds1.v[axis] = math.min(d, bounds1.v[axis]);
 
         return .{ .bounds = .{ self.bounds[0], bounds1 } };
     }
@@ -130,12 +143,12 @@ pub const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 + @intToFloat(f32, references.len);
+            self.cost = 2.0 + @as(f32, @floatFromInt(references.len));
         } else {
-            const weight_0 = @intToFloat(f32, num_sides[0]) * aabbs[0].surfaceArea();
-            const weight_1 = @intToFloat(f32, num_sides[1]) * aabbs[1].surfaceArea();
+            const weight_0 = @as(f32, @floatFromInt(num_sides[0])) * aabbs[0].surfaceArea();
+            const weight_1 = @as(f32, @floatFromInt(num_sides[1])) * aabbs[1].surfaceArea();
 
-            const duplication_penalty = 0.125 * @intToFloat(f32, num_sides[0] + num_sides[1] - references.len);
+            const duplication_penalty = 0.125 * @as(f32, @floatFromInt(num_sides[0] + num_sides[1] - references.len));
 
             self.cost = 2.0 + (weight_0 + weight_1) / aabb_surface_area + duplication_penalty;
         }

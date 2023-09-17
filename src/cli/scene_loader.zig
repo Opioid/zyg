@@ -18,6 +18,7 @@ const json = base.json;
 const string = base.string;
 const math = base.math;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
 const Transformation = math.Transformation;
 
 const std = @import("std");
@@ -80,8 +81,9 @@ const KeyContext = struct {
 };
 
 pub const Loader = struct {
-    pub const Error = error{
+    const Error = error{
         OutOfMemory,
+        UndefinedShape,
     };
 
     resources: *Resources,
@@ -127,15 +129,17 @@ pub const Loader = struct {
         const parent_id: u32 = Prop.Null;
 
         const parent_trafo = Transformation{
-            .position = @splat(4, @as(f32, 0.0)),
-            .scale = @splat(4, @as(f32, 1.0)),
+            .position = @splat(0.0),
+            .scale = @splat(1.0),
             .rotation = math.quaternion.identity,
         };
 
-        var parser = std.json.Parser.init(alloc, false);
-        defer parser.deinit();
+        try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
-        try self.loadFile(alloc, &parser, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+        var iter = self.instances.keyIterator();
+        while (iter.next()) |k| {
+            k.deinit(alloc);
+        }
 
         self.instances.clearAndFree(alloc);
 
@@ -145,7 +149,6 @@ pub const Loader = struct {
     fn loadFile(
         self: *Loader,
         alloc: Allocator,
-        parser: *std.json.Parser,
         filename: []const u8,
         take_mount_folder: []const u8,
         parent_id: u32,
@@ -169,21 +172,21 @@ pub const Loader = struct {
         stream.deinit();
         defer alloc.free(buffer);
 
-        var document = try parser.parse(buffer);
-        defer document.deinit();
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+        defer parsed.deinit();
 
-        const root = document.root;
+        const root = parsed.value;
 
         var local_materials = LocalMaterials.init(alloc);
         defer local_materials.deinit();
 
-        if (root.Object.get("materials")) |materials_node| {
+        if (root.object.get("materials")) |materials_node| {
             try readMaterials(materials_node, &local_materials);
         }
 
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
-        var iter = root.Object.iterator();
+        var iter = root.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
                 try self.loadEntities(
@@ -202,10 +205,10 @@ pub const Loader = struct {
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
-        for (value.Array.items) |*m| {
-            const name_node = m.Object.get("name") orelse continue;
+        for (value.array.items) |*m| {
+            const name_node = m.object.get("name") orelse continue;
 
-            try local_materials.materials.put(name_node.String, m);
+            try local_materials.materials.put(name_node.string, m);
         }
     }
 
@@ -221,37 +224,33 @@ pub const Loader = struct {
     ) Error!void {
         const scene = &graph.scene;
 
-        var parser = std.json.Parser.init(alloc, false);
-        defer parser.deinit();
-
-        for (value.Array.items) |entity| {
-            if (entity.Object.get("file")) |file_node| {
-                const filename = file_node.String;
-                self.loadFile(alloc, &parser, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+        for (value.array.items) |entity| {
+            if (entity.object.get("file")) |file_node| {
+                const filename = file_node.string;
+                self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
                 };
-                parser.reset();
                 continue;
             }
 
-            const type_node = entity.Object.get("type") orelse continue;
-            const type_name = type_node.String;
+            const type_node = entity.object.get("type") orelse continue;
+            const type_name = type_node.string;
 
             var entity_id: u32 = Prop.Null;
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph, false);
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, false) catch continue;
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = try self.loadProp(alloc, entity, local_materials, graph, true);
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, true) catch continue;
             } else if (std.mem.eql(u8, "Sky", type_name)) {
-                entity_id = try loadSky(alloc, entity, graph);
+                entity_id = loadSky(alloc, entity, graph) catch continue;
             }
 
             var trafo = Transformation{
-                .position = @splat(4, @as(f32, 0.0)),
-                .scale = @splat(4, @as(f32, 1.0)),
+                .position = @splat(0.0),
+                .scale = @splat(1.0),
                 .rotation = math.quaternion.identity,
             };
 
@@ -259,7 +258,7 @@ pub const Loader = struct {
             var children_ptr: ?*std.json.Value = null;
             var visibility_ptr: ?*std.json.Value = null;
 
-            var iter = entity.Object.iterator();
+            var iter = entity.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                     json.readTransformation(entry.value_ptr.*, &trafo);
@@ -276,15 +275,15 @@ pub const Loader = struct {
                 const material = scene.propMaterial(entity_id, 0);
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
-                        const voxel_scale = @splat(4, trafo.scale[0]);
+                        const voxel_scale: Vec4f = @splat(trafo.scale[0]);
                         const dimensions = t.description(scene).dimensions;
-                        var offset = @splat(4, @as(i32, 0));
+                        var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.image)) |meta| {
-                            offset = meta.queryOrDef("offset", @splat(4, @as(i32, 0)));
+                            offset = meta.queryOrDef("offset", offset);
                         }
 
-                        trafo.scale = @splat(4, @as(f32, 0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
+                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
                         trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(offset);
                     }
                 }
@@ -356,19 +355,15 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
     ) !u32 {
+        const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
+
         const scene = &graph.scene;
-
-        const shape = if (value.Object.get("shape")) |s| self.loadShape(alloc, s) else Prop.Null;
-        if (Prop.Null == shape) {
-            return Prop.Null;
-        }
-
         const num_materials = scene.shape(shape).numMaterials();
 
         try self.materials.ensureTotalCapacity(alloc, num_materials);
         self.materials.clearRetainingCapacity();
 
-        if (value.Object.get("materials")) |m| {
+        if (value.object.get("materials")) |m| {
             self.loadMaterials(alloc, m, num_materials, local_materials);
         }
 
@@ -396,7 +391,7 @@ pub const Loader = struct {
         var in_reflection = true;
         var in_shadow = true;
 
-        var iter = value.Object.iterator();
+        var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "in_camera", entry.key_ptr.*)) {
                 in_camera = json.readBool(entry.value_ptr.*);
@@ -410,40 +405,42 @@ pub const Loader = struct {
         scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
     }
 
-    fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) u32 {
+    fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) !u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
-            return getShape(type_name);
+            return try getShape(type_name);
         }
 
         const file = json.readStringMember(value, "file", "");
         if (file.len > 0) {
-            return self.resources.loadFile(Shape, alloc, file, .{}) catch Null;
+            return self.resources.loadFile(Shape, alloc, file, .{});
         }
 
-        return Null;
+        return Error.UndefinedShape;
     }
 
-    fn getShape(type_name: []const u8) u32 {
+    fn getShape(type_name: []const u8) !u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
-            return @enumToInt(Scene.ShapeID.Canopy);
+            return @intFromEnum(Scene.ShapeID.Canopy);
         } else if (std.mem.eql(u8, "Cube", type_name)) {
-            return @enumToInt(Scene.ShapeID.Cube);
+            return @intFromEnum(Scene.ShapeID.Cube);
         } else if (std.mem.eql(u8, "Disk", type_name)) {
-            return @enumToInt(Scene.ShapeID.Disk);
+            return @intFromEnum(Scene.ShapeID.Disk);
         } else if (std.mem.eql(u8, "Distant_sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.DistantSphere);
+            return @intFromEnum(Scene.ShapeID.DistantSphere);
         } else if (std.mem.eql(u8, "Infinite_sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.InfiniteSphere);
+            return @intFromEnum(Scene.ShapeID.InfiniteSphere);
         } else if (std.mem.eql(u8, "Plane", type_name)) {
-            return @enumToInt(Scene.ShapeID.Plane);
+            return @intFromEnum(Scene.ShapeID.Plane);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
-            return @enumToInt(Scene.ShapeID.Rectangle);
+            return @intFromEnum(Scene.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
-            return @enumToInt(Scene.ShapeID.Sphere);
+            return @intFromEnum(Scene.ShapeID.Sphere);
         }
 
-        return Null;
+        log.err("Undefined shape \"{s}\"", .{type_name});
+
+        return Error.UndefinedShape;
     }
 
     fn loadMaterials(
@@ -453,8 +450,8 @@ pub const Loader = struct {
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
-        for (value.Array.items, 0..) |m, i| {
-            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.String, local_materials));
+        for (value.array.items, 0..) |m, i| {
+            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
 
             if (i == num_materials - 1) {
                 return;
@@ -462,12 +459,7 @@ pub const Loader = struct {
         }
     }
 
-    fn loadMaterial(
-        self: *const Loader,
-        alloc: Allocator,
-        name: []const u8,
-        local_materials: LocalMaterials,
-    ) u32 {
+    fn loadMaterial(self: *const Loader, alloc: Allocator, name: []const u8, local_materials: LocalMaterials) u32 {
         // First, check if we maybe already have cached the material.
         if (self.resources.getByName(Material, name, .{})) |material| {
             return material;
@@ -475,9 +467,7 @@ pub const Loader = struct {
 
         // Otherwise, see if it is among the locally defined materials.
         if (local_materials.materials.get(name)) |material_node| {
-            const data = @ptrToInt(material_node);
-
-            const material = self.resources.loadData(Material, alloc, Null, data, .{}) catch Null;
+            const material = self.resources.loadData(Material, alloc, Null, material_node, .{}) catch Null;
             if (Null != material) {
                 self.resources.associate(Material, alloc, material, name, .{}) catch {};
                 return material;
@@ -498,7 +488,7 @@ pub const Loader = struct {
 
         // try graph.bumpProps(alloc);
 
-        if (value.Object.get("parameters")) |parameters| {
+        if (value.object.get("parameters")) |parameters| {
             sky.setParameters(parameters);
         }
 

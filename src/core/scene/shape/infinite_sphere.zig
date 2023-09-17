@@ -25,13 +25,15 @@ pub const InfiniteSphere = struct {
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
-        isec.uv = Vec2f{
+        isec.uvw = .{
             std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
+            0.0,
+            0.0,
         };
 
         // This is nonsense
-        isec.p = @splat(4, @as(f32, ro.Ray_max_t)) * ray.direction;
+        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * ray.direction;
         const n = -ray.direction;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
@@ -74,12 +76,12 @@ pub const InfiniteSphere = struct {
         };
 
         return SampleTo.init(
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
             dir,
-            trafo.rotation.r[2],
             uvw,
             trafo,
             pdf_,
-            ro.Ray_max_t,
         );
     }
 
@@ -93,15 +95,16 @@ pub const InfiniteSphere = struct {
         const sin_theta = @sin(theta);
         const cos_theta = @cos(theta);
 
-        const dir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        const dir = trafo.rotation.transformVector(ldir);
 
         return SampleTo.init(
-            trafo.rotation.transformVector(dir),
-            trafo.rotation.r[2],
+            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            -dir,
+            dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
             trafo,
             1.0 / ((4.0 * std.math.pi) * sin_theta),
-            ro.Ray_max_t,
         );
     }
 
@@ -129,10 +132,10 @@ pub const InfiniteSphere = struct {
 
         const ls_bounds = bounds.transformTransposed(rotation);
         const ls_extent = ls_bounds.extent();
-        const ls_rect = (importance_uv - @splat(2, @as(f32, 0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
+        const ls_rect = (importance_uv - @as(Vec2f, @splat(0.5))) * Vec2f{ ls_extent[0], ls_extent[1] };
         const photon_rect = rotation.transformVector(.{ ls_rect[0], ls_rect[1], 0.0, 0.0 });
 
-        const offset = @splat(4, ls_extent[2]) * dir;
+        const offset = @as(Vec4f, @splat(ls_extent[2])) * dir;
         const p = ls_bounds.position() - offset + photon_rect;
 
         var ipdf = (4.0 * std.math.pi) * ls_extent[0] * ls_extent[1];
@@ -161,7 +164,7 @@ pub const InfiniteSphere = struct {
 
     pub fn pdfUv(isec: Intersection) f32 {
         // sin_theta because of the uv weight
-        const sin_theta = @sin(isec.uv[1] * std.math.pi);
+        const sin_theta = @sin(isec.uvw[1] * std.math.pi);
 
         if (0.0 == sin_theta) {
             return 0.0;

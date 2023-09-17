@@ -55,8 +55,8 @@ pub fn ODTSATtosRGB(odt: Vec4f) Vec4f {
 
 // https://www.shadertoy.com/view/WltSRB
 pub fn RRTandODT(x: Vec4f) Vec4f {
-    const a = x * (x + @splat(4, @as(f32, 0.0245786))) - @splat(4, @as(f32, 0.000090537));
-    const b = x * (@splat(4, @as(f32, 0.983729)) * x + @splat(4, @as(f32, 0.4329510))) + @splat(4, @as(f32, 0.238081));
+    const a = x * (x + @as(Vec4f, @splat(0.0245786))) - @as(Vec4f, @splat(0.000090537));
+    const b = x * (@as(Vec4f, @splat(0.983729)) * x + @as(Vec4f, @splat(0.4329510))) + @as(Vec4f, @splat(0.238081));
     return a / b;
 }
 

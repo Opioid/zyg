@@ -1,5 +1,6 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
+const mima = @import("minmax.zig");
 
 const std = @import("std");
 
@@ -23,29 +24,33 @@ pub const Ray = struct {
         self.inv_direction = id;
     }
 
-    pub fn minT(self: Ray) f32 {
+    pub inline fn minT(self: Ray) f32 {
         return self.origin[3];
     }
 
-    pub fn maxT(self: Ray) f32 {
+    pub inline fn maxT(self: Ray) f32 {
         return self.direction[3];
     }
 
-    pub fn setMaxT(self: *Ray, t: f32) void {
+    pub inline fn setMinT(self: *Ray, t: f32) void {
+        self.origin[3] = t;
+    }
+
+    pub inline fn setMaxT(self: *Ray, t: f32) void {
         self.direction[3] = t;
     }
 
-    pub fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
+    pub inline fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
         self.origin[3] = min_t;
         self.direction[3] = max_t;
     }
 
-    pub fn clipMaxT(self: *Ray, t: f32) void {
+    pub inline fn clipMaxT(self: *Ray, t: f32) void {
         const max_t = self.direction[3];
-        self.direction[3] = std.math.min(max_t, t);
+        self.direction[3] = mima.min(max_t, t);
     }
 
-    pub fn point(self: Ray, t: f32) Vec4f {
-        return self.origin + @splat(4, t) * self.direction;
+    pub inline fn point(self: Ray, t: f32) Vec4f {
+        return self.origin + @as(Vec4f, @splat(t)) * self.direction;
     }
 };

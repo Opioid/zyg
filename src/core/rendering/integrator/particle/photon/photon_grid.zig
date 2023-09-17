@@ -1,7 +1,8 @@
 const Photon = @import("photon.zig").Photon;
 const Scene = @import("../../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 const mat = @import("../../../../scene/material/sample_helper.zig");
 
 const base = @import("base");
@@ -38,7 +39,7 @@ pub const Grid = struct {
 
     num_paths: f64 = undefined,
 
-    dimensions: Vec4i = @splat(4, @as(i32, 0)),
+    dimensions: Vec4i = @splat(0),
 
     local_to_texture: Vec4f = undefined,
 
@@ -61,16 +62,16 @@ pub const Grid = struct {
         self.aabb = aabb;
 
         const diameter = 2.0 * self.search_radius;
-        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @splat(4, diameter * self.grid_cell_factor))) + @splat(4, @as(i32, 2));
+        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @as(Vec4f, @splat(diameter * self.grid_cell_factor)))) + @as(Vec4i, @splat(2));
 
         if (!math.equal(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;
 
-            self.local_to_texture = @splat(4, @as(f32, 1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @splat(4, @as(i32, 2)));
+            self.local_to_texture = @as(Vec4f, @splat(1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @as(Vec4i, @splat(2)));
 
-            const num_cells = @intCast(usize, dimensions[0]) * @intCast(usize, dimensions[1]) * @intCast(usize, dimensions[2]) + 1;
+            const num_cells = @as(usize, @intCast(dimensions[0])) * @as(usize, @intCast(dimensions[1])) * @as(usize, @intCast(dimensions[2])) + 1;
 
             self.grid = try alloc.realloc(self.grid, num_cells);
 
@@ -119,13 +120,13 @@ pub const Grid = struct {
             // 00, 00, 01
             self.adjacencies[1] = .{
                 .num_cells = 2,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0__0_p1), .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ .{ 0, 0 }, @splat(o__0__0_p1), .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 00, 10
             self.adjacencies[2] = .{
                 .num_cells = 2,
-                .cells = .{ @splat(2, o__0__0_m1), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ @splat(o__0__0_m1), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
             };
             self.adjacencies[3] = .{
                 .num_cells = 0,
@@ -135,19 +136,19 @@ pub const Grid = struct {
             // 00, 01, 00
             self.adjacencies[4] = .{
                 .num_cells = 2,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0_p1__0), .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ .{ 0, 0 }, @splat(o__0_p1__0), .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 01, 01
             self.adjacencies[5] = .{
                 .num_cells = 4,
-                .cells = .{ .{ 0, 0 }, @splat(2, o__0_p1__0), @splat(2, o__0__0_p1), @splat(2, o__0_p1_p1) },
+                .cells = .{ .{ 0, 0 }, @splat(o__0_p1__0), @splat(o__0__0_p1), @splat(o__0_p1_p1) },
             };
 
             // 00, 01, 10
             self.adjacencies[6] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0__0_m1), @splat(2, o__0_p1_m1), .{ 0, 0 }, @splat(2, o__0_p1__0) },
+                .cells = .{ @splat(o__0__0_m1), @splat(o__0_p1_m1), .{ 0, 0 }, @splat(o__0_p1__0) },
             };
             self.adjacencies[7] = .{
                 .num_cells = 0,
@@ -157,19 +158,19 @@ pub const Grid = struct {
             // 00, 10, 00
             self.adjacencies[8] = .{
                 .num_cells = 2,
-                .cells = .{ @splat(2, o__0_m1__0), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
+                .cells = .{ @splat(o__0_m1__0), .{ 0, 0 }, .{ 0, 0 }, .{ 0, 0 } },
             };
 
             // 00, 10, 01
             self.adjacencies[9] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0_m1__0), @splat(2, o__0_m1_p1), .{ 0, 0 }, @splat(2, o__0__0_p1) },
+                .cells = .{ @splat(o__0_m1__0), @splat(o__0_m1_p1), .{ 0, 0 }, @splat(o__0__0_p1) },
             };
 
             // 00, 10, 10
             self.adjacencies[10] = .{
                 .num_cells = 4,
-                .cells = .{ @splat(2, o__0_m1_m1), @splat(2, o__0__0_m1), @splat(2, o__0_m1__0), .{ 0, 0 } },
+                .cells = .{ @splat(o__0_m1_m1), @splat(o__0__0_m1), @splat(o__0_m1__0), .{ 0, 0 } },
             };
             self.adjacencies[11] = .{
                 .num_cells = 0,
@@ -341,7 +342,7 @@ pub const Grid = struct {
     pub fn initCells(self: *Self, photons: []Photon) void {
         self.photons = photons;
 
-        std.sort.sort(Photon, photons, self, compareByMap);
+        std.mem.sort(Photon, photons, self, compareByMap);
 
         var current: u32 = 0;
         for (self.grid, 0..) |*cell, c| {
@@ -362,7 +363,7 @@ pub const Grid = struct {
         // return @intCast(u32, base.memory.partition(Photon, photons, {}, alphaPositive));
 
         _ = threads;
-        return @intCast(u32, photons.len);
+        return @as(u32, @intCast(photons.len));
     }
 
     fn alphaPositive(context: void, p: Photon) bool {
@@ -372,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*Self, context);
+        const self = @as(*Self, @ptrFromInt(context));
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;
@@ -389,7 +390,7 @@ pub const Grid = struct {
 
             var a_alpha = Vec4f{ a.alpha[0], a.alpha[1], a.alpha[2], 0.0 };
             var total_weight = math.average3(a_alpha);
-            var position = @splat(4, total_weight) * a.p;
+            var position = @as(Vec4f, @splat(total_weight)) * a.p;
             var wi = a.wi;
 
             var local_reduced: u32 = 0;
@@ -397,8 +398,8 @@ pub const Grid = struct {
             const adjacency = self.adjacentCells(a.p, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
-                const jlen = std.math.min(cell[1], end);
-                var j = std.math.max(cell[0], i + 1);
+                const jlen = @min(cell[1], end);
+                var j = @max(cell[0], i + 1);
                 while (j < jlen) : (j += 1) {
                     if (j == i) {
                         continue;
@@ -417,7 +418,7 @@ pub const Grid = struct {
                     const b_alpha = Vec4f{ b.alpha[0], b.alpha[1], b.alpha[2], 0.0 };
                     const weight = math.average3(b_alpha);
                     const ratio = if (total_weight > weight) weight / total_weight else total_weight / weight;
-                    const threshold = std.math.max(ratio - 0.1, 0.0);
+                    const threshold = math.max(ratio - 0.1, 0.0);
 
                     if (math.dot3(wi, b.wi) < threshold) {
                         continue;
@@ -431,7 +432,7 @@ pub const Grid = struct {
                     }
 
                     total_weight += weight;
-                    position += @splat(4, weight) * b.p;
+                    position += @as(Vec4f, @splat(weight)) * b.p;
                     local_reduced += 1;
                 }
             }
@@ -441,7 +442,7 @@ pub const Grid = struct {
                     a.alpha[0] = -1.0;
                     local_reduced += 1;
                 } else {
-                    a.p = position / @splat(4, total_weight);
+                    a.p = position / @as(Vec4f, @splat(total_weight));
                     a.wi = wi;
                     a.alpha[0] = a_alpha[0];
                     a.alpha[1] = a_alpha[1];
@@ -458,10 +459,10 @@ pub const Grid = struct {
     }
 
     fn map1(self: *const Self, v: Vec4f) u64 {
-        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @splat(4, @as(i32, 1));
-        return @intCast(u64, (@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
+        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @as(Vec4i, @splat(1));
+        return @as(u64, @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
-            @as(i64, c[0]));
+            @as(i64, c[0])));
     }
 
     fn map3(self: *const Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
@@ -475,7 +476,7 @@ pub const Grid = struct {
 
         adjacents.* = adj;
 
-        return c + @splat(4, @as(i32, 1));
+        return c + @as(Vec4i, @splat(1));
     }
 
     const Adjacent = enum(u8) {
@@ -486,14 +487,14 @@ pub const Grid = struct {
 
     fn adjacent(s: f32, cell_bound: f32) u8 {
         if (s < cell_bound) {
-            return @enumToInt(Adjacent.Negative);
+            return @intFromEnum(Adjacent.Negative);
         }
 
         if (s > (1.0 - cell_bound)) {
-            return @enumToInt(Adjacent.Positive);
+            return @intFromEnum(Adjacent.Positive);
         }
 
-        return @enumToInt(Adjacent.None);
+        return @intFromEnum(Adjacent.None);
     }
 
     fn adjacentCells(self: *const Self, v: Vec4f, cell_bound: f32) Adjacency {
@@ -509,8 +510,8 @@ pub const Grid = struct {
         result.num_cells = adjacency.num_cells;
 
         for (adjacency.cells[0..adjacency.num_cells], 0..) |cell, i| {
-            result.cells[i][0] = self.grid[@intCast(usize, @as(i64, cell[0]) + ic)];
-            result.cells[i][1] = self.grid[@intCast(usize, @as(i64, cell[1]) + ic + 1)];
+            result.cells[i][0] = self.grid[@as(usize, @intCast(@as(i64, cell[0]) + ic))];
+            result.cells[i][1] = self.grid[@as(usize, @intCast(@as(i64, cell[1]) + ic + 1))];
         }
 
         return result;
@@ -524,15 +525,15 @@ pub const Grid = struct {
         // self.surface_normalization = 1.0 / (((1.0 / 2.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
 
         // cone
-        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @intToFloat(f32, num_paths) * radius2);
+        self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @as(f32, @floatFromInt(num_paths)) * radius2);
 
-        self.num_paths = @intToFloat(f64, num_paths);
+        self.num_paths = @as(f64, @floatFromInt(num_paths));
     }
 
     pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
-        var result = @splat(4, @as(f32, 0.0));
+        var result: Vec4f = @splat(0.0);
 
-        const position = isec.geo.p;
+        const position = isec.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -543,7 +544,7 @@ pub const Grid = struct {
         const radius = self.search_radius;
         const radius2 = radius * radius;
 
-        if (isec.subsurface) {} else {
+        if (isec.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
             const two_sided = isec.material(scene).twoSided();
@@ -567,7 +568,7 @@ pub const Grid = struct {
 
                             const bxdf = sample.evaluate(p.wi, false);
 
-                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                             const k = coneFilter(distance2, inv_radius2);
 
@@ -575,20 +576,20 @@ pub const Grid = struct {
 
                             const bxdf = sample.evaluate(p.wi, false);
 
-                            result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         }
                     }
                 }
             }
         }
 
-        return result * @splat(4, self.surface_normalization);
+        return result * @as(Vec4f, @splat(self.surface_normalization));
     }
 
-    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
-        var result = @splat(4, @as(f32, 0.0));
+    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+        var result: Vec4f = @splat(0.0);
 
-        const position = isec.geo.p;
+        const position = isec.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -602,7 +603,7 @@ pub const Grid = struct {
         var buffer = Buffer{};
         buffer.clear();
 
-        const subsurface = isec.subsurface;
+        const subsurface = isec.subsurface();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
             for (self.photons[cell[0]..cell[1]], 0..) |p, i| {
@@ -612,7 +613,7 @@ pub const Grid = struct {
 
                 const distance2 = math.squaredDistance3(p.p, position);
                 if (distance2 < radius2) {
-                    buffer.consider(.{ .id = cell[0] + @intCast(u32, i), .d2 = distance2 });
+                    buffer.consider(.{ .id = cell[0] + @as(u32, @intCast(i)), .d2 = distance2 });
                 }
             }
         }
@@ -632,10 +633,10 @@ pub const Grid = struct {
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
 
-                const normalization = @floatCast(f32, (((4.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius3)));
-                const mu_s = scatteringCoefficient(isec, scene);
+                const normalization = @as(f32, @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3)))));
+                const mu_s = scatteringCoefficient(isec, sampler, scene);
 
-                result /= @splat(4, normalization) * mu_s;
+                result /= @as(Vec4f, @splat(normalization)) * mu_s;
             } else {
                 const two_sided = isec.material(scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
@@ -650,7 +651,7 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi, false);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                         const k = coneFilter(entry.d2, inv_max_radius2);
 
@@ -658,13 +659,13 @@ pub const Grid = struct {
 
                         const bxdf = sample.evaluate(p.wi, false);
 
-                        result += @splat(4, k / n_dot_wi) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }
                 }
 
-                const normalization = @floatCast(f32, (((1.0 / 3.0) * std.math.pi) * self.num_paths * @floatCast(f64, max_radius2)));
+                const normalization = @as(f32, @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2)))));
 
-                result /= @splat(4, normalization);
+                result /= @as(Vec4f, @splat(normalization));
             }
         }
 
@@ -676,20 +677,20 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, scene: *const Scene) Vec4f {
+    fn scatteringCoefficient(isec: Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {
-            const trafo = scene.propTransformationAt(isec.prop, scene.current_time_start);
-            const local_position = trafo.worldToObjectPoint(isec.geo.p);
+            const trafo = isec.trafo;
+            const local_position = trafo.worldToObjectPoint(isec.p);
 
             const aabb = scene.propShape(isec.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
-            return material.collisionCoefficients(uvw, null, scene).s;
+            return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients(@splat(4, @as(f32, 0.0)), null, scene).s;
+        return material.collisionCoefficients2D(isec.uv(), sampler, scene).s;
     }
 };
 
@@ -719,7 +720,7 @@ const Buffer = struct {
 
         if (lb < num) {
             const begin = lb + 1;
-            const end = std.math.min(num + 1, self.entries.len);
+            const end = @min(num + 1, self.entries.len);
             const range = end - begin;
             std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
 

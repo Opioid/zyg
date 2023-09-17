@@ -23,8 +23,8 @@ const Error = error{
 pub const Model = struct {
     state: *c.ArPragueSkyModelGroundState,
 
-    sun_elevation: f32,
-    sun_azimuth: f32,
+    sun_direction: Vec4f,
+    shadow_direction: Vec4f,
 
     pub const Angular_radius = c.PSMG_SUN_RADIUS;
 
@@ -36,8 +36,7 @@ pub const Model = struct {
         var stream = try fs.readStream(alloc, "sky/SkyModelDataset.dat.gz");
         defer stream.deinit();
 
-        const sun_elevation = elevation(sun_direction);
-        const sun_azimuth = azimuth(sun_direction);
+        const sun_elevation = -std.math.asin(sun_direction[1]);
 
         const state = c.arpragueskymodelground_state_alloc_init_handle(
             &stream,
@@ -47,20 +46,29 @@ pub const Model = struct {
             albedo,
         ) orelse return Error.FailedToLoadSky;
 
+        const d = @sqrt(sun_direction[0] * sun_direction[0] + sun_direction[2] * sun_direction[2]);
+
+        const shadow_direction = Vec4f{
+            (-sun_direction[0] / d) * sun_direction[1],
+            @sqrt(1.0 - sun_direction[1] * sun_direction[1]),
+            (-sun_direction[2] / d) * sun_direction[1],
+            0.0,
+        };
+
         return Model{
             .state = state,
-            .sun_elevation = sun_elevation,
-            .sun_azimuth = sun_azimuth,
+            .sun_direction = sun_direction,
+            .shadow_direction = shadow_direction,
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: c_ulonglong, count: c_ulonglong, stream: ?*anyopaque) callconv(.C) c_ulonglong {
+    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*c.FILE) callconv(.C) usize {
         if (null == buffer or null == stream) {
             return 0;
         }
 
-        var stream_ptr = @ptrCast(*ReadStream, @alignCast(@alignOf(ReadStream), stream));
-        var dest = @ptrCast([*]u8, buffer)[0 .. size * count];
+        var stream_ptr = @as(*ReadStream, @ptrCast(@alignCast(stream)));
+        var dest = @as([*]u8, @ptrCast(buffer))[0 .. size * count];
         return (stream_ptr.read(dest) catch 0) / size;
     }
 
@@ -69,22 +77,14 @@ pub const Model = struct {
     }
 
     pub fn evaluateSky(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const vd = [3]f64{ @floatCast(f64, wi[0]), @floatCast(f64, wi[2]), @floatCast(f64, wi[1]) };
-        const ud = [3]f64{ 0.0, 0.0, 1.0 };
+        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
+        const theta = std.math.acos(wi_dot_z);
 
-        var theta: f64 = undefined;
-        var gamma: f64 = undefined;
-        var shadow: f64 = undefined;
+        const cos_gamma = math.clamp(-math.dot3(wi, self.sun_direction), -1.0, 1.0);
+        const gamma = std.math.acos(cos_gamma);
 
-        c.arpragueskymodelground_compute_angles(
-            self.sun_elevation,
-            self.sun_azimuth,
-            &vd,
-            &ud,
-            &theta,
-            &gamma,
-            &shadow,
-        );
+        const cos_shadow = math.clamp(math.dot3(wi, self.shadow_direction), -1.0, 1.0);
+        const shadow = std.math.acos(cos_shadow);
 
         var samples: [16]f32 = undefined;
 
@@ -96,14 +96,13 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @floatCast(f32, c.arpragueskymodelground_sky_radiance(
+                rwl += @as(f32, @floatCast(c.arpragueskymodelground_sky_radiance(
                     self.state,
                     theta,
                     gamma,
                     shadow,
-
                     Spectrum.randomWavelength(i, s),
-                )) / @intToFloat(f32, samples.len);
+                ))) / @as(f32, @floatFromInt(samples.len));
             }
 
             bin.* = rwl;
@@ -113,7 +112,7 @@ pub const Model = struct {
     }
 
     pub fn evaluateSkyAndSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const wi_dot_z = std.math.clamp(wi[1], -1.0, 1.0);
+        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
         const theta = std.math.acos(wi_dot_z);
 
         var samples: [16]f32 = undefined;
@@ -126,11 +125,11 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @floatCast(f32, c.arpragueskymodelground_solar_radiance(
+                rwl += @as(f32, @floatCast(c.arpragueskymodelground_solar_radiance(
                     self.state,
                     theta,
                     Spectrum.randomWavelength(i, s),
-                )) / @intToFloat(f32, samples.len);
+                ))) / @as(f32, @floatFromInt(samples.len));
             }
 
             bin.* = rwl;
@@ -141,14 +140,5 @@ pub const Model = struct {
 
     pub fn turbidityToVisibility(turbidity: f32) f32 {
         return 7487.0 * @exp(-3.41 * turbidity) + 117.1 * @exp(-0.4768 * turbidity);
-    }
-
-    fn elevation(dir: Vec4f) f32 {
-        const dir_dot_z = -dir[1];
-        return (std.math.pi / 2.0) - std.math.acos(dir_dot_z);
-    }
-
-    fn azimuth(dir: Vec4f) f32 {
-        return -std.math.atan2(f32, -dir[0], -dir[2]) + 0.5 * std.math.pi;
     }
 };

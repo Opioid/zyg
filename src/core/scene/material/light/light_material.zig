@@ -1,5 +1,5 @@
 const Base = @import("../material_base.zig").Base;
-const Sample = @import("sample.zig").Sample;
+const Sample = @import("light_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;
@@ -7,6 +7,7 @@ const Shape = @import("../../shape/shape.zig").Shape;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -24,11 +25,11 @@ const Allocator = std.mem.Allocator;
 // https://twitter.com/VrKomarov/status/1297454856177954816
 
 pub const Material = struct {
-    super: Base = .{ .emittance = .{ .value = @splat(4, @as(f32, 1.0)) } },
+    super: Base = .{ .emittance = .{ .value = @splat(1.0) } },
 
     emission_map: Texture = .{},
     distribution: Distribution2D = .{},
-    average_emission: Vec4f = @splat(4, @as(f32, -1.0)),
+    average_emission: Vec4f = @splat(-1.0),
     total_weight: f32 = 0.0,
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
@@ -62,10 +63,10 @@ pub const Material = struct {
 
         const d = self.emission_map.description(scene).dimensions;
 
-        var luminance = alloc.alloc(f32, @intCast(usize, d[0] * d[1])) catch return @splat(4, @as(f32, 0.0));
+        var luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1]))) catch return @splat(0.0);
         defer alloc.free(luminance);
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         {
             var context = LuminanceContext{
@@ -74,17 +75,17 @@ pub const Material = struct {
                 .texture = self.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(4, @as(f32, 0.0)),
+                    return @splat(0.0),
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(u32, d[1]), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @as(u32, @intCast(d[1])), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }
 
-        const average_emission = avg / @splat(4, avg[3]);
+        const average_emission = avg / @as(Vec4f, @splat(avg[3]));
         self.average_emission = rad * average_emission;
 
         self.total_weight = avg[3];
@@ -92,18 +93,18 @@ pub const Material = struct {
         {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
-                .width = @intCast(u32, d[0]),
-                .conditional = self.distribution.allocate(alloc, @intCast(u32, d[1])) catch
-                    return @splat(4, @as(f32, 0.0)),
+                .width = @as(u32, @intCast(d[0])),
+                .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[1]))) catch
+                    return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(u32, d[1]), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @as(u32, @intCast(d[1])), 0);
         }
 
         self.distribution.configure(alloc) catch
-            return @splat(4, @as(f32, 0.0));
+            return @splat(0.0);
 
         return self.average_emission;
     }
@@ -122,13 +123,12 @@ pub const Material = struct {
         trafo: Trafo,
         prop: u32,
         part: u32,
-        filter: ?ts.Filter,
+        sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, filter, scene);
+        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
-            const key = ts.resolveKey(self.super.sampler_key, filter);
-            return rad * ts.sample2D_3(key, self.emission_map, uv, scene);
+            return rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
         }
 
         return rad;
@@ -157,31 +157,31 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @intToPtr(*LuminanceContext, context);
+        const self = @as(*LuminanceContext, @ptrCast(context));
 
         const d = self.texture.description(self.scene).dimensions;
-        const width = @intCast(u32, d[0]);
+        const width = @as(u32, @intCast(d[0]));
 
-        const idf = @splat(2, @as(f32, 1.0)) / Vec2f{
-            @intToFloat(f32, d[0]),
-            @intToFloat(f32, d[1]),
+        const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
+            @floatFromInt(d[0]),
+            @floatFromInt(d[1]),
         };
 
-        var avg = @splat(4, @as(f32, 0.0));
+        var avg: Vec4f = @splat(0.0);
 
         var y = begin;
         while (y < end) : (y += 1) {
-            const v = idf[1] * (@intToFloat(f32, y) + 0.5);
+            const v = idf[1] * (@as(f32, @floatFromInt(y)) + 0.5);
 
             const row = y * width;
             var x: u32 = 0;
             while (x < width) : (x += 1) {
-                const u = idf[0] * (@intToFloat(f32, x) + 0.5);
+                const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const radiance = self.texture.get2D_3(@intCast(i32, x), @intCast(i32, y), self.scene);
-                const wr = @splat(4, uv_weight) * radiance;
+                const radiance = self.texture.get2D_3(@intCast(x), @intCast(y), self.scene);
+                const wr = @as(Vec4f, @splat(uv_weight)) * radiance;
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
 
@@ -202,7 +202,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @intToPtr(*DistributionContext, context);
+        const self = @as(*DistributionContext, @ptrCast(context));
 
         var y = begin;
         while (y < end) : (y += 1) {
@@ -213,7 +213,7 @@ const DistributionContext = struct {
             var x: u32 = 0;
             while (x < self.width) : (x += 1) {
                 const l = luminance_row[x];
-                const p = std.math.max(l - self.al, std.math.min(l, 0.0025));
+                const p = math.max(l - self.al, math.min(l, 0.0025));
                 luminance_row[x] = p;
             }
 

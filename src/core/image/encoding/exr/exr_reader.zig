@@ -54,22 +54,29 @@ pub const Reader = struct {
         var name_buf: [128]u8 = undefined;
         var type_buf: [128]u8 = undefined;
 
+        var name_fbs = std.io.fixedBufferStream(&name_buf);
+        var type_fbs = std.io.fixedBufferStream(&type_buf);
+
         var channels = try Channels.init(alloc);
         defer channels.deinit(alloc);
 
         var compression = exr.Compression.Undefined;
 
-        var data_window = @splat(4, @as(i32, 0));
-        var display_window = @splat(4, @as(i32, 0));
+        var data_window: Vec4i = @splat(0);
+        var display_window: Vec4i = @splat(0);
 
         while (true) {
-            const attribute_name = try stream.readUntilDelimiter(&name_buf, '\x00');
+            name_fbs.reset();
+            try stream.streamUntilDelimiter(name_fbs.writer(), '\x00', name_buf.len);
+            const attribute_name = name_fbs.getWritten();
 
             if (0 == attribute_name.len) {
                 break;
             }
 
-            const attribute_type = try stream.readUntilDelimiter(&type_buf, '\x00');
+            type_fbs.reset();
+            try stream.streamUntilDelimiter(type_fbs.writer(), '\x00', type_buf.len);
+            const attribute_type = type_fbs.getWritten();
 
             var attribute_size: u32 = undefined;
             _ = try stream.read(std.mem.asBytes(&attribute_size));
@@ -129,15 +136,15 @@ pub const Reader = struct {
             .XYZW => 4,
         };
 
-        const file_num_channels = @intCast(u32, channels.channels.items.len);
+        const file_num_channels = @as(u32, @intCast(channels.channels.items.len));
         num_channels = @min(num_channels, file_num_channels);
 
         const data_xy = Vec2i{ data_window[0], data_window[1] };
         const data_zw = Vec2i{ data_window[2], data_window[3] };
-        const data_dim = (data_zw - data_xy) + @splat(2, @as(i32, 1));
+        const data_dim = (data_zw - data_xy) + @as(Vec2i, @splat(1));
 
-        const width = @intCast(u32, data_dim[0]);
-        const height = @intCast(u32, data_dim[1]);
+        const width = @as(u32, @intCast(data_dim[0]));
+        const height = @as(u32, @intCast(data_dim[1]));
 
         const rows_per_block = exr.Compression.ZIP.numScanlinesPerBlock();
         const row_blocks = exr.Compression.ZIP.numScanlineBlocks(height);
@@ -156,10 +163,10 @@ pub const Reader = struct {
 
         const display_xy = Vec2i{ display_window[0], display_window[1] };
         const display_zw = Vec2i{ display_window[2], display_window[3] };
-        const display_dim = (display_zw - display_xy) + @splat(2, @as(i32, 1));
+        const display_dim = (display_zw - display_xy) + @as(Vec2i, @splat(1));
 
-        const display_width = @intCast(u32, display_dim[0]);
-        const display_height = @intCast(u32, display_dim[1]);
+        const display_width = @as(u32, @intCast(display_dim[0]));
+        const display_height = @as(u32, @intCast(display_dim[1]));
 
         const half = .Half == channels.channels.items[0].format;
         const desc = img.Description.init2D(display_dim);
@@ -204,13 +211,13 @@ pub const Reader = struct {
 
             switch (image) {
                 .Half3 => |half3| {
-                    const halfs = @ptrCast([*]const f16, buffer.ptr);
+                    const halfs = @as([*]const f16, @ptrCast(buffer.ptr));
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = (row + y) * display_width + @intCast(u32, data_window[0]);
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = halfs[o + 2 * width + x];
@@ -229,13 +236,13 @@ pub const Reader = struct {
                     }
                 },
                 .Float3 => |float3| {
-                    const floats = @ptrCast([*]const f32, buffer.ptr);
+                    const floats = @as([*]const f32, @ptrCast(buffer.ptr));
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = (row + y) * display_width + @intCast(u32, data_window[0]);
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = floats[o + 2 * width + x];
@@ -253,13 +260,13 @@ pub const Reader = struct {
                     }
                 },
                 .Half4 => |half4| {
-                    const halfs = @ptrCast([*]const f16, buffer.ptr);
+                    const halfs = @as([*]const f16, @ptrCast(buffer.ptr));
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = row * display_width + @intCast(u32, data_window[0]);
+                        var p = row * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = halfs[o + 3 * width + x];
@@ -281,13 +288,13 @@ pub const Reader = struct {
                     }
                 },
                 .Float4 => |float4| {
-                    const floats = @ptrCast([*]const f32, buffer.ptr);
+                    const floats = @as([*]const f32, @ptrCast(buffer.ptr));
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = row * display_width + @intCast(u32, data_window[0]);
+                        var p = row * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const a = floats[o + 3 * width + x];
@@ -318,8 +325,8 @@ fn reconstructScalar(buf: []u8) void {
     var t: usize = 1;
 
     while (t < buf.len) : (t += 1) {
-        const d = @intCast(u32, buf[t - 1]) + @intCast(u32, buf[t]) -% 128;
-        buf[t] = @truncate(u8, d);
+        const d = @as(u32, @intCast(buf[t - 1])) + @as(u32, @intCast(buf[t])) -% 128;
+        buf[t] = @truncate(d);
     }
 }
 
@@ -390,9 +397,14 @@ const Channels = struct {
     }
 
     pub fn read(self: *Channels, alloc: Allocator, stream: *ReadStream) !void {
+        var buf = std.ArrayListUnmanaged(u8){};
+
         while (true) {
             var channel: exr.Channel = undefined;
-            channel.name = try stream.readUntilDelimiterAlloc(alloc, '\x00');
+
+            buf.shrinkRetainingCapacity(0);
+            try stream.streamUntilDelimiter(buf.writer(alloc), '\x00', null);
+            channel.name = try buf.toOwnedSlice(alloc);
 
             if (0 == channel.name.len) {
                 break;

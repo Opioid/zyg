@@ -1,8 +1,11 @@
 zig-*/
+cache/
 data/
 system/
 source/base/platform/version.hpp
 .directory
+.DS_STORE
+.vscode
 \#*#
 *.*~
 TAGS

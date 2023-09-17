@@ -1,3 +1,4 @@
+const math = @import("minmax.zig");
 const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
@@ -52,11 +53,11 @@ pub inline fn distance3(a: Vec4f, b: Vec4f) f32 {
 }
 
 pub inline fn normalize3(v: Vec4f) Vec4f {
-    return v / @splat(4, length3(v));
+    return v / @as(Vec4f, @splat(length3(v)));
 }
 
 pub inline fn reciprocal3(v: Vec4f) Vec4f {
-    return @splat(4, @as(f32, 1.0)) / v;
+    return @as(Vec4f, @splat(1.0)) / v;
 }
 
 pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
@@ -79,7 +80,7 @@ pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
 }
 
 pub inline fn reflect3(n: Vec4f, v: Vec4f) Vec4f {
-    return @splat(4, 2.0 * dot3(v, n)) * n - v;
+    return @as(Vec4f, @splat(2.0 * dot3(v, n))) * n - v;
 }
 
 pub inline fn orthonormalBasis3(n: Vec4f) [2]Vec4f {
@@ -106,32 +107,32 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
 
 pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {
     return .{
-        std.math.min(a[0], b[0]),
-        std.math.min(a[1], b[1]),
-        std.math.min(a[2], b[2]),
-        std.math.min(a[3], b[3]),
+        math.min(a[0], b[0]),
+        math.min(a[1], b[1]),
+        math.min(a[2], b[2]),
+        math.min(a[3], b[3]),
     };
 }
 
 pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
     return .{
-        std.math.max(a[0], b[0]),
-        std.math.max(a[1], b[1]),
-        std.math.max(a[2], b[2]),
-        std.math.max(a[3], b[3]),
+        math.max(a[0], b[0]),
+        math.max(a[1], b[1]),
+        math.max(a[2], b[2]),
+        math.max(a[3], b[3]),
     };
 }
 
-pub inline fn clamp(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return min4(max4(v, @splat(4, mi)), @splat(4, ma));
+pub inline fn clamp4(v: Vec4f, mi: f32, ma: f32) Vec4f {
+    return min4(max4(v, @splat(mi)), @splat(ma));
 }
 
 pub inline fn hmin3(v: Vec4f) f32 {
-    return std.math.min(v[0], std.math.min(v[1], v[2]));
+    return math.min(v[0], math.min(v[1], v[2]));
 }
 
 pub inline fn hmax3(v: Vec4f) f32 {
-    return std.math.max(v[0], std.math.max(v[1], v[2]));
+    return math.max(v[0], math.max(v[1], v[2]));
 }
 
 pub inline fn indexMinComponent3(v: Vec4f) u32 {
@@ -154,6 +155,15 @@ pub inline fn average3(v: Vec4f) f32 {
     return (v[0] + v[1] + v[2]) / 3.0;
 }
 
+pub inline fn pow(a: Vec4f, b: Vec4f) Vec4f {
+    return .{
+        std.math.pow(f32, a[0], b[0]),
+        std.math.pow(f32, a[1], b[1]),
+        std.math.pow(f32, a[2], b[2]),
+        std.math.pow(f32, a[3], b[3]),
+    };
+}
+
 pub inline fn equal(a: anytype, b: @TypeOf(a)) bool {
     return @reduce(.And, a == b);
 }
@@ -166,12 +176,16 @@ pub inline fn anyLess4i(a: Vec4i, b: Vec4i) bool {
     return @reduce(.Or, a < b);
 }
 
+pub inline fn allLessEqualZero3(v: Vec4f) bool {
+    return @reduce(.And, v <= Vec4f{ 0.0, 0.0, 0.0, std.math.floatMax(f32) });
+}
+
 pub inline fn anyGreaterZero3(v: Vec4f) bool {
-    return @reduce(.Or, v > Vec4f{ 0.0, 0.0, 0.0, std.math.f32_max });
+    return @reduce(.Or, v > Vec4f{ 0.0, 0.0, 0.0, std.math.floatMax(f32) });
 }
 
 pub inline fn anyGreaterZero4(v: Vec4f) bool {
-    return @reduce(.Or, v > @splat(4, @as(f32, 0.0)));
+    return @reduce(.Or, v > @as(Vec4f, @splat(0.0)));
 }
 
 pub inline fn anyGreaterEqual4u(a: Vec4u, b: Vec4u) bool {
@@ -205,33 +219,33 @@ pub fn allFinite3(v: Vec4f) bool {
 
 pub inline fn vec4fTo4i(v: Vec4f) Vec4i {
     return .{
-        @floatToInt(i32, v[0]),
-        @floatToInt(i32, v[1]),
-        @floatToInt(i32, v[2]),
-        @floatToInt(i32, v[3]),
+        @intFromFloat(v[0]),
+        @intFromFloat(v[1]),
+        @intFromFloat(v[2]),
+        @intFromFloat(v[3]),
     };
 }
 
 pub inline fn vec4iTo4f(v: Vec4i) Vec4f {
     return .{
-        @intToFloat(f32, v[0]),
-        @intToFloat(f32, v[1]),
-        @intToFloat(f32, v[2]),
-        @intToFloat(f32, v[3]),
+        @floatFromInt(v[0]),
+        @floatFromInt(v[1]),
+        @floatFromInt(v[2]),
+        @floatFromInt(v[3]),
     };
 }
 
 pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
     return .{
-        @intToFloat(f32, v[0]),
-        @intToFloat(f32, v[1]),
-        @intToFloat(f32, v[2]),
-        @intToFloat(f32, v[3]),
+        @floatFromInt(v[0]),
+        @floatFromInt(v[1]),
+        @floatFromInt(v[2]),
+        @floatFromInt(v[3]),
     };
 }
 
 pub inline fn vec4iTo4u(v: Vec4i) Vec4u {
-    return @bitCast(Vec4u, v);
+    return @as(Vec4u, @bitCast(v));
 }
 
 pub inline fn vec3fTo4f(v: Pack3f) Vec4f {
@@ -240,19 +254,19 @@ pub inline fn vec3fTo4f(v: Pack3f) Vec4f {
 
 pub inline fn vec3bTo4f(v: Pack3b) Vec4f {
     return .{
-        @intToFloat(f32, v.v[0]),
-        @intToFloat(f32, v.v[1]),
-        @intToFloat(f32, v.v[2]),
+        @floatFromInt(v.v[0]),
+        @floatFromInt(v.v[1]),
+        @floatFromInt(v.v[2]),
         0.0,
     };
 }
 
 pub inline fn vec4bTo4f(v: Vec4b) Vec4f {
     return .{
-        @intToFloat(f32, v[0]),
-        @intToFloat(f32, v[1]),
-        @intToFloat(f32, v[2]),
-        @intToFloat(f32, v[3]),
+        @floatFromInt(v[0]),
+        @floatFromInt(v[1]),
+        @floatFromInt(v[2]),
+        @floatFromInt(v[3]),
     };
 }
 
@@ -262,43 +276,43 @@ pub inline fn vec4fTo3f(v: Vec4f) Pack3f {
 
 pub inline fn vec4fTo3b(v: Vec4f) Pack3b {
     return Pack3b.init3(
-        @floatToInt(u8, v[0]),
-        @floatToInt(u8, v[1]),
-        @floatToInt(u8, v[2]),
+        @intFromFloat(v[0]),
+        @intFromFloat(v[1]),
+        @intFromFloat(v[2]),
     );
 }
 
 pub inline fn vec4fTo3h(v: Vec4f) Pack3h {
     return Pack3h.init3(
-        @floatCast(f16, v[0]),
-        @floatCast(f16, v[1]),
-        @floatCast(f16, v[2]),
+        @floatCast(v[0]),
+        @floatCast(v[1]),
+        @floatCast(v[2]),
     );
 }
 
 pub inline fn vec4fTo4h(v: Vec4f) Pack4h {
     return Pack4h.init4(
-        @floatCast(f16, v[0]),
-        @floatCast(f16, v[1]),
-        @floatCast(f16, v[2]),
-        @floatCast(f16, v[3]),
+        @floatCast(v[0]),
+        @floatCast(v[1]),
+        @floatCast(v[2]),
+        @floatCast(v[3]),
     );
 }
 
 pub inline fn vec4fTo4b(v: Vec4f) Vec4b {
     return .{
-        @floatToInt(u8, v[0]),
-        @floatToInt(u8, v[1]),
-        @floatToInt(u8, v[2]),
-        @floatToInt(u8, v[3]),
+        @intFromFloat(v[0]),
+        @intFromFloat(v[1]),
+        @intFromFloat(v[2]),
+        @intFromFloat(v[3]),
     };
 }
 
 pub inline fn vec3hTo4f(v: Pack3h) Vec4f {
     return .{
-        @floatCast(f32, v.v[0]),
-        @floatCast(f32, v.v[1]),
-        @floatCast(f32, v.v[2]),
+        @floatCast(v.v[0]),
+        @floatCast(v.v[1]),
+        @floatCast(v.v[2]),
         0.0,
     };
 }

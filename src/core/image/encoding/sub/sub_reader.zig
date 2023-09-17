@@ -34,34 +34,38 @@ pub const Reader = struct {
 
         _ = try stream.read(json_string);
 
-        var parser = std.json.Parser.init(alloc, false);
-        defer parser.deinit();
+        var json_strlen = json_size;
+        while (0 == json_string[json_strlen - 1]) {
+            json_strlen -= 1;
+        }
 
-        var document = try parser.parse(json_string);
-        defer document.deinit();
+        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, json_string[0..json_strlen], .{});
+        defer parsed.deinit();
 
-        const image_node = document.root.Object.get("image") orelse return Error.NoImageDeclaration;
+        const root = parsed.value;
 
-        const description_node = image_node.Object.get("description") orelse return Error.NoImageDescription;
+        const image_node = root.object.get("image") orelse return Error.NoImageDeclaration;
 
-        const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(4, @as(i32, -1)));
+        const description_node = image_node.object.get("description") orelse return Error.NoImageDescription;
+
+        const dimensions = json.readVec4i3Member(description_node, "dimensions", @splat(-1));
 
         if (-1 == dimensions[0]) {
             return Error.InvalidDimensions;
         }
 
-        const offset = json.readVec4i3Member(description_node, "offset", @splat(4, @as(i32, 0)));
+        const offset = json.readVec4i3Member(description_node, "offset", @splat(0));
 
         const image_type = try readImageType(description_node);
         //   const topology_node =
 
-        const pixels_node = image_node.Object.get("pixels") orelse return Error.NoPixels;
+        const pixels_node = image_node.object.get("pixels") orelse return Error.NoPixels;
 
         var pixels_offset: u64 = 0;
         var pixels_size: u64 = 0;
 
         {
-            var iter = pixels_node.Object.iterator();
+            var iter = pixels_node.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "binary", entry.key_ptr.*)) {
                     pixels_offset = json.readUInt64Member(entry.value_ptr.*, "offset", 0);
@@ -74,12 +78,12 @@ pub const Reader = struct {
 
         const description = img.Description.init3D(dimensions);
 
-        if (image_node.Object.get("topology")) |topology_node| {
+        if (image_node.object.get("topology")) |topology_node| {
             var topology_offset: u64 = 0;
             var topology_size: u64 = 0;
 
             {
-                var iter = topology_node.Object.iterator();
+                var iter = topology_node.object.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "binary", entry.key_ptr.*)) {
                         topology_offset = json.readUInt64Member(entry.value_ptr.*, "offset", 0);
@@ -132,7 +136,7 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: f32 = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        try image.storeSequentially(alloc, @intCast(i64, i), val);
+                        try image.storeSequentially(alloc, @intCast(i), val);
                     }
                 }
 
@@ -166,7 +170,7 @@ pub const Reader = struct {
                         _ = try stream.read(std.mem.asBytes(&val));
                         image.pixels[i] = val;
                     } else {
-                        image.pixels[i] = @splat(2, @as(f32, 0.0));
+                        image.pixels[i] = @splat(0.0);
                     }
                 }
 
@@ -178,9 +182,9 @@ pub const Reader = struct {
     }
 
     fn readImageType(value: std.json.Value) !img.Type {
-        const node = value.Object.get("type") orelse return Error.UndefinedImageType;
+        const node = value.object.get("type") orelse return Error.UndefinedImageType;
 
-        const type_name = node.String;
+        const type_name = node.string;
 
         if (std.mem.eql(u8, "Byte1", type_name)) {
             return img.Type.Byte1;

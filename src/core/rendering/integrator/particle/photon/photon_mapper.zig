@@ -1,20 +1,19 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
-const Ray = @import("../../../../scene/ray.zig").Ray;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
-const Intersection = @import("../../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
-const Filter = @import("../../../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
+const Vec4f = math.Vec4f;
 const AABB = math.AABB;
 const RNG = base.rnd.Generator;
 
@@ -64,7 +63,7 @@ pub const Mapper = struct {
 
         var i = begin;
         while (i < end) {
-            const max_photons = std.math.min(self.settings.max_bounces, end - i);
+            const max_photons = @min(self.settings.max_bounces, end - i);
             const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
 
             if (result.num_iterations > 0) {
@@ -91,24 +90,16 @@ pub const Mapper = struct {
         // How often should we try to create a valid photon path?
         const Max_iterations = 1024 * 10;
 
-        const Avoid_caustics = false;
-
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
-        var stack: InterfaceStack = undefined;
-        stack.clear();
-
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
-            var filter: ?Filter = null;
-
             var caustic_path = false;
-            var from_subsurface = false;
 
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
-            var ray = self.generateLightRay(
+            var vertex = self.generateLightVertex(
                 frame,
                 bounds,
                 worker,
@@ -118,74 +109,76 @@ pub const Mapper = struct {
 
             const light = worker.scene.light(light_id);
 
-            var vertex: Vertex = undefined;
-            vertex.start(ray, .{}, &stack);
-
+            worker.interface_stack.clear();
             if (light.volumetric()) {
-                vertex.interface_stack.pushVolumeLight(light);
+                worker.interface_stack.pushVolumeLight(light);
             }
 
-            var throughput = @splat(4, @as(f32, 1.0));
+            var isec: Intersection = undefined;
+            // if (!worker.interface_stack.empty()) {
+            //     const vr = worker.volume(&ray, throughput, &isec, null, &self.sampler);
+            //     throughput = vr.tr;
 
-            if (!vertex.interface_stack.empty()) {
-                const vr = worker.volume(&vertex, null, &self.sampler);
-                throughput = vr.tr;
+            //     if (.Abort == vr.event or .Absorb == vr.event) {
+            //         continue;
+            //     }
+            // } else if (!worker.intersectAndResolveMask(&ray, null, &isec)) {
+            //     continue;
+            // }
 
-                if (.Abort == vr.event or .Absorb == vr.event) {
-                    continue;
-                }
-            } else if (!worker.intersectAndResolveMask(&vertex.ray, null, &vertex.isec)) {
+            if (!worker.nextEvent(&vertex, @splat(1.0), &isec, &self.sampler)) {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(vertex.isec.geo.p, light_sample, filter, worker.scene) / @splat(4, light_sample.pdf());
+            if (.Absorb == isec.event) {
+                continue;
+            }
+
+            var throughput = isec.vol_tr;
+
+            var radiance = light.evaluateFrom(isec.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= throughput;
 
-            var wo1 = @splat(4, @as(f32, 0.0));
-
-            while (vertex.ray.depth < self.settings.max_bounces) {
-                const wo = -vertex.ray.ray.direction;
+            while (vertex.depth < self.settings.max_bounces) {
+                const wo = -vertex.ray.direction;
 
                 const mat_sample = worker.sampleMaterial(
-                    &vertex,
-                    wo,
-                    filter,
+                    vertex,
+                    isec,
+                    &self.sampler,
                     0.0,
-                    Avoid_caustics,
-                    from_subsurface,
+                    .Full,
                 );
-
-                wo1 = wo;
 
                 if (mat_sample.isPureEmissive()) {
                     break;
                 }
 
-                const sample_result = mat_sample.sample(&self.sampler, false, &worker.bxdfs)[0];
+                const sample_result = mat_sample.sample(&self.sampler);
                 if (0.0 == sample_result.pdf) {
                     break;
                 }
 
                 if (!sample_result.class.straight) {
                     if (!sample_result.class.specular and
-                        (vertex.isec.subsurface or mat_sample.super().sameHemisphere(wo)) and
+                        (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or bounds.pointInside(vertex.isec.geo.p)) {
+                        if (finite_world or bounds.pointInside(isec.p)) {
                             var radi = radiance;
 
-                            const material_ior = vertex.isec.material(worker.scene).ior();
-                            if (vertex.isec.subsurface and material_ior > 1.0) {
-                                const ior_t = vertex.interface_stack.nextToBottomIor(worker.scene);
+                            const material_ior = isec.material(worker.scene).ior();
+                            if (isec.subsurface() and material_ior > 1.0) {
+                                const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
-                                radi *= @splat(4, eta * eta);
+                                radi *= @as(Vec4f, @splat(eta * eta));
                             }
 
                             self.photons[num_photons] = Photon{
-                                .p = vertex.isec.geo.p,
+                                .p = isec.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
-                                .volumetric = vertex.isec.subsurface,
+                                .volumetric = isec.subsurface(),
                             };
 
                             iteration = i + 1;
@@ -199,60 +192,53 @@ pub const Mapper = struct {
 
                     if (sample_result.class.specular) {
                         caustic_path = true;
-                    } else {
-                        filter = .Nearest;
                     }
 
-                    const nr = radiance * sample_result.reflection / @splat(4, sample_result.pdf);
+                    const nr = radiance * sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                    const avg = math.average3(nr) / std.math.max(math.average3(radiance), 0.000001);
-                    const continue_prob = std.math.min(1.0, avg);
+                    const avg = math.average3(nr) / math.max(math.average3(radiance), 0.000001);
+                    const continue_prob = math.min(1.0, avg);
 
                     if (self.sampler.sample1D() >= continue_prob) {
                         break;
                     }
 
-                    radiance = nr / @splat(4, continue_prob);
+                    radiance = nr / @as(Vec4f, @splat(continue_prob));
                 }
 
                 if (sample_result.class.straight) {
-                    vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
+                    vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
-                        vertex.ray.depth += 1;
+                        vertex.depth += 1;
                     }
                 } else {
-                    vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                    vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    vertex.ray.depth += 1;
+                    vertex.ray.origin = isec.offsetP(sample_result.wi);
+                    vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.depth += 1;
 
-                    from_subsurface = false;
+                    vertex.state.from_subsurface = isec.subsurface();
                 }
 
-                if (0.0 == ray.wavelength) {
-                    vertex.ray.wavelength = sample_result.wavelength;
+                if (0.0 == vertex.wavelength) {
+                    vertex.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = vertex.interfaceChangeIor(sample_result.wi, worker.scene);
+                    const ior = worker.interfaceChangeIor(sample_result.wi, isec, &self.sampler);
                     const eta = ior.eta_i / ior.eta_t;
-                    radiance *= @splat(4, eta * eta);
+                    radiance *= @as(Vec4f, @splat(eta * eta));
                 }
 
-                from_subsurface = from_subsurface or vertex.isec.subsurface;
-
-                if (!vertex.interface_stack.empty()) {
-                    const vr = worker.volume(&vertex, filter, &self.sampler);
-
-                    // result += throughput * vr.li;
-                    radiance *= vr.tr;
-
-                    if (.Abort == vr.event or .Absorb == vr.event) {
-                        break;
-                    }
-                } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
+                if (!worker.nextEvent(&vertex, throughput, &isec, &self.sampler)) {
                     break;
                 }
+
+                if (.Absorb == isec.event) {
+                    break;
+                }
+
+                throughput *= isec.vol_tr;
 
                 self.sampler.incrementPadding();
             }
@@ -267,14 +253,14 @@ pub const Mapper = struct {
         return .{ .num_iterations = 0, .num_photons = 0 };
     }
 
-    fn generateLightRay(
+    fn generateLightVertex(
         self: *Self,
         frame: u32,
         bounds: AABB,
         worker: *Worker,
         light_id: *u32,
         light_sample: *SampleFrom,
-    ) ?Ray {
+    ) ?Vertex {
         const select = self.sampler.sample1D();
         const l = worker.scene.randomLight(select);
 
@@ -286,6 +272,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
+        return Vertex.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time);
     }
 };

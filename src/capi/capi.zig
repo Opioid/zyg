@@ -129,7 +129,7 @@ export fn su_mount(folder: [*:0]const u8) i32 {
 
 export fn su_perspective_camera_create(width: u32, height: u32) i32 {
     if (engine) |*e| {
-        const resolution = Vec2i{ @intCast(i32, width), @intCast(i32, height) };
+        const resolution = Vec2i{ @intCast(width), @intCast(height) };
         const crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
 
         var camera = &e.take.view.camera;
@@ -147,7 +147,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
 
         e.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
-        return @intCast(i32, camera.entity);
+        return @as(i32, @intCast(camera.entity));
     }
 
     return -1;
@@ -175,13 +175,10 @@ export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
 
 export fn su_exporters_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.loadExporters(e.alloc, document.root) catch return -1;
+        e.take.loadExporters(e.alloc, parsed.value) catch return -1;
 
         return 0;
     }
@@ -191,13 +188,10 @@ export fn su_exporters_create(string: [*:0]const u8) i32 {
 
 export fn su_aovs_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.view.loadAOV(document.root);
+        e.take.view.loadAOV(parsed.value);
 
         return 0;
     }
@@ -215,13 +209,10 @@ export fn su_sampler_create(num_samples: u32) i32 {
 
 export fn su_integrators_create(string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
-
-        e.take.view.loadIntegrators(document.root);
+        e.take.view.loadIntegrators(parsed.value);
 
         return 0;
     }
@@ -240,14 +231,14 @@ export fn su_image_create(
     data: [*]u8,
 ) i32 {
     if (engine) |*e| {
-        const ef = @intToEnum(Format, format);
+        const ef = @as(Format, @enumFromInt(format));
         const bpc: u32 = switch (ef) {
             .UInt8 => 1,
             .UInt16, .Float16 => 2,
             .UInt32, .Float32 => 4,
         };
 
-        const desc = img.Description.init3D(.{ @intCast(i32, width), @intCast(i32, height), @intCast(i32, depth), 0 });
+        const desc = img.Description.init3D(.{ @as(i32, @intCast(width)), @as(i32, @intCast(height)), @as(i32, @intCast(depth)), 0 });
 
         var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
             return -1;
@@ -256,7 +247,7 @@ export fn su_image_create(
         const bpp = bpc * num_channels;
 
         if (bpp == pixel_stride) {
-            std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+            @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
         }
 
         const image: ?img.Image = switch (ef) {
@@ -280,7 +271,7 @@ export fn su_image_create(
             const image_id = e.resources.images.store(e.alloc, id, i) catch {
                 return -1;
             };
-            return @intCast(i32, image_id);
+            return @as(i32, @intCast(image_id));
         }
 
         e.alloc.free(buffer);
@@ -323,7 +314,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                     else => return -1,
                 };
 
-                std.mem.copy(u8, buffer, data[0 .. desc.numPixels() * bpp]);
+                @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
             }
 
             return 0;
@@ -335,17 +326,12 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
 
 export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
-        defer parser.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -1;
-        defer document.deinit();
+        const material = e.resources.loadData(scn.Material, e.alloc, id, &parsed.value, .{}) catch return -1;
 
-        const data = @ptrToInt(&document.root);
-
-        const material = e.resources.loadData(scn.Material, e.alloc, id, data, .{}) catch return -1;
-
-        return @intCast(i32, material);
+        return @as(i32, @intCast(material));
     }
 
     return -1;
@@ -353,11 +339,8 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
 
 export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
     if (engine) |*e| {
-        var parser = std.json.Parser.init(e.alloc, false);
-        defer parser.deinit();
-
-        var document = parser.parse(string[0..std.mem.len(string)]) catch return -2;
-        defer document.deinit();
+        var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
+        defer parsed.deinit();
 
         if (id >= e.scene.materials.items.len) {
             return -3;
@@ -368,7 +351,7 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
         e.resources.materials.provider.updateMaterial(
             e.alloc,
             material,
-            document.root,
+            parsed.value,
             &e.resources,
         ) catch return -4;
 
@@ -393,11 +376,12 @@ export fn su_triangle_mesh_create(
     tangents_stride: u32,
     uvs: ?[*]const f32,
     uvs_stride: u32,
+    asyncr: bool,
 ) i32 {
     if (engine) |*e| {
-        const desc = resource.TriangleMeshProvider.Description{
+        const desc = resource.ShapeProvider.Description{
             .num_parts = num_parts,
-            .num_triangles = num_triangles,
+            .num_primitives = num_triangles,
             .num_vertices = num_vertices,
             .positions_stride = positions_stride,
             .normals_stride = normals_stride,
@@ -411,55 +395,13 @@ export fn su_triangle_mesh_create(
             .uvs = uvs,
         };
 
-        const data = @ptrToInt(&desc);
+        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
 
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
+        if (!asyncr) {
+            e.resources.commitAsync();
+        }
 
-        e.resources.commitAsync();
-
-        return @intCast(i32, mesh_id);
-    }
-
-    return -1;
-}
-
-export fn su_triangle_mesh_create_async(
-    id: u32,
-    num_parts: u32,
-    parts: ?[*]const u32,
-    num_triangles: u32,
-    indices: ?[*]const u32,
-    num_vertices: u32,
-    positions: [*]const f32,
-    positions_stride: u32,
-    normals: [*]const f32,
-    normals_stride: u32,
-    tangents: ?[*]const f32,
-    tangents_stride: u32,
-    uvs: ?[*]const f32,
-    uvs_stride: u32,
-) i32 {
-    if (engine) |*e| {
-        const desc = resource.TriangleMeshProvider.Description{
-            .num_parts = num_parts,
-            .num_triangles = num_triangles,
-            .num_vertices = num_vertices,
-            .positions_stride = positions_stride,
-            .normals_stride = normals_stride,
-            .tangents_stride = tangents_stride,
-            .uvs_stride = uvs_stride,
-            .parts = parts,
-            .indices = indices,
-            .positions = positions,
-            .normals = normals,
-            .tangents = tangents,
-            .uvs = uvs,
-        };
-
-        const data = @ptrToInt(&desc);
-
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, data, .{}) catch return -1;
-        return @intCast(i32, mesh_id);
+        return @as(i32, @intCast(mesh_id));
     }
 
     return -1;
@@ -491,7 +433,7 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
 
         const prop = e.scene.createProp(e.alloc, shape, matbuf.items) catch return -1;
 
-        return @intCast(i32, prop);
+        return @as(i32, @intCast(prop));
     }
 
     return -1;
@@ -505,7 +447,7 @@ export fn su_prop_create_instance(entity: u32) i32 {
 
         const prop = e.scene.createPropInstance(e.alloc, entity) catch return -1;
 
-        return @intCast(i32, prop);
+        return @as(i32, @intCast(prop));
     }
 
     return -1;
@@ -660,7 +602,7 @@ export fn su_resolve_frame(aov: u32) i32 {
             return 0;
         }
 
-        return if (e.driver.resolveAov(@intToEnum(core.tk.View.AovValue.Class, aov))) 0 else -2;
+        return if (e.driver.resolveAov(@as(core.tk.View.AovValue.Class, @enumFromInt(aov)))) 0 else -2;
     }
 
     return -1;
@@ -668,9 +610,9 @@ export fn su_resolve_frame(aov: u32) i32 {
 
 export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @min(width * height, @intCast(u32, e.driver.target.description.numPixels()));
+        const num_pixels = @min(width * height, @as(u32, @intCast(e.driver.target.description.numPixels())));
 
-        const target = @ptrCast([*]Pack4f, buffer);
+        const target = @as([*]Pack4f, @ptrCast(buffer));
 
         if (aov >= core.tk.View.AovValue.Num_classes) {
             e.driver.resolveToBuffer(target, num_pixels);
@@ -678,7 +620,7 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
         }
 
         return if (e.driver.resolveAovToBuffer(
-            @intToEnum(core.tk.View.AovValue.Class, aov),
+            @as(core.tk.View.AovValue.Class, @enumFromInt(aov)),
             target,
             num_pixels,
         )) 0 else -2;
@@ -698,7 +640,7 @@ export fn su_copy_framebuffer(
         const bpc: u32 = if (0 == format) 1 else 4;
 
         var context = CopyFramebufferContext{
-            .format = @intToEnum(Format, format),
+            .format = @as(Format, @enumFromInt(format)),
             .num_channels = num_channels,
             .width = width,
             .destination = destination[0 .. bpc * num_channels * width * height],
@@ -707,7 +649,7 @@ export fn su_copy_framebuffer(
 
         const buffer = e.driver.target;
         const d = buffer.description.dimensions;
-        const used_height = @min(height, @intCast(u32, d[1]));
+        const used_height = @min(height, @as(u32, @intCast(d[1])));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
 
@@ -727,12 +669,12 @@ const CopyFramebufferContext = struct {
     fn copy(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @intToPtr(*CopyFramebufferContext, context);
+        const self = @as(*CopyFramebufferContext, @ptrCast(@alignCast(context)));
 
         const d = self.source.description.dimensions;
 
         const width = self.width;
-        const used_width = @min(self.width, @intCast(u32, d[0]));
+        const used_width = @min(self.width, @as(u32, @intCast(d[0])));
 
         if (3 == self.num_channels) {
             const destination = self.destination;
@@ -742,11 +684,11 @@ const CopyFramebufferContext = struct {
                 var o: u32 = y * width * 3;
                 var x: u32 = 0;
                 while (x < used_width) : (x += 1) {
-                    const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
+                    const color = self.source.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)));
 
-                    destination[o + 0] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[0]));
-                    destination[o + 1] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[1]));
-                    destination[o + 2] = encoding.floatToUnorm(spectrum.linearToGamma_sRGB(color.v[2]));
+                    destination[o + 0] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[0]));
+                    destination[o + 1] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[1]));
+                    destination[o + 2] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[2]));
 
                     o += 3;
                 }
@@ -759,7 +701,7 @@ const CopyFramebufferContext = struct {
                 var o: u32 = y * width;
                 var x: u32 = 0;
                 while (x < used_width) : (x += 1) {
-                    const color = self.source.get2D(@intCast(i32, x), @intCast(i32, y));
+                    const color = self.source.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)));
 
                     destination[o] = color;
 

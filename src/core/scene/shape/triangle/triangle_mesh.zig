@@ -1,18 +1,21 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../../scene.zig").Scene;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
-const Tree = @import("bvh/triangle_tree.zig").Tree;
+const Tree = @import("triangle_tree.zig").Tree;
+const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
+const LightProperties = @import("../../light/light.zig").Properties;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
 const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
@@ -23,9 +26,11 @@ const AABB = math.AABB;
 const Mat3x3 = math.Mat3x3;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
 const Ray = math.Ray;
 const Distribution1D = math.Distribution1D;
 const Threads = base.thread.Pool;
+const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -67,8 +72,8 @@ pub const Part = struct {
     area: f32 = undefined,
 
     triangle_mapping: [*]u32 = undefined,
-    aabbs: [*]AABB = undefined,
-    cones: [*]Vec4f = undefined,
+
+    tree: *const Tree = undefined,
 
     variants: std.ArrayListUnmanaged(Variant) = .{},
 
@@ -80,8 +85,6 @@ pub const Part = struct {
         self.variants.deinit(alloc);
 
         const num = self.num_alloc;
-        alloc.free(self.cones[0..num]);
-        alloc.free(self.aabbs[0..num]);
         alloc.free(self.triangle_mapping[0..num]);
     }
 
@@ -99,48 +102,21 @@ pub const Part = struct {
         const num = self.num_triangles;
 
         if (0 == self.num_alloc) {
-            var total_area: f32 = 0.0;
-
             const triangle_mapping = (try alloc.alloc(u32, num)).ptr;
-            const aabbs = (try alloc.alloc(AABB, num)).ptr;
-            const cones = (try alloc.alloc(Vec4f, num)).ptr;
 
             var t: u32 = 0;
             var mt: u32 = 0;
             const len = tree.numTriangles();
             while (t < len) : (t += 1) {
                 if (tree.data.part(t) == part) {
-                    const area = tree.data.area(t);
-                    total_area += area;
-
                     triangle_mapping[mt] = t;
-
-                    const vabc = tree.data.triangleP(t);
-
-                    var box = math.aabb.Empty;
-                    box.insert(vabc[0]);
-                    box.insert(vabc[1]);
-                    box.insert(vabc[2]);
-                    box.cacheRadius();
-                    box.bounds[1][3] = area;
-
-                    aabbs[mt] = box;
-
-                    const n = tree.data.normal(t);
-                    cones[mt] = Vec4f{ n[0], n[1], n[2], 1.0 };
-
                     mt += 1;
                 }
             }
 
-            for (aabbs[0..num]) |*b| {
-                b.bounds[1][3] = total_area / b.bounds[1][3];
-            }
-
             self.num_alloc = num;
             self.triangle_mapping = triangle_mapping;
-            self.aabbs = aabbs;
-            self.cones = cones;
+            self.tree = tree;
         }
 
         const m = scene.material(material);
@@ -150,12 +126,12 @@ pub const Part = struct {
 
         for (self.variants.items, 0..) |v, i| {
             if (v.matches(material, emission_map, two_sided, scene)) {
-                return @intCast(u32, i);
+                return @intCast(i);
             }
         }
 
-        const dimensions = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(4, @as(i32, 0));
-        const context = Context{
+        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(0);
+        var context = Context{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .part = self,
@@ -164,7 +140,7 @@ pub const Part = struct {
             .scene = scene,
             .prop_id = prop,
             .part_id = part,
-            .estimate_area = @intToFloat(f32, dimensions[0] * dimensions[1]) / 4.0,
+            .estimate_area = @as(f32, @floatFromInt(dimensions[0] * dimensions[1])) / 4.0,
         };
         defer {
             alloc.free(context.powers);
@@ -180,15 +156,16 @@ pub const Part = struct {
             temp.total_power += t.total_power;
         }
 
-        const da = math.normalize3(temp.dominant_axis / @splat(4, temp.total_power));
+        const da = math.normalize3(temp.dominant_axis / @as(Vec4f, @splat(temp.total_power)));
 
         var angle: f32 = 0.0;
-        for (self.cones[0..self.num_alloc]) |n| {
+        for (self.triangle_mapping[0..self.num_alloc]) |t| {
+            const n = self.tree.data.normal(t);
             const c = math.dot3(da, n);
-            angle = std.math.max(angle, std.math.acos(c));
+            angle = math.max(angle, std.math.acos(c));
         }
 
-        const v = @intCast(u32, self.variants.items.len);
+        const v = @as(u32, @intCast(self.variants.items.len));
 
         try self.variants.append(alloc, .{
             .aabb = temp.bb,
@@ -216,11 +193,15 @@ pub const Part = struct {
     }
 
     pub fn lightAabb(self: Part, light: u32) AABB {
-        return self.aabbs[light];
+        const global = self.triangle_mapping[light];
+        const abc = self.tree.data.triangleP(global);
+        return AABB.init(tri.min(abc[0], abc[1], abc[2]), tri.max(abc[0], abc[1], abc[2]));
     }
 
     pub fn lightCone(self: Part, light: u32) Vec4f {
-        return self.cones[light];
+        const global = self.triangle_mapping[light];
+        const n = self.tree.data.normal(global);
+        return .{ n[0], n[1], n[2], 1.0 };
     }
 
     pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
@@ -229,13 +210,43 @@ pub const Part = struct {
     }
 
     pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+        // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
-        return dist.pdfI(light) * dist.integral;
+        return dist.pdfI(light);
+    }
+
+    pub fn lightProperties(self: Part, light: u32, variant: u32) LightProperties {
+        const global = self.triangle_mapping[light];
+
+        const abc = self.tree.data.triangleP(global);
+
+        const center = (abc[0] + abc[1] + abc[2]) / @as(Vec4f, @splat(3.0));
+
+        const sra = math.squaredLength3(abc[0] - center);
+        const srb = math.squaredLength3(abc[1] - center);
+        const src = math.squaredLength3(abc[2] - center);
+
+        const radius = @sqrt(math.max(sra, math.max(srb, src)));
+
+        const e1 = abc[1] - abc[0];
+        const e2 = abc[2] - abc[0];
+        const n = math.normalize3(math.cross3(e1, e2));
+
+        // I think it is fine to just give the primitives relative power in this case
+        const dist = self.variants.items[variant].distribution;
+        const pow = dist.pdfI(light);
+
+        return .{
+            .sphere = .{ center[0], center[1], center[2], radius },
+            .cone = .{ n[0], n[1], n[2], 1.0 },
+            .power = pow,
+            .two_sided = self.variants.items[variant].two_sided,
+        };
     }
 
     const Temp = struct {
         bb: AABB = math.aabb.Empty,
-        dominant_axis: Vec4f = @splat(4, @as(f32, 0.0)),
+        dominant_axis: Vec4f = @splat(0.0),
         total_power: f32 = 0.0,
     };
 
@@ -255,28 +266,32 @@ pub const Part = struct {
 
         const IdTrafo = Trafo{
             .rotation = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
-            .position = @splat(4, @as(f32, 0.0)),
+            .position = @splat(0.0),
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*Context, context);
+            const self = @as(*Context, @ptrCast(context));
 
             const emission_map = self.m.emissionMapped();
 
             var temp: Temp = .{};
 
-            var i = begin;
-            while (i < end) : (i += 1) {
+            for (begin..end) |i| {
                 const t = self.part.triangle_mapping[i];
                 const area = self.tree.data.area(t);
 
                 var pow: f32 = undefined;
                 if (emission_map) {
+                    var rng = RNG{};
+                    rng.start(0, i);
+
+                    var sampler = Sampler{ .Random = .{ .rng = &rng } };
+
                     const puv = self.tree.data.trianglePuv(t);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = std.math.max(@floatToInt(u32, @round(uv_area * self.estimate_area + 0.5)), 1);
+                    const num_samples = @max(@as(u32, @intFromFloat(@round(uv_area * self.estimate_area + 0.5))), 1);
 
-                    var radiance = @splat(4, @as(f32, 0.0));
+                    var radiance: Vec4f = @splat(0.0);
 
                     var j: u32 = 0;
                     while (j < num_samples) : (j += 1) {
@@ -291,13 +306,12 @@ pub const Part = struct {
                             IdTrafo,
                             self.prop_id,
                             self.part_id,
-                            null,
+                            &sampler,
                             self.scene,
                         );
                     }
 
-                    const weight = math.hmax3(radiance) / @intToFloat(f32, num_samples);
-                    pow = weight * area;
+                    pow = if (math.hmax3(radiance) > 0.0) area else 0.0;
                 } else {
                     pow = area;
                 }
@@ -305,9 +319,9 @@ pub const Part = struct {
                 self.powers[i] = pow;
 
                 if (pow > 0.0) {
-                    const n = self.part.cones[i];
-                    temp.dominant_axis += @splat(4, pow) * n;
-                    temp.bb.mergeAssign(self.part.aabbs[i]);
+                    const n = self.tree.data.normal(t);
+                    temp.dominant_axis += @as(Vec4f, @splat(pow)) * n;
+                    temp.bb.mergeAssign(self.part.lightAabb(@intCast(i)));
                     temp.total_power += pow;
                 }
             }
@@ -323,38 +337,18 @@ pub const Part = struct {
         }
     };
 
-    const Discrete = struct {
-        global: u32,
-        local: u32,
-        pdf: f32,
-    };
-
-    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Discrete {
+    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.sampleRandom(variant, r);
 
-        const pick = self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
-        const relative_area = self.aabbs[pick.offset].bounds[1][3];
-
-        return .{
-            .global = self.triangle_mapping[pick.offset],
-            .local = pick.offset,
-            .pdf = pick.pdf * relative_area,
-        };
+        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
     }
 
-    pub fn sampleRandom(self: Part, variant: u32, r: f32) Discrete {
-        const pick = self.variants.items[variant].distribution.sampleDiscrete(r);
-        const relative_area = self.aabbs[pick.offset].bounds[1][3];
-
-        return .{
-            .global = self.triangle_mapping[pick.offset],
-            .local = pick.offset,
-            .pdf = pick.pdf * relative_area,
-        };
+    pub fn sampleRandom(self: Part, variant: u32, r: f32) Distribution1D.Discrete {
+        return self.variants.items[variant].distribution.sampleDiscrete(r);
     }
 
     pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
@@ -362,19 +356,9 @@ pub const Part = struct {
         // _ = n;
         // _ = total_sphere;
 
-        // return self.pdfRandom(variant, id);
+        // return self.variants.items[variant].distribution.pdfI(id);
 
-        const pdf = self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
-        const relative_area = self.aabbs[id].bounds[1][3];
-
-        return pdf * relative_area;
-    }
-
-    pub fn pdfRandom(self: *const Part, variant: u32, id: u32) f32 {
-        const pdf = self.variants.items[variant].distribution.pdfI(id);
-        const relative_area = self.aabbs[id].bounds[1][3];
-
-        return pdf * relative_area;
+        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
     }
 };
 
@@ -389,7 +373,7 @@ pub const Mesh = struct {
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
         const parts = try alloc.alloc(Part, num_parts);
-        std.mem.set(Part, parts, .{});
+        @memset(parts, .{});
 
         return Mesh{ .num_parts = num_parts, .parts = parts.ptr };
     }
@@ -415,7 +399,7 @@ pub const Mesh = struct {
         var id: u32 = 0;
 
         for (self.parts[0..self.num_parts]) |p| {
-            id = std.math.max(id, p.material);
+            id = @max(id, p.material);
         }
 
         return id + 1;
@@ -442,21 +426,10 @@ pub const Mesh = struct {
         return self.parts[part].cone(variant);
     }
 
-    pub fn intersect(
-        self: Mesh,
-        ray: *Ray,
-        trafo: Trafo,
-        ipo: Interpolation,
-        isec: *Intersection,
-    ) bool {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
+    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
+        const local_ray = trafo.worldToObjectRay(ray.*);
 
-        if (self.tree.intersect(tray)) |hit| {
+        if (self.tree.intersect(local_ray)) |hit| {
             const data = self.tree.data;
 
             ray.setMaxT(hit.t);
@@ -478,15 +451,12 @@ pub const Mesh = struct {
 
                 const t_w = trafo.rotation.transformVector(t);
                 const n_w = trafo.rotation.transformVector(n);
-                const b_w = @splat(4, data.bitangentSign(hit.index)) * math.cross3(n_w, t_w);
+                const b_w = @as(Vec4f, @splat(data.bitangentSign(hit.index))) * math.cross3(n_w, t_w);
 
                 isec.t = t_w;
                 isec.b = b_w;
                 isec.n = n_w;
-                isec.uv = uv;
-            } else if (.NoTangentSpace == ipo) {
-                const uv = data.interpolateUv(hit.u, hit.v, hit.index);
-                isec.uv = uv;
+                isec.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
             } else {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);
@@ -500,37 +470,52 @@ pub const Mesh = struct {
     }
 
     pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
-        var tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
-
-        return self.tree.intersectP(tray);
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersectP(local_ray);
     }
 
     pub fn visibility(
         self: Mesh,
         ray: Ray,
         trafo: Trafo,
-        entity: usize,
-        filter: ?Filter,
+        entity: u32,
+        sampler: *Sampler,
         scene: *const Scene,
     ) ?Vec4f {
-        const tray = Ray.init(
-            trafo.worldToObjectPoint(ray.origin),
-            trafo.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
-        );
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.visibility(tray, entity, sampler, scene);
+    }
 
-        return self.tree.visibility(tray, entity, filter, scene);
+    pub fn transmittance(
+        self: Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) ?Vec4f {
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.transmittance(tray, entity, depth, sampler, worker);
+    }
+
+    pub fn scatter(
+        self: Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const tray = trafo.worldToObjectRay(ray);
+        return self.tree.scatter(tray, throughput, entity, depth, sampler, worker);
     }
 
     pub fn sampleTo(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         p: Vec4f,
         n: Vec4f,
@@ -543,50 +528,54 @@ pub const Mesh = struct {
 
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
-        const s = self.parts[part].sampleSpatial(variant, op, on, total_sphere, r[0]);
 
+        const part = self.parts[part_id];
+        const s = part.sampleSpatial(variant, op, on, total_sphere, r[0]);
         if (0.0 == s.pdf) {
             return null;
         }
 
+        const global = part.triangle_mapping[s.offset];
+
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, .{ r[1], r[2] }, &sv, &tc);
+        self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
         const v = trafo.objectToWorldPoint(sv);
-        const sn = self.parts[part].lightCone(s.local);
+
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
+        const lca = math.length3(ca);
+        const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
         if (two_sided and math.dot3(wn, v - p) > 0.0) {
             wn = -wn;
         }
 
-        const axis = ro.offsetRay(v, wn) - p;
+        const axis = v - p;
         const sl = math.squaredLength3(axis);
         const d = @sqrt(sl);
-        const dir = axis / @splat(4, d);
+        const dir = axis / @as(Vec4f, @splat(d));
         const c = -math.dot3(wn, dir);
 
         if (c < Dot_min) {
             return null;
         }
 
-        const extent = self.area(part, trafo.scale());
-
-        const angle_pdf = sl / (c * extent);
+        const tri_area = 0.5 * lca;
 
         return SampleTo.init(
-            dir,
+            v,
             wn,
+            dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
             trafo,
-            angle_pdf * s.pdf,
-            d,
+            (sl * s.pdf) / (c * tri_area),
         );
     }
 
     pub fn sampleFrom(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         trafo: Trafo,
         two_sided: bool,
@@ -595,13 +584,20 @@ pub const Mesh = struct {
         importance_uv: Vec2f,
     ) ?SampleFrom {
         const r = sampler.sample1D();
-        const s = self.parts[part].sampleRandom(variant, r);
+
+        const part = self.parts[part_id];
+        const s = part.sampleRandom(variant, r);
+
+        const global = part.triangle_mapping[s.offset];
 
         var sv: Vec4f = undefined;
         var tc: Vec2f = undefined;
-        self.tree.data.sample(s.global, uv, &sv, &tc);
+        self.tree.data.sample(global, uv, &sv, &tc);
         const ws = trafo.objectToWorldPoint(sv);
-        const sn = self.parts[part].lightCone(s.local);
+
+        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
+        const lca = math.length3(ca);
+        const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
         const xy = math.orthonormalBasis3(wn);
@@ -612,7 +608,9 @@ pub const Mesh = struct {
             dir = -dir;
         }
 
-        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * self.area(part, trafo.scale());
+        const tri_area = 0.5 * lca;
+
+        const extent = @as(f32, if (two_sided) 2.0 else 1.0) * tri_area;
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -627,7 +625,7 @@ pub const Mesh = struct {
 
     pub fn pdf(
         self: Mesh,
-        part: u32,
+        part_id: u32,
         variant: u32,
         ray: Ray,
         n: Vec4f,
@@ -641,18 +639,20 @@ pub const Mesh = struct {
             c = @fabs(c);
         }
 
-        const extent = self.area(part, isec.trafo.scale());
-
         const sl = ray.maxT() * ray.maxT();
-        const angle_pdf = sl / (c * extent);
 
         const op = isec.trafo.worldToObjectPoint(ray.origin);
         const on = isec.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[isec.primitive];
-        const tri_pdf = self.parts[isec.part].pdfSpatial(variant, op, on, total_sphere, pm);
 
-        return angle_pdf * tri_pdf;
+        const part = self.parts[part_id];
+        const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
+
+        const ca = (isec.trafo.scale() * isec.trafo.scale()) * self.tree.data.crossAxis(isec.primitive);
+        const tri_area = 0.5 * math.length3(ca);
+
+        return (sl * tri_pdf) / (c * tri_area);
     }
 
     pub fn calculateAreas(self: *Mesh) void {
@@ -717,17 +717,17 @@ pub const Mesh = struct {
             const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
 
             if (@fabs(ng[0]) > @fabs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @splat(4, @sqrt(ng[0] * ng[0] + ng[2] * ng[2]));
+                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
             } else {
-                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @splat(4, @sqrt(ng[1] * ng[1] + ng[2] * ng[2]));
+                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
             }
 
             dpdv = math.cross3(ng, dpdu);
         } else {
             const invdet = 1.0 / determinant;
 
-            dpdu = @splat(4, invdet) * (@splat(4, duv12[1]) * dp02 - @splat(4, duv02[1]) * dp12);
-            dpdv = @splat(4, invdet) * (@splat(4, -duv12[0]) * dp02 + @splat(4, duv02[0]) * dp12);
+            dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
+            dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
         }
 
         return .{ .dpdu = dpdu, .dpdv = dpdv };

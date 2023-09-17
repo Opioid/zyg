@@ -43,17 +43,10 @@ pub const ReadStream = union(enum) {
         };
     }
 
-    pub fn readUntilDelimiter(self: Self, buf: []u8, delimiter: u8) ![]u8 {
+    pub fn streamUntilDelimiter(self: Self, writer: anytype, delimiter: u8, max_size: ?usize) !void {
         return switch (self) {
-            .File => |s| try s.reader.reader().readUntilDelimiter(buf, delimiter),
-            .Gzip => |s| try s.reader().readUntilDelimiter(buf, delimiter),
-        };
-    }
-
-    pub fn readUntilDelimiterAlloc(self: Self, alloc: Allocator, delimiter: u8) ![]u8 {
-        return switch (self) {
-            .File => |s| try s.reader.reader().readUntilDelimiterAlloc(alloc, delimiter, 256),
-            .Gzip => |s| try s.reader().readUntilDelimiterAlloc(alloc, delimiter, 256),
+            .File => |s| try s.reader.reader().streamUntilDelimiter(writer, delimiter, max_size),
+            .Gzip => |s| try s.reader().streamUntilDelimiter(writer, delimiter, max_size),
         };
     }
 

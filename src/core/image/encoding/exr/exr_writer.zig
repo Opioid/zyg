@@ -1,7 +1,8 @@
 const exr = @import("exr.zig");
 const img = @import("../../image.zig");
-const Encoding = @import("../../image_writer.zig").Writer.Encoding;
+const Image = img.Image;
 const Float4 = img.Float4;
+const Encoding = @import("../../image_writer.zig").Writer.Encoding;
 const AovClass = @import("../../../rendering/sensor/aov/aov_value.zig").Value.Class;
 
 const base = @import("base");
@@ -27,7 +28,7 @@ pub const Writer = struct {
         self: Self,
         alloc: Allocator,
         writer_: anytype,
-        image: Float4,
+        image: Image,
         crop: Vec4i,
         encoding: Encoding,
         threads: *Threads,
@@ -88,7 +89,7 @@ pub const Writer = struct {
             try writeString(writer, "compression");
             try writeString(writer, "compression");
             try writeScalar(u32, writer, 1);
-            try writer.writeByte(@enumToInt(compression));
+            try writer.writeByte(@intFromEnum(compression));
         }
 
         {
@@ -104,7 +105,7 @@ pub const Writer = struct {
         }
 
         {
-            const d = image.description.dimensions;
+            const d = image.description().dimensions;
 
             try writeString(writer, "displayWindow");
             try writeString(writer, "box2i");
@@ -149,15 +150,19 @@ pub const Writer = struct {
         try writer.writeByte(0x00);
 
         if (.No == compression) {
-            try noCompression(writer, image, crop, num_channels, format);
+            switch (image) {
+                inline .Float3, .Float4 => |im| try noCompression(@TypeOf(im), writer, im, crop, num_channels, format),
+                else => {},
+            }
         } else if (.ZIP == compression) {
             try zipCompression(alloc, writer, image, crop, num_channels, format, compression, threads);
         }
     }
 
     fn noCompression(
+        comptime T: type,
         writer: anytype,
-        image: Float4,
+        image: T,
         crop: Vec4i,
         num_channels: u32,
         format: exr.Channel.Format,
@@ -166,15 +171,15 @@ pub const Writer = struct {
         const zw = Vec2i{ crop[2], crop[3] };
         const dim = zw - xy;
 
-        const scanline_offset = writer.context.bytes_written + @intCast(u64, dim[1]) * 8;
+        const scanline_offset = writer.context.bytes_written + @as(u64, @intCast(dim[1])) * 8;
 
         const scalar_size = format.byteSize();
-        const bytes_per_row = @intCast(u32, dim[0]) * num_channels * scalar_size;
+        const bytes_per_row = @as(u32, @intCast(dim[0])) * num_channels * scalar_size;
         const row_size = 4 + 4 + bytes_per_row;
 
         var y: i32 = 0;
         while (y < dim[1]) : (y += 1) {
-            try writeScalar(u64, writer, scanline_offset + @intCast(u64, y) * row_size);
+            try writeScalar(u64, writer, scanline_offset + @as(u64, @intCast(y)) * row_size);
         }
 
         y = crop[1];
@@ -183,33 +188,41 @@ pub const Writer = struct {
             try writeScalar(u32, writer, bytes_per_row);
 
             if (num_channels == 4) {
-                try writeScanline(writer, image, crop, y, 3, format);
+                try writeScanline(T, writer, image, crop, y, 3, format);
             }
 
             if (num_channels >= 3) {
-                try writeScanline(writer, image, crop, y, 2, format);
-                try writeScanline(writer, image, crop, y, 1, format);
+                try writeScanline(T, writer, image, crop, y, 2, format);
+                try writeScanline(T, writer, image, crop, y, 1, format);
             }
 
-            try writeScanline(writer, image, crop, y, 0, format);
+            try writeScanline(T, writer, image, crop, y, 0, format);
         }
     }
 
-    fn writeScanline(writer: anytype, image: Float4, crop: Vec4i, y: i32, channel: u32, format: exr.Channel.Format) !void {
+    fn writeScanline(
+        comptime T: type,
+        writer: anytype,
+        image: T,
+        crop: Vec4i,
+        y: i32,
+        channel: u32,
+        format: exr.Channel.Format,
+    ) !void {
         const x_end = crop[2];
 
         if (.Uint == format) {
             var x: i32 = crop[0];
             while (x < x_end) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
-                const ui = @floatToInt(u32, s);
+                const ui = @as(u32, @intFromFloat(s));
                 try writer.writeAll(std.mem.asBytes(&ui));
             }
         } else if (.Half == format) {
             var x: i32 = crop[0];
             while (x < x_end) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
-                const h = @floatCast(f16, s);
+                const h = @as(f16, @floatCast(s));
                 try writer.writeAll(std.mem.asBytes(&h));
             }
         } else {
@@ -224,7 +237,7 @@ pub const Writer = struct {
     fn zipCompression(
         alloc: Allocator,
         writer: anytype,
-        image: Float4,
+        image: Image,
         crop: Vec4i,
         num_channels: u32,
         format: exr.Channel.Format,
@@ -236,11 +249,11 @@ pub const Writer = struct {
         const dim = zw - xy;
 
         const rows_per_block = compression.numScanlinesPerBlock();
-        const row_blocks = compression.numScanlineBlocks(@intCast(u32, dim[1]));
+        const row_blocks = compression.numScanlineBlocks(@as(u32, @intCast(dim[1])));
 
         const scalar_size = format.byteSize();
 
-        const bytes_per_row = @intCast(u32, dim[0]) * num_channels * scalar_size;
+        const bytes_per_row = @as(u32, @intCast(dim[0])) * num_channels * scalar_size;
         const bytes_per_block = math.roundUp(u32, bytes_per_row * rows_per_block, 64);
 
         var context = Context{
@@ -250,7 +263,7 @@ pub const Writer = struct {
             .bytes_per_row = bytes_per_row,
             .bytes_per_block = bytes_per_block,
             .format = format,
-            .image_buffer = try alloc.alloc(u8, @intCast(u32, dim[1]) * bytes_per_row),
+            .image_buffer = try alloc.alloc(u8, @as(u32, @intCast(dim[1])) * bytes_per_row),
             .tmp_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
             .block_buffer = try alloc.alloc(u8, bytes_per_block * threads.numThreads()),
             .cb = try alloc.alloc(CompressedBlock, row_blocks),
@@ -276,7 +289,7 @@ pub const Writer = struct {
             scanline_offset += 4 + 4 + context.cb[y].size;
         }
 
-        const y_offset = @intCast(u32, crop[1]);
+        const y_offset = @as(u32, @intCast(crop[1]));
 
         y = 0;
         while (y < row_blocks) : (y += 1) {
@@ -309,11 +322,11 @@ pub const Writer = struct {
 
         cb: []CompressedBlock,
 
-        image: *const Float4,
+        image: *const Image,
         crop: Vec4i,
 
         fn compress(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @intToPtr(*Context, context);
+            const self = @as(*Context, @ptrCast(@alignCast(context)));
 
             var zip: mz.mz_stream = undefined;
             zip.zalloc = null;
@@ -330,13 +343,13 @@ pub const Writer = struct {
             const zw = Vec2i{ crop[2], crop[3] };
             const dim = zw - xy;
 
-            const width = @intCast(u32, dim[0]);
-            const height = @intCast(u32, dim[1]);
+            const width = @as(u32, @intCast(dim[0]));
+            const height = @as(u32, @intCast(dim[1]));
             const bpb = self.bytes_per_block;
             const offset = id * bpb;
 
-            const x_start = @intCast(u32, crop[0]);
-            const y_start = @intCast(u32, crop[1]);
+            const x_start = @as(u32, @intCast(crop[0]));
+            const y_start = @as(u32, @intCast(crop[1]));
 
             var tmp_buffer = self.tmp_buffer[offset .. offset + bpb];
             var block_buffer = self.block_buffer[offset .. offset + bpb];
@@ -347,12 +360,17 @@ pub const Writer = struct {
 
                 const row = y_start + y * self.rows_per_block;
 
-                if (.Uint == self.format) {
-                    blockUint(block_buffer, self.image.*, num_channels, x_start, row, width, num_rows_here);
-                } else if (.Half == self.format) {
-                    blockHalf(block_buffer, self.image.*, num_channels, x_start, row, width, num_rows_here);
-                } else {
-                    blockFloat(block_buffer, self.image.*, num_channels, x_start, row, width, num_rows_here);
+                switch (self.image.*) {
+                    inline .Float3, .Float4 => |im| {
+                        if (.Uint == self.format) {
+                            blockUint(@TypeOf(im), block_buffer, im, num_channels, x_start, row, width, num_rows_here);
+                        } else if (.Half == self.format) {
+                            blockHalf(@TypeOf(im), block_buffer, im, num_channels, x_start, row, width, num_rows_here);
+                        } else {
+                            blockFloat(@TypeOf(im), block_buffer, im, num_channels, x_start, row, width, num_rows_here);
+                        }
+                    },
+                    else => {},
                 }
 
                 const bytes_here = num_rows_here * self.bytes_per_row;
@@ -377,7 +395,7 @@ pub const Writer = struct {
                     cb.size = bytes_here;
                     cb.buffer = image_buffer;
 
-                    std.mem.copy(u8, image_buffer[0..bytes_here], block_buffer[0..bytes_here]);
+                    @memcpy(image_buffer[0..bytes_here], block_buffer[0..bytes_here]);
                 } else {
                     cb.size = compressed_size;
                     cb.buffer = image_buffer;
@@ -387,8 +405,8 @@ pub const Writer = struct {
             _ = mz.mz_deflateEnd(&zip);
         }
 
-        fn blockHalf(destination: []u8, image: Float4, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @intCast(u32, image.description.dimensions[0]);
+        fn blockHalf(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
+            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
 
@@ -403,16 +421,19 @@ pub const Writer = struct {
                     const c = image.pixels[current];
 
                     if (4 == num_channels) {
-                        halfs[o + num_x * 0 + x] = @floatCast(f16, c.v[3]);
-                        halfs[o + num_x * 1 + x] = @floatCast(f16, c.v[2]);
-                        halfs[o + num_x * 2 + x] = @floatCast(f16, c.v[1]);
-                        halfs[o + num_x * 3 + x] = @floatCast(f16, c.v[0]);
+                        if (Float4 == T) {
+                            halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[3]));
+                        }
+
+                        halfs[o + num_x * 1 + x] = @as(f16, @floatCast(c.v[2]));
+                        halfs[o + num_x * 2 + x] = @as(f16, @floatCast(c.v[1]));
+                        halfs[o + num_x * 3 + x] = @as(f16, @floatCast(c.v[0]));
                     } else if (3 == num_channels) {
-                        halfs[o + num_x * 0 + x] = @floatCast(f16, c.v[2]);
-                        halfs[o + num_x * 1 + x] = @floatCast(f16, c.v[1]);
-                        halfs[o + num_x * 2 + x] = @floatCast(f16, c.v[0]);
+                        halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[2]));
+                        halfs[o + num_x * 1 + x] = @as(f16, @floatCast(c.v[1]));
+                        halfs[o + num_x * 2 + x] = @as(f16, @floatCast(c.v[0]));
                     } else {
-                        halfs[o + num_x * 0 + x] = @floatCast(f16, c.v[0]);
+                        halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[0]));
                     }
 
                     current += 1;
@@ -420,8 +441,8 @@ pub const Writer = struct {
             }
         }
 
-        fn blockUint(destination: []u8, image: Float4, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @intCast(u32, image.description.dimensions[0]);
+        fn blockUint(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
+            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
 
             var uints = std.mem.bytesAsSlice(u32, destination);
 
@@ -435,15 +456,15 @@ pub const Writer = struct {
                 while (x < num_x) : (x += 1) {
                     const c = image.pixels[current];
 
-                    uints[o + num_x * 0 + x] = @floatToInt(u32, c.v[0]);
+                    uints[o + num_x * 0 + x] = @as(u32, @intFromFloat(c.v[0]));
 
                     current += 1;
                 }
             }
         }
 
-        fn blockFloat(destination: []u8, image: Float4, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @intCast(u32, image.description.dimensions[0]);
+        fn blockFloat(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
+            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
 
             var floats = std.mem.bytesAsSlice(f32, destination);
 
@@ -458,7 +479,10 @@ pub const Writer = struct {
                     const c = image.pixels[current];
 
                     if (4 == num_channels) {
-                        floats[o + num_x * 0 + x] = c.v[3];
+                        if (Float4 == T) {
+                            floats[o + num_x * 0 + x] = c.v[3];
+                        }
+
                         floats[o + num_x * 1 + x] = c.v[2];
                         floats[o + num_x * 2 + x] = c.v[1];
                         floats[o + num_x * 3 + x] = c.v[0];
@@ -508,15 +532,15 @@ pub const Writer = struct {
 
             // Predictor
             {
-                var p = @intCast(u32, destination[0]);
+                var p = @as(u32, @intCast(destination[0]));
 
                 var t: usize = 1;
                 while (t < len) : (t += 1) {
                     const b = destination[t];
-                    const d = @intCast(u32, b) -% p +% (128 + 256);
+                    const d = @as(u32, @intCast(b)) -% p +% (128 + 256);
 
                     p = b;
-                    destination[t] = @truncate(u8, d);
+                    destination[t] = @as(u8, @truncate(d));
                 }
             }
         }

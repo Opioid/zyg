@@ -30,7 +30,7 @@ pub const Distribution3D = struct {
             }
 
             self.conditional = try alloc.realloc(self.conditional, num);
-            std.mem.set(Distribution2D, self.conditional, .{});
+            @memset(self.conditional, .{});
         }
 
         return self.conditional;
@@ -40,8 +40,8 @@ pub const Distribution3D = struct {
         var integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
-        for (self.conditional, 0..) |c, i| {
-            integrals[i] = c.integral();
+        for (integrals, self.conditional) |*i, c| {
+            i.* = c.integral();
         }
 
         try self.marginal.configure(alloc, integrals, 0);
@@ -50,8 +50,8 @@ pub const Distribution3D = struct {
     pub fn sampleContinuous(self: Self, r3: Vec4f) Vec4f {
         const w = self.marginal.sampleContinuous(r3[2]);
 
-        const i = @floatToInt(u32, w.offset * @intToFloat(f32, self.conditional.len));
-        const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
+        const i = @as(u32, @intFromFloat(w.offset * @as(f32, @floatFromInt(self.conditional.len))));
+        const c = @min(i, @as(u32, @intCast(self.conditional.len - 1)));
 
         const uv = self.conditional[c].sampleContinuous(.{ r3[0], r3[1] });
 
@@ -61,8 +61,8 @@ pub const Distribution3D = struct {
     pub fn pdf(self: Self, uvw: Vec4f) f32 {
         const w_pdf = self.marginal.pdfF(uvw[2]);
 
-        const i = @floatToInt(u32, uvw[2] * @intToFloat(f32, self.conditional.len));
-        const c = std.math.min(i, @intCast(u32, self.conditional.len - 1));
+        const i = @as(u32, @intFromFloat(uvw[2] * @as(f32, @floatFromInt(self.conditional.len))));
+        const c = @min(i, @as(u32, @intCast(self.conditional.len - 1)));
 
         const uv_pdf = self.conditional[c].pdf(.{ uvw[0], uvw[1] });
         return uv_pdf * w_pdf;

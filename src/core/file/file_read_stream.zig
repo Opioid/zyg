@@ -23,10 +23,10 @@ pub const FileReadStream = struct {
     pub fn seekTo(self: *Self, pos: u64) !void {
         const buffer_len = self.reader.end;
         const buffer_start = (try self.seeker.getPos()) - buffer_len;
-        const buffer_offset = @intCast(i64, pos) - @intCast(i64, buffer_start);
+        const buffer_offset = @as(i64, @intCast(pos)) - @as(i64, @intCast(buffer_start));
 
         if (buffer_offset >= 0 and buffer_offset < buffer_len) {
-            self.reader.start = @intCast(usize, buffer_offset);
+            self.reader.start = @intCast(buffer_offset);
         } else {
             self.reader.start = 0;
             self.reader.end = 0;

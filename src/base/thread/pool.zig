@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const Atomic = std.atomic.Atomic;
 
 pub const Pool = struct {
-    pub const Context = usize;
+    pub const Context = *align(8) anyopaque;
 
     const ParallelProgram = *const fn (context: Context, id: u32) void;
     const RangeProgram = *const fn (context: Context, id: u32, begin: u32, end: u32) void;
@@ -44,15 +44,15 @@ pub const Pool = struct {
     running_async: bool = false,
 
     pub fn availableCores(request: i32) u32 {
-        const available = @intCast(u32, std.Thread.getCpuCount() catch 1);
+        const available = @as(u32, @intCast(std.Thread.getCpuCount() catch 1));
 
         if (request <= 0) {
-            const num_threads = @intCast(i32, available) + request;
+            const num_threads = @as(i32, @intCast(available)) + request;
 
-            return @intCast(u32, std.math.max(num_threads, 1));
+            return @intCast(@max(num_threads, 1));
         }
 
-        return std.math.min(available, @intCast(u32, std.math.max(request, 1)));
+        return @min(available, @as(u32, @intCast(@max(request, 1))));
     }
 
     pub fn configure(self: *Pool, alloc: Allocator, num_threads: u32) !void {
@@ -61,7 +61,7 @@ pub const Pool = struct {
         for (self.uniques, 0..) |*u, i| {
             // Initializing u first, seems to get rid of one data race
             u.* = .{};
-            u.thread = try std.Thread.spawn(.{}, loop, .{ self, @intCast(u32, i) });
+            u.thread = try std.Thread.spawn(.{}, loop, .{ self, @as(u32, @intCast(i)) });
         }
 
         self.asyncp.thread = try std.Thread.spawn(.{}, asyncLoop, .{&self.asyncp});
@@ -76,11 +76,11 @@ pub const Pool = struct {
     }
 
     pub fn numThreads(self: *const Pool) u32 {
-        return @intCast(u32, self.uniques.len);
+        return @intCast(self.uniques.len);
     }
 
-    pub fn runParallel(self: *Pool, context: anytype, program: ParallelProgram, num_tasks_hint: u32) void {
-        self.context = @ptrToInt(context);
+    pub fn runParallel(self: *Pool, context: Context, program: ParallelProgram, num_tasks_hint: u32) void {
+        self.context = context;
         self.program = .{ .Parallel = program };
 
         self.running_parallel = true;
@@ -102,28 +102,28 @@ pub const Pool = struct {
 
     pub fn runRange(
         self: *Pool,
-        context: anytype,
+        context: Context,
         program: RangeProgram,
         begin: u32,
         end: u32,
         item_size_hint: u32,
     ) usize {
-        self.context = @ptrToInt(context);
+        self.context = context;
         self.program = .{ .Range = program };
 
         self.running_parallel = true;
 
         const range = end - begin;
-        const rangef = @intToFloat(f32, range);
-        const num_threads = @intToFloat(f32, self.uniques.len);
+        const rangef = @as(f32, @floatFromInt(range));
+        const num_threads = @as(f32, @floatFromInt(self.uniques.len));
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
-            @floatToInt(u32, @ceil((rangef * @intToFloat(f32, item_size_hint)) / num_threads / Cache_line)) *
+            @as(u32, @intFromFloat(@ceil((rangef * @as(f32, @floatFromInt(item_size_hint))) / num_threads / Cache_line))) *
                 Cache_line / item_size_hint
         else
-            @floatToInt(u32, @floor(rangef / num_threads));
+            @as(u32, @intFromFloat(@floor(rangef / num_threads)));
 
-        var r = range - @min(step * @intCast(u32, self.uniques.len), range);
+        var r = range - @min(step * @as(u32, @intCast(self.uniques.len)), range);
         var e = begin;
 
         var num_tasks = self.uniques.len;
@@ -142,7 +142,7 @@ pub const Pool = struct {
             }
 
             u.begin = b;
-            u.end = std.math.min(e, end);
+            u.end = @min(e, end);
             u.signal.store(SIGNAL_WAKE, .Release);
             std.Thread.Futex.wake(&u.signal, 1);
         }
@@ -152,10 +152,10 @@ pub const Pool = struct {
         return num_tasks;
     }
 
-    pub fn runAsync(self: *Pool, context: anytype, program: AsyncProgram) void {
+    pub fn runAsync(self: *Pool, context: Context, program: AsyncProgram) void {
         self.waitAsync();
 
-        self.asyncp.context = @ptrToInt(context);
+        self.asyncp.context = context;
         self.asyncp.program = program;
         self.asyncp.signal.store(SIGNAL_WAKE, .Release);
         std.Thread.Futex.wake(&self.asyncp.signal, 1);

@@ -3,9 +3,10 @@ const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
-const Part = @import("../shape/triangle/mesh.zig").Part;
+const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 
 const base = @import("base");
+const enc = base.encoding;
 const math = base.math;
 const AABB = math.AABB;
 const Vec4f = math.Vec4f;
@@ -39,19 +40,16 @@ const BuildNode = struct {
         return self.middle > 0;
     }
 
-    pub fn countMaxSplits(self: BuildNode, depth: u32, nodes: []const BuildNode, splits: *u32) void {
-        if (0 == self.middle) {
-            if (depth < Tree.Max_split_depth) {
-                splits.* += self.num_lights;
-            } else {
-                splits.* += 1;
-            }
+    pub fn countLightsPerDepth(self: BuildNode, nodes: []const BuildNode, depth: u32, splits: []u32, max_depth: u32) void {
+        if (!self.hasChildren()) {
+            splits[depth] += self.num_lights;
         } else {
-            if (depth == Tree.Max_split_depth - 1) {
-                splits.* += 2;
-            } else {
-                nodes[self.children_or_light].countMaxSplits(depth + 1, nodes, splits);
-                nodes[self.children_or_light + 1].countMaxSplits(depth + 1, nodes, splits);
+            splits[depth] += 2;
+
+            const next_depth = depth + 1;
+            if (next_depth < max_depth) {
+                nodes[self.children_or_light].countLightsPerDepth(nodes, next_depth, splits, max_depth);
+                nodes[self.children_or_light + 1].countLightsPerDepth(nodes, next_depth, splits, max_depth);
             }
         }
     }
@@ -89,7 +87,7 @@ const SplitCandidate = struct {
     fn evaluateScene(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, scene: *const Scene) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
-        var cones: [2]Vec4f = .{ @splat(4, @as(f32, 1.0)), @splat(4, @as(f32, 1.0)) };
+        var cones: [2]Vec4f = .{ @splat(1.0), @splat(1.0) };
         var two_sideds: [2]bool = .{ false, false };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
@@ -123,11 +121,11 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @as(f32, @floatFromInt(lights.len));
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sideds[0]) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sideds[1]) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
+            const cone_weight_b = coneCost(cones[1][3], two_sideds[1]);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -143,7 +141,7 @@ const SplitCandidate = struct {
     fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const Part, variant: u32) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
-        var dominant_axis: [2]Vec4f = .{ @splat(4, @as(f32, 0.0)), @splat(4, @as(f32, 0.0)) };
+        var dominant_axis: [2]Vec4f = .{ @splat(0.0), @splat(0.0) };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
@@ -159,12 +157,12 @@ const SplitCandidate = struct {
 
             num_sides[side] += 1;
             boxs[side].mergeAssign(box);
-            dominant_axis[side] += @splat(4, power) * n;
+            dominant_axis[side] += @as(Vec4f, @splat(power)) * n;
             powers[side] += power;
         }
 
-        dominant_axis[0] = math.normalize3(dominant_axis[0] / @splat(4, powers[0]));
-        dominant_axis[1] = math.normalize3(dominant_axis[1] / @splat(4, powers[1]));
+        dominant_axis[0] = math.normalize3(dominant_axis[0] / @as(Vec4f, @splat(powers[0])));
+        dominant_axis[1] = math.normalize3(dominant_axis[1] / @as(Vec4f, @splat(powers[1])));
 
         var angles: [2]f32 = .{ 0.0, 0.0 };
 
@@ -179,7 +177,7 @@ const SplitCandidate = struct {
 
             const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
             const c = math.dot3(dominant_axis[side], n);
-            angles[side] = std.math.max(angles[side], std.math.acos(c));
+            angles[side] = math.max(angles[side], std.math.acos(c));
         }
 
         const da0 = dominant_axis[0];
@@ -202,11 +200,11 @@ const SplitCandidate = struct {
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
-            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @intToFloat(f32, lights.len);
+            self.cost = 2.0 * reg * (powers[0] + powers[1]) * (4.0 * std.math.pi) * surface_area * @as(f32, @floatFromInt(lights.len));
             self.exhausted = true;
         } else {
-            const cone_weight_a = coneCost(cones[0][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
-            const cone_weight_b = coneCost(cones[1][3]) * @as(f32, (if (two_sided) 2.0 else 1.0));
+            const cone_weight_a = coneCost(cones[0][3], two_sided);
+            const cone_weight_b = coneCost(cones[1][3], two_sided);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -284,7 +282,8 @@ pub const Builder = struct {
         try tree.infinite_light_distribution.configure(alloc, tree.infinite_light_powers[0..tree.num_infinite_lights], 0);
 
         const num_finite_lights = num_lights - num_infinite_lights;
-        var infinite_depth_bias: u32 = 0;
+
+        var max_split_depth: u32 = Tree.Max_split_depth;
 
         if (num_finite_lights > 0) {
             try self.allocate(alloc, num_finite_lights, Scene_sweep_threshold);
@@ -292,7 +291,7 @@ pub const Builder = struct {
             self.current_node = 1;
 
             var bounds = math.aabb.Empty;
-            var cone = @splat(4, @as(f32, 1.0));
+            var cone: Vec4f = @splat(1.0);
             var two_sided = false;
             var total_power: f32 = 0.0;
 
@@ -306,23 +305,27 @@ pub const Builder = struct {
             _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, scene, threads);
 
             try tree.allocateNodes(alloc, self.current_node);
-            self.serialize(tree.nodes, tree.node_middles);
+            self.build_nodes[0].bounds.cacheRadius();
+            self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+            tree.bounds = self.build_nodes[0].bounds;
 
-            var max_splits: u32 = 0;
-            self.build_nodes[0].countMaxSplits(0, self.build_nodes, &max_splits);
+            var splits = [_]u32{0} ** Tree.Max_split_depth;
+            self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
 
-            if (num_infinite_lights > 0 and num_infinite_lights < Tree.Max_lights - 1) {
-                const left = Tree.Max_lights - max_splits;
-                if (left < num_infinite_lights) {
-                    const rest = @intToFloat(f32, num_infinite_lights - left);
-                    infinite_depth_bias = std.math.max(@floatToInt(u32, @ceil(@log2(rest))), 1);
+            var num_split_lights: u32 = 0;
+            for (splits, 0..) |s, i| {
+                num_split_lights += s;
+
+                if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
+                    max_split_depth = @as(u32, @intCast(i));
+                    break;
                 }
             }
         } else {
             try tree.allocateNodes(alloc, 0);
         }
 
-        tree.infinite_depth_bias = infinite_depth_bias;
+        tree.max_split_depth = max_split_depth;
 
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
@@ -351,11 +354,8 @@ pub const Builder = struct {
 
         self.light_order = 0;
 
-        var lm: u32 = 0;
-        var l: u32 = 0;
-        while (l < num_finite_lights) : (l += 1) {
-            tree.light_mapping[lm] = l;
-            lm += 1;
+        for (tree.light_mapping, 0..num_finite_lights) |*lm, l| {
+            lm.* = @as(u32, @intCast(l));
         }
 
         try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);
@@ -378,7 +378,9 @@ pub const Builder = struct {
         );
 
         try tree.allocateNodes(alloc, self.current_node);
-        self.serialize(tree.nodes, tree.node_middles);
+        self.build_nodes[0].bounds.cacheRadius();
+        self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
+        tree.bounds = self.build_nodes[0].bounds;
     }
 
     fn allocate(self: *Builder, alloc: Allocator, num_lights: u32, sweep_threshold: u32) !void {
@@ -388,7 +390,7 @@ pub const Builder = struct {
             self.build_nodes = try alloc.realloc(self.build_nodes, num_nodes);
         }
 
-        const num_slices = std.math.min(num_lights, sweep_threshold);
+        const num_slices = @min(num_lights, sweep_threshold);
         const num_candidates = if (num_slices >= 2) num_slices * 3 else 0;
 
         if (num_candidates > self.candidates.len) {
@@ -437,12 +439,12 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Scene, lights, bounds, cone_weight, Scene_sweep_threshold, self.candidates, scene, 0, threads);
 
         const predicate = Predicate(Scene){ .sc = &sc, .set = scene };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Scene).f));
+        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
 
         self.current_node += 2;
         const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sideds[0], sc.powers[0], scene, threads);
@@ -484,7 +486,8 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const cone_weight = coneCost(cone[3]);
+        const two_sided = part.lightTwoSided(variant, 0);
+        const cone_weight = coneCost(cone[3], two_sided);
 
         const sc = evaluateSplits(Part, lights, bounds, cone_weight, Part_sweep_threshold, self.candidates, part, variant, threads);
 
@@ -493,7 +496,7 @@ pub const Builder = struct {
         }
 
         const predicate = Predicate(Part){ .sc = &sc, .set = part };
-        const split_node = begin + @intCast(u32, base.memory.partition(u32, lights, predicate, Predicate(Part).f));
+        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Part).f)));
 
         self.current_node += 2;
         const c0_end = self.splitPrimitive(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
@@ -506,7 +509,7 @@ pub const Builder = struct {
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
-        node.two_sided = part.lightTwoSided(variant, 0);
+        node.two_sided = two_sided;
 
         return c1_end;
     }
@@ -556,19 +559,25 @@ pub const Builder = struct {
         return begin + len;
     }
 
-    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32) void {
+    fn serialize(self: *const Builder, nodes: [*]Node, node_middles: [*]u32, total_bounds: AABB) void {
         for (self.build_nodes[0..self.current_node], 0..) |source, i| {
             var dest = &nodes[i];
+
             const bounds = source.bounds;
             const p = bounds.position();
+            const center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
+            dest.compressCenter(center, total_bounds);
 
-            dest.center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
-            dest.cone = source.cone;
+            dest.cone[0] = enc.floatToSnorm16(source.cone[0]);
+            dest.cone[1] = enc.floatToSnorm16(source.cone[1]);
+            dest.cone[2] = enc.floatToSnorm16(source.cone[2]);
+            dest.cone[3] = enc.floatToSnorm16(source.cone[3]);
+
             dest.power = source.power;
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();
             dest.meta.two_sided = source.two_sided;
-            dest.meta.children_or_light = @intCast(u30, source.children_or_light);
+            dest.meta.children_or_light = @as(u30, @intCast(source.children_or_light));
             dest.num_lights = source.num_lights;
 
             node_middles[i] = source.middle;
@@ -584,7 +593,7 @@ pub const Builder = struct {
             const p = set.lightPower(variant, l);
             if (p > 0.0) {
                 n += 1;
-                const in = 1.0 / @intToFloat(f32, n);
+                const in = 1.0 / @as(f32, @floatFromInt(n));
 
                 ap += (p - ap) * in;
                 aps += (p * p - aps) * in;
@@ -628,17 +637,17 @@ pub const Builder = struct {
             const min = bounds.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @intToFloat(f32, Num_slices);
+            const step = extent[la] / @as(f32, @floatFromInt(Num_slices));
 
             var a: u32 = 0;
             while (a < 3) : (a += 1) {
                 const extent_a = extent[a];
-                const num_steps = @floatToInt(u32, @ceil(extent_a / step));
-                const step_a = extent_a / @intToFloat(f32, num_steps);
+                const num_steps = @as(u32, @intFromFloat(@ceil(extent_a / step)));
+                const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
                 var i: u32 = 1;
                 while (i < num_steps) : (i += 1) {
-                    const fi = @intToFloat(f32, i);
+                    const fi = @as(f32, @floatFromInt(i));
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;
@@ -652,7 +661,7 @@ pub const Builder = struct {
         const Eval = EvaluateContext(T);
 
         if (lights.len * num_candidates > 1024) {
-            const context = Eval{
+            var context = Eval{
                 .lights = lights,
                 .bounds = bounds,
                 .cone_weight = cone_weight,
@@ -695,7 +704,7 @@ pub const Builder = struct {
             pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
                 _ = id;
 
-                const self = @intToPtr(*Self, context);
+                const self = @as(*Self, @ptrCast(@alignCast(context)));
 
                 for (self.candidates[begin..end]) |*c| {
                     c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);
@@ -705,9 +714,9 @@ pub const Builder = struct {
     }
 };
 
-fn coneCost(cos: f32) f32 {
-    const o = std.math.acos(cos);
-    const w = std.math.min(o + (std.math.pi / 2.0), std.math.pi);
+fn coneCost(cos: f32, two_sided: bool) f32 {
+    const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
+    const w = math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);
     const b = (std.math.pi / 2.0) * (2.0 * w * sin - @cos(o - 2.0 * w) - 2.0 * o * sin + cos);

@@ -20,10 +20,10 @@ pub fn integrate(alloc: Allocator) !void {
 
     var rainbow: [Bins]Vec4f = undefined;
 
-    var sum_rgb = @splat(4, @as(f32, 0.0));
+    var sum_rgb: Vec4f = @splat(0.0);
 
     for (rainbow, 0..) |*r, i| {
-        var color = @splat(4, @as(f32, 0.0));
+        var color: Vec4f = @splat(0.0);
 
         var sub: u32 = 0;
         while (sub < 16) : (sub += 1) {
@@ -37,7 +37,7 @@ pub fn integrate(alloc: Allocator) !void {
     }
 
     // hack-normalize
-    const n = @splat(4, @as(f32, rainbow.len)) / (@splat(4, @as(f32, 3.0)) * sum_rgb);
+    const n = @as(Vec4f, @splat(rainbow.len)) / (@as(Vec4f, @splat(3.0)) * sum_rgb);
 
     for (rainbow) |*r| {
         r.* = math.clamp(n * r.*, 0.0, 1.0);
@@ -57,13 +57,13 @@ pub fn integrate(alloc: Allocator) !void {
 
     var image = try img.Float3.init(alloc, img.Description.init2D(d));
 
-    const wl_range = (Spectrum.wavelengthsEnd() - Spectrum.wavelengthsStart()) / @intToFloat(f32, d[0] - 1);
+    const wl_range = (Spectrum.wavelengthsEnd() - Spectrum.wavelengthsStart()) / @as(f32, @floatFromInt(d[0] - 1));
 
     var x: i32 = 0;
     while (x < d[0]) : (x += 1) {
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
-            const wl = Spectrum.wavelengthsStart() + @intToFloat(f32, x) * wl_range;
+            const wl = Spectrum.wavelengthsStart() + @as(f32, @floatFromInt(x)) * wl_range;
             const color = spectrumAtWavelength(&rainbow, Spectrum.wavelengthsStart(), Spectrum.wavelengthsEnd(), wl);
 
             image.set2D(x, y, math.vec4fTo3f(color));
@@ -74,11 +74,11 @@ pub fn integrate(alloc: Allocator) !void {
 }
 
 fn spectrumAtWavelength(rainbow: []Vec4f, wl_start: f32, wl_end: f32, wl: f32) Vec4f {
-    const nb = @intToFloat(f32, rainbow.len);
+    const nb = @as(f32, @floatFromInt(rainbow.len));
 
     const u = ((wl - wl_start) / (wl_end - wl_start)) * nb;
-    const id = @floatToInt(u32, u);
-    const frac = u - @intToFloat(f32, id);
+    const id = @as(u32, @intFromFloat(u));
+    const frac = u - @as(f32, @floatFromInt(id));
 
     if (id >= rainbow.len - 1) {
         return rainbow[rainbow.len - 1];

@@ -29,7 +29,7 @@ pub const Generator = struct {
         bits &= 0x007FFFFF;
         bits |= 0x3F800000;
 
-        return @bitCast(f32, bits) - 1.0;
+        return @as(f32, @bitCast(bits)) - 1.0;
     }
 
     inline fn advancePCG32(self: *Generator) u32 {
@@ -39,8 +39,8 @@ pub const Generator = struct {
         self.state = old *% 6364136223846793005 +% self.inc;
 
         // Calculate output function (XSH RR), uses old state for max ILP
-        const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
-        const rot = @truncate(u5, old >> 59);
+        const xrs = @as(u32, @truncate(((old >> 18) ^ old) >> 27));
+        const rot = @as(u5, @truncate(old >> 59));
 
         return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
     }
@@ -75,7 +75,7 @@ pub const SingleGenerator = struct {
         bits &= 0x007FFFFF;
         bits |= 0x3F800000;
 
-        return @bitCast(f32, bits) - 1.0;
+        return @as(f32, @bitCast(bits)) - 1.0;
     }
 
     inline fn advancePCG32(self: *SingleGenerator) u32 {
@@ -85,8 +85,8 @@ pub const SingleGenerator = struct {
         self.state = old *% 6364136223846793005 +% 1;
 
         // Calculate output function (XSH RR), uses old state for max ILP
-        const xrs = @truncate(u32, ((old >> 18) ^ old) >> 27);
-        const rot = @truncate(u5, old >> 59);
+        const xrs = @as(u32, @truncate(((old >> 18) ^ old) >> 27));
+        const rot = @as(u5, @truncate(old >> 59));
 
         return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
     }

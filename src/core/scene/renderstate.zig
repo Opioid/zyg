@@ -1,9 +1,17 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
-const Filter = @import("../image/texture/texture_sampler.zig").Filter;
+const ggx = @import("material/ggx.zig");
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+
+const std = @import("std");
+
+pub const CausticsResolve = enum(u8) {
+    Off,
+    Rough,
+    Full,
+};
 
 pub const Renderstate = struct {
     trafo: Trafo = undefined,
@@ -13,6 +21,7 @@ pub const Renderstate = struct {
     t: Vec4f = undefined,
     b: Vec4f = undefined,
     n: Vec4f = undefined,
+
     ray_p: Vec4f = undefined,
 
     uv: Vec2f = undefined,
@@ -24,10 +33,8 @@ pub const Renderstate = struct {
 
     time: u64 = undefined,
 
-    filter: ?Filter = undefined,
-
     subsurface: bool = undefined,
-    avoid_caustics: bool = undefined,
+    caustics: CausticsResolve = undefined,
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
         return .{
@@ -44,5 +51,15 @@ pub const Renderstate = struct {
 
     pub fn wavelength(self: Renderstate) f32 {
         return self.b[3];
+    }
+
+    pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f) Vec2f {
+        if (alpha[0] <= ggx.Min_alpha and .Rough == self.caustics) {
+            const l = math.length3(self.p - self.ray_p);
+            const m = math.min(0.1 * (1.0 + l), 1.0);
+            return math.max2(alpha, @as(Vec2f, @splat(m)));
+        }
+
+        return alpha;
     }
 };

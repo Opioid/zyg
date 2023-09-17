@@ -11,8 +11,8 @@ pub fn DiscreteSpectralPowerDistribution(
     return struct {
         values: [N]f32 = undefined,
 
-        var Cie = [_]Vec4f{@splat(4, @as(f32, -1.0))} ** N;
-        const Step = (WL_end - WL_start) / @intToFloat(f32, N);
+        var Cie = [_]Vec4f{@splat(-1.0)} ** N;
+        const Step = (WL_end - WL_start) / @as(f32, @floatFromInt(N));
 
         pub const Bins = N;
 
@@ -45,11 +45,11 @@ pub fn DiscreteSpectralPowerDistribution(
         }
 
         pub fn randomWavelength(bin: usize, r: f32) f32 {
-            return WL_start + (@intToFloat(f32, bin) + r) * Step;
+            return WL_start + (@as(f32, @floatFromInt(bin)) + r) * Step;
         }
 
         pub fn wavelengthCenter(bin: usize) f32 {
-            return WL_start + (@intToFloat(f32, bin) + 0.5) * Step;
+            return WL_start + (@as(f32, @floatFromInt(bin)) + 0.5) * Step;
         }
 
         pub fn init() Self {
@@ -66,7 +66,7 @@ pub fn DiscreteSpectralPowerDistribution(
             var result = Self{};
 
             for (&result.values, 0..) |*v, i| {
-                const a = WL_start + @intToFloat(f32, i) * Step;
+                const a = WL_start + @as(f32, @floatFromInt(i)) * Step;
                 const b = a + Step;
 
                 v.* = interpolated.integrate(a, b) / Step;
@@ -76,9 +76,9 @@ pub fn DiscreteSpectralPowerDistribution(
         }
 
         pub fn XYZ(self: Self) Vec4f {
-            var tri = @splat(4, @as(f32, 0.0));
+            var tri: Vec4f = @splat(0.0);
             for (self.values, 0..) |v, i| {
-                tri += @splat(4, Step * v) * Cie[i];
+                tri += @as(Vec4f, @splat(Step * v)) * Cie[i];
             }
 
             return tri;
@@ -86,7 +86,7 @@ pub fn DiscreteSpectralPowerDistribution(
 
         pub fn normalizedXYZ(self: Self) Vec4f {
             const Normalization: f32 = 1.0 / 106.856895;
-            return @splat(4, Normalization) * self.XYZ();
+            return @as(Vec4f, @splat(Normalization)) * self.XYZ();
         }
     };
 }

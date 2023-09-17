@@ -23,7 +23,7 @@ pub const Shaper = struct {
     const Self = Shaper;
 
     pub fn init(alloc: Allocator, dimensions: Vec2i) !Self {
-        const len = @intCast(usize, dimensions[0] * dimensions[1]);
+        const len = @as(usize, @intCast(dimensions[0] * dimensions[1]));
         return Self{
             .dimensions = dimensions,
             .pixels = try alloc.alloc(Pack4f, len),
@@ -36,7 +36,7 @@ pub const Shaper = struct {
 
     pub fn resolve(self: Self, comptime T: type, image: *T) void {
         const dim = self.dimensions;
-        const len = @min(@intCast(usize, dim[0] * dim[1]), image.description.numPixels());
+        const len = @min(@as(usize, @intCast(dim[0] * dim[1])), image.description.numPixels());
 
         const source = self.pixels;
 
@@ -44,15 +44,15 @@ pub const Shaper = struct {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = enc.floatToUnorm(std.math.clamp(p.v[3], 0.0, 1.0));
+                image.pixels[i] = enc.floatToUnorm8(math.clamp(p.v[3], 0.0, 1.0));
             }
         } else if (img.Byte2 == T) {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
                 image.pixels[i] = Vec2b{
-                    enc.floatToSnorm(std.math.clamp(p.v[0], -1.0, 1.0)),
-                    enc.floatToSnorm(std.math.clamp(p.v[1], -1.0, 1.0)),
+                    enc.floatToSnorm8(math.clamp(p.v[0], -1.0, 1.0)),
+                    enc.floatToSnorm8(math.clamp(p.v[1], -1.0, 1.0)),
                 };
             }
         } else if (img.Float3 == T) {
@@ -106,13 +106,13 @@ pub const Shaper = struct {
                 .roundness = roundness,
             };
 
-            const delta = (2.0 * std.math.pi) / @intToFloat(f32, blades);
+            const delta = (2.0 * std.math.pi) / @as(f32, @floatFromInt(blades));
 
             var b = Vec2f{ @sin(rot), @cos(rot) };
 
             var i: u32 = 0;
             while (i < blades) : (i += 1) {
-                const angle = @intToFloat(f32, i + 1) * delta + rot;
+                const angle = @as(f32, @floatFromInt(i + 1)) * delta + rot;
                 const c = Vec2f{ @sin(angle), @cos(angle) };
 
                 const cb = c - b;
@@ -168,19 +168,19 @@ pub const Shaper = struct {
 
     fn drawShape(self: *Self, color: Vec4f, p: Vec2f, shape: Shape) void {
         const dim = self.dimensions;
-        const end_x = @intToFloat(f32, dim[0]);
-        const end_y = @intToFloat(f32, dim[1]);
-        const ss = 1.0 / @intToFloat(f32, Sub_samples);
+        const end_x: f32 = @floatFromInt(dim[0]);
+        const end_y: f32 = @floatFromInt(dim[1]);
+        const ss = 1.0 / @as(f32, @floatFromInt(Sub_samples));
         const ssx = ss / end_x;
         const ssy = ss / end_y;
         const so = 0.5 * ss;
-        const ss2 = 1.0 / @intToFloat(f32, Sub_samples * Sub_samples);
+        const ss2 = 1.0 / @as(f32, @floatFromInt(Sub_samples * Sub_samples));
 
-        const r = @splat(2, shape.radius());
+        const r: Vec2f = @splat(shape.radius());
         const min = p - r;
         const max = p + r;
-        const begin = Vec2i{ @floatToInt(i32, min[0] * end_x), @floatToInt(i32, min[1] * end_y) };
-        const end = Vec2i{ @floatToInt(i32, max[0] * end_x), @floatToInt(i32, max[1] * end_y) };
+        const begin = Vec2i{ @intFromFloat(min[0] * end_x), @intFromFloat(min[1] * end_y) };
+        const end = Vec2i{ @intFromFloat(max[0] * end_x), @intFromFloat(max[1] * end_y) };
 
         var y = begin[1];
         while (y < end[1]) : (y += 1) {
@@ -188,11 +188,11 @@ pub const Shaper = struct {
             while (x < end[0]) : (x += 1) {
                 var w: f32 = 0.0;
 
-                var v = (@intToFloat(f32, y) + so) / end_y;
+                var v = (@as(f32, @floatFromInt(y)) + so) / end_y;
 
                 var sy: i32 = 0;
                 while (sy < Sub_samples) : (sy += 1) {
-                    var u = (@intToFloat(f32, x) + so) / end_x;
+                    var u = (@as(f32, @floatFromInt(x)) + so) / end_x;
 
                     var sx: i32 = 0;
                     while (sx < Sub_samples) : (sx += 1) {
@@ -221,9 +221,9 @@ pub const Shaper = struct {
                         wy = wy - dim[1];
                     }
 
-                    var pixel = &self.pixels[@intCast(usize, wy * dim[0] + wx)];
+                    var pixel = &self.pixels[@as(usize, @intCast(wy * dim[0] + wx))];
                     const old: Vec4f = pixel.v;
-                    pixel.v = math.lerp(old, color, w);
+                    pixel.v = math.lerp(old, color, @as(Vec4f, @splat(w)));
                 }
             }
         }
@@ -258,7 +258,7 @@ pub const Shaper = struct {
                 }
 
                 const blades = s.blades;
-                const delta = (2.0 * std.math.pi) / @intToFloat(f32, blades);
+                const delta = (2.0 * std.math.pi) / @as(f32, @floatFromInt(blades));
 
                 const rot = s.rotation;
                 var b = Vec2f{ @sin(rot), @cos(rot) };
@@ -266,14 +266,14 @@ pub const Shaper = struct {
                 var mt: f32 = 0.0;
                 var i: u32 = 0;
                 while (i < blades) : (i += 1) {
-                    const angle = @intToFloat(f32, i + 1) * delta + rot;
+                    const angle = @as(f32, @floatFromInt(i + 1)) * delta + rot;
                     const c = Vec2f{ @sin(angle), @cos(angle) };
 
                     const cb = c - b;
                     const n = math.normalize2(.{ cb[1], -cb[0] });
                     const d = math.dot2(n, b);
                     const t = math.dot2(n, center) / d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
 
                     b = c;
                 }
@@ -291,7 +291,7 @@ pub const Shaper = struct {
                 var mt: f32 = 0.0;
                 for (s.planes[0..s.blades]) |b| {
                     const t = math.dot2(b.n, center) / b.d;
-                    mt = std.math.max(mt, t);
+                    mt = math.max(mt, t);
                 }
 
                 return math.lerp(mt, lc, s.roundness) <= radius;

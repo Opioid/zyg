@@ -1,114 +1,95 @@
-const Result = @import("result.zig").Result;
 const tracking = @import("tracking.zig");
-const Ray = @import("../../../scene/ray.zig").Ray;
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
 const shp = @import("../../../scene/shape/intersection.zig");
+const Intersection = shp.Intersection;
+const Volume = shp.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
+const Material = @import("../../../scene/material/material.zig").Material;
+const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Multi = struct {
-    pub fn integrate(vertex: *Vertex, filter: ?Filter, sampler: *Sampler, worker: *Worker) Result {
-        const ray = &vertex.ray;
-        const isec = &vertex.isec;
-        const interface = vertex.interface_stack.top();
-        const material = interface.material(worker.scene);
+    pub fn propTransmittance(
+        ray: Ray,
+        material: *const Material,
+        cc: CC,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) ?Vec4f {
+        const d = ray.maxT();
 
-        const densesss = material.denseSSSOptimization();
-
-        if (densesss) {
-            vertex.isec.subsurface = false;
-            if (!worker.intersectProp(isec.prop, ray, .All, &isec.geo)) {
-                vertex.interface_stack.pop();
-
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = if (worker.intersectAndResolveMask(ray, filter, isec)) .Pass else .Abort,
-                };
-            }
-        } else {
-            const ray_max_t = ray.ray.maxT();
-            ray.ray.setMaxT(std.math.min(ro.offsetF(worker.scene.propAabbIntersectP(interface.prop, ray.*) orelse ray_max_t), ray_max_t));
-            if (!worker.intersectAndResolveMask(ray, filter, isec)) {
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = .Abort,
-                };
-            }
-
-            // This test is intended to catch corner cases where we actually left the scattering medium,
-            // but the intersection point was too close to detect.
-            var missed = false;
-            if (!interface.matches(isec.*) or !isec.sameHemisphere(ray.ray.direction)) {
-                const v = -ray.ray.direction;
-
-                var tray = Ray.init(vertex.isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, ray.time);
-                var nisec = shp.Intersection{};
-                if (worker.intersectProp(interface.prop, &tray, .Normal, &nisec)) {
-                    missed = math.dot3(nisec.geo_n, v) <= 0.0;
-                } else {
-                    missed = true;
-                }
-            }
-
-            if (missed) {
-                vertex.interface_stack.pop();
-                return .{
-                    .li = @splat(4, @as(f32, 0.0)),
-                    .tr = @splat(4, @as(f32, 1.0)),
-                    .event = .Pass,
-                };
-            }
+        if (ro.offsetF(ray.minT()) >= d) {
+            return @as(Vec4f, @splat(1.0));
         }
 
-        const d = ray.ray.maxT();
+        if (material.heterogeneousVolume()) {
+            return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker);
+        }
+
+        return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
+    }
+
+    pub fn propScatter(
+        ray: Ray,
+        throughput: Vec4f,
+        material: *const Material,
+        cc: CC,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const d = ray.maxT();
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            const mu_a = material.collisionCoefficients(math.vec2fTo4f(interface.uv), filter, worker.scene).a;
-            return .{
-                .li = @splat(4, @as(f32, 0.0)),
-                .tr = hlp.attenuation3(mu_a, d - ray.ray.minT()),
-                .event = .Pass,
-            };
+            return Volume.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
+        }
+
+        if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
+            return Volume.initPass(@splat(1.0));
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.texturespaceRay(ray.*, interface.prop, worker);
+            var local_ray = tracking.objectToTextureRay(ray, prop, worker);
 
-            const srs = material.super().similarityRelationScale(ray.depth);
+            const srs = material.super().similarityRelationScale(depth);
 
-            var result = Result.initPass(@splat(4, @as(f32, 1.0)));
+            var result = Volume.initPass(@splat(1.0));
 
             if (material.emissive()) {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
+                    if (tree.intersect(&local_ray)) |cm| {
+                        result = tracking.trackingHeteroEmission(
+                            local_ray,
+                            cm,
+                            material,
+                            srs,
+                            result.tr,
+                            throughput,
+                            sampler,
+                            worker,
+                        );
 
-                        result = tracking.trackingHeteroEmission(local_ray, cm, material, srs, result.tr, vertex.throughput, filter, worker);
                         if (.Scatter == result.event) {
-                            setScattering(isec, interface, ray.ray.point(result.t));
                             break;
                         }
 
                         if (.Absorb == result.event) {
-                            ray.ray.setMaxT(result.t);
-                            // This is in local space on purpose! Alas, the purpose was not commented...
-                            isec.geo.p = local_ray.point(result.t);
+                            result.uvw = local_ray.point(result.t);
                             return result;
                         }
                     }
@@ -117,14 +98,19 @@ pub const Multi = struct {
                 }
             } else {
                 while (local_ray.minT() < d) {
-                    if (tree.intersect(&local_ray)) |tcm| {
-                        var cm = tcm;
-                        cm.minorant_mu_s *= srs;
-                        cm.majorant_mu_s *= srs;
+                    if (tree.intersect(&local_ray)) |cm| {
+                        result = tracking.trackingHetero(
+                            local_ray,
+                            cm,
+                            material,
+                            srs,
+                            result.tr,
+                            throughput,
+                            sampler,
+                            worker,
+                        );
 
-                        result = tracking.trackingHetero(local_ray, cm, material, srs, result.tr, vertex.throughput, filter, worker);
                         if (.Scatter == result.event) {
-                            setScattering(isec, interface, ray.ray.point(result.t));
                             break;
                         }
                     }
@@ -133,54 +119,85 @@ pub const Multi = struct {
                 }
             }
 
-            if (math.allLess4(result.tr, tracking.Abort_epsilon4)) {
-                result.event = .Abort;
-            }
-
-            if (.Pass == result.event and densesss) {
-                vertex.correctVolumeInterfaceStack(worker.scene);
-            }
-
             return result;
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(4, @as(f32, 0.0)), filter, worker.scene);
+            const cce = material.collisionCoefficientsEmission(@splat(0.0), sampler, worker.scene);
+            return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
+        }
 
-            const result = tracking.trackingEmission(ray.ray, cce, vertex.throughput, &worker.rng);
-            if (.Scatter == result.event) {
-                setScattering(isec, interface, ray.ray.point(result.t));
-            } else if (.Absorb == result.event) {
-                ray.ray.setMaxT(result.t);
+        return tracking.tracking(ray, cc, throughput, sampler);
+    }
+
+    pub fn integrate(
+        vertex: *Vertex,
+        throughput: Vec4f,
+        isec: *Intersection,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) bool {
+        const interface = worker.interface_stack.top();
+        const material = interface.material(worker.scene);
+
+        if (material.denseSSSOptimization()) {
+            if (!worker.propIntersect(isec.prop, vertex, .Normal, isec)) {
+                return false;
+            }
+        } else {
+            const ray_max_t = vertex.ray.maxT();
+            const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.ray) orelse ray_max_t;
+            vertex.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
+            if (!worker.intersectAndResolveMask(vertex, sampler, isec)) {
+                vertex.ray.setMinMaxT(vertex.ray.maxT(), ray_max_t);
+                return false;
             }
 
-            return result;
+            // This test is intended to catch corner cases where we actually left the scattering medium,
+            // but the intersection point was too close to detect.
+            var missed = false;
+            if (!interface.matches(isec.*) or !isec.sameHemisphere(vertex.ray.direction)) {
+                const v = -vertex.ray.direction;
+
+                var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
+                var nisec: Intersection = undefined;
+                if (worker.propIntersect(interface.prop, &tvertex, .Normal, &nisec)) {
+                    missed = math.dot3(nisec.geo_n, v) <= 0.0;
+                } else {
+                    missed = true;
+                }
+            }
+
+            if (missed) {
+                vertex.ray.setMinMaxT(math.min(ro.offsetF(vertex.ray.maxT()), ray_max_t), ray_max_t);
+                return false;
+            }
         }
 
-        const mu = material.super().cc;
+        const tray = if (material.heterogeneousVolume())
+            worker.scene.propTransformationAt(interface.prop, vertex.time).worldToObjectRay(vertex.ray)
+        else
+            vertex.ray;
 
-        const result = tracking.tracking(ray.ray, mu, vertex.throughput, sampler);
-        if (.Scatter == result.event) {
-            setScattering(isec, interface, ray.ray.point(result.t));
-        } else if (.Pass == result.event and densesss) {
-            vertex.correctVolumeInterfaceStack(worker.scene);
+        var result = propScatter(
+            tray,
+            throughput,
+            material,
+            interface.cc,
+            interface.prop,
+            vertex.depth,
+            sampler,
+            worker,
+        );
+
+        if (.Pass != result.event) {
+            isec.prop = interface.prop;
+            isec.part = interface.part;
+            isec.p = vertex.ray.point(result.t);
+            isec.uvw = result.uvw;
         }
 
-        return result;
-    }
-
-    fn setScattering(isec: *Intersection, interface: Interface, p: Vec4f) void {
-        isec.prop = interface.prop;
-        isec.geo.p = p;
-        isec.geo.uv = interface.uv;
-        isec.geo.part = interface.part;
-        isec.subsurface = true;
-    }
-};
-
-pub const Factory = struct {
-    pub fn create(self: Factory) Multi {
-        _ = self;
-        return .{};
+        isec.setVolume(result);
+        return true;
     }
 };

@@ -1,9 +1,7 @@
-const Ray = @import("../../../scene/ray.zig").Ray;
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -16,14 +14,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const AOV = struct {
-    const Num_dedicated_samplers = 1;
-
     pub const Value = enum {
         AO,
         Tangent,
         Bitangent,
         GeometricNormal,
         ShadingNormal,
+        LightSampleCount,
+        Side,
         Photons,
     };
 
@@ -40,43 +38,45 @@ pub const AOV = struct {
 
     settings: Settings,
 
-    samplers: [2]Sampler,
-
     const Self = @This();
 
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
-        for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
+    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
+        var isec: Intersection = undefined;
+        var sampler = worker.pickSampler(0);
+
+        if (!worker.nextEvent(vertex, @splat(1.0), &isec, sampler)) {
+            return @splat(0.0);
         }
-    }
 
-    pub fn li(self: *Self, ray: *Ray, isec: *Intersection, worker: *Worker, initial_stack: *const InterfaceStack) Vec4f {
-        var vertex: Vertex = undefined;
-        vertex.start(ray.*, isec.*, initial_stack);
-
-        return switch (self.settings.value) {
-            .AO => self.ao(&vertex, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(&vertex, worker),
-            .Photons => self.photons(&vertex, worker),
+        const result = switch (self.settings.value) {
+            .AO => self.ao(vertex.*, isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex.*, isec, worker),
+            .LightSampleCount => self.lightSampleCount(vertex.*, isec, worker),
+            .Side => self.side(vertex.*, isec, worker),
+            .Photons => self.photons(vertex, &isec, worker),
         };
+
+        return isec.vol_tr * result;
     }
 
-    fn ao(self: *Self, vertex: *const Vertex, worker: *Worker) Vec4f {
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+    fn ao(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+        const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
         var result: f32 = 0.0;
+        var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.ray.ray.direction;
-        const mat_sample = vertex.sample(wo, null, false, worker);
+        const wo = -vertex.ray.direction;
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
-        var occlusion_ray: Ray = undefined;
+        if (worker.aov.active()) {
+            worker.commonAOV(@splat(1.0), vertex, isec, &mat_sample);
+        }
 
-        occlusion_ray.ray.origin = vertex.isec.offsetPN(mat_sample.super().geometricNormal(), false);
-        occlusion_ray.time = vertex.ray.time;
+        const origin = isec.offsetP(mat_sample.super().geometricNormal());
 
-        var sampler = &self.samplers[0];
+        var occlusion_vertex: Vertex = undefined;
+        occlusion_vertex.time = vertex.time;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
@@ -88,9 +88,10 @@ pub const AOV = struct {
 
             const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
 
-            occlusion_ray.ray.setDirection(ws, radius);
+            occlusion_vertex.ray.origin = origin;
+            occlusion_vertex.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(occlusion_ray, null)) |_| {
+            if (worker.scene.visibility(occlusion_vertex, sampler, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -100,16 +101,18 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
-        const wo = -vertex.ray.ray.direction;
-        const mat_sample = vertex.sample(wo, null, false, worker);
+    fn vector(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+        var sampler = worker.pickSampler(0);
+
+        const wo = -vertex.ray.direction;
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
 
         switch (self.settings.value) {
-            .Tangent => vec = vertex.isec.geo.t,
-            .Bitangent => vec = vertex.isec.geo.b,
-            .GeometricNormal => vec = vertex.isec.geo.geo_n,
+            .Tangent => vec = isec.t,
+            .Bitangent => vec = isec.b,
+            .GeometricNormal => vec = isec.geo_n,
             .ShadingNormal => {
                 if (!mat_sample.super().sameHemisphere(wo)) {
                     return .{ 0.0, 0.0, 0.0, 1.0 };
@@ -120,126 +123,120 @@ pub const AOV = struct {
             else => return .{ 0.0, 0.0, 0.0, 1.0 },
         }
 
-        vec = Vec4f{ vec[0], vec[1], vec[2], 1.0 };
+        vec = .{ vec[0], vec[1], vec[2], 1.0 };
 
-        return math.clamp(@splat(4, @as(f32, 0.5)) * (vec + @splat(4, @as(f32, 1.0))), 0.0, 1.0);
+        return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn photons(self: *Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var primary_ray = true;
-        var direct = true;
-        var from_subsurface = false;
+    fn lightSampleCount(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+        _ = self;
 
-        var throughput = @splat(4, @as(f32, 1.0));
+        var sampler = worker.pickSampler(0);
+
+        const wo = -vertex.ray.direction;
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
+
+        const n = mat_sample.super().geometricNormal();
+        const p = isec.offsetP(n);
+
+        const lights = worker.randomLightSpatial(p, n, false, sampler.sample1D(), true);
+
+        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(worker.lights.len));
+
+        return .{ r, r, r, 1.0 };
+    }
+
+    fn side(self: *const Self, vertex: Vertex, isec: Intersection, worker: *Worker) Vec4f {
+        _ = self;
+
+        var sampler = worker.pickSampler(0);
+
+        const wo = -vertex.ray.direction;
+        const mat_sample = isec.sample(wo, vertex, sampler, .Off, worker);
+
+        const super = mat_sample.super();
+        const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
+        const same_side = math.dot3(n, super.shadingNormal()) > 0.0;
+        return if (same_side) .{ 0.2, 1.0, 0.1, 0.0 } else .{ 1.0, 0.1, 0.2, 0.0 };
+    }
+
+    fn photons(self: *const Self, vertex: *Vertex, isec: *Intersection, worker: *Worker) Vec4f {
+        var throughput: Vec4f = @splat(1.0);
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            const wo = -vertex.ray.ray.direction;
+            var sampler = worker.pickSampler(vertex.depth);
 
-            const filter: ?Filter = if (vertex.ray.depth <= 1 or primary_ray) null else .Nearest;
-
-            const mat_sample = worker.sampleMaterial(
-                vertex,
-                wo,
-                filter,
-                0.0,
-                true,
-                from_subsurface,
-            );
-
-            vertex.wo1 = wo;
+            const mat_sample = worker.sampleMaterial(vertex.*, isec.*, sampler, 0.0, .Off);
 
             if (mat_sample.isPureEmissive()) {
                 break;
             }
 
-            var sampler = self.pickSampler(vertex.ray.depth);
-
-            const sample_result = mat_sample.sample(sampler, false, &worker.bxdfs)[0];
+            const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf) {
                 break;
             }
 
             if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
-                if (primary_ray) {
-                    primary_ray = false;
+                if (vertex.state.primary_ray) {
+                    vertex.state.primary_ray = false;
 
-                    const indirect = !direct and 0 != vertex.ray.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(vertex.isec, &mat_sample));
+                        worker.addPhoton(throughput * worker.photonLi(isec.*, &mat_sample, sampler));
                         break;
                     }
                 }
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.ray.depth += 1;
+                vertex.depth += 1;
             }
 
-            if (vertex.ray.depth >= self.settings.max_bounces) {
+            if (vertex.depth >= self.settings.max_bounces) {
                 break;
             }
 
             if (sample_result.class.straight) {
-                vertex.ray.ray.setMinMaxT(ro.offsetF(vertex.ray.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                direct = false;
-                from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
-            if (0.0 == vertex.ray.wavelength) {
-                vertex.ray.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.wavelength) {
+                vertex.wavelength = sample_result.wavelength;
             }
 
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, worker.scene);
+                worker.interfaceChange(sample_result.wi, isec.*, sampler);
             }
 
-            from_subsurface = from_subsurface or vertex.isec.subsurface;
+            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
-            if (!vertex.interface_stack.empty()) {
-                const vr = worker.volume(vertex, filter, sampler);
-
-                throughput *= vr.tr;
-
-                if (.Abort == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
+            if (!worker.nextEvent(vertex, throughput, isec, sampler)) {
                 break;
             }
+
+            throughput *= isec.vol_tr;
 
             sampler.incrementPadding();
         }
 
-        for (&self.samplers) |*s| {
-            s.incrementSample();
-        }
-
-        return @splat(4, @as(f32, 0.0));
-    }
-
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 4) {
-            return &self.samplers[0];
-        }
-
-        return &self.samplers[1];
+        return @splat(0.0);
     }
 };
 
 pub const Factory = struct {
     settings: AOV.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) AOV {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) AOV {
+        return .{ .settings = self.settings };
     }
 };

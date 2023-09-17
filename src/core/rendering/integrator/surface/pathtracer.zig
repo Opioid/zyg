@@ -1,9 +1,8 @@
-const Ray = @import("../../../scene/ray.zig").Ray;
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/prop/intersection.zig").Intersection;
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
-const Filter = @import("../../../image/texture/texture_sampler.zig").Filter;
+const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -17,194 +16,140 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Pathtracer = struct {
-    const Num_dedicated_samplers = 3;
-
     pub const Settings = struct {
-        num_samples: u32,
         min_bounces: u32,
         max_bounces: u32,
         avoid_caustics: bool,
+        caustics_resolve: CausticsResolve,
     };
 
     settings: Settings,
 
-    samplers: [2]Sampler,
-
     const Self = @This();
 
-    pub fn startPixel(self: *Self, sample: u32, seed: u32) void {
-        const os = sample *% self.settings.num_samples;
-        for (&self.samplers) |*s| {
-            s.startPixel(os, seed);
-        }
-    }
+    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
+        var throughput: Vec4f = @splat(1.0);
+        var old_throughput: Vec4f = @splat(1.0);
+        var result: Vec4f = @splat(0.0);
 
-    pub fn li(
-        self: *Self,
-        ray: *Ray,
-        isec: *Intersection,
-        worker: *Worker,
-        initial_stack: *const InterfaceStack,
-    ) Vec4f {
-        const num_samples_reciprocal = 1.0 / @intToFloat(f32, self.settings.num_samples);
+        var isec: Intersection = undefined;
 
-        var result = @splat(4, @as(f32, 0.0));
+        while (true) {
+            var sampler = worker.pickSampler(vertex.depth);
 
-        var i = self.settings.num_samples;
-        while (i > 0) : (i -= 1) {
-            result += @splat(4, num_samples_reciprocal) * self.integrate(ray.*, isec.*, initial_stack, worker);
-
-            for (&self.samplers) |*s| {
-                s.incrementSample();
+            if (!worker.nextEvent(vertex, throughput, &isec, sampler)) {
+                break;
             }
-        }
 
-        return result;
-    }
+            throughput *= isec.vol_tr;
 
-    fn integrate(
-        self: *Self,
-        ray: Ray,
-        isec: Intersection,
-        initial_stack: *const InterfaceStack,
-        worker: *Worker,
-    ) Vec4f {
-        var primary_ray = true;
-        var transparent = true;
-        var from_subsurface = false;
-
-        var throughput = @splat(4, @as(f32, 1.0));
-        var old_throughput = @splat(4, @as(f32, 1.0));
-        var result = @splat(4, @as(f32, 0.0));
-
-        var vertex: Vertex = undefined;
-        vertex.start(ray, isec, initial_stack);
-
-        var i: u32 = 0;
-        while (true) : (i += 1) {
-            const wo = -vertex.ray.ray.direction;
-
-            const filter: ?Filter = if (vertex.ray.depth <= 1 or primary_ray) null else .Nearest;
-            const avoid_caustics = self.settings.avoid_caustics and (!primary_ray);
+            const wo = -vertex.ray.direction;
 
             var pure_emissive: bool = undefined;
-            const energy = isec.evaluateRadiance(
-                vertex.ray.ray.origin,
+            const energy: Vec4f = isec.evaluateRadiance(
+                vertex.ray.origin,
                 wo,
-                filter,
+                sampler,
                 worker.scene,
                 &pure_emissive,
-            ) orelse @splat(4, @as(f32, 0.0));
+            ) orelse @splat(0.0);
 
             result += throughput * energy;
 
             if (pure_emissive) {
-                transparent = transparent and !vertex.isec.visibleInCamera(worker.scene) and ray.ray.maxT() >= ro.Ray_max_t;
+                const vis_in_cam = isec.visibleInCamera(worker.scene);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
+            const caustics = self.causticsResolve(vertex.state);
+
             const mat_sample = worker.sampleMaterial(
-                &vertex,
-                wo,
-                filter,
+                vertex.*,
+                isec,
+                sampler,
                 0.0,
-                avoid_caustics,
-                from_subsurface,
+                caustics,
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex.ray, vertex.isec, &mat_sample, primary_ray);
+                worker.commonAOV(throughput, vertex.*, isec, &mat_sample);
             }
 
-            vertex.wo1 = wo;
-
-            if (vertex.ray.depth >= self.settings.max_bounces) {
+            if (vertex.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            var sampler = self.pickSampler(vertex.ray.depth);
-
-            if (ray.depth >= self.settings.min_bounces) {
+            if (vertex.depth >= self.settings.min_bounces) {
                 if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
                     break;
                 }
             }
 
-            const sample_result = mat_sample.sample(sampler, false, &worker.bxdfs)[0];
-            if (0.0 == sample_result.pdf) {
+            const sample_result = mat_sample.sample(sampler);
+            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }
 
             if (sample_result.class.specular) {
-                if (avoid_caustics) {
+                if (.Full != caustics) {
                     break;
                 }
             } else if (!sample_result.class.straight) {
-                primary_ray = false;
-            }
-
-            if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.ray.depth += 1;
-            }
-
-            if (sample_result.class.straight) {
-                vertex.ray.ray.setMinMaxT(ro.offsetF(ray.ray.maxT()), ro.Ray_max_t);
-            } else {
-                vertex.ray.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                vertex.ray.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
-                transparent = false;
-                from_subsurface = false;
-            }
-
-            if (0.0 == ray.wavelength) {
-                vertex.ray.wavelength = sample_result.wavelength;
+                vertex.state.primary_ray = false;
             }
 
             old_throughput = throughput;
-            throughput *= sample_result.reflection / @splat(4, sample_result.pdf);
+            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, worker.scene);
+            if (!(sample_result.class.straight and sample_result.class.transmission)) {
+                vertex.depth += 1;
             }
 
-            from_subsurface = from_subsurface or vertex.isec.subsurface;
+            if (sample_result.class.straight) {
+                vertex.ray.setMinMaxT(isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
+            } else {
+                vertex.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-            if (!vertex.interface_stack.empty()) {
-                const vr = worker.volume(&vertex, filter, sampler);
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = isec.subsurface();
+            }
 
-                result += throughput * vr.li;
-                throughput *= vr.tr;
+            if (0.0 == vertex.wavelength) {
+                vertex.wavelength = sample_result.wavelength;
+            }
 
-                if (.Abort == vr.event or .Absorb == vr.event) {
-                    break;
-                }
-            } else if (!worker.intersectAndResolveMask(&vertex.ray, filter, &vertex.isec)) {
-                break;
+            if (sample_result.class.transmission) {
+                worker.interfaceChange(sample_result.wi, isec, sampler);
             }
 
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, transparent);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
-    fn pickSampler(self: *Self, bounce: u32) *Sampler {
-        if (bounce < 4) {
-            return &self.samplers[0];
+    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+        const pr = state.primary_ray;
+        const r = self.settings.caustics_resolve;
+
+        if (!pr) {
+            if (self.settings.avoid_caustics) {
+                return .Off;
+            }
+
+            return r;
         }
 
-        return &self.samplers[1];
+        return .Full;
     }
 };
 
 pub const Factory = struct {
     settings: Pathtracer.Settings,
 
-    pub fn create(self: Factory, rng: *RNG) Pathtracer {
-        return .{
-            .settings = self.settings,
-            .samplers = .{ .{ .Sobol = .{} }, .{ .Random = .{ .rng = rng } } },
-        };
+    pub fn create(self: Factory) Pathtracer {
+        return .{ .settings = self.settings };
     }
 };
