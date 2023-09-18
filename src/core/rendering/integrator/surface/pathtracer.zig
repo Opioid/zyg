@@ -32,22 +32,19 @@ pub const Pathtracer = struct {
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
 
-        var isec: Intersection = undefined;
-
         while (true) {
             var sampler = worker.pickSampler(vertex.depth);
 
-            if (!worker.nextEvent(vertex, throughput, &isec, sampler)) {
+            if (!worker.nextEvent(vertex, throughput, sampler)) {
                 break;
             }
 
-            throughput *= isec.vol_tr;
+            throughput *= vertex.isec.vol_tr;
 
             const wo = -vertex.ray.direction;
 
             var pure_emissive: bool = undefined;
-            const energy: Vec4f = isec.evaluateRadiance(
-                vertex.ray.origin,
+            const energy: Vec4f = vertex.evaluateRadiance(
                 wo,
                 sampler,
                 worker.scene,
@@ -57,7 +54,7 @@ pub const Pathtracer = struct {
             result += throughput * energy;
 
             if (pure_emissive) {
-                const vis_in_cam = isec.visibleInCamera(worker.scene);
+                const vis_in_cam = vertex.isec.visibleInCamera(worker.scene);
                 vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
@@ -65,15 +62,14 @@ pub const Pathtracer = struct {
             const caustics = self.causticsResolve(vertex.state);
 
             const mat_sample = worker.sampleMaterial(
-                vertex.*,
-                isec,
+                vertex,
                 sampler,
                 0.0,
                 caustics,
             );
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex.*, isec, &mat_sample);
+                worker.commonAOV(throughput, vertex, &mat_sample);
             }
 
             if (vertex.depth >= self.settings.max_bounces) {
@@ -107,13 +103,13 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.straight) {
-                vertex.ray.setMinMaxT(isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
+                vertex.ray.setMinMaxT(vertex.isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.ray.origin = vertex.isec.offsetP(sample_result.wi);
                 vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
-                vertex.state.from_subsurface = isec.subsurface();
+                vertex.state.from_subsurface = vertex.isec.subsurface();
             }
 
             if (0.0 == vertex.wavelength) {
@@ -121,7 +117,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, isec, sampler);
+                worker.interfaceChange(sample_result.wi, vertex.isec, sampler);
             }
 
             sampler.incrementPadding();

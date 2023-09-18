@@ -6,6 +6,7 @@ const mt = @import("scene/material/material.zig");
 const intf = @import("scene/prop/interface.zig");
 const Intersection = @import("scene/shape/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
+const Vertex = @import("scene/vertex.zig").Vertex;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
@@ -27,6 +28,7 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Intersection, "Intersection", 208);
+    testType(Vertex, "Vertex", 288);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
