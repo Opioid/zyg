@@ -10,6 +10,7 @@ const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
+const Intersector = Vertex.Intersector;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/shape/intersection.zig").Intersection;
@@ -21,6 +22,7 @@ const img = @import("../image/image.zig");
 const base = @import("base");
 const json = base.json;
 const math = base.math;
+const Ray = math.Ray;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
@@ -140,7 +142,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time, undefined);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time);
     }
 
     pub fn sampleTo(
@@ -317,19 +319,13 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var vertex = Vertex.init(
-                trafo.position,
-                trafo.objectToWorldVector(direction),
-                0.0,
-                ro.Ray_max_t,
-                0,
-                0.0,
+            var isec = Intersector.init(
+                Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
                 time,
-                undefined,
             );
 
-            if (scene.intersect(&vertex, .Normal)) {
-                self.focus_distance = vertex.ray.maxT() + self.focus.point[2];
+            if (scene.intersect(&isec, .Normal)) {
+                self.focus_distance = isec.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
             }

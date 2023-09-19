@@ -22,119 +22,125 @@ pub const Vertex = struct {
         started_specular: bool = false,
     };
 
-    ray: Ray,
+    pub const Intersector = struct {
+        ray: Ray,
 
-    depth: u32,
-    wavelength: f32,
-    time: u64,
-    state: State,
-
-    isec: Intersection,
-
-    const Self = @This();
-
-    pub fn init(
-        origin: Vec4f,
-        direction: Vec4f,
-        min_t: f32,
-        max_t: f32,
         depth: u32,
         wavelength: f32,
         time: u64,
-        isec: Intersection,
-    ) Vertex {
-        return .{
-            .ray = Ray.init(origin, direction, min_t, max_t),
-            .depth = depth,
-            .wavelength = wavelength,
+        state: State,
+
+        hit: Intersection,
+
+        pub fn init(ray: Ray, time: u64) Intersector {
+            return .{
+                .ray = ray,
+                .depth = 0,
+                .wavelength = 0.0,
+                .time = time,
+                .state = .{},
+                .hit = undefined,
+            };
+        }
+
+        pub fn initFrom(ray: Ray, isec: *const Intersector) Intersector {
+            return .{
+                .ray = ray,
+                .depth = isec.depth,
+                .wavelength = isec.wavelength,
+                .time = isec.time,
+                .state = .{},
+                .hit = isec.hit,
+            };
+        }
+
+        pub fn sample(
+            self: *const Intersector,
+            wo: Vec4f,
+            sampler: *Sampler,
+            caustics: CausticsResolve,
+            worker: *const Worker,
+        ) mat.Sample {
+            const m = self.hit.material(worker.scene);
+            const p = self.hit.p;
+            const b = self.hit.b;
+
+            var rs: Renderstate = undefined;
+            rs.trafo = self.hit.trafo;
+            rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self.hit) };
+            rs.t = self.hit.t;
+            rs.b = .{ b[0], b[1], b[2], self.wavelength };
+
+            if (m.twoSided() and !self.hit.sameHemisphere(wo)) {
+                rs.geo_n = -self.hit.geo_n;
+                rs.n = -self.hit.n;
+            } else {
+                rs.geo_n = self.hit.geo_n;
+                rs.n = self.hit.n;
+            }
+
+            rs.ray_p = self.ray.origin;
+
+            rs.uv = self.hit.uv();
+            rs.prop = self.hit.prop;
+            rs.part = self.hit.part;
+            rs.primitive = self.hit.primitive;
+            rs.depth = self.depth;
+            rs.time = self.time;
+            rs.subsurface = self.hit.subsurface();
+            rs.caustics = caustics;
+
+            return m.sample(wo, rs, sampler, worker);
+        }
+
+        pub fn evaluateRadiance(
+            self: *const Intersector,
+            wo: Vec4f,
+            sampler: *Sampler,
+            scene: *const Scene,
+            pure_emissive: *bool,
+        ) ?Vec4f {
+            const m = self.hit.material(scene);
+
+            const volume = self.hit.event;
+
+            pure_emissive.* = m.pureEmissive() or .Absorb == volume;
+
+            if (.Absorb == volume) {
+                return self.hit.vol_li;
+            }
+
+            if (!m.emissive() or (!m.twoSided() and !self.hit.sameHemisphere(wo)) or .Scatter == volume) {
+                return null;
+            }
+
+            return m.evaluateRadiance(
+                self.ray.origin,
+                wo,
+                self.hit.geo_n,
+                self.hit.uvw,
+                self.hit.trafo,
+                self.hit.prop,
+                self.hit.part,
+                sampler,
+                scene,
+            );
+        }
+    };
+
+    isec: Intersector,
+
+    const Self = @This();
+
+    pub fn init(ray: Ray, time: u64) Vertex {
+        return .{ .isec = .{
+            .ray = ray,
+            .depth = 0,
+            .wavelength = 0.0,
             .time = time,
             .state = .{},
-            .isec = isec,
-        };
-    }
-
-    pub fn initRay(ray: Ray, vertex: *const Self) Vertex {
-        return .{
-            .ray = ray,
-            .depth = vertex.depth,
-            .wavelength = 0.0,
-            .time = vertex.time,
-            .state = .{},
-            .isec = vertex.isec,
-        };
-    }
-
-    pub fn sample(
-        self: *const Self,
-        wo: Vec4f,
-        sampler: *Sampler,
-        caustics: CausticsResolve,
-        worker: *const Worker,
-    ) mat.Sample {
-        const m = self.isec.material(worker.scene);
-        const p = self.isec.p;
-        const b = self.isec.b;
-
-        var rs: Renderstate = undefined;
-        rs.trafo = self.isec.trafo;
-        rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self.isec) };
-        rs.t = self.isec.t;
-        rs.b = .{ b[0], b[1], b[2], self.wavelength };
-
-        if (m.twoSided() and !self.isec.sameHemisphere(wo)) {
-            rs.geo_n = -self.isec.geo_n;
-            rs.n = -self.isec.n;
-        } else {
-            rs.geo_n = self.isec.geo_n;
-            rs.n = self.isec.n;
-        }
-
-        rs.ray_p = self.ray.origin;
-
-        rs.uv = self.isec.uv();
-        rs.prop = self.isec.prop;
-        rs.part = self.isec.part;
-        rs.primitive = self.isec.primitive;
-        rs.depth = self.depth;
-        rs.time = self.time;
-        rs.subsurface = self.isec.subsurface();
-        rs.caustics = caustics;
-
-        return m.sample(wo, rs, sampler, worker);
-    }
-
-    pub fn evaluateRadiance(
-        self: *const Self,
-        wo: Vec4f,
-        sampler: *Sampler,
-        scene: *const Scene,
-        pure_emissive: *bool,
-    ) ?Vec4f {
-        const m = self.isec.material(scene);
-
-        const volume = self.isec.event;
-
-        pure_emissive.* = m.pureEmissive() or .Absorb == volume;
-
-        if (.Absorb == volume) {
-            return self.isec.vol_li;
-        }
-
-        if (!m.emissive() or (!m.twoSided() and !self.isec.sameHemisphere(wo)) or .Scatter == volume) {
-            return null;
-        }
-
-        return m.evaluateRadiance(
-            self.ray.origin,
-            wo,
-            self.isec.geo_n,
-            self.isec.uvw,
-            self.isec.trafo,
-            self.isec.prop,
-            self.isec.part,
-            sampler,
-            scene,
-        );
+            .hit = undefined,
+        } };
     }
 };
 

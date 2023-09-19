@@ -1,4 +1,5 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const Intersector = Vertex.Intersector;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
@@ -50,13 +51,13 @@ pub const AOV = struct {
 
         const result = switch (self.settings.value) {
             .AO => self.ao(vertex, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex, worker),
-            .LightSampleCount => self.lightSampleCount(vertex, worker),
-            .Side => self.side(vertex, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(&vertex.isec, worker),
+            .LightSampleCount => self.lightSampleCount(&vertex.isec, worker),
+            .Side => self.side(&vertex.isec, worker),
             .Photons => self.photons(vertex, worker),
         };
 
-        return vertex.isec.vol_tr * result;
+        return vertex.isec.hit.vol_tr * result;
     }
 
     fn ao(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
@@ -66,17 +67,17 @@ pub const AOV = struct {
         var result: f32 = 0.0;
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const wo = -vertex.isec.ray.direction;
+        const mat_sample = vertex.isec.sample(wo, sampler, .Off, worker);
 
         if (worker.aov.active()) {
             worker.commonAOV(@splat(1.0), vertex, &mat_sample);
         }
 
-        const origin = vertex.isec.offsetP(mat_sample.super().geometricNormal());
+        const origin = vertex.isec.hit.offsetP(mat_sample.super().geometricNormal());
 
-        var occlusion_vertex: Vertex = undefined;
-        occlusion_vertex.time = vertex.time;
+        var occlusion_isec: Vertex.Intersector = undefined;
+        occlusion_isec.time = vertex.isec.time;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
@@ -88,10 +89,10 @@ pub const AOV = struct {
 
             const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
 
-            occlusion_vertex.ray.origin = origin;
-            occlusion_vertex.ray.setDirection(ws, radius);
+            occlusion_isec.ray.origin = origin;
+            occlusion_isec.ray.setDirection(ws, radius);
 
-            if (worker.scene.visibility(&occlusion_vertex, sampler, worker)) |_| {
+            if (worker.scene.visibility(&occlusion_isec, sampler, worker)) |_| {
                 result += num_samples_reciprocal;
             }
 
@@ -101,18 +102,18 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const wo = -isec.ray.direction;
+        const mat_sample = isec.sample(wo, sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
 
         switch (self.settings.value) {
-            .Tangent => vec = vertex.isec.t,
-            .Bitangent => vec = vertex.isec.b,
-            .GeometricNormal => vec = vertex.isec.geo_n,
+            .Tangent => vec = isec.hit.t,
+            .Bitangent => vec = isec.hit.b,
+            .GeometricNormal => vec = isec.hit.geo_n,
             .ShadingNormal => {
                 if (!mat_sample.super().sameHemisphere(wo)) {
                     return .{ 0.0, 0.0, 0.0, 1.0 };
@@ -128,16 +129,16 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const wo = -isec.ray.direction;
+        const mat_sample = isec.sample(wo, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
-        const p = vertex.isec.offsetP(n);
+        const p = isec.hit.offsetP(n);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), true, &lights_buffer);
@@ -147,13 +148,13 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn side(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const wo = -isec.ray.direction;
+        const mat_sample = isec.sample(wo, sampler, .Off, worker);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -166,9 +167,9 @@ pub const AOV = struct {
 
         var i: u32 = 0;
         while (true) : (i += 1) {
-            var sampler = worker.pickSampler(vertex.depth);
+            var sampler = worker.pickSampler(vertex.isec.depth);
 
-            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, .Off);
+            const mat_sample = worker.sampleMaterial(&vertex.isec, sampler, 0.0, .Off);
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -180,52 +181,52 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
-                if (vertex.state.primary_ray) {
-                    vertex.state.primary_ray = false;
+                if (vertex.isec.state.primary_ray) {
+                    vertex.isec.state.primary_ray = false;
 
-                    const indirect = !vertex.state.direct and 0 != vertex.depth;
+                    const indirect = !vertex.isec.state.direct and 0 != vertex.isec.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(vertex.isec, &mat_sample, sampler));
+                        worker.addPhoton(throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
                         break;
                     }
                 }
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.depth += 1;
+                vertex.isec.depth += 1;
             }
 
-            if (vertex.depth >= self.settings.max_bounces) {
+            if (vertex.isec.depth >= self.settings.max_bounces) {
                 break;
             }
 
             if (sample_result.class.straight) {
-                vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
+                vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                vertex.state.direct = false;
-                vertex.state.from_subsurface = false;
+                vertex.isec.state.direct = false;
+                vertex.isec.state.from_subsurface = false;
             }
 
-            if (0.0 == vertex.wavelength) {
-                vertex.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.isec.wavelength) {
+                vertex.isec.wavelength = sample_result.wavelength;
             }
 
             throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, vertex.isec, sampler);
+                worker.interfaceChange(sample_result.wi, vertex.isec.hit, sampler);
             }
 
-            vertex.state.from_subsurface = vertex.state.from_subsurface or vertex.isec.subsurface();
+            vertex.isec.state.from_subsurface = vertex.isec.state.from_subsurface or vertex.isec.hit.subsurface();
 
             if (!worker.nextEvent(vertex, throughput, sampler)) {
                 break;
             }
 
-            throughput *= vertex.isec.vol_tr;
+            throughput *= vertex.isec.hit.vol_tr;
 
             sampler.incrementPadding();
         }

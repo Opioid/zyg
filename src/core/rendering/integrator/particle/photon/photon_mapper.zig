@@ -1,6 +1,7 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
+const Intersector = Vertex.Intersector;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
@@ -13,6 +14,7 @@ const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
+const Ray = math.Ray;
 const Vec4f = math.Vec4f;
 const AABB = math.AABB;
 const RNG = base.rnd.Generator;
@@ -129,24 +131,19 @@ pub const Mapper = struct {
                 continue;
             }
 
-            if (.Absorb == vertex.isec.event) {
+            if (.Absorb == vertex.isec.hit.event) {
                 continue;
             }
 
-            var throughput = vertex.isec.vol_tr;
+            var throughput = vertex.isec.hit.vol_tr;
 
-            var radiance = light.evaluateFrom(vertex.isec.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+            var radiance = light.evaluateFrom(vertex.isec.hit.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= throughput;
 
-            while (vertex.depth < self.settings.max_bounces) {
-                const wo = -vertex.ray.direction;
+            while (vertex.isec.depth < self.settings.max_bounces) {
+                const wo = -vertex.isec.ray.direction;
 
-                const mat_sample = worker.sampleMaterial(
-                    &vertex,
-                    &self.sampler,
-                    0.0,
-                    .Full,
-                );
+                const mat_sample = worker.sampleMaterial(&vertex.isec, &self.sampler, 0.0, .Full);
 
                 if (mat_sample.isPureEmissive()) {
                     break;
@@ -159,24 +156,24 @@ pub const Mapper = struct {
 
                 if (!sample_result.class.straight) {
                     if (!sample_result.class.specular and
-                        (vertex.isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
+                        (vertex.isec.hit.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or bounds.pointInside(vertex.isec.p)) {
+                        if (finite_world or bounds.pointInside(vertex.isec.hit.p)) {
                             var radi = radiance;
 
-                            const material_ior = vertex.isec.material(worker.scene).ior();
-                            if (vertex.isec.subsurface() and material_ior > 1.0) {
+                            const material_ior = vertex.isec.hit.material(worker.scene).ior();
+                            if (vertex.isec.hit.subsurface() and material_ior > 1.0) {
                                 const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @as(Vec4f, @splat(eta * eta));
                             }
 
                             self.photons[num_photons] = Photon{
-                                .p = vertex.isec.p,
+                                .p = vertex.isec.hit.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
-                                .volumetric = vertex.isec.subsurface(),
+                                .volumetric = vertex.isec.hit.subsurface(),
                             };
 
                             iteration = i + 1;
@@ -205,25 +202,25 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.straight) {
-                    vertex.ray.setMinMaxT(ro.offsetF(vertex.ray.maxT()), ro.Ray_max_t);
+                    vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
 
                     if (!sample_result.class.transmission) {
-                        vertex.depth += 1;
+                        vertex.isec.depth += 1;
                     }
                 } else {
-                    vertex.ray.origin = vertex.isec.offsetP(sample_result.wi);
-                    vertex.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    vertex.depth += 1;
+                    vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                    vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.isec.depth += 1;
 
-                    vertex.state.from_subsurface = vertex.isec.subsurface();
+                    vertex.isec.state.from_subsurface = vertex.isec.hit.subsurface();
                 }
 
-                if (0.0 == vertex.wavelength) {
-                    vertex.wavelength = sample_result.wavelength;
+                if (0.0 == vertex.isec.wavelength) {
+                    vertex.isec.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.interfaceChangeIor(sample_result.wi, vertex.isec, &self.sampler);
+                    const ior = worker.interfaceChangeIor(sample_result.wi, vertex.isec.hit, &self.sampler);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @as(Vec4f, @splat(eta * eta));
                 }
@@ -232,11 +229,11 @@ pub const Mapper = struct {
                     break;
                 }
 
-                if (.Absorb == vertex.isec.event) {
+                if (.Absorb == vertex.isec.hit.event) {
                     break;
                 }
 
-                throughput *= vertex.isec.vol_tr;
+                throughput *= vertex.isec.hit.vol_tr;
 
                 self.sampler.incrementPadding();
             }
@@ -270,6 +267,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Vertex.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t, 0, 0.0, time, undefined);
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t), time);
     }
 };

@@ -1,5 +1,6 @@
 const tracking = @import("tracking.zig");
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const Intersector = Vertex.Intersector;
 const Worker = @import("../../worker.zig").Worker;
 const shp = @import("../../../scene/shape/intersection.zig");
 const Intersection = shp.Intersection;
@@ -140,42 +141,42 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(vertex.isec.prop, vertex, .Normal)) {
+            if (!worker.propIntersect(vertex.isec.hit.prop, &vertex.isec, .Normal)) {
                 return false;
             }
         } else {
-            const ray_max_t = vertex.ray.maxT();
-            const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.ray) orelse ray_max_t;
-            vertex.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(vertex, sampler)) {
-                vertex.ray.setMinMaxT(vertex.ray.maxT(), ray_max_t);
+            const ray_max_t = vertex.isec.ray.maxT();
+            const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.isec.ray) orelse ray_max_t;
+            vertex.isec.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
+            if (!worker.intersectAndResolveMask(&vertex.isec, sampler)) {
+                vertex.isec.ray.setMinMaxT(vertex.isec.ray.maxT(), ray_max_t);
                 return false;
             }
 
             // This test is intended to catch corner cases where we actually left the scattering medium,
             // but the intersection point was too close to detect.
             var missed = false;
-            if (!interface.matches(vertex.isec) or !vertex.isec.sameHemisphere(vertex.ray.direction)) {
-                const v = -vertex.ray.direction;
+            if (!interface.matches(vertex.isec.hit) or !vertex.isec.hit.sameHemisphere(vertex.isec.ray.direction)) {
+                const v = -vertex.isec.ray.direction;
 
-                var tvertex = Vertex.init(vertex.isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time, undefined);
-                if (worker.propIntersect(interface.prop, &tvertex, .Normal)) {
-                    missed = math.dot3(tvertex.isec.geo_n, v) <= 0.0;
+                var tisec = Intersector.init(Ray.init(vertex.isec.hit.offsetP(v), v, 0.0, ro.Ray_max_t), vertex.isec.time);
+                if (worker.propIntersect(interface.prop, &tisec, .Normal)) {
+                    missed = math.dot3(tisec.hit.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
                 }
             }
 
             if (missed) {
-                vertex.ray.setMinMaxT(math.min(ro.offsetF(vertex.ray.maxT()), ray_max_t), ray_max_t);
+                vertex.isec.ray.setMinMaxT(math.min(ro.offsetF(vertex.isec.ray.maxT()), ray_max_t), ray_max_t);
                 return false;
             }
         }
 
         const tray = if (material.heterogeneousVolume())
-            worker.scene.propTransformationAt(interface.prop, vertex.time).worldToObjectRay(vertex.ray)
+            worker.scene.propTransformationAt(interface.prop, vertex.isec.time).worldToObjectRay(vertex.isec.ray)
         else
-            vertex.ray;
+            vertex.isec.ray;
 
         var result = propScatter(
             tray,
@@ -183,19 +184,19 @@ pub const Multi = struct {
             material,
             interface.cc,
             interface.prop,
-            vertex.depth,
+            vertex.isec.depth,
             sampler,
             worker,
         );
 
         if (.Pass != result.event) {
-            vertex.isec.prop = interface.prop;
-            vertex.isec.part = interface.part;
-            vertex.isec.p = vertex.ray.point(result.t);
-            vertex.isec.uvw = result.uvw;
+            vertex.isec.hit.prop = interface.prop;
+            vertex.isec.hit.part = interface.part;
+            vertex.isec.hit.p = vertex.isec.ray.point(result.t);
+            vertex.isec.hit.uvw = result.uvw;
         }
 
-        vertex.isec.setVolume(result);
+        vertex.isec.hit.setVolume(result);
         return true;
     }
 };
