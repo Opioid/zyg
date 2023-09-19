@@ -1,4 +1,5 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -138,9 +139,10 @@ pub const AOV = struct {
         const n = mat_sample.super().geometricNormal();
         const p = vertex.isec.offsetP(n);
 
-        const lights = worker.randomLightSpatial(p, n, false, sampler.sample1D(), true);
+        var lights_buffer: Scene.Lights = undefined;
+        const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), true, &lights_buffer);
 
-        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(worker.lights.len));
+        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(lights_buffer.len));
 
         return .{ r, r, r, 1.0 };
     }

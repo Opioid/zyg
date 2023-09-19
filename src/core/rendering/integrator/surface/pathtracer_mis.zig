@@ -3,7 +3,6 @@ const Scene = @import("../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
-const Max_lights = @import("../../../scene/light/light_tree.zig").Tree.Max_lights;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
@@ -174,7 +173,8 @@ pub const PathtracerMIS = struct {
         const select = sampler.sample1D();
         const split = self.splitting(vertex.depth);
 
-        const lights = worker.randomLightSpatial(vertex.isec.p, n, translucent, select, split);
+        var lights_buffer: Scene.Lights = undefined;
+        const lights = worker.scene.randomLightSpatial(vertex.isec.p, n, translucent, select, split, &lights_buffer);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
