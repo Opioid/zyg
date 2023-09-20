@@ -45,7 +45,7 @@ pub const PathtracerMIS = struct {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (!vertices.empty()) {
-            for (vertices.consume()) |*vertex| {
+            while (vertices.consume()) |vertex| {
                 var sampler = worker.pickSampler(vertex.isec.depth);
 
                 if (!worker.nextEvent(vertex, vertex.throughput, sampler)) {
@@ -94,7 +94,7 @@ pub const PathtracerMIS = struct {
                         continue;
                     }
 
-                    var next_vertex = vertex.*;
+                    var next_vertex = vertices.new(vertex.*);
 
                     if (sample_result.class.specular) {
                         if (.Full != caustics) {
@@ -146,7 +146,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
                     }
 
-                    vertices.push(next_vertex);
+                    vertices.commit();
                 }
 
                 sampler.incrementPadding();

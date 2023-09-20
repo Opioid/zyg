@@ -221,15 +221,23 @@ pub const Pool = struct {
         self.next_end = Num_vertices;
     }
 
-    pub fn consume(self: *Pool) []Vertex {
+    pub fn consume(self: *Pool) ?*Vertex {
         const id = self.current_id;
-        const end = self.current_end;
-        self.current_id = end;
-        return self.buffer[id..end];
+        self.current_id += 1;
+
+        if (id < self.current_end) {
+            return &self.buffer[id];
+        }
+
+        return null;
     }
 
-    pub fn push(self: *Pool, vertex: Vertex) void {
+    pub fn new(self: *Pool, vertex: Vertex) *Vertex {
         self.buffer[self.next_end] = vertex;
+        return &self.buffer[self.next_end];
+    }
+
+    pub fn commit(self: *Pool) void {
         self.next_end += 1;
     }
 
