@@ -2,7 +2,7 @@ const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
-const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const bxdf = @import("../../../../scene/material/bxdf.zig");
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
@@ -93,6 +93,8 @@ pub const Mapper = struct {
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
+        var bxdf_samples: bxdf.Samples = undefined;
+
         var i: u32 = 0;
         while (i < Max_iterations) : (i += 1) {
             var caustic_path = false;
@@ -146,7 +148,7 @@ pub const Mapper = struct {
                     break;
                 }
 
-                const sample_result = mat_sample.sample(&self.sampler);
+                const sample_result = mat_sample.sample(&self.sampler, false, &bxdf_samples)[0];
                 if (0.0 == sample_result.pdf) {
                     break;
                 }

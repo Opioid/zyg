@@ -2,6 +2,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Worker = @import("../../worker.zig").Worker;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -30,6 +31,8 @@ pub const Pathtracer = struct {
         var throughput: Vec4f = @splat(1.0);
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
+
+        var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
@@ -76,7 +79,7 @@ pub const Pathtracer = struct {
                 }
             }
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }

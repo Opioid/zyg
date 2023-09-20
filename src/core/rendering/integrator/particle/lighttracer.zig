@@ -1,6 +1,7 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
@@ -91,6 +92,8 @@ pub const Lighttracer = struct {
         var radiance = radiance_;
         var caustic_path = false;
 
+        var bxdf_samples: bxdf.Samples = undefined;
+
         while (true) {
             const wo = -vertex.isec.ray.direction;
 
@@ -101,7 +104,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
             if (0.0 == sample_result.pdf) {
                 break;
             }
@@ -223,7 +226,7 @@ pub const Lighttracer = struct {
         const wo = mat_sample.super().wo;
         const tr = worker.visibility(&tisec, &history.interfaces, sampler) orelse return false;
 
-        const bxdf = mat_sample.evaluate(wi);
+        const bxdf_result = mat_sample.evaluate(wi);
 
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, history.isec.hit.geo_n, n);
@@ -235,7 +238,7 @@ pub const Lighttracer = struct {
             nsc *= eta * eta;
         }
 
-        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * radiance * bxdf.reflection);
+        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * radiance * bxdf_result.reflection);
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;

@@ -57,11 +57,23 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         return switch (self.*) {
-            .Light => Light.sample(),
-            .Null => |*s| s.sample(),
-            inline else => |*s| s.sample(sampler),
+            .Light => {
+                buffer[0] = Light.sample();
+                return buffer[0..1];
+            },
+            .Null => |*s| {
+                buffer[0] = s.sample();
+                return buffer[0..1];
+            },
+            inline .Volumetric => |*s| {
+                return s.sample(sampler, split, buffer);
+            },
+            inline else => |*s| {
+                buffer[0] = s.sample(sampler);
+                return buffer[0..1];
+            },
         };
     }
 };

@@ -1,10 +1,11 @@
-const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Intersector = Vertex.Intersector;
+const vt = @import("../../../scene/vertex.zig");
+const Vertex = vt.Vertex;
+const VertexPool = vt.Pool;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
-const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Worker = @import("../../worker.zig").Worker;
 const hlp = @import("../helper.zig");
@@ -33,112 +34,131 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, vertex: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var throughput: Vec4f = @splat(1.0);
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
 
-        while (true) {
-            var sampler = worker.pickSampler(vertex.isec.depth);
+        var vertices: VertexPool = .{};
+        vertices.start(input.*);
 
-            if (!worker.nextEvent(vertex, throughput, sampler)) {
-                break;
-            }
+        var bxdf_samples: bxdf.Samples = undefined;
 
-            throughput *= vertex.isec.hit.vol_tr;
+        while (!vertices.empty()) {
+            for (vertices.consume()) |*vertex| {
+                var sampler = worker.pickSampler(vertex.isec.depth);
 
-            var pure_emissive: bool = undefined;
-            const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
-
-            result += throughput * radiance;
-
-            if (pure_emissive) {
-                const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
-                break;
-            }
-
-            if (vertex.isec.depth >= max_bounces) {
-                break;
-            }
-
-            if (vertex.isec.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
-                    break;
-                }
-            }
-
-            const caustics = self.causticsResolve(vertex.state);
-
-            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
-
-            if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex, &mat_sample);
-            }
-
-            result += throughput * self.sampleLights(vertex, &mat_sample, sampler, worker);
-
-            const sample_result = mat_sample.sample(sampler);
-            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
-                break;
-            }
-
-            if (sample_result.class.specular) {
-                if (.Full != caustics) {
+                if (!worker.nextEvent(vertex, throughput, sampler)) {
                     break;
                 }
 
-                vertex.state.treat_as_singular = true;
+                throughput *= vertex.isec.hit.vol_tr;
 
-                if (vertex.state.primary_ray) {
-                    vertex.state.started_specular = true;
+                var pure_emissive: bool = undefined;
+                const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
+
+                result += throughput * radiance;
+
+                if (pure_emissive) {
+                    const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
+                    vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
+                    break;
                 }
-            } else if (!sample_result.class.straight) {
-                vertex.state.treat_as_singular = false;
-                if (vertex.state.primary_ray) {
-                    vertex.state.primary_ray = false;
 
-                    const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
-                    if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                        worker.addPhoton(throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
+                if (vertex.isec.depth >= max_bounces) {
+                    break;
+                }
+
+                if (vertex.isec.depth >= self.settings.min_bounces) {
+                    if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
+                        break;
                     }
                 }
+
+                const caustics = self.causticsResolve(vertex.state);
+
+                const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
+
+                if (worker.aov.active()) {
+                    worker.commonAOV(throughput, vertex, &mat_sample);
+                }
+
+                const split = vertex.isec.depth < 2;
+
+                result += throughput * self.sampleLights(vertex, &mat_sample, sampler, worker);
+
+                const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
+
+                for (sample_results) |sample_result| {
+                    if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
+                        continue;
+                    }
+
+                    var next_vertex = vertex.*;
+
+                    if (sample_result.class.specular) {
+                        if (.Full != caustics) {
+                            continue;
+                        }
+
+                        next_vertex.state.treat_as_singular = true;
+
+                        if (next_vertex.state.primary_ray) {
+                            next_vertex.state.started_specular = true;
+                        }
+                    } else if (!sample_result.class.straight) {
+                        next_vertex.state.treat_as_singular = false;
+                        if (next_vertex.state.primary_ray) {
+                            next_vertex.state.primary_ray = false;
+
+                            const indirect = !next_vertex.state.direct and 0 != next_vertex.isec.depth;
+                            if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
+                                worker.addPhoton(throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
+                            }
+                        }
+                    }
+
+                    old_throughput = throughput;
+                    throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+
+                    if (!(sample_result.class.straight and sample_result.class.transmission)) {
+                        next_vertex.isec.depth += 1;
+                    }
+
+                    if (sample_result.class.straight) {
+                        next_vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                    } else {
+                        next_vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                        next_vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+
+                        next_vertex.state.direct = false;
+                        next_vertex.state.from_subsurface = vertex.isec.hit.subsurface();
+                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
+                        next_vertex.bxdf_pdf = sample_result.pdf;
+                        next_vertex.geo_n = mat_sample.super().geometricNormal();
+                    }
+
+                    if (0.0 == vertex.isec.wavelength) {
+                        next_vertex.isec.wavelength = sample_result.wavelength;
+                    }
+
+                    if (sample_result.class.transmission) {
+                        next_vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
+                    }
+
+                    vertices.push(next_vertex);
+                }
+
+                sampler.incrementPadding();
             }
 
-            old_throughput = throughput;
-            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
-
-            if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.isec.depth += 1;
-            }
-
-            if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
-            } else {
-                vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
-                vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
-                vertex.state.direct = false;
-                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
-                vertex.state.is_translucent = mat_sample.isTranslucent();
-                vertex.bxdf_pdf = sample_result.pdf;
-                vertex.geo_n = mat_sample.super().geometricNormal();
-            }
-
-            if (0.0 == vertex.isec.wavelength) {
-                vertex.isec.wavelength = sample_result.wavelength;
-            }
-
-            if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
-            }
-
-            sampler.incrementPadding();
+            vertices.cycle();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.state.direct);
+        // return hlp.composeAlpha(result, throughput, vertex.state.direct);
+        return hlp.composeAlpha(result, @splat(1.0), true);
     }
 
     fn sampleLights(
@@ -192,21 +212,21 @@ pub const PathtracerMIS = struct {
             worker.scene,
         ) orelse return @splat(0.0);
 
-        var shadow_isec = Intersector.initFrom(
+        var shadow_isec = Vertex.Intersector.initFrom(
             light.shadowRay(vertex.isec.hit.offsetP(light_sample.wi), light_sample, worker.scene),
             &vertex.isec,
         );
 
         const tr = worker.visibility(&shadow_isec, &vertex.interfaces, sampler) orelse return @splat(0.0);
 
-        const bxdf = mat_sample.evaluate(light_sample.wi);
+        const bxdf_result = mat_sample.evaluate(light_sample.wi);
 
         const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
         const light_pdf = light_sample.pdf() * light_weight;
-        const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf.pdf());
+        const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf());
 
-        return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf.reflection);
+        return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
     }
 
     fn connectLight(

@@ -2,6 +2,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -163,6 +164,8 @@ pub const AOV = struct {
     fn photons(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
         var throughput: Vec4f = @splat(1.0);
 
+        var bxdf_samples: bxdf.Samples = undefined;
+
         var i: u32 = 0;
         while (true) : (i += 1) {
             var sampler = worker.pickSampler(vertex.isec.depth);
@@ -173,7 +176,7 @@ pub const AOV = struct {
                 break;
             }
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
             if (0.0 == sample_result.pdf) {
                 break;
             }

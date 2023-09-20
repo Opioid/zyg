@@ -6,6 +6,7 @@ const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -36,6 +37,8 @@ pub const PathtracerDL = struct {
         var throughput: Vec4f = @splat(1.0);
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
+
+        var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
@@ -86,7 +89,7 @@ pub const PathtracerDL = struct {
 
             result += throughput * self.directLight(vertex, &mat_sample, sampler, worker);
 
-            const sample_result = mat_sample.sample(sampler);
+            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
                 break;
             }
@@ -175,13 +178,13 @@ pub const PathtracerDL = struct {
 
             const tr = worker.visibility(&shadow_isec, &vertex.interfaces, sampler) orelse continue;
 
-            const bxdf = mat_sample.evaluate(light_sample.wi);
+            const bxdf_result = mat_sample.evaluate(light_sample.wi);
 
             const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 
-            result += @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf.reflection);
+            result += @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
         }
 
         return result;

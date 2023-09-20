@@ -40,7 +40,9 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(phase), phase);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+        _ = split;
+
         const r2 = sampler.sample2D();
 
         const g = self.anisotropy;
@@ -63,7 +65,7 @@ pub const Sample = struct {
 
         const phase = phaseHg(-cos_theta, g);
 
-        return .{
+        buffer[0] = .{
             .reflection = @splat(phase),
             .wi = wi,
             .h = undefined,
@@ -72,6 +74,8 @@ pub const Sample = struct {
             .h_dot_wi = undefined,
             .class = .{ .diffuse = true, .reflection = true },
         };
+
+        return buffer[0..1];
     }
 
     fn phaseHg(cos_theta: f32, g: f32) f32 {
