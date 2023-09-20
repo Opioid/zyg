@@ -178,7 +178,7 @@ pub const PathtracerDL = struct {
 
             const tr = worker.visibility(&shadow_isec, &vertex.interfaces, sampler) orelse continue;
 
-            const bxdf_result = mat_sample.evaluate(light_sample.wi);
+            const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 
             const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 

@@ -93,6 +93,8 @@ pub const Vertex = struct {
     state: State,
     bxdf_pdf: f32,
 
+    throughput: Vec4f,
+    throughput_old: Vec4f,
     geo_n: Vec4f,
 
     interfaces: InterfaceStack,
@@ -113,6 +115,8 @@ pub const Vertex = struct {
             },
             .state = .{},
             .bxdf_pdf = 0.0,
+            .throughput = @splat(1.0),
+            .throughput_old = @splat(1.0),
             .geo_n = @splat(0.0),
             .interfaces = tmp,
         };

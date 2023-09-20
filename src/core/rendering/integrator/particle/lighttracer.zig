@@ -226,7 +226,7 @@ pub const Lighttracer = struct {
         const wo = mat_sample.super().wo;
         const tr = worker.visibility(&tisec, &history.interfaces, sampler) orelse return false;
 
-        const bxdf_result = mat_sample.evaluate(wi);
+        const bxdf_result = mat_sample.evaluate(wi, false);
 
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, history.isec.hit.geo_n, n);
