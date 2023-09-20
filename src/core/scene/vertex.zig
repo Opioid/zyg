@@ -1,11 +1,13 @@
 const Intersection = @import("shape/intersection.zig").Intersection;
+const Scene = @import("scene.zig").Scene;
+const InterfaceStack = @import("prop/interface.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const rst = @import("renderstate.zig");
 const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
-const Scene = @import("scene.zig").Scene;
 const Worker = @import("../rendering/worker.zig").Worker;
 const mat = @import("material/material.zig");
+const IoR = @import("material/sample_base.zig").IoR;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -39,45 +41,6 @@ pub const Vertex = struct {
                 .time = isec.time,
                 .hit = isec.hit,
             };
-        }
-
-        pub fn sample(
-            self: *const Intersector,
-            wo: Vec4f,
-            sampler: *Sampler,
-            caustics: CausticsResolve,
-            worker: *const Worker,
-        ) mat.Sample {
-            const m = self.hit.material(worker.scene);
-            const p = self.hit.p;
-            const b = self.hit.b;
-
-            var rs: Renderstate = undefined;
-            rs.trafo = self.hit.trafo;
-            rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self.hit) };
-            rs.t = self.hit.t;
-            rs.b = .{ b[0], b[1], b[2], self.wavelength };
-
-            if (m.twoSided() and !self.hit.sameHemisphere(wo)) {
-                rs.geo_n = -self.hit.geo_n;
-                rs.n = -self.hit.n;
-            } else {
-                rs.geo_n = self.hit.geo_n;
-                rs.n = self.hit.n;
-            }
-
-            rs.ray_p = self.ray.origin;
-
-            rs.uv = self.hit.uv();
-            rs.prop = self.hit.prop;
-            rs.part = self.hit.part;
-            rs.primitive = self.hit.primitive;
-            rs.depth = self.depth;
-            rs.time = self.time;
-            rs.subsurface = self.hit.subsurface();
-            rs.caustics = caustics;
-
-            return m.sample(wo, rs, sampler, worker);
         }
 
         pub fn evaluateRadiance(
@@ -129,9 +92,14 @@ pub const Vertex = struct {
 
     state: State,
 
+    interfaces: InterfaceStack,
+
     const Self = @This();
 
-    pub fn init(ray: Ray, time: u64) Vertex {
+    pub fn init(ray: Ray, time: u64, interfaces: *const InterfaceStack) Vertex {
+        var tmp: InterfaceStack = .{};
+        tmp.copy(interfaces);
+
         return .{
             .isec = .{
                 .ray = ray,
@@ -141,7 +109,88 @@ pub const Vertex = struct {
                 .hit = undefined,
             },
             .state = .{},
+            .interfaces = tmp,
         };
+    }
+
+    pub fn resetInterfaceStack(self: *Self, interfaces: *const InterfaceStack) void {
+        self.interfaces.copy(interfaces);
+    }
+
+    inline fn iorOutside(self: *const Self, wo: Vec4f, scene: *const Scene) f32 {
+        if (self.isec.hit.sameHemisphere(wo)) {
+            return self.interfaces.topIor(scene);
+        }
+
+        return self.interfaces.peekIor(self.isec.hit, scene);
+    }
+
+    pub fn interfaceChange(self: *Self, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
+        const leave = self.isec.hit.sameHemisphere(dir);
+        if (leave) {
+            _ = self.interfaces.remove(self.isec.hit);
+        } else {
+            const material = self.isec.hit.material(scene);
+            const cc = material.collisionCoefficients2D(self.isec.hit.uv(), sampler, scene);
+            self.interfaces.push(self.isec.hit, cc);
+        }
+    }
+
+    pub fn interfaceChangeIor(self: *Self, dir: Vec4f, sampler: *Sampler, scene: *const Scene) IoR {
+        const inter_ior = self.isec.hit.material(scene).ior();
+
+        const leave = self.isec.hit.sameHemisphere(dir);
+        if (leave) {
+            const ior = IoR{ .eta_t = self.interfaces.peekIor(self.isec.hit, scene), .eta_i = inter_ior };
+            _ = self.interfaces.remove(self.isec.hit);
+            return ior;
+        }
+
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interfaces.topIor(scene) };
+
+        const cc = self.isec.hit.material(scene).collisionCoefficients2D(self.isec.hit.uv(), sampler, scene);
+        self.interfaces.push(self.isec.hit, cc);
+
+        return ior;
+    }
+
+    pub fn sample(
+        self: *const Self,
+        wo: Vec4f,
+        sampler: *Sampler,
+        caustics: CausticsResolve,
+        worker: *const Worker,
+    ) mat.Sample {
+        const m = self.isec.hit.material(worker.scene);
+        const p = self.isec.hit.p;
+        const b = self.isec.hit.b;
+
+        var rs: Renderstate = undefined;
+        rs.trafo = self.isec.hit.trafo;
+        rs.p = .{ p[0], p[1], p[2], self.iorOutside(wo, worker.scene) };
+        rs.t = self.isec.hit.t;
+        rs.b = .{ b[0], b[1], b[2], self.isec.wavelength };
+
+        if (m.twoSided() and !self.isec.hit.sameHemisphere(wo)) {
+            rs.geo_n = -self.isec.hit.geo_n;
+            rs.n = -self.isec.hit.n;
+        } else {
+            rs.geo_n = self.isec.hit.geo_n;
+            rs.n = self.isec.hit.n;
+        }
+
+        rs.ray_p = self.isec.ray.origin;
+
+        rs.uv = self.isec.hit.uv();
+        rs.prop = self.isec.hit.prop;
+        rs.part = self.isec.hit.part;
+        rs.primitive = self.isec.hit.primitive;
+        rs.depth = self.isec.depth;
+        rs.time = self.isec.time;
+        rs.subsurface = self.isec.hit.subsurface();
+        rs.caustics = caustics;
+
+        return m.sample(wo, rs, sampler, worker);
     }
 };
 

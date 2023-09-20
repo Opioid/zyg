@@ -13,7 +13,6 @@ const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const NullSample = @import("../scene/material/null/null_sample.zig").Sample;
-const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Intersection = shp.Intersection;
@@ -48,8 +47,6 @@ pub const Worker = struct {
     scene: *Scene = undefined,
 
     rng: RNG = undefined,
-
-    interface_stack: InterfaceStack = undefined,
 
     samplers: [2]Sampler = undefined,
 
@@ -158,7 +155,6 @@ pub const Worker = struct {
                     const sample = self.samplers[0].cameraSample(pixel);
                     var vertex = camera.generateVertex(sample, frame, scene);
 
-                    self.resetInterfaceStack(&camera.interface_stack);
                     const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);
 
                     var photon = self.photon;
@@ -248,10 +244,10 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, isec: *Intersector, sampler: *Sampler) ?Vec4f {
+    pub fn visibility(self: *Worker, isec: *Intersector, interfaces: *const InterfaceStack, sampler: *Sampler) ?Vec4f {
         const material = isec.hit.material(self.scene);
 
-        if (isec.hit.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
+        if (isec.hit.subsurface() and !interfaces.empty() and material.denseSSSOptimization()) {
             const ray_max_t = isec.ray.maxT();
             const prop = isec.hit.prop;
 
@@ -263,7 +259,7 @@ pub const Worker = struct {
                 isec.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                 if (self.scene.visibility(isec, sampler, self)) |tv| {
                     isec.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const interface = self.interface_stack.top();
+                    const interface = interfaces.top();
                     const cc = interface.cc;
                     const tray = if (material.heterogeneousVolume()) isec.hit.trafo.worldToObjectRay(isec.ray) else isec.ray;
                     if (vlhlp.propTransmittance(tray, material, cc, prop, isec.depth, sampler, self)) |tr| {
@@ -284,12 +280,12 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler) bool {
-        while (!self.interface_stack.empty()) {
+        while (!vertex.interfaces.empty()) {
             if (vlhlp.integrate(vertex, throughput, sampler, self)) {
                 return true;
             }
 
-            self.interface_stack.pop();
+            vertex.interfaces.pop();
         }
 
         const origin = vertex.isec.ray.origin;
@@ -353,47 +349,6 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn resetInterfaceStack(self: *Worker, stack: *const InterfaceStack) void {
-        self.interface_stack.copy(stack);
-    }
-
-    pub fn iorOutside(self: *const Worker, wo: Vec4f, isec: Intersection) f32 {
-        if (isec.sameHemisphere(wo)) {
-            return self.interface_stack.topIor(self.scene);
-        }
-
-        return self.interface_stack.peekIor(isec, self.scene);
-    }
-
-    pub fn interfaceChange(self: *Worker, dir: Vec4f, isec: Intersection, sampler: *Sampler) void {
-        const leave = isec.sameHemisphere(dir);
-        if (leave) {
-            _ = self.interface_stack.remove(isec);
-        } else {
-            const material = isec.material(self.scene);
-            const cc = material.collisionCoefficients2D(isec.uv(), sampler, self.scene);
-            self.interface_stack.push(isec, cc);
-        }
-    }
-
-    pub fn interfaceChangeIor(self: *Worker, dir: Vec4f, isec: Intersection, sampler: *Sampler) IoR {
-        const inter_ior = isec.material(self.scene).ior();
-
-        const leave = isec.sameHemisphere(dir);
-        if (leave) {
-            const ior = IoR{ .eta_t = self.interface_stack.peekIor(isec, self.scene), .eta_i = inter_ior };
-            _ = self.interface_stack.remove(isec);
-            return ior;
-        }
-
-        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interface_stack.topIor(self.scene) };
-
-        const cc = isec.material(self.scene).collisionCoefficients2D(isec.uv(), sampler, self.scene);
-        self.interface_stack.push(isec, cc);
-
-        return ior;
-    }
-
     pub fn sampleMaterial(
         self: *const Worker,
         vertex: *const Vertex,
@@ -416,7 +371,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
-        return vertex.isec.sample(wo, sampler, caustics, self);
+        return vertex.sample(wo, sampler, caustics, self);
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {

@@ -1,8 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
-const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -113,7 +111,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, vertex.isec.hit, sampler);
+                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
             }
 
             sampler.incrementPadding();

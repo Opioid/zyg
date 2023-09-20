@@ -137,7 +137,7 @@ pub const Multi = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        const interface = worker.interface_stack.top();
+        const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {

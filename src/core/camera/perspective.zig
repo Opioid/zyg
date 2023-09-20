@@ -142,7 +142,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time, &self.interface_stack);
     }
 
     pub fn sampleTo(

@@ -5,8 +5,6 @@ const Intersector = Vertex.Intersector;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
-const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
-const InterfaceStack = @import("../../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
@@ -111,9 +109,8 @@ pub const Mapper = struct {
 
             const light = worker.scene.light(light_id);
 
-            worker.interface_stack.clear();
             if (light.volumetric()) {
-                worker.interface_stack.pushVolumeLight(light);
+                vertex.interfaces.pushVolumeLight(light);
             }
 
             // if (!worker.interface_stack.empty()) {
@@ -164,7 +161,7 @@ pub const Mapper = struct {
 
                             const material_ior = vertex.isec.hit.material(worker.scene).ior();
                             if (vertex.isec.hit.subsurface() and material_ior > 1.0) {
-                                const ior_t = worker.interface_stack.nextToBottomIor(worker.scene);
+                                const ior_t = vertex.interfaces.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @as(Vec4f, @splat(eta * eta));
                             }
@@ -220,7 +217,7 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = worker.interfaceChangeIor(sample_result.wi, vertex.isec.hit, &self.sampler);
+                    const ior = vertex.interfaceChangeIor(sample_result.wi, &self.sampler, worker.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @as(Vec4f, @splat(eta * eta));
                 }
@@ -267,6 +264,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t), time);
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t), time, &.{});
     }
 };

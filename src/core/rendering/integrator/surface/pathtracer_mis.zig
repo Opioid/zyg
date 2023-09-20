@@ -1,8 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Scene = @import("../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
-const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
@@ -90,7 +88,7 @@ pub const PathtracerMIS = struct {
                 worker.commonAOV(throughput, vertex, &mat_sample);
             }
 
-            result += throughput * self.sampleLights(&vertex.isec, &mat_sample, sampler, worker);
+            result += throughput * self.sampleLights(vertex, &mat_sample, sampler, worker);
 
             const sample_result = mat_sample.sample(sampler);
             if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -144,7 +142,7 @@ pub const PathtracerMIS = struct {
             }
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, vertex.isec.hit, sampler);
+                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
             }
 
             sampler.incrementPadding();
@@ -155,7 +153,7 @@ pub const PathtracerMIS = struct {
 
     fn sampleLights(
         self: *const Self,
-        isec: *const Intersector,
+        vertex: *const Vertex,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
         worker: *Worker,
@@ -170,15 +168,15 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split = self.splitting(isec.depth);
+        const split = self.splitting(vertex.isec.depth);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(isec.hit.p, n, translucent, select, split, &lights_buffer);
+        const lights = worker.scene.randomLightSpatial(vertex.isec.hit.p, n, translucent, select, split, &lights_buffer);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
 
-            result += evaluateLight(light, l.pdf, isec, mat_sample, sampler, worker);
+            result += evaluateLight(light, l.pdf, vertex, mat_sample, sampler, worker);
         }
 
         return result;
@@ -187,28 +185,28 @@ pub const PathtracerMIS = struct {
     fn evaluateLight(
         light: Light,
         light_weight: f32,
-        isec: *const Intersector,
+        vertex: *const Vertex,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
         worker: *Worker,
     ) Vec4f {
-        const p = isec.hit.p;
+        const p = vertex.isec.hit.p;
 
         const light_sample = light.sampleTo(
             p,
             mat_sample.super().geometricNormal(),
-            isec.time,
+            vertex.isec.time,
             mat_sample.isTranslucent(),
             sampler,
             worker.scene,
         ) orelse return @splat(0.0);
 
         var shadow_isec = Intersector.initFrom(
-            light.shadowRay(isec.hit.offsetP(light_sample.wi), light_sample, worker.scene),
-            isec,
+            light.shadowRay(vertex.isec.hit.offsetP(light_sample.wi), light_sample, worker.scene),
+            &vertex.isec,
         );
 
-        const tr = worker.visibility(&shadow_isec, sampler) orelse return @splat(0.0);
+        const tr = worker.visibility(&shadow_isec, &vertex.interfaces, sampler) orelse return @splat(0.0);
 
         const bxdf = mat_sample.evaluate(light_sample.wi);
 

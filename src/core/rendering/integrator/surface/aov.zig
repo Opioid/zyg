@@ -2,8 +2,6 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
-const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const ro = @import("../../../scene/ray_offset.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -51,9 +49,9 @@ pub const AOV = struct {
 
         const result = switch (self.settings.value) {
             .AO => self.ao(vertex, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(&vertex.isec, worker),
-            .LightSampleCount => self.lightSampleCount(&vertex.isec, worker),
-            .Side => self.side(&vertex.isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex, worker),
+            .LightSampleCount => self.lightSampleCount(vertex, worker),
+            .Side => self.side(vertex, worker),
             .Photons => self.photons(vertex, worker),
         };
 
@@ -68,7 +66,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.isec.ray.direction;
-        const mat_sample = vertex.isec.sample(wo, sampler, .Off, worker);
+        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
 
         if (worker.aov.active()) {
             worker.commonAOV(@splat(1.0), vertex, &mat_sample);
@@ -102,18 +100,18 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const wo = -isec.ray.direction;
-        const mat_sample = isec.sample(wo, sampler, .Off, worker);
+        const wo = -vertex.isec.ray.direction;
+        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
 
         switch (self.settings.value) {
-            .Tangent => vec = isec.hit.t,
-            .Bitangent => vec = isec.hit.b,
-            .GeometricNormal => vec = isec.hit.geo_n,
+            .Tangent => vec = vertex.isec.hit.t,
+            .Bitangent => vec = vertex.isec.hit.b,
+            .GeometricNormal => vec = vertex.isec.hit.geo_n,
             .ShadingNormal => {
                 if (!mat_sample.super().sameHemisphere(wo)) {
                     return .{ 0.0, 0.0, 0.0, 1.0 };
@@ -129,16 +127,16 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -isec.ray.direction;
-        const mat_sample = isec.sample(wo, sampler, .Off, worker);
+        const wo = -vertex.isec.ray.direction;
+        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
-        const p = isec.hit.offsetP(n);
+        const p = vertex.isec.hit.offsetP(n);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), true, &lights_buffer);
@@ -148,13 +146,13 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *const Self, isec: *const Intersector, worker: *Worker) Vec4f {
+    fn side(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -isec.ray.direction;
-        const mat_sample = isec.sample(wo, sampler, .Off, worker);
+        const wo = -vertex.isec.ray.direction;
+        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -217,7 +215,7 @@ pub const AOV = struct {
             throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
-                worker.interfaceChange(sample_result.wi, vertex.isec.hit, sampler);
+                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
             }
 
             vertex.state.from_subsurface = vertex.state.from_subsurface or vertex.isec.hit.subsurface();
