@@ -91,6 +91,9 @@ pub const Vertex = struct {
     isec: Intersector,
 
     state: State,
+    bxdf_pdf: f32,
+
+    geo_n: Vec4f,
 
     interfaces: InterfaceStack,
 
@@ -109,12 +112,10 @@ pub const Vertex = struct {
                 .hit = undefined,
             },
             .state = .{},
+            .bxdf_pdf = 0.0,
+            .geo_n = @splat(0.0),
             .interfaces = tmp,
         };
-    }
-
-    pub fn resetInterfaceStack(self: *Self, interfaces: *const InterfaceStack) void {
-        self.interfaces.copy(interfaces);
     }
 
     inline fn iorOutside(self: *const Self, wo: Vec4f, scene: *const Scene) f32 {

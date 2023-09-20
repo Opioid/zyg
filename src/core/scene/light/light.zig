@@ -1,6 +1,7 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Prop = @import("../prop/prop.zig").Prop;
+const Vertex = @import("../vertex.zig").Vertex;
 const Intersection = @import("../shape/intersection.zig").Intersection;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
@@ -144,20 +145,22 @@ pub const Light align(16) = struct {
         );
     }
 
-    pub fn pdf(self: Light, ray: Ray, n: Vec4f, isec: Intersection, total_sphere: bool, scene: *const Scene) f32 {
+    pub fn pdf(self: Light, vertex: *const Vertex, scene: *const Scene) f32 {
+        const total_sphere = vertex.state.is_translucent;
+
         return switch (self.class) {
             .Prop => scene.propShape(self.prop).pdf(
                 self.part,
                 self.variant,
-                ray,
-                n,
-                isec,
+                vertex.isec.ray,
+                vertex.geo_n,
+                vertex.isec.hit,
                 self.two_sided,
                 total_sphere,
             ),
-            .PropImage => self.propImagePdf(ray, isec, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(ray, isec),
-            .VolumeImage => self.volumeImagePdf(ray, isec, scene),
+            .PropImage => self.propImagePdf(vertex.isec.ray, vertex.isec.hit, scene),
+            .Volume => scene.propShape(self.prop).volumePdf(vertex.isec.ray, vertex.isec.hit),
+            .VolumeImage => self.volumeImagePdf(vertex.isec.ray, vertex.isec.hit, scene),
         };
     }
 

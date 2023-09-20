@@ -36,12 +36,9 @@ pub const PathtracerMIS = struct {
     pub fn li(self: *const Self, vertex: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
-        var bxdf_pdf: f32 = 0.0;
-
         var throughput: Vec4f = @splat(1.0);
         var old_throughput: Vec4f = @splat(1.0);
         var result: Vec4f = @splat(0.0);
-        var geo_n: Vec4f = @splat(0.0);
 
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
@@ -53,14 +50,7 @@ pub const PathtracerMIS = struct {
             throughput *= vertex.isec.hit.vol_tr;
 
             var pure_emissive: bool = undefined;
-            const radiance = self.connectLight(
-                vertex,
-                geo_n,
-                bxdf_pdf,
-                sampler,
-                worker.scene,
-                &pure_emissive,
-            );
+            const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
 
             result += throughput * radiance;
 
@@ -133,8 +123,8 @@ pub const PathtracerMIS = struct {
                 vertex.state.direct = false;
                 vertex.state.from_subsurface = vertex.isec.hit.subsurface();
                 vertex.state.is_translucent = mat_sample.isTranslucent();
-                bxdf_pdf = sample_result.pdf;
-                geo_n = mat_sample.super().geometricNormal();
+                vertex.bxdf_pdf = sample_result.pdf;
+                vertex.geo_n = mat_sample.super().geometricNormal();
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -164,6 +154,7 @@ pub const PathtracerMIS = struct {
             return result;
         }
 
+        const p = vertex.isec.hit.p;
         const n = mat_sample.super().geometricNormal();
         const translucent = mat_sample.isTranslucent();
 
@@ -171,7 +162,7 @@ pub const PathtracerMIS = struct {
         const split = self.splitting(vertex.isec.depth);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(vertex.isec.hit.p, n, translucent, select, split, &lights_buffer);
+        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split, &lights_buffer);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
@@ -221,8 +212,6 @@ pub const PathtracerMIS = struct {
     fn connectLight(
         self: *const Self,
         vertex: *const Vertex,
-        geo_n: Vec4f,
-        bxdf_pdf: f32,
         sampler: *Sampler,
         scene: *const Scene,
         pure_emissive: *bool,
@@ -243,11 +232,11 @@ pub const PathtracerMIS = struct {
         const translucent = vertex.state.is_translucent;
         const split = self.splitting(vertex.isec.depth);
 
-        const light_pick = scene.lightPdfSpatial(light_id, vertex.isec.ray.origin, geo_n, translucent, split);
+        const light_pick = scene.lightPdfSpatial(light_id, vertex.isec.ray.origin, vertex.geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
-        const pdf = light.pdf(vertex.isec.ray, geo_n, vertex.isec.hit, translucent, scene);
-        const weight = hlp.powerHeuristic(bxdf_pdf, pdf * light_pick.pdf);
+        const pdf = light.pdf(vertex, scene);
+        const weight = hlp.powerHeuristic(vertex.bxdf_pdf, pdf * light_pick.pdf);
 
         return @as(Vec4f, @splat(weight)) * energy;
     }
