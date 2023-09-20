@@ -56,13 +56,13 @@ pub const Pathtracer = struct {
 
             if (pure_emissive) {
                 const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                vertex.isec.state.direct = vertex.isec.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
-            const caustics = self.causticsResolve(vertex.isec.state);
+            const caustics = self.causticsResolve(vertex.state);
 
-            const mat_sample = worker.sampleMaterial(&vertex.isec, sampler, 0.0, caustics);
+            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
 
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, vertex, &mat_sample);
@@ -88,7 +88,7 @@ pub const Pathtracer = struct {
                     break;
                 }
             } else if (!sample_result.class.straight) {
-                vertex.isec.state.primary_ray = false;
+                vertex.state.primary_ray = false;
             }
 
             old_throughput = throughput;
@@ -104,8 +104,8 @@ pub const Pathtracer = struct {
                 vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                vertex.isec.state.direct = false;
-                vertex.isec.state.from_subsurface = vertex.isec.hit.subsurface();
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -119,7 +119,7 @@ pub const Pathtracer = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.isec.state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {

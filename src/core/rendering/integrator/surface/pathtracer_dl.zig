@@ -58,13 +58,13 @@ pub const PathtracerDL = struct {
                 &pure_emissive,
             ) orelse @splat(0.0);
 
-            if (vertex.isec.state.treat_as_singular or !Light.isLight(vertex.isec.hit.lightId(worker.scene))) {
+            if (vertex.state.treat_as_singular or !Light.isLight(vertex.isec.hit.lightId(worker.scene))) {
                 result += throughput * energy;
             }
 
             if (pure_emissive) {
                 const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                vertex.isec.state.direct = vertex.isec.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
+                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
@@ -78,9 +78,9 @@ pub const PathtracerDL = struct {
                 }
             }
 
-            const caustics = self.causticsResolve(vertex.isec.state);
+            const caustics = self.causticsResolve(vertex.state);
 
-            const mat_sample = worker.sampleMaterial(&vertex.isec, sampler, 0.0, caustics);
+            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
 
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, vertex, &mat_sample);
@@ -98,10 +98,10 @@ pub const PathtracerDL = struct {
                     break;
                 }
 
-                vertex.isec.state.treat_as_singular = true;
+                vertex.state.treat_as_singular = true;
             } else if (!sample_result.class.straight) {
-                vertex.isec.state.treat_as_singular = false;
-                vertex.isec.state.primary_ray = false;
+                vertex.state.treat_as_singular = false;
+                vertex.state.primary_ray = false;
             }
 
             old_throughput = throughput;
@@ -117,8 +117,8 @@ pub const PathtracerDL = struct {
                 vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                vertex.isec.state.direct = false;
-                vertex.isec.state.from_subsurface = vertex.isec.hit.subsurface();
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -132,7 +132,7 @@ pub const PathtracerDL = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.isec.state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.direct);
     }
 
     fn directLight(

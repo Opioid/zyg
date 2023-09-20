@@ -143,7 +143,7 @@ pub const Mapper = struct {
             while (vertex.isec.depth < self.settings.max_bounces) {
                 const wo = -vertex.isec.ray.direction;
 
-                const mat_sample = worker.sampleMaterial(&vertex.isec, &self.sampler, 0.0, .Full);
+                const mat_sample = worker.sampleMaterial(&vertex, &self.sampler, 0.0, .Full);
 
                 if (mat_sample.isPureEmissive()) {
                     break;
@@ -212,7 +212,7 @@ pub const Mapper = struct {
                     vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     vertex.isec.depth += 1;
 
-                    vertex.isec.state.from_subsurface = vertex.isec.hit.subsurface();
+                    vertex.state.from_subsurface = vertex.isec.hit.subsurface();
                 }
 
                 if (0.0 == vertex.isec.wavelength) {

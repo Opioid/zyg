@@ -218,7 +218,7 @@ pub const Worker = struct {
         vertex: *const Vertex,
         mat_sample: *const MaterialSample,
     ) void {
-        const primary_ray = vertex.isec.state.primary_ray;
+        const primary_ray = vertex.state.primary_ray;
 
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
             self.aov.insert3(.Albedo, throughput * mat_sample.aovAlbedo());
@@ -396,18 +396,18 @@ pub const Worker = struct {
 
     pub fn sampleMaterial(
         self: *const Worker,
-        isec: *const Intersector,
+        vertex: *const Vertex,
         sampler: *Sampler,
         alpha: f32,
         caustics: CausticsResolve,
     ) MaterialSample {
-        const wo = -isec.ray.direction;
-        const material = isec.hit.material(self.scene);
-        const straight_border = isec.state.from_subsurface;
+        const wo = -vertex.isec.ray.direction;
+        const material = vertex.isec.hit.material(self.scene);
+        const straight_border = vertex.state.from_subsurface;
 
-        if (!isec.hit.subsurface() and straight_border and material.denseSSSOptimization() and !isec.hit.sameHemisphere(wo)) {
-            const geo_n = isec.hit.geo_n;
-            const n = isec.hit.n;
+        if (!vertex.isec.hit.subsurface() and straight_border and material.denseSSSOptimization() and !vertex.isec.hit.sameHemisphere(wo)) {
+            const geo_n = vertex.isec.hit.geo_n;
+            const n = vertex.isec.hit.n;
 
             const vbh = material.super().border(wo, n);
             const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
@@ -416,7 +416,7 @@ pub const Worker = struct {
             return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
         }
 
-        return isec.sample(wo, sampler, caustics, self);
+        return vertex.isec.sample(wo, sampler, caustics, self);
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {

@@ -12,23 +12,12 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Vertex = struct {
-    pub const State = packed struct {
-        primary_ray: bool = true,
-        treat_as_singular: bool = true,
-        is_translucent: bool = false,
-        split_photon: bool = false,
-        direct: bool = true,
-        from_subsurface: bool = false,
-        started_specular: bool = false,
-    };
-
     pub const Intersector = struct {
         ray: Ray,
 
         depth: u32,
         wavelength: f32,
         time: u64,
-        state: State,
 
         hit: Intersection,
 
@@ -38,7 +27,6 @@ pub const Vertex = struct {
                 .depth = 0,
                 .wavelength = 0.0,
                 .time = time,
-                .state = .{},
                 .hit = undefined,
             };
         }
@@ -49,7 +37,6 @@ pub const Vertex = struct {
                 .depth = isec.depth,
                 .wavelength = isec.wavelength,
                 .time = isec.time,
-                .state = .{},
                 .hit = isec.hit,
             };
         }
@@ -128,19 +115,33 @@ pub const Vertex = struct {
         }
     };
 
+    pub const State = packed struct {
+        primary_ray: bool = true,
+        treat_as_singular: bool = true,
+        is_translucent: bool = false,
+        split_photon: bool = false,
+        direct: bool = true,
+        from_subsurface: bool = false,
+        started_specular: bool = false,
+    };
+
     isec: Intersector,
+
+    state: State,
 
     const Self = @This();
 
     pub fn init(ray: Ray, time: u64) Vertex {
-        return .{ .isec = .{
-            .ray = ray,
-            .depth = 0,
-            .wavelength = 0.0,
-            .time = time,
+        return .{
+            .isec = .{
+                .ray = ray,
+                .depth = 0,
+                .wavelength = 0.0,
+                .time = time,
+                .hit = undefined,
+            },
             .state = .{},
-            .hit = undefined,
-        } };
+        };
     }
 };
 

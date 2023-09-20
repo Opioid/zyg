@@ -102,7 +102,7 @@ pub const Lighttracer = struct {
             const wo = -vertex.isec.ray.direction;
 
             var sampler = worker.pickSampler(vertex.isec.depth);
-            const mat_sample = worker.sampleMaterial(&vertex.isec, sampler, 0.0, .Full);
+            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, .Full);
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -135,7 +135,7 @@ pub const Lighttracer = struct {
                     caustic_path = true;
                 }
 
-                vertex.isec.state.from_subsurface = vertex.isec.hit.subsurface();
+                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
             }
 
             if (vertex.isec.depth >= self.settings.max_bounces) {

@@ -169,7 +169,7 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
-            const mat_sample = worker.sampleMaterial(&vertex.isec, sampler, 0.0, .Off);
+            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, .Off);
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -181,10 +181,10 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
-                if (vertex.isec.state.primary_ray) {
-                    vertex.isec.state.primary_ray = false;
+                if (vertex.state.primary_ray) {
+                    vertex.state.primary_ray = false;
 
-                    const indirect = !vertex.isec.state.direct and 0 != vertex.isec.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
                         worker.addPhoton(throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
                         break;
@@ -206,8 +206,8 @@ pub const AOV = struct {
                 vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                vertex.isec.state.direct = false;
-                vertex.isec.state.from_subsurface = false;
+                vertex.state.direct = false;
+                vertex.state.from_subsurface = false;
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -220,7 +220,7 @@ pub const AOV = struct {
                 worker.interfaceChange(sample_result.wi, vertex.isec.hit, sampler);
             }
 
-            vertex.isec.state.from_subsurface = vertex.isec.state.from_subsurface or vertex.isec.hit.subsurface();
+            vertex.state.from_subsurface = vertex.state.from_subsurface or vertex.isec.hit.subsurface();
 
             if (!worker.nextEvent(vertex, throughput, sampler)) {
                 break;
