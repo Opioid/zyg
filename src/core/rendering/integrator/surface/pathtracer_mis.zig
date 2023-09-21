@@ -83,11 +83,14 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex.throughput, vertex, &mat_sample);
                 }
 
-                const split = vertex.isec.depth < 2;
+                //      const split = vertex.isec.depth < 2;
+
+                const split = vertex.path_count < 2 and vertex.isec.depth < 3;
 
                 result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
+                const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
                     if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
@@ -95,6 +98,8 @@ pub const PathtracerMIS = struct {
                     }
 
                     var next_vertex = vertices.new(vertex.*);
+
+                    next_vertex.path_count *= path_count;
 
                     if (sample_result.class.specular) {
                         if (.Full != caustics) {

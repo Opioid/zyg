@@ -92,6 +92,7 @@ pub const Vertex = struct {
 
     state: State,
     bxdf_pdf: f32,
+    path_count: u32,
 
     throughput: Vec4f,
     throughput_old: Vec4f,
@@ -115,6 +116,7 @@ pub const Vertex = struct {
             },
             .state = .{},
             .bxdf_pdf = 0.0,
+            .path_count = 1,
             .throughput = @splat(1.0),
             .throughput_old = @splat(1.0),
             .geo_n = @splat(0.0),
