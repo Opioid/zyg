@@ -211,16 +211,26 @@ pub const Pool = struct {
     next_id: u32 = undefined,
     next_end: u32 = undefined,
 
-    pub fn empty(self: Pool) bool {
-        return self.current_id == self.current_end;
-    }
-
     pub fn start(self: *Pool, vertex: Vertex) void {
         self.buffer[0] = vertex;
-        self.current_id = 0;
-        self.current_end = 1;
-        self.next_id = Num_vertices;
-        self.next_end = Num_vertices;
+        self.current_id = Num_vertices;
+        self.current_end = Num_vertices;
+        self.next_id = 0;
+        self.next_end = 1;
+    }
+
+    pub fn iterate(self: *Pool) bool {
+        const current_id = self.next_id;
+        const current_end = self.next_end;
+
+        self.current_id = current_id;
+        self.current_end = current_end;
+
+        const next_id: u32 = if (Num_vertices == self.next_id) 0 else Num_vertices;
+        self.next_id = next_id;
+        self.next_end = next_id;
+
+        return current_id < current_end;
     }
 
     pub fn consume(self: *Pool) ?*Vertex {
@@ -241,15 +251,6 @@ pub const Pool = struct {
 
     pub fn commit(self: *Pool) void {
         self.next_end += 1;
-    }
-
-    pub fn cycle(self: *Pool) void {
-        self.current_id = self.next_id;
-        self.current_end = self.next_end;
-
-        const next_id: u32 = if (Num_vertices == self.next_id) 0 else Num_vertices;
-        self.next_id = next_id;
-        self.next_end = next_id;
     }
 };
 

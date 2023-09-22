@@ -44,7 +44,7 @@ pub const PathtracerMIS = struct {
 
         var bxdf_samples: bxdf.Samples = undefined;
 
-        while (!vertices.empty()) {
+        while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
                 var sampler = worker.pickSampler(vertex.isec.depth);
 
@@ -85,7 +85,7 @@ pub const PathtracerMIS = struct {
 
                 //      const split = vertex.isec.depth < 2;
 
-                const split = vertex.path_count < 2 and vertex.isec.depth < 3;
+                const split = vertex.path_count < 2 and vertex.isec.depth < 3 and !vertex.interfaces.empty();
 
                 result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
@@ -156,12 +156,10 @@ pub const PathtracerMIS = struct {
 
                 sampler.incrementPadding();
             }
-
-            vertices.cycle();
         }
 
         // return hlp.composeAlpha(result, throughput, vertex.state.direct);
-        return hlp.composeAlpha(result, @splat(1.0), true);
+        return hlp.composeAlpha(result, @splat(1.0), false);
     }
 
     fn sampleLights(
