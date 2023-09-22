@@ -1,7 +1,5 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Scene = @import("../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
-const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const BxdfSample = @import("../../../scene/material/bxdf.zig").Sample;
