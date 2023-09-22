@@ -83,18 +83,20 @@ pub const Prop = struct {
         const mid0 = materials[0];
         var mono = true;
 
-        for (materials) |mid| {
-            const m = scene.material(mid);
-            if (m.evaluateVisibility()) {
-                self.properties.evaluate_visibility = true;
-            }
+        if (materials.len > 0) {
+            for (materials) |mid| {
+                const m = scene.material(mid);
+                if (m.evaluateVisibility()) {
+                    self.properties.evaluate_visibility = true;
+                }
 
-            if (m.caustic()) {
-                self.properties.caustic = true;
-            }
+                if (m.caustic()) {
+                    self.properties.caustic = true;
+                }
 
-            if (mid != mid0) {
-                mono = false;
+                if (mid != mid0) {
+                    mono = false;
+                }
             }
         }
 
