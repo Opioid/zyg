@@ -238,7 +238,7 @@ pub const Sample = struct {
         }
 
         if (p <= f) {
-            return reflect(wo, n, n_dot_wo);
+            return reflect(wo, n, n_dot_wo, 1.0);
         } else {
             return thickRefract(wo, n, n_dot_wo, n_dot_t, eta);
         }
@@ -265,7 +265,7 @@ pub const Sample = struct {
         }
 
         if (split) {
-            buffer[0] = reflect(wo, n, n_dot_wo);
+            buffer[0] = reflect(wo, n, n_dot_wo, f);
             buffer[0].wavelength = 0.0;
 
             const n_dot_wi = hlp.clamp(n_dot_wo);
@@ -273,12 +273,14 @@ pub const Sample = struct {
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-            buffer[1] = thinRefract(wo, attenuation);
+            const omf = 1.0 - f;
+            buffer[1] = thinRefract(wo, attenuation, omf);
+
             return buffer[0..2];
         } else {
             const p = sampler.sample1D();
             if (p <= f) {
-                buffer[0] = reflect(wo, n, n_dot_wo);
+                buffer[0] = reflect(wo, n, n_dot_wo, 1.0);
                 buffer[0].wavelength = 0.0;
             } else {
                 const n_dot_wi = hlp.clamp(n_dot_wo);
@@ -286,7 +288,7 @@ pub const Sample = struct {
 
                 const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-                buffer[0] = thinRefract(wo, attenuation);
+                buffer[0] = thinRefract(wo, attenuation, 1.0);
             }
 
             return buffer[0..1];
@@ -381,9 +383,9 @@ pub const Sample = struct {
         return result;
     }
 
-    fn reflect(wo: Vec4f, n: Vec4f, n_dot_wo: f32) bxdf.Sample {
+    fn reflect(wo: Vec4f, n: Vec4f, n_dot_wo: f32, f: f32) bxdf.Sample {
         return .{
-            .reflection = @splat(1.0),
+            .reflection = @splat(f),
             .wi = math.normalize3(@as(Vec4f, @splat(2.0 * n_dot_wo)) * n - wo),
             .pdf = 1.0,
             .class = .{ .specular = true, .reflection = true },
@@ -399,9 +401,9 @@ pub const Sample = struct {
         };
     }
 
-    fn thinRefract(wo: Vec4f, color: Vec4f) bxdf.Sample {
+    fn thinRefract(wo: Vec4f, color: Vec4f, omf: f32) bxdf.Sample {
         return .{
-            .reflection = color,
+            .reflection = @as(Vec4f, @splat(omf)) * color,
             .wi = -wo,
             .pdf = 1.0,
             .wavelength = 0.0,
