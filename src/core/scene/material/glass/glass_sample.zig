@@ -149,14 +149,15 @@ pub const Sample = struct {
         return @splat(1.0);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         var ior = self.ior;
 
         if (self.super.alpha[0] > 0.0) {
             if (0.0 == self.abbe) {
                 var result = self.roughSample(ior, sampler);
                 result.wavelength = 0.0;
-                return result;
+                buffer[0] = result;
+                return buffer[0..1];
             } else {
                 var wavelength = self.wavelength;
 
@@ -169,19 +170,19 @@ pub const Sample = struct {
                 var result = self.roughSample(ior, sampler);
                 result.reflection *= weight;
                 result.wavelength = wavelength;
-                return result;
+                buffer[0] = result;
+                return buffer[0..1];
             }
         } else if (self.super.thickness > 0.0) {
-            var result = self.thinSample(ior, sampler);
-            result.wavelength = 0.0;
-            return result;
+            return self.thinSample(ior, sampler, split, buffer);
         } else {
             if (0.0 == self.abbe) {
                 const p = sampler.sample1D();
 
                 var result = self.thickSample(ior, p);
                 result.wavelength = 0.0;
-                return result;
+                buffer[0] = result;
+                return buffer[0..1];
             } else {
                 var wavelength = self.wavelength;
 
@@ -194,7 +195,8 @@ pub const Sample = struct {
                 var result = self.thickSample(ior, r[0]);
                 result.reflection *= weight;
                 result.wavelength = wavelength;
-                return result;
+                buffer[0] = result;
+                return buffer[0..1];
             }
         }
     }
@@ -242,7 +244,7 @@ pub const Sample = struct {
         }
     }
 
-    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler) bxdf.Sample {
+    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         // Thin material is always double sided, so no need to check hemisphere.
         const eta_i = self.ior_outside;
         const eta_t = ior;
@@ -262,16 +264,32 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        const p = sampler.sample1D();
-        if (p <= f) {
-            return reflect(wo, n, n_dot_wo);
-        } else {
+        if (split) {
+            buffer[0] = reflect(wo, n, n_dot_wo);
+            buffer[0].wavelength = 0.0;
+
             const n_dot_wi = hlp.clamp(n_dot_wo);
             const approx_dist = self.super.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-            return thinRefract(wo, attenuation);
+            buffer[1] = thinRefract(wo, attenuation);
+            return buffer[0..2];
+        } else {
+            const p = sampler.sample1D();
+            if (p <= f) {
+                buffer[0] = reflect(wo, n, n_dot_wo);
+                buffer[0].wavelength = 0.0;
+            } else {
+                const n_dot_wi = hlp.clamp(n_dot_wo);
+                const approx_dist = self.super.thickness / n_dot_wi;
+
+                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+
+                buffer[0] = thinRefract(wo, attenuation);
+            }
+
+            return buffer[0..1];
         }
     }
 
@@ -386,6 +404,7 @@ pub const Sample = struct {
             .reflection = color,
             .wi = -wo,
             .pdf = 1.0,
+            .wavelength = 0.0,
             .class = .{ .straight = true },
         };
     }

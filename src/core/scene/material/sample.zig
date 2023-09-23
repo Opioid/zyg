@@ -68,7 +68,7 @@ pub const Sample = union(enum) {
                 buffer[0] = s.sample();
                 return buffer[0..1];
             },
-            inline .Volumetric => |*s| {
+            inline .Glass, .Volumetric => |*s| {
                 return s.sample(sampler, split, buffer);
             },
             inline else => |*s| {
