@@ -83,9 +83,10 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex.throughput, vertex, &mat_sample);
                 }
 
-                //      const split = vertex.isec.depth < 2;
-
-                const split = vertex.path_count < 2 and vertex.isec.depth < 3; // and !vertex.interfaces.empty();
+                // Only potentially split for SSS case or on the first bounce
+                const split = vertex.path_count < 2 and
+                    ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
+                    (vertex.isec.depth < 2 and vertex.isec.hit.event != .Scatter));
 
                 result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
