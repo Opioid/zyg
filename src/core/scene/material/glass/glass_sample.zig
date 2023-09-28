@@ -242,15 +242,15 @@ pub const Sample = struct {
         }
 
         if (split) {
-            buffer[0] = reflect(wo, n, n_dot_wo, f);
-            buffer[1] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, 1.0 - f);
+            buffer[0] = reflect(wo, n, n_dot_wo, f, 0.5);
+            buffer[1] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, 1.0 - f, 0.5);
 
             return buffer[0..2];
         } else {
             if (p <= f) {
-                buffer[0] = reflect(wo, n, n_dot_wo, 1.0);
+                buffer[0] = reflect(wo, n, n_dot_wo, 1.0, 1.0);
             } else {
-                buffer[0] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, 1.0);
+                buffer[0] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, 1.0, 1.0);
             }
 
             return buffer[0..1];
@@ -278,7 +278,7 @@ pub const Sample = struct {
         }
 
         if (split) {
-            buffer[0] = reflect(wo, n, n_dot_wo, f);
+            buffer[0] = reflect(wo, n, n_dot_wo, f, 0.5 / f);
             buffer[0].wavelength = 0.0;
 
             const n_dot_wi = hlp.clamp(n_dot_wo);
@@ -286,13 +286,13 @@ pub const Sample = struct {
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-            buffer[1] = thinRefract(wo, attenuation, 1.0 - f);
+            buffer[1] = thinRefract(wo, attenuation, 1.0 - f, 0.5 / (1.0 - f));
 
             return buffer[0..2];
         } else {
             const p = sampler.sample1D();
             if (p <= f) {
-                buffer[0] = reflect(wo, n, n_dot_wo, 1.0);
+                buffer[0] = reflect(wo, n, n_dot_wo, 1.0, 1.0);
                 buffer[0].wavelength = 0.0;
             } else {
                 const n_dot_wi = hlp.clamp(n_dot_wo);
@@ -300,7 +300,7 @@ pub const Sample = struct {
 
                 const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-                buffer[0] = thinRefract(wo, attenuation, 1.0);
+                buffer[0] = thinRefract(wo, attenuation, 1.0, 1.0);
             }
 
             return buffer[0..1];
@@ -395,29 +395,29 @@ pub const Sample = struct {
         return result;
     }
 
-    fn reflect(wo: Vec4f, n: Vec4f, n_dot_wo: f32, f: f32) bxdf.Sample {
+    fn reflect(wo: Vec4f, n: Vec4f, n_dot_wo: f32, f: f32, pdf: f32) bxdf.Sample {
         return .{
             .reflection = @splat(f),
             .wi = math.normalize3(@as(Vec4f, @splat(2.0 * n_dot_wo)) * n - wo),
-            .pdf = 1.0,
+            .pdf = pdf,
             .class = .{ .specular = true, .reflection = true },
         };
     }
 
-    fn thickRefract(wo: Vec4f, n: Vec4f, n_dot_wo: f32, n_dot_t: f32, eta: f32, omf: f32) bxdf.Sample {
+    fn thickRefract(wo: Vec4f, n: Vec4f, n_dot_wo: f32, n_dot_t: f32, eta: f32, omf: f32, pdf: f32) bxdf.Sample {
         return .{
             .reflection = @as(Vec4f, @splat(omf)),
             .wi = math.normalize3(@as(Vec4f, @splat(eta * n_dot_wo - n_dot_t)) * n - @as(Vec4f, @splat(eta)) * wo),
-            .pdf = 1.0,
+            .pdf = pdf,
             .class = .{ .specular = true, .transmission = true },
         };
     }
 
-    fn thinRefract(wo: Vec4f, color: Vec4f, omf: f32) bxdf.Sample {
+    fn thinRefract(wo: Vec4f, color: Vec4f, omf: f32, pdf: f32) bxdf.Sample {
         return .{
             .reflection = @as(Vec4f, @splat(omf)) * color,
             .wi = -wo,
-            .pdf = 1.0,
+            .pdf = pdf,
             .wavelength = 0.0,
             .class = .{ .straight = true },
         };

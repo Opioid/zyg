@@ -57,11 +57,13 @@ pub const PathtracerMIS = struct {
                 var pure_emissive: bool = undefined;
                 const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
 
-                result += vertex.throughput * radiance;
+                const path_weight: Vec4f = @splat(1.0 / @as(f32, @floatFromInt(vertex.path_count)));
+
+                result += vertex.throughput * radiance * path_weight;
 
                 if (pure_emissive) {
-                    const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                    vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
+                    // const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
+                    // vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
                     continue;
                 }
 
@@ -88,26 +90,30 @@ pub const PathtracerMIS = struct {
                     ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
                     (vertex.isec.depth < 2 and vertex.isec.hit.event != .Scatter));
 
-                result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
+                // const split = false;
+
+                result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker) * path_weight;
 
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
+                    if (0.0 == sample_result.pdf or
+                        math.allLessEqualZero3(sample_result.reflection) or
+                        (sample_result.class.specular and .Full != caustics))
+                    {
                         continue;
                     }
 
+                    const next_path_count = vertex.path_count * path_count;
+
                     var next_vertex = vertices.new(vertex.*);
 
-                    next_vertex.path_count *= path_count;
+                    next_vertex.path_count = next_path_count;
 
                     if (sample_result.class.specular) {
-                        if (.Full != caustics) {
-                            continue;
-                        }
-
                         next_vertex.state.treat_as_singular = true;
+                        //     next_vertex.singular_weight *= sample_result.pdf;
 
                         if (next_vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
@@ -122,6 +128,10 @@ pub const PathtracerMIS = struct {
                                 worker.addPhoton(next_vertex.throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
                             }
                         }
+                    }
+
+                    if (next_vertex.state.treat_as_singular) {
+                        next_vertex.singular_weight *= sample_result.pdf / @as(f32, @floatFromInt(path_count));
                     }
 
                     next_vertex.throughput_old = next_vertex.throughput;
@@ -151,8 +161,6 @@ pub const PathtracerMIS = struct {
                     if (sample_result.class.transmission) {
                         next_vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
                     }
-
-                    vertices.commit();
                 }
 
                 sampler.incrementPadding();
@@ -160,7 +168,9 @@ pub const PathtracerMIS = struct {
         }
 
         // return hlp.composeAlpha(result, throughput, vertex.state.direct);
-        return hlp.composeAlpha(result, @splat(1.0), false);
+        //    return hlp.composeAlpha(result, @splat(1.0), false);
+
+        return .{ result[0], result[1], result[2], vertices.alpha };
     }
 
     fn sampleLights(

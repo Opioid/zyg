@@ -92,6 +92,7 @@ pub const Vertex = struct {
 
     state: State,
     bxdf_pdf: f32,
+    singular_weight: f32,
     path_count: u32,
 
     throughput: Vec4f,
@@ -116,6 +117,7 @@ pub const Vertex = struct {
             },
             .state = .{},
             .bxdf_pdf = 0.0,
+            .singular_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
             .throughput_old = @splat(1.0),
@@ -205,25 +207,63 @@ pub const Pool = struct {
     const Num_vertices = 2;
 
     buffer: [2 * Num_vertices]Vertex = undefined,
+    terminated: [2 * Num_vertices]bool = undefined,
 
     current_id: u32 = undefined,
+    current_start: u32 = undefined,
     current_end: u32 = undefined,
     next_id: u32 = undefined,
     next_end: u32 = undefined,
 
+    alpha: f32 = undefined,
+
     pub fn start(self: *Pool, vertex: Vertex) void {
         self.buffer[0] = vertex;
         self.current_id = Num_vertices;
+        self.current_start = Num_vertices;
         self.current_end = Num_vertices;
         self.next_id = 0;
         self.next_end = 1;
+        self.alpha = 0.0;
     }
 
     pub fn iterate(self: *Pool) bool {
+        const old_end = self.current_end;
+        var i: u32 = self.current_start;
+        while (i < old_end) : (i += 1) {
+            if (self.terminated[i]) {
+                const v = &self.buffer[i];
+                const path_weight: f32 = 1.0 / @as(f32, @floatFromInt(v.path_count));
+
+                //   const alpha = if (v.state.direct) math.max(1.0 - math.average3(v.throughput) * path_weight, 0.0) else path_weight;
+
+                //      const alpha = if (v.state.direct) math.max((1.0 - math.average3(v.throughput)) * path_weight, 0.0) else path_weight;
+                //     const alpha = if (v.state.started_specular) math.max((1.0 - math.average3(v.throughput)) / v.singular_weight, 0.0) else path_weight;
+
+                var alpha: f32 = undefined;
+                // if (v.state.treat_as_singular) {
+                //     alpha = math.max((1.0 - math.average3(v.throughput)) * path_weight / v.singular_weight, 0.0);
+                // } el
+
+                if (v.state.direct) {
+                    alpha = math.max((1.0 - math.average3(v.throughput)) * (path_weight / v.singular_weight), 0.0);
+                } else { // if (v.state.started_specular) {
+                    alpha = math.max(path_weight / v.singular_weight, 0.0);
+                    //  } else {
+                    //    alpha = path_weight;
+                }
+
+                // const alpha = if (v.state.started_specular or v.state.treat_as_singular) math.max((1.0 - math.average3(v.throughput)) * path_weight / v.singular_weight, 0.0) else path_weight;
+
+                self.alpha += alpha;
+            }
+        }
+
         const current_id = self.next_id;
         const current_end = self.next_end;
 
         self.current_id = current_id;
+        self.current_start = current_id;
         self.current_end = current_end;
 
         const next_id: u32 = if (Num_vertices == self.next_id) 0 else Num_vertices;
@@ -238,6 +278,8 @@ pub const Pool = struct {
         self.current_id += 1;
 
         if (id < self.current_end) {
+            self.terminated[id] = true;
+
             return &self.buffer[id];
         }
 
@@ -245,12 +287,13 @@ pub const Pool = struct {
     }
 
     pub fn new(self: *Pool, vertex: Vertex) *Vertex {
-        self.buffer[self.next_end] = vertex;
-        return &self.buffer[self.next_end];
-    }
+        self.terminated[self.current_id - 1] = false;
 
-    pub fn commit(self: *Pool) void {
+        const end = self.next_end;
         self.next_end += 1;
+
+        self.buffer[end] = vertex;
+        return &self.buffer[end];
     }
 };
 

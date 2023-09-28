@@ -37,7 +37,9 @@ pub const Sample = struct {
 
         const phase = phaseHg(wo_dot_wi, g);
 
-        return bxdf.Result.init(@splat(phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
+        _ = split;
+        return bxdf.Result.init(@splat(phase), phase);
+        //    return bxdf.Result.init(@splat(phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
@@ -70,7 +72,7 @@ pub const Sample = struct {
                 .reflection = @splat(phase),
                 .wi = wi,
                 .h = undefined,
-                .pdf = phase * @as(f32, @floatFromInt(num)),
+                .pdf = phase, // * @as(f32, @floatFromInt(num)),
                 .wavelength = 0.0,
                 .h_dot_wi = undefined,
                 .class = .{ .diffuse = true, .reflection = true },
