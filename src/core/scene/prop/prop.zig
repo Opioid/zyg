@@ -80,10 +80,11 @@ pub const Prop = struct {
         const shape_inst = scene.shape(shape);
         self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
 
-        const mid0 = materials[0];
         var mono = true;
 
         if (materials.len > 0) {
+            const mid0 = materials[0];
+
             for (materials) |mid| {
                 const m = scene.material(mid);
                 if (m.evaluateVisibility()) {
