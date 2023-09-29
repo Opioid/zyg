@@ -180,14 +180,17 @@ pub const Sample = struct {
             } else {
                 var wavelength = self.wavelength;
 
-                const r = sampler.sample2D();
-                const weight = wavelengthSpectrumWeight(&wavelength, r[1]);
+                const r2 = sampler.sample2D();
+                const weight = wavelengthSpectrumWeight(&wavelength, r2[1]);
 
                 const sqr_wl = wavelength * wavelength;
                 ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
 
-                var result = self.thickSample(ior, r[0], wavelength, false, buffer);
-                result[0].reflection *= weight;
+                var result = self.thickSample(ior, r2[0], wavelength, split, buffer);
+
+                for (result) |*r| {
+                    r.reflection *= weight;
+                }
 
                 return result;
             }

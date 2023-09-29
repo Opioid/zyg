@@ -85,6 +85,11 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex.throughput, vertex, &mat_sample);
                 }
 
+                const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
+                if (gather_photons and vertex.state.primary_ray and mat_sample.canEvaluate() and (self.settings.photons_not_only_through_specular or indirect)) {
+                    worker.addPhoton(vertex.throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler) * path_weight);
+                }
+
                 // Only potentially split for SSS case or on the first bounce
                 const split = vertex.path_count < 2 and
                     ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
@@ -123,10 +128,10 @@ pub const PathtracerMIS = struct {
                         if (next_vertex.state.primary_ray) {
                             next_vertex.state.primary_ray = false;
 
-                            const indirect = !next_vertex.state.direct and 0 != next_vertex.isec.depth;
-                            if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                                worker.addPhoton(next_vertex.throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
-                            }
+                            // const indirect = !next_vertex.state.direct and 0 != next_vertex.isec.depth;
+                            // if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
+                            //     worker.addPhoton(next_vertex.throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
+                            // }
                         }
                     }
 
