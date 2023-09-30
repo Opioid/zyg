@@ -63,13 +63,7 @@ pub const PathtracerDL = struct {
                 result += throughput * energy;
             }
 
-            if (pure_emissive) {
-                const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
-                break;
-            }
-
-            if (vertex.isec.depth >= self.settings.max_bounces) {
+            if (pure_emissive or vertex.isec.depth >= self.settings.max_bounces) {
                 break;
             }
 
@@ -130,10 +124,12 @@ pub const PathtracerDL = struct {
                 vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
             }
 
+            vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
+
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.transparent);
     }
 
     fn directLight(

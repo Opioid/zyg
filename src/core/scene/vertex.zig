@@ -80,10 +80,10 @@ pub const Vertex = struct {
 
     pub const State = packed struct {
         primary_ray: bool = true,
+        direct: bool = true,
+        transparent: bool = true,
         treat_as_singular: bool = true,
         is_translucent: bool = false,
-        split_photon: bool = false,
-        direct: bool = true,
         from_subsurface: bool = false,
         started_specular: bool = false,
     };
@@ -245,7 +245,7 @@ pub const Pool = struct {
                 //     alpha = math.max((1.0 - math.average3(v.throughput)) * path_weight / v.singular_weight, 0.0);
                 // } el
 
-                if (v.state.direct) {
+                if (v.state.transparent) {
                     alpha = math.max((1.0 - math.average3(v.throughput)) * (path_weight / v.singular_weight), 0.0);
                 } else { // if (v.state.started_specular) {
                     alpha = math.max(path_weight / v.singular_weight, 0.0);

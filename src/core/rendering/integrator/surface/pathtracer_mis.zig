@@ -61,13 +61,7 @@ pub const PathtracerMIS = struct {
 
                 result += vertex.throughput * radiance * path_weight;
 
-                if (pure_emissive) {
-                    // const vis_in_cam = vertex.isec.hit.visibleInCamera(worker.scene);
-                    // vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.isec.ray.maxT() >= ro.Ray_max_t);
-                    continue;
-                }
-
-                if (vertex.isec.depth >= max_bounces) {
+                if (pure_emissive or vertex.isec.depth >= max_bounces) {
                     continue;
                 }
 
@@ -166,6 +160,8 @@ pub const PathtracerMIS = struct {
                     if (sample_result.class.transmission) {
                         next_vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
                     }
+
+                    next_vertex.state.transparent = next_vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
                 }
 
                 sampler.incrementPadding();
