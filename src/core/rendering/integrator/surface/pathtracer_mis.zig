@@ -89,7 +89,7 @@ pub const PathtracerMIS = struct {
                     ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
                     (vertex.isec.depth < 2 and vertex.isec.hit.event != .Scatter));
 
-                // const split = false;
+                //  const split = false;
 
                 result += vertex_weight * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
@@ -120,14 +120,7 @@ pub const PathtracerMIS = struct {
                         }
                     } else if (!sample_result.class.straight) {
                         next_vertex.state.treat_as_singular = false;
-                        if (next_vertex.state.primary_ray) {
-                            next_vertex.state.primary_ray = false;
-
-                            // const indirect = !next_vertex.state.direct and 0 != next_vertex.isec.depth;
-                            // if (gather_photons and (self.settings.photons_not_only_through_specular or indirect)) {
-                            //     worker.addPhoton(next_vertex.throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
-                            // }
-                        }
+                        next_vertex.state.primary_ray = false;
                     }
 
                     next_vertex.throughput_old = next_vertex.throughput;

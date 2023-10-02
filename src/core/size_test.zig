@@ -28,7 +28,7 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Intersection, "Intersection", 208);
-    testType(Vertex, "Vertex", 288);
+    testType(Vertex, "Vertex", 736);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
@@ -44,7 +44,7 @@ pub fn testSize() void {
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 704);
+    testType(Worker, "Worker", 320);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

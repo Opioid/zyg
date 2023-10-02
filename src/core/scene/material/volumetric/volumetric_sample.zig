@@ -31,15 +31,13 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const wo_dot_wi = math.dot3(self.super.wo, wi);
         const g = self.anisotropy;
 
         const phase = phaseHg(wo_dot_wi, g);
 
-        _ = split;
         return bxdf.Result.init(@splat(phase), phase);
-        //    return bxdf.Result.init(@splat(phase), phase * (if (split) @as(f32, 2.0) else @as(f32, 1.0)));
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
