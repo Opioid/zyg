@@ -48,6 +48,9 @@ pub const Sample = struct {
         const tb = math.orthonormalBasis3(wo);
 
         const num: u32 = if (split) 2 else 1;
+
+        const split_weight = 1.0 / @as(f32, @floatFromInt(num));
+
         var i: u32 = 0;
         while (i < num) : (i += 1) {
             const r2 = sampler.sample2D();
@@ -71,10 +74,9 @@ pub const Sample = struct {
             buffer[i] = .{
                 .reflection = @splat(phase),
                 .wi = wi,
-                .h = undefined,
                 .pdf = phase, // * @as(f32, @floatFromInt(num)),
+                .split_weight = split_weight,
                 .wavelength = 0.0,
-                .h_dot_wi = undefined,
                 .class = .{ .diffuse = true, .reflection = true },
             };
         }

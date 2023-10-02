@@ -43,10 +43,9 @@ pub const Sample = struct {
         return .{
             .reflection = reflection,
             .wi = wi,
-            .h = undefined,
             .pdf = pdf,
+            .split_weight = 1.0,
             .wavelength = 0.0,
-            .h_dot_wi = undefined,
             .class = .{ .diffuse = true, .reflection = true },
         };
     }

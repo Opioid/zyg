@@ -57,9 +57,10 @@ pub const PathtracerMIS = struct {
                 var pure_emissive: bool = undefined;
                 const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
 
-                const path_weight: Vec4f = @splat(1.0 / @as(f32, @floatFromInt(vertex.path_count)));
+                //   const path_weight: Vec4f = @splat(1.0 / @as(f32, @floatFromInt(vertex.path_count)));
+                const split_weight: Vec4f = @splat(vertex.split_weight);
 
-                result += vertex.throughput * radiance * path_weight;
+                result += vertex.throughput * radiance * split_weight;
 
                 if (pure_emissive or vertex.isec.depth >= max_bounces) {
                     continue;
@@ -81,7 +82,7 @@ pub const PathtracerMIS = struct {
 
                 const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
                 if (gather_photons and vertex.state.primary_ray and mat_sample.canEvaluate() and (self.settings.photons_not_only_through_specular or indirect)) {
-                    worker.addPhoton(vertex.throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler) * path_weight);
+                    worker.addPhoton(vertex.throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler) * split_weight);
                 }
 
                 // Only potentially split for SSS case or on the first bounce
@@ -91,7 +92,7 @@ pub const PathtracerMIS = struct {
 
                 // const split = false;
 
-                result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker) * path_weight;
+                result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker) * split_weight;
 
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
@@ -105,10 +106,12 @@ pub const PathtracerMIS = struct {
                     }
 
                     const next_path_count = vertex.path_count * path_count;
+                    const next_split_weight = vertex.split_weight * sample_result.split_weight;
 
                     var next_vertex = vertices.new(vertex.*);
 
                     next_vertex.path_count = next_path_count;
+                    next_vertex.split_weight = next_split_weight;
 
                     if (sample_result.class.specular) {
                         next_vertex.state.treat_as_singular = true;

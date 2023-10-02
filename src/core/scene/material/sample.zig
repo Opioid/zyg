@@ -53,7 +53,7 @@ pub const Sample = union(enum) {
     pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         return switch (self.*) {
             .Light, .Null => bxdf.Result.init(@splat(0.0), 0.0),
-            .Volumetric => |*s| s.evaluate(wi, split),
+            inline .Glass, .Volumetric => |*s| s.evaluate(wi, split),
             inline else => |*s| s.evaluate(wi),
         };
     }

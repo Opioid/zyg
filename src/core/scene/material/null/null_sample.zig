@@ -16,10 +16,9 @@ pub const Sample = struct {
         return .{
             .reflection = self.super.albedo,
             .wi = -self.super.wo,
-            .h = undefined,
             .pdf = 1.0,
+            .split_weight = 1.0,
             .wavelength = 0.0,
-            .h_dot_wi = undefined,
             .class = .{ .straight = true, .transmission = true },
         };
     }

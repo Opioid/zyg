@@ -234,10 +234,9 @@ pub const Sample = struct {
         return .{
             .reflection = result.reflection,
             .wi = wi,
-            .h = undefined,
             .pdf = result.pdf(),
+            .split_weight = 1.0,
             .wavelength = 0.0,
-            .h_dot_wi = undefined,
             .class = .{ .glossy = true, .reflection = true },
         };
     }

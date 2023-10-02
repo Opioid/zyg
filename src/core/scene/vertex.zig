@@ -93,6 +93,7 @@ pub const Vertex = struct {
     state: State,
     bxdf_pdf: f32,
     singular_weight: f32,
+    split_weight: f32,
     path_count: u32,
 
     throughput: Vec4f,
@@ -118,6 +119,7 @@ pub const Vertex = struct {
             .state = .{},
             .bxdf_pdf = 0.0,
             .singular_weight = 1.0,
+            .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
             .throughput_old = @splat(1.0),

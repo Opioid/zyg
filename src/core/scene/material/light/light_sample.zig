@@ -19,6 +19,6 @@ pub const Sample = struct {
     }
 
     pub fn sample() bxdf.Sample {
-        return .{ .wavelength = 0.0 };
+        return .{ .split_weight = 1.0, .wavelength = 0.0 };
     }
 };

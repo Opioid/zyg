@@ -64,7 +64,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
@@ -132,7 +132,7 @@ pub const Sample = struct {
             const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, gg.f[0] * gg.r.pdf());
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, if (split) gg.f[0] * gg.r.pdf() else gg.r.pdf());
         }
     }
 
@@ -208,6 +208,7 @@ pub const Sample = struct {
                 .reflection = @splat(1.0),
                 .wi = -wo,
                 .pdf = 1.0,
+                .split_weight = 1.0,
                 .wavelength = wavelength,
                 .class = .{ .specular = true, .transmission = true },
             };
@@ -237,8 +238,8 @@ pub const Sample = struct {
         }
 
         if (split) {
-            buffer[0] = reflect(wo, n, n_dot_wo, wavelength, f, 0.5);
-            buffer[1] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, wavelength, 1.0 - f, 0.5);
+            buffer[0] = reflect(wo, n, n_dot_wo, wavelength, f, 1.0);
+            buffer[1] = thickRefract(wo, n, n_dot_wo, n_dot_t, eta, wavelength, 1.0 - f, 1.0);
 
             return buffer[0..2];
         } else {
@@ -274,14 +275,14 @@ pub const Sample = struct {
         }
 
         if (split) {
-            buffer[0] = reflect(wo, n, n_dot_wo, 0.0, f, 0.5);
+            buffer[0] = reflect(wo, n, n_dot_wo, 0.0, f, 1.0);
 
             const n_dot_wi = hlp.clamp(n_dot_wo);
             const approx_dist = self.super.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-            buffer[1] = thinRefract(wo, attenuation, 1.0 - f, 0.5);
+            buffer[1] = thinRefract(wo, attenuation, 1.0 - f, 1.0);
 
             return buffer[0..2];
         } else {
@@ -311,6 +312,7 @@ pub const Sample = struct {
                 .reflection = @splat(1.0),
                 .wi = -wo,
                 .pdf = 1.0,
+                .split_weight = 1.0,
                 .wavelength = wavelength,
                 .class = .{ .specular = true, .transmission = true },
             };
@@ -356,7 +358,6 @@ pub const Sample = struct {
                     h,
                     n_dot_wo,
                     n_dot_h,
-                    wi_dot_h,
                     wo_dot_h,
                     alpha[0],
                     frame,
@@ -364,7 +365,8 @@ pub const Sample = struct {
                 );
 
                 buffer[0].reflection *= @splat(f * n_dot_wi * ep);
-                buffer[0].pdf *= 0.5;
+                //   buffer[0].pdf *= 0.5;
+                buffer[0].split_weight = 1.0;
                 buffer[0].wavelength = wavelength;
             }
             {
@@ -385,13 +387,14 @@ pub const Sample = struct {
                 const omf = 1.0 - f;
 
                 buffer[1].reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * self.super.albedo;
-                buffer[1].pdf *= 0.5;
+                //   buffer[1].pdf *= 0.5;
+                buffer[1].split_weight = 1.0;
                 buffer[1].wavelength = wavelength;
             }
 
             return buffer[0..2];
         } else {
-            var result = bxdf.Sample{};
+            var result = bxdf.Sample{ .split_weight = 1.0 };
 
             const p = s3[0];
             if (p <= f) {
@@ -400,7 +403,6 @@ pub const Sample = struct {
                     h,
                     n_dot_wo,
                     n_dot_h,
-                    wi_dot_h,
                     wo_dot_h,
                     alpha[0],
                     frame,
@@ -442,11 +444,9 @@ pub const Sample = struct {
         return .{
             .reflection = @splat(f),
             .wi = math.normalize3(@as(Vec4f, @splat(2.0 * n_dot_wo)) * n - wo),
-
             .pdf = pdf,
-
+            .split_weight = 1.0,
             .wavelength = wavelength,
-
             .class = .{ .specular = true, .reflection = true },
         };
     }
@@ -456,6 +456,7 @@ pub const Sample = struct {
             .reflection = @as(Vec4f, @splat(omf)),
             .wi = math.normalize3(@as(Vec4f, @splat(eta * n_dot_wo - n_dot_t)) * n - @as(Vec4f, @splat(eta)) * wo),
             .pdf = pdf,
+            .split_weight = 1.0,
             .wavelength = wavelength,
             .class = .{ .specular = true, .transmission = true },
         };
@@ -466,6 +467,7 @@ pub const Sample = struct {
             .reflection = @as(Vec4f, @splat(omf)) * color,
             .wi = -wo,
             .pdf = pdf,
+            .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .straight = true },
         };
