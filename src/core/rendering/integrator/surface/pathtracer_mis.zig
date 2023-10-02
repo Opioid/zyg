@@ -57,10 +57,9 @@ pub const PathtracerMIS = struct {
                 var pure_emissive: bool = undefined;
                 const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
 
-                //   const path_weight: Vec4f = @splat(1.0 / @as(f32, @floatFromInt(vertex.path_count)));
-                const split_weight: Vec4f = @splat(vertex.split_weight);
+                const vertex_weight = vertex.throughput * @as(Vec4f, @splat(vertex.split_weight));
 
-                result += vertex.throughput * radiance * split_weight;
+                result += vertex_weight * radiance;
 
                 if (pure_emissive or vertex.isec.depth >= max_bounces) {
                     continue;
@@ -82,7 +81,7 @@ pub const PathtracerMIS = struct {
 
                 const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
                 if (gather_photons and vertex.state.primary_ray and mat_sample.canEvaluate() and (self.settings.photons_not_only_through_specular or indirect)) {
-                    worker.addPhoton(vertex.throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler) * split_weight);
+                    worker.addPhoton(vertex_weight * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
                 }
 
                 // Only potentially split for SSS case or on the first bounce
@@ -92,7 +91,7 @@ pub const PathtracerMIS = struct {
 
                 // const split = false;
 
-                result += vertex.throughput * self.sampleLights(vertex, &mat_sample, split, sampler, worker) * split_weight;
+                result += vertex_weight * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
@@ -115,7 +114,6 @@ pub const PathtracerMIS = struct {
 
                     if (sample_result.class.specular) {
                         next_vertex.state.treat_as_singular = true;
-                        //     next_vertex.singular_weight *= sample_result.pdf;
 
                         if (next_vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
@@ -130,10 +128,6 @@ pub const PathtracerMIS = struct {
                             //     worker.addPhoton(next_vertex.throughput * worker.photonLi(next_vertex.isec.hit, &mat_sample, sampler));
                             // }
                         }
-                    }
-
-                    if (next_vertex.state.treat_as_singular) {
-                        next_vertex.singular_weight *= sample_result.pdf / @as(f32, @floatFromInt(path_count));
                     }
 
                     next_vertex.throughput_old = next_vertex.throughput;

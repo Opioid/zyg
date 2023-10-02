@@ -92,7 +92,6 @@ pub const Vertex = struct {
 
     state: State,
     bxdf_pdf: f32,
-    singular_weight: f32,
     split_weight: f32,
     path_count: u32,
 
@@ -118,7 +117,6 @@ pub const Vertex = struct {
             },
             .state = .{},
             .bxdf_pdf = 0.0,
-            .singular_weight = 1.0,
             .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
@@ -235,29 +233,7 @@ pub const Pool = struct {
         while (i < old_end) : (i += 1) {
             if (self.terminated[i]) {
                 const v = &self.buffer[i];
-                const path_weight: f32 = 1.0 / @as(f32, @floatFromInt(v.path_count));
-
-                //   const alpha = if (v.state.direct) math.max(1.0 - math.average3(v.throughput) * path_weight, 0.0) else path_weight;
-
-                //      const alpha = if (v.state.direct) math.max((1.0 - math.average3(v.throughput)) * path_weight, 0.0) else path_weight;
-                //     const alpha = if (v.state.started_specular) math.max((1.0 - math.average3(v.throughput)) / v.singular_weight, 0.0) else path_weight;
-
-                var alpha: f32 = undefined;
-                // if (v.state.treat_as_singular) {
-                //     alpha = math.max((1.0 - math.average3(v.throughput)) * path_weight / v.singular_weight, 0.0);
-                // } el
-
-                if (v.state.transparent) {
-                    alpha = math.max((1.0 - math.average3(v.throughput)) * (path_weight / v.singular_weight), 0.0);
-                } else { // if (v.state.started_specular) {
-                    alpha = math.max(path_weight / v.singular_weight, 0.0);
-                    //  } else {
-                    //    alpha = path_weight;
-                }
-
-                // const alpha = if (v.state.started_specular or v.state.treat_as_singular) math.max((1.0 - math.average3(v.throughput)) * path_weight / v.singular_weight, 0.0) else path_weight;
-
-                self.alpha += alpha;
+                self.alpha += math.max(if (v.state.transparent) (1.0 - math.average3(v.throughput)) * v.split_weight else v.split_weight, 0.0);
             }
         }
 
