@@ -66,10 +66,8 @@ pub const Sample = struct {
         return .{
             .reflection = @splat(phase),
             .wi = wi,
-            .h = undefined,
             .pdf = phase,
             .wavelength = 0.0,
-            .h_dot_wi = undefined,
             .class = .{ .diffuse = true, .reflection = true },
         };
     }

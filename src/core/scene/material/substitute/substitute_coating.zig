@@ -71,7 +71,6 @@ pub const Coating = struct {
         h: Vec4f,
         n_dot_wo: f32,
         n_dot_h: f32,
-        wi_dot_h: f32,
         wo_dot_h: f32,
         result: *bxdf.Sample,
     ) Vec4f {
@@ -81,7 +80,6 @@ pub const Coating = struct {
             h,
             n_dot_wo,
             n_dot_h,
-            wi_dot_h,
             wo_dot_h,
             self.alpha,
             Frame.init(self.n),
@@ -94,17 +92,13 @@ pub const Coating = struct {
         return self.attenuation(n_dot_wi, n_dot_wo);
     }
 
-    pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32, result: *bxdf.Sample) f32 {
+    pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32) ggx.Micro {
         const h = ggx.Aniso.sample(wo, @splat(self.alpha), xi, Frame.init(self.n), n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);
         const f = fresnel.schlick1(wo_dot_h, self.f0);
 
-        result.reflection = @splat(f);
-        result.h = h;
-        result.h_dot_wi = wo_dot_h;
-
-        return f;
+        return .{ .h = h, .n_dot_wi = f, .h_dot_wi = wo_dot_h };
     }
 
     pub fn singleAttenuationStatic(absorption_coef: Vec4f, thickness: f32, n_dot_wo: f32) Vec4f {

@@ -320,7 +320,6 @@ pub const Sample = struct {
                 h,
                 n_dot_wo,
                 n_dot_h,
-                wi_dot_h,
                 wo_dot_h,
                 alpha[0],
                 frame,
