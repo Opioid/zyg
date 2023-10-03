@@ -61,8 +61,8 @@ pub const Sample = union(enum) {
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         return switch (self.*) {
             .Light => {
-                buffer[0] = Light.sample();
-                return buffer[0..1];
+                // buffer[0] = Light.sample();
+                return buffer[0..0];
             },
             .Null => |*s| {
                 buffer[0] = s.sample();
@@ -72,7 +72,7 @@ pub const Sample = union(enum) {
                 return s.sample(sampler, split, buffer);
             },
             inline else => |*s| {
-                buffer[0] = s.sample(sampler);
+                s.sample(sampler, &buffer[0]);
                 return buffer[0..1];
             },
         };

@@ -381,7 +381,7 @@ pub const Sample = struct {
 
             return buffer[0..2];
         } else {
-            var result = bxdf.Sample{ .split_weight = 1.0 };
+            var result = &buffer[0];
 
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
@@ -395,7 +395,7 @@ pub const Sample = struct {
                     wo_dot_h,
                     alpha[0],
                     frame,
-                    &result,
+                    result,
                 );
 
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
@@ -412,7 +412,7 @@ pub const Sample = struct {
                     alpha[0],
                     ior,
                     frame,
-                    &result,
+                    result,
                 );
 
                 const omf = 1.0 - f;
@@ -421,9 +421,9 @@ pub const Sample = struct {
                 result.pdf *= omf;
             }
 
+            result.split_weight = 1.0;
             result.wavelength = wavelength;
 
-            buffer[0] = result;
             return buffer[0..1];
         }
     }

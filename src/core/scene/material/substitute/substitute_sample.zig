@@ -118,8 +118,9 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        var result = bxdf.Sample{ .wavelength = 0.0, .split_weight = 1.0 };
+    pub fn sample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+        result.split_weight = 1.0;
+        result.wavelength = 0.0;
 
         const th = self.super.thickness;
         if (th > 0.0) {
@@ -130,7 +131,7 @@ pub const Sample = struct {
             const p = s3[0];
             if (p < tr) {
                 const frame = self.super.frame;
-                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, &result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
                 const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
@@ -145,31 +146,29 @@ pub const Sample = struct {
                 const xi = Vec2f{ s3[1], s3[2] };
 
                 if (p < tr + 0.5 * op) {
-                    _ = self.diffuseSample(xi, &result);
+                    _ = self.diffuseSample(xi, result);
                 } else {
-                    _ = self.glossSample(xi, &result);
+                    _ = self.glossSample(xi, result);
                 }
 
                 result.pdf *= op;
             }
         } else {
             if (self.super.properties.volumetric) {
-                self.volumetricSample(sampler, &result);
-                return result;
+                self.volumetricSample(sampler, result);
+                return;
             }
 
             if (!self.super.sameHemisphere(self.super.wo)) {
-                return result;
+                return;
             }
 
             if (self.coating.thickness > 0.0) {
-                self.coatingSample(sampler, &result);
+                self.coatingSample(sampler, result);
             } else {
-                self.baseSample(sampler, &result);
+                self.baseSample(sampler, result);
             }
         }
-
-        return result;
     }
 
     fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {

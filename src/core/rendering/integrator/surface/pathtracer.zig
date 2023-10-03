@@ -77,16 +77,19 @@ pub const Pathtracer = struct {
                 }
             }
 
-            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
-            if (0.0 == sample_result.pdf or math.allLessEqualZero3(sample_result.reflection)) {
+            const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
+            if (0 == sample_results.len) {
                 break;
             }
 
-            if (sample_result.class.specular) {
-                if (.Full != caustics) {
-                    break;
-                }
-            } else if (!sample_result.class.straight) {
+            const sample_result = sample_results[0];
+            if (math.allLessEqualZero3(sample_result.reflection) or
+                (sample_result.class.specular and .Full != caustics))
+            {
+                break;
+            }
+
+            if (!sample_result.class.specular and !sample_result.class.straight) {
                 vertex.state.primary_ray = false;
             }
 

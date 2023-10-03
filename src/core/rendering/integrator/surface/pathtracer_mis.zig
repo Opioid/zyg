@@ -97,8 +97,7 @@ pub const PathtracerMIS = struct {
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    if (0.0 == sample_result.pdf or
-                        math.allLessEqualZero3(sample_result.reflection) or
+                    if (math.allLessEqualZero3(sample_result.reflection) or
                         (sample_result.class.specular and .Full != caustics))
                     {
                         continue;

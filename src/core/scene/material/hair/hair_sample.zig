@@ -166,7 +166,7 @@ pub const Sample = struct {
         return bxdf.Result.init(fsum, pdf_sum);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
         const sin_theta_o = self.sin_theta_o;
         const cos_theta_o = self.cos_theta_o;
         const phi_o = self.phi_o;
@@ -229,12 +229,12 @@ pub const Sample = struct {
         const is = Vec4f{ sin_theta_i, cos_theta_i * @cos(phi_i), cos_theta_i * @sin(phi_i), 0.0 };
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
-        const result = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
+        const er = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
 
-        return .{
-            .reflection = result.reflection,
+        result.* = .{
+            .reflection = er.reflection,
             .wi = wi,
-            .pdf = result.pdf(),
+            .pdf = er.pdf(),
             .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .glossy = true, .reflection = true },

@@ -36,18 +36,12 @@ pub const Sample = struct {
         straight: bool = false,
     };
 
-    reflection: Vec4f = undefined,
-    wi: Vec4f = undefined,
-    pdf: f32 = undefined,
+    reflection: Vec4f,
+    wi: Vec4f,
+    pdf: f32,
     split_weight: f32,
-    wavelength: f32 = undefined,
-    class: Class = undefined,
+    wavelength: f32,
+    class: Class,
 };
 
-pub const Micro = struct {
-    h: Vec4f,
-    n_dot_wi: f32,
-    h_dot_wi: f32,
-};
-
-pub const Samples = [4]Sample;
+pub const Samples = [2]Sample;
