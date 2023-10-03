@@ -14,10 +14,10 @@ const Ray = math.Ray;
 pub const Vertex = struct {
     pub const State = packed struct {
         primary_ray: bool = true,
+        direct: bool = true,
+        transparent: bool = true,
         treat_as_singular: bool = true,
         is_translucent: bool = false,
-        split_photon: bool = false,
-        direct: bool = true,
         from_subsurface: bool = false,
         started_specular: bool = false,
     };

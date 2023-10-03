@@ -52,8 +52,6 @@ pub const Pathtracer = struct {
             result += throughput * energy;
 
             if (pure_emissive) {
-                const vis_in_cam = vertex.isec.visibleInCamera(worker.scene);
-                vertex.state.direct = vertex.state.direct and (!vis_in_cam and vertex.ray.maxT() >= ro.Ray_max_t);
                 break;
             }
 
@@ -118,10 +116,12 @@ pub const Pathtracer = struct {
                 worker.interfaceChange(sample_result.wi, vertex.isec, sampler);
             }
 
+            vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
+
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.state.direct);
+        return hlp.composeAlpha(result, throughput, vertex.state.transparent);
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
