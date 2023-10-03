@@ -286,7 +286,7 @@ pub const Sample = struct {
         }
     }
 
-    fn diffuseSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) bxdf.Micro {
+    fn diffuseSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) ggx.Micro {
         const wo = self.super.wo;
         const frame = self.super.frame;
         const alpha = self.super.alpha;
@@ -332,7 +332,7 @@ pub const Sample = struct {
         return micro;
     }
 
-    fn glossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) bxdf.Micro {
+    fn glossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) ggx.Micro {
         const wo = self.super.wo;
         const frame = self.super.frame;
         const alpha = self.super.alpha;
@@ -354,7 +354,7 @@ pub const Sample = struct {
         return micro;
     }
 
-    fn pureGlossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) bxdf.Micro {
+    fn pureGlossSample(self: *const Sample, xi: Vec2f, result: *bxdf.Sample) ggx.Micro {
         const wo = self.super.wo;
         const frame = self.super.frame;
         const alpha = self.super.alpha;
@@ -414,7 +414,7 @@ pub const Sample = struct {
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
     }
 
-    const SampleFunc = *const fn (self: *const Sample, xi: Vec2f, result: *bxdf.Sample) bxdf.Micro;
+    const SampleFunc = *const fn (self: *const Sample, xi: Vec2f, result: *bxdf.Sample) ggx.Micro;
 
     fn coatingBaseSample(
         self: *const Sample,

@@ -1,6 +1,7 @@
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Frame = @import("sample_base.zig").Frame;
+const ggx = @import("ggx.zig");
 const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 
@@ -57,7 +58,7 @@ pub const Micro = struct {
         alpha: f32,
         xi: Vec2f,
         result: *bxdf.Sample,
-    ) bxdf.Micro {
+    ) ggx.Micro {
         const is = math.smpl.hemisphereCosine(xi);
         const wi = math.normalize3(frame.tangentToWorld(is));
         const h = math.normalize3(wo + wi);

@@ -92,7 +92,7 @@ pub const Coating = struct {
         return self.attenuation(n_dot_wi, n_dot_wo);
     }
 
-    pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32) bxdf.Micro {
+    pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32) ggx.Micro {
         const h = ggx.Aniso.sample(wo, @splat(self.alpha), xi, Frame.init(self.n), n_dot_h);
 
         const wo_dot_h = hlp.clampDot(wo, h);

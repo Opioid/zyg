@@ -54,6 +54,12 @@ pub fn mapRoughness(roughness: f32) f32 {
     return roughness * (1.0 - Min_roughness) + Min_roughness;
 }
 
+pub const Micro = struct {
+    h: Vec4f,
+    n_dot_wi: f32,
+    h_dot_wi: f32,
+};
+
 const ResultF = struct { r: bxdf.Result, f: Vec4f };
 
 pub const Iso = struct {
@@ -102,7 +108,7 @@ pub const Iso = struct {
         fresnel: anytype,
         frame: Frame,
         result: *bxdf.Sample,
-    ) bxdf.Micro {
+    ) Micro {
         var n_dot_h: f32 = undefined;
         const h = Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
@@ -308,7 +314,7 @@ pub const Aniso = struct {
         fresnel: anytype,
         frame: Frame,
         result: *bxdf.Sample,
-    ) bxdf.Micro {
+    ) Micro {
         if (alpha[0] == alpha[1]) {
             return Iso.reflect(wo, n_dot_wo, alpha[0], xi, fresnel, frame, result);
         }
