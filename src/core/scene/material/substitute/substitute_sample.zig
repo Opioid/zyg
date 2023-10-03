@@ -675,6 +675,7 @@ pub const Sample = struct {
             var coat_n_dot_h: f32 = undefined;
             const micro = self.coating.sample(self.super.wo, xi, &coat_n_dot_h);
             const cf = micro.n_dot_wi;
+            result.reflection = @splat(cf);
 
             if (p <= cf) {
                 self.coatingReflect(micro.h, cf, coat_n_dot_h, micro.h_dot_wi, result);
