@@ -132,7 +132,8 @@ pub const Sample = struct {
             const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, if (split) gg.f[0] * gg.r.pdf() else gg.r.pdf());
+            const split_pdf = if (split) 1.0 else gg.f[0];
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf());
         }
     }
 
