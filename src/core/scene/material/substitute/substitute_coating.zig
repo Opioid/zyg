@@ -74,7 +74,6 @@ pub const Coating = struct {
         wo_dot_h: f32,
         result: *bxdf.Sample,
     ) Vec4f {
-        const f = result.reflection;
         const n_dot_wi = ggx.Iso.reflectNoFresnel(
             wo,
             h,
@@ -87,7 +86,7 @@ pub const Coating = struct {
         );
 
         const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
-        result.reflection *= @as(Vec4f, @splat(ep * self.weight * n_dot_wi)) * f;
+        result.reflection *= @splat(ep * self.weight * n_dot_wi);
 
         return self.attenuation(n_dot_wi, n_dot_wo);
     }
