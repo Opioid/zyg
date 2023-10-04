@@ -273,7 +273,6 @@ pub const Sample = struct {
         var n_dot_h: f32 = undefined;
         const micro = self.coating.sample(self.super.wo, sampler.sample2D(), &n_dot_h);
         const f = micro.n_dot_wi;
-        result.reflection = @splat(f);
 
         const s3 = sampler.sample3D();
         const p = s3[0];
@@ -402,8 +401,7 @@ pub const Sample = struct {
 
     fn coatingReflect(self: *const Sample, h: Vec4f, f: f32, n_dot_h: f32, h_dot_wi: f32, result: *bxdf.Sample) void {
         const wo = self.super.wo;
-        //    const n_dot_wo = self.coating.frame.clampAbsNdot(wo);
-        const n_dot_wo = hlp.clampAbsDot(self.coating.n, wo); // self.coating.frame.clampAbsNdot(wo);
+        const n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
 
         const coating_attenuation = self.coating.reflect(
             wo,
@@ -414,12 +412,12 @@ pub const Sample = struct {
             result,
         );
 
-        var base_result = if (1.0 == self.metallic)
+        const base_result = if (1.0 == self.metallic)
             self.pureGlossEvaluate(result.wi, wo, h, h_dot_wi)
         else
             self.baseEvaluate(result.wi, wo, h, h_dot_wi);
 
-        result.reflection = result.reflection + coating_attenuation * base_result.reflection;
+        result.reflection = (result.reflection * @as(Vec4f, @splat(f))) + coating_attenuation * base_result.reflection;
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
     }
 
@@ -527,12 +525,14 @@ pub const Sample = struct {
             frame,
         );
 
+        const coated = self.coating.thickness > 0.0;
+
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @as(Vec4f, @splat(n_dot_wi)) * (gg.r.reflection + mms);
-        const split_pdf = if (split) 1.0 else gg.f[0];
+        const split_pdf = if (split and !coated) 1.0 else gg.f[0];
         const base_pdf = split_pdf * gg.r.pdf();
 
-        if (self.coating.thickness > 0.0) {
+        if (coated) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
             const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_reflection, pdf);
@@ -557,6 +557,8 @@ pub const Sample = struct {
             result.reflection = @splat(1.0);
             result.wi = -wo;
             result.pdf = 1.0;
+            result.split_weight = 1.0;
+            result.wavelength = 0.0;
             result.class = .{ .specular = true, .transmission = true };
             return buffer[0..1];
         }
@@ -676,6 +678,8 @@ pub const Sample = struct {
                     result.pdf *= omf;
                 }
             } else {
+                const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
+
                 if (p <= f) {
                     const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                         wo,
@@ -688,7 +692,7 @@ pub const Sample = struct {
                         result,
                     );
 
-                    result.reflection *= @splat(f * n_dot_wi);
+                    result.reflection *= @splat(f * n_dot_wi * ep);
                     result.pdf *= f;
                 } else {
                     const r_wo_dot_h = wo_dot_h;
@@ -706,11 +710,9 @@ pub const Sample = struct {
                     );
 
                     const omf = 1.0 - f;
-                    result.reflection *= @splat(omf * n_dot_wi);
+                    result.reflection *= @splat(omf * n_dot_wi * ep);
                     result.pdf *= omf;
                 }
-
-                result.reflection *= @splat(ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
             }
 
             return buffer[0..1];
@@ -718,6 +720,9 @@ pub const Sample = struct {
     }
 
     fn coatedVolumetricSample(self: Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+        result.split_weight = 1.0;
+        result.wavelength = 0.0;
+
         const wo = self.super.wo;
         const quo_ior = self.ior;
         if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
@@ -735,17 +740,19 @@ pub const Sample = struct {
 
         const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
-        const p = s3[0];
+        var p = s3[0];
 
         if (same_side) {
             var coat_n_dot_h: f32 = undefined;
             const micro = self.coating.sample(self.super.wo, xi, &coat_n_dot_h);
             const cf = micro.n_dot_wi;
-            result.reflection = @splat(cf);
 
             if (p <= cf) {
                 self.coatingReflect(micro.h, cf, coat_n_dot_h, micro.h_dot_wi, result);
             } else {
+                const omcf = 1.0 - cf;
+                p = (p - cf) / omcf;
+
                 var n_dot_h: f32 = undefined;
                 const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(), frame, &n_dot_h);
 
@@ -781,7 +788,7 @@ pub const Sample = struct {
                     const reflection = @as(Vec4f, @splat(n_dot_wi)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
                     result.reflection = reflection;
-                    result.pdf *= f;
+                    result.pdf *= f * omcf;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
                     const n_dot_wi = ggx.Iso.refractNoFresnel(
@@ -797,20 +804,16 @@ pub const Sample = struct {
                         result,
                     );
 
-                    const omf = 1.0 - f;
-
-                    const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
-
                     // Approximating the full coating attenuation at entrance, for the benefit of SSS,
                     // which will ignore the border later.
                     // This will probably cause problems for shapes intersecting such materials.
+                    const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
                     const attenuation = self.coating.attenuation(0.5, coat_n_dot_wo);
 
+                    const omf = 1.0 - f;
                     result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi)) * attenuation;
-                    result.pdf *= omf;
+                    result.pdf *= omf * omcf;
                 }
-
-                result.pdf *= 1.0 - cf;
             }
         } else {
             var n_dot_h: f32 = undefined;
@@ -832,6 +835,8 @@ pub const Sample = struct {
                 f = fresnel.schlick1(cos_x, self.f0[0]);
             }
 
+            const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
+
             if (p <= f) {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(
                     wo,
@@ -844,7 +849,7 @@ pub const Sample = struct {
                     result,
                 );
 
-                result.reflection *= @splat(f * n_dot_wi);
+                result.reflection *= @splat(f * n_dot_wi * ep);
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;
@@ -861,16 +866,13 @@ pub const Sample = struct {
                     result,
                 );
 
-                const omf = 1.0 - f;
-
                 const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
-                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi)) * attenuation;
+                const omf = 1.0 - f;
+                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * attenuation;
                 result.pdf *= omf;
             }
-
-            result.reflection *= @splat(ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]));
         }
     }
 };
