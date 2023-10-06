@@ -11,7 +11,6 @@ const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
-const NullSample = @import("../scene/material/null/null_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
@@ -283,8 +282,33 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler) bool {
+        var sss_throughput: Vec4f = @splat(1.0);
+
         while (!self.interface_stack.empty()) {
-            if (vlhlp.integrate(vertex, throughput, sampler, self)) {
+            if (vlhlp.integrate(vertex, throughput * sss_throughput, sampler, self)) {
+                if (.Pass == vertex.isec.event) {
+                    const wo = -vertex.ray.direction;
+                    const material = vertex.isec.material(self.scene);
+                    const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
+
+                    if (!vertex.isec.subsurface() and straight_border and !vertex.isec.sameHemisphere(wo)) {
+                        const geo_n = vertex.isec.geo_n;
+                        const n = vertex.isec.n;
+
+                        const vbh = material.super().border(wo, n);
+                        const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
+                        const factor = nsc * vbh;
+
+                        sss_throughput *= vertex.isec.vol_tr * @as(Vec4f, @splat(factor));
+                        vertex.ray.setMinMaxT(vertex.isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
+                        vertex.depth += 1;
+                        sampler.incrementPadding();
+
+                        self.interface_stack.pop();
+                        continue;
+                    }
+                }
+
                 return true;
             }
 
@@ -299,7 +323,9 @@ pub const Worker = struct {
         vertex.ray.origin = origin;
         vertex.ray.setMaxT(dif_t + vertex.ray.maxT());
 
-        const volume_hit = self.scene.scatter(vertex, throughput, sampler, self);
+        const volume_hit = self.scene.scatter(vertex, throughput * sss_throughput, sampler, self);
+
+        vertex.isec.vol_tr *= sss_throughput;
 
         return hit or volume_hit;
     }
@@ -391,31 +417,6 @@ pub const Worker = struct {
         self.interface_stack.push(isec, cc);
 
         return ior;
-    }
-
-    pub fn sampleMaterial(
-        self: *const Worker,
-        vertex: *const Vertex,
-        sampler: *Sampler,
-        alpha: f32,
-        caustics: CausticsResolve,
-    ) MaterialSample {
-        const wo = -vertex.ray.direction;
-        const material = vertex.isec.material(self.scene);
-        const straight_border = vertex.state.from_subsurface;
-
-        if (!vertex.isec.subsurface() and straight_border and material.denseSSSOptimization() and !vertex.isec.sameHemisphere(wo)) {
-            const geo_n = vertex.isec.geo_n;
-            const n = vertex.isec.n;
-
-            const vbh = material.super().border(wo, n);
-            const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
-            const factor = nsc * vbh;
-
-            return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
-        }
-
-        return vertex.sample(wo, sampler, caustics, self);
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {

@@ -64,13 +64,9 @@ pub const Vertex = struct {
         };
     }
 
-    pub fn sample(
-        self: *const Self,
-        wo: Vec4f,
-        sampler: *Sampler,
-        caustics: CausticsResolve,
-        worker: *const Worker,
-    ) mat.Sample {
+    pub fn sample(self: *const Self, sampler: *Sampler, caustics: CausticsResolve, worker: *const Worker) mat.Sample {
+        const wo = -self.ray.direction;
+
         const m = self.isec.material(worker.scene);
         const p = self.isec.p;
         const b = self.isec.b;
