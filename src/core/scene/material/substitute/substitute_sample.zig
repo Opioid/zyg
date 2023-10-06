@@ -487,8 +487,11 @@ pub const Sample = struct {
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
+            const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+            const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
+
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * gg.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.reflection,
                 gg.pdf(),
             );
         }
@@ -735,7 +738,7 @@ pub const Sample = struct {
                     // which will ignore the border later.
                     // This will probably cause problems for shapes intersecting such materials.
                     const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
-                    const attenuation = self.coating.attenuation(0.5, coat_n_dot_wo);
+                    const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                     const omf = 1.0 - f;
                     result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi)) * attenuation;
