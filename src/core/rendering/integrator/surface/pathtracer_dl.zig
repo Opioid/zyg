@@ -75,7 +75,7 @@ pub const PathtracerDL = struct {
 
             const caustics = self.causticsResolve(vertex.state);
 
-            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
+            const mat_sample = vertex.sample(sampler, caustics, worker);
 
             if (worker.aov.active()) {
                 worker.commonAOV(throughput, vertex, &mat_sample);
@@ -105,9 +105,7 @@ pub const PathtracerDL = struct {
             old_throughput = throughput;
             throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.isec.depth += 1;
-            }
+            vertex.isec.depth += 1;
 
             if (sample_result.class.straight) {
                 vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);

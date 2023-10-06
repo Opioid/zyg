@@ -2,7 +2,6 @@ const Debug = @import("debug/debug_sample.zig").Sample;
 const Glass = @import("glass/glass_sample.zig").Sample;
 const Hair = @import("hair/hair_sample.zig").Sample;
 const Light = @import("light/light_sample.zig").Sample;
-const Null = @import("null/null_sample.zig").Sample;
 const Substitute = @import("substitute/substitute_sample.zig").Sample;
 const Volumetric = @import("volumetric/volumetric_sample.zig").Sample;
 const Base = @import("sample_base.zig").Base;
@@ -18,7 +17,6 @@ pub const Sample = union(enum) {
     Glass: Glass,
     Hair: Hair,
     Light: Light,
-    Null: Null,
     Substitute: Substitute,
     Volumetric: Volumetric,
 
@@ -52,7 +50,7 @@ pub const Sample = union(enum) {
 
     pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         return switch (self.*) {
-            .Light, .Null => bxdf.Result.init(@splat(0.0), 0.0),
+            .Light => bxdf.Result.init(@splat(0.0), 0.0),
             inline .Glass, .Substitute => |*s| s.evaluate(wi, split),
             inline else => |*s| s.evaluate(wi),
         };
@@ -63,10 +61,6 @@ pub const Sample = union(enum) {
             .Light => {
                 // buffer[0] = Light.sample();
                 return buffer[0..0];
-            },
-            .Null => |*s| {
-                buffer[0] = s.sample();
-                return buffer[0..1];
             },
             inline .Glass, .Substitute, .Volumetric => |*s| {
                 return s.sample(sampler, split, buffer);

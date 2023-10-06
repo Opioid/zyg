@@ -98,7 +98,7 @@ pub const Lighttracer = struct {
             const wo = -vertex.isec.ray.direction;
 
             var sampler = worker.pickSampler(vertex.isec.depth);
-            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, .Full);
+            const mat_sample = vertex.sample(sampler, .Full, worker);
 
             if (mat_sample.isPureEmissive()) {
                 break;
@@ -109,16 +109,13 @@ pub const Lighttracer = struct {
                 break;
             }
 
+            vertex.isec.depth += 1;
+
             if (sample_result.class.straight) {
                 vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
-
-                if (!sample_result.class.transmission) {
-                    vertex.isec.depth += 1;
-                }
             } else {
                 vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                vertex.isec.depth += 1;
 
                 if (!sample_result.class.specular and
                     (vertex.isec.hit.subsurface() or mat_sample.super().sameHemisphere(wo)) and

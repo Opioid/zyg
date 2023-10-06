@@ -73,7 +73,7 @@ pub const PathtracerMIS = struct {
 
                 const caustics = self.causticsResolve(vertex.state);
 
-                const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, caustics);
+                const mat_sample = vertex.sample(sampler, caustics, worker);
 
                 if (worker.aov.active()) {
                     worker.commonAOV(vertex.throughput, vertex, &mat_sample);
@@ -85,7 +85,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 // Only potentially split for SSS case or on the first bounce
-                const split = vertex.path_count < 2 and
+                const split = vertex.path_count <= 2 and
                     ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
                     (vertex.isec.depth < 2 and vertex.isec.hit.event != .Scatter));
 
@@ -125,9 +125,7 @@ pub const PathtracerMIS = struct {
                     next_vertex.throughput_old = next_vertex.throughput;
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                    if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                        next_vertex.isec.depth += 1;
-                    }
+                    next_vertex.isec.depth += 1;
 
                     if (sample_result.class.straight) {
                         next_vertex.isec.ray.setMinMaxT(next_vertex.isec.hit.offsetT(next_vertex.isec.ray.maxT()), ro.Ray_max_t);

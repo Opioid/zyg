@@ -66,8 +66,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.isec.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const mat_sample = vertex.sample(sampler, .Off, worker);
 
         if (worker.aov.active()) {
             worker.commonAOV(@splat(1.0), vertex, &mat_sample);
@@ -105,7 +104,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.isec.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const mat_sample = vertex.sample(sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
 
@@ -133,8 +132,7 @@ pub const AOV = struct {
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.isec.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const mat_sample = vertex.sample(sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
         const p = vertex.isec.hit.offsetP(n);
@@ -152,8 +150,7 @@ pub const AOV = struct {
 
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.isec.ray.direction;
-        const mat_sample = vertex.sample(wo, sampler, .Off, worker);
+        const mat_sample = vertex.sample(sampler, .Off, worker);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -170,7 +167,7 @@ pub const AOV = struct {
         while (true) : (i += 1) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
-            const mat_sample = worker.sampleMaterial(vertex, sampler, 0.0, .Off);
+            const mat_sample = vertex.sample(sampler, .Off, worker);
 
             if (mat_sample.isPureEmissive()) {
                 break;

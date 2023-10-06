@@ -163,13 +163,9 @@ pub const Vertex = struct {
         return ior;
     }
 
-    pub fn sample(
-        self: *const Self,
-        wo: Vec4f,
-        sampler: *Sampler,
-        caustics: CausticsResolve,
-        worker: *const Worker,
-    ) mat.Sample {
+    pub fn sample(self: *const Self, sampler: *Sampler, caustics: CausticsResolve, worker: *const Worker) mat.Sample {
+        const wo = -self.isec.ray.direction;
+
         const m = self.isec.hit.material(worker.scene);
         const p = self.isec.hit.p;
         const b = self.isec.hit.b;
