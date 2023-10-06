@@ -717,8 +717,16 @@ pub const Sample = struct {
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                     const reflection = @as(Vec4f, @splat(n_dot_wi)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
-                    result.reflection = reflection;
-                    result.pdf *= f * omcf;
+                    const coating = self.coating.evaluate(
+                        result.wi,
+                        self.super.wo,
+                        h,
+                        wo_dot_h,
+                        self.super.avoidCaustics(),
+                    );
+
+                    result.reflection = coating.attenuation * reflection + coating.reflection;
+                    result.pdf = (1.0 - cf) * (f * result.pdf) + cf * coating.pdf;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
                     const n_dot_wi = ggx.Iso.refractNoFresnel(
@@ -734,9 +742,6 @@ pub const Sample = struct {
                         result,
                     );
 
-                    // Approximating the full coating attenuation at entrance, for the benefit of SSS,
-                    // which will ignore the border later.
-                    // This will probably cause problems for shapes intersecting such materials.
                     const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
                     const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
