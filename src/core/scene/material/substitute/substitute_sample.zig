@@ -496,8 +496,11 @@ pub const Sample = struct {
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
+            const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+            const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
+
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * gg.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.reflection,
                 gg.pdf(),
             );
         }
@@ -787,8 +790,16 @@ pub const Sample = struct {
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                     const reflection = @as(Vec4f, @splat(n_dot_wi)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
-                    result.reflection = reflection;
-                    result.pdf *= f * omcf;
+                    const coating = self.coating.evaluate(
+                        result.wi,
+                        self.super.wo,
+                        h,
+                        wo_dot_h,
+                        self.super.avoidCaustics(),
+                    );
+
+                    result.reflection = coating.attenuation * reflection + coating.reflection;
+                    result.pdf = (1.0 - cf) * (f * result.pdf) + cf * coating.pdf;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
                     const n_dot_wi = ggx.Iso.refractNoFresnel(
@@ -804,11 +815,8 @@ pub const Sample = struct {
                         result,
                     );
 
-                    // Approximating the full coating attenuation at entrance, for the benefit of SSS,
-                    // which will ignore the border later.
-                    // This will probably cause problems for shapes intersecting such materials.
                     const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
-                    const attenuation = self.coating.attenuation(0.5, coat_n_dot_wo);
+                    const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                     const omf = 1.0 - f;
                     result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi)) * attenuation;

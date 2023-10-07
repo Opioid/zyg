@@ -86,7 +86,7 @@ pub const PathtracerMIS = struct {
 
                 // Only potentially split for SSS case or on the first bounce
                 const split = vertex.path_count <= 2 and
-                    ((vertex.isec.depth < 3 and !vertex.interfaces.empty()) or
+                    ((vertex.isec.depth < 2 and !vertex.interfaces.empty()) or
                     (vertex.isec.depth < 2 and vertex.isec.hit.event != .Scatter));
 
                 //  const split = false;

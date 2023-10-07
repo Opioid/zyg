@@ -265,10 +265,10 @@ pub const Worker = struct {
                     if (vlhlp.propTransmittance(tray, material, cc, prop, isec.depth, sampler, self)) |tr| {
                         const wi = isec.ray.direction;
                         const n = isec.hit.n;
-                        const vbh = material.super().border(wi, n);
-                        const nsc = subsurfaceNonSymmetryCompensation(wi, isec.hit.geo_n, n);
+                        const vbh = material.border(wi, n);
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, isec.hit.geo_n, n));
 
-                        return @as(Vec4f, @splat(vbh * nsc)) * tv * tr;
+                        return (vbh * nsc) * (tv * tr);
                     }
                 }
 
@@ -293,13 +293,14 @@ pub const Worker = struct {
                         const geo_n = vertex.isec.hit.geo_n;
                         const n = vertex.isec.hit.n;
 
-                        const vbh = material.super().border(wo, n);
-                        const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
-                        const factor = nsc * vbh;
+                        const vbh = material.border(wo, n);
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
+                        const weight = nsc * vbh;
 
-                        sss_throughput *= vertex.isec.hit.vol_tr * @as(Vec4f, @splat(factor));
+                        sss_throughput *= vertex.isec.hit.vol_tr * weight;
                         vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
                         vertex.isec.depth += 1;
+
                         sampler.incrementPadding();
 
                         vertex.interfaces.pop();
