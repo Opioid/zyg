@@ -393,7 +393,7 @@ pub const Worker = struct {
     }
 
     inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @fabs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
+        return @abs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
@@ -409,10 +409,10 @@ pub const Worker = struct {
 
         // Compute uv offsets at offset-ray isec points
         // Choose two dimensions to use for ray offset computations
-        const dim = if (@fabs(n[0]) > @fabs(n[1]) and @fabs(n[0]) > @fabs(n[2])) Vec2b{
+        const dim = if (@abs(n[0]) > @abs(n[1]) and @abs(n[0]) > @abs(n[2])) Vec2b{
             1,
             2,
-        } else if (@fabs(n[1]) > @fabs(n[2])) Vec2b{
+        } else if (@abs(n[1]) > @abs(n[2])) Vec2b{
             0,
             2,
         } else Vec2b{
@@ -428,7 +428,7 @@ pub const Worker = struct {
 
         const det = a[0][0] * a[1][1] - a[0][1] * a[1][0];
 
-        if (@fabs(det) < 1.0e-10) {
+        if (@abs(det) < 1.0e-10) {
             return @splat(0.0);
         }
 

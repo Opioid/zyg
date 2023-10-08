@@ -113,7 +113,7 @@ pub const Perspective = struct {
         const nlb = left_bottom / @as(Vec4f, @splat(z));
         const nrt = right_top / @as(Vec4f, @splat(z));
 
-        self.a = @fabs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
+        self.a = @abs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
 
         self.updateFocus(time, scene);
     }

@@ -35,7 +35,7 @@ pub const Cube = struct {
         isec.p = ray.point(hit_t);
 
         const local_p = local_ray.point(hit_t);
-        const distance = @fabs(@as(Vec4f, @splat(1.0)) - @fabs(local_p));
+        const distance = @abs(@as(Vec4f, @splat(1.0)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);

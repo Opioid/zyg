@@ -213,7 +213,7 @@ pub const Sample = struct {
             std.mem.swap(f32, &eta_i, &eta_t);
         }
 
-        const n_dot_wo = math.min(@fabs(math.dot3(n, wo)), 1.0);
+        const n_dot_wo = math.min(@abs(math.dot3(n, wo)), 1.0);
         const eta = eta_i / eta_t;
         const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 
@@ -252,7 +252,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const n = self.super.frame.n;
 
-        const n_dot_wo = math.min(@fabs(math.dot3(n, wo)), 1.0);
+        const n_dot_wo = math.min(@abs(math.dot3(n, wo)), 1.0);
         const eta = eta_i / eta_t;
         const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 

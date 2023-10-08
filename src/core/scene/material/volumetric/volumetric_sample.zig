@@ -54,7 +54,7 @@ pub const Sample = struct {
             const r2 = sampler.sample2D();
 
             var cos_theta: f32 = undefined;
-            if (@fabs(g) < 0.001) {
+            if (@abs(g) < 0.001) {
                 cos_theta = 1.0 - 2.0 * r2[0];
             } else {
                 const gg = g * g;
@@ -72,7 +72,7 @@ pub const Sample = struct {
             buffer[i] = .{
                 .reflection = @splat(phase),
                 .wi = wi,
-                .pdf = phase, // * @as(f32, @floatFromInt(num)),
+                .pdf = phase,
                 .split_weight = split_weight,
                 .wavelength = 0.0,
                 .class = .{ .diffuse = true, .reflection = true },

@@ -333,7 +333,7 @@ pub const Part = struct {
             const x = b - a;
             const y = c - a;
 
-            return 0.5 * @fabs(x[0] * y[1] - x[1] * y[0]);
+            return 0.5 * @abs(x[0] * y[1] - x[1] * y[0]);
         }
     };
 
@@ -636,7 +636,7 @@ pub const Mesh = struct {
         var c = -math.dot3(isec.geo_n, ray.direction);
 
         if (two_sided) {
-            c = @fabs(c);
+            c = @abs(c);
         }
 
         const sl = ray.maxT() * ray.maxT();
@@ -713,10 +713,10 @@ pub const Mesh = struct {
         const dp02 = puv.p[0] - puv.p[2];
         const dp12 = puv.p[1] - puv.p[2];
 
-        if (0.0 == @fabs(determinant)) {
+        if (0.0 == @abs(determinant)) {
             const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
 
-            if (@fabs(ng[0]) > @fabs(ng[1])) {
+            if (@abs(ng[0]) > @abs(ng[1])) {
                 dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
             } else {
                 dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));

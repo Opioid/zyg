@@ -409,7 +409,7 @@ pub const Material = struct {
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
         // filter kernel
-        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @as(Vec2f, @splat(0.0001));
+        const w = math.max2(@abs(ddx), @abs(ddy)) + @as(Vec2f, @splat(0.0001));
 
         // analytical integral (box filter)
         const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
@@ -422,6 +422,6 @@ pub const Material = struct {
     fn tri(x: Vec2f) Vec2f {
         const hx = math.frac(x[0] * 0.5) - 0.5;
         const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{ 1.0 - 2.0 * @fabs(hx), 1.0 - 2.0 * @fabs(hy) };
+        return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
     }
 };

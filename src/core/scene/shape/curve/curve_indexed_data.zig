@@ -350,7 +350,7 @@ pub const IndexedData = struct {
     fn refinementDepth(cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) u32 {
         var l: f32 = 0.0;
         for (0..2) |i| {
-            const v = @fabs(cp[i] - @as(Vec4f, @splat(2.0)) * cp[i + 1] + cp[i + 2]);
+            const v = @abs(cp[i] - @as(Vec4f, @splat(2.0)) * cp[i + 1] + cp[i + 2]);
             l = math.max(l, math.hmax3(v));
         }
 
