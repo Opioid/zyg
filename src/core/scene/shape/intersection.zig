@@ -97,7 +97,7 @@ pub const Intersection = struct {
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.p;
         const n = self.geo_n;
-        const t = math.hmax3(@fabs(p * n));
+        const t = math.hmax3(@abs(p * n));
         return ro.offsetF(t + min_t) - t + self.offset();
     }
 };

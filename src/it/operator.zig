@@ -84,7 +84,7 @@ pub const Operator = struct {
                     const color_a = texture_a.get2D_4(ix, iy, self.scene);
                     const color_b = texture_b.get2D_4(ix, iy, self.scene);
 
-                    const dif = @fabs(color_a - color_b);
+                    const dif = @abs(color_a - color_b);
 
                     self.target.set2D(ix, iy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
                 }

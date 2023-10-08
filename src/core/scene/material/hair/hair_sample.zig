@@ -145,7 +145,7 @@ pub const Sample = struct {
             }
 
             // Handle out-of-range cos_thetap_o from scale adjustment
-            cos_thetap_o = @fabs(cos_thetap_o);
+            cos_thetap_o = @abs(cos_thetap_o);
 
             const tmp = mp(cos_theta_i, cos_thetap_o, sin_theta_i, sin_thetap_o, v[@min(p, 2)]);
             const tnp = np(phi, @floatFromInt(p), s, gamma_o, gamma_t);
@@ -206,7 +206,7 @@ pub const Sample = struct {
         }
 
         // Handle out-of-range cos_thetap_o from scale adjustment
-        cos_thetap_o = @fabs(cos_thetap_o);
+        cos_thetap_o = @abs(cos_thetap_o);
 
         const s3d = sampler.sample3D();
 
@@ -331,7 +331,7 @@ pub const Sample = struct {
     }
 
     fn logistic(x: f32, s: f32) f32 {
-        const ax = @fabs(x);
+        const ax = @abs(x);
         return @exp(-ax / s) / (s * math.pow2(1.0 + @exp(-ax / s)));
     }
 

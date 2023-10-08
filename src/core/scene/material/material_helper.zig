@@ -43,7 +43,7 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
 
     var tangent: Vec4f = undefined;
     if (b > epsilon) {
-        const distance_to_surface_along_normal = @fabs(a) / b;
+        const distance_to_surface_along_normal = @abs(a) / b;
         tangent = math.normalize3(r + @as(Vec4f, @splat(distance_to_surface_along_normal)) * n);
     } else {
         // For small 'b' (especially when it's zero) it's numerically challenging to compute 'tangent' as we do above.
@@ -61,14 +61,14 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
     // See e.g. CorrectShadingNormal() at:
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
 
-    const numer = @fabs(math.dot3(wi, geo_n) * math.dot3(wo, n));
-    const denom = math.max(@fabs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
+    const numer = @abs(math.dot3(wi, geo_n) * math.dot3(wo, n));
+    const denom = math.max(@abs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
 
     return numer / denom;
 }
 
 pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
-    const an = @fabs(n);
+    const an = @abs(n);
     if (an[0] > an[1] and an[0] > an[2]) {
         const sign = std.math.copysign(@as(f32, 1.0), p[0]);
         return .{ math.frac(sign * p[1] + 0.5), math.frac(p[2] + 0.5) };

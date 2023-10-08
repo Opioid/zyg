@@ -46,7 +46,7 @@ pub const Sample = struct {
         const g = self.anisotropy;
 
         var cos_theta: f32 = undefined;
-        if (@fabs(g) < 0.001) {
+        if (@abs(g) < 0.001) {
             cos_theta = 1.0 - 2.0 * r2[0];
         } else {
             const gg = g * g;

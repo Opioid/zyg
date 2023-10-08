@@ -577,7 +577,7 @@ pub const Builder = struct {
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();
             dest.meta.two_sided = source.two_sided;
-            dest.meta.children_or_light = @as(u30, @intCast(source.children_or_light));
+            dest.meta.children_or_light = @intCast(source.children_or_light);
             dest.num_lights = source.num_lights;
 
             node_middles[i] = source.middle;
@@ -600,7 +600,7 @@ pub const Builder = struct {
             }
         }
 
-        return @fabs(aps - ap * ap);
+        return @abs(aps - ap * ap);
     }
 
     fn evaluateSplits(

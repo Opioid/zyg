@@ -35,7 +35,7 @@ pub const Mesh = struct {
 
             const geo_n = trafo.objectToWorldNormal(data.geo_n);
 
-            const offset = @fabs(data.v - 0.5) * trafo.scaleX() * data.width;
+            const offset = @abs(data.v - 0.5) * trafo.scaleX() * data.width;
 
             isec.p = ray.point(hit.t);
             isec.t = t;

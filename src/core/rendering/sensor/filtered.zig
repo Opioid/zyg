@@ -429,7 +429,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         fn eval(self: *const Self, s: f32) f32 {
-            return self.filter.eval(@fabs(s));
+            return self.filter.eval(@abs(s));
         }
 
         fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {

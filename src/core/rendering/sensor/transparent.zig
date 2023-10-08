@@ -79,7 +79,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = self.pixel_weights[j];
-            const color = @fabs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
+            const color = @abs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
             target[j].v = color;
         }
     }
@@ -89,7 +89,7 @@ pub const Transparent = struct {
         for (self.pixels[begin..end], 0..) |p, i| {
             const j = i + begin;
             const weight = weights[j];
-            const color = @fabs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
+            const color = @abs(@as(Vec4f, p.v) / @as(Vec4f, @splat(weight)));
             const tm = tonemapper.tonemap(color);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], color[3] };
         }
@@ -102,7 +102,7 @@ pub const Transparent = struct {
             const weight = weights[j];
             const color = @as(Vec4f, p.v) / @as(Vec4f, @splat(weight));
             const old = target[j];
-            const combined = @fabs(color + @as(Vec4f, old.v));
+            const combined = @abs(color + @as(Vec4f, old.v));
             const tm = tonemapper.tonemap(combined);
             target[j].v = Vec4f{ tm[0], tm[1], tm[2], combined[3] };
         }
