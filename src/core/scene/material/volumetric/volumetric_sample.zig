@@ -45,7 +45,8 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const tb = math.orthonormalBasis3(wo);
 
-        const num: u32 = if (split) 2 else 1;
+        _ = split;
+        const num: u32 = 1; //if (split) 2 else 1;
 
         const split_weight = 1.0 / @as(f32, @floatFromInt(num));
 
