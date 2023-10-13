@@ -218,30 +218,15 @@ pub fn allFinite3(v: Vec4f) bool {
 }
 
 pub inline fn vec4fTo4i(v: Vec4f) Vec4i {
-    return .{
-        @intFromFloat(v[0]),
-        @intFromFloat(v[1]),
-        @intFromFloat(v[2]),
-        @intFromFloat(v[3]),
-    };
+    return @intFromFloat(v);
 }
 
 pub inline fn vec4iTo4f(v: Vec4i) Vec4f {
-    return .{
-        @floatFromInt(v[0]),
-        @floatFromInt(v[1]),
-        @floatFromInt(v[2]),
-        @floatFromInt(v[3]),
-    };
+    return @floatFromInt(v);
 }
 
 pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
-    return .{
-        @floatFromInt(v[0]),
-        @floatFromInt(v[1]),
-        @floatFromInt(v[2]),
-        @floatFromInt(v[3]),
-    };
+    return @floatFromInt(v);
 }
 
 pub inline fn vec4iTo4u(v: Vec4i) Vec4u {
@@ -262,12 +247,7 @@ pub inline fn vec3bTo4f(v: Pack3b) Vec4f {
 }
 
 pub inline fn vec4bTo4f(v: Vec4b) Vec4f {
-    return .{
-        @floatFromInt(v[0]),
-        @floatFromInt(v[1]),
-        @floatFromInt(v[2]),
-        @floatFromInt(v[3]),
-    };
+    return @floatFromInt(v);
 }
 
 pub inline fn vec4fTo3f(v: Vec4f) Pack3f {
@@ -300,12 +280,7 @@ pub inline fn vec4fTo4h(v: Vec4f) Pack4h {
 }
 
 pub inline fn vec4fTo4b(v: Vec4f) Vec4b {
-    return .{
-        @intFromFloat(v[0]),
-        @intFromFloat(v[1]),
-        @intFromFloat(v[2]),
-        @intFromFloat(v[3]),
-    };
+    return @intFromFloat(v);
 }
 
 pub inline fn vec3hTo4f(v: Pack3h) Vec4f {
