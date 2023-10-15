@@ -166,7 +166,7 @@ pub const Sample = struct {
         return bxdf.Result.init(fsum, pdf_sum);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         const sin_theta_o = self.sin_theta_o;
         const cos_theta_o = self.cos_theta_o;
         const phi_o = self.phi_o;
@@ -231,7 +231,7 @@ pub const Sample = struct {
 
         const er = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
 
-        result.* = .{
+        return .{
             .reflection = er.reflection,
             .wi = wi,
             .pdf = er.pdf(),

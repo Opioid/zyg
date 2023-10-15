@@ -29,7 +29,7 @@ pub const Sample = struct {
         return bxdf.Result.init(reflection, pdf);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
+    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
         const s2d = sampler.sample2D();
 
         const is = math.smpl.hemisphereCosine(s2d);
@@ -40,7 +40,7 @@ pub const Sample = struct {
 
         const reflection = @as(Vec4f, @splat(pdf)) * self.super.albedo;
 
-        result.* = .{
+        return .{
             .reflection = reflection,
             .wi = wi,
             .pdf = pdf,

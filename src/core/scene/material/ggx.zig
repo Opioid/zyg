@@ -92,8 +92,6 @@ pub const Iso = struct {
         const g = visibilityAndG1Wo(n_dot_wi, n_dot_wo, alpha2);
         const f = fresnel.f(wo_dot_h);
 
-        //   fresnel_result.* = f;
-
         const refl = @as(Vec4f, @splat(d * g[0])) * f;
         const pdf = pdfVisible(d, g[1]);
 
@@ -130,7 +128,7 @@ pub const Iso = struct {
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
 
-    pub fn refraction(
+    pub fn refractionF(
         n_dot_wi: f32,
         n_dot_wo: f32,
         wi_dot_h: f32,
@@ -139,7 +137,7 @@ pub const Iso = struct {
         alpha: f32,
         ior: IoR,
         fresnel: anytype,
-    ) bxdf.Result {
+    ) ResultF {
         const alpha2 = alpha * alpha;
 
         const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
@@ -161,7 +159,7 @@ pub const Iso = struct {
 
         const pdf = pdfVisibleRefract(n_dot_wo, abs_wo_dot_h, d, alpha2);
 
-        return bxdf.Result.init(@splat(refl), pdf * f * (abs_wi_dot_h * sqr_eta_t / denom));
+        return .{ .r = bxdf.Result.init(@splat(refl), pdf * (abs_wi_dot_h * sqr_eta_t / denom)), .f = @splat(f) };
     }
 
     pub fn reflectNoFresnel(

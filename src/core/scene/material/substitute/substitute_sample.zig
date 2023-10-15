@@ -483,7 +483,7 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick.init(self.f0);
 
-            const gg = ggx.Iso.refraction(
+            const gg = ggx.Iso.refractionF(
                 n_dot_wi,
                 n_dot_wo,
                 wi_dot_h,
@@ -499,9 +499,11 @@ pub const Sample = struct {
             const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
             const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
+            const split_pdf = if (split) 1.0 else gg.f[0];
+
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.reflection,
-                gg.pdf(),
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.r.reflection,
+                split_pdf * gg.r.pdf(),
             );
         }
 

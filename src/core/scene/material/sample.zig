@@ -59,14 +59,13 @@ pub const Sample = union(enum) {
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         return switch (self.*) {
             .Light => {
-                // buffer[0] = Light.sample();
                 return buffer[0..0];
             },
-            inline .Glass, .Substitute, .Volumetric => |*s| {
+            inline .Glass, .Substitute => |*s| {
                 return s.sample(sampler, split, buffer);
             },
             inline else => |*s| {
-                s.sample(sampler, &buffer[0]);
+                buffer[0] = s.sample(sampler);
                 return buffer[0..1];
             },
         };

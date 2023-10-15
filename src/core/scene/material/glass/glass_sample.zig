@@ -102,7 +102,7 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick.init(@splat(self.f0));
 
-            const gg = ggx.Iso.refraction(
+            const gg = ggx.Iso.refractionF(
                 n_dot_wi,
                 n_dot_wo,
                 wi_dot_h,
@@ -115,9 +115,11 @@ pub const Sample = struct {
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
+            const split_pdf = if (split) 1.0 else gg.f[0];
+
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.reflection,
-                gg.pdf(),
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.r.reflection,
+                split_pdf * gg.r.pdf(),
             );
         } else {
             const n_dot_wi = frame.clampNdot(wi);
@@ -229,6 +231,11 @@ pub const Sample = struct {
 
         if (split) {
             buffer[0] = reflect(weight, wo, n, n_dot_wo, wavelength, f);
+
+            if (1.0 == f) {
+                return buffer[0..1];
+            }
+
             buffer[1] = thickRefract(weight, wo, n, n_dot_wo, n_dot_t, eta, wavelength, 1.0 - f);
 
             return buffer[0..2];
@@ -358,6 +365,11 @@ pub const Sample = struct {
                 buffer[0].split_weight = f;
                 buffer[0].wavelength = wavelength;
             }
+
+            if (1.0 == f) {
+                return buffer[0..1];
+            }
+
             {
                 const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
                 const n_dot_wi = ggx.Iso.refractNoFresnel(
