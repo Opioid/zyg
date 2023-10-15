@@ -82,9 +82,7 @@ pub const PathtracerDL = struct {
             }
 
             const sample_result = sample_results[0];
-            if (math.allLessEqualZero3(sample_result.reflection) or
-                (sample_result.class.specular and .Full != caustics))
-            {
+            if (sample_result.class.specular and .Full != caustics) {
                 break;
             }
 

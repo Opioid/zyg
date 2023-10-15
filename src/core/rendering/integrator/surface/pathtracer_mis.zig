@@ -42,8 +42,6 @@ pub const PathtracerMIS = struct {
         var vertices: VertexPool = .{};
         vertices.start(input.*);
 
-        var bxdf_samples: bxdf.Samples = undefined;
-
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
                 var sampler = worker.pickSampler(vertex.isec.depth);
@@ -85,23 +83,20 @@ pub const PathtracerMIS = struct {
 
                 result += vertex.throughput * split_weight * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
+                var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    if (math.allLessEqualZero3(sample_result.reflection) or
-                        (sample_result.class.specular and .Full != caustics))
-                    {
+                    if (sample_result.class.specular and .Full != caustics) {
                         continue;
                     }
 
-                    const next_path_count = vertex.path_count * path_count;
-                    const next_split_weight = vertex.split_weight * sample_result.split_weight;
+                    var next_vertex = vertices.new();
 
-                    var next_vertex = vertices.new(vertex.*);
-
-                    next_vertex.path_count = next_path_count;
-                    next_vertex.split_weight = next_split_weight;
+                    next_vertex.* = vertex.*;
+                    next_vertex.path_count = vertex.path_count * path_count;
+                    next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
                     if (sample_result.class.specular) {
                         next_vertex.state.treat_as_singular = true;
@@ -146,9 +141,6 @@ pub const PathtracerMIS = struct {
                 sampler.incrementPadding();
             }
         }
-
-        // return hlp.composeAlpha(result, throughput, vertex.state.direct);
-        //    return hlp.composeAlpha(result, @splat(1.0), false);
 
         return .{ result[0], result[1], result[2], vertices.alpha };
     }

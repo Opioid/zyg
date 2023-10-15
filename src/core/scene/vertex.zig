@@ -252,13 +252,12 @@ pub const Pool = struct {
         return null;
     }
 
-    pub fn new(self: *Pool, vertex: Vertex) *Vertex {
+    pub fn new(self: *Pool) *Vertex {
         self.terminated[self.current_id - 1] = false;
 
         const end = self.next_end;
         self.next_end += 1;
 
-        self.buffer[end] = vertex;
         return &self.buffer[end];
     }
 };
