@@ -62,9 +62,8 @@ pub const Pathtracer = struct {
             }
 
             if (vertex.isec.depth >= self.settings.min_bounces) {
-                if (hlp.russianRoulette(&throughput, old_throughput, sampler.sample1D())) {
-                    break;
-                }
+                const rr = hlp.russianRoulette(throughput, old_throughput, sampler.sample1D()) orelse break;
+                throughput /= @splat(rr);
             }
 
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);

@@ -64,9 +64,8 @@ pub const PathtracerMIS = struct {
                 }
 
                 if (vertex.isec.depth >= self.settings.min_bounces) {
-                    if (hlp.russianRoulette(&vertex.throughput, vertex.throughput_old, sampler.sample1D())) {
-                        continue;
-                    }
+                    const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
+                    vertex.throughput /= @splat(rr);
                 }
 
                 const caustics = self.causticsResolve(vertex.state);
