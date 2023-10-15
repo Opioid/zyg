@@ -56,9 +56,8 @@ pub const PathtracerMIS = struct {
 
                 const radiance = self.connectLight(vertex, sampler, worker.scene);
 
-                const vertex_weight = vertex.throughput * @as(Vec4f, @splat(vertex.split_weight));
-
-                result += vertex_weight * radiance;
+                const split_weight: Vec4f = @splat(vertex.split_weight);
+                result += vertex.throughput * split_weight * radiance;
 
                 if (vertex.isec.depth >= max_bounces or .Absorb == vertex.isec.hit.event) {
                     continue;
@@ -80,13 +79,12 @@ pub const PathtracerMIS = struct {
 
                 const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
                 if (gather_photons and vertex.state.primary_ray and mat_sample.canEvaluate() and (self.settings.photons_not_only_through_specular or indirect)) {
-                    worker.addPhoton(vertex_weight * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
+                    worker.addPhoton(vertex.throughput * split_weight * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
                 }
 
-                // Only potentially split for SSS case or on the first bounce
                 const split = vertex.path_count <= 2 and vertex.state.primary_ray;
 
-                result += vertex_weight * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
+                result += vertex.throughput * split_weight * self.sampleLights(vertex, &mat_sample, split, sampler, worker);
 
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
