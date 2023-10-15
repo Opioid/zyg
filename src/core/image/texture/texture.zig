@@ -68,7 +68,7 @@ pub const Texture = struct {
 
         return switch (self.type) {
             .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
-            .Half1 => @as(f32, @floatCast(image.Half1.get2D(x, y))),
+            .Half1 => @floatCast(image.Half1.get2D(x, y)),
             .Float1 => image.Float1.get2D(x, y),
             else => 0.0,
         };
@@ -100,9 +100,9 @@ pub const Texture = struct {
             .Half3 => {
                 const value = image.Half3.get2D(x, y);
                 return .{
-                    @as(f32, @floatCast(value.v[0])),
-                    @as(f32, @floatCast(value.v[1])),
-                    @as(f32, @floatCast(value.v[2])),
+                    @floatCast(value.v[0]),
+                    @floatCast(value.v[1]),
+                    @floatCast(value.v[2]),
                     0.0,
                 };
             },
@@ -130,9 +130,9 @@ pub const Texture = struct {
             .Half3 => {
                 const value = image.Half3.get2D(x, y);
                 return .{
-                    @as(f32, @floatCast(value.v[0])),
-                    @as(f32, @floatCast(value.v[1])),
-                    @as(f32, @floatCast(value.v[2])),
+                    @floatCast(value.v[0]),
+                    @floatCast(value.v[1]),
+                    @floatCast(value.v[2]),
                     1.0,
                 };
             },
@@ -143,10 +143,10 @@ pub const Texture = struct {
             .Half4 => {
                 const value = image.Half4.get2D(x, y);
                 return .{
-                    @as(f32, @floatCast(value.v[0])),
-                    @as(f32, @floatCast(value.v[1])),
-                    @as(f32, @floatCast(value.v[2])),
-                    @as(f32, @floatCast(value.v[3])),
+                    @floatCast(value.v[0]),
+                    @floatCast(value.v[1]),
+                    @floatCast(value.v[2]),
+                    @floatCast(value.v[3]),
                 };
             },
             .Float4 => {
