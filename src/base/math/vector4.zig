@@ -230,7 +230,7 @@ pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
 }
 
 pub inline fn vec4iTo4u(v: Vec4i) Vec4u {
-    return @as(Vec4u, @bitCast(v));
+    return @bitCast(v);
 }
 
 pub inline fn vec3fTo4f(v: Pack3f) Vec4f {
