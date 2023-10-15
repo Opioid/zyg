@@ -9,16 +9,6 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f) Sample {
-        return .{ .super = Base.init(
-            rs,
-            wo,
-            @splat(0.0),
-            @splat(1.0),
-            0.0,
-        ) };
+        return .{ .super = Base.initN(wo, rs.geo_n) };
     }
-
-    // pub fn sample(result: *bxdf.Sample) void {
-    //     return .{ .split_weight = 1.0, .wavelength = 0.0 };
-    // }
 };

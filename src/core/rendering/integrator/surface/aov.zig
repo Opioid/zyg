@@ -169,10 +169,6 @@ pub const AOV = struct {
 
             const mat_sample = vertex.sample(sampler, .Off, worker);
 
-            if (mat_sample.isPureEmissive()) {
-                break;
-            }
-
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;

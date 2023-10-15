@@ -45,19 +45,9 @@ pub const Pathtracer = struct {
 
             const wo = -vertex.isec.ray.direction;
 
-            var pure_emissive: bool = undefined;
-            const energy: Vec4f = vertex.isec.evaluateRadiance(
-                wo,
-                sampler,
-                worker.scene,
-                &pure_emissive,
-            ) orelse @splat(0.0);
+            const energy: Vec4f = vertex.isec.evaluateRadiance(wo, sampler, worker.scene) orelse @splat(0.0);
 
             result += throughput * energy;
-
-            if (pure_emissive) {
-                break;
-            }
 
             const caustics = self.causticsResolve(vertex.state);
 
@@ -67,7 +57,7 @@ pub const Pathtracer = struct {
                 worker.commonAOV(throughput, vertex, &mat_sample);
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces) {
+            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == vertex.isec.hit.event) {
                 break;
             }
 

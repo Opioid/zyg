@@ -144,10 +144,6 @@ pub const Mapper = struct {
 
                 const mat_sample = vertex.sample(&self.sampler, .Full, worker);
 
-                if (mat_sample.isPureEmissive()) {
-                    break;
-                }
-
                 const sample_result = mat_sample.sample(&self.sampler, false, &bxdf_samples)[0];
                 if (0.0 == sample_result.pdf) {
                     break;

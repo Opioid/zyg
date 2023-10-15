@@ -43,18 +43,10 @@ pub const Vertex = struct {
             };
         }
 
-        pub fn evaluateRadiance(
-            self: *const Intersector,
-            wo: Vec4f,
-            sampler: *Sampler,
-            scene: *const Scene,
-            pure_emissive: *bool,
-        ) ?Vec4f {
+        pub fn evaluateRadiance(self: *const Intersector, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
             const m = self.hit.material(scene);
 
             const volume = self.hit.event;
-
-            pure_emissive.* = m.pureEmissive() or .Absorb == volume;
 
             if (.Absorb == volume) {
                 return self.hit.vol_li;

@@ -54,14 +54,13 @@ pub const PathtracerMIS = struct {
 
                 vertex.throughput *= vertex.isec.hit.vol_tr;
 
-                var pure_emissive: bool = undefined;
-                const radiance = self.connectLight(vertex, sampler, worker.scene, &pure_emissive);
+                const radiance = self.connectLight(vertex, sampler, worker.scene);
 
                 const vertex_weight = vertex.throughput * @as(Vec4f, @splat(vertex.split_weight));
 
                 result += vertex_weight * radiance;
 
-                if (pure_emissive or vertex.isec.depth >= max_bounces) {
+                if (vertex.isec.depth >= max_bounces or .Absorb == vertex.isec.hit.event) {
                     continue;
                 }
 
@@ -227,20 +226,9 @@ pub const PathtracerMIS = struct {
         return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
     }
 
-    fn connectLight(
-        self: *const Self,
-        vertex: *const Vertex,
-        sampler: *Sampler,
-        scene: *const Scene,
-        pure_emissive: *bool,
-    ) Vec4f {
+    fn connectLight(self: *const Self, vertex: *const Vertex, sampler: *Sampler, scene: *const Scene) Vec4f {
         const wo = -vertex.isec.ray.direction;
-        const energy = vertex.isec.evaluateRadiance(
-            wo,
-            sampler,
-            scene,
-            pure_emissive,
-        ) orelse return @splat(0.0);
+        const energy = vertex.isec.evaluateRadiance(wo, sampler, scene) orelse return @splat(0.0);
 
         const light_id = vertex.isec.hit.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {

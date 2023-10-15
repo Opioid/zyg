@@ -26,13 +26,6 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn isPureEmissive(self: *const Sample) bool {
-        return switch (self.*) {
-            .Light => true,
-            else => false,
-        };
-    }
-
     pub fn isTranslucent(self: *const Sample) bool {
         return self.super().properties.translucent;
     }

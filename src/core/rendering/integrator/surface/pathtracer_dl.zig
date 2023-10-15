@@ -51,19 +51,13 @@ pub const PathtracerDL = struct {
 
             const wo = -vertex.isec.ray.direction;
 
-            var pure_emissive: bool = undefined;
-            const energy: Vec4f = vertex.isec.evaluateRadiance(
-                wo,
-                sampler,
-                worker.scene,
-                &pure_emissive,
-            ) orelse @splat(0.0);
+            const energy: Vec4f = vertex.isec.evaluateRadiance(wo, sampler, worker.scene) orelse @splat(0.0);
 
             if (vertex.state.treat_as_singular or !Light.isLight(vertex.isec.hit.lightId(worker.scene))) {
                 result += throughput * energy;
             }
 
-            if (pure_emissive or vertex.isec.depth >= self.settings.max_bounces) {
+            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == vertex.isec.hit.event) {
                 break;
             }
 

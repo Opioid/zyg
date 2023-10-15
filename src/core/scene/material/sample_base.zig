@@ -129,13 +129,13 @@ pub const Base = struct {
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) Self {
+    pub fn initN(wo: Vec4f, n: Vec4f) Self {
         return .{
-            .geo_n = geo_n,
+            .geo_n = n,
             .n = n,
             .wo = wo,
-            .albedo = @splat(factor),
-            .alpha = @splat(alpha),
+            .albedo = @splat(0.0),
+            .alpha = @splat(0.0),
             .thickness = 0.0,
             .properties = .{ .can_evaluate = false },
         };

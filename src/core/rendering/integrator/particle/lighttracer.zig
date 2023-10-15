@@ -100,10 +100,6 @@ pub const Lighttracer = struct {
             var sampler = worker.pickSampler(vertex.isec.depth);
             const mat_sample = vertex.sample(sampler, .Full, worker);
 
-            if (mat_sample.isPureEmissive()) {
-                break;
-            }
-
             const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
             if (0.0 == sample_result.pdf) {
                 break;
