@@ -195,7 +195,7 @@ pub const Pool = struct {
     const Num_vertices = 4;
 
     buffer: [2 * Num_vertices]Vertex = undefined,
-    terminated: [2 * Num_vertices]bool = undefined,
+    terminated: u32 = undefined,
 
     current_id: u32 = undefined,
     current_start: u32 = undefined,
@@ -217,11 +217,16 @@ pub const Pool = struct {
 
     pub fn iterate(self: *Pool) bool {
         const old_end = self.current_end;
-        var i: u32 = self.current_start;
+        var i = self.current_start;
         while (i < old_end) : (i += 1) {
-            if (self.terminated[i]) {
+            const mask = @as(u32, 1) << @as(u5, @truncate(i));
+            if (0 != (self.terminated & mask)) {
                 const v = &self.buffer[i];
-                self.alpha += math.max(if (v.state.transparent) (1.0 - math.average3(v.throughput)) * v.split_weight else v.split_weight, 0.0);
+                if (v.state.transparent) {
+                    self.alpha += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
+                } else {
+                    self.alpha += v.split_weight;
+                }
             }
         }
 
@@ -244,7 +249,8 @@ pub const Pool = struct {
         self.current_id += 1;
 
         if (id < self.current_end) {
-            self.terminated[id] = true;
+            const mask = @as(u32, 1) << @as(u5, @truncate(id));
+            self.terminated |= mask;
 
             return &self.buffer[id];
         }
@@ -253,7 +259,8 @@ pub const Pool = struct {
     }
 
     pub fn new(self: *Pool) *Vertex {
-        self.terminated[self.current_id - 1] = false;
+        const mask = @as(u32, 1) << @as(u5, @truncate(self.current_id - 1));
+        self.terminated &= ~mask;
 
         const end = self.next_end;
         self.next_end += 1;

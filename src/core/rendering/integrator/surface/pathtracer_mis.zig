@@ -127,7 +127,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.geo_n = mat_sample.super().geometricNormal();
                     }
 
-                    if (0.0 == vertex.isec.wavelength) {
+                    if (0.0 == next_vertex.isec.wavelength) {
                         next_vertex.isec.wavelength = sample_result.wavelength;
                     }
 
