@@ -1,6 +1,7 @@
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Frame = @import("sample_base.zig").Frame;
+const ggx = @import("ggx.zig");
 const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 
@@ -57,7 +58,7 @@ pub const Micro = struct {
         alpha: f32,
         xi: Vec2f,
         result: *bxdf.Sample,
-    ) f32 {
+    ) ggx.Micro {
         const is = math.smpl.hemisphereCosine(xi);
         const wi = math.normalize3(frame.tangentToWorld(is));
         const h = math.normalize3(wo + wi);
@@ -67,12 +68,10 @@ pub const Micro = struct {
 
         result.reflection = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
         result.wi = wi;
-        result.h = h;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.h_dot_wi = h_dot_wi;
         result.class = .{ .diffuse = true, .reflection = true };
 
-        return n_dot_wi;
+        return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = h_dot_wi };
     }
 
     fn evaluate(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {

@@ -1,12 +1,7 @@
 const Shape = @import("shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Vertex = @import("../vertex.zig").Vertex;
 const ro = @import("../ray_offset.zig");
-const rst = @import("../renderstate.zig");
-const Renderstate = rst.Renderstate;
-const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("../scene.zig").Scene;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const mat = @import("../material/material.zig");
 
@@ -89,81 +84,6 @@ pub const Intersection = struct {
         return .Pass != self.event;
     }
 
-    pub fn sample(
-        self: Self,
-        wo: Vec4f,
-        vertex: Vertex,
-        sampler: *Sampler,
-        caustics: CausticsResolve,
-        worker: *const Worker,
-    ) mat.Sample {
-        const m = self.material(worker.scene);
-        const p = self.p;
-        const b = self.b;
-
-        var rs: Renderstate = undefined;
-        rs.trafo = self.trafo;
-        rs.p = .{ p[0], p[1], p[2], worker.iorOutside(wo, self) };
-        rs.t = self.t;
-        rs.b = .{ b[0], b[1], b[2], vertex.wavelength };
-
-        if (m.twoSided() and !self.sameHemisphere(wo)) {
-            rs.geo_n = -self.geo_n;
-            rs.n = -self.n;
-        } else {
-            rs.geo_n = self.geo_n;
-            rs.n = self.n;
-        }
-
-        rs.ray_p = vertex.ray.origin;
-
-        rs.uv = self.uv();
-        rs.prop = self.prop;
-        rs.part = self.part;
-        rs.primitive = self.primitive;
-        rs.depth = vertex.depth;
-        rs.time = vertex.time;
-        rs.subsurface = self.subsurface();
-        rs.caustics = caustics;
-
-        return m.sample(wo, rs, sampler, worker);
-    }
-
-    pub fn evaluateRadiance(
-        self: Self,
-        shading_p: Vec4f,
-        wo: Vec4f,
-        sampler: *Sampler,
-        scene: *const Scene,
-        pure_emissive: *bool,
-    ) ?Vec4f {
-        const m = self.material(scene);
-
-        const volume = self.event;
-
-        pure_emissive.* = m.pureEmissive() or .Absorb == volume;
-
-        if (.Absorb == volume) {
-            return self.vol_li;
-        }
-
-        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
-            return null;
-        }
-
-        return m.evaluateRadiance(
-            shading_p,
-            wo,
-            self.geo_n,
-            self.uvw,
-            self.trafo,
-            self.prop,
-            self.part,
-            sampler,
-            scene,
-        );
-    }
-
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {
         return math.dot3(self.geo_n, v) > 0.0;
     }
@@ -177,7 +97,7 @@ pub const Intersection = struct {
     pub fn offsetT(self: Self, min_t: f32) f32 {
         const p = self.p;
         const n = self.geo_n;
-        const t = math.hmax3(@fabs(p * n));
+        const t = math.hmax3(@abs(p * n));
         return ro.offsetF(t + min_t) - t + self.offset();
     }
 };

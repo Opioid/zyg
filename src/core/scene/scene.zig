@@ -262,11 +262,11 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, vertex: *Vertex, ipo: Interpolation, isec: *Intersection) bool {
-        return self.prop_bvh.intersect(vertex, self, ipo, isec);
+    pub fn intersect(self: *const Scene, vertex: *Vertex, ipo: Interpolation) bool {
+        return self.prop_bvh.intersect(vertex, self, ipo);
     }
 
-    pub fn visibility(self: *const Scene, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, vertex: *const Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
             return self.prop_bvh.visibility(vertex, sampler, worker);
         }
@@ -284,14 +284,13 @@ pub const Scene = struct {
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
-        isec: *Intersection,
     ) bool {
         if (!self.has_volumes) {
-            isec.setVolume(Volume.initPass(@splat(1.0)));
+            vertex.isec.setVolume(Volume.initPass(@splat(1.0)));
             return false;
         }
 
-        return self.volume_bvh.scatter(vertex, throughput, sampler, worker, isec);
+        return self.volume_bvh.scatter(vertex, throughput, sampler, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

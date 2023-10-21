@@ -61,13 +61,13 @@ pub fn TypedImage(comptime T: type) type {
         pub fn get2D(self: Self, x: i32, y: i32) T {
             const i = y * self.description.dimensions[0] + x;
 
-            return self.pixels[@as(usize, @intCast(i))];
+            return self.pixels[@intCast(i)];
         }
 
         pub fn set2D(self: *Self, x: i32, y: i32, v: T) void {
             const i = y * self.description.dimensions[0] + x;
 
-            self.pixels[@as(usize, @intCast(i))] = v;
+            self.pixels[@intCast(i)] = v;
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
@@ -94,7 +94,7 @@ pub fn TypedSparseImage(comptime T: type) type {
         cells: []Cell,
 
         const Log2_cell_dim: u5 = 4;
-        const Log2_cell_dim4 = @Vector(4, u5){ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
+        const Log2_cell_dim4: @Vector(4, u5) = .{ Log2_cell_dim, Log2_cell_dim, Log2_cell_dim, 0 };
         const Cell_dim: u32 = 1 << Log2_cell_dim;
 
         const Self = @This();
@@ -105,7 +105,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             var num_cells = d >> Log2_cell_dim4;
             num_cells += @min(d - (num_cells << Log2_cell_dim4), @as(Vec4i, @splat(1)));
 
-            const cells_len = @as(usize, @intCast(num_cells[0] * num_cells[1] * num_cells[2]));
+            const cells_len: usize = @intCast(num_cells[0] * num_cells[1] * num_cells[2]);
 
             var result = Self{
                 .description = description,
@@ -141,7 +141,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             const cell_len = comptime Cell_dim * Cell_dim * Cell_dim;
 
-            var cell = &self.cells[@as(usize, @intCast(cell_index))];
+            var cell = &self.cells[@intCast(cell_index)];
 
             if (null == cell.data) {
                 const data = try alloc.alloc(T, cell_len);
@@ -154,7 +154,7 @@ pub fn TypedSparseImage(comptime T: type) type {
                 const cxyz = c - cs;
                 const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
 
-                data[@as(usize, @intCast(ci))] = v;
+                data[@intCast(ci)] = v;
 
                 if (ci == cell_len - 1) {
                     var homogeneous = true;
@@ -182,13 +182,13 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells[0] + cc[0];
 
-            var cell = &self.cells[@as(usize, @intCast(cell_index))];
+            var cell = &self.cells[@intCast(cell_index)];
 
             if (cell.data) |data| {
                 const cs = cc << Log2_cell_dim4;
                 const cxyz = c - cs;
                 const ci = (((cxyz[2] << Log2_cell_dim) + cxyz[1]) << Log2_cell_dim) + cxyz[0];
-                return data[@as(usize, @intCast(ci))];
+                return data[@intCast(ci)];
             }
 
             return cell.value;
@@ -196,15 +196,15 @@ pub fn TypedSparseImage(comptime T: type) type {
 
         fn coordinates3(self: Self, index: i64) Vec4i {
             const d = self.description.dimensions;
-            const w = @as(i64, d[0]);
-            const h = @as(i64, d[1]);
+            const w: i64 = d[0];
+            const h: i64 = d[1];
 
             const area = w * h;
             const c2 = @divTrunc(index, area);
             const t = c2 * area;
             const c1 = @divTrunc(index - t, w);
 
-            return Vec4i{ @as(i32, @intCast(index - (t + c1 * w))), @as(i32, @intCast(c1)), @as(i32, @intCast(c2)), 0 };
+            return Vec4i{ @intCast(index - (t + c1 * w)), @intCast(c1), @intCast(c2), 0 };
         }
     };
 }

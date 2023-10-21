@@ -197,7 +197,7 @@ pub const Rectangle = struct {
         var c = -math.dot3(trafo.rotation.r[2], ray.direction);
 
         if (two_sided) {
-            c = @fabs(c);
+            c = @abs(c);
         }
 
         const scale = trafo.scale();

@@ -133,7 +133,6 @@ pub const Multi = struct {
     pub fn integrate(
         vertex: *Vertex,
         throughput: Vec4f,
-        isec: *Intersection,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
@@ -141,14 +140,14 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(isec.prop, vertex, .Normal, isec)) {
+            if (!worker.propIntersect(vertex.isec.prop, vertex, .Normal)) {
                 return false;
             }
         } else {
             const ray_max_t = vertex.ray.maxT();
             const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.ray) orelse ray_max_t;
             vertex.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(vertex, sampler, isec)) {
+            if (!worker.intersectAndResolveMask(vertex, sampler)) {
                 vertex.ray.setMinMaxT(vertex.ray.maxT(), ray_max_t);
                 return false;
             }
@@ -156,13 +155,12 @@ pub const Multi = struct {
             // This test is intended to catch corner cases where we actually left the scattering medium,
             // but the intersection point was too close to detect.
             var missed = false;
-            if (!interface.matches(isec.*) or !isec.sameHemisphere(vertex.ray.direction)) {
+            if (!interface.matches(vertex.isec) or !vertex.isec.sameHemisphere(vertex.ray.direction)) {
                 const v = -vertex.ray.direction;
 
-                var tvertex = Vertex.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time);
-                var nisec: Intersection = undefined;
-                if (worker.propIntersect(interface.prop, &tvertex, .Normal, &nisec)) {
-                    missed = math.dot3(nisec.geo_n, v) <= 0.0;
+                var tvertex = Vertex.init(vertex.isec.offsetP(v), v, 0.0, ro.Ray_max_t, 0, 0.0, vertex.time, undefined);
+                if (worker.propIntersect(interface.prop, &tvertex, .Normal)) {
+                    missed = math.dot3(tvertex.isec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
                 }
@@ -191,13 +189,13 @@ pub const Multi = struct {
         );
 
         if (.Pass != result.event) {
-            isec.prop = interface.prop;
-            isec.part = interface.part;
-            isec.p = vertex.ray.point(result.t);
-            isec.uvw = result.uvw;
+            vertex.isec.prop = interface.prop;
+            vertex.isec.part = interface.part;
+            vertex.isec.p = vertex.ray.point(result.t);
+            vertex.isec.uvw = result.uvw;
         }
 
-        isec.setVolume(result);
+        vertex.isec.setVolume(result);
         return true;
     }
 };

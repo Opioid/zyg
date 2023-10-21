@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(cli);
     run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    run_cmd.setCwd(.{ .path = "/home/beni/workspace/sprout/system" });
     if (b.args) |args| {
         run_cmd.addArgs(args);
     } else {
@@ -101,12 +101,12 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
             //"takes/animation_test.take",
-            "takes/material_test.take",
+            //"takes/material_test.take",
             //"takes/whirligig.take",
             //"takes/candle.take",
             //"takes/disney_cloud.take",

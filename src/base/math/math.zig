@@ -144,5 +144,5 @@ pub inline fn solidAngleOfCone(c: f32) f32 {
 }
 
 pub inline fn eq(x: f32, y: f32, comptime eps: f32) bool {
-    return @fabs(x - y) <= eps;
+    return @abs(x - y) <= eps;
 }

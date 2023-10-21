@@ -59,13 +59,13 @@ pub fn Filtered(comptime T: type) type {
 
                 for (&result.distribution.conditional, 0..) |*c, y| {
                     const sy = -radius + @as(f32, @floatFromInt(y)) * interval;
-                    const fy = f.eval(@fabs(sy));
+                    const fy = f.eval(@abs(sy));
 
                     var data: [N + 1]f32 = undefined;
 
                     for (&data, 0..) |*d, x| {
                         const sx = -radius + @as(f32, @floatFromInt(x)) * interval;
-                        d.* = @fabs(fy * f.eval(@fabs(sx)));
+                        d.* = @abs(fy * f.eval(@abs(sx)));
                     }
 
                     c.configure(data);
@@ -250,7 +250,7 @@ pub fn Filtered(comptime T: type) type {
         }
 
         inline fn eval(self: *const Self, s: f32) f32 {
-            return self.filter.eval(@fabs(s));
+            return self.filter.eval(@abs(s));
         }
 
         fn integral(self: *const Self, num_samples: u32, radius: f32) f32 {

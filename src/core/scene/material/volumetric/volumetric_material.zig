@@ -5,7 +5,6 @@ const Builder = @import("gridtree_builder.zig").Builder;
 const ccoef = @import("../collision_coefficients.zig");
 const CC = ccoef.CC;
 const CCE = ccoef.CCE;
-const Null = @import("../null/null_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");

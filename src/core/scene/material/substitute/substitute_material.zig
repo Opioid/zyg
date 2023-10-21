@@ -69,7 +69,7 @@ pub const Material = struct {
         properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
-        properties.dense_sss_optimization = attenuation_distance <= 0.05 and properties.scattering_volume;
+        properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
@@ -352,7 +352,7 @@ pub const Material = struct {
             const n_dot_wi = hlp.clampAbsDot(wi, n);
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating_absorption_coef,
-                self.coating_thickness,
+                coating_thickness,
                 n_dot_wi,
             );
 
@@ -360,6 +360,26 @@ pub const Material = struct {
         }
 
         return rad;
+    }
+
+    pub fn border(self: *const Material, wo: Vec4f, n: Vec4f) Vec4f {
+        const f0 = fresnel.Schlick.IorToF0(self.super.ior, 1.0);
+        const n_dot_wo = hlp.clampAbsDot(n, wo);
+        const omf: Vec4f = @splat(1.0 - fresnel.schlick1(n_dot_wo, f0));
+
+        const coating_thickness = self.coating_thickness;
+
+        if (coating_thickness > 0.0) {
+            const att = SampleCoating.singleAttenuationStatic(
+                self.coating_absorption_coef,
+                coating_thickness,
+                n_dot_wo,
+            );
+
+            return att * omf;
+        }
+
+        return omf;
     }
 
     fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {
@@ -389,7 +409,7 @@ pub const Material = struct {
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
         // filter kernel
-        const w = math.max2(@fabs(ddx), @fabs(ddy)) + @as(Vec2f, @splat(0.0001));
+        const w = math.max2(@abs(ddx), @abs(ddy)) + @as(Vec2f, @splat(0.0001));
 
         // analytical integral (box filter)
         const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
@@ -402,6 +422,6 @@ pub const Material = struct {
     fn tri(x: Vec2f) Vec2f {
         const hx = math.frac(x[0] * 0.5) - 0.5;
         const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{ 1.0 - 2.0 * @fabs(hx), 1.0 - 2.0 * @fabs(hy) };
+        return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
     }
 };

@@ -15,7 +15,7 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     var r: f32 = undefined;
     var theta: f32 = undefined;
 
-    if (@fabs(s[0]) > @fabs(s[1])) {
+    if (@abs(s[0]) > @abs(s[1])) {
         r = s[0];
         theta = (std.math.pi / 4.0) * (s[1] / s[0]);
     } else {
@@ -138,20 +138,20 @@ fn signNotZero(v: Vec2f) Vec2f {
 }
 
 pub fn octEncode(v: Vec4f) Vec2f {
-    const linorm = @fabs(v[0]) + @fabs(v[1]) + @fabs(v[2]);
+    const linorm = @abs(v[0]) + @abs(v[1]) + @abs(v[2]);
     var o = Vec2f{ v[0], v[1] } * @as(Vec2f, @splat(1.0 / linorm));
 
     if (v[2] >= 0.0) {
-        return (@as(Vec2f, @splat(1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
+        return (@as(Vec2f, @splat(1.0)) - @abs(Vec2f{ o[1], o[0] })) * signNotZero(o);
     }
 
     return o;
 }
 
 pub fn octDecode(o: Vec2f) Vec4f {
-    var v = Vec4f{ o[0], o[1], -1.0 + @fabs(o[0]) + @fabs(o[1]), 0.0 };
+    var v = Vec4f{ o[0], o[1], -1.0 + @abs(o[0]) + @abs(o[1]), 0.0 };
     if (v[2] >= 0.0) {
-        const xy = (@as(Vec2f, @splat(1.0)) - @fabs(Vec2f{ o[1], o[0] })) * signNotZero(o);
+        const xy = (@as(Vec2f, @splat(1.0)) - @abs(Vec2f{ o[1], o[0] })) * signNotZero(o);
         v[0] = xy[0];
         v[1] = xy[1];
     }

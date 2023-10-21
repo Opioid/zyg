@@ -102,7 +102,7 @@ pub const Base = struct {
 
     pub fn border(self: *const Base, wo: Vec4f, n: Vec4f) f32 {
         const f0 = fresnel.Schlick.IorToF0(self.ior, 1.0);
-        const a = @fabs(math.dot3(n, wo));
+        const a = @abs(math.dot3(n, wo));
         return 1.0 - fresnel.schlick1(a, f0);
     }
 

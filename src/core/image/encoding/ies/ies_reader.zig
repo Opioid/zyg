@@ -88,11 +88,11 @@ const Data = struct {
             phi -= 180.0;
 
             if (vf >= 0.0) {
-                theta = @fabs(theta);
+                theta = @abs(theta);
             }
 
             if (hf >= 0.0) {
-                phi = @fabs(phi);
+                phi = @abs(phi);
             }
 
             if (phi < hf or phi > hb) {
@@ -332,7 +332,7 @@ pub const Reader = struct {
         data.vertical_angles.items[0] = p;
         for (data.vertical_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @abs(c - p));
             a.* = c;
             p = c;
         }
@@ -341,7 +341,7 @@ pub const Reader = struct {
         data.horizontal_angles.items[0] = p;
         for (data.horizontal_angles.items[1..]) |*a| {
             const c = try std.fmt.parseFloat(f32, try tokenizer.next());
-            min_angle = math.min(min_angle, @fabs(c - p));
+            min_angle = math.min(min_angle, @abs(c - p));
             a.* = c;
             p = c;
         }

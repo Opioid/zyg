@@ -80,21 +80,24 @@ pub const Prop = struct {
         const shape_inst = scene.shape(shape);
         self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
 
-        const mid0 = materials[0];
         var mono = true;
 
-        for (materials) |mid| {
-            const m = scene.material(mid);
-            if (m.evaluateVisibility()) {
-                self.properties.evaluate_visibility = true;
-            }
+        if (materials.len > 0) {
+            const mid0 = materials[0];
 
-            if (m.caustic()) {
-                self.properties.caustic = true;
-            }
+            for (materials) |mid| {
+                const m = scene.material(mid);
+                if (m.evaluateVisibility()) {
+                    self.properties.evaluate_visibility = true;
+                }
 
-            if (mid != mid0) {
-                mono = false;
+                if (m.caustic()) {
+                    self.properties.caustic = true;
+                }
+
+                if (mid != mid0) {
+                    mono = false;
+                }
             }
         }
 
@@ -113,7 +116,6 @@ pub const Prop = struct {
         vertex: *Vertex,
         scene: *const Scene,
         ipo: shp.Interpolation,
-        isec: *shp.Intersection,
     ) bool {
         if (!self.visible(vertex.depth)) {
             return false;
@@ -126,15 +128,15 @@ pub const Prop = struct {
         const static = self.properties.static;
         const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, static);
 
-        if (scene.shape(self.shape).intersect(&vertex.ray, trafo, ipo, isec)) {
-            isec.trafo = trafo;
+        if (scene.shape(self.shape).intersect(&vertex.ray, trafo, ipo, &vertex.isec)) {
+            vertex.isec.trafo = trafo;
             return true;
         }
 
         return false;
     }
 
-    pub fn intersectSSS(self: Prop, entity: u32, vertex: *Vertex, scene: *const Scene, isec: *shp.Intersection) bool {
+    pub fn intersectSSS(self: Prop, entity: u32, vertex: *Vertex, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
@@ -147,10 +149,10 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.time, properties.static);
 
-        return scene.shape(self.shape).intersect(&vertex.ray, trafo, .Normal, isec);
+        return scene.shape(self.shape).intersect(&vertex.ray, trafo, .Normal, &vertex.isec);
     }
 
-    pub fn intersectP(self: Prop, entity: u32, vertex: Vertex, scene: *const Scene) bool {
+    pub fn intersectP(self: Prop, entity: u32, vertex: *const Vertex, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
@@ -166,7 +168,7 @@ pub const Prop = struct {
         return scene.shape(self.shape).intersectP(vertex.ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, vertex: *const Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         const properties = self.properties;
         const scene = worker.scene;
 
@@ -198,7 +200,7 @@ pub const Prop = struct {
     pub fn scatter(
         self: Prop,
         entity: u32,
-        vertex: Vertex,
+        vertex: *const Vertex,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,

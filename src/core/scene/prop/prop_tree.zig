@@ -67,7 +67,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, vertex: *Vertex, scene: *const Scene, ipo: Interpolation, isec: *Intersection) bool {
+    pub fn intersect(self: Tree, vertex: *Vertex, scene: *const Scene, ipo: Interpolation) bool {
         var stack = NodeStack{};
 
         var hit = false;
@@ -83,7 +83,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, vertex, scene, ipo, isec)) {
+                    if (props[p].intersect(p, vertex, scene, ipo)) {
                         prop = p;
                         hit = true;
                     }
@@ -116,18 +116,18 @@ pub const Tree = struct {
 
         if (vertex.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, vertex, scene, ipo, isec)) {
+                if (props[p].intersect(p, vertex, scene, ipo)) {
                     prop = p;
                     hit = true;
                 }
             }
         }
 
-        isec.prop = prop;
+        vertex.isec.prop = prop;
         return hit;
     }
 
-    pub fn intersectP(self: Tree, vertex: Vertex, scene: *const Scene) bool {
+    pub fn intersectP(self: Tree, vertex: *const Vertex, scene: *const Scene) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -182,7 +182,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, vertex: Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, vertex: *const Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis: Vec4f = @splat(1.0);
@@ -234,14 +234,7 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn scatter(
-        self: Tree,
-        vertex: *Vertex,
-        throughput: Vec4f,
-        sampler: *Sampler,
-        worker: *Worker,
-        isec: *Intersection,
-    ) bool {
+    pub fn scatter(self: Tree, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -257,7 +250,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, vertex.*, throughput, sampler, worker);
+                    const lr = props[p].scatter(p, vertex, throughput, sampler, worker);
 
                     if (.Pass != lr.event) {
                         vertex.ray.setMaxT(lr.t);
@@ -293,14 +286,14 @@ pub const Tree = struct {
             }
         }
 
-        isec.setVolume(result);
+        vertex.isec.setVolume(result);
 
         if (.Pass != result.event) {
-            isec.prop = prop;
-            isec.part = 0;
-            isec.p = vertex.ray.point(result.t);
-            isec.geo_n = -vertex.ray.direction;
-            isec.uvw = result.uvw;
+            vertex.isec.prop = prop;
+            vertex.isec.part = 0;
+            vertex.isec.p = vertex.ray.point(result.t);
+            vertex.isec.geo_n = -vertex.ray.direction;
+            vertex.isec.uvw = result.uvw;
 
             return true;
         }

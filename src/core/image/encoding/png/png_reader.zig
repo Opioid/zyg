@@ -371,13 +371,13 @@ pub const Reader = struct {
         }
 
         fn paethPredictor(a: u8, b: u8, c: u8) u8 {
-            const A = @as(i32, @intCast(a));
-            const B = @as(i32, @intCast(b));
-            const C = @as(i32, @intCast(c));
+            const A: i32 = @intCast(a);
+            const B: i32 = @intCast(b);
+            const C: i32 = @intCast(c);
             const p = A + B - C;
-            const pa = std.math.absInt(p - A) catch unreachable;
-            const pb = std.math.absInt(p - B) catch unreachable;
-            const pc = std.math.absInt(p - C) catch unreachable;
+            const pa = @abs(p - A);
+            const pb = @abs(p - B);
+            const pc = @abs(p - C);
 
             if (pa <= pb and pa <= pc) {
                 return a;

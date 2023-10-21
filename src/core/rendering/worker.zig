@@ -12,7 +12,6 @@ const TileStackN = @import("tile_queue.zig").TileStackN;
 const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
-const NullSample = @import("../scene/material/null/null_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
@@ -56,8 +55,6 @@ pub const Worker = struct {
     rng: RNG = undefined,
 
     interface_stack: InterfaceStack = undefined,
-
-    lights: Scene.Lights = undefined,
 
     samplers: [2]Sampler = undefined,
 
@@ -296,8 +293,7 @@ pub const Worker = struct {
     pub fn commonAOV(
         self: *Worker,
         throughput: Vec4f,
-        vertex: Vertex,
-        isec: Intersection,
+        vertex: *const Vertex,
         mat_sample: *const MaterialSample,
     ) void {
         const primary_ray = vertex.state.primary_ray;
@@ -325,37 +321,36 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part))),
+                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(vertex.isec.prop, vertex.isec.part))),
             );
         }
     }
 
-    pub fn visibility(self: *Worker, vertex: *Vertex, isec: Intersection, sampler: *Sampler) ?Vec4f {
-        const material = isec.material(self.scene);
+    pub fn visibility(self: *Worker, vertex: *Vertex, sampler: *Sampler) ?Vec4f {
+        const material = vertex.isec.material(self.scene);
 
-        if (isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
+        if (vertex.isec.subsurface() and !self.interface_stack.empty() and material.denseSSSOptimization()) {
             const ray_max_t = vertex.ray.maxT();
-            const prop = isec.prop;
+            const prop = vertex.isec.prop;
 
-            var nisec: Intersection = undefined;
-            const hit = self.scene.prop(prop).intersectSSS(prop, vertex, self.scene, &nisec);
+            const hit = self.scene.prop(prop).intersectSSS(prop, vertex, self.scene);
 
             if (hit) {
                 const sss_min_t = vertex.ray.minT();
                 const sss_max_t = vertex.ray.maxT();
                 vertex.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(vertex.*, sampler, self)) |tv| {
+                if (self.scene.visibility(vertex, sampler, self)) |tv| {
                     vertex.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = self.interface_stack.top();
                     const cc = interface.cc;
-                    const tray = if (material.heterogeneousVolume()) nisec.trafo.worldToObjectRay(vertex.ray) else vertex.ray;
+                    const tray = if (material.heterogeneousVolume()) vertex.isec.trafo.worldToObjectRay(vertex.ray) else vertex.ray;
                     if (vlhlp.propTransmittance(tray, material, cc, prop, vertex.depth, sampler, self)) |tr| {
                         const wi = vertex.ray.direction;
-                        const n = nisec.n;
-                        const vbh = material.super().border(wi, n);
-                        const nsc = subsurfaceNonSymmetryCompensation(wi, nisec.geo_n, n);
+                        const n = vertex.isec.n;
+                        const vbh = material.border(wi, n);
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, vertex.isec.geo_n, n));
 
-                        return @as(Vec4f, @splat(vbh * nsc)) * tv * tr;
+                        return (vbh * nsc) * (tv * tr);
                     }
                 }
 
@@ -363,12 +358,37 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(vertex.*, sampler, self);
+        return self.scene.visibility(vertex, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler) bool {
+        var sss_throughput: Vec4f = @splat(1.0);
+
         while (!self.interface_stack.empty()) {
-            if (vlhlp.integrate(vertex, throughput, isec, sampler, self)) {
+            if (vlhlp.integrate(vertex, throughput * sss_throughput, sampler, self)) {
+                if (.Pass == vertex.isec.event) {
+                    const wo = -vertex.ray.direction;
+                    const material = vertex.isec.material(self.scene);
+                    const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
+
+                    if (!vertex.isec.subsurface() and straight_border and !vertex.isec.sameHemisphere(wo)) {
+                        const geo_n = vertex.isec.geo_n;
+                        const n = vertex.isec.n;
+
+                        const vbh = material.border(wo, n);
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
+                        const weight = nsc * vbh;
+
+                        sss_throughput *= vertex.isec.vol_tr * weight;
+                        vertex.ray.setMinMaxT(vertex.isec.offsetT(vertex.ray.maxT()), ro.Ray_max_t);
+                        vertex.depth += 1;
+                        sampler.incrementPadding();
+
+                        self.interface_stack.pop();
+                        continue;
+                    }
+                }
+
                 return true;
             }
 
@@ -377,13 +397,15 @@ pub const Worker = struct {
 
         const origin = vertex.ray.origin;
 
-        const hit = self.intersectAndResolveMask(vertex, sampler, isec);
+        const hit = self.intersectAndResolveMask(vertex, sampler);
 
         const dif_t = math.distance3(origin, vertex.ray.origin);
         vertex.ray.origin = origin;
         vertex.ray.setMaxT(dif_t + vertex.ray.maxT());
 
-        const volume_hit = self.scene.scatter(vertex, throughput, sampler, self, isec);
+        const volume_hit = self.scene.scatter(vertex, throughput * sss_throughput, sampler, self);
+
+        vertex.isec.vol_tr *= sss_throughput;
 
         return hit or volume_hit;
     }
@@ -413,23 +435,23 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation, isec: *Intersection) bool {
-        return self.scene.prop(entity).intersect(entity, vertex, self.scene, ipo, isec);
+    pub fn propIntersect(self: *Worker, entity: u32, vertex: *Vertex, ipo: Interpolation) bool {
+        return self.scene.prop(entity).intersect(entity, vertex, self.scene, ipo);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, vertex: *Vertex, sampler: *Sampler, isec: *Intersection) bool {
+    pub fn intersectAndResolveMask(self: *Worker, vertex: *Vertex, sampler: *Sampler) bool {
         while (true) {
-            if (!self.scene.intersect(vertex, .All, isec)) {
+            if (!self.scene.intersect(vertex, .All)) {
                 return false;
             }
 
-            const o = isec.opacity(sampler, self.scene);
+            const o = vertex.isec.opacity(sampler, self.scene);
             if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
 
             // Offset ray until opaque surface is found
-            vertex.ray.origin = isec.offsetP(vertex.ray.direction);
+            vertex.ray.origin = vertex.isec.offsetP(vertex.ray.direction);
             vertex.ray.setMaxT(ro.Ray_max_t);
         }
 
@@ -477,43 +499,6 @@ pub const Worker = struct {
         return ior;
     }
 
-    pub fn sampleMaterial(
-        self: *const Worker,
-        vertex: Vertex,
-        isec: Intersection,
-        sampler: *Sampler,
-        alpha: f32,
-        caustics: CausticsResolve,
-    ) MaterialSample {
-        const wo = -vertex.ray.direction;
-        const material = isec.material(self.scene);
-        const straight_border = vertex.state.from_subsurface;
-
-        if (!isec.subsurface() and straight_border and material.denseSSSOptimization() and !isec.sameHemisphere(wo)) {
-            const geo_n = isec.geo_n;
-            const n = isec.n;
-
-            const vbh = material.super().border(wo, n);
-            const nsc = subsurfaceNonSymmetryCompensation(wo, geo_n, n);
-            const factor = nsc * vbh;
-
-            return .{ .Null = NullSample.init(wo, geo_n, n, factor, alpha) };
-        }
-
-        return isec.sample(wo, vertex, sampler, caustics, self);
-    }
-
-    pub fn randomLightSpatial(
-        self: *Worker,
-        p: Vec4f,
-        n: Vec4f,
-        total_sphere: bool,
-        random: f32,
-        split: bool,
-    ) []Scene.LightPick {
-        return self.scene.randomLightSpatial(p, n, total_sphere, random, split, &self.lights);
-    }
-
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
         return self.camera.absoluteTime(frame, frame_delta);
     }
@@ -530,7 +515,7 @@ pub const Worker = struct {
     }
 
     inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @fabs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
+        return @abs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
@@ -546,10 +531,10 @@ pub const Worker = struct {
 
         // Compute uv offsets at offset-ray isec points
         // Choose two dimensions to use for ray offset computations
-        const dim = if (@fabs(n[0]) > @fabs(n[1]) and @fabs(n[0]) > @fabs(n[2])) Vec2b{
+        const dim = if (@abs(n[0]) > @abs(n[1]) and @abs(n[0]) > @abs(n[2])) Vec2b{
             1,
             2,
-        } else if (@fabs(n[1]) > @fabs(n[2])) Vec2b{
+        } else if (@abs(n[1]) > @abs(n[2])) Vec2b{
             0,
             2,
         } else Vec2b{
@@ -565,7 +550,7 @@ pub const Worker = struct {
 
         const det = a[0][0] * a[1][1] - a[0][1] * a[1][0];
 
-        if (@fabs(det) < 1.0e-10) {
+        if (@abs(det) < 1.0e-10) {
             return @splat(0.0);
         }
 
