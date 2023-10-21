@@ -200,7 +200,7 @@ pub const Pool = struct {
     current_id: u32 = undefined,
     current_start: u32 = undefined,
     current_end: u32 = undefined,
-    next_id: u32 = undefined,
+    next_start: u32 = undefined,
     next_end: u32 = undefined,
 
     alpha: f32 = undefined,
@@ -210,7 +210,7 @@ pub const Pool = struct {
         self.current_id = Num_vertices;
         self.current_start = Num_vertices;
         self.current_end = Num_vertices;
-        self.next_id = 0;
+        self.next_start = 0;
         self.next_end = 1;
         self.alpha = 0.0;
     }
@@ -230,18 +230,18 @@ pub const Pool = struct {
             }
         }
 
-        const current_id = self.next_id;
+        const current_start = self.next_start;
         const current_end = self.next_end;
 
-        self.current_id = current_id;
-        self.current_start = current_id;
+        self.current_id = current_start;
+        self.current_start = current_start;
         self.current_end = current_end;
 
-        const next_id: u32 = if (Num_vertices == self.next_id) 0 else Num_vertices;
-        self.next_id = next_id;
-        self.next_end = next_id;
+        const next_start: u32 = if (Num_vertices == current_start) 0 else Num_vertices;
+        self.next_start = next_start;
+        self.next_end = next_start;
 
-        return current_id < current_end;
+        return current_start < current_end;
     }
 
     pub fn consume(self: *Pool) ?*Vertex {
