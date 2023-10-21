@@ -183,9 +183,6 @@ pub const Worker = struct {
                         var old_m = old_ms[ii];
                         var old_s = old_ss[ii];
 
-                        var new_m: Vec4f = undefined;
-                        var new_s: f32 = undefined;
-
                         for (ss..s_end) |s| {
                             self.aov.clear();
 
@@ -203,13 +200,10 @@ pub const Worker = struct {
 
                             const clamped = sensor.addSample(sample, color + photon, self.aov);
                             const value = clamped.last;
+                            const new_m = clamped.mean;
 
-                            new_m = clamped.mean;
-                            new_s = old_s + math.hmax3((value - old_m) * (value - new_m));
-
-                            // set up for next iteration
+                            old_s += math.hmax3((value - old_m) * (value - new_m));
                             old_m = new_m;
-                            old_s = new_s;
 
                             self.samplers[0].incrementSample();
                         }
@@ -217,8 +211,8 @@ pub const Worker = struct {
                         old_ms[ii] = old_m;
                         old_ss[ii] = old_s;
 
-                        const variance = new_s * new_m[3];
-                        const mam = math.max(math.hmax3(new_m), 0.0001);
+                        const variance = old_s * old_m[3];
+                        const mam = math.max(math.hmax3(old_m), 0.0001);
 
                         const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.4) else @log(math.max(variance, 1.0)) / mam;
 
