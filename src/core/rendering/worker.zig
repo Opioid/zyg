@@ -186,8 +186,8 @@ pub const Worker = struct {
                         for (ss..s_end) |s| {
                             self.aov.clear();
 
-                            var sample = self.samplers[0].cameraSample(pixel);
-                            var vertex = camera.generateVertex(&sample, frame, scene);
+                            const sample = sensor.cameraSample(pixel, &self.samplers[0]);
+                            var vertex = camera.generateVertex(sample, frame, scene);
 
                             self.resetInterfaceStack(&camera.interface_stack);
                             const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);

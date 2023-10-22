@@ -116,8 +116,9 @@ pub const Perspective = struct {
         self.updateFocus(time, scene);
     }
 
-    pub fn generateVertex(self: *const Self, sample: *Sample, frame: u32, scene: *const Scene) Vertex {
-        const coordinates = self.sensor.pixelToImageCoordinates(sample);
+    pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
+        const center = math.vec2iTo2f(sample.pixel) + @as(Vec2f, @splat(0.5));
+        const coordinates = center + sample.filter_uv;
 
         var direction = self.left_top + self.d_x * @as(Vec4f, @splat(coordinates[0])) + self.d_y * @as(Vec4f, @splat(coordinates[1]));
         var origin: Vec4f = undefined;

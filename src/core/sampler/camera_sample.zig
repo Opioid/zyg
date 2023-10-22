@@ -5,7 +5,7 @@ const Vec4f = math.Vec4f;
 
 pub const CameraSample = struct {
     pixel: Vec2i,
-    pixel_uv: Vec2f,
+    filter_uv: Vec2f,
     lens_uv: Vec2f,
     time: f32,
 };

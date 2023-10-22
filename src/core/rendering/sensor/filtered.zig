@@ -1,3 +1,4 @@
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
@@ -91,22 +92,27 @@ pub fn Filtered(comptime T: type) type {
             try self.aov.resize(alloc, len, factory);
         }
 
-        pub fn pixelToImageCoordinates(self: *const Self, sample: *Sample) Vec2f {
-            if (0 == self.radius_int) {
-                return math.vec2iTo2f(sample.pixel) + sample.pixel_uv;
-            }
+        pub fn cameraSample(self: *const Self, pixel: Vec2i, sampler: *Sampler) Sample {
+            const s4 = sampler.sample4D();
+            const s1 = sampler.sample1D();
 
-            const o = self.distribution.sampleContinous(sample.pixel_uv).uv;
-            const center = math.vec2iTo2f(sample.pixel) + @as(Vec2f, @splat(0.5));
+            sampler.incrementPadding();
 
+            const pixel_uv = Vec2f{ s4[0], s4[1] };
+
+            const o = if (0 == self.radius_int) pixel_uv else self.distribution.sampleContinous(pixel_uv).uv;
             const filter_uv = @as(Vec2f, @splat(self.radius)) * (@as(Vec2f, @splat(2.0)) * o - @as(Vec2f, @splat(1.0)));
-            sample.pixel_uv = filter_uv;
 
-            return center + filter_uv;
+            return .{
+                .pixel = pixel,
+                .filter_uv = filter_uv,
+                .lens_uv = .{ s4[2], s4[3] },
+                .time = s1,
+            };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue) Result {
-            const w = self.eval(sample.pixel_uv[0]) * self.eval(sample.pixel_uv[1]);
+            const w = self.eval(sample.filter_uv[0]) * self.eval(sample.filter_uv[1]);
             const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
             const pixel = sample.pixel;

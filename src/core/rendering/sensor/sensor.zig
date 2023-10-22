@@ -6,6 +6,7 @@ pub const Transparent = @import("transparent.zig").Transparent;
 pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
 const Result = @import("result.zig").Result;
 
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const cs = @import("../../sampler/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
@@ -190,9 +191,9 @@ pub const Sensor = union(enum) {
         };
     }
 
-    pub fn pixelToImageCoordinates(self: *const Sensor, sample: *Sample) Vec2f {
+    pub fn cameraSample(self: *const Sensor, pixel: Vec2i, sampler: *Sampler) Sample {
         return switch (self.*) {
-            inline else => |*s| s.pixelToImageCoordinates(sample),
+            inline else => |*s| s.cameraSample(pixel, sampler),
         };
     }
 
