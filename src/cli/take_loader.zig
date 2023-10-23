@@ -196,17 +196,17 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
                 const filter = snsr.Blackman{ .r = radius };
 
                 if (alpha_transparency) {
-                    return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, radius, filter) };
+                    return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, radius, filter);
                 } else {
-                    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, radius, filter) };
+                    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, radius, filter);
                 }
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
                 const filter = snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
                 if (alpha_transparency) {
-                    return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, radius, filter) };
+                    return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, radius, filter);
                 } else {
-                    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, radius, filter) };
+                    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, radius, filter);
                 }
             }
         }
@@ -215,10 +215,10 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
     const filter = snsr.Blackman{ .r = 0.0 };
 
     if (alpha_transparency) {
-        return .{ .Transparent = snsr.Filtered(snsr.Transparent).init(clamp_max, 0.0, filter) };
+        return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, 0.0, filter);
     }
 
-    return .{ .Opaque = snsr.Filtered(snsr.Opaque).init(clamp_max, 0.0, filter) };
+    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, 0.0, filter);
 }
 
 fn loadSampler(value: std.json.Value, view: *View) void {
@@ -240,7 +240,7 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
         var iter = pp.object.iterator();
         if (iter.next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
-                view.camera.sensor.setTonemapper(loadTonemapper(entry.value_ptr.*));
+                view.camera.sensor.tonemapper = loadTonemapper(entry.value_ptr.*);
             }
         }
     }

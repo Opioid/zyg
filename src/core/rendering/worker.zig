@@ -121,7 +121,7 @@ pub const Worker = struct {
         isolated_bounds[2] -= isolated_bounds[0];
         isolated_bounds[3] -= isolated_bounds[1];
 
-        const fr = sensor.filterRadiusInt();
+        const fr = sensor.filter_radius_int;
         const r = camera.resolution + @as(Vec2i, @splat(2 * fr));
         const a = @as(u32, @intCast(r[0])) * @as(u32, @intCast(r[1]));
         const o = @as(u64, iteration) * a;
