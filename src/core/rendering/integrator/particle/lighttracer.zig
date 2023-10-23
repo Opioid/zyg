@@ -196,7 +196,7 @@ pub const Lighttracer = struct {
         }
 
         var sensor = &camera.sensor;
-        const fr = sensor.filterRadiusInt();
+        const fr = sensor.filter_radius_int;
 
         var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
         filter_crop[2] -= filter_crop[0] + 1;

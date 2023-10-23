@@ -120,7 +120,7 @@ pub const Worker = struct {
         isolated_bounds[2] -= isolated_bounds[0];
         isolated_bounds[3] -= isolated_bounds[1];
 
-        const fr = sensor.filterRadiusInt();
+        const fr = sensor.filter_radius_int;
         const r = camera.resolution + @as(Vec2i, @splat(2 * fr));
         const a = @as(u32, @intCast(r[0])) * @as(u32, @intCast(r[1]));
         const o = @as(u64, iteration) * a;
@@ -152,7 +152,7 @@ pub const Worker = struct {
                 while (s < num_samples) : (s += 1) {
                     self.aov.clear();
 
-                    const sample = self.samplers[0].cameraSample(pixel);
+                    const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     var vertex = camera.generateVertex(sample, frame, scene);
 
                     const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);

@@ -119,7 +119,7 @@ pub const Driver = struct {
             );
         }
 
-        self.tiles.configure(camera.crop, 32, camera.sensor.filterRadiusInt());
+        self.tiles.configure(camera.crop, 32, camera.sensor.filter_radius_int);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
@@ -165,7 +165,7 @@ pub const Driver = struct {
         camera.update(start, self.scene);
 
         if (progressive) {
-            camera.sensor.clear(0.0);
+            camera.sensor.buffer.clear(0.0);
         }
     }
 
@@ -182,7 +182,7 @@ pub const Driver = struct {
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
-            camera.sensor.fixZeroWeights();
+            camera.sensor.buffer.fixZeroWeights();
         }
 
         if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
@@ -248,7 +248,7 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
+        camera.sensor.buffer.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
 
         self.progressor.start(self.ranges.size());
 
@@ -290,8 +290,8 @@ pub const Driver = struct {
 
         var camera = &self.view.camera;
 
-        camera.sensor.clear(0.0);
-        camera.sensor.clearAov();
+        camera.sensor.buffer.clear(0.0);
+        camera.sensor.aov.clear();
 
         self.progressor.start(self.tiles.size());
 

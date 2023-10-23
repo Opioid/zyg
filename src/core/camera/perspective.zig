@@ -1,12 +1,12 @@
+const cs = @import("camera_sample.zig");
+const Sample = cs.CameraSample;
+const SampleTo = cs.CameraSampleTo;
 const snsr = @import("../rendering/sensor/sensor.zig");
 const Sensor = snsr.Sensor;
 const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
 const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
-const cs = @import("../sampler/camera_sample.zig");
-const Sample = cs.CameraSample;
-const SampleTo = cs.CameraSampleTo;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
@@ -48,13 +48,12 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(0),
 
-    sensor: Sensor = .{
-        .Opaque = snsr.Filtered(snsr.Opaque).init(
-            std.math.floatMax(f32),
-            2.0,
-            snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
-        ),
-    },
+    sensor: Sensor = Sensor.init(
+        .{ .Opaque = .{} },
+        std.math.floatMax(f32),
+        2.0,
+        snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+    ),
 
     left_top: Vec4f = @splat(0.0),
     d_x: Vec4f = @splat(0.0),
