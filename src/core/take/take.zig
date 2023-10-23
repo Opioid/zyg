@@ -321,7 +321,7 @@ pub const Take = struct {
             if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
                 const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
 
-                const alpha = self.view.camera.sensor.alphaTransparency();
+                const alpha = self.view.camera.sensor.buffer.alphaTransparency();
 
                 if (std.mem.eql(u8, "EXR", format)) {
                     const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
