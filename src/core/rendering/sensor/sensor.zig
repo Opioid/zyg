@@ -6,9 +6,10 @@ pub const Transparent = @import("transparent.zig").Transparent;
 
 pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
 
-const cs = @import("../../sampler/camera_sample.zig");
+const cs = @import("../../camera/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -67,6 +68,12 @@ pub const Sensor = union(enum) {
     pub fn resize(self: *Sensor, alloc: Allocator, dimensions: Vec2i, factory: aov.Factory) !void {
         try switch (self.*) {
             inline else => |*s| s.resize(alloc, dimensions, factory),
+        };
+    }
+
+    pub fn cameraSample(self: *Sensor, pixel: Vec2i, sampler: *Sampler) Sample {
+        return switch (self.*) {
+            inline else => |*s| s.cameraSample(pixel, sampler),
         };
     }
 

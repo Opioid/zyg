@@ -1,6 +1,7 @@
-const cs = @import("../../sampler/camera_sample.zig");
+const cs = @import("../../camera/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
 const AovBuffer = @import("aov/aov_buffer.zig").Buffer;
 const aovns = @import("aov/aov_value.zig");
@@ -62,6 +63,22 @@ pub fn Filtered(comptime T: type) type {
 
             try self.sensor.resize(alloc, len);
             try self.aov.resize(alloc, len, factory);
+        }
+
+        pub fn cameraSample(self: *const Self, pixel: Vec2i, sampler: *Sampler) Sample {
+            _ = self;
+
+            const s4 = sampler.sample4D();
+            const s1 = sampler.sample1D();
+
+            sampler.incrementPadding();
+
+            return .{
+                .pixel = pixel,
+                .pixel_uv = .{ s4[0], s4[1] },
+                .lens_uv = .{ s4[2], s4[3] },
+                .time = s1,
+            };
         }
 
         pub fn addSample(self: *Self, sample: Sample, color: Vec4f, aov: AovValue, bounds: Vec4i, isolated: Vec4i) void {

@@ -153,7 +153,7 @@ pub const Worker = struct {
                 while (s < num_samples) : (s += 1) {
                     self.aov.clear();
 
-                    const sample = self.samplers[0].cameraSample(pixel);
+                    const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     var vertex = camera.generateVertex(sample, frame, scene);
 
                     self.resetInterfaceStack(&camera.interface_stack);

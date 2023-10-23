@@ -1,4 +1,3 @@
-const CameraSample = @import("camera_sample.zig").CameraSample;
 pub const Sobol = @import("sobol.zig").Sobol;
 
 const base = @import("base");
@@ -69,20 +68,6 @@ pub const Sampler = union(enum) {
                 r.rng.randomFloat(),
             },
             .Sobol => |*s| s.sample4D(),
-        };
-    }
-
-    pub fn cameraSample(self: *Sampler, pixel: Vec2i) CameraSample {
-        const s4 = self.sample4D();
-        const s1 = self.sample1D();
-
-        self.incrementPadding();
-
-        return .{
-            .pixel = pixel,
-            .pixel_uv = .{ s4[0], s4[1] },
-            .lens_uv = .{ s4[2], s4[3] },
-            .time = s1,
         };
     }
 };
