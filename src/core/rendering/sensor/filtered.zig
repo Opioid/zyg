@@ -1,5 +1,5 @@
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const cs = @import("../../sampler/camera_sample.zig");
+const cs = @import("../../camera/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
