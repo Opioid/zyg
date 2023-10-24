@@ -62,7 +62,7 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
 
             const t0 = b - dist;
-            if (t0 > ray.minT() and t0 < ray.maxT()) {
+            if (t0 >= ray.minT() and ray.maxT() >= t0) {
                 intersectDetail(t0, ray.*, trafo, isec);
 
                 ray.setMaxT(t0);
@@ -70,7 +70,7 @@ pub const Sphere = struct {
             }
 
             const t1 = b + dist;
-            if (t1 > ray.minT() and t1 < ray.maxT()) {
+            if (t1 >= ray.minT() and ray.maxT() >= t1) {
                 intersectDetail(t1, ray.*, trafo, isec);
 
                 ray.setMaxT(t1);
@@ -93,13 +93,13 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
 
-            if (t0 > ray.minT() and t0 < ray.maxT()) {
+            if (t0 >= ray.minT() and ray.maxT() >= t0) {
                 return true;
             }
 
             const t1 = b + dist;
 
-            if (t1 > ray.minT() and t1 < ray.maxT()) {
+            if (t1 >= ray.minT() and ray.maxT() >= t1) {
                 return true;
             }
         }
@@ -121,7 +121,7 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
 
             const t0 = b - dist;
-            if (t0 > ray.minT() and t0 < ray.maxT()) {
+            if (t0 >= ray.minT() and ray.maxT() >= t0) {
                 const p = ray.point(t0);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
@@ -133,7 +133,7 @@ pub const Sphere = struct {
             }
 
             const t1 = b + dist;
-            if (t1 > ray.minT() and t1 < ray.maxT()) {
+            if (t1 >= ray.minT() and ray.maxT() >= t1) {
                 const p = ray.point(t1);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
