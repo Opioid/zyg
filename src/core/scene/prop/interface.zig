@@ -30,10 +30,11 @@ pub const Stack = struct {
     index: u32 = 0,
     stack: [Num_entries]Interface = undefined,
 
-    pub fn copy(self: *Stack, other: *const Stack) void {
-        const index = other.index;
-        self.index = index;
-        @memcpy(self.stack[0..index], other.stack[0..index]);
+    pub fn clone(self: *const Stack) Stack {
+        const index = self.index;
+        var result: Stack = .{ .index = index };
+        @memcpy(result.stack[0..index], self.stack[0..index]);
+        return result;
     }
 
     pub fn empty(self: *const Stack) bool {

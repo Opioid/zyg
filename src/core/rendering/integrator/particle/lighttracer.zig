@@ -59,7 +59,7 @@ pub const Lighttracer = struct {
             vertex.interfaces.pushVolumeLight(light);
         }
 
-        if (!worker.nextEvent(&vertex, @splat(1.0), sampler)) {
+        if (!worker.nextEvent(&vertex, sampler)) {
             return;
         }
 
@@ -69,10 +69,8 @@ pub const Lighttracer = struct {
 
         sampler.incrementPadding();
 
-        const throughput = vertex.isec.hit.vol_tr;
-
         const initrad = light.evaluateFrom(vertex.isec.hit.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-        const radiance = throughput * initrad;
+        const radiance = vertex.throughput * initrad;
 
         var split_vertex = vertex;
 
@@ -143,11 +141,11 @@ pub const Lighttracer = struct {
                 radiance *= @as(Vec4f, @splat(eta * eta));
             }
 
-            if (!worker.nextEvent(vertex, @splat(1.0), sampler)) {
+            if (!worker.nextEvent(vertex, sampler)) {
                 break;
             }
 
-            radiance *= vertex.isec.hit.vol_tr;
+            //    radiance *= vertex.isec.hit.vol_tr;
 
             if (.Absorb == vertex.isec.hit.event) {
                 break;

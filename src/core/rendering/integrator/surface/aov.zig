@@ -41,10 +41,12 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
+        var vertex = input;
+
         var sampler = worker.pickSampler(0);
 
-        if (!worker.nextEvent(vertex, @splat(1.0), sampler)) {
+        if (!worker.nextEvent(&vertex, sampler)) {
             return @splat(0.0);
         }
 
@@ -53,13 +55,13 @@ pub const AOV = struct {
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex, worker),
             .LightSampleCount => self.lightSampleCount(vertex, worker),
             .Side => self.side(vertex, worker),
-            .Photons => self.photons(vertex, worker),
+            .Photons => self.photons(&vertex, worker),
         };
 
-        return vertex.isec.hit.vol_tr * result;
+        return vertex.throughput * result;
     }
 
-    fn ao(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn ao(self: *const Self, vertex: Vertex, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
@@ -69,7 +71,7 @@ pub const AOV = struct {
         const mat_sample = vertex.sample(sampler, .Off, worker);
 
         if (worker.aov.active()) {
-            worker.commonAOV(@splat(1.0), vertex, &mat_sample);
+            worker.commonAOV(&vertex, &mat_sample);
         }
 
         const origin = vertex.isec.hit.offsetP(mat_sample.super().geometricNormal());
@@ -100,7 +102,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, vertex: Vertex, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
         const wo = -vertex.isec.ray.direction;
@@ -127,7 +129,7 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: *const Self, vertex: Vertex, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
@@ -145,7 +147,7 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *const Self, vertex: *const Vertex, worker: *Worker) Vec4f {
+    fn side(self: *const Self, vertex: Vertex, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
@@ -159,12 +161,9 @@ pub const AOV = struct {
     }
 
     fn photons(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var throughput: Vec4f = @splat(1.0);
-
         var bxdf_samples: bxdf.Samples = undefined;
 
-        var i: u32 = 0;
-        while (true) : (i += 1) {
+        while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
             const mat_sample = vertex.sample(sampler, .Off, worker);
@@ -185,7 +184,7 @@ pub const AOV = struct {
 
                     const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
+                        worker.addPhoton(vertex.throughput * worker.photonLi(vertex.isec.hit, &mat_sample, sampler));
                         break;
                     }
                 }
@@ -213,7 +212,7 @@ pub const AOV = struct {
                 vertex.isec.wavelength = sample_result.wavelength;
             }
 
-            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
                 vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
@@ -221,11 +220,9 @@ pub const AOV = struct {
 
             vertex.state.from_subsurface = vertex.state.from_subsurface or vertex.isec.hit.subsurface();
 
-            if (!worker.nextEvent(vertex, throughput, sampler)) {
+            if (!worker.nextEvent(vertex, sampler)) {
                 break;
             }
-
-            throughput *= vertex.isec.hit.vol_tr;
 
             sampler.incrementPadding();
         }

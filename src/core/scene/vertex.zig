@@ -96,9 +96,6 @@ pub const Vertex = struct {
     const Self = @This();
 
     pub fn init(ray: Ray, time: u64, interfaces: *const InterfaceStack) Vertex {
-        var tmp: InterfaceStack = .{};
-        tmp.copy(interfaces);
-
         return .{
             .isec = .{
                 .ray = ray,
@@ -114,7 +111,7 @@ pub const Vertex = struct {
             .throughput = @splat(1.0),
             .throughput_old = @splat(1.0),
             .geo_n = @splat(0.0),
-            .interfaces = tmp,
+            .interfaces = interfaces.clone(),
         };
     }
 

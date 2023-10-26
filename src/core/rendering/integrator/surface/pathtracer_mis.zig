@@ -34,23 +34,21 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *Vertex, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: Vertex, gather_photons: bool, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var result: Vec4f = @splat(0.0);
 
         var vertices: VertexPool = .{};
-        vertices.start(input.*);
+        vertices.start(input);
 
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
                 var sampler = worker.pickSampler(vertex.isec.depth);
 
-                if (!worker.nextEvent(vertex, vertex.throughput, sampler)) {
+                if (!worker.nextEvent(vertex, sampler)) {
                     continue;
                 }
-
-                vertex.throughput *= vertex.isec.hit.vol_tr;
 
                 const radiance = self.connectLight(vertex, sampler, worker.scene);
 
@@ -71,7 +69,7 @@ pub const PathtracerMIS = struct {
                 const mat_sample = vertex.sample(sampler, caustics, worker);
 
                 if (worker.aov.active()) {
-                    worker.commonAOV(vertex.throughput, vertex, &mat_sample);
+                    worker.commonAOV(vertex, &mat_sample);
                 }
 
                 const indirect = !vertex.state.direct and 0 != vertex.isec.depth;

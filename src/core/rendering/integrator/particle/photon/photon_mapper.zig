@@ -126,7 +126,7 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&vertex, @splat(1.0), &self.sampler)) {
+            if (!worker.nextEvent(&vertex, &self.sampler)) {
                 continue;
             }
 
@@ -134,10 +134,8 @@ pub const Mapper = struct {
                 continue;
             }
 
-            var throughput = vertex.isec.hit.vol_tr;
-
             var radiance = light.evaluateFrom(vertex.isec.hit.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-            radiance *= throughput;
+            radiance *= vertex.throughput;
 
             while (vertex.isec.depth < self.settings.max_bounces) {
                 const wo = -vertex.isec.ray.direction;
@@ -217,15 +215,13 @@ pub const Mapper = struct {
                     radiance *= @as(Vec4f, @splat(eta * eta));
                 }
 
-                if (!worker.nextEvent(&vertex, throughput, &self.sampler)) {
+                if (!worker.nextEvent(&vertex, &self.sampler)) {
                     break;
                 }
 
                 if (.Absorb == vertex.isec.hit.event) {
                     break;
                 }
-
-                throughput *= vertex.isec.hit.vol_tr;
 
                 self.sampler.incrementPadding();
             }

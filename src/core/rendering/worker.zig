@@ -153,9 +153,9 @@ pub const Worker = struct {
                     self.aov.clear();
 
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
-                    var vertex = camera.generateVertex(sample, frame, scene);
+                    const vertex = camera.generateVertex(sample, frame, scene);
 
-                    const color = self.surface_integrator.li(&vertex, s < num_photon_samples, self);
+                    const color = self.surface_integrator.li(vertex, s < num_photon_samples, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -208,16 +208,11 @@ pub const Worker = struct {
         return &self.samplers[1];
     }
 
-    pub fn commonAOV(
-        self: *Worker,
-        throughput: Vec4f,
-        vertex: *const Vertex,
-        mat_sample: *const MaterialSample,
-    ) void {
+    pub fn commonAOV(self: *Worker, vertex: *const Vertex, mat_sample: *const MaterialSample) void {
         const primary_ray = vertex.state.primary_ray;
 
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
-            self.aov.insert3(.Albedo, throughput * mat_sample.aovAlbedo());
+            self.aov.insert3(.Albedo, vertex.throughput * mat_sample.aovAlbedo());
         }
 
         if (vertex.isec.depth > 0) {
@@ -279,11 +274,11 @@ pub const Worker = struct {
         return self.scene.visibility(isec, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler) bool {
-        var sss_throughput: Vec4f = @splat(1.0);
-
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, sampler: *Sampler) bool {
         while (!vertex.interfaces.empty()) {
-            if (vlhlp.integrate(vertex, throughput * sss_throughput, sampler, self)) {
+            if (vlhlp.integrate(vertex, sampler, self)) {
+                vertex.throughput *= vertex.isec.hit.vol_tr;
+
                 if (.Pass == vertex.isec.hit.event) {
                     const wo = -vertex.isec.ray.direction;
                     const material = vertex.isec.hit.material(self.scene);
@@ -297,7 +292,7 @@ pub const Worker = struct {
                         const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
                         const weight = nsc * vbh;
 
-                        sss_throughput *= vertex.isec.hit.vol_tr * weight;
+                        vertex.throughput *= weight;
                         vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
                         vertex.isec.depth += 1;
 
@@ -322,9 +317,8 @@ pub const Worker = struct {
         vertex.isec.ray.origin = origin;
         vertex.isec.ray.setMaxT(dif_t + vertex.isec.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.isec, throughput * sss_throughput, sampler, self);
-
-        vertex.isec.hit.vol_tr *= sss_throughput;
+        const volume_hit = self.scene.scatter(&vertex.isec, vertex.throughput, sampler, self);
+        vertex.throughput *= vertex.isec.hit.vol_tr;
 
         return hit or volume_hit;
     }

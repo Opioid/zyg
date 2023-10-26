@@ -33,9 +33,8 @@ pub const PathtracerDL = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, vertex: *Vertex, worker: *Worker) Vec4f {
-        var throughput: Vec4f = @splat(1.0);
-        var old_throughput: Vec4f = @splat(1.0);
+    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
+        var vertex = input;
         var result: Vec4f = @splat(0.0);
 
         var bxdf_samples: bxdf.Samples = undefined;
@@ -43,18 +42,16 @@ pub const PathtracerDL = struct {
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
-            if (!worker.nextEvent(vertex, throughput, sampler)) {
+            if (!worker.nextEvent(&vertex, sampler)) {
                 break;
             }
-
-            throughput *= vertex.isec.hit.vol_tr;
 
             const wo = -vertex.isec.ray.direction;
 
             const energy: Vec4f = vertex.isec.evaluateRadiance(wo, sampler, worker.scene) orelse @splat(0.0);
 
             if (vertex.state.treat_as_singular or !Light.isLight(vertex.isec.hit.lightId(worker.scene))) {
-                result += throughput * energy;
+                result += vertex.throughput * energy;
             }
 
             if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == vertex.isec.hit.event) {
@@ -62,8 +59,8 @@ pub const PathtracerDL = struct {
             }
 
             if (vertex.isec.depth >= self.settings.min_bounces) {
-                const rr = hlp.russianRoulette(throughput, old_throughput, sampler.sample1D()) orelse break;
-                throughput /= @splat(rr);
+                const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
+                vertex.throughput /= @splat(rr);
             }
 
             const caustics = self.causticsResolve(vertex.state);
@@ -71,10 +68,10 @@ pub const PathtracerDL = struct {
             const mat_sample = vertex.sample(sampler, caustics, worker);
 
             if (worker.aov.active()) {
-                worker.commonAOV(throughput, vertex, &mat_sample);
+                worker.commonAOV(&vertex, &mat_sample);
             }
 
-            result += throughput * self.directLight(vertex, &mat_sample, sampler, worker);
+            result += vertex.throughput * self.directLight(&vertex, &mat_sample, sampler, worker);
 
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
@@ -93,8 +90,8 @@ pub const PathtracerDL = struct {
                 vertex.state.primary_ray = false;
             }
 
-            old_throughput = throughput;
-            throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+            vertex.throughput_old = vertex.throughput;
+            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             vertex.isec.depth += 1;
 
@@ -121,7 +118,7 @@ pub const PathtracerDL = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, throughput, vertex.state.transparent);
+        return hlp.composeAlpha(result, vertex.throughput, vertex.state.transparent);
     }
 
     fn directLight(

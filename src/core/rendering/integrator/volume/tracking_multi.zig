@@ -131,12 +131,7 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(
-        vertex: *Vertex,
-        throughput: Vec4f,
-        sampler: *Sampler,
-        worker: *Worker,
-    ) bool {
+    pub fn integrate(vertex: *Vertex, sampler: *Sampler, worker: *Worker) bool {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
@@ -180,7 +175,7 @@ pub const Multi = struct {
 
         var result = propScatter(
             tray,
-            throughput,
+            vertex.throughput,
             material,
             interface.cc,
             interface.prop,
