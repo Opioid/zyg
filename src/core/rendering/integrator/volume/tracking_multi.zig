@@ -178,7 +178,7 @@ pub const Multi = struct {
             tray,
             vertex.throughput,
             material,
-            interface.cc,
+            vertex.interfaces.topCC(),
             interface.prop,
             vertex.probe.depth,
             sampler,

@@ -13,7 +13,6 @@ const Allocator = std.mem.Allocator;
 pub const Interface = struct {
     prop: u32,
     part: u32,
-    cc: CC,
 
     pub fn material(self: Interface, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
@@ -28,12 +27,14 @@ pub const Stack = struct {
     const Num_entries = 8;
 
     index: u32 = 0,
-    stack: [Num_entries]Interface = undefined,
+    i_stack: [Num_entries]Interface = undefined,
+    cc_stack: [Num_entries]CC = undefined,
 
     pub fn clone(self: *const Stack) Stack {
         const index = self.index;
         var result: Stack = .{ .index = index };
-        @memcpy(result.stack[0..index], self.stack[0..index]);
+        @memcpy(result.i_stack[0..index], self.i_stack[0..index]);
+        @memcpy(result.cc_stack[0..index], self.cc_stack[0..index]);
         return result;
     }
 
@@ -46,13 +47,17 @@ pub const Stack = struct {
     }
 
     pub fn top(self: *const Stack) Interface {
-        return self.stack[self.index - 1];
+        return self.i_stack[self.index - 1];
+    }
+
+    pub fn topCC(self: *const Stack) CC {
+        return self.cc_stack[self.index - 1];
     }
 
     pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
-            return self.stack[index - 1].material(scene).ior();
+            return self.i_stack[index - 1].material(scene).ior();
         }
 
         return 1.0;
@@ -61,7 +66,7 @@ pub const Stack = struct {
     pub fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
-            return self.stack[1].material(scene).ior();
+            return self.i_stack[1].material(scene).ior();
         }
 
         return 1.0;
@@ -74,23 +79,26 @@ pub const Stack = struct {
         }
 
         const back = index - 1;
-        if (self.stack[back].matches(isec)) {
-            return self.stack[back - 1].material(scene).ior();
+        if (self.i_stack[back].matches(isec)) {
+            return self.i_stack[back - 1].material(scene).ior();
         } else {
-            return self.stack[back].material(scene).ior();
+            return self.i_stack[back].material(scene).ior();
         }
     }
 
     pub fn push(self: *Stack, isec: *const Intersection, cc: CC) void {
-        if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = isec.prop, .part = isec.part, .cc = cc };
+        const index = self.index;
+        if (index < Num_entries - 1) {
+            self.i_stack[index] = .{ .prop = isec.prop, .part = isec.part };
+            self.cc_stack[index] = cc;
             self.index += 1;
         }
     }
 
     pub fn pushVolumeLight(self: *Stack, light: Light) void {
-        if (self.index < Num_entries - 1) {
-            self.stack[self.index] = .{ .prop = light.prop, .part = light.part, .cc = undefined };
+        const index = self.index;
+        if (index < Num_entries - 1) {
+            self.i_stack[index] = .{ .prop = light.prop, .part = light.part };
             self.index += 1;
         }
     }
@@ -106,10 +114,11 @@ pub const Stack = struct {
         var i = back;
         while (i >= 0) : (i -= 1) {
             const ui = @as(u32, @intCast(i));
-            if (self.stack[ui].matches(isec)) {
+            if (self.i_stack[ui].matches(isec)) {
                 var j = ui;
                 while (j < back) : (j += 1) {
-                    self.stack[j] = self.stack[j + 1];
+                    self.i_stack[j] = self.i_stack[j + 1];
+                    self.cc_stack[j] = self.cc_stack[j + 1];
                 }
 
                 self.index -= 1;

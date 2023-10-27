@@ -261,8 +261,7 @@ pub const Worker = struct {
                 probe.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                 if (self.scene.visibility(probe, sampler, self)) |tv| {
                     probe.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const interface = interfaces.top();
-                    const cc = interface.cc;
+                    const cc = interfaces.topCC();
                     const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
                     if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth, sampler, self)) |tr| {
                         const wi = probe.ray.direction;
@@ -287,10 +286,6 @@ pub const Worker = struct {
                 vertex.throughput *= isec.vol_tr;
 
                 if (.Pass == isec.event) {
-                    // if (0xFFFFFFFF == isec.part or 0xFFFFFFFF == isec.prop) {
-                    //     std.debug.print("alarm\n", .{});
-                    // }
-
                     const wo = -vertex.probe.ray.direction;
                     const material = isec.material(self.scene);
                     const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();

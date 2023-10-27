@@ -28,13 +28,13 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Intersection, "Intersection", 208);
-    testType(Vertex, "Vertex", 512);
+    testType(Vertex, "Vertex", 464);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
-    testType(intf.Interface, "Interface", 48);
-    testType(intf.Stack, "InterfaceStack", 400);
+    testType(intf.Interface, "Interface", 8);
+    testType(intf.Stack, "InterfaceStack", 336);
     testType(mt.Material, "Material", 368);
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 224);
