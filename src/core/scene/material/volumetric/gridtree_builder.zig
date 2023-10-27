@@ -111,10 +111,6 @@ pub const Builder = struct {
 };
 
 const Splitter = struct {
-    const SplitError = error{
-        OutOfMemory,
-    };
-
     num_nodes: u32,
     num_data: u32,
 
@@ -129,7 +125,7 @@ const Splitter = struct {
         cc: CC,
         depth: u32,
         scene: *const Scene,
-    ) SplitError!void {
+    ) !void {
         const d = texture.description(scene).dimensions;
 
         // Include 1 additional voxel on each border to account for filtering

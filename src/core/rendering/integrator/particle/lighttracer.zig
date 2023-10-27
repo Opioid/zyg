@@ -100,10 +100,12 @@ pub const Lighttracer = struct {
             var sampler = worker.pickSampler(vertex.probe.depth);
             const mat_sample = vertex.sample(isec, sampler, .Full, worker);
 
-            const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
-            if (0.0 == sample_result.pdf) {
+            const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
+            if (0 == sample_results.len) {
                 break;
             }
+
+            const sample_result = sample_results[0];
 
             vertex.probe.depth += 1;
 
@@ -200,6 +202,7 @@ pub const Lighttracer = struct {
         const fr = sensor.filter_radius_int;
 
         var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
+
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 

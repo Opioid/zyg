@@ -191,7 +191,7 @@ pub const Perspective = struct {
         const fx = @floor(x);
         const fy = @floor(y);
 
-        const pixel = Vec2i{ @as(i32, @intFromFloat(fx)), @as(i32, @intFromFloat(fy)) };
+        const pixel = Vec2i{ @intFromFloat(fx), @intFromFloat(fy) };
 
         if (@as(u32, @intCast(pixel[0] - bounds[0])) > @as(u32, @intCast(bounds[2])) or
             @as(u32, @intCast(pixel[1] - bounds[1])) > @as(u32, @intCast(bounds[3])))
