@@ -8,6 +8,7 @@ const hlp = @import("../helper.zig");
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -42,19 +43,20 @@ pub const PathtracerDL = struct {
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
-            if (!worker.nextEvent(&vertex, sampler)) {
+            var isec: Intersection = undefined;
+            if (!worker.nextEvent(&vertex, &isec, sampler)) {
                 break;
             }
 
             const wo = -vertex.isec.ray.direction;
 
-            const energy: Vec4f = vertex.isec.evaluateRadiance(wo, sampler, worker.scene) orelse @splat(0.0);
+            const energy: Vec4f = isec.evaluateRadiance(vertex.isec.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
 
-            if (vertex.state.treat_as_singular or !Light.isLight(vertex.isec.hit.lightId(worker.scene))) {
+            if (vertex.state.treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
                 result += vertex.throughput * energy;
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == vertex.isec.hit.event) {
+            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == isec.event) {
                 break;
             }
 
@@ -65,13 +67,13 @@ pub const PathtracerDL = struct {
 
             const caustics = self.causticsResolve(vertex.state);
 
-            const mat_sample = vertex.sample(sampler, caustics, worker);
+            const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
 
             if (worker.aov.active()) {
-                worker.commonAOV(&vertex, &mat_sample);
+                worker.commonAOV(&vertex, &isec, &mat_sample);
             }
 
-            result += vertex.throughput * self.directLight(&vertex, &mat_sample, sampler, worker);
+            result += vertex.throughput * self.directLight(&vertex, &isec, &mat_sample, sampler, worker);
 
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
@@ -96,13 +98,13 @@ pub const PathtracerDL = struct {
             vertex.isec.depth += 1;
 
             if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                vertex.isec.ray.setMinMaxT(isec.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
-                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
+                vertex.state.from_subsurface = isec.subsurface();
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -110,7 +112,7 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(&isec, sample_result.wi, sampler, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
@@ -124,6 +126,7 @@ pub const PathtracerDL = struct {
     fn directLight(
         self: *const Self,
         vertex: *const Vertex,
+        isec: *const Intersection,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
         worker: *Worker,
@@ -135,7 +138,7 @@ pub const PathtracerDL = struct {
         }
 
         const n = mat_sample.super().geometricNormal();
-        const p = vertex.isec.hit.p;
+        const p = isec.p;
 
         const translucent = mat_sample.isTranslucent();
 
@@ -156,12 +159,14 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
-            var shadow_isec = Intersector.initFrom(
-                light.shadowRay(vertex.isec.hit.offsetP(light_sample.wi), light_sample, worker.scene),
+            var shadow_probe = Intersector.initFrom(
+                light.shadowRay(isec.offsetP(light_sample.wi), light_sample, worker.scene),
                 &vertex.isec,
             );
 
-            const tr = worker.visibility(&shadow_isec, &vertex.interfaces, sampler) orelse continue;
+            var shadow_isec = isec.*;
+
+            const tr = worker.visibility(&shadow_probe, &shadow_isec, &vertex.interfaces, sampler) orelse continue;
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 

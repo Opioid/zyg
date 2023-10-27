@@ -82,7 +82,7 @@ pub const Map = struct {
 
     pub fn li(
         self: *const Self,
-        isec: Intersection,
+        isec: *const Intersection,
         sample: *const MaterialSample,
         sampler: *Sampler,
         scene: *const Scene,

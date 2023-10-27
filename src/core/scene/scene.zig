@@ -262,16 +262,16 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, isec: *Intersector, ipo: Interpolation) bool {
-        return self.prop_bvh.intersect(isec, self, ipo);
+    pub fn intersect(self: *const Scene, probe: *Intersector, isec: *Intersection, ipo: Interpolation) bool {
+        return self.prop_bvh.intersect(probe, isec, self, ipo);
     }
 
-    pub fn visibility(self: *const Scene, isec: *const Intersector, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, probe: *const Intersector, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(isec, sampler, worker);
+            return self.prop_bvh.visibility(probe, sampler, worker);
         }
 
-        if (self.prop_bvh.intersectP(isec, self)) {
+        if (self.prop_bvh.intersectP(probe, self)) {
             return null;
         }
 
@@ -280,17 +280,18 @@ pub const Scene = struct {
 
     pub fn scatter(
         self: *const Scene,
-        isec: *Intersector,
+        probe: *Intersector,
+        isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
         if (!self.has_volumes) {
-            isec.hit.setVolume(Volume.initPass(@splat(1.0)));
+            isec.setVolume(Volume.initPass(@splat(1.0)));
             return false;
         }
 
-        return self.volume_bvh.scatter(isec, throughput, sampler, worker);
+        return self.volume_bvh.scatter(probe, isec, throughput, sampler, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

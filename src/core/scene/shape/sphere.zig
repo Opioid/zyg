@@ -337,7 +337,7 @@ pub const Sphere = struct {
         return math.smpl.conePdfUniform(cos_theta_max);
     }
 
-    pub fn pdfUv(ray: Ray, isec: Intersection) f32 {
+    pub fn pdfUv(ray: Ray, isec: *const Intersection) f32 {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(isec.uvw[1] * std.math.pi), 0.00001);
 

@@ -380,7 +380,7 @@ pub const Shape = union(enum) {
         variant: u32,
         ray: Ray,
         n: Vec4f,
-        isec: Intersection,
+        isec: *const Intersection,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
@@ -397,7 +397,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn pdfUv(self: Shape, ray: Ray, isec: Intersection, two_sided: bool) f32 {
+    pub fn pdfUv(self: Shape, ray: Ray, isec: *const Intersection, two_sided: bool) f32 {
         return switch (self) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Disk.pdf(ray, isec.trafo, two_sided),
@@ -408,7 +408,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn volumePdf(self: Shape, ray: Ray, isec: Intersection) f32 {
+    pub fn volumePdf(self: Shape, ray: Ray, isec: *const Intersection) f32 {
         return switch (self) {
             .Cube => Cube.volumePdf(ray, isec.trafo.scale()),
             else => 0.0,

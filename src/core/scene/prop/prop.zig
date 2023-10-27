@@ -1,8 +1,10 @@
-const Intersector = @import("../vertex.zig").Vertex.Intersector;
+const Probe = @import("../vertex.zig").Vertex.Intersector;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
-const shp = @import("../shape/intersection.zig");
+const int = @import("../shape/intersection.zig");
+const Intersection = int.Intersection;
+const Interpolation = int.Interpolation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
@@ -113,67 +115,68 @@ pub const Prop = struct {
     pub fn intersect(
         self: Prop,
         entity: u32,
-        isec: *Intersector,
+        probe: *Probe,
+        isec: *Intersection,
         scene: *const Scene,
-        ipo: shp.Interpolation,
+        ipo: Interpolation,
     ) bool {
-        if (!self.visible(isec.depth)) {
+        if (!self.visible(probe.depth)) {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, isec.ray)) {
+        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
         const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, isec.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, static);
 
-        if (scene.shape(self.shape).intersect(&isec.ray, trafo, ipo, &isec.hit)) {
-            isec.hit.trafo = trafo;
+        if (scene.shape(self.shape).intersect(&probe.ray, trafo, ipo, isec)) {
+            isec.trafo = trafo;
             return true;
         }
 
         return false;
     }
 
-    pub fn intersectSSS(self: Prop, entity: u32, isec: *Intersector, scene: *const Scene) bool {
+    pub fn intersectSSS(self: Prop, entity: u32, probe: *Probe, isec: *Intersection, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, isec.ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, isec.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).intersect(&isec.ray, trafo, .Normal, &isec.hit);
+        return scene.shape(self.shape).intersect(&probe.ray, trafo, .Normal, isec);
     }
 
-    pub fn intersectP(self: Prop, entity: u32, isec: *const Intersector, scene: *const Scene) bool {
+    pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, isec.ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, isec.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).intersectP(isec.ray, trafo);
+        return scene.shape(self.shape).intersectP(probe.ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, isec: *const Intersector, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
         const properties = self.properties;
         const scene = worker.scene;
 
         if (!properties.evaluate_visibility) {
-            if (self.intersectP(entity, isec, scene)) {
+            if (self.intersectP(entity, probe, scene)) {
                 return null;
             }
 
@@ -184,36 +187,36 @@ pub const Prop = struct {
             return @as(Vec4f, @splat(1.0));
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, isec.ray)) {
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
             return @as(Vec4f, @splat(1.0));
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, isec.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
         if (properties.volume) {
-            return scene.shape(self.shape).transmittance(isec.ray, isec.depth, trafo, entity, sampler, worker);
+            return scene.shape(self.shape).transmittance(probe.ray, probe.depth, trafo, entity, sampler, worker);
         } else {
-            return scene.shape(self.shape).visibility(isec.ray, trafo, entity, sampler, scene);
+            return scene.shape(self.shape).visibility(probe.ray, trafo, entity, sampler, scene);
         }
     }
 
     pub fn scatter(
         self: Prop,
         entity: u32,
-        isec: *const Intersector,
+        probe: *const Probe,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
-    ) shp.Volume {
+    ) int.Volume {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, isec.ray)) {
-            return shp.Volume.initPass(@splat(1.0));
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+            return int.Volume.initPass(@splat(1.0));
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, isec.time, properties.static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).scatter(isec.ray, isec.depth, trafo, throughput, entity, sampler, worker);
+        return scene.shape(self.shape).scatter(probe.ray, probe.depth, trafo, throughput, entity, sampler, worker);
     }
 };

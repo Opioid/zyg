@@ -2,9 +2,9 @@ const tracking = @import("tracking.zig");
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Intersector = Vertex.Intersector;
 const Worker = @import("../../worker.zig").Worker;
-const shp = @import("../../../scene/shape/intersection.zig");
-const Intersection = shp.Intersection;
-const Volume = shp.Volume;
+const int = @import("../../../scene/shape/intersection.zig");
+const Intersection = int.Intersection;
+const Volume = int.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
@@ -131,19 +131,19 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(vertex: *Vertex, isec: *Intersection, sampler: *Sampler, worker: *Worker) bool {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(vertex.isec.hit.prop, &vertex.isec, .Normal)) {
+            if (!worker.propIntersect(interface.prop, &vertex.isec, isec, .Normal)) {
                 return false;
             }
         } else {
             const ray_max_t = vertex.isec.ray.maxT();
             const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.isec.ray) orelse ray_max_t;
             vertex.isec.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(&vertex.isec, sampler)) {
+            if (!worker.intersectAndResolveMask(&vertex.isec, isec, sampler)) {
                 vertex.isec.ray.setMinMaxT(vertex.isec.ray.maxT(), ray_max_t);
                 return false;
             }
@@ -151,12 +151,13 @@ pub const Multi = struct {
             // This test is intended to catch corner cases where we actually left the scattering medium,
             // but the intersection point was too close to detect.
             var missed = false;
-            if (!interface.matches(vertex.isec.hit) or !vertex.isec.hit.sameHemisphere(vertex.isec.ray.direction)) {
+            if (!interface.matches(isec) or !isec.sameHemisphere(vertex.isec.ray.direction)) {
                 const v = -vertex.isec.ray.direction;
 
-                var tisec = Intersector.init(Ray.init(vertex.isec.hit.offsetP(v), v, 0.0, ro.Ray_max_t), vertex.isec.time);
-                if (worker.propIntersect(interface.prop, &tisec, .Normal)) {
-                    missed = math.dot3(tisec.hit.geo_n, v) <= 0.0;
+                var tprobe = Intersector.init(Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t), vertex.isec.time);
+                var tisec: Intersection = undefined;
+                if (worker.propIntersect(interface.prop, &tprobe, &tisec, .Normal)) {
+                    missed = math.dot3(tisec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
                 }
@@ -185,13 +186,13 @@ pub const Multi = struct {
         );
 
         if (.Pass != result.event) {
-            vertex.isec.hit.prop = interface.prop;
-            vertex.isec.hit.part = interface.part;
-            vertex.isec.hit.p = vertex.isec.ray.point(result.t);
-            vertex.isec.hit.uvw = result.uvw;
+            isec.prop = interface.prop;
+            isec.part = interface.part;
+            isec.p = vertex.isec.ray.point(result.t);
+            isec.uvw = result.uvw;
         }
 
-        vertex.isec.hit.setVolume(result);
+        isec.setVolume(result);
         return true;
     }
 };

@@ -318,13 +318,14 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var isec = Intersector.init(
+            var probe = Intersector.init(
                 Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
                 time,
             );
+            var isec: Intersection = undefined;
 
-            if (scene.intersect(&isec, .Normal)) {
-                self.focus_distance = isec.ray.maxT() + self.focus.point[2];
+            if (scene.intersect(&probe, &isec, .Normal)) {
+                self.focus_distance = probe.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
             }

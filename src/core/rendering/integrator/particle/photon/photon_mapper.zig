@@ -6,6 +6,7 @@ const bxdf = @import("../../../../scene/material/bxdf.zig");
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
+const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const ro = @import("../../../../scene/ray_offset.zig");
 const mat = @import("../../../../scene/material/material_helper.zig");
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
@@ -126,21 +127,22 @@ pub const Mapper = struct {
             //     continue;
             // }
 
-            if (!worker.nextEvent(&vertex, &self.sampler)) {
+            var isec: Intersection = undefined;
+            if (!worker.nextEvent(&vertex, &isec, &self.sampler)) {
                 continue;
             }
 
-            if (.Absorb == vertex.isec.hit.event) {
+            if (.Absorb == isec.event) {
                 continue;
             }
 
-            var radiance = light.evaluateFrom(vertex.isec.hit.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+            var radiance = light.evaluateFrom(isec.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= vertex.throughput;
 
             while (vertex.isec.depth < self.settings.max_bounces) {
                 const wo = -vertex.isec.ray.direction;
 
-                const mat_sample = vertex.sample(&self.sampler, .Full, worker);
+                const mat_sample = vertex.sample(&isec, &self.sampler, .Full, worker);
 
                 const sample_result = mat_sample.sample(&self.sampler, false, &bxdf_samples)[0];
                 if (0.0 == sample_result.pdf) {
@@ -149,24 +151,24 @@ pub const Mapper = struct {
 
                 if (!sample_result.class.straight) {
                     if (!sample_result.class.specular and
-                        (vertex.isec.hit.subsurface() or mat_sample.super().sameHemisphere(wo)) and
+                        (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                         (caustic_path or self.settings.full_light_path))
                     {
-                        if (finite_world or bounds.pointInside(vertex.isec.hit.p)) {
+                        if (finite_world or bounds.pointInside(isec.p)) {
                             var radi = radiance;
 
-                            const material_ior = vertex.isec.hit.material(worker.scene).ior();
-                            if (vertex.isec.hit.subsurface() and material_ior > 1.0) {
+                            const material_ior = isec.material(worker.scene).ior();
+                            if (isec.subsurface() and material_ior > 1.0) {
                                 const ior_t = vertex.interfaces.nextToBottomIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @as(Vec4f, @splat(eta * eta));
                             }
 
                             self.photons[num_photons] = Photon{
-                                .p = vertex.isec.hit.p,
+                                .p = isec.p,
                                 .wi = wo,
                                 .alpha = .{ radi[0], radi[1], radi[2] },
-                                .volumetric = vertex.isec.hit.subsurface(),
+                                .volumetric = isec.subsurface(),
                             };
 
                             iteration = i + 1;
@@ -199,10 +201,10 @@ pub const Mapper = struct {
                 if (sample_result.class.straight) {
                     vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
                 } else {
-                    vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                    vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
                     vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                    vertex.state.from_subsurface = vertex.isec.hit.subsurface();
+                    vertex.state.from_subsurface = isec.subsurface();
                 }
 
                 if (0.0 == vertex.isec.wavelength) {
@@ -210,16 +212,16 @@ pub const Mapper = struct {
                 }
 
                 if (sample_result.class.transmission) {
-                    const ior = vertex.interfaceChangeIor(sample_result.wi, &self.sampler, worker.scene);
+                    const ior = vertex.interfaceChangeIor(&isec, sample_result.wi, &self.sampler, worker.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     radiance *= @as(Vec4f, @splat(eta * eta));
                 }
 
-                if (!worker.nextEvent(&vertex, &self.sampler)) {
+                if (!worker.nextEvent(&vertex, &isec, &self.sampler)) {
                     break;
                 }
 
-                if (.Absorb == vertex.isec.hit.event) {
+                if (.Absorb == isec.event) {
                     break;
                 }
 

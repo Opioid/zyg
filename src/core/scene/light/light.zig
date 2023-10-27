@@ -145,7 +145,7 @@ pub const Light align(16) = struct {
         );
     }
 
-    pub fn pdf(self: Light, vertex: *const Vertex, scene: *const Scene) f32 {
+    pub fn pdf(self: Light, vertex: *const Vertex, isec: *const Intersection, scene: *const Scene) f32 {
         const total_sphere = vertex.state.is_translucent;
 
         return switch (self.class) {
@@ -154,13 +154,13 @@ pub const Light align(16) = struct {
                 self.variant,
                 vertex.isec.ray,
                 vertex.geo_n,
-                vertex.isec.hit,
+                isec,
                 self.two_sided,
                 total_sphere,
             ),
-            .PropImage => self.propImagePdf(vertex.isec.ray, vertex.isec.hit, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(vertex.isec.ray, vertex.isec.hit),
-            .VolumeImage => self.volumeImagePdf(vertex.isec.ray, vertex.isec.hit, scene),
+            .PropImage => self.propImagePdf(vertex.isec.ray, isec, scene),
+            .Volume => scene.propShape(self.prop).volumePdf(vertex.isec.ray, isec),
+            .VolumeImage => self.volumeImagePdf(vertex.isec.ray, isec, scene),
         };
     }
 
@@ -351,7 +351,7 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
+    fn propImagePdf(self: Light, ray: Ray, isec: *const Intersection, scene: *const Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
@@ -360,7 +360,7 @@ pub const Light align(16) = struct {
         return material_pdf * shape_pdf;
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, isec: Intersection, scene: *const Scene) f32 {
+    fn volumeImagePdf(self: Light, ray: Ray, isec: *const Intersection, scene: *const Scene) f32 {
         const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
         const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec);
 

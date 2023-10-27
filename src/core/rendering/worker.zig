@@ -192,7 +192,7 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
+    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
         return self.photon_map.li(isec, sample, sampler, self.scene);
     }
 
@@ -208,7 +208,7 @@ pub const Worker = struct {
         return &self.samplers[1];
     }
 
-    pub fn commonAOV(self: *Worker, vertex: *const Vertex, mat_sample: *const MaterialSample) void {
+    pub fn commonAOV(self: *Worker, vertex: *const Vertex, isec: *const Intersection, mat_sample: *const MaterialSample) void {
         const primary_ray = vertex.state.primary_ray;
 
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
@@ -234,34 +234,40 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(vertex.isec.hit.prop, vertex.isec.hit.part))),
+                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part))),
             );
         }
     }
 
-    pub fn visibility(self: *Worker, isec: *Intersector, interfaces: *const InterfaceStack, sampler: *Sampler) ?Vec4f {
-        const material = isec.hit.material(self.scene);
+    pub fn visibility(
+        self: *Worker,
+        probe: *Intersector,
+        isec: *Intersection,
+        interfaces: *const InterfaceStack,
+        sampler: *Sampler,
+    ) ?Vec4f {
+        const material = isec.material(self.scene);
 
-        if (isec.hit.subsurface() and !interfaces.empty() and material.denseSSSOptimization()) {
-            const ray_max_t = isec.ray.maxT();
-            const prop = isec.hit.prop;
+        if (isec.subsurface() and !interfaces.empty() and material.denseSSSOptimization()) {
+            const ray_max_t = probe.ray.maxT();
+            const prop = isec.prop;
 
-            const hit = self.scene.prop(prop).intersectSSS(prop, isec, self.scene);
+            const hit = self.scene.prop(prop).intersectSSS(prop, probe, isec, self.scene);
 
             if (hit) {
-                const sss_min_t = isec.ray.minT();
-                const sss_max_t = isec.ray.maxT();
-                isec.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(isec, sampler, self)) |tv| {
-                    isec.ray.setMinMaxT(sss_min_t, sss_max_t);
+                const sss_min_t = probe.ray.minT();
+                const sss_max_t = probe.ray.maxT();
+                probe.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
+                if (self.scene.visibility(probe, sampler, self)) |tv| {
+                    probe.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const interface = interfaces.top();
                     const cc = interface.cc;
-                    const tray = if (material.heterogeneousVolume()) isec.hit.trafo.worldToObjectRay(isec.ray) else isec.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, isec.depth, sampler, self)) |tr| {
-                        const wi = isec.ray.direction;
-                        const n = isec.hit.n;
+                    const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth, sampler, self)) |tr| {
+                        const wi = probe.ray.direction;
+                        const n = isec.n;
                         const vbh = material.border(wi, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, isec.hit.geo_n, n));
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, isec.geo_n, n));
 
                         return (vbh * nsc) * (tv * tr);
                     }
@@ -271,29 +277,33 @@ pub const Worker = struct {
             }
         }
 
-        return self.scene.visibility(isec, sampler, self);
+        return self.scene.visibility(probe, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, isec: *Intersection, sampler: *Sampler) bool {
         while (!vertex.interfaces.empty()) {
-            if (vlhlp.integrate(vertex, sampler, self)) {
-                vertex.throughput *= vertex.isec.hit.vol_tr;
+            if (vlhlp.integrate(vertex, isec, sampler, self)) {
+                vertex.throughput *= isec.vol_tr;
 
-                if (.Pass == vertex.isec.hit.event) {
+                if (.Pass == isec.event) {
+                    // if (0xFFFFFFFF == isec.part or 0xFFFFFFFF == isec.prop) {
+                    //     std.debug.print("alarm\n", .{});
+                    // }
+
                     const wo = -vertex.isec.ray.direction;
-                    const material = vertex.isec.hit.material(self.scene);
+                    const material = isec.material(self.scene);
                     const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
 
-                    if (!vertex.isec.hit.subsurface() and straight_border and !vertex.isec.hit.sameHemisphere(wo)) {
-                        const geo_n = vertex.isec.hit.geo_n;
-                        const n = vertex.isec.hit.n;
+                    if (!isec.subsurface() and straight_border and !isec.sameHemisphere(wo)) {
+                        const geo_n = isec.geo_n;
+                        const n = isec.n;
 
                         const vbh = material.border(wo, n);
                         const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
                         const weight = nsc * vbh;
 
                         vertex.throughput *= weight;
-                        vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                        vertex.isec.ray.setMinMaxT(isec.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
                         vertex.isec.depth += 1;
 
                         sampler.incrementPadding();
@@ -311,14 +321,14 @@ pub const Worker = struct {
 
         const origin = vertex.isec.ray.origin;
 
-        const hit = self.intersectAndResolveMask(&vertex.isec, sampler);
+        const hit = self.intersectAndResolveMask(&vertex.isec, isec, sampler);
 
         const dif_t = math.distance3(origin, vertex.isec.ray.origin);
         vertex.isec.ray.origin = origin;
         vertex.isec.ray.setMaxT(dif_t + vertex.isec.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.isec, vertex.throughput, sampler, self);
-        vertex.throughput *= vertex.isec.hit.vol_tr;
+        const volume_hit = self.scene.scatter(&vertex.isec, isec, vertex.throughput, sampler, self);
+        vertex.throughput *= isec.vol_tr;
 
         return hit or volume_hit;
     }
@@ -348,24 +358,29 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, isec: *Intersector, ipo: Interpolation) bool {
-        return self.scene.prop(entity).intersect(entity, isec, self.scene, ipo);
+    pub fn propIntersect(self: *Worker, entity: u32, probe: *Intersector, isec: *Intersection, ipo: Interpolation) bool {
+        if (self.scene.prop(entity).intersect(entity, probe, isec, self.scene, ipo)) {
+            isec.prop = entity;
+            return true;
+        }
+
+        return false;
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, isec: *Intersector, sampler: *Sampler) bool {
+    pub fn intersectAndResolveMask(self: *Worker, probe: *Intersector, isec: *Intersection, sampler: *Sampler) bool {
         while (true) {
-            if (!self.scene.intersect(isec, .All)) {
+            if (!self.scene.intersect(probe, isec, .All)) {
                 return false;
             }
 
-            const o = isec.hit.opacity(sampler, self.scene);
+            const o = isec.opacity(sampler, self.scene);
             if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
 
             // Offset ray until opaque surface is found
-            isec.ray.origin = isec.hit.offsetP(isec.ray.direction);
-            isec.ray.setMaxT(ro.Ray_max_t);
+            probe.ray.origin = isec.offsetP(probe.ray.direction);
+            probe.ray.setMaxT(ro.Ray_max_t);
         }
 
         return true;

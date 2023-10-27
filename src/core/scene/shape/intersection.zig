@@ -100,6 +100,32 @@ pub const Intersection = struct {
         const t = math.hmax3(@abs(p * n));
         return ro.offsetF(t + min_t) - t + self.offset();
     }
+
+    pub fn evaluateRadiance(self: Self, p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+        const m = self.material(scene);
+
+        const volume = self.event;
+
+        if (.Absorb == volume) {
+            return self.vol_li;
+        }
+
+        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
+            return null;
+        }
+
+        return m.evaluateRadiance(
+            p,
+            wo,
+            self.geo_n,
+            self.uvw,
+            self.trafo,
+            self.prop,
+            self.part,
+            sampler,
+            scene,
+        );
+    }
 };
 
 pub const Interpolation = enum {

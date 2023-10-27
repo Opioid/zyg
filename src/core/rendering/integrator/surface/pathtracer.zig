@@ -5,6 +5,7 @@ const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolv
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
+const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -36,25 +37,26 @@ pub const Pathtracer = struct {
         while (true) {
             var sampler = worker.pickSampler(vertex.isec.depth);
 
-            if (!worker.nextEvent(&vertex, sampler)) {
+            var isec: Intersection = undefined;
+            if (!worker.nextEvent(&vertex, &isec, sampler)) {
                 break;
             }
 
             const wo = -vertex.isec.ray.direction;
 
-            const energy: Vec4f = vertex.isec.evaluateRadiance(wo, sampler, worker.scene) orelse @splat(0.0);
+            const energy: Vec4f = isec.evaluateRadiance(vertex.isec.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
 
             result += vertex.throughput * energy;
 
             const caustics = self.causticsResolve(vertex.state);
 
-            const mat_sample = vertex.sample(sampler, caustics, worker);
+            const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
 
             if (worker.aov.active()) {
-                worker.commonAOV(&vertex, &mat_sample);
+                worker.commonAOV(&vertex, &isec, &mat_sample);
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == vertex.isec.hit.event) {
+            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == isec.event) {
                 break;
             }
 
@@ -83,13 +85,13 @@ pub const Pathtracer = struct {
             vertex.isec.depth += 1;
 
             if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(vertex.isec.hit.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                vertex.isec.ray.setMinMaxT(isec.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.isec.ray.origin = vertex.isec.hit.offsetP(sample_result.wi);
+                vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
-                vertex.state.from_subsurface = vertex.isec.hit.subsurface();
+                vertex.state.from_subsurface = isec.subsurface();
             }
 
             if (0.0 == vertex.isec.wavelength) {
@@ -97,7 +99,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(&isec, sample_result.wi, sampler, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
