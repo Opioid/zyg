@@ -152,15 +152,15 @@ pub const Light align(16) = struct {
             .Prop => scene.propShape(self.prop).pdf(
                 self.part,
                 self.variant,
-                vertex.isec.ray,
+                vertex.probe.ray,
                 vertex.geo_n,
                 isec,
                 self.two_sided,
                 total_sphere,
             ),
-            .PropImage => self.propImagePdf(vertex.isec.ray, isec, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(vertex.isec.ray, isec),
-            .VolumeImage => self.volumeImagePdf(vertex.isec.ray, isec, scene),
+            .PropImage => self.propImagePdf(vertex.probe.ray, isec, scene),
+            .Volume => scene.propShape(self.prop).volumePdf(vertex.probe.ray, isec),
+            .VolumeImage => self.volumeImagePdf(vertex.probe.ray, isec, scene),
         };
     }
 

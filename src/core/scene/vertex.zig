@@ -14,14 +14,14 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Vertex = struct {
-    pub const Intersector = struct {
+    pub const Probe = struct {
         ray: Ray,
 
         depth: u32,
         wavelength: f32,
         time: u64,
 
-        pub fn init(ray: Ray, time: u64) Intersector {
+        pub fn init(ray: Ray, time: u64) Probe {
             return .{
                 .ray = ray,
                 .depth = 0,
@@ -30,12 +30,12 @@ pub const Vertex = struct {
             };
         }
 
-        pub fn initFrom(ray: Ray, isec: *const Intersector) Intersector {
+        pub fn clone(self: *const Probe, ray: Ray) Probe {
             return .{
                 .ray = ray,
-                .depth = isec.depth,
-                .wavelength = isec.wavelength,
-                .time = isec.time,
+                .depth = self.depth,
+                .wavelength = self.wavelength,
+                .time = self.time,
             };
         }
     };
@@ -50,7 +50,7 @@ pub const Vertex = struct {
         started_specular: bool = false,
     };
 
-    isec: Intersector,
+    probe: Probe,
 
     state: State,
     bxdf_pdf: f32,
@@ -67,7 +67,7 @@ pub const Vertex = struct {
 
     pub fn init(ray: Ray, time: u64, interfaces: *const InterfaceStack) Vertex {
         return .{
-            .isec = .{
+            .probe = .{
                 .ray = ray,
                 .depth = 0,
                 .wavelength = 0.0,
@@ -128,7 +128,7 @@ pub const Vertex = struct {
         caustics: CausticsResolve,
         worker: *const Worker,
     ) mat.Sample {
-        const wo = -self.isec.ray.direction;
+        const wo = -self.probe.ray.direction;
 
         const m = isec.material(worker.scene);
         const p = isec.p;
@@ -138,7 +138,7 @@ pub const Vertex = struct {
         rs.trafo = isec.trafo;
         rs.p = .{ p[0], p[1], p[2], self.iorOutside(isec, wo, worker.scene) };
         rs.t = isec.t;
-        rs.b = .{ b[0], b[1], b[2], self.isec.wavelength };
+        rs.b = .{ b[0], b[1], b[2], self.probe.wavelength };
 
         if (m.twoSided() and !isec.sameHemisphere(wo)) {
             rs.geo_n = -isec.geo_n;
@@ -148,14 +148,14 @@ pub const Vertex = struct {
             rs.n = isec.n;
         }
 
-        rs.ray_p = self.isec.ray.origin;
+        rs.ray_p = self.probe.ray.origin;
 
         rs.uv = isec.uv();
         rs.prop = isec.prop;
         rs.part = isec.part;
         rs.primitive = isec.primitive;
-        rs.depth = self.isec.depth;
-        rs.time = self.isec.time;
+        rs.depth = self.probe.depth;
+        rs.time = self.probe.time;
         rs.subsurface = isec.subsurface();
         rs.caustics = caustics;
 

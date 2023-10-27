@@ -10,7 +10,7 @@ const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
-const Intersector = Vertex.Intersector;
+const Probe = Vertex.Probe;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/shape/intersection.zig").Intersection;
@@ -318,7 +318,7 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var probe = Intersector.init(
+            var probe = Probe.init(
                 Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
                 time,
             );

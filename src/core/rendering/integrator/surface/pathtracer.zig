@@ -1,5 +1,4 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Intersector = Vertex.Intersector;
 const Worker = @import("../../worker.zig").Worker;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const bxdf = @import("../../../scene/material/bxdf.zig");
@@ -35,16 +34,16 @@ pub const Pathtracer = struct {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
-            var sampler = worker.pickSampler(vertex.isec.depth);
+            var sampler = worker.pickSampler(vertex.probe.depth);
 
             var isec: Intersection = undefined;
             if (!worker.nextEvent(&vertex, &isec, sampler)) {
                 break;
             }
 
-            const wo = -vertex.isec.ray.direction;
+            const wo = -vertex.probe.ray.direction;
 
-            const energy: Vec4f = isec.evaluateRadiance(vertex.isec.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
+            const energy: Vec4f = isec.evaluateRadiance(vertex.probe.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
 
             result += vertex.throughput * energy;
 
@@ -56,11 +55,11 @@ pub const Pathtracer = struct {
                 worker.commonAOV(&vertex, &isec, &mat_sample);
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+            if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
                 break;
             }
 
-            if (vertex.isec.depth >= self.settings.min_bounces) {
+            if (vertex.probe.depth >= self.settings.min_bounces) {
                 const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
                 vertex.throughput /= @splat(rr);
             }
@@ -82,20 +81,20 @@ pub const Pathtracer = struct {
             vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.isec.depth += 1;
+            vertex.probe.depth += 1;
 
             if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(isec.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                vertex.probe.ray.setMinMaxT(isec.offsetT(vertex.probe.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
                 vertex.state.from_subsurface = isec.subsurface();
             }
 
-            if (0.0 == vertex.isec.wavelength) {
-                vertex.isec.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.probe.wavelength) {
+                vertex.probe.wavelength = sample_result.wavelength;
             }
 
             if (sample_result.class.transmission) {

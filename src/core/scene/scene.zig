@@ -13,7 +13,7 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
-const Intersector = @import("vertex.zig").Vertex.Intersector;
+const Probe = @import("vertex.zig").Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
@@ -262,11 +262,11 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, probe: *Intersector, isec: *Intersection, ipo: Interpolation) bool {
+    pub fn intersect(self: *const Scene, probe: *Probe, isec: *Intersection, ipo: Interpolation) bool {
         return self.prop_bvh.intersect(probe, isec, self, ipo);
     }
 
-    pub fn visibility(self: *const Scene, probe: *const Intersector, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
             return self.prop_bvh.visibility(probe, sampler, worker);
         }
@@ -280,7 +280,7 @@ pub const Scene = struct {
 
     pub fn scatter(
         self: *const Scene,
-        probe: *Intersector,
+        probe: *Probe,
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,

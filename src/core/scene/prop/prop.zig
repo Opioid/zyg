@@ -1,4 +1,4 @@
-const Probe = @import("../vertex.zig").Vertex.Intersector;
+const Probe = @import("../vertex.zig").Vertex.Probe;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;

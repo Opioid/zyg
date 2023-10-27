@@ -1,5 +1,4 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Intersector = Vertex.Intersector;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
@@ -96,9 +95,9 @@ pub const Lighttracer = struct {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
-            const wo = -vertex.isec.ray.direction;
+            const wo = -vertex.probe.ray.direction;
 
-            var sampler = worker.pickSampler(vertex.isec.depth);
+            var sampler = worker.pickSampler(vertex.probe.depth);
             const mat_sample = vertex.sample(isec, sampler, .Full, worker);
 
             const sample_result = mat_sample.sample(sampler, false, &bxdf_samples)[0];
@@ -106,13 +105,13 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            vertex.isec.depth += 1;
+            vertex.probe.depth += 1;
 
             if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 if (!sample_result.class.specular and
                     (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
@@ -128,12 +127,12 @@ pub const Lighttracer = struct {
                 vertex.state.from_subsurface = isec.subsurface();
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces) {
+            if (vertex.probe.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            if (0.0 == vertex.isec.wavelength) {
-                vertex.isec.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.probe.wavelength) {
+                vertex.probe.wavelength = sample_result.wavelength;
             }
 
             radiance *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
@@ -148,7 +147,7 @@ pub const Lighttracer = struct {
                 break;
             }
 
-            //    radiance *= vertex.isec.hit.vol_tr;
+            //    radiance *= vertex.probe.hit.vol_tr;
 
             if (.Absorb == isec.event) {
                 break;
@@ -204,19 +203,19 @@ pub const Lighttracer = struct {
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        const trafo = worker.scene.propTransformationAt(camera.entity, history.isec.time);
+        const trafo = worker.scene.propTransformationAt(camera.entity, history.probe.time);
         const p = isec.offsetP(math.normalize3(trafo.position - isec.p));
 
         const camera_sample = camera.sampleTo(
             filter_crop,
-            history.isec.time,
+            history.probe.time,
             p,
             sampler,
             worker.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var tprobe = Intersector.initFrom(Ray.init(p, wi, p[3], camera_sample.t), &history.isec);
+        var tprobe = history.probe.clone(Ray.init(p, wi, p[3], camera_sample.t));
         var tisec = isec.*;
 
         const wo = mat_sample.super().wo;

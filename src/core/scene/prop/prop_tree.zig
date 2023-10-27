@@ -1,5 +1,5 @@
 const Prop = @import("prop.zig").Prop;
-const Probe = @import("../vertex.zig").Vertex.Intersector;
+const Probe = @import("../vertex.zig").Vertex.Probe;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;

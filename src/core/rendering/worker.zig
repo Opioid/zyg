@@ -2,7 +2,7 @@ const cam = @import("../camera/perspective.zig");
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
-const Intersector = vt.Vertex.Intersector;
+const Probe = vt.Vertex.Probe;
 const RayDif = vt.RayDif;
 const rst = @import("../scene/renderstate.zig");
 const Renderstate = rst.Renderstate;
@@ -216,7 +216,7 @@ pub const Worker = struct {
             self.aov.insert3(.Albedo, vertex.throughput * mat_sample.aovAlbedo());
         }
 
-        if (vertex.isec.depth > 0) {
+        if (vertex.probe.depth > 0) {
             return;
         }
 
@@ -229,7 +229,7 @@ pub const Worker = struct {
         }
 
         if (self.aov.activeClass(.Depth)) {
-            self.aov.insert1(.Depth, vertex.isec.ray.maxT());
+            self.aov.insert1(.Depth, vertex.probe.ray.maxT());
         }
 
         if (self.aov.activeClass(.MaterialId)) {
@@ -242,7 +242,7 @@ pub const Worker = struct {
 
     pub fn visibility(
         self: *Worker,
-        probe: *Intersector,
+        probe: *Probe,
         isec: *Intersection,
         interfaces: *const InterfaceStack,
         sampler: *Sampler,
@@ -291,7 +291,7 @@ pub const Worker = struct {
                     //     std.debug.print("alarm\n", .{});
                     // }
 
-                    const wo = -vertex.isec.ray.direction;
+                    const wo = -vertex.probe.ray.direction;
                     const material = isec.material(self.scene);
                     const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
 
@@ -304,8 +304,8 @@ pub const Worker = struct {
                         const weight = nsc * vbh;
 
                         vertex.throughput *= weight;
-                        vertex.isec.ray.setMinMaxT(isec.offsetT(vertex.isec.ray.maxT()), ro.Ray_max_t);
-                        vertex.isec.depth += 1;
+                        vertex.probe.ray.setMinMaxT(isec.offsetT(vertex.probe.ray.maxT()), ro.Ray_max_t);
+                        vertex.probe.depth += 1;
 
                         sampler.incrementPadding();
 
@@ -320,15 +320,15 @@ pub const Worker = struct {
             vertex.interfaces.pop();
         }
 
-        const origin = vertex.isec.ray.origin;
+        const origin = vertex.probe.ray.origin;
 
-        const hit = self.intersectAndResolveMask(&vertex.isec, isec, sampler);
+        const hit = self.intersectAndResolveMask(&vertex.probe, isec, sampler);
 
-        const dif_t = math.distance3(origin, vertex.isec.ray.origin);
-        vertex.isec.ray.origin = origin;
-        vertex.isec.ray.setMaxT(dif_t + vertex.isec.ray.maxT());
+        const dif_t = math.distance3(origin, vertex.probe.ray.origin);
+        vertex.probe.ray.origin = origin;
+        vertex.probe.ray.setMaxT(dif_t + vertex.probe.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.isec, isec, vertex.throughput, sampler, self);
+        const volume_hit = self.scene.scatter(&vertex.probe, isec, vertex.throughput, sampler, self);
         vertex.throughput *= isec.vol_tr;
 
         return hit or volume_hit;
@@ -359,7 +359,7 @@ pub const Worker = struct {
         return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, probe: *Intersector, isec: *Intersection, ipo: Interpolation) bool {
+    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, isec: *Intersection, ipo: Interpolation) bool {
         if (self.scene.prop(entity).intersect(entity, probe, isec, self.scene, ipo)) {
             isec.prop = entity;
             return true;
@@ -368,7 +368,7 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, probe: *Intersector, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, isec: *Intersection, sampler: *Sampler) bool {
         while (true) {
             if (!self.scene.intersect(probe, isec, .All)) {
                 return false;

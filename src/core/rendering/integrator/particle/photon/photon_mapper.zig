@@ -1,7 +1,6 @@
 const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
-const Intersector = Vertex.Intersector;
 const bxdf = @import("../../../../scene/material/bxdf.zig");
 const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/perspective.zig").Perspective;
@@ -139,8 +138,8 @@ pub const Mapper = struct {
             var radiance = light.evaluateFrom(isec.p, light_sample, &self.sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
             radiance *= vertex.throughput;
 
-            while (vertex.isec.depth < self.settings.max_bounces) {
-                const wo = -vertex.isec.ray.direction;
+            while (vertex.probe.depth < self.settings.max_bounces) {
+                const wo = -vertex.probe.ray.direction;
 
                 const mat_sample = vertex.sample(&isec, &self.sampler, .Full, worker);
 
@@ -196,19 +195,19 @@ pub const Mapper = struct {
                     radiance = nr / @as(Vec4f, @splat(continue_prob));
                 }
 
-                vertex.isec.depth += 1;
+                vertex.probe.depth += 1;
 
                 if (sample_result.class.straight) {
-                    vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                    vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
                 } else {
-                    vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
-                    vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                    vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                     vertex.state.from_subsurface = isec.subsurface();
                 }
 
-                if (0.0 == vertex.isec.wavelength) {
-                    vertex.isec.wavelength = sample_result.wavelength;
+                if (0.0 == vertex.probe.wavelength) {
+                    vertex.probe.wavelength = sample_result.wavelength;
                 }
 
                 if (sample_result.class.transmission) {

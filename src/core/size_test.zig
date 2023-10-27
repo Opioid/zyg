@@ -28,7 +28,7 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Intersection, "Intersection", 208);
-    testType(Vertex, "Vertex", 736);
+    testType(Vertex, "Vertex", 512);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);

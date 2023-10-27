@@ -1,5 +1,5 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Intersector = Vertex.Intersector;
+const Probe = Vertex.Probe;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const bxdf = @import("../../../scene/material/bxdf.zig");
@@ -78,8 +78,8 @@ pub const AOV = struct {
 
         const origin = isec.offsetP(mat_sample.super().geometricNormal());
 
-        var occlusion_probe: Vertex.Intersector = undefined;
-        occlusion_probe.time = vertex.isec.time;
+        var occlusion_probe: Probe = undefined;
+        occlusion_probe.time = vertex.probe.time;
 
         var i = self.settings.num_samples;
         while (i > 0) : (i -= 1) {
@@ -107,7 +107,7 @@ pub const AOV = struct {
     fn vector(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.isec.ray.direction;
+        const wo = -vertex.probe.ray.direction;
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
         var vec: Vec4f = undefined;
@@ -166,7 +166,7 @@ pub const AOV = struct {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
-            var sampler = worker.pickSampler(vertex.isec.depth);
+            var sampler = worker.pickSampler(vertex.probe.depth);
 
             const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
@@ -184,7 +184,7 @@ pub const AOV = struct {
                 if (vertex.state.primary_ray) {
                     vertex.state.primary_ray = false;
 
-                    const indirect = !vertex.state.direct and 0 != vertex.isec.depth;
+                    const indirect = !vertex.state.direct and 0 != vertex.probe.depth;
                     if (self.settings.photons_not_only_through_specular or indirect) {
                         worker.addPhoton(vertex.throughput * worker.photonLi(isec, &mat_sample, sampler));
                         break;
@@ -193,25 +193,25 @@ pub const AOV = struct {
             }
 
             if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.isec.depth += 1;
+                vertex.probe.depth += 1;
             }
 
-            if (vertex.isec.depth >= self.settings.max_bounces) {
+            if (vertex.probe.depth >= self.settings.max_bounces) {
                 break;
             }
 
             if (sample_result.class.straight) {
-                vertex.isec.ray.setMinMaxT(ro.offsetF(vertex.isec.ray.maxT()), ro.Ray_max_t);
+                vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
             } else {
-                vertex.isec.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.isec.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
                 vertex.state.direct = false;
                 vertex.state.from_subsurface = false;
             }
 
-            if (0.0 == vertex.isec.wavelength) {
-                vertex.isec.wavelength = sample_result.wavelength;
+            if (0.0 == vertex.probe.wavelength) {
+                vertex.probe.wavelength = sample_result.wavelength;
             }
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
