@@ -37,6 +37,7 @@ const Vec2ul = math.Vec2ul;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const Ray = math.Ray;
 const RNG = base.rnd.Generator;
 
 const std = @import("std");
@@ -335,7 +336,7 @@ pub const Worker = struct {
 
     pub fn propTransmittance(
         self: *Worker,
-        ray: math.Ray,
+        ray: Ray,
         material: *const Material,
         entity: u32,
         depth: u32,
@@ -347,7 +348,7 @@ pub const Worker = struct {
 
     pub fn propScatter(
         self: *Worker,
-        ray: math.Ray,
+        ray: Ray,
         throughput: Vec4f,
         material: *const Material,
         entity: u32,
