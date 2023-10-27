@@ -140,7 +140,7 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(vertex.isec.prop, vertex, .Normal)) {
+            if (!worker.propIntersect(interface.prop, vertex, .Normal)) {
                 return false;
             }
         } else {
