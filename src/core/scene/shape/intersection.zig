@@ -101,21 +101,19 @@ pub const Intersection = struct {
         return ro.offsetF(t + min_t) - t + self.offset();
     }
 
-    pub fn evaluateRadiance(self: Self, p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
-        const m = self.material(scene);
-
+    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const volume = self.event;
-
         if (.Absorb == volume) {
             return self.vol_li;
         }
 
+        const m = self.material(scene);
         if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
             return null;
         }
 
         return m.evaluateRadiance(
-            p,
+            shading_p,
             wo,
             self.geo_n,
             self.uvw,

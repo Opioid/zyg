@@ -88,7 +88,8 @@ pub const PathtracerMIS = struct {
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    if (sample_result.class.specular and .Full != caustics) {
+                    const class = sample_result.class;
+                    if (class.specular and .Full != caustics) {
                         continue;
                     }
 
@@ -98,13 +99,13 @@ pub const PathtracerMIS = struct {
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                    if (sample_result.class.specular) {
+                    if (class.specular) {
                         next_vertex.state.treat_as_singular = true;
 
                         if (next_vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
-                    } else if (!sample_result.class.straight) {
+                    } else if (!class.straight) {
                         next_vertex.state.treat_as_singular = false;
                         next_vertex.state.primary_ray = false;
                     }
@@ -114,7 +115,7 @@ pub const PathtracerMIS = struct {
 
                     next_vertex.probe.depth += 1;
 
-                    if (sample_result.class.straight) {
+                    if (class.straight) {
                         next_vertex.probe.ray.setMinMaxT(isec.offsetT(next_vertex.probe.ray.maxT()), ro.Ray_max_t);
                     } else {
                         next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
@@ -131,11 +132,11 @@ pub const PathtracerMIS = struct {
                         next_vertex.probe.wavelength = sample_result.wavelength;
                     }
 
-                    if (sample_result.class.transmission) {
+                    if (class.transmission) {
                         next_vertex.interfaceChange(&isec, sample_result.wi, sampler, worker.scene);
                     }
 
-                    next_vertex.state.transparent = next_vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
+                    next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);
                 }
 
                 sampler.incrementPadding();
@@ -214,9 +215,16 @@ pub const PathtracerMIS = struct {
         return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
     }
 
-    fn connectLight(self: *const Self, vertex: *const Vertex, isec: *const Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
+    fn connectLight(
+        self: *const Self,
+        vertex: *const Vertex,
+        isec: *const Intersection,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        const p = vertex.probe.ray.origin;
         const wo = -vertex.probe.ray.direction;
-        const energy = isec.evaluateRadiance(vertex.probe.ray.origin, wo, sampler, scene) orelse return @splat(0.0);
+        const energy = isec.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
 
         const light_id = isec.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
@@ -226,7 +234,7 @@ pub const PathtracerMIS = struct {
         const translucent = vertex.state.is_translucent;
         const split = self.splitting(vertex.probe.depth);
 
-        const light_pick = scene.lightPdfSpatial(light_id, vertex.probe.ray.origin, vertex.geo_n, translucent, split);
+        const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
         const pdf = light.pdf(vertex, isec, scene);

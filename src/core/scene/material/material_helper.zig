@@ -56,17 +56,6 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
     return math.normalize3(wo + tangent);
 }
 
-pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-    // Veach's compensation for "Non-symmetry due to shading normals".
-    // See e.g. CorrectShadingNormal() at:
-    // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
-
-    const numer = @abs(math.dot3(wi, geo_n) * math.dot3(wo, n));
-    const denom = math.max(@abs(math.dot3(wi, n) * math.dot3(wo, geo_n)), hlp.Dot_min);
-
-    return numer / denom;
-}
-
 pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
     const an = @abs(n);
     if (an[0] > an[1] and an[0] > an[2]) {

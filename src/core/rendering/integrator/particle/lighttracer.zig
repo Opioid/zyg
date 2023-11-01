@@ -7,7 +7,7 @@ const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const ro = @import("../../../scene/ray_offset.zig");
-const mat = @import("../../../scene/material/material_helper.zig");
+const hlp = @import("../helper.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -72,6 +72,7 @@ pub const Lighttracer = struct {
 
         const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
         vertex.throughput *= radiance;
+        vertex.throughput_old = vertex.throughput;
 
         self.integrate(&vertex, &isec, worker, light_id, light_sample.xy);
     }
@@ -129,10 +130,14 @@ pub const Lighttracer = struct {
                 break;
             }
 
+            const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
+            vertex.throughput /= @splat(rr);
+
             if (0.0 == vertex.probe.wavelength) {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
+            vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
@@ -144,8 +149,6 @@ pub const Lighttracer = struct {
             if (!worker.nextEvent(vertex, isec, sampler)) {
                 break;
             }
-
-            //    radiance *= vertex.probe.hit.vol_tr;
 
             if (.Absorb == isec.event) {
                 break;
@@ -221,7 +224,7 @@ pub const Lighttracer = struct {
 
         const wo = mat_sample.super().wo;
         const n = mat_sample.super().interpolatedNormal();
-        var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
+        var nsc = hlp.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
 
         const material_ior = isec.material(worker.scene).ior();
         if (isec.subsurface() and material_ior > 1.0) {
