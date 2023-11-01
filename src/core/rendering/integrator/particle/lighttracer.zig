@@ -70,17 +70,14 @@ pub const Lighttracer = struct {
 
         sampler.incrementPadding();
 
-        const initrad = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-        const radiance = vertex.throughput * initrad;
+        const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+        vertex.throughput *= radiance;
 
-        var split_vertex = vertex;
-
-        self.integrate(radiance, &split_vertex, &isec, worker, light_id, light_sample.xy);
+        self.integrate(&vertex, &isec, worker, light_id, light_sample.xy);
     }
 
     fn integrate(
         self: *Self,
-        radiance_: Vec4f,
         vertex: *Vertex,
         isec: *Intersection,
         worker: *Worker,
@@ -89,7 +86,6 @@ pub const Lighttracer = struct {
     ) void {
         const camera = worker.camera;
 
-        var radiance = radiance_;
         var caustic_path = false;
 
         var bxdf_samples: bxdf.Samples = undefined;
@@ -119,7 +115,7 @@ pub const Lighttracer = struct {
                     (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
                     (caustic_path or self.settings.full_light_path))
                 {
-                    _ = directCamera(camera, radiance, vertex, isec, &mat_sample, sampler, worker);
+                    _ = directCamera(camera, vertex, isec, &mat_sample, sampler, worker);
                 }
 
                 if (sample_result.class.specular) {
@@ -137,12 +133,12 @@ pub const Lighttracer = struct {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
-            radiance *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
                 const ior = vertex.interfaceChangeIor(isec, sample_result.wi, sampler, worker.scene);
                 const eta = ior.eta_i / ior.eta_t;
-                radiance *= @as(Vec4f, @splat(eta * eta));
+                vertex.throughput *= @as(Vec4f, @splat(eta * eta));
             }
 
             if (!worker.nextEvent(vertex, isec, sampler)) {
@@ -187,8 +183,7 @@ pub const Lighttracer = struct {
 
     fn directCamera(
         camera: *Camera,
-        radiance: Vec4f,
-        history: *const Vertex,
+        vertex: *const Vertex,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
@@ -206,37 +201,37 @@ pub const Lighttracer = struct {
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        const trafo = worker.scene.propTransformationAt(camera.entity, history.probe.time);
+        const trafo = worker.scene.propTransformationAt(camera.entity, vertex.probe.time);
         const p = isec.offsetP(math.normalize3(trafo.position - isec.p));
 
         const camera_sample = camera.sampleTo(
             filter_crop,
-            history.probe.time,
+            vertex.probe.time,
             p,
             sampler,
             worker.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var tprobe = history.probe.clone(Ray.init(p, wi, p[3], camera_sample.t));
+        var tprobe = vertex.probe.clone(Ray.init(p, wi, p[3], camera_sample.t));
         var tisec = isec.*;
 
-        const wo = mat_sample.super().wo;
-        const tr = worker.visibility(&tprobe, &tisec, &history.interfaces, sampler) orelse return false;
+        const tr = worker.visibility(&tprobe, &tisec, &vertex.interfaces, sampler) orelse return false;
 
         const bxdf_result = mat_sample.evaluate(wi, false);
 
+        const wo = mat_sample.super().wo;
         const n = mat_sample.super().interpolatedNormal();
         var nsc = mat.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
 
         const material_ior = isec.material(worker.scene).ior();
         if (isec.subsurface() and material_ior > 1.0) {
-            const ior_t = history.interfaces.nextToBottomIor(worker.scene);
+            const ior_t = vertex.interfaces.nextToBottomIor(worker.scene);
             const eta = material_ior / ior_t;
             nsc *= eta * eta;
         }
 
-        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * radiance * bxdf_result.reflection);
+        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * vertex.throughput * bxdf_result.reflection);
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;

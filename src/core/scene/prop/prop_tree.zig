@@ -292,7 +292,9 @@ pub const Tree = struct {
             isec.prop = prop;
             isec.part = 0;
             isec.p = probe.ray.point(result.t);
-            isec.geo_n = -probe.ray.direction;
+            const vn = -probe.ray.direction;
+            isec.geo_n = vn;
+            isec.n = vn;
             isec.uvw = result.uvw;
 
             return true;

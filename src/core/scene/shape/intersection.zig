@@ -14,15 +14,15 @@ pub const Volume = struct {
 
     li: Vec4f,
     tr: Vec4f,
-    uvw: Vec4f = undefined,
-    t: f32 = undefined,
+    uvw: Vec4f = @splat(0.0),
+    t: f32,
     event: Event,
 
     pub fn initPass(w: Vec4f) Volume {
         return .{
             .li = @splat(0.0),
             .tr = w,
-            .uvw = @splat(0.0),
+            .t = 0.0,
             .event = .Pass,
         };
     }

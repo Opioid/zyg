@@ -41,13 +41,7 @@ pub const Sample = struct {
         sin2k_alpha: [3]f32,
         cos2k_alpha: [3]f32,
     ) Sample {
-        var super = Base.init(
-            rs,
-            wo,
-            color,
-            @splat(1.0),
-            0.0,
-        );
+        var super = Base.init(rs, wo, color, @splat(1.0), 0.0);
 
         super.properties.translucent = true;
         super.frame.setTangentFrame(rs.t, rs.b, rs.n);

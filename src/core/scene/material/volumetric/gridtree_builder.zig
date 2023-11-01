@@ -64,6 +64,8 @@ pub const Builder = struct {
             alloc.free(context.grid);
         }
 
+        // Unfortunately this is necessary because of our crappy threadpool
+        threads.waitAsync();
         threads.runParallel(&context, Context.distribute, 0);
 
         var num_nodes = cell_len;

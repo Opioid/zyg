@@ -461,6 +461,7 @@ pub const Mesh = struct {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
                 const n_w = trafo.rotation.transformVector(n);
                 isec.n = n_w;
+                isec.uvw = @splat(0.0);
             }
 
             return true;

@@ -45,7 +45,7 @@ pub const Opaque = struct {
     }
 
     pub fn addPixelAtomic(self: *Opaque, i: usize, color: Vec4f, weight: f32) void {
-        const wc: Vec4f = @as(Vec4f, @splat(weight)) * color;
+        const wc = @as(Vec4f, @splat(weight)) * color;
 
         var value = &self.pixels[i];
         _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .Monotonic);

@@ -40,13 +40,7 @@ pub const Sample = struct {
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
 
-        var super = Base.init(
-            rs,
-            wo,
-            @splat(1.0),
-            reg_alpha,
-            thickness,
-        );
+        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness);
 
         const rough = reg_alpha[0] > 0.0;
 
