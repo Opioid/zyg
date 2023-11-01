@@ -235,7 +235,7 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @as(f32, @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part))),
+                @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part)),
             );
         }
     }
@@ -243,7 +243,7 @@ pub const Worker = struct {
     pub fn visibility(
         self: *Worker,
         probe: *Probe,
-        isec: *Intersection,
+        isec: *const Intersection,
         interfaces: *const InterfaceStack,
         sampler: *Sampler,
     ) ?Vec4f {
@@ -253,7 +253,8 @@ pub const Worker = struct {
             const ray_max_t = probe.ray.maxT();
             const prop = isec.prop;
 
-            const hit = self.scene.prop(prop).intersectSSS(prop, probe, isec, self.scene);
+            var sss_isec: Intersection = undefined;
+            const hit = self.scene.prop(prop).intersectSSS(prop, probe, &sss_isec, self.scene);
 
             if (hit) {
                 const sss_min_t = probe.ray.minT();
@@ -262,12 +263,12 @@ pub const Worker = struct {
                 if (self.scene.visibility(probe, sampler, self)) |tv| {
                     probe.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const cc = interfaces.topCC();
-                    const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
+                    const tray = if (material.heterogeneousVolume()) sss_isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
                     if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth, sampler, self)) |tr| {
                         const wi = probe.ray.direction;
-                        const n = isec.n;
+                        const n = sss_isec.n;
                         const vbh = material.border(wi, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, isec.geo_n, n));
+                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, sss_isec.geo_n, n));
 
                         return (vbh * nsc) * (tv * tr);
                     }

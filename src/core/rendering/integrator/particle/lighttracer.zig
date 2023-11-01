@@ -214,9 +214,8 @@ pub const Lighttracer = struct {
 
         const wi = -camera_sample.dir;
         var tprobe = vertex.probe.clone(Ray.init(p, wi, p[3], camera_sample.t));
-        var tisec = isec.*;
 
-        const tr = worker.visibility(&tprobe, &tisec, &vertex.interfaces, sampler) orelse return false;
+        const tr = worker.visibility(&tprobe, isec, &vertex.interfaces, sampler) orelse return false;
 
         const bxdf_result = mat_sample.evaluate(wi, false);
 

@@ -201,9 +201,8 @@ pub const PathtracerMIS = struct {
         ) orelse return @splat(0.0);
 
         var shadow_probe = vertex.probe.clone(light.shadowRay(isec.offsetP(light_sample.wi), light_sample, worker.scene));
-        var shadow_isec = isec.*;
 
-        const tr = worker.visibility(&shadow_probe, &shadow_isec, &vertex.interfaces, sampler) orelse return @splat(0.0);
+        const tr = worker.visibility(&shadow_probe, isec, &vertex.interfaces, sampler) orelse return @splat(0.0);
 
         const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
 
