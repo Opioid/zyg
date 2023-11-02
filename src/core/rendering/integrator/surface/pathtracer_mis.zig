@@ -86,14 +86,13 @@ pub const PathtracerMIS = struct {
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    const class = sample_result.class;
-
                     var next_vertex = vertices.new();
 
                     next_vertex.* = vertex.*;
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
+                    const class = sample_result.class;
                     if (class.specular) {
                         next_vertex.state.treat_as_singular = true;
                     } else if (!class.straight) {

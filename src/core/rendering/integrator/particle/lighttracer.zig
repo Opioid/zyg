@@ -1,4 +1,6 @@
-const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const vt = @import("../../../scene/vertex.zig");
+const Vertex = vt.Vertex;
+const VertexPool = vt.Pool;
 const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
@@ -60,92 +62,106 @@ pub const Lighttracer = struct {
             vertex.interfaces.pushVolumeLight(light);
         }
 
-        self.integrate(&vertex, worker, light, light_sample);
+        self.integrate(vertex, worker, light, light_sample);
     }
 
-    fn integrate(self: *Self, vertex: *Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
+    fn integrate(self: *Self, input: Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
         const camera = worker.camera;
 
-        while (true) {
-            var sampler = worker.pickSampler(vertex.probe.depth);
+        var vertices: VertexPool = .{};
+        vertices.start(input);
 
-            var isec: Intersection = undefined;
-            if (!worker.nextEvent(vertex, &isec, sampler)) {
-                break;
-            }
+        while (vertices.iterate()) {
+            while (vertices.consume()) |vertex| {
+                var sampler = worker.pickSampler(vertex.probe.depth);
 
-            if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
-                break;
-            }
-
-            if (0 == vertex.probe.depth) {
-                const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-                vertex.throughput *= radiance;
-                vertex.throughput_old = vertex.throughput;
-            }
-
-            const mat_sample = vertex.sample(&isec, sampler, .Full, worker);
-
-            const wo = -vertex.probe.ray.direction;
-            if (mat_sample.canEvaluate() and
-                (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
-                (vertex.state.started_specular or self.settings.full_light_path))
-            {
-                _ = directCamera(camera, vertex, &isec, &mat_sample, sampler, worker);
-
-                // const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
-                // vertex.throughput /= @splat(rr);
-            }
-
-            var bxdf_samples: bxdf.Samples = undefined;
-            const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
-            if (0 == sample_results.len) {
-                break;
-            }
-
-            const sample_result = sample_results[0];
-
-            const class = sample_result.class;
-            if (class.specular) {
-                vertex.state.treat_as_singular = true;
-
-                if (vertex.state.primary_ray) {
-                    vertex.state.started_specular = true;
-                }
-            } else if (!class.straight) {
-                if (!self.settings.full_light_path and !vertex.state.started_specular) {
-                    break;
+                var isec: Intersection = undefined;
+                if (!worker.nextEvent(vertex, &isec, sampler)) {
+                    continue;
                 }
 
-                vertex.state.treat_as_singular = false;
-                vertex.state.primary_ray = false;
+                if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+                    continue;
+                }
+
+                if (0 == vertex.probe.depth) {
+                    const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+                    vertex.throughput *= radiance;
+                    vertex.throughput_old = vertex.throughput;
+                }
+
+                const mat_sample = vertex.sample(&isec, sampler, .Full, worker);
+
+                const split = vertex.path_count <= 2 and vertex.state.primary_ray;
+
+                const wo = -vertex.probe.ray.direction;
+                if (mat_sample.canEvaluate() and
+                    (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
+                    (vertex.state.started_specular or self.settings.full_light_path))
+                {
+                    _ = directCamera(camera, vertex, &isec, &mat_sample, split, sampler, worker);
+
+                    if (vertex.probe.depth >= self.settings.min_bounces) {
+                        const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
+                        vertex.throughput /= @splat(rr);
+                    }
+                }
+
+                var bxdf_samples: bxdf.Samples = undefined;
+                const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
+                const path_count: u32 = @intCast(sample_results.len);
+
+                for (sample_results) |sample_result| {
+                    const class = sample_result.class;
+
+                    if (!self.settings.full_light_path and !vertex.state.started_specular and !class.specular and !class.straight) {
+                        continue;
+                    }
+
+                    var next_vertex = vertices.new();
+
+                    next_vertex.* = vertex.*;
+                    next_vertex.path_count = vertex.path_count * path_count;
+                    next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
+
+                    if (class.specular) {
+                        next_vertex.state.treat_as_singular = true;
+
+                        if (next_vertex.state.primary_ray) {
+                            next_vertex.state.started_specular = true;
+                        }
+                    } else if (!class.straight) {
+                        next_vertex.state.treat_as_singular = false;
+                        next_vertex.state.primary_ray = false;
+                    }
+
+                    next_vertex.throughput_old = next_vertex.throughput;
+                    next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+
+                    next_vertex.probe.depth += 1;
+
+                    if (class.straight) {
+                        next_vertex.probe.ray.setMinMaxT(ro.offsetF(next_vertex.probe.ray.maxT()), ro.Ray_max_t);
+                    } else {
+                        next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                        next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+
+                        next_vertex.state.from_subsurface = isec.subsurface();
+                    }
+
+                    if (0.0 == next_vertex.probe.wavelength) {
+                        next_vertex.probe.wavelength = sample_result.wavelength;
+                    }
+
+                    if (class.transmission) {
+                        const ior = next_vertex.interfaceChangeIor(&isec, sample_result.wi, sampler, worker.scene);
+                        const eta = ior.eta_i / ior.eta_t;
+                        next_vertex.throughput *= @as(Vec4f, @splat(eta * eta));
+                    }
+                }
+
+                sampler.incrementPadding();
             }
-
-            if (class.straight) {
-                vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
-            } else {
-                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
-                vertex.state.from_subsurface = isec.subsurface();
-            }
-
-            vertex.probe.depth += 1;
-
-            if (0.0 == vertex.probe.wavelength) {
-                vertex.probe.wavelength = sample_result.wavelength;
-            }
-
-            vertex.throughput_old = vertex.throughput;
-            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
-
-            if (sample_result.class.transmission) {
-                const ior = vertex.interfaceChangeIor(&isec, sample_result.wi, sampler, worker.scene);
-                const eta = ior.eta_i / ior.eta_t;
-                vertex.throughput *= @as(Vec4f, @splat(eta * eta));
-            }
-
-            sampler.incrementPadding();
         }
     }
 
@@ -177,6 +193,7 @@ pub const Lighttracer = struct {
         vertex: *const Vertex,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
+        material_split: bool,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
@@ -208,7 +225,7 @@ pub const Lighttracer = struct {
 
         const tr = worker.visibility(&tprobe, isec, &vertex.interfaces, sampler) orelse return false;
 
-        const bxdf_result = mat_sample.evaluate(wi, false);
+        const bxdf_result = mat_sample.evaluate(wi, material_split);
 
         const wo = mat_sample.super().wo;
         const n = mat_sample.super().interpolatedNormal();
@@ -221,7 +238,8 @@ pub const Lighttracer = struct {
             nsc *= eta * eta;
         }
 
-        const result = @as(Vec4f, @splat(camera_sample.pdf * nsc)) * (tr * vertex.throughput * bxdf_result.reflection);
+        const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
+        const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;

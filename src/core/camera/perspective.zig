@@ -236,10 +236,10 @@ pub const Perspective = struct {
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
-        const delta = @as(f64, @floatCast(frame_delta));
-        const duration = @as(f64, @floatFromInt(self.frame_duration));
+        const delta: f64 = @floatCast(frame_delta);
+        const duration: f64 = @floatFromInt(self.frame_duration);
 
-        const fdi = @as(u64, @intFromFloat(@round(delta * duration)));
+        const fdi: u64 = @intFromFloat(@round(delta * duration));
 
         return @as(u64, frame) * self.frame_step + fdi;
     }

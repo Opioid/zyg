@@ -291,7 +291,7 @@ pub const Worker = struct {
                     const material = isec.material(self.scene);
                     const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
 
-                    if (!isec.subsurface() and straight_border and !isec.sameHemisphere(wo)) {
+                    if (straight_border and !isec.sameHemisphere(wo)) {
                         const geo_n = isec.geo_n;
                         const n = isec.n;
 
