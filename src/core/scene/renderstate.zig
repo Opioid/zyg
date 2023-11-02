@@ -5,8 +5,6 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 pub const CausticsResolve = enum(u8) {
     Off,
     Rough,
@@ -57,7 +55,7 @@ pub const Renderstate = struct {
         if (alpha[0] <= ggx.Min_alpha and .Rough == self.caustics) {
             const l = math.length3(self.p - self.ray_p);
             const m = math.min(0.1 * (1.0 + l), 1.0);
-            return math.max2(alpha, @as(Vec2f, @splat(m)));
+            return math.max2(alpha, @splat(m));
         }
 
         return alpha;

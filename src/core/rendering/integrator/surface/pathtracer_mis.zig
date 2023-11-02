@@ -26,7 +26,7 @@ pub const PathtracerMIS = struct {
         max_bounces: u32,
 
         light_sampling: hlp.LightSampling,
-        caustics_path: hlp.CausticsPath,
+        caustics_path: bool,
         caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
     };
@@ -52,10 +52,9 @@ pub const PathtracerMIS = struct {
                     continue;
                 }
 
-                const radiance = self.connectLight(vertex, &isec, sampler, worker.scene);
-
+                const energy = self.connectLight(vertex, &isec, sampler, worker.scene);
                 const split_weight: Vec4f = @splat(vertex.split_weight);
-                result += vertex.throughput * split_weight * radiance;
+                result += vertex.throughput * split_weight * energy;
 
                 if (vertex.probe.depth >= max_bounces or .Absorb == isec.event) {
                     continue;
@@ -67,7 +66,6 @@ pub const PathtracerMIS = struct {
                 }
 
                 const caustics = self.causticsResolve(vertex.state);
-
                 const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
 
                 if (worker.aov.active()) {
@@ -89,9 +87,6 @@ pub const PathtracerMIS = struct {
 
                 for (sample_results) |sample_result| {
                     const class = sample_result.class;
-                    if (class.specular and .Full != caustics) {
-                        continue;
-                    }
 
                     var next_vertex = vertices.new();
 
@@ -101,10 +96,6 @@ pub const PathtracerMIS = struct {
 
                     if (class.specular) {
                         next_vertex.state.treat_as_singular = true;
-
-                        if (next_vertex.state.primary_ray) {
-                            next_vertex.state.started_specular = true;
-                        }
                     } else if (!class.straight) {
                         next_vertex.state.treat_as_singular = false;
                         next_vertex.state.primary_ray = false;
@@ -156,10 +147,6 @@ pub const PathtracerMIS = struct {
         worker: *Worker,
     ) Vec4f {
         var result: Vec4f = @splat(0.0);
-
-        if (!mat_sample.canEvaluate()) {
-            return result;
-        }
 
         const p = isec.p;
         const n = mat_sample.super().geometricNormal();
@@ -222,6 +209,10 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
+        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+            return @splat(0.0);
+        }
+
         const p = vertex.probe.ray.origin;
         const wo = -vertex.probe.ray.direction;
         const energy = isec.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
@@ -248,18 +239,12 @@ pub const PathtracerMIS = struct {
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
-        const pr = state.primary_ray;
-        const p = self.settings.caustics_path;
-        const r = self.settings.caustics_resolve;
-
-        if (!pr) {
-            if (.Off == p) {
-                return .Off;
-            } else if (.Indirect == p and !state.started_specular) {
+        if (!state.primary_ray) {
+            if (!self.settings.caustics_path) {
                 return .Off;
             }
 
-            return r;
+            return self.settings.caustics_resolve;
         }
 
         return .Full;

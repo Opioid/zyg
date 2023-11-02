@@ -1,4 +1,5 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
+const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const bxdf = @import("../../../scene/material/bxdf.zig");
@@ -19,7 +20,7 @@ pub const Pathtracer = struct {
     pub const Settings = struct {
         min_bounces: u32,
         max_bounces: u32,
-        avoid_caustics: bool,
+        caustics_path: bool,
         caustics_resolve: CausticsResolve,
     };
 
@@ -31,8 +32,6 @@ pub const Pathtracer = struct {
         var vertex = input;
         var result: Vec4f = @splat(0.0);
 
-        var bxdf_samples: bxdf.Samples = undefined;
-
         while (true) {
             var sampler = worker.pickSampler(vertex.probe.depth);
 
@@ -41,19 +40,8 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            const wo = -vertex.probe.ray.direction;
-
-            const energy: Vec4f = isec.evaluateRadiance(vertex.probe.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
-
+            const energy = self.connectLight(&vertex, &isec, sampler, worker.scene);
             result += vertex.throughput * energy;
-
-            const caustics = self.causticsResolve(vertex.state);
-
-            const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
-
-            if (worker.aov.active()) {
-                worker.commonAOV(&vertex, &isec, &mat_sample);
-            }
 
             if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
                 break;
@@ -64,17 +52,25 @@ pub const Pathtracer = struct {
                 vertex.throughput /= @splat(rr);
             }
 
+            const caustics = self.causticsResolve(vertex.state);
+            const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
+
+            if (worker.aov.active()) {
+                worker.commonAOV(&vertex, &isec, &mat_sample);
+            }
+
+            var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;
             }
 
             const sample_result = sample_results[0];
-            if (sample_result.class.specular and .Full != caustics) {
-                break;
-            }
 
-            if (!sample_result.class.specular and !sample_result.class.straight) {
+            if (sample_result.class.specular) {
+                vertex.state.treat_as_singular = true;
+            } else if (!sample_result.class.straight) {
+                vertex.state.treat_as_singular = false;
                 vertex.state.primary_ray = false;
             }
 
@@ -109,16 +105,29 @@ pub const Pathtracer = struct {
         return hlp.composeAlpha(result, vertex.throughput, vertex.state.transparent);
     }
 
-    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
-        const pr = state.primary_ray;
-        const r = self.settings.caustics_resolve;
+    fn connectLight(
+        self: *const Self,
+        vertex: *const Vertex,
+        isec: *const Intersection,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+            return @splat(0.0);
+        }
 
-        if (!pr) {
-            if (self.settings.avoid_caustics) {
+        const p = vertex.probe.ray.origin;
+        const wo = -vertex.probe.ray.direction;
+        return isec.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
+    }
+
+    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+        if (!state.primary_ray) {
+            if (!self.settings.caustics_path) {
                 return .Off;
             }
 
-            return r;
+            return self.settings.caustics_resolve;
         }
 
         return .Full;

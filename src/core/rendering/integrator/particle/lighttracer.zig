@@ -3,6 +3,7 @@ const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
+const Light = @import("../../../scene/light/light.zig").Light;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
@@ -59,44 +60,44 @@ pub const Lighttracer = struct {
             vertex.interfaces.pushVolumeLight(light);
         }
 
-        var isec: Intersection = undefined;
-        if (!worker.nextEvent(&vertex, &isec, sampler)) {
-            return;
-        }
-
-        if (.Absorb == isec.event) {
-            return;
-        }
-
-        sampler.incrementPadding();
-
-        const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-        vertex.throughput *= radiance;
-        vertex.throughput_old = vertex.throughput;
-
-        self.integrate(&vertex, &isec, worker, light_id, light_sample.xy);
+        self.integrate(&vertex, worker, light, light_sample);
     }
 
-    fn integrate(
-        self: *Self,
-        vertex: *Vertex,
-        isec: *Intersection,
-        worker: *Worker,
-        light_id: u32,
-        light_sample_xy: Vec2f,
-    ) void {
+    fn integrate(self: *Self, vertex: *Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
         const camera = worker.camera;
 
-        var caustic_path = false;
-
-        var bxdf_samples: bxdf.Samples = undefined;
-
         while (true) {
-            const wo = -vertex.probe.ray.direction;
-
             var sampler = worker.pickSampler(vertex.probe.depth);
-            const mat_sample = vertex.sample(isec, sampler, .Full, worker);
 
+            var isec: Intersection = undefined;
+            if (!worker.nextEvent(vertex, &isec, sampler)) {
+                break;
+            }
+
+            if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+                break;
+            }
+
+            if (0 == vertex.probe.depth) {
+                const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
+                vertex.throughput *= radiance;
+                vertex.throughput_old = vertex.throughput;
+            }
+
+            const mat_sample = vertex.sample(&isec, sampler, .Full, worker);
+
+            const wo = -vertex.probe.ray.direction;
+            if (mat_sample.canEvaluate() and
+                (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
+                (vertex.state.started_specular or self.settings.full_light_path))
+            {
+                _ = directCamera(camera, vertex, &isec, &mat_sample, sampler, worker);
+
+                // const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
+                // vertex.throughput /= @splat(rr);
+            }
+
+            var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;
@@ -104,34 +105,32 @@ pub const Lighttracer = struct {
 
             const sample_result = sample_results[0];
 
-            vertex.probe.depth += 1;
+            const class = sample_result.class;
+            if (class.specular) {
+                vertex.state.treat_as_singular = true;
 
-            if (sample_result.class.straight) {
+                if (vertex.state.primary_ray) {
+                    vertex.state.started_specular = true;
+                }
+            } else if (!class.straight) {
+                if (!self.settings.full_light_path and !vertex.state.started_specular) {
+                    break;
+                }
+
+                vertex.state.treat_as_singular = false;
+                vertex.state.primary_ray = false;
+            }
+
+            if (class.straight) {
                 vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
             } else {
                 vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
-                if (!sample_result.class.specular and
-                    (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
-                    (caustic_path or self.settings.full_light_path))
-                {
-                    _ = directCamera(camera, vertex, isec, &mat_sample, sampler, worker);
-                }
-
-                if (sample_result.class.specular) {
-                    caustic_path = true;
-                }
-
                 vertex.state.from_subsurface = isec.subsurface();
             }
 
-            if (vertex.probe.depth >= self.settings.max_bounces) {
-                break;
-            }
-
-            const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
-            vertex.throughput /= @splat(rr);
+            vertex.probe.depth += 1;
 
             if (0.0 == vertex.probe.wavelength) {
                 vertex.probe.wavelength = sample_result.wavelength;
@@ -141,24 +140,13 @@ pub const Lighttracer = struct {
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (sample_result.class.transmission) {
-                const ior = vertex.interfaceChangeIor(isec, sample_result.wi, sampler, worker.scene);
+                const ior = vertex.interfaceChangeIor(&isec, sample_result.wi, sampler, worker.scene);
                 const eta = ior.eta_i / ior.eta_t;
                 vertex.throughput *= @as(Vec4f, @splat(eta * eta));
             }
 
-            if (!worker.nextEvent(vertex, isec, sampler)) {
-                break;
-            }
-
-            if (.Absorb == isec.event) {
-                break;
-            }
-
             sampler.incrementPadding();
         }
-
-        _ = light_id;
-        _ = light_sample_xy;
     }
 
     fn generateLightVertex(

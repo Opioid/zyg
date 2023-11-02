@@ -24,8 +24,7 @@ pub const PathtracerDL = struct {
         max_bounces: u32,
 
         light_sampling: hlp.LightSampling,
-
-        avoid_caustics: bool,
+        caustics_path: bool,
         caustics_resolve: CausticsResolve,
     };
 
@@ -37,8 +36,6 @@ pub const PathtracerDL = struct {
         var vertex = input;
         var result: Vec4f = @splat(0.0);
 
-        var bxdf_samples: bxdf.Samples = undefined;
-
         while (true) {
             var sampler = worker.pickSampler(vertex.probe.depth);
 
@@ -47,11 +44,8 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            const wo = -vertex.probe.ray.direction;
-
-            const energy: Vec4f = isec.evaluateRadiance(vertex.probe.ray.origin, wo, sampler, worker.scene) orelse @splat(0.0);
-
             if (vertex.state.treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
+                const energy = self.connectLight(&vertex, &isec, sampler, worker.scene);
                 result += vertex.throughput * energy;
             }
 
@@ -65,7 +59,6 @@ pub const PathtracerDL = struct {
             }
 
             const caustics = self.causticsResolve(vertex.state);
-
             const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
 
             if (worker.aov.active()) {
@@ -74,15 +67,13 @@ pub const PathtracerDL = struct {
 
             result += vertex.throughput * self.directLight(&vertex, &isec, &mat_sample, sampler, worker);
 
+            var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;
             }
 
             const sample_result = sample_results[0];
-            if (sample_result.class.specular and .Full != caustics) {
-                break;
-            }
 
             if (sample_result.class.specular) {
                 vertex.state.treat_as_singular = true;
@@ -174,20 +165,33 @@ pub const PathtracerDL = struct {
         return result;
     }
 
+    fn connectLight(
+        self: *const Self,
+        vertex: *const Vertex,
+        isec: *const Intersection,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+            return @splat(0.0);
+        }
+
+        const p = vertex.probe.ray.origin;
+        const wo = -vertex.probe.ray.direction;
+        return isec.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
+    }
+
     fn splitting(self: *const Self, bounce: u32) bool {
         return .Adaptive == self.settings.light_sampling and bounce < 3;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
-        const pr = state.primary_ray;
-        const r = self.settings.caustics_resolve;
-
-        if (!pr) {
-            if (self.settings.avoid_caustics) {
+        if (!state.primary_ray) {
+            if (!self.settings.caustics_path) {
                 return .Off;
             }
 
-            return r;
+            return self.settings.caustics_resolve;
         }
 
         return .Full;

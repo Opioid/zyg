@@ -160,7 +160,7 @@ pub const View = struct {
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
-                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
@@ -176,7 +176,7 @@ pub const View = struct {
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
-                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
@@ -187,9 +187,9 @@ pub const View = struct {
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
-                var caustics_path: CausticsPath = .Off;
+                var caustics_path = false;
                 if (.Off != caustics_resolve) {
-                    caustics_path = if (lighttracer) .Indirect else .Full;
+                    caustics_path = if (lighttracer) false else true;
                 }
 
                 self.surfaces = surface.Factory{ .PTMIS = .{
