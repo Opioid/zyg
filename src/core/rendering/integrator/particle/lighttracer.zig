@@ -85,8 +85,9 @@ pub const Lighttracer = struct {
                 }
 
                 if (0 == vertex.probe.depth) {
-                    const radiance = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / @as(Vec4f, @splat(light_sample.pdf()));
-                    vertex.throughput *= radiance;
+                    const pdf: Vec4f = @splat(light_sample.pdf());
+                    const energy = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / pdf;
+                    vertex.throughput *= energy;
                     vertex.throughput_old = vertex.throughput;
                 }
 
@@ -94,11 +95,7 @@ pub const Lighttracer = struct {
 
                 const split = vertex.path_count <= 2 and vertex.state.primary_ray;
 
-                const wo = -vertex.probe.ray.direction;
-                if (mat_sample.canEvaluate() and
-                    (isec.subsurface() or mat_sample.super().sameHemisphere(wo)) and
-                    (vertex.state.started_specular or self.settings.full_light_path))
-                {
+                if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     _ = directCamera(camera, vertex, &isec, &mat_sample, split, sampler, worker);
 
                     if (vertex.probe.depth >= self.settings.min_bounces) {
@@ -209,19 +206,17 @@ pub const Lighttracer = struct {
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        const trafo = worker.scene.propTransformationAt(camera.entity, vertex.probe.time);
-        const p = isec.offsetP(math.normalize3(trafo.position - isec.p));
-
         const camera_sample = camera.sampleTo(
             filter_crop,
             vertex.probe.time,
-            p,
+            isec.p,
             sampler,
             worker.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        var tprobe = vertex.probe.clone(Ray.init(p, wi, p[3], camera_sample.t));
+        const p = isec.offsetP(wi);
+        var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
         const tr = worker.visibility(&tprobe, isec, &vertex.interfaces, sampler) orelse return false;
 

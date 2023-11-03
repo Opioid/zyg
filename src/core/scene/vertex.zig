@@ -95,10 +95,9 @@ pub const Vertex = struct {
     pub fn interfaceChange(self: *Self, isec: *const Intersection, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
-            _ = self.interfaces.remove(isec);
+            self.interfaces.remove(isec);
         } else {
-            const material = isec.material(scene);
-            const cc = material.collisionCoefficients2D(isec.uv(), sampler, scene);
+            const cc = isec.material(scene).collisionCoefficients2D(isec.uv(), sampler, scene);
             self.interfaces.push(isec, cc);
         }
     }
@@ -109,7 +108,7 @@ pub const Vertex = struct {
         const leave = isec.sameHemisphere(dir);
         if (leave) {
             const ior = IoR{ .eta_t = self.interfaces.peekIor(isec, scene), .eta_i = inter_ior };
-            _ = self.interfaces.remove(isec);
+            self.interfaces.remove(isec);
             return ior;
         }
 

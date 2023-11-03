@@ -109,7 +109,7 @@ pub const Stack = struct {
         }
     }
 
-    pub fn remove(self: *Stack, isec: *const Intersection) bool {
+    pub fn remove(self: *Stack, isec: *const Intersection) void {
         const back = @as(i32, @intCast(self.index)) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {
@@ -122,10 +122,8 @@ pub const Stack = struct {
                 }
 
                 self.index -= 1;
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 };
