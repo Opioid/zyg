@@ -127,7 +127,7 @@ pub const Mapper = struct {
             // }
 
             var isec: Intersection = undefined;
-            if (!worker.nextEvent(&vertex, &isec, &self.sampler)) {
+            if (!worker.nextEvent(true, &vertex, &isec, &self.sampler)) {
                 continue;
             }
 
@@ -158,7 +158,7 @@ pub const Mapper = struct {
 
                             const material_ior = isec.material(worker.scene).ior();
                             if (isec.subsurface() and material_ior > 1.0) {
-                                const ior_t = vertex.interfaces.nextToBottomIor(worker.scene);
+                                const ior_t = vertex.interfaces.surroundingIor(worker.scene);
                                 const eta = material_ior / ior_t;
                                 radi *= @as(Vec4f, @splat(eta * eta));
                             }
@@ -216,7 +216,7 @@ pub const Mapper = struct {
                     radiance *= @as(Vec4f, @splat(eta * eta));
                 }
 
-                if (!worker.nextEvent(&vertex, &isec, &self.sampler)) {
+                if (!worker.nextEvent(true, &vertex, &isec, &self.sampler)) {
                     break;
                 }
 

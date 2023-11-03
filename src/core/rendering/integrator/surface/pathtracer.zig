@@ -36,7 +36,7 @@ pub const Pathtracer = struct {
             var sampler = worker.pickSampler(vertex.probe.depth);
 
             var isec: Intersection = undefined;
-            if (!worker.nextEvent(&vertex, &isec, sampler)) {
+            if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
                 break;
             }
 

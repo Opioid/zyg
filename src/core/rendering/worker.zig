@@ -281,7 +281,7 @@ pub const Worker = struct {
         return self.scene.visibility(probe, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, comptime Particle: bool, vertex: *Vertex, isec: *Intersection, sampler: *Sampler) bool {
         while (!vertex.interfaces.empty()) {
             if (vlhlp.integrate(vertex, isec, sampler, self)) {
                 vertex.throughput *= isec.vol_tr;
@@ -304,6 +304,12 @@ pub const Worker = struct {
                         vertex.probe.depth += 1;
 
                         sampler.incrementPadding();
+
+                        if (Particle) {
+                            const ior_t = vertex.interfaces.surroundingIor(self.scene);
+                            const eta = material.ior() / ior_t;
+                            vertex.throughput *= @splat(eta * eta);
+                        }
 
                         vertex.interfaces.pop();
                         continue;

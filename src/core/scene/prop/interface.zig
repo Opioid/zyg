@@ -63,7 +63,7 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn nextToBottomIor(self: *const Stack, scene: *const Scene) f32 {
+    pub fn surroundingIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
             return self.i_stack[1].material(scene).ior();

@@ -76,7 +76,7 @@ pub const Lighttracer = struct {
                 var sampler = worker.pickSampler(vertex.probe.depth);
 
                 var isec: Intersection = undefined;
-                if (!worker.nextEvent(vertex, &isec, sampler)) {
+                if (!worker.nextEvent(true, vertex, &isec, sampler)) {
                     continue;
                 }
 
@@ -226,10 +226,10 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
         var nsc = hlp.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
 
-        const material_ior = isec.material(worker.scene).ior();
-        if (isec.subsurface() and material_ior > 1.0) {
-            const ior_t = vertex.interfaces.nextToBottomIor(worker.scene);
-            const eta = material_ior / ior_t;
+        const material = isec.material(worker.scene);
+        if (isec.subsurface() and material.denseSSSOptimization()) {
+            const ior_t = vertex.interfaces.surroundingIor(worker.scene);
+            const eta = material.ior() / ior_t;
             nsc *= eta * eta;
         }
 

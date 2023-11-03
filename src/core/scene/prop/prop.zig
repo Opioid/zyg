@@ -152,7 +152,12 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).intersect(&probe.ray, trafo, .Normal, isec);
+        if (scene.shape(self.shape).intersect(&probe.ray, trafo, .Normal, isec)) {
+            isec.trafo = trafo;
+            return true;
+        }
+
+        return false;
     }
 
     pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {

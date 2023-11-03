@@ -48,7 +48,7 @@ pub const AOV = struct {
         var sampler = worker.pickSampler(0);
 
         var isec: Intersection = undefined;
-        if (!worker.nextEvent(&vertex, &isec, sampler)) {
+        if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
             return @splat(0.0);
         }
 
@@ -222,7 +222,7 @@ pub const AOV = struct {
 
             vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
-            if (!worker.nextEvent(vertex, isec, sampler)) {
+            if (!worker.nextEvent(false, vertex, isec, sampler)) {
                 break;
             }
 
