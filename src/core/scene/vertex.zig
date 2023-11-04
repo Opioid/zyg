@@ -59,6 +59,7 @@ pub const Vertex = struct {
 
     throughput: Vec4f,
     throughput_old: Vec4f,
+    origin: Vec4f,
     geo_n: Vec4f,
 
     interfaces: InterfaceStack,
@@ -79,6 +80,7 @@ pub const Vertex = struct {
             .path_count = 1,
             .throughput = @splat(1.0),
             .throughput_old = @splat(1.0),
+            .origin = ray.origin,
             .geo_n = @splat(0.0),
             .interfaces = interfaces.clone(),
         };
@@ -147,7 +149,7 @@ pub const Vertex = struct {
             rs.n = isec.n;
         }
 
-        rs.ray_p = self.probe.ray.origin;
+        rs.ray_p = self.origin;
 
         rs.uv = isec.uv();
         rs.prop = isec.prop;

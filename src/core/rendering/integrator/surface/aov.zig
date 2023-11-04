@@ -192,35 +192,29 @@ pub const AOV = struct {
                 }
             }
 
-            if (!(sample_result.class.straight and sample_result.class.transmission)) {
-                vertex.probe.depth += 1;
-            }
+            vertex.probe.depth += 1;
+            vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+            vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
 
             if (vertex.probe.depth >= self.settings.max_bounces) {
                 break;
             }
 
-            if (sample_result.class.straight) {
-                vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
-            } else {
-                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
+            if (!sample_result.class.straight) {
                 vertex.state.direct = false;
-                vertex.state.from_subsurface = false;
+                vertex.state.from_subsurface = isec.subsurface();
+                vertex.origin = isec.p;
             }
 
             if (0.0 == vertex.probe.wavelength) {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
-            vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
-
             if (sample_result.class.transmission) {
                 vertex.interfaceChange(isec, sample_result.wi, sampler, worker.scene);
             }
-
-            vertex.state.from_subsurface = vertex.state.from_subsurface or isec.subsurface();
 
             if (!worker.nextEvent(false, vertex, isec, sampler)) {
                 break;

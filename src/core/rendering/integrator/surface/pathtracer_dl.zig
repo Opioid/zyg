@@ -85,16 +85,14 @@ pub const PathtracerDL = struct {
             vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
+            vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+            vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
             vertex.probe.depth += 1;
 
-            if (sample_result.class.straight) {
-                vertex.probe.ray.setMinMaxT(isec.offsetT(vertex.probe.ray.maxT()), ro.Ray_max_t);
-            } else {
-                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
+            if (!sample_result.class.straight) {
                 vertex.state.direct = false;
                 vertex.state.from_subsurface = isec.subsurface();
+                vertex.origin = isec.p;
             }
 
             if (0.0 == vertex.probe.wavelength) {

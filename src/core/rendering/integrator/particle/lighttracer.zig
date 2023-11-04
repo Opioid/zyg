@@ -111,7 +111,7 @@ pub const Lighttracer = struct {
                 for (sample_results) |sample_result| {
                     const class = sample_result.class;
 
-                    if (!self.settings.full_light_path and !vertex.state.started_specular and !class.specular and !class.straight) {
+                    if (!self.settings.full_light_path and !vertex.state.started_specular and !class.specular) {
                         continue;
                     }
 
@@ -135,15 +135,13 @@ pub const Lighttracer = struct {
                     next_vertex.throughput_old = next_vertex.throughput;
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
+                    next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     next_vertex.probe.depth += 1;
 
-                    if (class.straight) {
-                        next_vertex.probe.ray.setMinMaxT(ro.offsetF(next_vertex.probe.ray.maxT()), ro.Ray_max_t);
-                    } else {
-                        next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                        next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
+                    if (!class.straight) {
                         next_vertex.state.from_subsurface = isec.subsurface();
+                        next_vertex.origin = isec.p;
                     }
 
                     if (0.0 == next_vertex.probe.wavelength) {

@@ -195,15 +195,13 @@ pub const Mapper = struct {
                     radiance = nr / @as(Vec4f, @splat(continue_prob));
                 }
 
+                vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                 vertex.probe.depth += 1;
 
-                if (sample_result.class.straight) {
-                    vertex.probe.ray.setMinMaxT(ro.offsetF(vertex.probe.ray.maxT()), ro.Ray_max_t);
-                } else {
-                    vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                    vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
+                if (!sample_result.class.straight) {
                     vertex.state.from_subsurface = isec.subsurface();
+                    vertex.origin = isec.p;
                 }
 
                 if (0.0 == vertex.probe.wavelength) {

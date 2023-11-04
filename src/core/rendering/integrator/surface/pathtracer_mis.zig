@@ -103,18 +103,16 @@ pub const PathtracerMIS = struct {
                     next_vertex.throughput_old = next_vertex.throughput;
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
+                    next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     next_vertex.probe.depth += 1;
 
-                    if (class.straight) {
-                        next_vertex.probe.ray.setMinMaxT(isec.offsetT(next_vertex.probe.ray.maxT()), ro.Ray_max_t);
-                    } else {
-                        next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
-                        next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-
+                    if (!class.straight) {
                         next_vertex.state.direct = false;
                         next_vertex.state.from_subsurface = isec.subsurface();
                         next_vertex.state.is_translucent = mat_sample.isTranslucent();
                         next_vertex.bxdf_pdf = sample_result.pdf;
+                        next_vertex.origin = isec.p;
                         next_vertex.geo_n = mat_sample.super().geometricNormal();
                     }
 
@@ -191,14 +189,14 @@ pub const PathtracerMIS = struct {
 
         const tr = worker.visibility(&shadow_probe, isec, &vertex.interfaces, sampler) orelse return @splat(0.0);
 
-        const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
-
         const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
-        const light_pdf = light_sample.pdf() * light_weight;
-        const weight = hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf());
+        const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
 
-        return @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
+        const light_pdf = light_sample.pdf() * light_weight;
+        const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf()));
+
+        return weight * (tr * radiance * bxdf_result.reflection);
     }
 
     fn connectLight(
@@ -212,7 +210,7 @@ pub const PathtracerMIS = struct {
             return @splat(0.0);
         }
 
-        const p = vertex.probe.ray.origin;
+        const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
         const energy = isec.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
 
@@ -222,15 +220,15 @@ pub const PathtracerMIS = struct {
         }
 
         const translucent = vertex.state.is_translucent;
-        const split = self.splitting(vertex.probe.depth);
+        const split = self.splitting(vertex.probe.depth - 1);
 
         const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
 
         const pdf = light.pdf(vertex, isec, scene);
-        const weight = hlp.powerHeuristic(vertex.bxdf_pdf, pdf * light_pick.pdf);
+        const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, pdf * light_pick.pdf));
 
-        return @as(Vec4f, @splat(weight)) * energy;
+        return weight * energy;
     }
 
     fn splitting(self: *const Self, bounce: u32) bool {
