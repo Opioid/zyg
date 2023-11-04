@@ -132,14 +132,12 @@ pub const Vertex = struct {
         const wo = -self.probe.ray.direction;
 
         const m = isec.material(worker.scene);
-        const p = isec.p;
-        const b = isec.b;
 
         var rs: Renderstate = undefined;
         rs.trafo = isec.trafo;
-        rs.p = .{ p[0], p[1], p[2], self.iorOutside(isec, wo, worker.scene) };
+        rs.p = isec.p;
         rs.t = isec.t;
-        rs.b = .{ b[0], b[1], b[2], self.probe.wavelength };
+        rs.b = isec.b;
 
         if (m.twoSided() and !isec.sameHemisphere(wo)) {
             rs.geo_n = -isec.geo_n;
@@ -149,14 +147,15 @@ pub const Vertex = struct {
             rs.n = isec.n;
         }
 
-        rs.ray_p = self.origin;
-
+        rs.origin = self.origin;
         rs.uv = isec.uv();
+        rs.ior = self.iorOutside(isec, wo, worker.scene);
+        rs.wavelength = self.probe.wavelength;
+        rs.time = self.probe.time;
         rs.prop = isec.prop;
         rs.part = isec.part;
         rs.primitive = isec.primitive;
         rs.depth = self.probe.depth;
-        rs.time = self.probe.time;
         rs.subsurface = isec.subsurface();
         rs.caustics = caustics;
 

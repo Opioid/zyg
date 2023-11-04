@@ -52,11 +52,11 @@ pub const Material = struct {
             wo,
             self.super.cc.a,
             self.super.ior,
-            rs.ior(),
+            rs.ior,
             r * r,
             self.thickness,
             self.abbe,
-            rs.wavelength(),
+            rs.wavelength,
         );
 
         if (self.normal_map.valid()) {

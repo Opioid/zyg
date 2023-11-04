@@ -94,13 +94,6 @@ pub const Intersection = struct {
         return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
     }
 
-    pub fn offsetT(self: Self, min_t: f32) f32 {
-        const p = self.p;
-        const n = self.geo_n;
-        const t = math.hmax3(@abs(p * n));
-        return ro.offsetF(t + min_t) - t + self.offset();
-    }
-
     pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const volume = self.event;
         if (.Absorb == volume) {

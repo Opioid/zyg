@@ -300,7 +300,9 @@ pub const Worker = struct {
                         const weight = nsc * vbh;
 
                         vertex.throughput *= weight;
-                        vertex.probe.ray.setMinMaxT(isec.offsetT(vertex.probe.ray.maxT()), ro.Ray_max_t);
+
+                        vertex.probe.ray.origin = isec.offsetP(vertex.probe.ray.direction);
+                        vertex.probe.ray.setMaxT(ro.Ray_max_t);
                         vertex.probe.depth += 1;
 
                         sampler.incrementPadding();
