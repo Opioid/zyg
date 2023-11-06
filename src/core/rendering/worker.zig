@@ -106,7 +106,6 @@ pub const Worker = struct {
         iteration: u32,
         num_samples: u32,
         num_expected_samples: u32,
-        num_photon_samples: u32,
     ) void {
         var camera = self.camera;
         const sensor = &camera.sensor;
@@ -156,7 +155,7 @@ pub const Worker = struct {
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     const vertex = camera.generateVertex(sample, frame, scene);
 
-                    const color = self.surface_integrator.li(vertex, s < num_photon_samples, self);
+                    const color = self.surface_integrator.li(vertex, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {

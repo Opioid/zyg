@@ -90,7 +90,6 @@ pub const PathtracerDL = struct {
             vertex.probe.depth += 1;
 
             if (!sample_result.class.straight) {
-                vertex.state.direct = false;
                 vertex.state.from_subsurface = isec.subsurface();
                 vertex.origin = isec.p;
             }

@@ -56,9 +56,7 @@ pub const Lighttracer = struct {
         ) orelse return;
 
         const light = worker.scene.light(light_id);
-        const volumetric = light.volumetric();
-
-        if (volumetric) {
+        if (light.volumetric()) {
             vertex.interfaces.pushVolumeLight(light);
         }
 
@@ -73,6 +71,10 @@ pub const Lighttracer = struct {
 
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
+                if (vertex.probe.depth >= self.settings.max_bounces) {
+                    continue;
+                }
+
                 var sampler = worker.pickSampler(vertex.probe.depth);
 
                 var isec: Intersection = undefined;
@@ -80,7 +82,7 @@ pub const Lighttracer = struct {
                     continue;
                 }
 
-                if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+                if (.Absorb == isec.event) {
                     continue;
                 }
 

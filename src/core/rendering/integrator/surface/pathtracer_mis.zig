@@ -35,7 +35,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: Vertex, gather_photons: bool, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var result: Vec4f = @splat(0.0);
@@ -72,8 +72,8 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex, &isec, &mat_sample);
                 }
 
-                const indirect = !vertex.state.direct and 0 != vertex.probe.depth;
-                if (gather_photons and vertex.state.primary_ray and mat_sample.canEvaluate() and (self.settings.photons_not_only_through_specular or indirect)) {
+                const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
+                if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
                     worker.addPhoton(vertex.throughput * split_weight * worker.photonLi(&isec, &mat_sample, sampler));
                 }
 
@@ -95,6 +95,10 @@ pub const PathtracerMIS = struct {
                     const class = sample_result.class;
                     if (class.specular) {
                         next_vertex.state.treat_as_singular = true;
+
+                        if (vertex.state.primary_ray) {
+                            vertex.state.started_specular = true;
+                        }
                     } else if (!class.straight) {
                         next_vertex.state.treat_as_singular = false;
                         next_vertex.state.primary_ray = false;
@@ -108,7 +112,6 @@ pub const PathtracerMIS = struct {
                     next_vertex.probe.depth += 1;
 
                     if (!class.straight) {
-                        next_vertex.state.direct = false;
                         next_vertex.state.from_subsurface = isec.subsurface();
                         next_vertex.state.is_translucent = mat_sample.isTranslucent();
                         next_vertex.bxdf_pdf = sample_result.pdf;

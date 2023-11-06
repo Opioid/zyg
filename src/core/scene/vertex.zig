@@ -42,9 +42,9 @@ pub const Vertex = struct {
 
     pub const State = packed struct {
         primary_ray: bool = true,
-        direct: bool = true,
         transparent: bool = true,
         treat_as_singular: bool = true,
+        forward: bool = true,
         is_translucent: bool = false,
         from_subsurface: bool = false,
         started_specular: bool = false,

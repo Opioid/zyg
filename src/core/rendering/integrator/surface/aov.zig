@@ -170,40 +170,45 @@ pub const AOV = struct {
 
             const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
+            const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
+            if (mat_sample.canEvaluate() and vertex.state.forward and gather_photons) {
+                worker.addPhoton(vertex.throughput * worker.photonLi(isec, &mat_sample, sampler));
+            }
+
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;
             }
 
             const sample_result = sample_results[0];
-            if (math.allLessEqualZero3(sample_result.reflection)) {
-                break;
-            }
 
-            if (sample_result.class.specular) {} else if (!sample_result.class.straight and !sample_result.class.transmission) {
+            if (sample_result.class.specular) {
+                vertex.state.treat_as_singular = true;
+
                 if (vertex.state.primary_ray) {
-                    vertex.state.primary_ray = false;
+                    vertex.state.started_specular = true;
+                }
+            } else if (!sample_result.class.straight) {
+                vertex.state.treat_as_singular = false;
+                vertex.state.primary_ray = false;
 
-                    const indirect = !vertex.state.direct and 0 != vertex.probe.depth;
-                    if (self.settings.photons_not_only_through_specular or indirect) {
-                        worker.addPhoton(vertex.throughput * worker.photonLi(isec, &mat_sample, sampler));
-                        break;
-                    }
+                if (!sample_result.class.transmission) {
+                    vertex.state.forward = false;
                 }
             }
 
-            vertex.probe.depth += 1;
             vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+            vertex.probe.depth += 1;
 
-            if (vertex.probe.depth >= self.settings.max_bounces) {
+            if (vertex.probe.depth >= self.settings.max_bounces or !vertex.state.forward) {
                 break;
             }
 
+            vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (!sample_result.class.straight) {
-                vertex.state.direct = false;
                 vertex.state.from_subsurface = isec.subsurface();
                 vertex.origin = isec.p;
             }
