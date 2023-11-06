@@ -299,11 +299,10 @@ pub const Driver = struct {
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
-        const num_photon_samples = @as(u32, @intFromFloat(@ceil(0.25 * @as(f32, @floatFromInt(num_samples)))));
         const qm_threshold = self.view.qm_threshold;
 
         while (self.tiles.pop()) |tile| {
-            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, num_photon_samples, qm_threshold);
+            self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, qm_threshold);
 
             self.progressor.tick();
         }

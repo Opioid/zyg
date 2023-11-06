@@ -1,3 +1,5 @@
+const mat = @import("../../scene/material/material_helper.zig");
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -6,12 +8,6 @@ const std = @import("std");
 pub const LightSampling = enum(u8) {
     Single,
     Adaptive,
-};
-
-pub const CausticsPath = enum(u8) {
-    Off,
-    Indirect,
-    Full,
 };
 
 pub inline fn attenuation1(c: f32, distance: f32) f32 {
@@ -46,4 +42,15 @@ pub inline fn russianRoulette(new_throughput: Vec4f, old_throughput: Vec4f, r: f
     }
 
     return continuation_probability;
+}
+
+pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
+    // Veach's compensation for "Non-symmetry due to shading normals".
+    // See e.g. CorrectShadingNormal() at:
+    // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
+
+    const numer = @abs(math.dot3(wi, geo_n) * math.dot3(wo, n));
+    const denom = math.max(@abs(math.dot3(wi, n) * math.dot3(wo, geo_n)), mat.Dot_min);
+
+    return numer / denom;
 }

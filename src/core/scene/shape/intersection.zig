@@ -14,15 +14,15 @@ pub const Volume = struct {
 
     li: Vec4f,
     tr: Vec4f,
-    uvw: Vec4f = undefined,
-    t: f32 = undefined,
+    uvw: Vec4f = @splat(0.0),
+    t: f32,
     event: Event,
 
     pub fn initPass(w: Vec4f) Volume {
         return .{
             .li = @splat(0.0),
             .tr = w,
-            .uvw = @splat(0.0),
+            .t = 0.0,
             .event = .Pass,
         };
     }
@@ -94,11 +94,28 @@ pub const Intersection = struct {
         return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
     }
 
-    pub fn offsetT(self: Self, min_t: f32) f32 {
-        const p = self.p;
-        const n = self.geo_n;
-        const t = math.hmax3(@abs(p * n));
-        return ro.offsetF(t + min_t) - t + self.offset();
+    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+        const volume = self.event;
+        if (.Absorb == volume) {
+            return self.vol_li;
+        }
+
+        const m = self.material(scene);
+        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
+            return null;
+        }
+
+        return m.evaluateRadiance(
+            shading_p,
+            wo,
+            self.geo_n,
+            self.uvw,
+            self.trafo,
+            self.prop,
+            self.part,
+            sampler,
+            scene,
+        );
     }
 };
 

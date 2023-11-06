@@ -1,10 +1,10 @@
 const Prop = @import("prop.zig").Prop;
-const Vertex = @import("../vertex.zig").Vertex;
+const Probe = @import("../vertex.zig").Vertex.Probe;
 const Scene = @import("../scene.zig").Scene;
-const shp = @import("../shape/intersection.zig");
-const Intersection = shp.Intersection;
-const Interpolation = shp.Interpolation;
-const Volume = shp.Volume;
+const int = @import("../shape/intersection.zig");
+const Intersection = int.Intersection;
+const Interpolation = int.Interpolation;
+const Volume = int.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -67,7 +67,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, vertex: *Vertex, scene: *const Scene, ipo: Interpolation) bool {
+    pub fn intersect(self: Tree, probe: *Probe, isec: *Intersection, scene: *const Scene, ipo: Interpolation) bool {
         var stack = NodeStack{};
 
         var hit = false;
@@ -83,7 +83,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, vertex, scene, ipo)) {
+                    if (props[p].intersect(p, probe, isec, scene, ipo)) {
                         prop = p;
                         hit = true;
                     }
@@ -96,8 +96,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(vertex.ray);
-            var distb = nodes[b].intersect(vertex.ray);
+            var dista = nodes[a].intersect(probe.ray);
+            var distb = nodes[b].intersect(probe.ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -114,20 +114,20 @@ pub const Tree = struct {
             }
         }
 
-        if (vertex.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, vertex, scene, ipo)) {
+                if (props[p].intersect(p, probe, isec, scene, ipo)) {
                     prop = p;
                     hit = true;
                 }
             }
         }
 
-        vertex.isec.prop = prop;
+        isec.prop = prop;
         return hit;
     }
 
-    pub fn intersectP(self: Tree, vertex: *const Vertex, scene: *const Scene) bool {
+    pub fn intersectP(self: Tree, probe: *const Probe, scene: *const Scene) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -141,7 +141,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersectP(p, vertex, scene)) {
+                    if (props[p].intersectP(p, probe, scene)) {
                         return true;
                     }
                 }
@@ -153,8 +153,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(vertex.ray);
-            var distb = nodes[b].intersect(vertex.ray);
+            var dista = nodes[a].intersect(probe.ray);
+            var distb = nodes[b].intersect(probe.ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -171,9 +171,9 @@ pub const Tree = struct {
             }
         }
 
-        if (vertex.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersectP(p, vertex, scene)) {
+                if (props[p].intersectP(p, probe, scene)) {
                     return true;
                 }
             }
@@ -182,7 +182,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, vertex: *const Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis: Vec4f = @splat(1.0);
@@ -197,7 +197,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    vis *= props[p].visibility(p, vertex, sampler, worker) orelse return null;
+                    vis *= props[p].visibility(p, probe, sampler, worker) orelse return null;
                 }
 
                 n = stack.pop();
@@ -207,8 +207,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(vertex.ray);
-            var distb = nodes[b].intersect(vertex.ray);
+            var dista = nodes[a].intersect(probe.ray);
+            var distb = nodes[b].intersect(probe.ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -225,16 +225,16 @@ pub const Tree = struct {
             }
         }
 
-        if (vertex.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                vis *= props[p].visibility(p, vertex, sampler, worker) orelse return null;
+                vis *= props[p].visibility(p, probe, sampler, worker) orelse return null;
             }
         }
 
         return vis;
     }
 
-    pub fn scatter(self: Tree, vertex: *Vertex, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: Tree, probe: *Probe, isec: *Intersection, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -250,10 +250,10 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, vertex, throughput, sampler, worker);
+                    const lr = props[p].scatter(p, probe, throughput, sampler, worker);
 
                     if (.Pass != lr.event) {
-                        vertex.ray.setMaxT(lr.t);
+                        probe.ray.setMaxT(lr.t);
                         result = lr;
                         prop = p;
                     } else if (.Pass == result.event) {
@@ -268,8 +268,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(vertex.ray);
-            var distb = nodes[b].intersect(vertex.ray);
+            var dista = nodes[a].intersect(probe.ray);
+            var distb = nodes[b].intersect(probe.ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -286,14 +286,16 @@ pub const Tree = struct {
             }
         }
 
-        vertex.isec.setVolume(result);
+        isec.setVolume(result);
 
         if (.Pass != result.event) {
-            vertex.isec.prop = prop;
-            vertex.isec.part = 0;
-            vertex.isec.p = vertex.ray.point(result.t);
-            vertex.isec.geo_n = -vertex.ray.direction;
-            vertex.isec.uvw = result.uvw;
+            isec.prop = prop;
+            isec.part = 0;
+            isec.p = probe.ray.point(result.t);
+            const vn = -probe.ray.direction;
+            isec.geo_n = vn;
+            isec.n = vn;
+            isec.uvw = result.uvw;
 
             return true;
         }

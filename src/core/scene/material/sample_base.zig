@@ -1,4 +1,5 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const bxdf = @import("bxdf.zig");
 const hlp = @import("sample_helper.zig");
 
 const base = @import("base");
@@ -101,7 +102,7 @@ pub const Base = struct {
         flakes: bool = false,
     };
 
-    frame: Frame = undefined,
+    frame: Frame,
 
     geo_n: Vec4f,
     n: Vec4f,
@@ -118,6 +119,7 @@ pub const Base = struct {
 
     pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) Self {
         return .{
+            .frame = undefined,
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
@@ -128,15 +130,16 @@ pub const Base = struct {
         };
     }
 
-    pub fn initN(wo: Vec4f, geo_n: Vec4f, n: Vec4f, factor: f32, alpha: f32) Self {
+    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, can_evaluate: bool) Self {
         return .{
-            .geo_n = geo_n,
-            .n = n,
+            .frame = .{ .t = rs.t, .b = rs.b, .n = rs.n },
+            .geo_n = rs.geo_n,
+            .n = rs.n,
             .wo = wo,
-            .albedo = @splat(factor),
-            .alpha = @splat(alpha),
-            .thickness = 0.0,
-            .properties = .{ .can_evaluate = false },
+            .albedo = albedo,
+            .alpha = alpha,
+            .thickness = thickness,
+            .properties = .{ .can_evaluate = can_evaluate, .avoid_caustics = .Full != rs.caustics },
         };
     }
 

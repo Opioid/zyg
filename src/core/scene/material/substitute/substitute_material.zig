@@ -172,7 +172,7 @@ pub const Material = struct {
             const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene);
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
-            coating_ior = math.lerp(rs.ior(), self.coating_ior, coating_weight);
+            coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
         } else {
             coating_thickness = self.coating_thickness;
             coating_weight = 1.0;
@@ -180,7 +180,7 @@ pub const Material = struct {
         }
 
         const ior = self.super.ior;
-        const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior();
+        const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
         const attenuation_distance = self.super.attenuation_distance;
 
         var result = Surface.init(
@@ -190,7 +190,7 @@ pub const Material = struct {
             alpha,
             ior,
             ior_outer,
-            rs.ior(),
+            rs.ior,
             metallic,
             attenuation_distance > 0.0,
         );
@@ -224,7 +224,7 @@ pub const Material = struct {
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
-            result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior());
+            result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior);
             result.coating.alpha = r * r;
             result.coating.weight = coating_weight;
         }

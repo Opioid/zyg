@@ -15,13 +15,7 @@ pub const Sample = struct {
     anisotropy: f32,
 
     pub fn init(wo: Vec4f, rs: Renderstate, anisotropy: f32) Sample {
-        var super = Base.init(
-            rs,
-            wo,
-            @splat(0.0),
-            @splat(1.0),
-            0.0,
-        );
+        var super = Base.initTBN(rs, wo, @splat(0.0), @splat(1.0), 0.0, true);
 
         super.properties.translucent = true;
 
@@ -41,9 +35,11 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        const r2 = sampler.sample2D();
-
         const g = self.anisotropy;
+        const wo = self.super.wo;
+        const tb = math.orthonormalBasis3(wo);
+
+        const r2 = sampler.sample2D();
 
         var cos_theta: f32 = undefined;
         if (@abs(g) < 0.001) {
@@ -57,8 +53,6 @@ pub const Sample = struct {
         const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
         const phi = r2[1] * (2.0 * std.math.pi);
 
-        const wo = self.super.wo;
-        const tb = math.orthonormalBasis3(wo);
         const wi = math.smpl.sphereDirection(sin_theta, cos_theta, phi, tb[0], tb[1], -wo);
 
         const phase = phaseHg(-cos_theta, g);
@@ -67,6 +61,7 @@ pub const Sample = struct {
             .reflection = @splat(phase),
             .wi = wi,
             .pdf = phase,
+            .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .diffuse = true, .reflection = true },
         };

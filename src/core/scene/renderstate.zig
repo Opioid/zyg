@@ -5,8 +5,6 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 pub const CausticsResolve = enum(u8) {
     Off,
     Rough,
@@ -14,27 +12,29 @@ pub const CausticsResolve = enum(u8) {
 };
 
 pub const Renderstate = struct {
-    trafo: Trafo = undefined,
+    trafo: Trafo,
 
-    p: Vec4f = undefined,
-    geo_n: Vec4f = undefined,
-    t: Vec4f = undefined,
-    b: Vec4f = undefined,
-    n: Vec4f = undefined,
+    p: Vec4f,
+    geo_n: Vec4f,
+    t: Vec4f,
+    b: Vec4f,
+    n: Vec4f,
+    origin: Vec4f,
 
-    ray_p: Vec4f = undefined,
+    uv: Vec2f,
 
-    uv: Vec2f = undefined,
+    ior: f32,
+    wavelength: f32,
 
-    prop: u32 = undefined,
-    part: u32 = undefined,
-    primitive: u32 = undefined,
-    depth: u32 = undefined,
+    time: u64,
 
-    time: u64 = undefined,
+    prop: u32,
+    part: u32,
+    primitive: u32,
+    depth: u32,
 
-    subsurface: bool = undefined,
-    caustics: CausticsResolve = undefined,
+    subsurface: bool,
+    caustics: CausticsResolve,
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
         return .{
@@ -45,19 +45,11 @@ pub const Renderstate = struct {
         };
     }
 
-    pub fn ior(self: Renderstate) f32 {
-        return self.p[3];
-    }
-
-    pub fn wavelength(self: Renderstate) f32 {
-        return self.b[3];
-    }
-
     pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f) Vec2f {
         if (alpha[0] <= ggx.Min_alpha and .Rough == self.caustics) {
-            const l = math.length3(self.p - self.ray_p);
+            const l = math.length3(self.p - self.origin);
             const m = math.min(0.1 * (1.0 + l), 1.0);
-            return math.max2(alpha, @as(Vec2f, @splat(m)));
+            return math.max2(alpha, @splat(m));
         }
 
         return alpha;

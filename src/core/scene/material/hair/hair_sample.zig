@@ -41,13 +41,7 @@ pub const Sample = struct {
         sin2k_alpha: [3]f32,
         cos2k_alpha: [3]f32,
     ) Sample {
-        var super = Base.init(
-            rs,
-            wo,
-            color,
-            @splat(1.0),
-            0.0,
-        );
+        var super = Base.init(rs, wo, color, @splat(1.0), 0.0);
 
         super.properties.translucent = true;
         super.frame.setTangentFrame(rs.t, rs.b, rs.n);
@@ -229,12 +223,13 @@ pub const Sample = struct {
         const is = Vec4f{ sin_theta_i, cos_theta_i * @cos(phi_i), cos_theta_i * @sin(phi_i), 0.0 };
         const wi = math.normalize3(self.super.frame.tangentToWorld(is));
 
-        const result = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
+        const er = self.eval(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, phi, self.gamma_o, gamma_t);
 
         return .{
-            .reflection = result.reflection,
+            .reflection = er.reflection,
             .wi = wi,
-            .pdf = result.pdf(),
+            .pdf = er.pdf(),
+            .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .glossy = true, .reflection = true },
         };

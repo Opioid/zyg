@@ -11,13 +11,7 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
-        return .{ .super = Base.init(
-            rs,
-            wo,
-            albedo,
-            @splat(1.0),
-            0.0,
-        ) };
+        return .{ .super = Base.initTBN(rs, wo, albedo, @splat(1.0), 0.0, true) };
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
@@ -44,6 +38,7 @@ pub const Sample = struct {
             .reflection = reflection,
             .wi = wi,
             .pdf = pdf,
+            .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .diffuse = true, .reflection = true },
         };

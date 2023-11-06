@@ -65,6 +65,9 @@ pub const View = struct {
 
     pub const AovValue = aov.Value;
 
+    const Default_min_bounces = 4;
+    const Default_max_bounces = 16;
+
     pub fn deinit(self: *View, alloc: Allocator) void {
         self.camera.deinit(alloc);
     }
@@ -111,9 +114,6 @@ pub const View = struct {
     }
 
     fn loadSurfaceIntegrator(self: *View, value: std.json.Value, lighttracer: bool) void {
-        const Default_min_bounces = 4;
-        const Default_max_bounces = 8;
-
         var light_sampling = LightSampling.Adaptive;
 
         const Default_caustics_resolve = CausticsResolve.Full;
@@ -164,7 +164,7 @@ pub const View = struct {
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
-                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
@@ -180,7 +180,7 @@ pub const View = struct {
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
                         .light_sampling = light_sampling,
-                        .avoid_caustics = .Off == caustics_resolve,
+                        .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
@@ -191,9 +191,9 @@ pub const View = struct {
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
-                var caustics_path: CausticsPath = .Off;
+                var caustics_path = false;
                 if (.Off != caustics_resolve) {
-                    caustics_path = if (lighttracer) .Indirect else .Full;
+                    caustics_path = if (lighttracer) false else true;
                 }
 
                 self.surfaces = surface.Factory{ .PTMIS = .{
@@ -221,12 +221,13 @@ pub const View = struct {
     }
 
     fn loadParticleIntegrator(self: *View, value: std.json.Value, surface_integrator: bool) void {
-        const max_bounces = json.readUIntMember(value, "max_bounces", 8);
+        const min_bounces = json.readUIntMember(value, "min_bounces", Default_min_bounces);
+        const max_bounces = json.readUIntMember(value, "max_bounces", Default_max_bounces);
         const full_light_path = json.readBoolMember(value, "full_light_path", true);
         self.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
         self.lighttracers = lt.Factory{ .settings = .{
-            .min_bounces = 1,
+            .min_bounces = min_bounces,
             .max_bounces = max_bounces,
             .full_light_path = full_light_path and !surface_integrator,
         } };

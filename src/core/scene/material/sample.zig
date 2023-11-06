@@ -26,13 +26,6 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn isPureEmissive(self: *const Sample) bool {
-        return switch (self.*) {
-            .Light => true,
-            else => false,
-        };
-    }
-
     pub fn isTranslucent(self: *const Sample) bool {
         return self.super().properties.translucent;
     }
@@ -48,17 +41,26 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         return switch (self.*) {
             .Light => bxdf.Result.init(@splat(0.0), 0.0),
+            inline .Glass, .Substitute => |*s| s.evaluate(wi, split),
             inline else => |*s| s.evaluate(wi),
         };
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         return switch (self.*) {
-            .Light => Light.sample(),
-            inline else => |*s| s.sample(sampler),
+            .Light => {
+                return buffer[0..0];
+            },
+            inline .Glass, .Substitute => |*s| {
+                return s.sample(sampler, split, buffer);
+            },
+            inline else => |*s| {
+                buffer[0] = s.sample(sampler);
+                return buffer[0..1];
+            },
         };
     }
 };

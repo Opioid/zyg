@@ -36,9 +36,12 @@ pub const Sample = struct {
         straight: bool = false,
     };
 
-    reflection: Vec4f = undefined,
-    wi: Vec4f = undefined,
-    pdf: f32 = 0.0,
-    wavelength: f32 = undefined,
-    class: Class = undefined,
+    reflection: Vec4f,
+    wi: Vec4f,
+    pdf: f32,
+    split_weight: f32,
+    wavelength: f32,
+    class: Class,
 };
+
+pub const Samples = [2]Sample;

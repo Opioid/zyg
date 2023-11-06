@@ -530,7 +530,7 @@ pub const Grid = struct {
         self.num_paths = @as(f64, @floatFromInt(num_paths));
     }
 
-    pub fn li(self: *const Self, isec: Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
         const position = isec.p;
@@ -566,7 +566,7 @@ pub const Grid = struct {
 
                             const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi);
+                            const bxdf = sample.evaluate(p.wi, false);
 
                             result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
@@ -574,7 +574,7 @@ pub const Grid = struct {
 
                             const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi);
+                            const bxdf = sample.evaluate(p.wi, false);
 
                             result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
                         }
@@ -586,7 +586,7 @@ pub const Grid = struct {
         return result * @as(Vec4f, @splat(self.surface_normalization));
     }
 
-    pub fn li2(self: *const Self, isec: Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn li2(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
         const position = isec.p;
@@ -628,7 +628,7 @@ pub const Grid = struct {
                 for (buffer.entries[0..used_entries]) |entry| {
                     const p = self.photons[entry.id];
 
-                    const bxdf = sample.evaluate(p.wi);
+                    const bxdf = sample.evaluate(p.wi, false);
 
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
@@ -649,7 +649,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi);
+                        const bxdf = sample.evaluate(p.wi, false);
 
                         result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
@@ -657,7 +657,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi);
+                        const bxdf = sample.evaluate(p.wi, false);
 
                         result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }
@@ -677,7 +677,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
+    fn scatteringCoefficient(isec: *const Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = isec.material(scene);
 
         if (material.heterogeneousVolume()) {

@@ -10,6 +10,7 @@ const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
+const Probe = Vertex.Probe;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Intersection = @import("../scene/shape/intersection.zig").Intersection;
@@ -21,6 +22,7 @@ const img = @import("../image/image.zig");
 const base = @import("base");
 const json = base.json;
 const math = base.math;
+const Ray = math.Ray;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
@@ -140,7 +142,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(origin_w, direction_w, 0.0, ro.Ray_max_t, 0, 0.0, time, undefined);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time, &self.interface_stack);
     }
 
     pub fn sampleTo(
@@ -190,10 +192,10 @@ pub const Perspective = struct {
         const fx = @floor(x);
         const fy = @floor(y);
 
-        const pixel = Vec2i{ @as(i32, @intFromFloat(fx)), @as(i32, @intFromFloat(fy)) };
+        const pixel = Vec2i{ @intFromFloat(fx), @intFromFloat(fy) };
 
-        if (@as(u32, @intCast(pixel[0] - bounds[0])) > @as(u32, @intCast(bounds[2])) or
-            @as(u32, @intCast(pixel[1] - bounds[1])) > @as(u32, @intCast(bounds[3])))
+        if (@as(u32, @bitCast(pixel[0] - bounds[0])) > @as(u32, @bitCast(bounds[2])) or
+            @as(u32, @bitCast(pixel[1] - bounds[1])) > @as(u32, @bitCast(bounds[3])))
         {
             return null;
         }
@@ -235,10 +237,10 @@ pub const Perspective = struct {
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
-        const delta = @as(f64, @floatCast(frame_delta));
-        const duration = @as(f64, @floatFromInt(self.frame_duration));
+        const delta: f64 = @floatCast(frame_delta);
+        const duration: f64 = @floatFromInt(self.frame_duration);
 
-        const fdi = @as(u64, @intFromFloat(@round(delta * duration)));
+        const fdi: u64 = @intFromFloat(@round(delta * duration));
 
         return @as(u64, frame) * self.frame_step + fdi;
     }
@@ -317,19 +319,14 @@ pub const Perspective = struct {
 
             const trafo = scene.propTransformationAt(self.entity, time);
 
-            var vertex = Vertex.init(
-                trafo.position,
-                trafo.objectToWorldVector(direction),
-                0.0,
-                ro.Ray_max_t,
-                0,
-                0.0,
+            var probe = Probe.init(
+                Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
                 time,
-                undefined,
             );
+            var isec: Intersection = undefined;
 
-            if (scene.intersect(&vertex, .Normal)) {
-                self.focus_distance = vertex.ray.maxT() + self.focus.point[2];
+            if (scene.intersect(&probe, &isec, .Normal)) {
+                self.focus_distance = probe.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;
             }

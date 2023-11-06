@@ -64,6 +64,8 @@ pub const Builder = struct {
             alloc.free(context.grid);
         }
 
+        // Unfortunately this is necessary because of our crappy threadpool
+        threads.waitAsync();
         threads.runParallel(&context, Context.distribute, 0);
 
         var num_nodes = cell_len;
@@ -111,10 +113,6 @@ pub const Builder = struct {
 };
 
 const Splitter = struct {
-    const SplitError = error{
-        OutOfMemory,
-    };
-
     num_nodes: u32,
     num_data: u32,
 
@@ -129,7 +127,7 @@ const Splitter = struct {
         cc: CC,
         depth: u32,
         scene: *const Scene,
-    ) SplitError!void {
+    ) !void {
         const d = texture.description(scene).dimensions;
 
         // Include 1 additional voxel on each border to account for filtering

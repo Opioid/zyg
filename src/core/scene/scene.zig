@@ -13,7 +13,7 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
-const Vertex = @import("vertex.zig").Vertex;
+const Probe = @import("vertex.zig").Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
@@ -262,16 +262,16 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, vertex: *Vertex, ipo: Interpolation) bool {
-        return self.prop_bvh.intersect(vertex, self, ipo);
+    pub fn intersect(self: *const Scene, probe: *Probe, isec: *Intersection, ipo: Interpolation) bool {
+        return self.prop_bvh.intersect(probe, isec, self, ipo);
     }
 
-    pub fn visibility(self: *const Scene, vertex: *const Vertex, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(vertex, sampler, worker);
+            return self.prop_bvh.visibility(probe, sampler, worker);
         }
 
-        if (self.prop_bvh.intersectP(vertex, self)) {
+        if (self.prop_bvh.intersectP(probe, self)) {
             return null;
         }
 
@@ -280,17 +280,18 @@ pub const Scene = struct {
 
     pub fn scatter(
         self: *const Scene,
-        vertex: *Vertex,
+        probe: *Probe,
+        isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
         if (!self.has_volumes) {
-            vertex.isec.setVolume(Volume.initPass(@splat(1.0)));
+            isec.setVolume(Volume.initPass(@splat(1.0)));
             return false;
         }
 
-        return self.volume_bvh.scatter(vertex, throughput, sampler, worker);
+        return self.volume_bvh.scatter(probe, isec, throughput, sampler, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

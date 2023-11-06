@@ -40,13 +40,7 @@ pub const Sample = struct {
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
 
-        var super = Base.init(
-            rs,
-            wo,
-            @splat(1.0),
-            reg_alpha,
-            thickness,
-        );
+        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness);
 
         const rough = reg_alpha[0] > 0.0;
 
@@ -64,7 +58,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
@@ -102,7 +96,7 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick.init(@splat(self.f0));
 
-            const gg = ggx.Iso.refraction(
+            const gg = ggx.Iso.refractionF(
                 n_dot_wi,
                 n_dot_wo,
                 wi_dot_h,
@@ -115,9 +109,11 @@ pub const Sample = struct {
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
+            const split_pdf = if (split) 1.0 else gg.f[0];
+
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.reflection,
-                gg.pdf(),
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.r.reflection,
+                split_pdf * gg.r.pdf(),
             );
         } else {
             const n_dot_wi = frame.clampNdot(wi);
@@ -132,7 +128,8 @@ pub const Sample = struct {
             const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, gg.f[0] * gg.r.pdf());
+            const split_pdf = if (split) 1.0 else gg.f[0];
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf());
         }
     }
 
@@ -149,60 +146,60 @@ pub const Sample = struct {
         return @splat(1.0);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
-        var ior = self.ior;
-
-        if (self.super.alpha[0] > 0.0) {
-            if (0.0 == self.abbe) {
-                return self.roughSample(ior, 0.0, sampler);
-            } else {
-                var wavelength = self.wavelength;
-
-                const r = sampler.sample1D();
-                const weight = wavelengthSpectrumWeight(&wavelength, r);
-
-                const sqr_wl = wavelength * wavelength;
-                ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
-
-                var result = self.roughSample(ior, wavelength, sampler);
-                result.reflection *= weight;
-                return result;
-            }
-        } else if (self.super.thickness > 0.0) {
-            return self.thinSample(ior, sampler);
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+        if (self.super.thickness > 0.0) {
+            return self.thinSample(self.ior, sampler, split, buffer);
         } else {
             if (0.0 == self.abbe) {
-                const p = sampler.sample1D();
-                return self.thickSample(ior, p, 0.0);
+                if (self.super.alpha[0] > 0.0) {
+                    return self.roughSample(@splat(1.0), self.ior, 0.0, sampler, split, buffer);
+                } else {
+                    return self.thickSample(@splat(1.0), self.ior, 0.0, sampler, split, buffer);
+                }
             } else {
                 var wavelength = self.wavelength;
+                var ior = self.ior;
 
-                const r = sampler.sample2D();
-                const weight = wavelengthSpectrumWeight(&wavelength, r[1]);
+                const r1 = sampler.sample1D();
+                const weight = wavelengthSpectrumWeight(&wavelength, r1);
 
                 const sqr_wl = wavelength * wavelength;
                 ior = ior + ((ior - 1.0) / self.abbe) * (523655.0 / sqr_wl - 1.5168);
 
-                var result = self.thickSample(ior, r[0], wavelength);
-                result.reflection *= weight;
-                return result;
+                if (self.super.alpha[0] > 0.0) {
+                    return self.roughSample(weight, ior, wavelength, sampler, split, buffer);
+                } else {
+                    return self.thickSample(weight, ior, wavelength, sampler, split, buffer);
+                }
             }
         }
     }
 
-    fn thickSample(self: *const Sample, ior: f32, p: f32, wavelength: f32) bxdf.Sample {
+    fn thickSample(
+        self: *const Sample,
+        weight: Vec4f,
+        ior: f32,
+        wavelength: f32,
+        sampler: *Sampler,
+        split: bool,
+        buffer: *bxdf.Samples,
+    ) []bxdf.Sample {
         var eta_i = self.ior_outside;
         var eta_t = ior;
 
         const wo = self.super.wo;
 
         if (eta_i == eta_t) {
-            return .{
-                .reflection = @splat(1.0),
+            buffer[0] = .{
+                .reflection = weight,
                 .wi = -wo,
                 .pdf = 1.0,
+                .split_weight = 1.0,
+                .wavelength = wavelength,
                 .class = .{ .specular = true, .transmission = true },
             };
+
+            return buffer[0..1];
         }
 
         var n = self.super.frame.n;
@@ -226,14 +223,29 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        if (p <= f) {
-            return reflect(wo, n, n_dot_wo, wavelength);
+        if (split) {
+            buffer[0] = reflect(weight, wo, n, n_dot_wo, wavelength, f);
+
+            if (1.0 == f) {
+                return buffer[0..1];
+            }
+
+            buffer[1] = thickRefract(weight, wo, n, n_dot_wo, n_dot_t, eta, wavelength, 1.0 - f);
+
+            return buffer[0..2];
         } else {
-            return thickRefract(wo, n, n_dot_wo, n_dot_t, eta, wavelength);
+            const p = sampler.sample1D();
+            if (p <= f) {
+                buffer[0] = reflect(weight, wo, n, n_dot_wo, wavelength, 1.0);
+            } else {
+                buffer[0] = thickRefract(weight, wo, n, n_dot_wo, n_dot_t, eta, wavelength, 1.0);
+            }
+
+            return buffer[0..1];
         }
     }
 
-    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler) bxdf.Sample {
+    fn thinSample(self: *const Sample, ior: f32, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         // Thin material is always double sided, so no need to check hemisphere.
         const eta_i = self.ior_outside;
         const eta_t = ior;
@@ -253,32 +265,49 @@ pub const Sample = struct {
             f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
         }
 
-        const p = sampler.sample1D();
-        if (p <= f) {
-            return reflect(wo, n, n_dot_wo, 0.0);
-        } else {
+        if (split) {
+            buffer[0] = reflect(@splat(1.0), wo, n, n_dot_wo, 0.0, f);
+
             const n_dot_wi = hlp.clamp(n_dot_wo);
             const approx_dist = self.super.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
-            return thinRefract(wo, attenuation);
+            buffer[1] = thinRefract(wo, attenuation, 1.0 - f);
+
+            return buffer[0..2];
+        } else {
+            const p = sampler.sample1D();
+            if (p <= f) {
+                buffer[0] = reflect(@splat(1.0), wo, n, n_dot_wo, 0.0, 1.0);
+            } else {
+                const n_dot_wi = hlp.clamp(n_dot_wo);
+                const approx_dist = self.super.thickness / n_dot_wi;
+
+                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+
+                buffer[0] = thinRefract(wo, attenuation, 1.0);
+            }
+
+            return buffer[0..1];
         }
     }
 
-    fn roughSample(self: *const Sample, ior_t: f32, wavelength: f32, sampler: *Sampler) bxdf.Sample {
+    fn roughSample(self: *const Sample, weight: Vec4f, ior_t: f32, wavelength: f32, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         const quo_ior = IoR{ .eta_i = self.ior_outside, .eta_t = ior_t };
 
         const wo = self.super.wo;
 
         if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
-            return .{
-                .reflection = @splat(1.0),
+            buffer[0] = .{
+                .reflection = weight,
                 .wi = -wo,
                 .pdf = 1.0,
+                .split_weight = 1.0,
                 .wavelength = wavelength,
                 .class = .{ .specular = true, .transmission = true },
             };
+            return buffer[0..1];
         }
 
         const alpha = self.super.alpha;
@@ -311,75 +340,138 @@ pub const Sample = struct {
             f = fresnel.schlick1(cos_x, self.f0);
         }
 
-        var result = bxdf.Sample{};
+        if (split) {
+            const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
-        const p = s3[0];
-        if (p <= f) {
-            const n_dot_wi = ggx.Iso.reflectNoFresnel(
-                wo,
-                h,
-                n_dot_wo,
-                n_dot_h,
-                wo_dot_h,
-                alpha[0],
-                frame,
-                &result,
-            );
+            {
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    wo_dot_h,
+                    alpha[0],
+                    frame,
+                    &buffer[0],
+                );
 
-            result.reflection *= @splat(f * n_dot_wi);
-            result.pdf *= f;
+                buffer[0].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight;
+                buffer[0].split_weight = f;
+                buffer[0].wavelength = wavelength;
+            }
+
+            if (1.0 == f) {
+                return buffer[0..1];
+            }
+
+            {
+                const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
+                const n_dot_wi = ggx.Iso.refractNoFresnel(
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    -wi_dot_h,
+                    r_wo_dot_h,
+                    alpha[0],
+                    ior,
+                    frame,
+                    &buffer[1],
+                );
+
+                const omf = 1.0 - f;
+
+                buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight * self.super.albedo;
+                buffer[1].split_weight = omf;
+                buffer[1].wavelength = wavelength;
+            }
+
+            return buffer[0..2];
         } else {
-            const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
-            const n_dot_wi = ggx.Iso.refractNoFresnel(
-                wo,
-                h,
-                n_dot_wo,
-                n_dot_h,
-                -wi_dot_h,
-                r_wo_dot_h,
-                alpha[0],
-                ior,
-                frame,
-                &result,
-            );
+            var result = &buffer[0];
 
-            const omf = 1.0 - f;
+            const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
-            result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi)) * self.super.albedo;
-            result.pdf *= omf;
+            const p = s3[0];
+            if (p <= f) {
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    wo_dot_h,
+                    alpha[0],
+                    frame,
+                    result,
+                );
+
+                result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
+                result.pdf *= f;
+            } else {
+                const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
+                const n_dot_wi = ggx.Iso.refractNoFresnel(
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    -wi_dot_h,
+                    r_wo_dot_h,
+                    alpha[0],
+                    ior,
+                    frame,
+                    result,
+                );
+
+                const omf = 1.0 - f;
+
+                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * weight * self.super.albedo;
+                result.pdf *= omf;
+            }
+
+            result.split_weight = 1.0;
+            result.wavelength = wavelength;
+
+            return buffer[0..1];
         }
-
-        result.reflection *= @splat(ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0));
-        result.wavelength = wavelength;
-
-        return result;
     }
 
-    fn reflect(wo: Vec4f, n: Vec4f, n_dot_wo: f32, wavelength: f32) bxdf.Sample {
+    fn reflect(weight: Vec4f, wo: Vec4f, n: Vec4f, n_dot_wo: f32, wavelength: f32, split_weight: f32) bxdf.Sample {
         return .{
-            .reflection = @splat(1.0),
+            .reflection = weight,
             .wi = math.normalize3(@as(Vec4f, @splat(2.0 * n_dot_wo)) * n - wo),
             .pdf = 1.0,
+            .split_weight = split_weight,
             .wavelength = wavelength,
             .class = .{ .specular = true, .reflection = true },
         };
     }
 
-    fn thickRefract(wo: Vec4f, n: Vec4f, n_dot_wo: f32, n_dot_t: f32, eta: f32, wavelength: f32) bxdf.Sample {
+    fn thickRefract(
+        weight: Vec4f,
+        wo: Vec4f,
+        n: Vec4f,
+        n_dot_wo: f32,
+        n_dot_t: f32,
+        eta: f32,
+        wavelength: f32,
+        split_weight: f32,
+    ) bxdf.Sample {
         return .{
-            .reflection = @splat(1.0),
+            .reflection = weight,
             .wi = math.normalize3(@as(Vec4f, @splat(eta * n_dot_wo - n_dot_t)) * n - @as(Vec4f, @splat(eta)) * wo),
             .pdf = 1.0,
+            .split_weight = split_weight,
             .wavelength = wavelength,
             .class = .{ .specular = true, .transmission = true },
         };
     }
 
-    fn thinRefract(wo: Vec4f, color: Vec4f) bxdf.Sample {
+    fn thinRefract(wo: Vec4f, color: Vec4f, split_weight: f32) bxdf.Sample {
         return .{
             .reflection = color,
             .wi = -wo,
             .pdf = 1.0,
+            .split_weight = split_weight,
             .wavelength = 0.0,
             .class = .{ .straight = true },
         };

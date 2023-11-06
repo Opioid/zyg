@@ -6,6 +6,7 @@ const mt = @import("scene/material/material.zig");
 const intf = @import("scene/prop/interface.zig");
 const Intersection = @import("scene/shape/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
+const Renderstate = @import("scene/renderstate.zig").Renderstate;
 const Vertex = @import("scene/vertex.zig").Vertex;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
@@ -27,14 +28,15 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
+    testType(Renderstate, "Renderstate", 208);
     testType(Intersection, "Intersection", 208);
-    testType(Vertex, "Vertex", 288);
+    testType(Vertex, "Vertex", 480);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
-    testType(intf.Interface, "Interface", 48);
-    testType(intf.Stack, "InterfaceStack", 400);
+    testType(intf.Interface, "Interface", 8);
+    testType(intf.Stack, "InterfaceStack", 336);
     testType(mt.Material, "Material", 368);
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 224);
@@ -44,7 +46,7 @@ pub fn testSize() void {
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 704);
+    testType(Worker, "Worker", 320);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
