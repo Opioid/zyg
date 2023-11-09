@@ -105,7 +105,7 @@ pub const Reader = struct {
         }
 
         pub fn allocate(self: *Info, alloc: Allocator) !void {
-            const height = @as(u32, @intCast(self.height));
+            const height: u32 = @intCast(self.height);
             const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
             const buffer_size = row_size * height;
             const num_bytes = buffer_size + row_size;
@@ -251,7 +251,7 @@ pub const Reader = struct {
                         }
 
                         var i: u32 = 0;
-                        const len = @as(u32, @intCast(self.width * self.height));
+                        const len: u32 = @intCast(self.width * self.height);
                         while (i < len) : (i += 1) {
                             const o = i * self.num_channels;
 
@@ -269,7 +269,7 @@ pub const Reader = struct {
                         @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var i: u32 = 0;
-                        const len = @as(u32, @intCast(self.width * self.height));
+                        const len: u32 = @intCast(self.width * self.height);
 
                         if (.YX == swizzle) {
                             while (i < len) : (i += 1) {
@@ -296,7 +296,7 @@ pub const Reader = struct {
                         var color = Pack3b.init1(0);
 
                         var i: u32 = 0;
-                        const len = @as(u32, @intCast(self.width * self.height));
+                        const len: u32 = @intCast(self.width * self.height);
                         while (i < len) : (i += 1) {
                             const o = i * self.num_channels;
 
@@ -319,7 +319,7 @@ pub const Reader = struct {
         }
 
         fn resolveFilter(self: *const Info) void {
-            const height = @as(u32, @intCast(self.height));
+            const height: u32 = @intCast(self.height);
             const row_size = @as(u32, @intCast(self.width)) * self.num_channels;
             const bpp = self.bytes_per_pixel;
 
@@ -349,8 +349,8 @@ pub const Reader = struct {
                         }
 
                         for (current_row_data[bpp..row_size], 0..) |*b, i| {
-                            const p = @as(u32, previous_row_data[i + bpp]);
-                            const a = @as(u32, current_row_data[i]);
+                            const p: u32 = previous_row_data[i + bpp];
+                            const a: u32 = current_row_data[i];
                             b.* +%= @as(u8, @truncate((a + p) >> 1));
                         }
                     },
@@ -496,8 +496,8 @@ pub const Reader = struct {
     fn parseHeader(self: *Reader, alloc: Allocator, info: *Info) !void {
         const chunk = self.chunk;
 
-        info.width = @intCast(std.mem.readIntForeign(u32, chunk.data[0..4]));
-        info.height = @intCast(std.mem.readIntForeign(u32, chunk.data[4..8]));
+        info.width = @intCast(std.mem.readInt(u32, chunk.data[0..4], .big));
+        info.height = @intCast(std.mem.readInt(u32, chunk.data[4..8], .big));
 
         const depth = chunk.data[8];
 
@@ -505,7 +505,7 @@ pub const Reader = struct {
             return Error.PNGBitDepthNotSupported;
         }
 
-        const color_type = @as(ColorType, @enumFromInt(chunk.data[9]));
+        const color_type: ColorType = @enumFromInt(chunk.data[9]);
 
         info.num_channels = switch (color_type) {
             .Grayscale => 1,
