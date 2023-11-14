@@ -181,6 +181,7 @@ pub const Worker = struct {
 
                         var old_m = old_ms[ii];
                         var old_s = old_ss[ii];
+                        var weight: f32 = 0.0;
 
                         for (ss..s_end) |_| {
                             self.aov.clear();
@@ -197,11 +198,15 @@ pub const Worker = struct {
                             }
 
                             const clamped = sensor.addSample(sample, color + photon, self.aov);
-                            const value = clamped.last;
-                            const new_m = clamped.mean;
+
+                            const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
+
+                            const value = ef * clamped.last;
+                            const new_m = ef * clamped.mean;
 
                             old_s += math.hmax3((value - old_m) * (value - new_m));
                             old_m = new_m;
+                            weight = clamped.weight;
 
                             self.samplers[0].incrementSample();
                         }
@@ -209,10 +214,10 @@ pub const Worker = struct {
                         old_ms[ii] = old_m;
                         old_ss[ii] = old_s;
 
-                        const variance = old_s * old_m[3];
+                        const variance = old_s * weight;
                         const mam = math.max(math.hmax3(old_m), 0.0001);
 
-                        const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.4) else @log(math.max(variance, 1.0)) / mam;
+                        const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.2) else @log(math.max(variance, 1.0)) / mam;
 
                         tile_qm = math.max(tile_qm, qm);
                     }

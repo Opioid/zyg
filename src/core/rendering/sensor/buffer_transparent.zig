@@ -53,9 +53,12 @@ pub const Transparent = struct {
 
         self.pixels[i].v = value;
 
-        const nw = self.pixel_weights[i];
-        const nc = self.pixels[i];
-        return .{ .last = wc, .mean = Vec4f{ nc.v[0], nc.v[1], nc.v[2], 1.0 } / @as(Vec4f, @splat(nw)) };
+        const nw = 1.0 / self.pixel_weights[i];
+        return .{
+            .last = wc,
+            .mean = value * @as(Vec4f, @splat(nw)),
+            .weight = nw,
+        };
     }
 
     pub fn splatPixelAtomic(self: *Transparent, i: usize, color: Vec4f, weight: f32) void {
