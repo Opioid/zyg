@@ -40,7 +40,7 @@ pub const Reader = struct {
         height: u32,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, color: bool) !Image {
+    pub fn read(alloc: Allocator, stream: ReadStream, swizzle: Swizzle, color: bool) !Image {
         var signature: [exr.Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -122,7 +122,7 @@ pub const Reader = struct {
 
     fn readZip(
         alloc: Allocator,
-        stream: *ReadStream,
+        stream: ReadStream,
         data_window: Vec4i,
         display_window: Vec4i,
         channels: Channels,
@@ -396,7 +396,7 @@ const Channels = struct {
         return size;
     }
 
-    pub fn read(self: *Channels, alloc: Allocator, stream: *ReadStream) !void {
+    pub fn read(self: *Channels, alloc: Allocator, stream: ReadStream) !void {
         var buf = std.ArrayListUnmanaged(u8){};
 
         while (true) {

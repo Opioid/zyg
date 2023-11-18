@@ -27,6 +27,14 @@ pub const Transformation = struct {
         };
     }
 
+    pub fn transformScaled(self: Transformation, other: Transformation) Transformation {
+        return .{
+            .position = self.toMat4x4().transformPoint(other.position),
+            .scale = self.scale * other.scale,
+            .rotation = quaternion.mul(self.rotation, other.rotation),
+        };
+    }
+
     pub fn lerp(self: Transformation, other: Transformation, t: f32) Transformation {
         const t4: Vec4f = @splat(t);
 

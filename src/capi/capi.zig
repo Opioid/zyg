@@ -331,7 +331,7 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
 
         const material = e.resources.loadData(scn.Material, e.alloc, id, &parsed.value, .{}) catch return -1;
 
-        return @as(i32, @intCast(material));
+        return @intCast(material);
     }
 
     return -1;
@@ -379,7 +379,7 @@ export fn su_triangle_mesh_create(
     asyncr: bool,
 ) i32 {
     if (engine) |*e| {
-        const desc = resource.ShapeProvider.Description{
+        const desc = resource.ShapeProvider.Descriptor{
             .num_parts = num_parts,
             .num_primitives = num_triangles,
             .num_vertices = num_vertices,
@@ -401,7 +401,7 @@ export fn su_triangle_mesh_create(
             e.resources.commitAsync();
         }
 
-        return @as(i32, @intCast(mesh_id));
+        return @intCast(mesh_id);
     }
 
     return -1;

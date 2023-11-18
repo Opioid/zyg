@@ -170,7 +170,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             };
 
             try self.resources.append(alloc, item.data);
-            const id = @as(u32, @intCast(self.resources.items.len - 1));
+            const id: u32 = @intCast(self.resources.items.len - 1);
 
             try self.entries.put(
                 alloc,

@@ -36,13 +36,13 @@ pub const Provider = struct {
         var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
 
-        const file_type = file.queryType(&stream);
+        const file_type = file.queryType(stream);
 
         const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
 
         if (.EXR == file_type) {
             const color = options.queryOrDef("color", false);
-            return .{ .data = try ExrReader.read(alloc, &stream, swizzle, color) };
+            return .{ .data = try ExrReader.read(alloc, stream, swizzle, color) };
         }
 
         if (.IES == file_type) {
@@ -51,15 +51,15 @@ pub const Provider = struct {
 
         if (.PNG == file_type) {
             const invert = options.queryOrDef("invert", false);
-            return .{ .data = try self.png_reader.read(alloc, &stream, swizzle, invert, resources.threads) };
+            return .{ .data = try self.png_reader.read(alloc, stream, swizzle, invert, resources.threads) };
         }
 
         if (.RGBE == file_type) {
-            return .{ .data = try RgbeReader.read(alloc, &stream) };
+            return .{ .data = try RgbeReader.read(alloc, stream) };
         }
 
         if (.SUB == file_type) {
-            return SubReader.read(alloc, &stream);
+            return SubReader.read(alloc, stream);
         }
 
         return Error.UnknownImageType;

@@ -113,6 +113,17 @@ pub fn readVec4f3Member(value: Value, name: []const u8, default: Vec4f) Vec4f {
     };
 }
 
+pub fn readVec4fMember(value: Value, name: []const u8, default: Vec4f) Vec4f {
+    const member = value.object.get(name) orelse return default;
+
+    return .{
+        readFloat(f32, member.array.items[0]),
+        readFloat(f32, member.array.items[1]),
+        readFloat(f32, member.array.items[2]),
+        readFloat(f32, member.array.items[3]),
+    };
+}
+
 pub fn readString(value: Value) []const u8 {
     return value.string;
 }

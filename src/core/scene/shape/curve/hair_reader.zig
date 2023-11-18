@@ -33,7 +33,7 @@ pub const Reader = struct {
         padding: u27,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream) !Result {
+    pub fn read(alloc: Allocator, stream: ReadStream) !Result {
         const generic = true;
         if (generic) {
             return try genericCrap(alloc);

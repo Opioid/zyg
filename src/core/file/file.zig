@@ -14,7 +14,7 @@ pub const Type = enum {
     ZSTD,
 };
 
-pub fn queryType(stream: *ReadStream) Type {
+pub fn queryType(stream: ReadStream) Type {
     var header: [4]u8 = undefined;
     _ = stream.read(&header) catch {
         return .Undefined;

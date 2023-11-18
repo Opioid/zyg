@@ -229,7 +229,7 @@ pub const CAPI = struct {
                 frames[i] = quaternion.initFromTN(t, n);
             } else {
                 const tid = i * self.tangents_stride;
-                const t = Vec4f{ self.tangents[tid + 0], self.normals[tid + 1], self.normals[tid + 2], 0.0 };
+                const t = Vec4f{ self.tangents[tid + 0], self.tangents[tid + 1], self.tangents[tid + 2], 0.0 };
 
                 frames[i] = quaternion.initFromTN(t, n);
             }

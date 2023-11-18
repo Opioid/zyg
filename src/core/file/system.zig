@@ -56,7 +56,7 @@ pub const System = struct {
     pub fn readStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
         var stream = try self.openReadStream(alloc, name);
 
-        const file_type = fl.queryType(&stream);
+        const file_type = fl.queryType(stream);
 
         if (.GZIP == file_type) {
             try self.gzip_stream.setStream(stream);

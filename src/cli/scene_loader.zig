@@ -1,4 +1,5 @@
 const anim = @import("animation_loader.zig");
+const gltf = @import("gltf_loader.zig");
 const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
@@ -90,8 +91,6 @@ pub const Loader = struct {
 
     fallback_material: u32,
 
-    materials: List(u32) = .{},
-
     instances: std.HashMapUnmanaged(Key, u32, KeyContext, 80) = .{},
 
     const Null = resource.Null;
@@ -117,7 +116,6 @@ pub const Loader = struct {
 
     pub fn deinit(self: *Loader, alloc: Allocator) void {
         self.instances.deinit(alloc);
-        self.materials.deinit(alloc);
     }
 
     pub fn load(self: *Loader, alloc: Allocator, take: *const Take, graph: *Graph) !void {
@@ -177,14 +175,21 @@ pub const Loader = struct {
 
         const root = parsed.value;
 
+        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
+        defer fs.popMount(alloc);
+
+        var gltf_loader = gltf.Loader.init(self.resources, self.fallback_material);
+        if (try gltf_loader.load(alloc, root, parent_trafo, graph)) {
+            gltf_loader.deinit(alloc);
+            return;
+        }
+
         var local_materials = LocalMaterials.init(alloc);
         defer local_materials.deinit();
 
         if (root.object.get("materials")) |materials_node| {
             try readMaterials(materials_node, &local_materials);
         }
-
-        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
 
         var iter = root.object.iterator();
         while (iter.next()) |entry| {
@@ -200,8 +205,6 @@ pub const Loader = struct {
                 );
             }
         }
-
-        fs.popMount(alloc);
     }
 
     fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
@@ -360,29 +363,29 @@ pub const Loader = struct {
         const scene = &graph.scene;
         const num_materials = scene.shape(shape).numMaterials();
 
-        try self.materials.ensureTotalCapacity(alloc, num_materials);
-        self.materials.clearRetainingCapacity();
+        try graph.materials.ensureTotalCapacity(alloc, num_materials);
+        graph.materials.clearRetainingCapacity();
 
         if (value.object.get("materials")) |m| {
-            self.loadMaterials(alloc, m, num_materials, local_materials);
+            self.loadMaterials(alloc, m, &graph.materials, num_materials, local_materials);
         }
 
-        while (self.materials.items.len < num_materials) {
-            self.materials.appendAssumeCapacity(self.fallback_material);
+        while (graph.materials.items.len < num_materials) {
+            graph.materials.appendAssumeCapacity(self.fallback_material);
         }
 
         if (instancing) {
-            const key = Key{ .shape = shape, .materials = self.materials.items };
+            const key = Key{ .shape = shape, .materials = graph.materials.items };
 
             if (self.instances.get(key)) |instance| {
                 return try scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createProp(alloc, shape, self.materials.items);
+            const entity = try scene.createProp(alloc, shape, graph.materials.items);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
-            return try scene.createProp(alloc, shape, self.materials.items);
+            return try scene.createProp(alloc, shape, graph.materials.items);
         }
     }
 
@@ -447,11 +450,12 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
+        materials: *List(u32),
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
         for (value.array.items, 0..) |m, i| {
-            self.materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
+            materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
 
             if (i == num_materials - 1) {
                 return;

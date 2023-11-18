@@ -70,7 +70,7 @@ const Error = error{
 };
 
 pub const Provider = struct {
-    pub const Description = struct {
+    pub const Descriptor = struct {
         num_parts: u32,
         num_primitives: u32,
         num_vertices: u32,
@@ -95,7 +95,7 @@ pub const Provider = struct {
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: tvb.Buffer = undefined,
-    desc: Description = undefined,
+    desc: Descriptor = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
 
@@ -129,8 +129,8 @@ pub const Provider = struct {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
-            if (file.Type.HAIR == file.queryType(&stream)) {
-                var curves = try HairReader.read(alloc, &stream);
+            if (file.Type.HAIR == file.queryType(stream)) {
+                var curves = try HairReader.read(alloc, stream);
                 defer {
                     alloc.free(curves.curves);
                     curves.vertices.deinit(alloc);
@@ -144,8 +144,8 @@ pub const Provider = struct {
                 try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
-            } else if (file.Type.SUB == file.queryType(&stream)) {
-                const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
+            } else if (file.Type.SUB == file.queryType(stream)) {
+                const mesh = self.loadBinary(alloc, stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
                 };
@@ -211,7 +211,7 @@ pub const Provider = struct {
     ) !Shape {
         _ = options;
 
-        const desc = @as(*const Description, @ptrCast(data));
+        const desc = @as(*const Descriptor, @ptrCast(data));
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
@@ -390,7 +390,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !TriangleMesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: ReadStream, resources: *Resources) !TriangleMesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -700,8 +700,8 @@ pub const Provider = struct {
             desc.uvs_stride,
             desc.positions,
             desc.normals,
-            if (desc.tangents_stride > 0) desc.tangents.? else &null_floats,
-            if (desc.uvs_stride > 0) desc.uvs.? else &null_floats,
+            if (desc.tangents) |tangents| tangents else &null_floats,
+            if (desc.uvs) |uvs| uvs else &null_floats,
         ) };
 
         buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};

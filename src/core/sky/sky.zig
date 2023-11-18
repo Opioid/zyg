@@ -144,7 +144,7 @@ pub const Sky = struct {
 
             defer stream.deinit();
 
-            const cached_image = try ExrReader.read(alloc, &stream, .XYZ, false);
+            const cached_image = try ExrReader.read(alloc, stream, .XYZ, false);
 
             var image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
             image.deinit(alloc);
@@ -158,7 +158,7 @@ pub const Sky = struct {
 
             defer stream.deinit();
 
-            var cached_image = try ExrReader.read(alloc, &stream, .XYZ, false);
+            var cached_image = try ExrReader.read(alloc, stream, .XYZ, false);
             defer cached_image.deinit(alloc);
 
             scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, cached_image.Float3);
