@@ -3,6 +3,7 @@ const Animation = anim.Animation;
 const Keyframe = anim.Keyframe;
 
 const core = @import("core");
+const Take = core.tk.Take;
 const scn = core.scn;
 const Scene = scn.Scene;
 const Material = scn.Material;
@@ -29,6 +30,8 @@ pub const Graph = struct {
         animation: bool = false,
         local_animation: bool = false,
     };
+
+    take: Take = .{},
 
     scene: Scene,
 
@@ -75,10 +78,13 @@ pub const Graph = struct {
         self.materials.deinit(alloc);
 
         self.scene.deinit(alloc);
+
+        self.take.deinit(alloc);
     }
 
-    pub fn clear(self: *Self, alloc: Allocator, keep_take_cameras: bool) void {
-        if (!keep_take_cameras) {
+    pub fn clear(self: *Self, alloc: Allocator, clear_take: bool) void {
+        if (clear_take) {
+            self.take.clear(alloc);
             self.camera_trafos.clearRetainingCapacity();
         }
 

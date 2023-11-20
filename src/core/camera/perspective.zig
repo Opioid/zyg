@@ -50,8 +50,6 @@ pub const Perspective = struct {
     d_x: Vec4f = @splat(0.0),
     d_y: Vec4f = @splat(0.0),
 
-    world_pos: Vec4f = @splat(0.0),
-
     fov: f32 = 0.0,
     aperture: Aperture = .{},
     focus_distance: f32 = 0.0,

@@ -118,12 +118,12 @@ pub const Loader = struct {
         self.instances.deinit(alloc);
     }
 
-    pub fn load(self: *Loader, alloc: Allocator, take: *const Take, graph: *Graph) !void {
-        for (take.view.cameras.items) |c| {
+    pub fn load(self: *Loader, alloc: Allocator, graph: *Graph) !void {
+        for (graph.take.view.cameras.items) |c| {
             graph.scene.calculateNumInterpolationFrames(c.frame_step, c.frame_duration);
         }
 
-        const take_mount_folder = string.parentDirectory(take.resolved_filename);
+        const take_mount_folder = string.parentDirectory(graph.take.resolved_filename);
 
         const parent_id: u32 = Prop.Null;
 
@@ -133,7 +133,7 @@ pub const Loader = struct {
             .rotation = math.quaternion.identity,
         };
 
-        try self.loadFile(alloc, take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+        try self.loadFile(alloc, graph.take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
         var iter = self.instances.keyIterator();
         while (iter.next()) |k| {

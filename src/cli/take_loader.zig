@@ -1,10 +1,8 @@
 const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
-const tk = core.tk;
-const Take = tk.Take;
-const View = tk.View;
 const cam = core.camera;
+const View = core.tk.View;
 const snsr = core.rendering.snsr;
 const Sensor = snsr.Sensor;
 const Tonemapper = snsr.Tonemapper;
@@ -26,7 +24,7 @@ const Error = error{
     NoScene,
 };
 
-pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, resources: *Resources) !void {
+pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Resources) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
@@ -36,10 +34,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     const root = parsed.value;
 
     if (root.object.get("scene")) |scene_filename| {
-        take.scene_filename = try alloc.dupe(u8, scene_filename.string);
+        graph.take.scene_filename = try alloc.dupe(u8, scene_filename.string);
     }
 
-    if (0 == take.scene_filename.len) {
+    if (0 == graph.take.scene_filename.len) {
         return Error.NoScene;
     }
 
@@ -50,15 +48,15 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     var iter = root.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
-            take.view.loadAOV(entry.value_ptr.*);
+            graph.take.view.loadAOV(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {
-            take.view.sensor.deinit(alloc);
-            take.view.sensor = loadSensor(entry.value_ptr.*);
+            graph.take.view.sensor.deinit(alloc);
+            graph.take.view.sensor = loadSensor(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            try loadCamera(alloc, entry.value_ptr.*, &take.view, graph, resources);
+            try loadCamera(alloc, entry.value_ptr.*, graph, resources);
         } else if (std.mem.eql(u8, "cameras", entry.key_ptr.*)) {
             for (entry.value_ptr.array.items) |cn| {
-                try loadCamera(alloc, cn, &take.view, graph, resources);
+                try loadCamera(alloc, cn, graph, resources);
             }
         } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
             exporter_value_ptr = entry.value_ptr;
@@ -67,26 +65,26 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
         } else if (std.mem.eql(u8, "post", entry.key_ptr.*)) {
             post_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-            loadSampler(entry.value_ptr.*, &take.view);
+            loadSampler(entry.value_ptr.*, &graph.take.view);
         }
     }
 
     if (integrator_value_ptr) |integrator_value| {
-        take.view.loadIntegrators(integrator_value.*);
+        graph.take.view.loadIntegrators(integrator_value.*);
     }
 
     if (post_value_ptr) |post_value| {
-        loadPostProcessors(post_value.*, &take.view);
+        loadPostProcessors(post_value.*, &graph.take.view);
     }
 
     if (exporter_value_ptr) |exporter_value| {
-        try take.loadExporters(alloc, exporter_value.*);
+        try graph.take.loadExporters(alloc, exporter_value.*);
     }
 
-    take.view.configure();
+    graph.take.view.configure();
 }
 
-fn loadCamera(alloc: Allocator, value: std.json.Value, view: *View, graph: *Graph, resources: *Resources) !void {
+fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -124,12 +122,12 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, view: *View, graph: *Grap
         camera.setResolution(resolution, crop);
     }
 
-    const prop_id = try graph.scene.createEntity(alloc);
-    graph.scene.propSetWorldTransformation(prop_id, trafo);
+    const entity_id = try graph.scene.createEntity(alloc);
+    graph.scene.propSetWorldTransformation(entity_id, trafo);
 
-    camera.entity = prop_id;
+    camera.entity = entity_id;
 
-    try view.cameras.append(alloc, camera);
+    try graph.take.view.cameras.append(alloc, camera);
 
     try graph.camera_trafos.append(alloc, trafo);
 }

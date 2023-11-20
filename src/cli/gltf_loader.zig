@@ -1,6 +1,7 @@
 const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
+const cam = core.camera;
 const scn = core.scn;
 const Shape = scn.Shape;
 const resource = core.resource;
@@ -10,6 +11,7 @@ const ReadStream = core.file.ReadStream;
 const base = @import("base");
 const json = base.json;
 const math = base.math;
+const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
@@ -44,6 +46,7 @@ pub const Loader = struct {
         buffer: u32,
         byte_length: u32,
         byte_offset: u32,
+        byte_stride: u32,
     };
 
     const Buffer = struct {
@@ -134,6 +137,7 @@ pub const Loader = struct {
                     .buffer = json.readUIntMember(n, "buffer", 0),
                     .byte_length = json.readUIntMember(n, "byteLength", 0),
                     .byte_offset = json.readUIntMember(n, "byteOffset", 0),
+                    .byte_stride = json.readUIntMember(n, "byteStride", 0),
                 };
 
                 self.buffer_views.appendAssumeCapacity(buffer_view);
@@ -201,14 +205,46 @@ pub const Loader = struct {
     ) !void {
         const translation = json.readVec4f3Member(value, "translation", @splat(0.0));
         const rotation = json.readVec4fMember(value, "rotation", math.quaternion.identity);
+        const scale = json.readVec4f3Member(value, "scale", @splat(1.0));
 
         var trafo = Transformation{
             .position = .{ translation[0], translation[1], -translation[2], 0.0 },
-            .scale = @splat(1.0),
+            .scale = scale,
             .rotation = .{ rotation[0], rotation[1], -rotation[2], rotation[3] },
         };
 
-        if (value.object.get("mesh")) |mesh_node| {
+        if (value.object.get("camera")) |camera_node| {
+            const index = json.readUInt(camera_node);
+
+            const cameras = root.object.get("cameras") orelse return;
+            const camera = cameras.array.items[index];
+
+            if (camera.object.get("perspective")) |perspective_node| {
+                var pc = cam.Perspective{};
+
+                var resolution = Vec2i{ 1280, 720 };
+                if (graph.take.view.cameras.items.len > 0) {
+                    resolution = graph.take.view.cameras.items[0].resolution;
+                }
+
+                pc.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
+
+                const fr = math.vec2iTo2f(resolution);
+                const ratio = fr[0] / fr[1];
+
+                const yfov = json.readFloatMember(perspective_node, "yfov", 0.5);
+                pc.fov = ratio * yfov;
+
+                const entity_id = try graph.scene.createEntity(alloc);
+
+                const world_trafo = parent_trafo.transform(trafo);
+                graph.scene.propSetWorldTransformation(entity_id, world_trafo);
+
+                pc.entity = entity_id;
+
+                try graph.take.view.cameras.append(alloc, pc);
+            }
+        } else if (value.object.get("mesh")) |mesh_node| {
             const index = json.readUInt(mesh_node);
 
             const meshes = root.object.get("meshes") orelse return;
@@ -323,64 +359,32 @@ pub const Loader = struct {
 
             // positions
             {
-                const pos_acc = self.accessors.items[position_id];
-                const pos_view = self.buffer_views.items[pos_acc.buffer_view];
+                const elements = 3;
 
-                const stream = try self.readStream(alloc, pos_view.buffer);
-
-                try stream.seekTo(pos_acc.byte_offset + pos_view.byte_offset);
-
-                const pos_begin = cur_pos * 3;
-                const pos_end = pos_begin + pos_acc.count * 3;
-                _ = try stream.read(std.mem.sliceAsBytes(mesh_desc.positions[pos_begin..pos_end]));
-
-                cur_pos += pos_acc.count;
+                const pos_begin = cur_pos * elements;
+                cur_pos += try self.loadVertexAttributes(alloc, position_id, mesh_desc.positions[pos_begin..], elements);
             }
 
             // normals
             {
-                const norm_acc = self.accessors.items[normal_id];
-                const norm_view = self.buffer_views.items[norm_acc.buffer_view];
+                const elements = 3;
 
-                const stream = try self.readStream(alloc, norm_view.buffer);
-
-                try stream.seekTo(norm_acc.byte_offset + norm_view.byte_offset);
-
-                const norm_begin = cur_norm * 3;
-                const norm_end = norm_begin + norm_acc.count * 3;
-                _ = try stream.read(std.mem.sliceAsBytes(mesh_desc.normals[norm_begin..norm_end]));
-
-                cur_norm += norm_acc.count;
+                const norm_begin = cur_norm * elements;
+                cur_norm += try self.loadVertexAttributes(alloc, normal_id, mesh_desc.normals[norm_begin..], elements);
             }
 
             if (Null != tangent_id) {
-                const tan_acc = self.accessors.items[tangent_id];
-                const tan_view = self.buffer_views.items[tan_acc.buffer_view];
+                const elements = 4;
 
-                const stream = try self.readStream(alloc, tan_view.buffer);
-
-                try stream.seekTo(tan_acc.byte_offset + tan_view.byte_offset);
-
-                const tan_begin = cur_tan * 4;
-                const tan_end = tan_begin + tan_acc.count * 4;
-                _ = try stream.read(std.mem.sliceAsBytes(mesh_desc.tangents.?[tan_begin..tan_end]));
-
-                cur_tan += tan_acc.count;
+                const tan_begin = cur_tan * elements;
+                cur_tan += try self.loadVertexAttributes(alloc, tangent_id, mesh_desc.tangents.?[tan_begin..], elements);
             }
 
             if (Null != uv_id) {
-                const uv_acc = self.accessors.items[uv_id];
-                const uv_view = self.buffer_views.items[uv_acc.buffer_view];
+                const elements = 2;
 
-                const stream = try self.readStream(alloc, uv_view.buffer);
-
-                try stream.seekTo(uv_acc.byte_offset + uv_view.byte_offset);
-
-                const uv_begin = cur_uv * 2;
-                const uv_end = uv_begin + uv_acc.count * 2;
-                _ = try stream.read(std.mem.sliceAsBytes(mesh_desc.uvs.?[uv_begin..uv_end]));
-
-                cur_uv += uv_acc.count;
+                const uv_begin = cur_uv * elements;
+                cur_uv += try self.loadVertexAttributes(alloc, uv_id, mesh_desc.uvs.?[uv_begin..], elements);
             }
         }
 
@@ -471,6 +475,31 @@ pub const Loader = struct {
         } else {
             return Error.IndexInvalidComponentType;
         }
+    }
+
+    fn loadVertexAttributes(self: *Self, alloc: Allocator, id: u32, buffer: []f32, comptime Elements: comptime_int) !u32 {
+        const vertex_acc = self.accessors.items[id];
+        const vertex_view = self.buffer_views.items[vertex_acc.buffer_view];
+
+        const stream = try self.readStream(alloc, vertex_view.buffer);
+
+        const data_begin = vertex_acc.byte_offset + vertex_view.byte_offset;
+
+        if (vertex_view.byte_stride > 4 * Elements) {
+            for (0..vertex_acc.count) |i| {
+                try stream.seekTo(data_begin + i * vertex_view.byte_stride);
+
+                const begin = i * Elements;
+                _ = try stream.read(std.mem.sliceAsBytes(buffer[begin .. begin + Elements]));
+            }
+        } else {
+            try stream.seekTo(data_begin);
+
+            const vertex_end = vertex_acc.count * Elements;
+            _ = try stream.read(std.mem.sliceAsBytes(buffer[0..vertex_end]));
+        }
+
+        return vertex_acc.count;
     }
 
     const TextureDescriptor = struct {
