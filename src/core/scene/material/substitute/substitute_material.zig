@@ -169,7 +169,7 @@ pub const Material = struct {
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene);
+            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs.uv, sampler, worker.scene);
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
             coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);

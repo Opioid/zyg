@@ -62,6 +62,15 @@ pub fn readVec2f(value: Value) Vec2f {
     };
 }
 
+pub fn readVec2fMember(value: Value, name: []const u8, default: Vec2f) Vec2f {
+    const member = value.object.get(name) orelse return default;
+
+    return .{
+        readFloat(f32, member.array.items[0]),
+        readFloat(f32, member.array.items[1]),
+    };
+}
+
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
     const member = value.object.get(name) orelse return default;
 

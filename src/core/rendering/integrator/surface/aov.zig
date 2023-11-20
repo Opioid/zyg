@@ -105,10 +105,15 @@ pub const AOV = struct {
     }
 
     fn vector(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
+        const wo = -vertex.probe.ray.direction;
+
         var sampler = worker.pickSampler(0);
 
-        const wo = -vertex.probe.ray.direction;
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
+
+        if (worker.aov.active()) {
+            worker.commonAOV(&vertex, isec, &mat_sample);
+        }
 
         var vec: Vec4f = undefined;
 
