@@ -1,5 +1,5 @@
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const Scene = @import("../../scene/scene.zig").Scene;
+const Texture = @import("../image/texture/texture.zig").Texture;
+const Scene = @import("../scene/scene.zig").Scene;
 
 const base = @import("base");
 const math = base.math;

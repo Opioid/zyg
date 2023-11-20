@@ -169,7 +169,7 @@ export fn su_camera_set_fov(fov: f32) i32 {
 
 export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     if (engine) |*e| {
-        const d = e.take.view.cameras.items[0].sensorDimensions();
+        const d = e.take.view.cameras.items[0].resolution;
         dimensions[0] = d[0];
         dimensions[1] = d[1];
         return 0;

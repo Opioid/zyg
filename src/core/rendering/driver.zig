@@ -123,7 +123,7 @@ pub const Driver = struct {
             return Error.NoCameraProp;
         }
 
-        const dim = camera.sensorDimensions();
+        const dim = camera.resolution;
 
         const view = self.view;
 
@@ -133,8 +133,7 @@ pub const Driver = struct {
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
-        const r = camera.resolution;
-        const num_particles = @as(u64, @intCast(r[0] * r[1])) * @as(u64, view.num_particles_per_pixel);
+        const num_particles = @as(u64, @intCast(dim[0] * dim[1])) * @as(u64, view.num_particles_per_pixel);
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
 
         try self.startFrame(alloc, camera_id, frame, false);

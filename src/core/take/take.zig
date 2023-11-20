@@ -378,7 +378,7 @@ pub const Take = struct {
 
                 try self.exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
                     alloc,
-                    self.view.cameras.items[0].sensorDimensions(),
+                    self.view.cameras.items[0].resolution,
                     framerate,
                     error_diffusion,
                 ) });
