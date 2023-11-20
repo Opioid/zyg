@@ -119,8 +119,9 @@ pub const Loader = struct {
     }
 
     pub fn load(self: *Loader, alloc: Allocator, take: *const Take, graph: *Graph) !void {
-        const camera = take.view.camera;
-        graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+        for (take.view.cameras.items) |c| {
+            graph.scene.calculateNumInterpolationFrames(c.frame_step, c.frame_duration);
+        }
 
         const take_mount_folder = string.parentDirectory(take.resolved_filename);
 

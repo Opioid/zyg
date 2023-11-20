@@ -41,19 +41,19 @@ pub const Buffer = union(enum) {
         }
     }
 
-    pub fn addPixel(self: *Self, i: usize, color: Vec4f, weight: f32) void {
+    pub fn addPixel(self: *Self, i: u32, color: Vec4f, weight: f32) void {
         switch (self.*) {
             inline else => |*s| s.addPixel(i, color, weight),
         }
     }
 
-    pub fn addPixelAtomic(self: *Self, i: usize, color: Vec4f, weight: f32) void {
+    pub fn addPixelAtomic(self: *Self, i: u32, color: Vec4f, weight: f32) void {
         switch (self.*) {
             inline else => |*s| s.addPixelAtomic(i, color, weight),
         }
     }
 
-    pub fn splatPixelAtomic(self: *Self, i: usize, color: Vec4f, weight: f32) void {
+    pub fn splatPixelAtomic(self: *Self, i: u32, color: Vec4f, weight: f32) void {
         switch (self.*) {
             inline else => |*s| s.splatPixelAtomic(i, color, weight),
         }

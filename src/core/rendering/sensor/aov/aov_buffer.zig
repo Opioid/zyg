@@ -62,7 +62,7 @@ pub const Buffer = struct {
         }
     }
 
-    pub fn addPixel(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
+    pub fn addPixel(self: *Self, id: u32, slot: u32, value: Vec4f, weight: f32) void {
         const wc = @as(Vec4f, @splat(weight)) * value;
 
         const pixels = self.buffers[slot];
@@ -71,7 +71,7 @@ pub const Buffer = struct {
         pixels[id].v = dest;
     }
 
-    pub fn addPixelAtomic(self: *Self, id: usize, slot: u32, value: Vec4f, weight: f32) void {
+    pub fn addPixelAtomic(self: *Self, id: u32, slot: u32, value: Vec4f, weight: f32) void {
         const pixels = self.buffers[slot];
         var dest = &pixels[id];
 
@@ -90,7 +90,7 @@ pub const Buffer = struct {
         }
     }
 
-    pub fn overwritePixel(self: *Self, id: usize, slot: u32, value: f32, weight: f32) void {
+    pub fn overwritePixel(self: *Self, id: u32, slot: u32, value: f32, weight: f32) void {
         const pixels = self.buffers[slot];
         var dest = &pixels[id];
 

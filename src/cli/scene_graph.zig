@@ -43,6 +43,8 @@ pub const Graph = struct {
 
     animations: List(Animation) = .{},
 
+    camera_trafos: List(math.Transformation) = .{},
+
     const Self = @This();
 
     pub fn init(alloc: Allocator) !Self {
@@ -57,6 +59,8 @@ pub const Graph = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.camera_trafos.deinit(alloc);
+
         for (self.animations.items) |*a| {
             a.deinit(alloc, self.scene.num_interpolation_frames);
         }
@@ -73,7 +77,11 @@ pub const Graph = struct {
         self.scene.deinit(alloc);
     }
 
-    pub fn clear(self: *Self, alloc: Allocator) void {
+    pub fn clear(self: *Self, alloc: Allocator, keep_take_cameras: bool) void {
+        if (!keep_take_cameras) {
+            self.camera_trafos.clearRetainingCapacity();
+        }
+
         for (self.animations.items) |*a| {
             a.deinit(alloc, self.scene.num_interpolation_frames);
         }
@@ -129,7 +137,7 @@ pub const Graph = struct {
         const render_id = self.prop_props.items[entity];
         const render_entity = Null != render_id;
 
-        const current_len = @as(u32, @intCast(self.keyframes.items.len));
+        const current_len: u32 = @intCast(self.keyframes.items.len);
 
         if (world_animation) {
             const nif = self.scene.num_interpolation_frames;
@@ -164,7 +172,7 @@ pub const Graph = struct {
     pub fn createAnimation(self: *Self, alloc: Allocator, count: u32) !u32 {
         try self.animations.append(alloc, try Animation.init(alloc, count, self.scene.num_interpolation_frames));
 
-        return @as(u32, @intCast(self.animations.items.len - 1));
+        return @intCast(self.animations.items.len - 1);
     }
 
     pub fn animationSetEntity(self: *Self, animation: u32, entity: u32) void {

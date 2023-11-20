@@ -6,6 +6,7 @@ const Take = tk.Take;
 const View = tk.View;
 const cam = core.camera;
 const snsr = core.rendering.snsr;
+const Sensor = snsr.Sensor;
 const Tonemapper = snsr.Tonemapper;
 const ReadStream = core.file.ReadStream;
 const Resources = core.resource.Manager;
@@ -50,8 +51,15 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "aov", entry.key_ptr.*)) {
             take.view.loadAOV(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {
+            take.view.sensor.deinit(alloc);
+            take.view.sensor = loadSensor(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "camera", entry.key_ptr.*)) {
-            try loadCamera(alloc, &take.view.camera, entry.value_ptr.*, graph, resources);
+            try loadCamera(alloc, entry.value_ptr.*, &take.view, graph, resources);
+        } else if (std.mem.eql(u8, "cameras", entry.key_ptr.*)) {
+            for (entry.value_ptr.array.items) |cn| {
+                try loadCamera(alloc, cn, &take.view, graph, resources);
+            }
         } else if (std.mem.eql(u8, "export", entry.key_ptr.*)) {
             exporter_value_ptr = entry.value_ptr;
         } else if (std.mem.eql(u8, "integrator", entry.key_ptr.*)) {
@@ -78,37 +86,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, take: *Take, graph: *Graph, re
     take.view.configure();
 }
 
-pub fn loadCameraTransformation(alloc: Allocator, stream: ReadStream, camera: *cam.Perspective, graph: *Graph) !void {
-    const buffer = try stream.readAll(alloc);
-    defer alloc.free(buffer);
-
-    var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
-    defer parsed.deinit();
-
-    const root = parsed.value;
-
-    if (root.object.get("camera")) |camera_node| {
-        var iter = camera_node.object.iterator();
-        if (iter.next()) |type_value| {
-            var trafo = Transformation{
-                .position = @splat(0.0),
-                .scale = @splat(1.0),
-                .rotation = math.quaternion.identity,
-            };
-
-            if (type_value.value_ptr.object.get("transformation")) |trafo_node| {
-                json.readTransformation(trafo_node, &trafo);
-            }
-
-            const prop_id = try graph.scene.createEntity(alloc);
-            graph.scene.propSetWorldTransformation(prop_id, trafo);
-            //_ = try graph.createEntity(alloc, prop_id);
-            camera.entity = prop_id;
-        }
-    }
-}
-
-fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
+fn loadCamera(alloc: Allocator, value: std.json.Value, view: *View, graph: *Graph, resources: *Resources) !void {
     var type_value_ptr: ?*std.json.Value = null;
 
     {
@@ -122,8 +100,7 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
         return;
     }
 
-    var param_value_ptr: ?*std.json.Value = null;
-    var sensor_value_ptr: ?*std.json.Value = null;
+    var camera = cam.Perspective{};
 
     var trafo = Transformation{
         .position = @splat(0.0),
@@ -135,34 +112,26 @@ fn loadCamera(alloc: Allocator, camera: *cam.Perspective, value: std.json.Value,
         var iter = type_value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
-                param_value_ptr = entry.value_ptr;
+                try camera.setParameters(alloc, entry.value_ptr.*, &graph.scene, resources);
             } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                 json.readTransformation(entry.value_ptr.*, &trafo);
-            } else if (std.mem.eql(u8, "sensor", entry.key_ptr.*)) {
-                sensor_value_ptr = entry.value_ptr;
             }
         }
-    }
 
-    if (sensor_value_ptr) |sensor_value| {
-        const resolution = json.readVec2iMember(sensor_value.*, "resolution", .{ 0, 0 });
-        const crop = json.readVec4iMember(sensor_value.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
+        const resolution = json.readVec2iMember(type_value.*, "resolution", .{ 0, 0 });
+        const crop = json.readVec4iMember(type_value.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
 
         camera.setResolution(resolution, crop);
-        camera.sensor.deinit(alloc);
-        camera.sensor = loadSensor(sensor_value.*);
-    } else {
-        return;
-    }
-
-    if (param_value_ptr) |param_value| {
-        try camera.setParameters(alloc, param_value.*, &graph.scene, resources);
     }
 
     const prop_id = try graph.scene.createEntity(alloc);
     graph.scene.propSetWorldTransformation(prop_id, trafo);
-    // _ = try graph.createEntity(alloc, prop_id);
+
     camera.entity = prop_id;
+
+    try view.cameras.append(alloc, camera);
+
+    try graph.camera_trafos.append(alloc, trafo);
 }
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {
@@ -240,7 +209,7 @@ fn loadPostProcessors(value: std.json.Value, view: *View) void {
         var iter = pp.object.iterator();
         if (iter.next()) |entry| {
             if (std.mem.eql(u8, "tonemapper", entry.key_ptr.*)) {
-                view.camera.sensor.tonemapper = loadTonemapper(entry.value_ptr.*);
+                view.sensor.tonemapper = loadTonemapper(entry.value_ptr.*);
             }
         }
     }

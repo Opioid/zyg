@@ -30,12 +30,13 @@ pub const Sink = union(enum) {
         image: Float4,
         crop: Vec4i,
         aov: ?AovClass,
+        camera: u32,
         frame: u32,
         threads: *Threads,
     ) !void {
         switch (self.*) {
             .FFMPEG => |*s| try s.write(alloc, image, threads),
-            .ImageSequence => |*s| try s.write(alloc, image, crop, aov, frame, threads),
+            .ImageSequence => |*s| try s.write(alloc, image, crop, aov, camera, frame, threads),
         }
     }
 };

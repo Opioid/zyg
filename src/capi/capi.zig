@@ -71,6 +71,11 @@ export fn su_init() i32 {
             return -1;
         };
 
+        e.take.view.cameras.append(alloc, .{}) catch {
+            engine = null;
+            return -1;
+        };
+
         e.resources = resource.Manager.init(alloc, &e.scene, &e.threads) catch {
             engine = null;
             return -1;
@@ -132,7 +137,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
         const resolution = Vec2i{ @intCast(width), @intCast(height) };
         const crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
 
-        var camera = &e.take.view.camera;
+        var camera = &e.take.view.cameras.items[0];
 
         camera.setResolution(resolution, crop);
         camera.fov = math.degreesToRadians(80.0);
@@ -147,7 +152,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
 
         e.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
 
-        return @as(i32, @intCast(camera.entity));
+        return @intCast(camera.entity);
     }
 
     return -1;
@@ -155,7 +160,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
 
 export fn su_camera_set_fov(fov: f32) i32 {
     if (engine) |*e| {
-        e.take.view.camera.fov = fov;
+        e.take.view.cameras.items[0].fov = fov;
         return 0;
     }
 
@@ -164,7 +169,7 @@ export fn su_camera_set_fov(fov: f32) i32 {
 
 export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     if (engine) |*e| {
-        const d = e.take.view.camera.sensorDimensions();
+        const d = e.take.view.cameras.items[0].sensorDimensions();
         dimensions[0] = d[0];
         dimensions[1] = d[1];
         return 0;
@@ -541,7 +546,7 @@ export fn su_render_frame(frame: u32) i32 {
 
         e.frame = frame;
 
-        e.driver.render(e.alloc, frame, 0, 0) catch {
+        e.driver.render(e.alloc, 0, frame, 0, 0) catch {
             return -1;
         };
 
@@ -553,7 +558,7 @@ export fn su_render_frame(frame: u32) i32 {
 
 export fn su_export_frame() i32 {
     if (engine) |*e| {
-        e.driver.exportFrame(e.alloc, e.frame, e.take.exporters.items) catch {
+        e.driver.exportFrame(e.alloc, 0, e.frame, e.take.exporters.items) catch {
             return -1;
         };
 
@@ -574,7 +579,7 @@ export fn su_start_frame(frame: u32) i32 {
 
         e.frame = frame;
         e.iteration = 0;
-        e.driver.startFrame(e.alloc, frame, true) catch {
+        e.driver.startFrame(e.alloc, 0, frame, true) catch {
             return -1;
         };
 
@@ -598,11 +603,11 @@ export fn su_render_iterations(num_steps: u32) i32 {
 export fn su_resolve_frame(aov: u32) i32 {
     if (engine) |*e| {
         if (aov >= core.tk.View.AovValue.Num_classes) {
-            e.driver.resolve();
+            e.driver.resolve(0);
             return 0;
         }
 
-        return if (e.driver.resolveAov(@as(core.tk.View.AovValue.Class, @enumFromInt(aov)))) 0 else -2;
+        return if (e.driver.resolveAov(@enumFromInt(aov))) 0 else -2;
     }
 
     return -1;
@@ -615,15 +620,11 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
         const target = @as([*]Pack4f, @ptrCast(buffer));
 
         if (aov >= core.tk.View.AovValue.Num_classes) {
-            e.driver.resolveToBuffer(target, num_pixels);
+            e.driver.resolveToBuffer(0, target, num_pixels);
             return 0;
         }
 
-        return if (e.driver.resolveAovToBuffer(
-            @as(core.tk.View.AovValue.Class, @enumFromInt(aov)),
-            target,
-            num_pixels,
-        )) 0 else -2;
+        return if (e.driver.resolveAovToBuffer(@enumFromInt(aov), target, num_pixels)) 0 else -2;
     }
 
     return -1;
@@ -640,7 +641,7 @@ export fn su_copy_framebuffer(
         const bpc: u32 = if (0 == format) 1 else 4;
 
         var context = CopyFramebufferContext{
-            .format = @as(Format, @enumFromInt(format)),
+            .format = @enumFromInt(format),
             .num_channels = num_channels,
             .width = width,
             .destination = destination[0 .. bpc * num_channels * width * height],
@@ -684,7 +685,7 @@ const CopyFramebufferContext = struct {
                 var o: u32 = y * width * 3;
                 var x: u32 = 0;
                 while (x < used_width) : (x += 1) {
-                    const color = self.source.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)));
+                    const color = self.source.get2D(@intCast(x), @intCast(y));
 
                     destination[o + 0] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[0]));
                     destination[o + 1] = encoding.floatToUnorm8(spectrum.linearToGamma_sRGB(color.v[1]));
@@ -701,7 +702,7 @@ const CopyFramebufferContext = struct {
                 var o: u32 = y * width;
                 var x: u32 = 0;
                 while (x < used_width) : (x += 1) {
-                    const color = self.source.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)));
+                    const color = self.source.get2D(@intCast(x), @intCast(y));
 
                     destination[o] = color;
 

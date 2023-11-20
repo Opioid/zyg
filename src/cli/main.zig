@@ -87,7 +87,7 @@ pub fn main() !void {
 
     while (true) {
         take.clear(alloc);
-        graph.clear(alloc);
+        graph.clear(alloc, false);
 
         log.info("Loading...", .{});
 
@@ -115,19 +115,20 @@ pub fn main() !void {
                 reloadFrameDependant(
                     alloc,
                     i,
-                    options.take,
                     &take,
                     &graph,
                     &scene_loader,
                     &resources,
                 ) catch continue;
 
-                const camera = &take.view.camera;
-                const start = @as(u64, i) * camera.frame_step;
-                graph.simulate(start, start + camera.frame_duration);
+                for (take.view.cameras.items, 0..) |camera, cid| {
+                    const start = @as(u64, i) * camera.frame_step;
+                    graph.simulate(start, start + camera.frame_duration);
 
-                try driver.render(alloc, i, options.sample, options.num_samples);
-                try driver.exportFrame(alloc, i, take.exporters.items);
+                    const camera_id: u32 = @intCast(cid);
+                    try driver.render(alloc, camera_id, i, options.sample, options.num_samples);
+                    try driver.exportFrame(alloc, camera_id, i, take.exporters.items);
+                }
             }
 
             log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
@@ -181,7 +182,6 @@ fn loadTakeAndScene(
 fn reloadFrameDependant(
     alloc: Allocator,
     frame: u32,
-    take_text: []const u8,
     take: *tk.Take,
     graph: *Graph,
     scene_loader: *SceneLoader,
@@ -204,21 +204,17 @@ fn reloadFrameDependant(
     const loading_start = std.time.milliTimestamp();
 
     try graph.scene.commitMaterials(alloc, resources.threads);
-    graph.clear(alloc);
+    graph.clear(alloc, true);
 
-    var stream = resources.fs.readStream(alloc, take_text) catch |err| {
-        log.err("Open stream \"{s}\": {}", .{ take_text, err });
-        return err;
-    };
-
-    take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
-
-    TakeLoader.loadCameraTransformation(alloc, stream, &take.view.camera, graph) catch |err| {
-        log.err("Loading take: {}", .{err});
-        return err;
-    };
-
-    stream.deinit();
+    // This is a hack to recreate the camera entities that come from the take file in the scene
+    // It relies on the specifiec order in which are loaded and I hate everything that has to do with it
+    // This whole weird frame depenendant mechanism should be replaced with something more robust!
+    const num_take_cameras = graph.camera_trafos.items.len;
+    for (take.view.cameras.items[0..num_take_cameras], graph.camera_trafos.items) |*camera, trafo| {
+        const entity_id = try graph.scene.createEntity(alloc);
+        camera.entity = entity_id;
+        graph.scene.propSetWorldTransformation(entity_id, trafo);
+    }
 
     scene_loader.load(alloc, take, graph) catch |err| {
         log.err("Loading scene: {}", .{err});

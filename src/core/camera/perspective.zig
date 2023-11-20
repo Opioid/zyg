@@ -48,16 +48,11 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(0),
 
-    sensor: Sensor = Sensor.init(
-        .{ .Opaque = .{} },
-        std.math.floatMax(f32),
-        2.0,
-        snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
-    ),
-
     left_top: Vec4f = @splat(0.0),
     d_x: Vec4f = @splat(0.0),
     d_y: Vec4f = @splat(0.0),
+
+    world_pos: Vec4f = @splat(0.0),
 
     fov: f32 = 0.0,
     aperture: Aperture = .{},
@@ -75,7 +70,6 @@ pub const Perspective = struct {
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.aperture.deinit(alloc);
-        self.sensor.deinit(alloc);
     }
 
     pub fn sensorDimensions(self: Self) Vec2i {

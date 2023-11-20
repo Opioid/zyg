@@ -95,7 +95,7 @@ pub const Sensor = struct {
     pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory) !void {
         self.dimensions = dimensions;
 
-        const len = @as(usize, @intCast(dimensions[0] * dimensions[1]));
+        const len: usize = @intCast(dimensions[0] * dimensions[1]);
 
         try self.buffer.resize(alloc, len);
         try self.aov.resize(alloc, len, factory);
@@ -137,7 +137,7 @@ pub const Sensor = struct {
 
         if (0 == self.filter_radius_int) {
             const d = self.dimensions;
-            const id = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const id: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             self.buffer.addPixel(id, clamped, 1.0);
 
@@ -333,7 +333,7 @@ pub const Sensor = struct {
 
         if (0 == self.filter_radius_int) {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             self.buffer.splatPixelAtomic(i, clamped, 1.0);
         } else if (1 == self.filter_radius_int) {
@@ -482,7 +482,7 @@ pub const Sensor = struct {
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
             self.buffer.splatPixelAtomic(i, color, weight);
         }
     }
@@ -492,7 +492,7 @@ pub const Sensor = struct {
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             if (@as(u32, @bitCast(pixel[0] - isolated[0])) <= @as(u32, @bitCast(isolated[2])) and
                 @as(u32, @bitCast(pixel[1] - isolated[1])) <= @as(u32, @bitCast(isolated[3])))
@@ -509,7 +509,7 @@ pub const Sensor = struct {
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             if (@as(u32, @bitCast(pixel[0] - isolated[0])) <= @as(u32, @bitCast(isolated[2])) and
                 @as(u32, @bitCast(pixel[1] - isolated[1])) <= @as(u32, @bitCast(isolated[3])))
@@ -526,7 +526,7 @@ pub const Sensor = struct {
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             self.aov.lessPixel(i, slot, value);
         }
@@ -537,7 +537,7 @@ pub const Sensor = struct {
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
-            const i = @as(usize, @intCast(d[0] * pixel[1] + pixel[0]));
+            const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
             self.aov.overwritePixel(i, slot, value, weight);
         }

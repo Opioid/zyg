@@ -178,6 +178,8 @@ pub const Scene = struct {
     }
 
     pub fn clear(self: *Scene) void {
+        self.num_interpolation_frames = 0;
+
         self.volumes.clearRetainingCapacity();
         self.infinite_props.clearRetainingCapacity();
         self.finite_props.clearRetainingCapacity();
@@ -301,7 +303,8 @@ pub const Scene = struct {
     }
 
     pub fn calculateNumInterpolationFrames(self: *Scene, frame_step: u64, frame_duration: u64) void {
-        self.num_interpolation_frames = countFrames(frame_step, frame_duration) + 1;
+        const num_frames = countFrames(frame_step, frame_duration) + 1;
+        self.num_interpolation_frames = @max(self.num_interpolation_frames, num_frames);
     }
 
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
