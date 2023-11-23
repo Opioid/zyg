@@ -41,7 +41,6 @@ pub const Lighttracer = struct {
         _ = initial_stack;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
-        const frustum_bounds = world_bounds;
 
         var sampler = worker.pickSampler(0);
 
@@ -49,7 +48,7 @@ pub const Lighttracer = struct {
         var light_sample: SampleFrom = undefined;
         var vertex = generateLightVertex(
             frame,
-            frustum_bounds,
+            world_bounds,
             sampler,
             worker,
             &light_id,

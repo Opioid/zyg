@@ -34,6 +34,7 @@ pub const Renderstate = struct {
     depth: u32,
 
     subsurface: bool,
+    primary: bool,
     caustics: CausticsResolve,
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
