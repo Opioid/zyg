@@ -204,7 +204,7 @@ const LinearStochastic3D = struct {
         const df = math.vec4iTo4f(d);
         const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
         const fuvw = @floor(muvw);
-        var xyz = math.vec4fTo4i(fuvw);
+        const xyz = math.vec4fTo4i(fuvw);
 
         const w = muvw - fuvw;
         const r = sampler.sample3D();

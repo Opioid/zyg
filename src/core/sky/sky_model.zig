@@ -68,7 +68,7 @@ pub const Model = struct {
         }
 
         var stream_ptr = @as(*ReadStream, @ptrCast(@alignCast(stream)));
-        var dest = @as([*]u8, @ptrCast(buffer))[0 .. size * count];
+        const dest = @as([*]u8, @ptrCast(buffer))[0 .. size * count];
         return (stream_ptr.read(dest) catch 0) / size;
     }
 

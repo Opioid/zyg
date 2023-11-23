@@ -203,7 +203,7 @@ pub const Reader = struct {
                     return Error.MZUncompressFailed;
                 }
 
-                var uncompressed_here = uncompressed[0 .. num_pixels_here * bytes_per_pixel];
+                const uncompressed_here = uncompressed[0 .. num_pixels_here * bytes_per_pixel];
 
                 reconstructScalar(uncompressed_here);
                 interleaveScalar(uncompressed_here, buffer.ptr);
@@ -335,7 +335,7 @@ fn interleaveScalar(source: []const u8, out: [*]u8) void {
     var t2 = (source.len + 1) / 2;
 
     var s: usize = 0;
-    var stop = source.len;
+    const stop = source.len;
 
     while (true) {
         if (s < stop) {

@@ -174,7 +174,7 @@ pub const Multi = struct {
         else
             vertex.probe.ray;
 
-        var result = propScatter(
+        const result = propScatter(
             tray,
             vertex.throughput,
             material,

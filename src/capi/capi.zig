@@ -245,7 +245,7 @@ export fn su_image_create(
 
         const desc = img.Description.init3D(.{ @as(i32, @intCast(width)), @as(i32, @intCast(height)), @as(i32, @intCast(depth)), 0 });
 
-        var buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
+        const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
             return -1;
         };
 
@@ -351,7 +351,7 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
             return -3;
         }
 
-        var material = e.scene.material(id);
+        const material = e.scene.material(id);
 
         e.resources.materials.provider.updateMaterial(
             e.alloc,

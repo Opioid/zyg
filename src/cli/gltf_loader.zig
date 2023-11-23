@@ -207,7 +207,7 @@ pub const Loader = struct {
         const rotation = json.readVec4fMember(value, "rotation", math.quaternion.identity);
         const scale = json.readVec4f3Member(value, "scale", @splat(1.0));
 
-        var trafo = Transformation{
+        const trafo = Transformation{
             .position = .{ translation[0], translation[1], -translation[2], 0.0 },
             .scale = scale,
             .rotation = .{ rotation[0], rotation[1], -rotation[2], rotation[3] },
@@ -461,7 +461,7 @@ pub const Loader = struct {
 
             return index_acc.count;
         } else if (.UInt16 == index_acc.component_type) {
-            var indices_in = try alloc.alloc(u16, index_acc.count);
+            const indices_in = try alloc.alloc(u16, index_acc.count);
             defer alloc.free(indices_in);
 
             try stream.seekTo(index_acc.byte_offset + index_view.byte_offset);

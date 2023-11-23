@@ -45,7 +45,7 @@ pub const AOV = struct {
     pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
         var vertex = input;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         var isec: Intersection = undefined;
         if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
@@ -107,7 +107,7 @@ pub const AOV = struct {
     fn vector(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         const wo = -vertex.probe.ray.direction;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
@@ -157,7 +157,7 @@ pub const AOV = struct {
     fn side(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         _ = self;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 

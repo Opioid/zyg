@@ -353,7 +353,7 @@ pub const Provider = struct {
 
                             const tbn = quaternion.toMat3x3(ts);
                             n.* = math.vec4fTo3f(tbn.r[2]);
-                            var t = &handler.tangents.items[i];
+                            const t = &handler.tangents.items[i];
                             t.* = math.vec4fTo3f(tbn.r[0]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
@@ -526,14 +526,14 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
         } else {
-            var positions = try alloc.alloc(Pack3f, num_vertices);
+            const positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
             if (tangent_space_as_quaternion) {
-                var ts = try alloc.alloc(Pack4f, num_vertices);
+                const ts = try alloc.alloc(Pack4f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(ts));
 
-                var uvs = try alloc.alloc(Vec2f, num_vertices);
+                const uvs = try alloc.alloc(Vec2f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
                 vertices = tvb.Buffer{ .SeparateQuat = tvb.SeparateQuat.init(
@@ -542,17 +542,17 @@ pub const Provider = struct {
                     uvs,
                 ) };
             } else {
-                var normals = try alloc.alloc(Pack3f, num_vertices);
+                const normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
                 if (has_uvs_and_tangents) {
-                    var tangents = try alloc.alloc(Pack3f, num_vertices);
+                    const tangents = try alloc.alloc(Pack3f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(tangents));
 
-                    var uvs = try alloc.alloc(Vec2f, num_vertices);
+                    const uvs = try alloc.alloc(Vec2f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                    var bts = try alloc.alloc(u8, num_vertices);
+                    const bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
                     vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
@@ -580,7 +580,7 @@ pub const Provider = struct {
 
         try stream.seekTo(binary_start + indices_offset);
 
-        var indices = try alloc.alloc(u8, indices_size);
+        const indices = try alloc.alloc(u8, indices_size);
 
         _ = try stream.read(indices);
 
@@ -615,7 +615,7 @@ pub const Provider = struct {
         const self = @as(*Provider, @ptrCast(context));
 
         const num_triangles = self.num_indices / 3;
-        var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
+        const triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
         if (4 == self.index_bytes) {

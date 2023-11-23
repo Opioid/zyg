@@ -23,9 +23,9 @@ pub fn DiscreteSpectralPowerDistribution(
                 return;
             }
 
-            var CIE_X = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_X_360_830_1nm);
-            var CIE_Y = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Y_360_830_1nm);
-            var CIE_Z = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Z_360_830_1nm);
+            const CIE_X = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_X_360_830_1nm);
+            const CIE_Y = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Y_360_830_1nm);
+            const CIE_Z = Interpolated.init(&xyz.CIE_Wavelengths_360_830_1nm, &xyz.CIE_Z_360_830_1nm);
 
             const cie_x = Self.initInterpolated(CIE_X);
             const cie_y = Self.initInterpolated(CIE_Y);
@@ -53,7 +53,7 @@ pub fn DiscreteSpectralPowerDistribution(
         }
 
         pub fn init() Self {
-            var result = Self{};
+            const result = Self{};
 
             for (result.values) |*v| {
                 v.* = 0.0;

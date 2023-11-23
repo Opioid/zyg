@@ -22,7 +22,7 @@ pub const Mesh = struct {
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
-        var local_ray = trafo.worldToObjectRay(ray.*);
+        const local_ray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(local_ray)) |hit| {
             ray.setMaxT(hit.t);

@@ -42,7 +42,7 @@ pub const Lighttracer = struct {
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         var light_id: u32 = undefined;
         var light_sample: SampleFrom = undefined;
@@ -76,7 +76,7 @@ pub const Lighttracer = struct {
                     continue;
                 }
 
-                var sampler = worker.pickSampler(vertex.probe.depth);
+                const sampler = worker.pickSampler(vertex.probe.depth);
 
                 var isec: Intersection = undefined;
                 if (!worker.nextEvent(true, vertex, &isec, sampler)) {

@@ -369,7 +369,7 @@ pub const Take = struct {
                     } });
                 }
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
-                var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
+                const framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 // if (0 == framerate) {
                 //     framerate = @as(u32, @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(self.view.camera.frame_step)))));
                 // }

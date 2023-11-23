@@ -523,7 +523,7 @@ pub const Scene = struct {
 
             var bb = part_aabb.transform(composed);
 
-            var tc = rotation.transformVector(part_cone);
+            const tc = rotation.transformVector(part_cone);
             var cone = Vec4f{ tc[0], tc[1], tc[2], part_cone[3] };
 
             const len = self.num_interpolation_frames - 1;

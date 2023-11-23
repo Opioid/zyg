@@ -548,7 +548,7 @@ pub const Sample = struct {
 
     fn volumetricSample(self: Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         if (self.coating.thickness > 0.0) {
-            var result = &buffer[0];
+            const result = &buffer[0];
 
             self.coatedVolumetricSample(sampler, result);
             return buffer[0..1];

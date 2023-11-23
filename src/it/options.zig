@@ -40,7 +40,7 @@ pub const Options = struct {
         while (i_i) |arg_i| {
             const command = arg_i[1..];
 
-            var i_j = iter.next();
+            const i_j = iter.next();
             if (i_j) |arg_j| {
                 if (isParameter(arg_j)) {
                     try options.handleAll(alloc, command, arg_j);
