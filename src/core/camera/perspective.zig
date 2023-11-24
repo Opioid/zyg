@@ -1,9 +1,7 @@
 const cs = @import("camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
-const snsr = @import("../rendering/sensor/sensor.zig");
-const Sensor = snsr.Sensor;
-const Aperture = @import("../rendering/sensor/aperture.zig").Aperture;
+const Aperture = @import("aperture.zig").Aperture;
 const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -48,13 +46,6 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(0),
 
-    sensor: Sensor = Sensor.init(
-        .{ .Opaque = .{} },
-        std.math.floatMax(f32),
-        2.0,
-        snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
-    ),
-
     left_top: Vec4f = @splat(0.0),
     d_x: Vec4f = @splat(0.0),
     d_y: Vec4f = @splat(0.0),
@@ -75,11 +66,6 @@ pub const Perspective = struct {
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.aperture.deinit(alloc);
-        self.sensor.deinit(alloc);
-    }
-
-    pub fn sensorDimensions(self: Self) Vec2i {
-        return self.resolution;
     }
 
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {

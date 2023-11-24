@@ -157,6 +157,7 @@ pub const Vertex = struct {
         rs.primitive = isec.primitive;
         rs.depth = self.probe.depth;
         rs.subsurface = isec.subsurface();
+        rs.primary = self.state.primary_ray;
         rs.caustics = caustics;
 
         return m.sample(wo, rs, sampler, worker);

@@ -33,7 +33,7 @@ pub const Reader = struct {
         padding: u27,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream) !Result {
+    pub fn read(alloc: Allocator, stream: ReadStream) !Result {
         const generic = true;
         if (generic) {
             return try genericCrap(alloc);
@@ -112,7 +112,7 @@ pub const Reader = struct {
 
         var curves = try alloc.alloc(u32, num_curves);
         var positions = try alloc.alloc(Pack3f, num_positions);
-        var widths = try alloc.alloc(f32, num_positions);
+        const widths = try alloc.alloc(f32, num_positions);
 
         var source_count: u32 = 0;
         var dest_p_count: u32 = 0;

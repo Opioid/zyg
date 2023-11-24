@@ -44,7 +44,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn addPixel(self: *Transparent, i: usize, color: Vec4f, weight: f32) Result {
+    pub fn addPixel(self: *Transparent, i: u32, color: Vec4f, weight: f32) Result {
         self.pixel_weights[i] += weight;
 
         const wc = @as(Vec4f, @splat(weight)) * color;
@@ -61,7 +61,7 @@ pub const Transparent = struct {
         };
     }
 
-    pub fn splatPixelAtomic(self: *Transparent, i: usize, color: Vec4f, weight: f32) void {
+    pub fn splatPixelAtomic(self: *Transparent, i: u32, color: Vec4f, weight: f32) void {
         const wc = @as(Vec4f, @splat(weight)) * color;
 
         var value = &self.pixels[i];

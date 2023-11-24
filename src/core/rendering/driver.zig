@@ -50,6 +50,7 @@ pub const Driver = struct {
 
     photon_map: PhotonMap = .{},
 
+    camera_id: u32 = undefined,
     frame: u32 = undefined,
     frame_iteration: u32 = undefined,
     frame_iteration_samples: u32 = undefined,
@@ -87,15 +88,6 @@ pub const Driver = struct {
         self.view = view;
         self.scene = scene;
 
-        const camera = &self.view.camera;
-
-        if (Scene.Null == camera.entity) {
-            return Error.NoCameraProp;
-        }
-
-        const dim = camera.sensorDimensions();
-        try camera.sensor.resize(alloc, dim, view.aovs);
-
         const num_photons = view.photon_settings.num_photons;
         if (num_photons > 0) {
             try self.photon_map.configure(
@@ -109,7 +101,7 @@ pub const Driver = struct {
         for (self.workers) |*w| {
             try w.configure(
                 alloc,
-                camera,
+                &view.sensor,
                 scene,
                 view.samplers,
                 view.surfaces,
@@ -119,25 +111,36 @@ pub const Driver = struct {
                 &self.photon_map,
             );
         }
+    }
+
+    pub fn render(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, iteration: u32, num_samples: u32) !void {
+        log.info("Camera {} Frame {}", .{ camera_id, frame });
+
+        const render_start = std.time.milliTimestamp();
+
+        const camera = &self.view.cameras.items[camera_id];
+
+        if (Scene.Null == camera.entity) {
+            return Error.NoCameraProp;
+        }
+
+        const dim = camera.resolution;
+
+        const view = self.view;
+
+        try view.sensor.resize(alloc, dim, view.aovs);
 
         self.tiles.configure(camera.resolution, camera.crop, Worker.Tile_dimensions);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
-        const r = camera.resolution;
-        const num_particles = @as(u64, @intCast(r[0] * r[1])) * @as(u64, view.num_particles_per_pixel);
+        const num_particles = @as(u64, @intCast(dim[0] * dim[1])) * @as(u64, view.num_particles_per_pixel);
         self.ranges.configure(num_particles, 0, Num_particles_per_chunk);
-    }
 
-    pub fn render(self: *Driver, alloc: Allocator, frame: u32, iteration: u32, num_samples: u32) !void {
-        log.info("Frame {}", .{frame});
-
-        const render_start = std.time.milliTimestamp();
-
-        try self.startFrame(alloc, frame, false);
+        try self.startFrame(alloc, camera_id, frame, false);
 
         self.frame_iteration = iteration;
-        self.frame_iteration_samples = if (num_samples > 0) num_samples else self.view.num_samples_per_pixel;
+        self.frame_iteration_samples = if (num_samples > 0) num_samples else view.num_samples_per_pixel;
 
         log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
 
@@ -149,10 +152,11 @@ pub const Driver = struct {
         log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
 
-    pub fn startFrame(self: *Driver, alloc: Allocator, frame: u32, progressive: bool) !void {
+    pub fn startFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, progressive: bool) !void {
+        self.camera_id = camera_id;
         self.frame = frame;
 
-        var camera = &self.view.camera;
+        var camera = &self.view.cameras.items[camera_id];
 
         if (Scene.Null == camera.entity) {
             return Error.NoCameraProp;
@@ -166,7 +170,7 @@ pub const Driver = struct {
         camera.update(start, self.scene);
 
         if (progressive) {
-            camera.sensor.buffer.clear(0.0);
+            self.view.sensor.buffer.clear(0.0);
         }
     }
 
@@ -177,25 +181,24 @@ pub const Driver = struct {
         self.renderFrameIterationForward();
     }
 
-    pub fn resolveToBuffer(self: *Driver, target: [*]Pack4f, num_pixels: u32) void {
-        const camera = &self.view.camera;
-
+    pub fn resolveToBuffer(self: *Driver, camera_id: u32, target: [*]Pack4f, num_pixels: u32) void {
+        const camera = &self.view.cameras.items[camera_id];
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
-            camera.sensor.buffer.fixZeroWeights();
+            self.view.sensor.buffer.fixZeroWeights();
         }
 
         if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            camera.sensor.resolveAccumulateTonemap(target, num_pixels, self.threads);
+            self.view.sensor.resolveAccumulateTonemap(target, num_pixels, self.threads);
         } else {
-            camera.sensor.resolveTonemap(target, num_pixels, self.threads);
+            self.view.sensor.resolveTonemap(target, num_pixels, self.threads);
         }
     }
 
-    pub fn resolve(self: *Driver) void {
+    pub fn resolve(self: *Driver, camera_id: u32) void {
         const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
-        self.resolveToBuffer(self.target.pixels.ptr, num_pixels);
+        self.resolveToBuffer(camera_id, self.target.pixels.ptr, num_pixels);
     }
 
     pub fn resolveAovToBuffer(self: *Driver, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
@@ -203,46 +206,45 @@ pub const Driver = struct {
             return false;
         }
 
-        self.view.camera.sensor.resolveAov(class, target, num_pixels, self.threads);
+        self.view.sensor.resolveAov(class, target, num_pixels, self.threads);
 
         return true;
     }
 
     pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
-        const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
+        const num_pixels: u32 = @intCast(self.target.description.numPixels());
         return self.resolveAovToBuffer(class, self.target.pixels.ptr, num_pixels);
     }
 
-    pub fn exportFrame(self: *Driver, alloc: Allocator, frame: u32, exporters: []Sink) !void {
+    pub fn exportFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
-        self.resolve();
+        self.resolve(camera_id);
 
-        const crop = self.view.camera.crop;
+        const camera = &self.view.cameras.items[camera_id];
+        const crop = camera.crop;
 
         for (exporters) |*e| {
-            try e.write(alloc, self.target, crop, null, frame, self.threads);
+            try e.write(alloc, self.target, crop, null, camera_id, frame, self.threads);
         }
 
         for (0..View.AovValue.Num_classes) |i| {
-            const class = @as(View.AovValue.Class, @enumFromInt(i));
+            const class: View.AovValue.Class = @enumFromInt(i);
             if (!self.resolveAov(class)) {
                 continue;
             }
 
             for (exporters) |*e| {
-                try e.write(alloc, self.target, crop, class, frame, self.threads);
+                try e.write(alloc, self.target, crop, class, camera_id, frame, self.threads);
             }
         }
 
         if (self.view.aov_sample_count) {
-            const d = self.view.camera.sensorDimensions();
-            var sensor = self.view.camera.sensor;
-
-            var weights = try alloc.alloc(f32, @as(u32, @intCast(d[0] * d[1])));
+            const d = camera.resolution;
+            const weights = try alloc.alloc(f32, @as(u32, @intCast(d[0] * d[1])));
             defer alloc.free(weights);
 
-            sensor.buffer.copyWeights(weights);
+            self.view.sensor.buffer.copyWeights(weights);
 
             var min: f32 = std.math.floatMax(f32);
             var max: f32 = 0.0;
@@ -274,9 +276,9 @@ pub const Driver = struct {
 
         const start = std.time.milliTimestamp();
 
-        var camera = &self.view.camera;
+        var sensor = &self.view.sensor;
 
-        camera.sensor.buffer.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
+        sensor.buffer.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
 
         self.progressor.start(self.ranges.size());
 
@@ -287,7 +289,7 @@ pub const Driver = struct {
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
             const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
-            camera.sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
+            sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
         }
 
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
@@ -295,6 +297,8 @@ pub const Driver = struct {
 
     fn renderTiles(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
+
+        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
 
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
@@ -316,10 +320,10 @@ pub const Driver = struct {
         log.info("Tracing camera rays...", .{});
         const start = std.time.milliTimestamp();
 
-        var camera = &self.view.camera;
+        var sensor = &self.view.sensor;
 
-        camera.sensor.buffer.clear(0.0);
-        camera.sensor.aov.clear();
+        sensor.buffer.clear(0.0);
+        sensor.aov.clear();
 
         self.progressor.start(self.tiles.size());
 
@@ -343,6 +347,8 @@ pub const Driver = struct {
 
     fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
+
+        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);

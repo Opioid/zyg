@@ -130,7 +130,7 @@ fn write(
     encoding: core.ImageWriter.Encoding,
     threads: *Threads,
 ) !void {
-    var output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
+    const output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
     defer alloc.free(output_name);
 
     if (.Diff == operator) {

@@ -1,4 +1,6 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
+const snsr = @import("../rendering/sensor/sensor.zig");
+const Sensor = snsr.Sensor;
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const lt = @import("../rendering/integrator/particle/lighttracer.zig");
 const hlp = @import("../rendering/integrator/helper.zig");
@@ -15,11 +17,14 @@ const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
 const base = @import("base");
 const json = base.json;
+const math = base.math;
+const Vec2i = math.Vec2i;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const List = std.ArrayListUnmanaged;
 
-pub const Exporters = std.ArrayListUnmanaged(Sink);
+pub const Exporters = List(Sink);
 
 pub const PhotonSettings = struct {
     num_photons: u32 = 0,
@@ -52,9 +57,16 @@ pub const View = struct {
         .full_light_path = false,
     } },
 
+    sensor: Sensor = Sensor.init(
+        .{ .Opaque = .{} },
+        std.math.floatMax(f32),
+        2.0,
+        snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+    ),
+
     aovs: aov.Factory = .{},
 
-    camera: cam.Perspective = .{},
+    cameras: List(cam.Perspective) = .{},
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
@@ -69,12 +81,30 @@ pub const View = struct {
     const Default_max_bounces = 16;
 
     pub fn deinit(self: *View, alloc: Allocator) void {
-        self.camera.deinit(alloc);
+        self.sensor.deinit(alloc);
+
+        for (self.cameras.items) |*c| {
+            c.deinit(alloc);
+        }
+
+        self.cameras.deinit(alloc);
+    }
+
+    pub fn clear(self: *View, alloc: Allocator) void {
+        for (self.cameras.items) |*c| {
+            c.deinit(alloc);
+        }
+
+        self.cameras.clearRetainingCapacity();
     }
 
     pub fn configure(self: *View) void {
         const spp = if (self.num_samples_per_pixel > 0) self.num_samples_per_pixel else self.num_particles_per_pixel;
-        self.camera.sample_spacing = 1.0 / @sqrt(@as(f32, @floatFromInt(spp)));
+        const spacing = 1.0 / @sqrt(@as(f32, @floatFromInt(spp)));
+
+        for (self.cameras.items) |*c| {
+            c.sample_spacing = spacing;
+        }
     }
 
     pub fn loadAOV(self: *View, value: std.json.Value) void {
@@ -302,6 +332,7 @@ pub const Take = struct {
 
     pub fn clear(self: *Take, alloc: Allocator) void {
         self.clearExporters(alloc);
+        self.view.clear(alloc);
         alloc.free(self.resolved_filename);
         alloc.free(self.scene_filename);
     }
@@ -322,7 +353,7 @@ pub const Take = struct {
             if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
                 const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
 
-                const alpha = self.view.camera.sensor.buffer.alphaTransparency();
+                const alpha = self.view.sensor.buffer.alphaTransparency();
 
                 if (std.mem.eql(u8, "EXR", format)) {
                     const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);
@@ -344,17 +375,29 @@ pub const Take = struct {
                     } });
                 }
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
-                var framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
-                if (0 == framerate) {
-                    framerate = @as(u32, @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(self.view.camera.frame_step)))));
-                }
+                var dimensions = try alloc.alloc(Vec2i, self.view.cameras.items.len);
+                defer alloc.free(dimensions);
 
+                var framerates = try alloc.alloc(u32, self.view.cameras.items.len);
+                defer alloc.free(framerates);
+
+                const camera = &self.view.cameras.items[0];
+
+                const framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+                for (self.view.cameras.items, 0..) |c, i| {
+                    dimensions[i] = c.resolution;
+                    framerates[i] = if (0 == framerate)
+                        @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(camera.frame_step))))
+                    else
+                        framerate;
+                }
 
                 try self.exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
                     alloc,
-                    self.view.camera.sensorDimensions(),
-                    framerate,
+                    dimensions,
+                    framerates,
                     error_diffusion,
                 ) });
             }

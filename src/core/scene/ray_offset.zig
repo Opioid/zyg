@@ -2,8 +2,8 @@ const math = @import("base").math;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
-pub const Ray_max_t = 3.4027715434167032e+38;
-pub const Almost_ray_max_t = 3.4027713405926072e+38;
+pub const Ray_max_t = 2.14748313e+09;
+pub const Almost_ray_max_t = 2.14748300e+09;
 
 // The following block implements the ray offset technique described in
 // "A Fast and Robust Method for Avoiding Self-Intersection"

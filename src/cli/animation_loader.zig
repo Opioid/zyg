@@ -18,7 +18,7 @@ pub fn load(
     parent_trafo: ?Transformation,
     graph: *Graph,
 ) !u32 {
-    var start_time: u64 = 0;
+    const start_time: u64 = 0;
 
     const fps = json.readFloatMember(value, "frames_per_second", 0.0);
     const frame_step = if (fps > 0.0) @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Scene.Units_per_second)) / fps))) else 0;

@@ -123,7 +123,7 @@ pub const Pool = struct {
         else
             @as(u32, @intFromFloat(@floor(rangef / num_threads)));
 
-        var r = range - @min(step * @as(u32, @intCast(self.uniques.len)), range);
+        const r = range - @min(step * @as(u32, @intCast(self.uniques.len)), range);
         var e = begin;
 
         var num_tasks = self.uniques.len;

@@ -22,8 +22,8 @@ pub const ReadStream = union(enum) {
         return .{ .Gzip = stream };
     }
 
-    pub fn deinit(self: *Self) void {
-        switch (self.*) {
+    pub fn deinit(self: Self) void {
+        switch (self) {
             .File => |s| s.close(),
             .Gzip => |s| s.close(),
         }

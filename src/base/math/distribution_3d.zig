@@ -37,7 +37,7 @@ pub const Distribution3D = struct {
     }
 
     pub fn configure(self: *Self, alloc: Allocator) !void {
-        var integrals = try alloc.alloc(f32, self.conditional.len);
+        const integrals = try alloc.alloc(f32, self.conditional.len);
         defer alloc.free(integrals);
 
         for (integrals, self.conditional) |*i, c| {

@@ -374,6 +374,10 @@ pub const Provider = struct {
             }
         }
 
+        if (material.super.attenuation_distance > 0.0 and math.allLessEqualZero3(attenuation_color)) {
+            attenuation_color = material.color;
+        }
+
         material.super.setVolumetric(
             attenuation_color,
             subsurface_color,
@@ -455,13 +459,14 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         color = readColor(s);
     }
 
+    const value = json.readFloatMember(jvalue, "value", 1.0);
+
     if (jvalue.object.get("profile")) |p| {
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
     const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
 
-    const value = json.readFloatMember(jvalue, "value", 1.0);
     const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
 
     if (std.mem.eql(u8, "Flux", quantity)) {
@@ -478,18 +483,18 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     }
 }
 
-const TextureDescription = struct {
+const TextureDescriptor = struct {
     filename: ?[]u8 = null,
     id: u32 = rsc.Null,
 
     swizzle: ?img.Swizzle = null,
 
-    scale: Vec2f = Vec2f{ 1.0, 1.0 },
+    scale: Vec2f = .{ 1.0, 1.0 },
 
     invert: bool = false,
 
-    pub fn init(alloc: Allocator, value: std.json.Value) !TextureDescription {
-        var desc = TextureDescription{};
+    pub fn init(alloc: Allocator, value: std.json.Value) !TextureDescriptor {
+        var desc = TextureDescriptor{};
 
         switch (value) {
             .object => |o| {
@@ -527,7 +532,7 @@ const TextureDescription = struct {
         return desc;
     }
 
-    pub fn deinit(self: *TextureDescription, alloc: Allocator) void {
+    pub fn deinit(self: *TextureDescriptor, alloc: Allocator) void {
         if (self.filename) |filename| {
             alloc.free(filename);
         }
@@ -622,7 +627,7 @@ fn readTexture(
     tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
-    var desc = TextureDescription.init(alloc, value) catch return .{};
+    var desc = TextureDescriptor.init(alloc, value) catch return .{};
     defer desc.deinit(alloc);
 
     return createTexture(alloc, desc, usage, tex, resources);
@@ -630,7 +635,7 @@ fn readTexture(
 
 fn createTexture(
     alloc: Allocator,
-    desc: TextureDescription,
+    desc: TextureDescriptor,
     usage: TexUsage,
     tex: Provider.Tex,
     resources: *Resources,
@@ -680,7 +685,7 @@ fn readValue(
     if (Vec4f == Value) {
         switch (value) {
             .object => {
-                var desc = TextureDescription.init(alloc, value) catch return result;
+                var desc = TextureDescriptor.init(alloc, value) catch return result;
                 defer desc.deinit(alloc);
 
                 result.texture = createTexture(alloc, desc, usage, tex, resources);
@@ -696,7 +701,7 @@ fn readValue(
     } else {
         switch (value) {
             .object => {
-                var desc = TextureDescription.init(alloc, value) catch return result;
+                var desc = TextureDescriptor.init(alloc, value) catch return result;
                 defer desc.deinit(alloc);
 
                 result.texture = createTexture(alloc, desc, usage, tex, resources);

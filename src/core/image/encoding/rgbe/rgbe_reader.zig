@@ -27,7 +27,7 @@ pub const Reader = struct {
         height: u32,
     };
 
-    pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
+    pub fn read(alloc: Allocator, stream: ReadStream) !Image {
         const header = try readHeader(stream);
 
         const dimensions = Vec2i{ @intCast(header.width), @intCast(header.height) };
@@ -40,7 +40,7 @@ pub const Reader = struct {
         return Image{ .Half3 = image };
     }
 
-    fn readHeader(stream: *ReadStream) !Header {
+    fn readHeader(stream: ReadStream) !Header {
         var buf: [128]u8 = undefined;
         var fbs = std.io.fixedBufferStream(&buf);
 
@@ -97,7 +97,7 @@ pub const Reader = struct {
 
     fn readPixelsRLE(
         alloc: Allocator,
-        stream: *ReadStream,
+        stream: ReadStream,
         scanline_width: u32,
         num_scanlines: u32,
         image: *img.Half3,
@@ -194,7 +194,7 @@ pub const Reader = struct {
         }
     }
 
-    fn readPixels(stream: *ReadStream, num_pixels: u32, image: *img.Half3, offset: u32) !void {
+    fn readPixels(stream: ReadStream, num_pixels: u32, image: *img.Half3, offset: u32) !void {
         var rgbe: [4]u8 = undefined;
 
         var i = num_pixels;

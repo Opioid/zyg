@@ -96,9 +96,9 @@ pub const Writer = struct {
         var i: u32 = 0;
 
         var y: i32 = 0;
-        while (y < d[1]) {
+        while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
-            while (x < d[0]) {
+            while (x < d[0]) : (x += 1) {
                 if (y < crop[1] or y >= crop[3] or x < crop[0] or x >= crop[2]) {
                     const zero = [_]u8{0} ** 4;
                     try writer.writeAll(&zero);

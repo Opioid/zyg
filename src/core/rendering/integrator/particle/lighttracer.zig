@@ -5,6 +5,7 @@ const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
+const Sensor = @import("../../../rendering/sensor/sensor.zig").Sensor;
 const Light = @import("../../../scene/light/light.zig").Light;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
@@ -40,15 +41,14 @@ pub const Lighttracer = struct {
         _ = initial_stack;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
-        const frustum_bounds = world_bounds;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         var light_id: u32 = undefined;
         var light_sample: SampleFrom = undefined;
         var vertex = generateLightVertex(
             frame,
-            frustum_bounds,
+            world_bounds,
             sampler,
             worker,
             &light_id,
@@ -65,6 +65,7 @@ pub const Lighttracer = struct {
 
     fn integrate(self: *Self, input: Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
         const camera = worker.camera;
+        const sensor = worker.sensor;
 
         var vertices: VertexPool = .{};
         vertices.start(input);
@@ -75,7 +76,7 @@ pub const Lighttracer = struct {
                     continue;
                 }
 
-                var sampler = worker.pickSampler(vertex.probe.depth);
+                const sampler = worker.pickSampler(vertex.probe.depth);
 
                 var isec: Intersection = undefined;
                 if (!worker.nextEvent(true, vertex, &isec, sampler)) {
@@ -98,7 +99,7 @@ pub const Lighttracer = struct {
                 const split = vertex.path_count <= 2 and vertex.state.primary_ray;
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
-                    _ = directCamera(camera, vertex, &isec, &mat_sample, split, sampler, worker);
+                    _ = directCamera(camera, sensor, vertex, &isec, &mat_sample, split, sampler, worker);
 
                     if (vertex.probe.depth >= self.settings.min_bounces) {
                         const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
@@ -186,7 +187,8 @@ pub const Lighttracer = struct {
     }
 
     fn directCamera(
-        camera: *Camera,
+        camera: *const Camera,
+        sensor: *Sensor,
         vertex: *const Vertex,
         isec: *const Intersection,
         mat_sample: *const MaterialSample,
@@ -198,7 +200,6 @@ pub const Lighttracer = struct {
             return false;
         }
 
-        var sensor = &camera.sensor;
         const fr = sensor.filter_radius_int;
 
         var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };

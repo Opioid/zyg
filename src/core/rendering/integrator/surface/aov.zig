@@ -45,7 +45,7 @@ pub const AOV = struct {
     pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
         var vertex = input;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         var isec: Intersection = undefined;
         if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
@@ -105,10 +105,15 @@ pub const AOV = struct {
     }
 
     fn vector(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
-        var sampler = worker.pickSampler(0);
-
         const wo = -vertex.probe.ray.direction;
+
+        const sampler = worker.pickSampler(0);
+
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
+
+        if (worker.aov.active()) {
+            worker.commonAOV(&vertex, isec, &mat_sample);
+        }
 
         var vec: Vec4f = undefined;
 
@@ -152,7 +157,7 @@ pub const AOV = struct {
     fn side(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         _ = self;
 
-        var sampler = worker.pickSampler(0);
+        const sampler = worker.pickSampler(0);
 
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 

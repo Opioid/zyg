@@ -169,7 +169,7 @@ pub const Material = struct {
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, rs.uv, sampler, worker.scene);
+            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs.uv, sampler, worker.scene);
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
             coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
@@ -270,8 +270,8 @@ pub const Material = struct {
     }
 
     fn flakesA2cone(alpha: f32) f32 {
-        comptime var target_angle = math.solidAngleOfCone(@cos(math.degreesToRadians(7.0)));
-        comptime var limit = target_angle / ((4.0 * std.math.pi) - target_angle);
+        const target_angle = comptime math.solidAngleOfCone(@cos(math.degreesToRadians(7.0)));
+        const limit = comptime target_angle / ((4.0 * std.math.pi) - target_angle);
 
         return math.min(limit, 0.5 * alpha);
     }

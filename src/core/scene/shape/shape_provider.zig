@@ -70,7 +70,7 @@ const Error = error{
 };
 
 pub const Provider = struct {
-    pub const Description = struct {
+    pub const Descriptor = struct {
         num_parts: u32,
         num_primitives: u32,
         num_vertices: u32,
@@ -95,7 +95,7 @@ pub const Provider = struct {
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: tvb.Buffer = undefined,
-    desc: Description = undefined,
+    desc: Descriptor = undefined,
     alloc: Allocator = undefined,
     threads: *Threads = undefined,
 
@@ -129,8 +129,8 @@ pub const Provider = struct {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
-            if (file.Type.HAIR == file.queryType(&stream)) {
-                var curves = try HairReader.read(alloc, &stream);
+            if (file.Type.HAIR == file.queryType(stream)) {
+                var curves = try HairReader.read(alloc, stream);
                 defer {
                     alloc.free(curves.curves);
                     curves.vertices.deinit(alloc);
@@ -144,8 +144,8 @@ pub const Provider = struct {
                 try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
-            } else if (file.Type.SUB == file.queryType(&stream)) {
-                const mesh = self.loadBinary(alloc, &stream, resources) catch |e| {
+            } else if (file.Type.SUB == file.queryType(stream)) {
+                const mesh = self.loadBinary(alloc, stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
                 };
@@ -211,7 +211,7 @@ pub const Provider = struct {
     ) !Shape {
         _ = options;
 
-        const desc = @as(*const Description, @ptrCast(data));
+        const desc = @as(*const Descriptor, @ptrCast(data));
 
         const num_parts = if (desc.num_parts > 0) desc.num_parts else 1;
 
@@ -353,7 +353,7 @@ pub const Provider = struct {
 
                             const tbn = quaternion.toMat3x3(ts);
                             n.* = math.vec4fTo3f(tbn.r[2]);
-                            var t = &handler.tangents.items[i];
+                            const t = &handler.tangents.items[i];
                             t.* = math.vec4fTo3f(tbn.r[0]);
 
                             handler.bitangent_signs.items[i] = if (bts) 1 else 0;
@@ -390,7 +390,7 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: *ReadStream, resources: *Resources) !TriangleMesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: ReadStream, resources: *Resources) !TriangleMesh {
         try stream.seekTo(4);
 
         var parts: []Part = &.{};
@@ -526,14 +526,14 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
         } else {
-            var positions = try alloc.alloc(Pack3f, num_vertices);
+            const positions = try alloc.alloc(Pack3f, num_vertices);
             _ = try stream.read(std.mem.sliceAsBytes(positions));
 
             if (tangent_space_as_quaternion) {
-                var ts = try alloc.alloc(Pack4f, num_vertices);
+                const ts = try alloc.alloc(Pack4f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(ts));
 
-                var uvs = try alloc.alloc(Vec2f, num_vertices);
+                const uvs = try alloc.alloc(Vec2f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
                 vertices = tvb.Buffer{ .SeparateQuat = tvb.SeparateQuat.init(
@@ -542,17 +542,17 @@ pub const Provider = struct {
                     uvs,
                 ) };
             } else {
-                var normals = try alloc.alloc(Pack3f, num_vertices);
+                const normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
                 if (has_uvs_and_tangents) {
-                    var tangents = try alloc.alloc(Pack3f, num_vertices);
+                    const tangents = try alloc.alloc(Pack3f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(tangents));
 
-                    var uvs = try alloc.alloc(Vec2f, num_vertices);
+                    const uvs = try alloc.alloc(Vec2f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                    var bts = try alloc.alloc(u8, num_vertices);
+                    const bts = try alloc.alloc(u8, num_vertices);
                     _ = try stream.read(bts);
 
                     vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
@@ -580,7 +580,7 @@ pub const Provider = struct {
 
         try stream.seekTo(binary_start + indices_offset);
 
-        var indices = try alloc.alloc(u8, indices_size);
+        const indices = try alloc.alloc(u8, indices_size);
 
         _ = try stream.read(indices);
 
@@ -615,7 +615,7 @@ pub const Provider = struct {
         const self = @as(*Provider, @ptrCast(context));
 
         const num_triangles = self.num_indices / 3;
-        var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
+        const triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
         defer self.alloc.free(triangles);
 
         if (4 == self.index_bytes) {
@@ -700,8 +700,8 @@ pub const Provider = struct {
             desc.uvs_stride,
             desc.positions,
             desc.normals,
-            if (desc.tangents_stride > 0) desc.tangents.? else &null_floats,
-            if (desc.uvs_stride > 0) desc.uvs.? else &null_floats,
+            if (desc.tangents) |tangents| tangents else &null_floats,
+            if (desc.uvs) |uvs| uvs else &null_floats,
         ) };
 
         buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};

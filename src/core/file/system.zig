@@ -18,7 +18,7 @@ pub const System = struct {
     gzip_stream: GzipReadStream = .{},
 
     pub fn init(alloc: Allocator) !System {
-        var buffer = try alloc.alloc(u8, 256);
+        const buffer = try alloc.alloc(u8, 256);
         @memset(buffer, 0);
 
         return System{ .name_buffer = buffer };
@@ -54,9 +54,9 @@ pub const System = struct {
     }
 
     pub fn readStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
-        var stream = try self.openReadStream(alloc, name);
+        const stream = try self.openReadStream(alloc, name);
 
-        const file_type = fl.queryType(&stream);
+        const file_type = fl.queryType(stream);
 
         if (.GZIP == file_type) {
             try self.gzip_stream.setStream(stream);

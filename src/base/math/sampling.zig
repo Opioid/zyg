@@ -139,7 +139,7 @@ fn signNotZero(v: Vec2f) Vec2f {
 
 pub fn octEncode(v: Vec4f) Vec2f {
     const linorm = @abs(v[0]) + @abs(v[1]) + @abs(v[2]);
-    var o = Vec2f{ v[0], v[1] } * @as(Vec2f, @splat(1.0 / linorm));
+    const o = Vec2f{ v[0], v[1] } * @as(Vec2f, @splat(1.0 / linorm));
 
     if (v[2] >= 0.0) {
         return (@as(Vec2f, @splat(1.0)) - @abs(Vec2f{ o[1], o[0] })) * signNotZero(o);

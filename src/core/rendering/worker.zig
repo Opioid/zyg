@@ -1,4 +1,5 @@
 const cam = @import("../camera/perspective.zig");
+const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
@@ -51,7 +52,9 @@ pub const Worker = struct {
 
     const TileStack = TileStackN(Tile_area);
 
-    camera: *cam.Perspective align(64) = undefined,
+    camera: *cam.Perspective = undefined,
+    sensor: *Sensor = undefined,
+
     scene: *Scene = undefined,
 
     rng: RNG = undefined,
@@ -75,7 +78,7 @@ pub const Worker = struct {
     pub fn configure(
         self: *Worker,
         alloc: Allocator,
-        camera: *cam.Perspective,
+        sensor: *Sensor,
         scene: *Scene,
         samplers: smpl.Factory,
         surfaces: surface.Factory,
@@ -84,7 +87,7 @@ pub const Worker = struct {
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
     ) !void {
-        self.camera = camera;
+        self.sensor = sensor;
         self.scene = scene;
 
         const rng = &self.rng;
@@ -118,8 +121,8 @@ pub const Worker = struct {
         num_expected_samples: u32,
         qm_threshold: f32,
     ) void {
-        var camera = self.camera;
-        const sensor = &camera.sensor;
+        const camera = self.camera;
+        const sensor = self.sensor;
 
         const scene = self.scene;
         var rng = &self.rng;

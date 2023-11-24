@@ -205,7 +205,7 @@ pub const Reader = struct {
                     var i: u32 = 0;
                     while (i < decompressed) {
                         if (filter_byte) {
-                            self.filters[current_row] = @as(Filter, @enumFromInt(buffer[i]));
+                            self.filters[current_row] = @enumFromInt(buffer[i]);
                             filter_byte = false;
                             i += 1;
                         } else {
@@ -403,7 +403,7 @@ pub const Reader = struct {
         self.chunk.deinit(alloc);
     }
 
-    pub fn read(self: *Reader, alloc: Allocator, stream: *ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
+    pub fn read(self: *Reader, alloc: Allocator, stream: ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
         var signature: [Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -413,7 +413,7 @@ pub const Reader = struct {
 
         const info = &self.infos[self.current_info];
 
-        while (self.handleChunk(alloc, stream, info)) {}
+        while (try self.handleChunk(alloc, stream, info)) {}
 
         const image = try info.allocateImage(alloc, swizzle, invert);
 
@@ -433,9 +433,9 @@ pub const Reader = struct {
         info.process() catch {};
     }
 
-    fn handleChunk(self: *Reader, alloc: Allocator, stream: *ReadStream, info: *Info) bool {
+    fn handleChunk(self: *Reader, alloc: Allocator, stream: ReadStream, info: *Info) !bool {
         var length: u32 = 0;
-        _ = stream.read(std.mem.asBytes(&length)) catch return false;
+        _ = try stream.read(std.mem.asBytes(&length));
 
         length = @byteSwap(length);
 
@@ -449,12 +449,12 @@ pub const Reader = struct {
         chunk.length = length;
 
         var chunk_type: u32 = 0;
-        _ = stream.read(std.mem.asBytes(&chunk_type)) catch return false;
+        _ = try stream.read(std.mem.asBytes(&chunk_type));
 
         // IHDR: 0x52444849
         if (0x52444849 == chunk_type) {
-            readChunk(alloc, stream, chunk) catch return false;
-            self.parseHeader(alloc, info) catch return false;
+            try readChunk(alloc, stream, chunk);
+            try self.parseHeader(alloc, info);
 
             return true;
         }
@@ -462,12 +462,12 @@ pub const Reader = struct {
         // IDAT: 0x54414449
         if (0x54414449 == chunk_type) {
             if (info.num_chunks >= info.data_chunks.items.len) {
-                info.data_chunks.append(alloc, .{}) catch return false;
+                try info.data_chunks.append(alloc, .{});
             }
 
             const data_chunk = &info.data_chunks.items[info.num_chunks];
             data_chunk.length = length;
-            readChunk(alloc, stream, data_chunk) catch return false;
+            try readChunk(alloc, stream, data_chunk);
 
             info.num_chunks += 1;
 
@@ -479,12 +479,12 @@ pub const Reader = struct {
             return false;
         }
 
-        stream.seekBy(length + 4) catch return false;
+        try stream.seekBy(length + 4);
 
         return true;
     }
 
-    fn readChunk(alloc: Allocator, stream: *ReadStream, chunk: *Chunk) !void {
+    fn readChunk(alloc: Allocator, stream: ReadStream, chunk: *Chunk) !void {
         try chunk.allocate(alloc);
 
         _ = try stream.read(chunk.data[0..chunk.length]);

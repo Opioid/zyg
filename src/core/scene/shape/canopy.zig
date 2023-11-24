@@ -35,8 +35,9 @@ pub const Canopy = struct {
         };
 
         // This is nonsense
-        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * ray.direction;
-        const n = -ray.direction;
+        const dir = Vec4f{ ray.direction[0], ray.direction[1], ray.direction[2], 0.0 };
+        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
+        const n = -dir;
         isec.geo_n = n;
         isec.t = trafo.rotation.r[0];
         isec.b = trafo.rotation.r[1];

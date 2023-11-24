@@ -26,14 +26,15 @@ pub const ImageSequence = struct {
         image: Float4,
         crop: Vec4i,
         aov: ?AovClass,
+        camera: u32,
         frame: u32,
         threads: *Threads,
     ) !void {
         var buf: [40]u8 = undefined;
         const filename = try std.fmt.bufPrint(
             &buf,
-            "image_{d:0>8}{s}.{s}",
-            .{ frame, aovExtension(aov), self.writer.fileExtension() },
+            "image_{d:0>2}_{d:0>6}{s}.{s}",
+            .{ camera, frame, aovExtension(aov), self.writer.fileExtension() },
         );
 
         var file = try std.fs.cwd().createFile(filename, .{});

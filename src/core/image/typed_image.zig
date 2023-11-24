@@ -107,7 +107,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             const cells_len: usize = @intCast(num_cells[0] * num_cells[1] * num_cells[2]);
 
-            var result = Self{
+            const result = Self{
                 .description = description,
                 .num_cells = num_cells,
                 .cells = try alloc.alloc(Cell, cells_len),
@@ -182,7 +182,7 @@ pub fn TypedSparseImage(comptime T: type) type {
 
             const cell_index = (cc[2] * self.num_cells[1] + cc[1]) * self.num_cells[0] + cc[0];
 
-            var cell = &self.cells[@intCast(cell_index)];
+            const cell = &self.cells[@intCast(cell_index)];
 
             if (cell.data) |data| {
                 const cs = cc << Log2_cell_dim4;

@@ -47,7 +47,7 @@ pub fn integrate(alloc: Allocator) !void {
     defer file.close();
 
     var buffered = std.io.bufferedWriter(file.writer());
-    var writer = buffered.writer();
+    const writer = buffered.writer();
 
     try write_rainbow_table(writer, &rainbow, Spectrum.wavelengthsStart(), Spectrum.wavelengthsEnd());
 

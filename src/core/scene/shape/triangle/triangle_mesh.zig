@@ -381,7 +381,7 @@ pub const Mesh = struct {
     pub fn deinit(self: *Mesh, alloc: Allocator) void {
         alloc.free(self.primitive_mapping[0..self.num_primitives]);
 
-        var parts = self.parts[0..self.num_parts];
+        const parts = self.parts[0..self.num_parts];
 
         for (parts) |*p| {
             p.deinit(alloc);
