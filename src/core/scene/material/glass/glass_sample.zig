@@ -375,6 +375,7 @@ pub const Sample = struct {
                     const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
                     buffer[1].reflection *= attenuation;
+                    buffer[1].class = .{ .straight = true };
                 } else {
                     const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
                     n_dot_wi = ggx.Iso.refractNoFresnel(
@@ -444,6 +445,7 @@ pub const Sample = struct {
                     const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
                     result.reflection *= attenuation;
+                    result.class = .{ .straight = true };
                 } else {
                     const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
                     n_dot_wi = ggx.Iso.refractNoFresnel(
