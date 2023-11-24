@@ -349,47 +349,23 @@ pub const Sample = struct {
             }
 
             {
-                var n_dot_wi: f32 = undefined;
+                const n_dot_wi = self.roughtRefract(
+                    Thin,
+                    same_side,
+                    frame,
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    wi_dot_h,
+                    wo_dot_h,
+                    alpha[0],
+                    ior,
+                    &buffer[1],
+                );
 
-                if (Thin) {
-                    const thin_frame = smpl.Frame.init(wo);
-                    const tangent_h = frame.worldToTangent(h);
-                    const thin_wo = thin_frame.tangentToWorld(tangent_h);
-
-                    n_dot_wi = ggx.Iso.reflectNoFresnel(
-                        thin_wo,
-                        h,
-                        tangent_h[2],
-                        tangent_h[2],
-                        0.0,
-                        alpha[0],
-                        thin_frame,
-                        &buffer[1],
-                    );
-
-                    if (self.super.sameHemisphere(buffer[1].wi)) {
-                        return buffer[0..1];
-                    }
-
-                    const approx_dist = self.super.thickness / n_dot_wo;
-                    const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
-
-                    buffer[1].reflection *= attenuation;
-                    buffer[1].class = .{ .straight = true };
-                } else {
-                    const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
-                    n_dot_wi = ggx.Iso.refractNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        -wi_dot_h,
-                        r_wo_dot_h,
-                        alpha[0],
-                        ior,
-                        frame,
-                        &buffer[1],
-                    );
+                if (n_dot_wi < 0.0) {
+                    return buffer[0..1];
                 }
 
                 buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight * self.super.albedo;
@@ -419,47 +395,23 @@ pub const Sample = struct {
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
                 result.pdf *= f;
             } else {
-                var n_dot_wi: f32 = undefined;
+                const n_dot_wi = self.roughtRefract(
+                    Thin,
+                    same_side,
+                    frame,
+                    wo,
+                    h,
+                    n_dot_wo,
+                    n_dot_h,
+                    wi_dot_h,
+                    wo_dot_h,
+                    alpha[0],
+                    ior,
+                    result,
+                );
 
-                if (Thin) {
-                    const thin_frame = smpl.Frame.init(wo);
-                    const tangent_h = frame.worldToTangent(h);
-                    const thin_wo = thin_frame.tangentToWorld(tangent_h);
-
-                    n_dot_wi = ggx.Iso.reflectNoFresnel(
-                        thin_wo,
-                        h,
-                        tangent_h[2],
-                        tangent_h[2],
-                        0.0,
-                        alpha[0],
-                        thin_frame,
-                        result,
-                    );
-
-                    if (self.super.sameHemisphere(result.wi)) {
-                        return buffer[0..0];
-                    }
-
-                    const approx_dist = self.super.thickness / n_dot_wo;
-                    const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
-
-                    result.reflection *= attenuation;
-                    result.class = .{ .straight = true };
-                } else {
-                    const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
-                    n_dot_wi = ggx.Iso.refractNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        -wi_dot_h,
-                        r_wo_dot_h,
-                        alpha[0],
-                        ior,
-                        frame,
-                        result,
-                    );
+                if (n_dot_wi < 0.0) {
+                    return buffer[0..0];
                 }
 
                 const omf = 1.0 - f;
@@ -484,6 +436,65 @@ pub const Sample = struct {
             .wavelength = wavelength,
             .class = .{ .specular = true, .reflection = true },
         };
+    }
+
+    fn roughtRefract(
+        self: *const Sample,
+        comptime Thin: bool,
+        same_side: bool,
+        frame: smpl.Frame,
+        wo: Vec4f,
+        h: Vec4f,
+        n_dot_wo: f32,
+        n_dot_h: f32,
+        wi_dot_h: f32,
+        wo_dot_h: f32,
+        alpha: f32,
+        ior: IoR,
+        result: *bxdf.Sample,
+    ) f32 {
+        if (Thin) {
+            const thin_frame = smpl.Frame.init(wo);
+            const tangent_h = frame.worldToTangent(h);
+            const thin_wo = thin_frame.tangentToWorld(tangent_h);
+
+            const n_dot_wi = ggx.Iso.reflectNoFresnel(
+                thin_wo,
+                h,
+                tangent_h[2],
+                tangent_h[2],
+                0.0,
+                alpha,
+                thin_frame,
+                result,
+            );
+
+            if (self.super.sameHemisphere(result.wi)) {
+                return -1.0;
+            }
+
+            const approx_dist = self.super.thickness / n_dot_wo;
+            const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+
+            result.reflection *= attenuation;
+            result.class = .{ .straight = true };
+
+            return n_dot_wi;
+        } else {
+            const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
+            return ggx.Iso.refractNoFresnel(
+                wo,
+                h,
+                n_dot_wo,
+                n_dot_h,
+                -wi_dot_h,
+                r_wo_dot_h,
+                alpha,
+                ior,
+                frame,
+                result,
+            );
+        }
     }
 
     fn thinSpecularRefract(self: *const Sample, wo: Vec4f, n_dot_wo: f32, split_weight: f32) bxdf.Sample {

@@ -285,6 +285,19 @@ pub const Loader = struct {
 
                         if (self.resources.images.meta(t.image)) |meta| {
                             offset = meta.queryOrDef("offset", offset);
+
+                            // HACK, where do those values come from?!?!
+                            if (offset[0] == 0x7FFFFFFF) {
+                                offset[0] = 0;
+                            }
+
+                            if (offset[1] == 0x7FFFFFFF) {
+                                offset[1] = 0;
+                            }
+
+                            if (offset[2] == 0x7FFFFFFF) {
+                                offset[2] = 0;
+                            }
                         }
 
                         trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * math.vec4iTo4f(dimensions);

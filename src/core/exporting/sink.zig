@@ -35,7 +35,7 @@ pub const Sink = union(enum) {
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .FFMPEG => |*s| try s.write(alloc, image, threads),
+            .FFMPEG => |*s| try s.write(alloc, image, camera, threads),
             .ImageSequence => |*s| try s.write(alloc, image, crop, aov, camera, frame, threads),
         }
     }

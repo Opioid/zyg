@@ -13,75 +13,71 @@ const Allocator = std.mem.Allocator;
 pub const FFMPEG = struct {
     srgb: Srgb,
 
-    stream: std.ChildProcess,
+    streams: []std.ChildProcess,
 
     const Self = @This();
 
-    pub fn init(
-        alloc: Allocator,
-        dimensions: Vec2i,
-        framerate: u32,
-        error_diffusion: bool,
-    ) !Self {
+    pub fn init(alloc: Allocator, dimensions: []Vec2i, framerates: []u32, error_diffusion: bool) !Self {
+        var streams = try alloc.alloc(std.ChildProcess, dimensions.len);
+
         var framerate_buf: [11]u8 = undefined;
-        const framerate_str = try std.fmt.bufPrint(
-            &framerate_buf,
-            "{d}",
-            .{framerate},
-        );
-
         var res_buf: [22]u8 = undefined;
-        const res_str = try std.fmt.bufPrint(
-            &res_buf,
-            "{d}x{d}",
-            .{ dimensions[0], dimensions[1] },
-        );
+        var name_buf: [15]u8 = undefined;
 
-        var stream = std.ChildProcess.init(
-            &[_][]const u8{
-                "ffmpeg",
-                "-r",
-                framerate_str,
-                "-f",
-                "rawvideo",
-                "-pix_fmt",
-                "rgb24",
-                "-s",
-                res_str,
-                "-i",
-                "-",
-                "-y",
-                "-c:v",
-                "libvpx-vp9",
-                "-crf",
-                "20",
-                "-b:v",
-                "0",
-                "output.webm",
-            },
-            alloc,
-        );
+        for (dimensions, framerates, 0..) |dim, framerate, i| {
+            const framerate_str = try std.fmt.bufPrint(&framerate_buf, "{d}", .{framerate});
+            const res_str = try std.fmt.bufPrint(&res_buf, "{d}x{d}", .{ dim[0], dim[1] });
+            const name_str = try std.fmt.bufPrint(&name_buf, "output_{d:0>2}.webm", .{i});
 
-        stream.stdin_behavior = .Pipe;
-        try stream.spawn();
+            var stream = std.ChildProcess.init(
+                &[_][]const u8{
+                    "ffmpeg",
+                    "-r",
+                    framerate_str,
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "rgb24",
+                    "-s",
+                    res_str,
+                    "-i",
+                    "-",
+                    "-y",
+                    "-c:v",
+                    "libvpx-vp9",
+                    "-crf",
+                    "20",
+                    "-b:v",
+                    "0",
+                    name_str,
+                },
+                alloc,
+            );
 
-        return FFMPEG{
-            .srgb = .{ .error_diffusion = error_diffusion },
-            .stream = stream,
-        };
+            stream.stdin_behavior = .Pipe;
+            try stream.spawn();
+
+            streams[i] = stream;
+        }
+
+        return FFMPEG{ .srgb = .{ .error_diffusion = error_diffusion }, .streams = streams };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        _ = self.stream.kill() catch unreachable;
+        for (self.streams) |*s| {
+            _ = s.kill() catch unreachable;
+        }
+
+        alloc.free(self.streams);
 
         self.srgb.deinit(alloc);
     }
 
-    pub fn write(self: *Self, alloc: Allocator, image: Float4, threads: *Threads) !void {
+    pub fn write(self: *Self, alloc: Allocator, image: Float4, camera: u32, threads: *Threads) !void {
         const d = image.description.dimensions;
 
         _ = try self.srgb.toSrgb(alloc, image, .{ 0, 0, d[0], d[1] }, .Color, threads);
 
-        try self.stream.stdin.?.writer().writeAll(self.srgb.buffer);
+        try self.streams[camera].stdin.?.writer().writeAll(self.srgb.buffer);
     }
 };

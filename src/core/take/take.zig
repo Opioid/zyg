@@ -17,6 +17,8 @@ const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
 const base = @import("base");
 const json = base.json;
+const math = base.math;
+const Vec2i = math.Vec2i;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -369,17 +371,29 @@ pub const Take = struct {
                     } });
                 }
             } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
-                const framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
-                // if (0 == framerate) {
-                //     framerate = @as(u32, @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(self.view.camera.frame_step)))));
-                // }
+                var dimensions = try alloc.alloc(Vec2i, self.view.cameras.items.len);
+                defer alloc.free(dimensions);
 
+                var framerates = try alloc.alloc(u32, self.view.cameras.items.len);
+                defer alloc.free(framerates);
+
+                const camera = &self.view.cameras.items[0];
+
+                const framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
+
+                for (self.view.cameras.items, 0..) |c, i| {
+                    dimensions[i] = c.resolution;
+                    framerates[i] = if (0 == framerate)
+                        @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(camera.frame_step))))
+                    else
+                        framerate;
+                }
 
                 try self.exporters.append(alloc, .{ .FFMPEG = try FFMPEG.init(
                     alloc,
-                    self.view.cameras.items[0].resolution,
-                    framerate,
+                    dimensions,
+                    framerates,
                     error_diffusion,
                 ) });
             }
