@@ -257,7 +257,7 @@ pub const Driver = struct {
             }
 
             var buf: [22]u8 = undefined;
-            const filename = try std.fmt.bufPrint(&buf, "image_{d:0>8}_sc.png", .{frame});
+            const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}_sc.png", .{ camera_id, frame });
 
             try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
 
