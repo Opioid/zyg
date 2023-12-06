@@ -42,7 +42,9 @@ pub const Material = struct {
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = self.super.sampler_key;
 
-        const roughness = if (rs.primary) self.roughness else 0.0;
+        const fat = 0.0 == self.thickness;
+
+        const roughness = if (fat or rs.primary) self.roughness else 0.0;
 
         const r = if (self.roughness_map.valid() and rs.primary)
             ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))

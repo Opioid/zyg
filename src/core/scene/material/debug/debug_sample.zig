@@ -1,6 +1,6 @@
 const Base = @import("../sample_base.zig").Base;
-const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
+const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
