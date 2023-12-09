@@ -1,4 +1,3 @@
-const anim = @import("animation_loader.zig");
 const gltf = @import("gltf_loader.zig");
 const Graph = @import("scene_graph.zig").Graph;
 
@@ -119,10 +118,6 @@ pub const Loader = struct {
     }
 
     pub fn load(self: *Loader, alloc: Allocator, graph: *Graph) !void {
-        for (graph.take.view.cameras.items) |c| {
-            graph.scene.calculateNumInterpolationFrames(c.frame_step, c.frame_duration);
-        }
-
         const take_mount_folder = string.parentDirectory(graph.take.resolved_filename);
 
         const parent_id: u32 = Prop.Null;
@@ -306,41 +301,15 @@ pub const Loader = struct {
                 }
             }
 
-            const animation = if (animation_ptr) |animation|
-                try anim.load(alloc, animation.*, trafo, if (Prop.Null == parent_id) parent_trafo else null, graph)
-            else
-                Prop.Null;
-
-            const local_animation = Prop.Null != animation;
-            const world_animation = animated or local_animation;
-
-            var graph_id: u32 = Prop.Null;
-
-            if (world_animation) {
-                graph_id = try graph.createEntity(alloc, entity_id);
-
-                try graph.propAllocateFrames(alloc, graph_id, world_animation, local_animation);
-
-                if (local_animation) {
-                    graph.animationSetEntity(animation, graph_id);
-                }
-
-                if (Prop.Null != parent_id) {
-                    graph.propSerializeChild(parent_id, graph_id);
-                }
-            }
-
-            const world_trafo = parent_trafo.transform(trafo);
-
-            if (!local_animation) {
-                if (Prop.Null != graph_id) {
-                    graph.propSetTransformation(graph_id, trafo);
-                }
-
-                if (Prop.Null != entity_id) {
-                    scene.propSetWorldTransformation(entity_id, world_trafo);
-                }
-            }
+            const graph_trafo = try graph.propSetTransformation(
+                alloc,
+                entity_id,
+                parent_id,
+                trafo,
+                parent_trafo,
+                animation_ptr,
+                animated,
+            );
 
             if (visibility_ptr) |visibility| {
                 setVisibility(entity_id, visibility.*, scene);
@@ -354,9 +323,9 @@ pub const Loader = struct {
                 try self.loadEntities(
                     alloc,
                     children.*,
-                    graph_id,
-                    world_trafo,
-                    world_animation,
+                    graph_trafo.graph_id,
+                    graph_trafo.world_trafo,
+                    graph_trafo.animated,
                     local_materials,
                     graph,
                 );

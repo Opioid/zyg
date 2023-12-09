@@ -1,3 +1,4 @@
+const AnimationLoader = @import("animation_loader.zig");
 const anim = @import("animation.zig");
 const Animation = anim.Animation;
 const Keyframe = anim.Keyframe;
@@ -162,9 +163,62 @@ pub const Graph = struct {
         self.prop_properties.items[entity].local_animation = local_animation;
     }
 
-    pub fn propSetTransformation(self: *Self, entity: u32, t: math.Transformation) void {
-        const f = self.prop_frames.items[entity];
-        self.keyframes.items[f] = t;
+    pub const TrafoResult = struct {
+        graph_id: u32,
+        animated: bool,
+        world_trafo: math.Transformation,
+    };
+
+    pub fn propSetTransformation(
+        self: *Self,
+        alloc: Allocator,
+        entity_id: u32,
+        parent_id: u32,
+        trafo: math.Transformation,
+        parent_trafo: math.Transformation,
+        animation_ptr: ?*std.json.Value,
+        animated: bool,
+    ) !TrafoResult {
+        const animation = if (animation_ptr) |animation|
+            try AnimationLoader.load(alloc, animation.*, trafo, if (Null == parent_id) parent_trafo else null, self)
+        else
+            Null;
+
+        const local_animation = Null != animation;
+        const world_animation = animated or local_animation;
+
+        var result: TrafoResult = .{
+            .graph_id = Null,
+            .animated = world_animation,
+            .world_trafo = parent_trafo.transform(trafo),
+        };
+
+        if (world_animation) {
+            result.graph_id = try self.createEntity(alloc, entity_id);
+
+            try self.propAllocateFrames(alloc, result.graph_id, world_animation, local_animation);
+
+            if (local_animation) {
+                self.animationSetEntity(animation, result.graph_id);
+            }
+
+            if (Null != parent_id) {
+                self.propSerializeChild(parent_id, result.graph_id);
+            }
+        }
+
+        if (!local_animation) {
+            if (Null != result.graph_id) {
+                const f = self.prop_frames.items[result.graph_id];
+                self.keyframes.items[f] = trafo;
+            }
+
+            if (Null != entity_id) {
+                self.scene.propSetWorldTransformation(entity_id, result.world_trafo);
+            }
+        }
+
+        return result;
     }
 
     pub fn propSetFrames(self: *Self, entity: u32, frames: [*]const math.Transformation) void {

@@ -3,6 +3,7 @@ const Graph = @import("scene_graph.zig").Graph;
 const core = @import("core");
 const cam = core.camera;
 const View = core.tk.View;
+const Prop = core.scn.Prop;
 const snsr = core.rendering.snsr;
 const Sensor = snsr.Sensor;
 const Tonemapper = snsr.Tonemapper;
@@ -85,6 +86,12 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
 }
 
 fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
+    const parent_trafo = Transformation{
+        .position = @splat(0.0),
+        .scale = @splat(1.0),
+        .rotation = math.quaternion.identity,
+    };
+
     var cam_iter = value.object.iterator();
     while (cam_iter.next()) |cam_entry| {
         if (std.mem.eql(u8, "Perspective", cam_entry.key_ptr.*)) {
@@ -96,24 +103,39 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
                 .rotation = math.quaternion.identity,
             };
 
+            var animation_ptr: ?*std.json.Value = null;
+
             var iter = cam_entry.value_ptr.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
                     try camera.setParameters(alloc, entry.value_ptr.*, &graph.scene, resources);
                 } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
                     json.readTransformation(entry.value_ptr.*, &trafo);
+                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
+                    animation_ptr = entry.value_ptr;
                 }
             }
+
+            graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+
+            const entity_id = try graph.scene.createEntity(alloc);
+
+            _ = try graph.propSetTransformation(
+                alloc,
+                entity_id,
+                Prop.Null,
+                trafo,
+                parent_trafo,
+                animation_ptr,
+                false,
+            );
+
+            camera.entity = entity_id;
 
             const resolution = json.readVec2iMember(cam_entry.value_ptr.*, "resolution", .{ 0, 0 });
             const crop = json.readVec4iMember(cam_entry.value_ptr.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
 
             camera.setResolution(resolution, crop);
-
-            const entity_id = try graph.scene.createEntity(alloc);
-            graph.scene.propSetWorldTransformation(entity_id, trafo);
-
-            camera.entity = entity_id;
 
             try graph.take.view.cameras.append(alloc, camera);
 

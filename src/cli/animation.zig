@@ -25,7 +25,7 @@ pub const Animation = struct {
         num_frames: u32,
         num_interpolated_frames: u32,
     ) !Animation {
-        return Animation{
+        return .{
             .entity = Graph.Null,
             .last_frame = 0,
             .num_frames = num_frames,
