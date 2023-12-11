@@ -174,7 +174,7 @@ pub const Iso = struct {
     ) f32 {
         const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
-        const n_dot_wi = frame.clampAbsNdot(wi);
+        const n_dot_wi = frame.clampNdot(wi);
         const alpha2 = alpha * alpha;
 
         const d = distribution(n_dot_h, alpha2);

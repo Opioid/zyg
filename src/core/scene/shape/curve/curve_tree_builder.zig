@@ -67,15 +67,15 @@ pub const Builder = struct {
             const len = p.references.items.len;
             const end = cur + len;
 
-            std.mem.copy(Reference, references[cur..end], p.references.items);
+            @memcpy(references[cur..end], p.references.items);
 
             const cur32: u32 = @intCast(cur);
             for (references[cur..end]) |*r| {
                 r.incrPrimitive(cur32);
             }
 
-            std.mem.copy(u32, reference_to_curve_map[cur..end], p.reference_to_curve_map.items);
-            std.mem.copy(u8, partitions[cur..end], p.partitions.items);
+            @memcpy(reference_to_curve_map[cur..end], p.reference_to_curve_map.items);
+            @memcpy(partitions[cur..end], p.partitions.items);
 
             cur += len;
         }

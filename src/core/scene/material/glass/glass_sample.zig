@@ -454,16 +454,20 @@ pub const Sample = struct {
         result: *bxdf.Sample,
     ) f32 {
         if (Thin) {
-            const thin_frame = smpl.Frame.init(wo);
+            const thin_frame = smpl.Frame.init(-wo);
             const tangent_h = frame.worldToTangent(h);
-            const thin_wo = thin_frame.tangentToWorld(tangent_h);
+            const thin_h = thin_frame.tangentToWorld(tangent_h);
+
+            const thin_n_dot_wo = tangent_h[2];
+            const thin_n_dot_h = tangent_h[2];
+            const thin_wo_dot_h = 1.0;
 
             const n_dot_wi = ggx.Iso.reflectNoFresnel(
-                thin_wo,
-                h,
-                tangent_h[2],
-                tangent_h[2],
-                0.0,
+                thin_h,
+                thin_h,
+                thin_n_dot_wo,
+                thin_n_dot_h,
+                thin_wo_dot_h,
                 alpha,
                 thin_frame,
                 result,
