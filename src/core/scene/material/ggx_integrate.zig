@@ -1,7 +1,6 @@
 const bxdf = @import("bxdf.zig");
 const fresnel = @import("fresnel.zig");
 const ggx = @import("ggx.zig");
-const hlp = @import("sample_helper.zig");
 const sample = @import("sample_base.zig");
 const Frame = sample.Frame;
 const IoR = sample.IoR;
@@ -36,7 +35,7 @@ fn integrate_f_ss(alpha: f32, n_dot_wo: f32, num_samples: u32) f32 {
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
     };
 
-    const cn_dot_wo = hlp.clamp(n_dot_wo);
+    const cn_dot_wo = math.safe.clamp(n_dot_wo);
 
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
@@ -96,7 +95,7 @@ fn integrate_f_ms(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_func, e_m_avg: E_
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
     };
 
-    const cn_dot_wo = hlp.clamp(n_dot_wo);
+    const cn_dot_wo = math.safe.clamp(n_dot_wo);
 
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
@@ -144,7 +143,7 @@ fn integrate_f_s_ss(alpha: f32, f0: f32, ior_t: f32, n_dot_wo: f32, num_samples:
         .n = .{ 0.0, 0.0, 1.0, 0.0 },
     };
 
-    const cn_dot_wo = hlp.clamp(n_dot_wo);
+    const cn_dot_wo = math.safe.clamp(n_dot_wo);
 
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - cn_dot_wo * cn_dot_wo), 0.0, cn_dot_wo, 0.0 };
@@ -159,7 +158,7 @@ fn integrate_f_s_ss(alpha: f32, f0: f32, ior_t: f32, n_dot_wo: f32, num_samples:
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
         const eta = ior.eta_i / ior.eta_t;
         const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 

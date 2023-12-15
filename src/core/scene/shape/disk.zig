@@ -6,7 +6,6 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
-const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
@@ -124,7 +123,7 @@ pub const Disk = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 
@@ -157,7 +156,7 @@ pub const Disk = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < Dot_min) {
+            if (c < math.safe.Dot_min) {
                 return null;
             }
 
@@ -187,7 +186,7 @@ pub const Disk = struct {
         const radius = trafo.scaleX();
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
-        if (cos_a < Dot_min) {
+        if (cos_a < math.safe.Dot_min) {
             var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
 
             if (two_sided and sampler.sample1D() > 0.5) {

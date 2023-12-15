@@ -1,12 +1,11 @@
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Frame = @import("sample_base.zig").Frame;
 const ggx = @import("ggx.zig");
-const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -16,7 +15,7 @@ pub const Lambert = struct {
     pub fn reflect(color: Vec4f, frame: Frame, sampler: *Sampler, result: *bxdf.Sample) f32 {
         const s2d = sampler.sample2D();
         const is = math.smpl.hemisphereCosine(s2d);
-        const wi = math.normalize3(frame.tangentToWorld(is));
+        const wi = math.normalize3(frame.frameToWorld(is));
 
         const n_dot_wi = frame.clampNdot(wi);
 
@@ -60,10 +59,10 @@ pub const Micro = struct {
         result: *bxdf.Sample,
     ) ggx.Micro {
         const is = math.smpl.hemisphereCosine(xi);
-        const wi = math.normalize3(frame.tangentToWorld(is));
+        const wi = math.normalize3(frame.frameToWorld(is));
         const h = math.normalize3(wo + wi);
 
-        const h_dot_wi = hlp.clampDot(h, wi);
+        const h_dot_wi = math.safe.clampDot(h, wi);
         const n_dot_wi = frame.clampNdot(wi);
 
         result.reflection = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);

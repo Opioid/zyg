@@ -4,6 +4,7 @@ pub const cone = @import("cone.zig");
 pub usingnamespace @import("distribution_1d.zig");
 pub usingnamespace @import("distribution_2d.zig");
 pub usingnamespace @import("distribution_3d.zig");
+pub usingnamespace @import("frame.zig");
 pub usingnamespace @import("interpolated_function.zig");
 const minmax = @import("minmax.zig");
 pub usingnamespace minmax;
@@ -15,12 +16,11 @@ pub usingnamespace @import("ray.zig");
 pub usingnamespace @import("sample_distribution.zig");
 pub const smpl = @import("sampling.zig");
 pub usingnamespace @import("transformation.zig");
-const vec2 = @import("vector2.zig");
-pub usingnamespace vec2;
+pub usingnamespace @import("vector2.zig");
 pub usingnamespace @import("vector3.zig");
-const vec4 = @import("vector4.zig");
-pub usingnamespace vec4;
+pub usingnamespace @import("vector4.zig");
 pub const plane = @import("plane.zig");
+pub const safe = @import("safe.zig");
 
 const std = @import("std");
 

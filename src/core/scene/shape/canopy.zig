@@ -52,6 +52,7 @@ pub const Canopy = struct {
 
     pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
         const uv = sampler.sample2D();
+
         const dir = math.smpl.orientedHemisphereUniform(uv, trafo.rotation.r[0], trafo.rotation.r[1], trafo.rotation.r[2]);
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
         const disk = hemisphereToDiskEquidistant(xyz);

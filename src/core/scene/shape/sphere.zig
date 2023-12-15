@@ -9,7 +9,6 @@ const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
-const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
@@ -285,7 +284,7 @@ pub const Sphere = struct {
         const wn = math.normalize3(ws - trafo.position);
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 

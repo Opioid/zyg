@@ -3,7 +3,6 @@ const Scene = @import("../../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
 const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
-const mat = @import("../../../../scene/material/sample_helper.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -564,7 +563,7 @@ pub const Grid = struct {
                         if (two_sided) {
                             const k = coneFilter(distance2, inv_radius2);
 
-                            const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
+                            const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
                             const bxdf = sample.evaluate(p.wi, false);
 
@@ -572,7 +571,7 @@ pub const Grid = struct {
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                             const k = coneFilter(distance2, inv_radius2);
 
-                            const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
+                            const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
 
                             const bxdf = sample.evaluate(p.wi, false);
 
@@ -647,7 +646,7 @@ pub const Grid = struct {
                     if (two_sided) {
                         const k = coneFilter(entry.d2, inv_max_radius2);
 
-                        const n_dot_wi = mat.clampAbsDot(sample.super().shadingNormal(), p.wi);
+                        const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
                         const bxdf = sample.evaluate(p.wi, false);
 
@@ -655,7 +654,7 @@ pub const Grid = struct {
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                         const k = coneFilter(entry.d2, inv_max_radius2);
 
-                        const n_dot_wi = mat.clampDot(sample.super().shadingNormal(), p.wi);
+                        const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
 
                         const bxdf = sample.evaluate(p.wi, false);
 
@@ -663,7 +662,7 @@ pub const Grid = struct {
                     }
                 }
 
-                const normalization = @as(f32, @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2)))));
+                const normalization: f32 = @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2))));
 
                 result /= @as(Vec4f, @splat(normalization));
             }

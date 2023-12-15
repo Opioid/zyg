@@ -6,7 +6,6 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
-const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
@@ -138,7 +137,7 @@ pub const Rectangle = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 

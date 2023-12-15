@@ -18,7 +18,6 @@ const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const LightProperties = @import("../../light/light.zig").Properties;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
-const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
@@ -558,7 +557,7 @@ pub const Mesh = struct {
         const dir = axis / @as(Vec4f, @splat(d));
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 

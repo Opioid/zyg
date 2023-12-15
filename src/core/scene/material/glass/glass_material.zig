@@ -11,6 +11,7 @@ const ggx = @import("../ggx.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 
 const math = @import("base").math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -65,11 +66,9 @@ pub const Material = struct {
 
         if (self.normal_map.valid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, scene);
-            const tb = math.orthonormalBasis3(n);
-
-            result.super.frame.setTangentFrame(tb[0], tb[1], n);
+            result.super.frame = Frame.init(n);
         } else {
-            result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
+            result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
         }
 
         return result;
@@ -97,7 +96,7 @@ pub const Material = struct {
             const n_dot_t = @sqrt(1.0 - sint2);
             const f = fresnel.dielectric(n_dot_wo, n_dot_t, eta_i, eta_t);
 
-            const n_dot_wi = hlp.clamp(n_dot_wo);
+            const n_dot_wi = math.safe.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
             const attenuation = inthlp.attenuation3(self.super.cc.a, approx_dist);

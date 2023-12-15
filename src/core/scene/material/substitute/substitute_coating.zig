@@ -1,13 +1,12 @@
-const Frame = @import("../sample_base.zig").Frame;
 const bxdf = @import("../bxdf.zig");
-const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const ggx = @import("../ggx.zig");
-const hlp = @import("../sample_helper.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -35,8 +34,8 @@ pub const Coating = struct {
     pub fn evaluate(self: *const Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, avoid_caustics: bool) Result {
         const n = self.n;
 
-        const n_dot_wi = hlp.clampDot(n, wi);
-        const n_dot_wo = hlp.clampAbsDot(n, wo);
+        const n_dot_wi = math.safe.clampDot(n, wi);
+        const n_dot_wo = math.safe.clampAbsDot(n, wo);
 
         const att = self.attenuation(n_dot_wi, n_dot_wo);
 
@@ -94,7 +93,7 @@ pub const Coating = struct {
     pub fn sample(self: *const Self, wo: Vec4f, xi: Vec2f, n_dot_h: *f32) ggx.Micro {
         const h = ggx.Aniso.sample(wo, @splat(self.alpha), xi, Frame.init(self.n), n_dot_h);
 
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
         const f = fresnel.schlick1(wo_dot_h, self.f0);
 
         return .{ .h = h, .n_dot_wi = f, .h_dot_wi = wo_dot_h };

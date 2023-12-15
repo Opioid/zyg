@@ -3,8 +3,6 @@ const ts = @import("../../image/texture/texture_sampler.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
-const hlp = @import("sample_helper.zig");
-pub usingnamespace hlp;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
