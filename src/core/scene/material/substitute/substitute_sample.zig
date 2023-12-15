@@ -13,6 +13,7 @@ const ggx = @import("../ggx.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -367,11 +368,12 @@ pub const Sample = struct {
         const alpha = self.super.alpha;
 
         if (self.super.properties.flakes) {
-            const h = math.reflect3(frame.z, wo);
-            const tb = math.orthonormalBasis3(h);
-
             const cos_cone = alpha[0];
-            const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
+            const wi_l = math.smpl.coneUniform(xi, cos_cone);
+
+            const h = math.reflect3(frame.z, wo);
+            const reflected_frame = Frame.init(h);
+            const wi = reflected_frame.frameToWorld(wi_l);
             const wi_dot_h = math.safe.clampDot(wi, h);
 
             const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;

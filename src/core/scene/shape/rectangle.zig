@@ -9,6 +9,7 @@ const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -154,24 +155,16 @@ pub const Rectangle = struct {
         );
     }
 
-    pub fn sampleFrom(
-        trafo: Trafo,
-        two_sided: bool,
-        sampler: *Sampler,
-        uv: Vec2f,
-        importance_uv: Vec2f,
-    ) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, two_sided: bool, sampler: *Sampler, uv: Vec2f, importance_uv: Vec2f) SampleFrom {
         const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
-        var wn = trafo.rotation.r[2];
 
-        var dir = math.smpl.orientedHemisphereCosine(
-            importance_uv,
-            trafo.rotation.r[0],
-            trafo.rotation.r[1],
-            wn,
-        );
+        var wn = trafo.rotation.r[2];
+        const frame: Frame = .{ .x = trafo.rotation.r[0], .y = trafo.rotation.r[1], .z = wn };
+
+        const dir_l = math.smpl.hemisphereCosine(importance_uv);
+        var dir = frame.frameToWorld(dir_l);
 
         if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;
