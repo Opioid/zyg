@@ -50,7 +50,7 @@ pub const Sample = struct {
 
         const sin_theta_o = math.clamp(wo_l[0], -1.0, 1.0);
         const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
-        const phi_o = std.math.atan2(f32, wo_l[2], wo_l[1]);
+        const phi_o = std.math.atan2(wo_l[2], wo_l[1]);
 
         const h = math.clamp(2.0 * (rs.uv[1] - 0.5), -1.0, 1.0);
 
@@ -91,7 +91,7 @@ pub const Sample = struct {
 
         const sin_theta_i = math.clamp(wi_l[0], -1.0, 1.0);
         const cos_theta_i = @sqrt(1.0 - sin_theta_i * sin_theta_i);
-        const phi_i = std.math.atan2(f32, wi_l[2], wi_l[1]);
+        const phi_i = std.math.atan2(wi_l[2], wi_l[1]);
 
         const eta = self.ior;
         const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;

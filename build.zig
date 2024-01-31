@@ -59,35 +59,37 @@ pub fn build(b: *std.Build) void {
     it.addCSourceFile(.{ .file = .{ .path = csources[0] }, .flags = &cflags });
 
     const base = b.createModule(.{
-        .source_file = .{ .path = "src/base/base.zig" },
+        .root_source_file = .{ .path = "src/base/base.zig" },
     });
 
     const core = b.createModule(.{
-        .source_file = .{ .path = "src/core/core.zig" },
-        .dependencies = &.{.{ .name = "base", .module = base }},
+        .root_source_file = .{ .path = "src/core/core.zig" },
+        .imports = &.{.{ .name = "base", .module = base }},
     });
 
-    cli.addModule("base", base);
-    cli.addModule("core", core);
+    core.addIncludePath(.{ .path = "thirdparty/include" });
+
+    cli.root_module.addImport("base", base);
+    cli.root_module.addImport("core", core);
 
     cli.linkLibC();
     // cli.sanitize_thread = true;
-    cli.strip = true;
+    cli.root_module.strip = true;
     b.installArtifact(cli);
 
-    capi.addModule("base", base);
-    capi.addModule("core", core);
+    capi.root_module.addImport("base", base);
+    capi.root_module.addImport("core", core);
 
     capi.linkLibC();
-    capi.strip = true;
+    capi.root_module.strip = true;
     b.installArtifact(capi);
 
-    it.addModule("base", base);
-    it.addModule("core", core);
+    it.root_module.addImport("base", base);
+    it.root_module.addImport("core", core);
 
     it.linkLibC();
     // it.sanitize_thread = true;
-    it.strip = true;
+    it.root_module.strip = true;
     b.installArtifact(it);
 
     const run_cmd = b.addRunArtifact(cli);

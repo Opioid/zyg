@@ -30,7 +30,7 @@ pub const Sphere = struct {
         isec.part = 0;
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-        const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+        const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
         const theta = std.math.acos(xyz[1]);
 
         const sin_phi = @sin(phi);
@@ -125,7 +125,7 @@ pub const Sphere = struct {
                 const p = ray.point(t0);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-                const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
@@ -137,7 +137,7 @@ pub const Sphere = struct {
                 const p = ray.point(t1);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-                const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 

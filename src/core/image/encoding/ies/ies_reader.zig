@@ -382,7 +382,7 @@ pub const Reader = struct {
     }
 
     fn dirToLatlong(v: Vec4f) Vec2f {
-        const phi = std.math.atan2(f32, v[0], v[2]);
+        const phi = std.math.atan2(v[0], v[2]);
 
         return .{
             if (phi < 0) (2.0 * std.math.pi) + phi else phi,

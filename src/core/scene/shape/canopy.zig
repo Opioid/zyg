@@ -143,7 +143,7 @@ pub const Canopy = struct {
         // cartesian to spherical
         const colatitude = std.math.acos(dir[2]);
 
-        const longitude = std.math.atan2(f32, -dir[1], dir[0]);
+        const longitude = std.math.atan2(-dir[1], dir[0]);
 
         const r = colatitude * (math.pi_inv * 2.0);
 
@@ -154,7 +154,7 @@ pub const Canopy = struct {
     }
 
     pub fn diskToHemisphereEquidistant(uv: Vec2f) Vec4f {
-        const longitude = std.math.atan2(f32, -uv[1], uv[0]);
+        const longitude = std.math.atan2(-uv[1], uv[0]);
 
         const r = @sqrt(uv[0] * uv[0] + uv[1] * uv[1]);
 

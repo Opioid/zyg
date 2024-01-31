@@ -27,7 +27,7 @@ pub const InfiniteSphere = struct {
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
         isec.uvw = .{
-            std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
             0.0,
             0.0,
@@ -67,7 +67,7 @@ pub const InfiniteSphere = struct {
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
         const uvw = Vec4f{
-            std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
             0.0,
             0.0,
