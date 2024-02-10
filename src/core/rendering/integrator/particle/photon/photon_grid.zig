@@ -715,7 +715,7 @@ const Buffer = struct {
             return;
         }
 
-        const lb = base.memory.lowerBoundFn(Entry, self.entries[0..num], c, {}, lessThan);
+        const lb = std.sort.lowerBound(Entry, c, self.entries[0..num], {}, lessThan);
 
         if (lb < num) {
             const begin = lb + 1;
