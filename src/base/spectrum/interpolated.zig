@@ -1,5 +1,4 @@
 const math = @import("../math/math.zig");
-const memory = @import("../memory/bound.zig");
 
 const std = @import("std");
 
@@ -27,8 +26,13 @@ pub const Interpolated = struct {
         return self.wavelengths[self.num_elements - 1];
     }
 
+    fn lessThan(context: void, a: f32, b: f32) bool {
+        _ = context;
+        return a < b;
+    }
+
     pub fn evaluate(self: Self, wl: f32) f32 {
-        const range = memory.equalRange(f32, self.wavelengths[0..self.num_elements], wl);
+        const range = std.sort.equalRange(f32, wl, self.wavelengths[0..self.num_elements], {}, lessThan);
         const index = range[0];
 
         if (range[0] == range[1]) {
@@ -59,7 +63,7 @@ pub const Interpolated = struct {
         // This integration is only correct for a linearly interpolated function
         // and clamps to zero outside the given range.
 
-        const it = memory.lowerBound(f32, self.wavelengths[0..len], start);
+        const it = std.sort.lowerBound(f32, start, self.wavelengths[0..len], {}, lessThan);
 
         var index = @max(it, 1) - 1;
 

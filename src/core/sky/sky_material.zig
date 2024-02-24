@@ -146,7 +146,7 @@ pub const Material = struct {
 
     pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
         var result = Sample.init(rs, wo);
-        result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
+        result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
         return result;
     }
 

@@ -6,12 +6,12 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
 const fresnel = @import("../fresnel.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const hlp = @import("../sample_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 const ggx = @import("../ggx.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -126,11 +126,11 @@ pub const Sample = struct {
 
             const h = math.normalize3(wo + wi);
 
-            const wo_dot_h = hlp.clampDot(wo, h);
+            const wo_dot_h = math.safe.clampDot(wo, h);
 
             const schlick = fresnel.Schlick.init(@splat(self.f0));
 
-            const gg = ggx.Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
+            const gg = ggx.Iso.reflectionF(h, frame.z, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick);
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             const split_pdf = if (split) 1.0 else gg.f[0];
@@ -214,7 +214,7 @@ pub const Sample = struct {
             return buffer[0..1];
         }
 
-        var n = self.super.frame.n;
+        var n = self.super.frame.z;
 
         if (!Thin) {
             // Thin material is always double sided, so no need to check hemisphere.
@@ -308,7 +308,7 @@ pub const Sample = struct {
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
         const n_dot_wo = frame.clampAbsNdot(wo);
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
 
         const eta = ior.eta_i / ior.eta_t;
         const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
@@ -442,7 +442,7 @@ pub const Sample = struct {
         self: *const Sample,
         comptime Thin: bool,
         same_side: bool,
-        frame: smpl.Frame,
+        frame: Frame,
         wo: Vec4f,
         h: Vec4f,
         n_dot_wo: f32,
@@ -454,9 +454,9 @@ pub const Sample = struct {
         result: *bxdf.Sample,
     ) f32 {
         if (Thin) {
-            const thin_frame = smpl.Frame.init(-wo);
-            const tangent_h = frame.worldToTangent(h);
-            const thin_h = thin_frame.tangentToWorld(tangent_h);
+            const thin_frame = Frame.init(-wo);
+            const tangent_h = frame.worldToFrame(h);
+            const thin_h = thin_frame.frameToWorld(tangent_h);
 
             const thin_n_dot_wo = tangent_h[2];
             const thin_n_dot_h = tangent_h[2];
@@ -502,7 +502,7 @@ pub const Sample = struct {
     }
 
     fn thinSpecularRefract(self: *const Sample, wo: Vec4f, n_dot_wo: f32, split_weight: f32) bxdf.Sample {
-        const approx_dist = self.super.thickness / hlp.clamp(n_dot_wo);
+        const approx_dist = self.super.thickness / math.safe.clamp(n_dot_wo);
         const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
 
         return .{

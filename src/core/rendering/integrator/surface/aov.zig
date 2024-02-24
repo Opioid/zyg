@@ -85,11 +85,8 @@ pub const AOV = struct {
         while (i > 0) : (i -= 1) {
             const sample = sampler.sample2D();
 
-            const t = mat_sample.super().shadingTangent();
-            const b = mat_sample.super().shadingBitangent();
-            const n = mat_sample.super().shadingNormal();
-
-            const ws = math.smpl.orientedHemisphereCosine(sample, t, b, n);
+            const os = math.smpl.hemisphereCosine(sample);
+            const ws = mat_sample.super().frame.frameToWorld(os);
 
             occlusion_probe.ray.origin = origin;
             occlusion_probe.ray.setDirection(ws, radius);

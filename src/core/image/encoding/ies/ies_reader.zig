@@ -9,7 +9,6 @@ const Vec2f = math.Vec2f;
 const Vec3b = math.Vec3b;
 const Vec4f = math.Vec4f;
 const encoding = base.encoding;
-const memory = base.memory;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -112,8 +111,8 @@ const Data = struct {
             return 0.0;
         }
 
-        const hit = memory.lowerBound(f32, horizontal_angles, phi) - 1;
-        const vit = memory.lowerBound(f32, vertical_angles, theta) - 1;
+        const hit = std.sort.lowerBound(f32, phi, horizontal_angles, {}, lessThan) - 1;
+        const vit = std.sort.lowerBound(f32, theta, vertical_angles, {}, lessThan) - 1;
 
         // if (hit > 0) {
         //     hit -= 1;
@@ -211,6 +210,11 @@ const Data = struct {
         }
 
         return @intCast(if (y >= b) (b - i) else y);
+    }
+
+    fn lessThan(context: void, a: f32, b: f32) bool {
+        _ = context;
+        return a < b;
     }
 
     pub fn catmullRom(c: *const [4]f32, t: f32) f32 {
@@ -382,7 +386,7 @@ pub const Reader = struct {
     }
 
     fn dirToLatlong(v: Vec4f) Vec2f {
-        const phi = std.math.atan2(f32, v[0], v[2]);
+        const phi = std.math.atan2(v[0], v[2]);
 
         return .{
             if (phi < 0) (2.0 * std.math.pi) + phi else phi,

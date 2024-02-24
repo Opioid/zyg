@@ -8,12 +8,12 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
 const diffuse = @import("../diffuse.zig");
 const fresnel = @import("../fresnel.zig");
-const hlp = @import("../sample_helper.zig");
 const inthlp = @import("../../../rendering/integrator/helper.zig");
 const ggx = @import("../ggx.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -98,7 +98,7 @@ pub const Sample = struct {
         }
 
         const h = math.normalize3(wo + wi);
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
 
         var base_result = if (1.0 == self.metallic)
             self.pureGlossEvaluate(wi, wo, h, wo_dot_h)
@@ -227,7 +227,7 @@ pub const Sample = struct {
 
         if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
-            const r = math.reflect3(frame.n, wo);
+            const r = math.reflect3(frame.z, wo);
             const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
             return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * f)) * self.f0, f);
@@ -368,12 +368,13 @@ pub const Sample = struct {
         const alpha = self.super.alpha;
 
         if (self.super.properties.flakes) {
-            const h = math.reflect3(frame.n, wo);
-            const tb = math.orthonormalBasis3(h);
-
             const cos_cone = alpha[0];
-            const wi = math.smpl.orientedConeUniform(xi, cos_cone, tb[0], tb[1], h);
-            const wi_dot_h = hlp.clampDot(wi, h);
+            const wi_l = math.smpl.coneUniform(xi, cos_cone);
+
+            const h = math.reflect3(frame.z, wo);
+            const reflected_frame = Frame.init(h);
+            const wi = reflected_frame.frameToWorld(wi_l);
+            const wi_dot_h = math.safe.clampDot(wi, h);
 
             const f = if (wi_dot_h > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
@@ -401,7 +402,7 @@ pub const Sample = struct {
 
     fn coatingReflect(self: *const Sample, h: Vec4f, f: f32, n_dot_h: f32, h_dot_wi: f32, result: *bxdf.Sample) void {
         const wo = self.super.wo;
-        const n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+        const n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
 
         const coating_attenuation = self.coating.reflect(
             wo,
@@ -496,7 +497,7 @@ pub const Sample = struct {
 
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0[0]);
 
-            const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+            const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
             const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
             const split_pdf = if (split) 1.0 else gg.f[0];
@@ -508,7 +509,7 @@ pub const Sample = struct {
         }
 
         const h = math.normalize3(wo + wi);
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
         const n_dot_wi = frame.clampNdot(wi);
         const n_dot_wo = frame.clampAbsNdot(wo);
 
@@ -580,7 +581,7 @@ pub const Sample = struct {
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
         const n_dot_wo = frame.clampAbsNdot(wo);
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
         const eta = ior.eta_i / ior.eta_t;
         const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 
@@ -762,7 +763,7 @@ pub const Sample = struct {
                 const h = ggx.Aniso.sample(wo, alpha, sampler.sample2D(), frame, &n_dot_h);
 
                 const n_dot_wo = frame.clampAbsNdot(wo);
-                const wo_dot_h = hlp.clampDot(wo, h);
+                const wo_dot_h = math.safe.clampDot(wo, h);
                 const eta = ior.eta_i / ior.eta_t;
                 const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 
@@ -817,7 +818,7 @@ pub const Sample = struct {
                         result,
                     );
 
-                    const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+                    const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                     const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                     const omf = 1.0 - f;
@@ -830,7 +831,7 @@ pub const Sample = struct {
             const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
 
             const n_dot_wo = frame.clampAbsNdot(wo);
-            const wo_dot_h = hlp.clampDot(wo, h);
+            const wo_dot_h = math.safe.clampDot(wo, h);
             const eta = ior.eta_i / ior.eta_t;
             const sint2 = (eta * eta) * (1.0 - wo_dot_h * wo_dot_h);
 
@@ -876,7 +877,7 @@ pub const Sample = struct {
                     result,
                 );
 
-                const coat_n_dot_wo = hlp.clampAbsDot(self.coating.n, wo);
+                const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
 
                 const omf = 1.0 - f;

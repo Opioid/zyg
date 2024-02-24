@@ -1,6 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
 const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
-const mat = @import("../material/sample_helper.zig");
 
 const base = @import("base");
 const enc = base.encoding;
@@ -200,7 +199,7 @@ fn importance(
 
     const sin_cu = math.min(radius / l, 1.0);
     const cos_cone = cone[3];
-    const cos_a = mat.absDotC(da, na, two_sided);
+    const cos_a = math.safe.absDotC(da, na, two_sided);
     const cos_n = -math.dot3(n, na);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
@@ -221,7 +220,7 @@ fn importance(
     const rb = math.max(tc, 0.0);
     const rc = power / math.max(l * l, radius);
 
-    return math.max(ra * rb * rc, mat.Dot_min);
+    return math.max(ra * rb * rc, math.safe.Dot_min);
 }
 
 fn clampedCosSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {

@@ -18,11 +18,11 @@ const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const LightProperties = @import("../../light/light.zig").Properties;
 const ro = @import("../../ray_offset.zig");
 const Material = @import("../../material/material.zig").Material;
-const Dot_min = @import("../../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Frame = math.Frame;
 const Mat3x3 = math.Mat3x3;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -558,7 +558,7 @@ pub const Mesh = struct {
         const dir = axis / @as(Vec4f, @splat(d));
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 
@@ -601,8 +601,9 @@ pub const Mesh = struct {
         const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
-        const xy = math.orthonormalBasis3(wn);
-        var dir = math.smpl.orientedHemisphereUniform(importance_uv, xy[0], xy[1], wn);
+        const dir_l = math.smpl.hemisphereUniform(importance_uv);
+        const frame = Frame.init(wn);
+        var dir = frame.frameToWorld(dir_l);
 
         if (two_sided and sampler.sample1D() > 0.5) {
             wn = -wn;

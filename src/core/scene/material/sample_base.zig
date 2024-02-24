@@ -1,97 +1,11 @@
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const bxdf = @import("bxdf.zig");
-const hlp = @import("sample_helper.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
-
-pub const Frame = struct {
-    t: Vec4f,
-    b: Vec4f,
-    n: Vec4f,
-
-    pub fn init(n: Vec4f) Frame {
-        const tb = math.orthonormalBasis3(n);
-        return .{ .t = tb[0], .b = tb[1], .n = n };
-    }
-
-    pub fn swapped(self: Frame, same_side: bool) Frame {
-        if (same_side) {
-            return self;
-        }
-
-        return .{ .t = self.t, .b = self.b, .n = -self.n };
-    }
-
-    pub fn tangentToWorld(self: Frame, v: Vec4f) Vec4f {
-        // return .{
-        //     v[0] * self.t[0] + v[1] * self.b[0] + v[2] * self.n[0],
-        //     v[0] * self.t[1] + v[1] * self.b[1] + v[2] * self.n[1],
-        //     v[0] * self.t[2] + v[1] * self.b[2] + v[2] * self.n[2],
-        //     0.0,
-        // };
-
-        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
-        result = result * self.t;
-        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
-        temp = temp * self.b;
-        result = result + temp;
-        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
-        temp = temp * self.n;
-        return result + temp;
-    }
-
-    pub fn worldToTangent(self: Frame, v: Vec4f) Vec4f {
-        const t = v * self.t;
-        const b = v * self.b;
-        const n = v * self.n;
-
-        return .{
-            t[0] + t[1] + t[2],
-            b[0] + b[1] + b[2],
-            n[0] + n[1] + n[2],
-            0.0,
-        };
-    }
-
-    pub fn nDot(self: Frame, v: Vec4f) f32 {
-        return math.dot3(self.n, v);
-    }
-
-    pub fn clampNdot(self: Frame, v: Vec4f) f32 {
-        return hlp.clampDot(self.n, v);
-    }
-
-    pub fn clampAbsNdot(self: Frame, v: Vec4f) f32 {
-        return hlp.clampAbsDot(self.n, v);
-    }
-
-    pub fn setTangentFrame(self: *Frame, t: Vec4f, b: Vec4f, n: Vec4f) void {
-        self.t = t;
-        self.b = b;
-        self.n = n;
-    }
-
-    pub fn setNormal(self: *Frame, n: Vec4f) void {
-        const tb = math.orthonormalBasis3(n);
-        self.t = tb[0];
-        self.b = tb[1];
-        self.n = n;
-    }
-
-    pub fn rotateTangenFrame(self: *Frame, a: f32) void {
-        const t = self.t;
-        const b = self.b;
-
-        const sin_a: Vec4f = @splat(@sin(a));
-        const cos_a: Vec4f = @splat(@cos(a));
-
-        self.t = cos_a * t + sin_a * b;
-        self.b = -sin_a * t + cos_a * b;
-    }
-};
 
 pub const Base = struct {
     pub const Properties = packed struct {
@@ -132,7 +46,7 @@ pub const Base = struct {
 
     pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, can_evaluate: bool) Self {
         return .{
-            .frame = .{ .t = rs.t, .b = rs.b, .n = rs.n },
+            .frame = .{ .x = rs.t, .y = rs.b, .z = rs.n },
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
@@ -152,15 +66,15 @@ pub const Base = struct {
     }
 
     pub fn shadingNormal(self: Self) Vec4f {
-        return self.frame.n;
+        return self.frame.z;
     }
 
     pub fn shadingTangent(self: Self) Vec4f {
-        return self.frame.t;
+        return self.frame.x;
     }
 
     pub fn shadingBitangent(self: Self) Vec4f {
-        return self.frame.b;
+        return self.frame.y;
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

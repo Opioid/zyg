@@ -9,6 +9,7 @@ const ro = @import("../ray_offset.zig");
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
@@ -26,7 +27,7 @@ pub const InfiniteSphere = struct {
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
 
         isec.uvw = .{
-            std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
             0.0,
             0.0,
@@ -48,12 +49,7 @@ pub const InfiniteSphere = struct {
         return true;
     }
 
-    pub fn sampleTo(
-        n: Vec4f,
-        trafo: Transformation,
-        total_sphere: bool,
-        sampler: *Sampler,
-    ) SampleTo {
+    pub fn sampleTo(n: Vec4f, trafo: Transformation, total_sphere: bool, sampler: *Sampler) SampleTo {
         const uv = sampler.sample2D();
 
         var dir: Vec4f = undefined;
@@ -63,14 +59,15 @@ pub const InfiniteSphere = struct {
             dir = math.smpl.sphereUniform(uv);
             pdf_ = 1.0 / (4.0 * std.math.pi);
         } else {
-            const xy = math.orthonormalBasis3(n);
-            dir = math.smpl.orientedHemisphereUniform(uv, xy[0], xy[1], n);
+            const dir_l = math.smpl.hemisphereUniform(uv);
+            const frame = Frame.init(n);
+            dir = frame.frameToWorld(dir_l);
             pdf_ = 1.0 / (2.0 * std.math.pi);
         }
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
         const uvw = Vec4f{
-            std.math.atan2(f32, xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
             0.0,
             0.0,
@@ -109,13 +106,7 @@ pub const InfiniteSphere = struct {
         );
     }
 
-    pub fn sampleFrom(
-        trafo: Transformation,
-        uv: Vec2f,
-        importance_uv: Vec2f,
-        bounds: AABB,
-        from_image: bool,
-    ) ?SampleFrom {
+    pub fn sampleFrom(trafo: Transformation, uv: Vec2f, importance_uv: Vec2f, bounds: AABB, from_image: bool) ?SampleFrom {
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 

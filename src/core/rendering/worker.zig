@@ -11,7 +11,6 @@ const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const TileStackN = @import("tile_queue.zig").TileStackN;
-const mat = @import("../scene/material/sample_helper.zig");
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
@@ -488,7 +487,7 @@ pub const Worker = struct {
     }
 
     inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @abs(math.dot3(wo, n)) / mat.clampAbsDot(wo, geo_n);
+        return @abs(math.dot3(wo, n)) / math.safe.clampAbsDot(wo, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html

@@ -4,7 +4,6 @@ const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 const fresnel = @import("../fresnel.zig");
 const Sample = @import("../sample.zig").Sample;
-const Frame = @import("../sample_base.zig").Frame;
 const Surface = @import("substitute_sample.zig").Sample;
 const Volumetric = @import("../volumetric/volumetric_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
@@ -18,6 +17,7 @@ const ccoef = @import("../collision_coefficients.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -197,9 +197,9 @@ pub const Material = struct {
 
         if (self.normal_map.valid()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker.scene);
-            result.super.frame.setNormal(n);
+            result.super.frame = Frame.init(n);
         } else {
-            result.super.frame.setTangentFrame(rs.t, rs.b, rs.n);
+            result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
         }
 
         const thickness = self.thickness;
@@ -209,7 +209,7 @@ pub const Material = struct {
 
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating_normal_map)) {
-                result.coating.n = result.super.frame.n;
+                result.coating.n = result.super.frame.z;
             } else if (self.coating_normal_map.valid()) {
                 const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker.scene);
                 result.coating.n = n;
@@ -242,7 +242,7 @@ pub const Material = struct {
         const flakes_coverage = self.flakes_coverage;
         if (flakes_coverage > 0.0) {
             const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
-            const on = rs.trafo.worldToObjectNormal(result.super.frame.n);
+            const on = rs.trafo.worldToObjectNormal(result.super.frame.z);
 
             const uv = hlp.triplanarMapping(op, on);
 
@@ -260,7 +260,7 @@ pub const Material = struct {
                 result.metallic = 1.0;
                 result.f0 = self.flakes_color;
                 result.super.alpha = .{ cos_cone, a2_cone };
-                result.super.frame.setNormal(m);
+                result.super.frame = Frame.init(m);
 
                 result.super.properties.flakes = true;
             }
@@ -349,7 +349,7 @@ pub const Material = struct {
         }
 
         if (coating_thickness > 0.0) {
-            const n_dot_wi = hlp.clampAbsDot(wi, n);
+            const n_dot_wi = math.safe.clampAbsDot(wi, n);
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating_absorption_coef,
                 coating_thickness,
@@ -364,7 +364,7 @@ pub const Material = struct {
 
     pub fn border(self: *const Material, wo: Vec4f, n: Vec4f) Vec4f {
         const f0 = fresnel.Schlick.IorToF0(self.super.ior, 1.0);
-        const n_dot_wo = hlp.clampAbsDot(n, wo);
+        const n_dot_wo = math.safe.clampAbsDot(n, wo);
         const omf: Vec4f = @splat(1.0 - fresnel.schlick1(n_dot_wo, f0));
 
         const coating_thickness = self.coating_thickness;

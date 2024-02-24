@@ -1,12 +1,11 @@
 const bxdf = @import("bxdf.zig");
 const smplbase = @import("sample_base.zig");
-const Frame = smplbase.Frame;
 const IoR = smplbase.IoR;
-const hlp = @import("sample_helper.zig");
 const integral = @import("ggx_integral.zig");
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -110,7 +109,7 @@ pub const Iso = struct {
         var n_dot_h: f32 = undefined;
         const h = Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
         const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
         const n_dot_wi = frame.clampNdot(wi);
@@ -140,8 +139,8 @@ pub const Iso = struct {
     ) ResultF {
         const alpha2 = alpha * alpha;
 
-        const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
-        const abs_wo_dot_h = hlp.clampAbs(wo_dot_h);
+        const abs_wi_dot_h = math.safe.clampAbs(wi_dot_h);
+        const abs_wo_dot_h = math.safe.clampAbs(wo_dot_h);
 
         const d = distribution(n_dot_h, alpha2);
         const g = gSmithCorrelated(n_dot_wi, n_dot_wo, alpha2);
@@ -202,8 +201,8 @@ pub const Iso = struct {
     ) f32 {
         const eta = ior.eta_i / ior.eta_t;
 
-        const abs_wi_dot_h = hlp.clampAbs(wi_dot_h);
-        const abs_wo_dot_h = hlp.clampAbs(wo_dot_h);
+        const abs_wi_dot_h = math.safe.clampAbs(wi_dot_h);
+        const abs_wo_dot_h = math.safe.clampAbs(wo_dot_h);
 
         const wi = math.normalize3(@as(Vec4f, @splat(eta * abs_wo_dot_h - abs_wi_dot_h)) * h - @as(Vec4f, @splat(eta)) * wo);
 
@@ -280,19 +279,19 @@ pub const Aniso = struct {
         frame: Frame,
     ) ResultF {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflectionF(h, frame.n, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel);
+            return Iso.reflectionF(h, frame.z, n_dot_wi, n_dot_wo, wo_dot_h, alpha[0], fresnel);
         }
 
-        const n_dot_h = math.saturate(math.dot3(frame.n, h));
-        const x_dot_h = math.dot3(frame.t, h);
-        const y_dot_h = math.dot3(frame.b, h);
+        const n_dot_h = math.saturate(math.dot3(frame.z, h));
+        const x_dot_h = math.dot3(frame.x, h);
+        const y_dot_h = math.dot3(frame.y, h);
 
         const d = distribution(n_dot_h, x_dot_h, y_dot_h, alpha);
 
-        const t_dot_wi = math.dot3(frame.t, wi);
-        const t_dot_wo = math.dot3(frame.t, wo);
-        const b_dot_wi = math.dot3(frame.b, wi);
-        const b_dot_wo = math.dot3(frame.b, wo);
+        const t_dot_wi = math.dot3(frame.x, wi);
+        const t_dot_wo = math.dot3(frame.x, wo);
+        const b_dot_wi = math.dot3(frame.y, wi);
+        const b_dot_wo = math.dot3(frame.y, wo);
 
         const g = visibilityAndG1Wo(t_dot_wi, t_dot_wo, b_dot_wi, b_dot_wo, n_dot_wi, n_dot_wo, alpha);
 
@@ -320,10 +319,10 @@ pub const Aniso = struct {
         var n_dot_h: f32 = undefined;
         const h = sample(wo, alpha, xi, frame, &n_dot_h);
 
-        const x_dot_h = math.dot3(frame.t, h);
-        const y_dot_h = math.dot3(frame.b, h);
+        const x_dot_h = math.dot3(frame.x, h);
+        const y_dot_h = math.dot3(frame.y, h);
 
-        const wo_dot_h = hlp.clampDot(wo, h);
+        const wo_dot_h = math.safe.clampDot(wo, h);
 
         const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
@@ -331,10 +330,10 @@ pub const Aniso = struct {
 
         const d = distribution(n_dot_h, x_dot_h, y_dot_h, alpha);
 
-        const t_dot_wi = math.dot3(frame.t, wi);
-        const t_dot_wo = math.dot3(frame.t, wo);
-        const b_dot_wi = math.dot3(frame.b, wi);
-        const b_dot_wo = math.dot3(frame.b, wo);
+        const t_dot_wi = math.dot3(frame.x, wi);
+        const t_dot_wo = math.dot3(frame.x, wo);
+        const b_dot_wi = math.dot3(frame.y, wi);
+        const b_dot_wo = math.dot3(frame.y, wo);
 
         const g = visibilityAndG1Wo(t_dot_wi, t_dot_wo, b_dot_wi, b_dot_wo, n_dot_wi, n_dot_wo, alpha);
 
@@ -362,8 +361,8 @@ pub const Aniso = struct {
             return Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
         }
 
-        const x_dot_h = math.dot3(frame.t, h);
-        const y_dot_h = math.dot3(frame.b, h);
+        const x_dot_h = math.dot3(frame.x, h);
+        const y_dot_h = math.dot3(frame.y, h);
 
         const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
 
@@ -371,10 +370,10 @@ pub const Aniso = struct {
 
         const d = distribution(n_dot_h, x_dot_h, y_dot_h, alpha);
 
-        const t_dot_wi = math.dot3(frame.t, wi);
-        const t_dot_wo = math.dot3(frame.t, wo);
-        const b_dot_wi = math.dot3(frame.b, wi);
-        const b_dot_wo = math.dot3(frame.b, wo);
+        const t_dot_wi = math.dot3(frame.x, wi);
+        const t_dot_wo = math.dot3(frame.x, wo);
+        const b_dot_wi = math.dot3(frame.y, wi);
+        const b_dot_wo = math.dot3(frame.y, wo);
 
         const g = visibilityAndG1Wo(t_dot_wi, t_dot_wo, b_dot_wi, b_dot_wo, n_dot_wi, n_dot_wo, alpha);
 
@@ -391,8 +390,8 @@ pub const Aniso = struct {
     // https://arxiv.org/pdf/2306.05044.pdf
 
     pub fn sample(wo: Vec4f, alpha: Vec2f, xi: Vec2f, frame: Frame, n_dot_h: *f32) Vec4f {
-        const lwo = frame.worldToTangent(wo);
-        const v = math.normalize3(.{ alpha[0] * lwo[0], alpha[1] * lwo[1], lwo[2], 0.0 });
+        const wo_l = frame.worldToFrame(wo);
+        const v = math.normalize3(.{ alpha[0] * wo_l[0], alpha[1] * wo_l[1], wo_l[2], 0.0 });
 
         const phi = 2.0 * std.math.pi * xi[0];
         const z = @mulAdd(f32, 1.0 - xi[1], 1.0 + v[2], -v[2]);
@@ -403,9 +402,9 @@ pub const Aniso = struct {
         const h = Vec4f{ x, y, z, 0.0 } + v;
         const m = math.normalize3(.{ alpha[0] * h[0], alpha[1] * h[1], h[2], 0.0 });
 
-        n_dot_h.* = hlp.clamp(m[2]);
+        n_dot_h.* = math.safe.clamp(m[2]);
 
-        return frame.tangentToWorld(m);
+        return frame.frameToWorld(m);
     }
 
     fn distribution(n_dot_h: f32, x_dot_h: f32, y_dot_h: f32, a: Vec2f) f32 {

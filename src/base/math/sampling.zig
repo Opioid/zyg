@@ -29,11 +29,6 @@ pub fn diskConcentric(uv: Vec2f) Vec2f {
     return .{ cos_theta * r, sin_theta * r };
 }
 
-pub fn orientedDiskConcentric(uv: Vec2f, x: Vec4f, y: Vec4f) Vec4f {
-    const d = diskConcentric(uv);
-    return @as(Vec4f, @splat(d[0])) * x + @as(Vec4f, @splat(d[1])) * y;
-}
-
 // pub fn triangleUniform(uv: Vec2f) Vec2f {
 //     const su = @sqrt(uv[0]);
 //     return .{ 1.0 - su, uv[1] * su };
@@ -58,13 +53,6 @@ pub fn hemisphereCosine(uv: Vec2f) Vec4f {
     return .{ xy[0], xy[1], z, 0.0 };
 }
 
-pub fn orientedHemisphereCosine(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
-    const xy = diskConcentric(uv);
-    const za = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
-
-    return @as(Vec4f, @splat(xy[0])) * x + @as(Vec4f, @splat(xy[1])) * y + @as(Vec4f, @splat(za)) * z;
-}
-
 pub fn hemisphereUniform(uv: Vec2f) Vec4f {
     const z = 1.0 - uv[0];
     const r = @sqrt(mima.max(0.0, 1.0 - z * z));
@@ -74,17 +62,6 @@ pub fn hemisphereUniform(uv: Vec2f) Vec4f {
     const cos_phi = @cos(phi);
 
     return .{ cos_phi * r, sin_phi * r, z, 0.0 };
-}
-
-pub fn orientedHemisphereUniform(uv: Vec2f, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
-    const za = 1.0 - uv[0];
-    const r = @sqrt(mima.max(0.0, 1.0 - za * za));
-
-    const phi = uv[1] * (2.0 * std.math.pi);
-    const sin_phi = @sin(phi);
-    const cos_phi = @cos(phi);
-
-    return @as(Vec4f, @splat(cos_phi * r)) * x + @as(Vec4f, @splat(sin_phi * r)) * y + @as(Vec4f, @splat(za)) * z;
 }
 
 pub fn sphereUniform(uv: Vec2f) Vec4f {
@@ -105,7 +82,7 @@ pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Ve
     return @as(Vec4f, @splat(cos_phi * sin_theta)) * x + @as(Vec4f, @splat(sin_phi * sin_theta)) * y + @as(Vec4f, @splat(cos_theta)) * z;
 }
 
-pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+pub fn coneUniform(uv: Vec2f, cos_theta_max: f32) Vec4f {
     const cos_theta = (1.0 - uv[0]) + (uv[0] * cos_theta_max);
     const sin_theta = @sqrt(mima.max(0.0, 1.0 - cos_theta * cos_theta));
 
@@ -113,14 +90,14 @@ pub fn orientedConeUniform(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z:
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
-    return @as(Vec4f, @splat(cos_phi * sin_theta)) * x + @as(Vec4f, @splat(sin_phi * sin_theta)) * y + @as(Vec4f, @splat(cos_theta)) * z;
+    return .{ cos_phi * sin_theta, sin_phi * sin_theta, cos_theta, 0.0 };
 }
 
-pub fn orientedConeCosine(uv: Vec2f, cos_theta_max: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+pub fn coneCosine(uv: Vec2f, cos_theta_max: f32) Vec4f {
     const xy = @as(Vec2f, @splat(@sqrt(1.0 - cos_theta_max * cos_theta_max))) * diskConcentric(uv);
     const za = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
 
-    return @as(Vec4f, @splat(xy[0])) * x + @as(Vec4f, @splat(xy[1])) * y + @as(Vec4f, @splat(za)) * z;
+    return .{ xy[0], xy[1], za, 0.0 };
 }
 
 const Eps: f32 = 1.0e-20;

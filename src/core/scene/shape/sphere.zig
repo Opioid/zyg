@@ -9,10 +9,10 @@ const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
-const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -30,7 +30,7 @@ pub const Sphere = struct {
         isec.part = 0;
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-        const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+        const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
         const theta = std.math.acos(xyz[1]);
 
         const sin_phi = @sin(phi);
@@ -125,7 +125,7 @@ pub const Sphere = struct {
                 const p = ray.point(t0);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-                const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
@@ -137,7 +137,7 @@ pub const Sphere = struct {
                 const p = ray.point(t1);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
-                const phi = -std.math.atan2(f32, xyz[0], xyz[2]) + std.math.pi;
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
@@ -235,11 +235,12 @@ pub const Sphere = struct {
         else
             @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
-        const z = @as(Vec4f, @splat(@sqrt(1.0 / l2))) * v;
-        const xy = math.orthonormalBasis3(z);
-
         const s2 = sampler.sample2D();
-        const dir = math.smpl.orientedConeUniform(s2, cos_theta_max, xy[0], xy[1], z);
+        const dir_l = math.smpl.coneUniform(s2, cos_theta_max);
+
+        const z = @as(Vec4f, @splat(@sqrt(1.0 / l2))) * v;
+        const frame = Frame.init(z);
+        const dir = frame.frameToWorld(dir_l);
 
         const b = math.dot3(dir, v);
         const remedy_term = v - @as(Vec4f, @splat(b)) * dir;
@@ -285,7 +286,7 @@ pub const Sphere = struct {
         const wn = math.normalize3(ws - trafo.position);
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 
@@ -306,8 +307,10 @@ pub const Sphere = struct {
         const ls = math.smpl.sphereUniform(uv);
         const ws = trafo.objectToWorldPoint(ls);
         const wn = math.normalize3(ws - trafo.position);
-        const xy = math.orthonormalBasis3(wn);
-        const dir = math.smpl.orientedHemisphereCosine(importance_uv, xy[0], xy[1], wn);
+
+        const dir_l = math.smpl.hemisphereCosine(importance_uv);
+        const frame = Frame.init(wn);
+        const dir = frame.frameToWorld(dir_l);
 
         const r = trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);

@@ -27,7 +27,7 @@ pub const Sample = struct {
         const s2d = sampler.sample2D();
 
         const is = math.smpl.hemisphereCosine(s2d);
-        const wi = math.normalize3(self.super.frame.tangentToWorld(is));
+        const wi = math.normalize3(self.super.frame.frameToWorld(is));
 
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;

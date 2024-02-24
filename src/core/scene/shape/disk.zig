@@ -6,10 +6,10 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
-const Dot_min = @import("../material/sample_helper.zig").Dot_min;
 
 const base = @import("base");
 const math = base.math;
+const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -124,7 +124,7 @@ pub const Disk = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < Dot_min) {
+        if (c < math.safe.Dot_min) {
             return null;
         }
 
@@ -157,7 +157,7 @@ pub const Disk = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < Dot_min) {
+            if (c < math.safe.Dot_min) {
                 return null;
             }
 
@@ -182,31 +182,31 @@ pub const Disk = struct {
         const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
-        var wn = trafo.rotation.r[2];
-
         const radius = trafo.scaleX();
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
-        if (cos_a < Dot_min) {
-            var dir = math.smpl.orientedHemisphereCosine(importance_uv, trafo.rotation.r[0], trafo.rotation.r[1], wn);
+        var wn = trafo.rotation.r[2];
+        const frame: Frame = .{ .x = trafo.rotation.r[0], .y = trafo.rotation.r[1], .z = wn };
 
-            if (two_sided and sampler.sample1D() > 0.5) {
-                wn = -wn;
-                dir = -dir;
-            }
+        var dir_l: Vec4f = undefined;
+        var pdf_: f32 = undefined;
 
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, 1.0 / (std.math.pi * area));
+        if (cos_a < math.safe.Dot_min) {
+            dir_l = math.smpl.hemisphereCosine(importance_uv);
+            pdf_ = 1.0 / (std.math.pi * area);
         } else {
-            var dir = math.smpl.orientedConeCosine(importance_uv, cos_a, trafo.rotation.r[0], trafo.rotation.r[1], wn);
-
-            if (two_sided and sampler.sample1D() > 0.5) {
-                wn = -wn;
-                dir = -dir;
-            }
-
-            const cone_pdf = math.smpl.conePdfCosine(cos_a);
-            return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, cone_pdf / area);
+            dir_l = math.smpl.coneCosine(importance_uv, cos_a);
+            pdf_ = math.smpl.conePdfCosine(cos_a) / area;
         }
+
+        var dir = frame.frameToWorld(dir_l);
+
+        if (two_sided and sampler.sample1D() > 0.5) {
+            wn = -wn;
+            dir = -dir;
+        }
+
+        return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf_);
     }
 
     pub fn pdf(ray: Ray, trafo: Trafo, two_sided: bool) f32 {
