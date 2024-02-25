@@ -13,7 +13,6 @@ const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const AOV = struct {
     pub const Value = enum {
@@ -231,13 +230,5 @@ pub const AOV = struct {
         }
 
         return @splat(0.0);
-    }
-};
-
-pub const Factory = struct {
-    settings: AOV.Settings,
-
-    pub fn create(self: Factory) AOV {
-        return .{ .settings = self.settings };
     }
 };

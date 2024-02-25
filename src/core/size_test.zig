@@ -3,6 +3,7 @@ const Light = @import("scene/light/light.zig").Light;
 const BvhNode = @import("scene/bvh/node.zig").Node;
 const LightNode = @import("scene/light/light_tree.zig").Node;
 const mt = @import("scene/material/material.zig");
+const mtsmpl = @import("scene/material/sample.zig");
 const intf = @import("scene/prop/interface.zig");
 const Intersection = @import("scene/shape/intersection.zig").Intersection;
 const smpl = @import("scene/shape/sample.zig");
@@ -41,12 +42,12 @@ pub fn testSize() void {
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 224);
     testType(mt.Sample, "MaterialSample", 272);
-    testType(mt.Substitute, "SubstituteSample", 352);
-    testType(mt.Hair, "HairSample", 224);
+    testType(mtsmpl.Substitute, "SubstituteSample", 224);
+    testType(mtsmpl.Hair, "HairSample", 256);
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 320);
+    testType(Worker, "Worker", 272);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

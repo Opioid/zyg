@@ -1,8 +1,8 @@
 const Debug = @import("debug/debug_sample.zig").Sample;
 const Glass = @import("glass/glass_sample.zig").Sample;
-const Hair = @import("hair/hair_sample.zig").Sample;
+pub const Hair = @import("hair/hair_sample.zig").Sample;
 const Light = @import("light/light_sample.zig").Sample;
-const Substitute = @import("substitute/substitute_sample.zig").Sample;
+pub const Substitute = @import("substitute/substitute_sample.zig").Sample;
 const Volumetric = @import("volumetric/volumetric_sample.zig").Sample;
 const Base = @import("sample_base.zig").Base;
 const bxdf = @import("bxdf.zig");
