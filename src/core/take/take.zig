@@ -2,7 +2,7 @@ const aov = @import("../rendering/sensor/aov/aov_value.zig");
 const snsr = @import("../rendering/sensor/sensor.zig");
 const Sensor = snsr.Sensor;
 const surface = @import("../rendering/integrator/surface/integrator.zig");
-const lt = @import("../rendering/integrator/particle/lighttracer.zig");
+const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").Lighttracer;
 const hlp = @import("../rendering/integrator/helper.zig");
 const LightSampling = hlp.LightSampling;
 const CausticsPath = hlp.CausticsPath;
@@ -41,7 +41,7 @@ pub const PhotonSettings = struct {
 pub const View = struct {
     samplers: SamplerFactory = .{ .Sobol = {} },
 
-    surfaces: surface.Factory = .{ .AOV = .{
+    surface_integrator: surface.Integrator = .{ .AOV = .{
         .settings = .{
             .value = .AO,
             .num_samples = 1,
@@ -51,7 +51,7 @@ pub const View = struct {
         },
     } },
 
-    lighttracers: lt.Factory = .{ .settings = .{
+    lighttracer: Lighttracer = .{ .settings = .{
         .min_bounces = 0,
         .max_bounces = 0,
         .full_light_path = false,
@@ -172,7 +172,7 @@ pub const View = struct {
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
-                self.surfaces = surface.Factory{ .AOV = .{
+                self.surface_integrator = .{ .AOV = .{
                     .settings = .{
                         .value = value_type,
                         .num_samples = num_samples,
@@ -186,7 +186,7 @@ pub const View = struct {
                 const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
-                self.surfaces = surface.Factory{ .PT = .{
+                self.surface_integrator = .{ .PT = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
@@ -201,7 +201,7 @@ pub const View = struct {
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
-                self.surfaces = surface.Factory{ .PTDL = .{
+                self.surface_integrator = .{ .PTDL = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
@@ -222,7 +222,7 @@ pub const View = struct {
                     caustics_path = if (lighttracer) false else true;
                 }
 
-                self.surfaces = surface.Factory{ .PTMIS = .{
+                self.surface_integrator = .{ .PTMIS = .{
                     .settings = .{
                         .min_bounces = min_bounces,
                         .max_bounces = max_bounces,
@@ -252,7 +252,7 @@ pub const View = struct {
         const full_light_path = json.readBoolMember(value, "full_light_path", true);
         self.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
-        self.lighttracers = lt.Factory{ .settings = .{
+        self.lighttracer = .{ .settings = .{
             .min_bounces = min_bounces,
             .max_bounces = max_bounces,
             .full_light_path = full_light_path and !surface_integrator,

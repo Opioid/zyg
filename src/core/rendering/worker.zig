@@ -48,12 +48,12 @@ pub const Worker = struct {
     sensor: *Sensor = undefined,
     scene: *Scene = undefined,
 
+    surface_integrator: *surface.Integrator = undefined,
+    lighttracer: *lt.Lighttracer = undefined,
+
     rng: RNG = undefined,
 
     samplers: [2]Sampler = undefined,
-
-    surface_integrator: surface.Integrator = undefined,
-    lighttracer: lt.Lighttracer = undefined,
 
     aov: aov.Value = undefined,
 
@@ -71,9 +71,9 @@ pub const Worker = struct {
         alloc: Allocator,
         sensor: *Sensor,
         scene: *Scene,
+        surface_integrator: *surface.Integrator,
+        lighttracer: *lt.Lighttracer,
         samplers: smpl.Factory,
-        surfaces: surface.Factory,
-        lighttracers: lt.Factory,
         aovs: aov.Factory,
         photon_settings: PhotonSettings,
         photon_map: *PhotonMap,
@@ -81,13 +81,13 @@ pub const Worker = struct {
         self.sensor = sensor;
         self.scene = scene;
 
+        self.surface_integrator = surface_integrator;
+        self.lighttracer = lighttracer;
+
         const rng = &self.rng;
 
         self.samplers[0] = samplers.create(rng);
         self.samplers[1] = .{ .Random = .{ .rng = rng } };
-
-        self.surface_integrator = surfaces.create();
-        self.lighttracer = lighttracers.create();
 
         self.aov = aovs.create();
 

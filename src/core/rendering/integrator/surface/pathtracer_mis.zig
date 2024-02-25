@@ -15,10 +15,8 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const base = @import("base");
 const math = base.math;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const PathtracerMIS = struct {
     pub const Settings = struct {
@@ -248,13 +246,5 @@ pub const PathtracerMIS = struct {
         }
 
         return .Full;
-    }
-};
-
-pub const Factory = struct {
-    settings: PathtracerMIS.Settings,
-
-    pub fn create(self: Factory) PathtracerMIS {
-        return .{ .settings = self.settings };
     }
 };
