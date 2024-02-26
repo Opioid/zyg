@@ -131,11 +131,10 @@ pub const Worker = struct {
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
 
-        var old_ms: [Tile_area]Vec4f = undefined;
-        var old_ss: [Tile_area]f32 = undefined;
+        const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
 
+        var old_ms: [Tile_area]Vec4f = undefined;
         @memset(&old_ms, @as(Vec4f, @splat(0.0)));
-        @memset(&old_ss, 0.0);
 
         var tile_stacks: [2]TileStack = undefined;
 
@@ -182,7 +181,7 @@ pub const Worker = struct {
                         const pixel = Vec2i{ x, y };
 
                         var old_m = old_ms[ii];
-                        var old_s = old_ss[ii];
+                        var old_s = old_m[3];
                         var weight: f32 = 0.0;
 
                         for (ss..s_end) |_| {
@@ -201,8 +200,6 @@ pub const Worker = struct {
 
                             const clamped = sensor.addSample(sample, color + photon, self.aov);
 
-                            const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
-
                             const value = ef * clamped.last;
                             const new_m = ef * clamped.mean;
 
@@ -213,8 +210,7 @@ pub const Worker = struct {
                             self.samplers[0].incrementSample();
                         }
 
-                        old_ms[ii] = old_m;
-                        old_ss[ii] = old_s;
+                        old_ms[ii] = .{ old_m[0], old_m[1], old_m[2], old_s };
 
                         const variance = old_s * weight;
                         const mam = math.max(math.hmax3(old_m), 0.0001);
