@@ -176,7 +176,7 @@ const SplitCandidate = struct {
             const n = part.lightCone(l);
 
             const side: u32 = if (self.behind(box.bounds[1])) 0 else 1;
-            const c = math.dot3(dominant_axis[side], n);
+            const c = math.clamp(math.dot3(dominant_axis[side], n), -1.0, 1.0);
             angles[side] = math.max(angles[side], std.math.acos(c));
         }
 
