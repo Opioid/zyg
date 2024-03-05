@@ -27,6 +27,7 @@ pub const Pack4i = Vec4(i32);
 pub const Pack4f = Vec4(f32);
 
 pub const Vec4b = @Vector(4, u8);
+pub const Vec4s = @Vector(4, i16);
 pub const Vec4i = @Vector(4, i32);
 pub const Vec4u = @Vector(4, u32);
 pub const Vec4f = @Vector(4, f32);

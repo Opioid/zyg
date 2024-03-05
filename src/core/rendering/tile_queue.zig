@@ -1,6 +1,7 @@
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
+const Vec4s = math.Vec4s;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
@@ -78,7 +79,7 @@ pub fn TileStackN(comptime Area: u32) type {
         current: u32,
         end: u32,
 
-        buffer: [Area]Vec4i,
+        buffer: [Area]Vec4s,
 
         const Self = @This();
 
@@ -93,7 +94,7 @@ pub fn TileStackN(comptime Area: u32) type {
 
         pub fn push(self: *Self, tile: Vec4i) void {
             if (tile[0] <= tile[2] and tile[1] <= tile[3]) {
-                self.buffer[self.end] = tile;
+                self.buffer[self.end] = @truncate(tile);
                 self.end += 1;
             }
         }

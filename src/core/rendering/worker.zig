@@ -47,7 +47,6 @@ const Allocator = std.mem.Allocator;
 pub const Worker = struct {
     pub const Tile_dimensions = 16;
     const Tile_area = Tile_dimensions * Tile_dimensions;
-    const Tile_cells = 4 + 16 + 64;
 
     const TileStack = TileStackN(Tile_area);
 
