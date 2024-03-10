@@ -50,6 +50,8 @@ pub const Worker = struct {
 
     const TileStack = TileStackN(Tile_area);
 
+    const Step = 16;
+
     camera: *cam.Perspective = undefined,
     sensor: *Sensor = undefined,
 
@@ -121,16 +123,12 @@ pub const Worker = struct {
     ) void {
         const camera = self.camera;
         const sensor = self.sensor;
-
         const scene = self.scene;
-        var rng = &self.rng;
-
-        const step = @min(16, num_samples);
-
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
-
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
+
+        var rng = &self.rng;
 
         var old_ms: [Tile_area]Vec4f = undefined;
         @memset(&old_ms, @as(Vec4f, @splat(0.0)));
@@ -145,7 +143,7 @@ pub const Worker = struct {
 
         var ss: u32 = 0;
         while (ss < num_samples) {
-            const s_end = @min(ss + step, num_samples);
+            const s_end = @min(ss + Step, num_samples);
 
             stack_b.clear();
 
@@ -181,7 +179,6 @@ pub const Worker = struct {
 
                         var old_m = old_ms[ii];
                         var old_s = old_m[3];
-                        var weight: f32 = 0.0;
 
                         for (ss..s_end) |_| {
                             self.aov.clear();
@@ -204,17 +201,16 @@ pub const Worker = struct {
 
                             old_s += math.hmax3((value - old_m) * (value - new_m));
                             old_m = new_m;
-                            weight = clamped.weight;
 
                             self.samplers[0].incrementSample();
                         }
 
                         old_ms[ii] = .{ old_m[0], old_m[1], old_m[2], old_s };
 
-                        const variance = old_s * weight;
-                        const mam = math.max(math.hmax3(old_m), 0.0001);
+                        const variance = old_s / @as(f32, @floatFromInt(s_end));
+                        const mean = math.max(math.average3(old_m), 0.0001);
 
-                        const qm = if (mam < 1.0) std.math.pow(f32, variance / mam, 1.0 / 2.2) else @log(math.max(variance, 1.0)) / mam;
+                        const qm = if (mean < 1.0) @sqrt(variance / mean) else @sqrt(variance) / mean;
 
                         tile_qm = math.max(tile_qm, qm);
                     }
@@ -241,7 +237,7 @@ pub const Worker = struct {
                 break;
             }
 
-            ss += step;
+            ss += Step;
 
             std.mem.swap(TileStack, stack_a, stack_b);
         }

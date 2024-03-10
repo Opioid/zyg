@@ -48,7 +48,6 @@ pub const Opaque = struct {
         return .{
             .last = wc,
             .mean = value * @as(Vec4f, @splat(nw)),
-            .weight = nw,
         };
     }
 
