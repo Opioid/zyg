@@ -218,14 +218,14 @@ pub const Worker = struct {
                     yy += 1;
                 }
 
-                if (tile_qm > qm_threshold or (tile_qm > 0.0 and ss < 64)) {
-                    if (ss == 128) {
+                if (tile_qm > qm_threshold or (tile_qm > 0.0 and s_end < 64)) {
+                    if (s_end == 128) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 2 - 1);
-                    } else if (ss == 256) {
+                    } else if (s_end == 256) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 4 - 1);
-                    } else if (ss == 512) {
+                    } else if (s_end == 512) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 8 - 1);
-                    } else if (ss == 1024) {
+                    } else if (s_end == 1024) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 16 - 1);
                     } else {
                         stack_b.push(tile);
