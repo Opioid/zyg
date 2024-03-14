@@ -208,9 +208,9 @@ pub const Worker = struct {
                         old_ms[ii] = .{ old_m[0], old_m[1], old_m[2], old_s };
 
                         const variance = old_s / @as(f32, @floatFromInt(s_end));
-                        const mean = math.max(math.average3(old_m), 0.0001);
+                        const mean = math.max(math.average3(old_m), 0.01);
 
-                        const qm = if (mean < 1.0) @sqrt(variance / mean) else @sqrt(variance) / mean;
+                        const qm = @sqrt(variance) / mean;
 
                         tile_qm = math.max(tile_qm, qm);
                     }

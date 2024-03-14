@@ -213,7 +213,7 @@ fn loadSampler(value: std.json.Value, view: *View) void {
             view.qm_threshold = 0.0;
         } else {
             view.num_samples_per_pixel = num_samples;
-            view.qm_threshold = @abs(1.0 - (1.0 / @sqrt(quality)));
+            view.qm_threshold = 0.02 + @abs(1.0 - (1.0 / quality));
         }
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
