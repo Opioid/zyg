@@ -75,10 +75,10 @@ pub const Buffer = struct {
         const pixels = self.buffers[slot];
         var dest = &pixels[id];
 
-        _ = @atomicRmw(f32, &dest.v[0], .Add, weight * value[0], .Monotonic);
-        _ = @atomicRmw(f32, &dest.v[1], .Add, weight * value[1], .Monotonic);
-        _ = @atomicRmw(f32, &dest.v[2], .Add, weight * value[2], .Monotonic);
-        _ = @atomicRmw(f32, &dest.v[3], .Add, weight, .Monotonic);
+        _ = @atomicRmw(f32, &dest.v[0], .Add, weight * value[0], .monotonic);
+        _ = @atomicRmw(f32, &dest.v[1], .Add, weight * value[1], .monotonic);
+        _ = @atomicRmw(f32, &dest.v[2], .Add, weight * value[2], .monotonic);
+        _ = @atomicRmw(f32, &dest.v[3], .Add, weight, .monotonic);
     }
 
     pub fn lessPixel(self: *Self, id: usize, slot: u32, value: f32) void {

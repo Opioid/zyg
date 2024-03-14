@@ -284,7 +284,7 @@ const Context = struct {
         const cell_len = area * num_cells[2];
 
         while (true) {
-            const i = @atomicRmw(i32, &self.current_task, .Add, 1, .Monotonic);
+            const i = @atomicRmw(i32, &self.current_task, .Add, 1, .monotonic);
 
             if (i >= cell_len) {
                 return;

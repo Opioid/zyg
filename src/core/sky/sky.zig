@@ -279,7 +279,7 @@ const SkyContext = struct {
         const idf = @as(Vec2f, @splat(1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
 
         while (true) {
-            const y = @atomicRmw(u32, &self.current, .Add, 1, .Monotonic);
+            const y = @atomicRmw(u32, &self.current, .Add, 1, .monotonic);
             if (y >= Sky.Bake_dimensions[1]) {
                 return;
             }
