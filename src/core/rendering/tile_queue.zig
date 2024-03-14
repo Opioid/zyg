@@ -51,7 +51,7 @@ pub const TileQueue = struct {
     }
 
     pub fn pop(self: *Self) ?Vec4i {
-        const current = @atomicRmw(i32, &self.current_consume, .Add, 1, .Monotonic);
+        const current = @atomicRmw(i32, &self.current_consume, .Add, 1, .monotonic);
 
         if (current >= self.num_tiles) {
             return null;
@@ -167,7 +167,7 @@ pub const RangeQueue = struct {
     }
 
     pub fn pop(self: *Self) ?Result {
-        const current = @atomicRmw(u32, &self.current_consume, .Add, 1, .Monotonic);
+        const current = @atomicRmw(u32, &self.current_consume, .Add, 1, .monotonic);
 
         const seg0 = 0 == self.current_segment;
 

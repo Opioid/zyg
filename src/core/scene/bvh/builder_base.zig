@@ -393,7 +393,7 @@ pub const Base = struct {
         const num_tasks: u32 = @intCast(self.tasks.items.len);
 
         while (true) {
-            const current = @atomicRmw(u32, &self.current_task, .Add, 1, .Monotonic);
+            const current = @atomicRmw(u32, &self.current_task, .Add, 1, .monotonic);
 
             if (current >= num_tasks) {
                 return;
