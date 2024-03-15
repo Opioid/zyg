@@ -229,7 +229,7 @@ pub const Loader = struct {
 
                 pc.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
 
-                const fr = math.vec2iTo2f(resolution);
+                const fr: Vec2f = @floatFromInt(resolution);
                 const ratio = fr[0] / fr[1];
 
                 const yfov = json.readFloatMember(perspective_node, "yfov", 0.5);

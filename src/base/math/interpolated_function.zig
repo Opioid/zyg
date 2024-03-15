@@ -2,6 +2,7 @@ const math = @import("math.zig");
 const Vec2i = math.Vec2i;
 const Vec2u = math.Vec2u;
 const Vec2f = math.Vec2f;
+const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 
 const std = @import("std");
@@ -58,7 +59,7 @@ pub fn InterpolatedFunction2D(comptime T: type) type {
 
         pub fn init(alloc: Allocator, range_begin: Vec2f, range_end: Vec2f, num_samples: Vec2u) !Self {
             const range = range_end - range_begin;
-            const interval = range / math.vec2uTo2f(num_samples - Vec2u{ 1, 1 });
+            const interval = range / (@as(Vec2u, @floatFromInt(num_samples)) - Vec2u{ 1, 1 });
 
             return Self{
                 .num_samples = num_samples,
@@ -188,8 +189,8 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
             const my = math.min(y, 1.0);
 
             const o = Vec2f{ mx, my } * Vec2f{ @floatFromInt(X - 1), @floatFromInt(Y - 1) };
-            const offset = math.vec2fTo2i(o);
-            const t = o - math.vec2iTo2f(offset);
+            const offset: Vec2i = @intFromFloat(o);
+            const t = o - @as(Vec2f, @floatFromInt(offset));
 
             const col1 = @min(offset[0] + 1, X - 1);
             const row0 = offset[1] * X;
@@ -236,8 +237,8 @@ pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_i
                 0.0,
             };
 
-            const offset = math.vec4fTo4i(o);
-            const t = o - math.vec4iTo4f(offset);
+            const offset: Vec4i = @intFromFloat(o);
+            const t = o - @as(Vec4f, @floatFromInt(offset));
 
             const col1 = @min(offset[0] + 1, X - 1);
             const row0 = offset[1] * X;

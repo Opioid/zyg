@@ -202,7 +202,7 @@ const Context = struct {
         var luminance = self.alloc.alloc(f32, @as(usize, @intCast(d[0]))) catch return;
         defer self.alloc.free(luminance);
 
-        const idf = @as(Vec2f, @splat(1.0)) / math.vec2iTo2f(d);
+        const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(d));
 
         var avg: Vec4f = @splat(0.0);
 

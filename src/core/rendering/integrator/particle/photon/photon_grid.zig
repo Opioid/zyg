@@ -61,14 +61,15 @@ pub const Grid = struct {
         self.aabb = aabb;
 
         const diameter = 2.0 * self.search_radius;
-        const dimensions = math.vec4fTo4i(@ceil(aabb.extent() / @as(Vec4f, @splat(diameter * self.grid_cell_factor)))) + @as(Vec4i, @splat(2));
+        const cell_diameter: Vec4f = @splat(diameter * self.grid_cell_factor);
+        const dimensions = @as(Vec4i, @intFromFloat(@ceil(aabb.extent() / cell_diameter))) + @as(Vec4i, @splat(2));
 
         if (!math.equal(dimensions, self.dimensions)) {
             std.debug.print("{}\n", .{dimensions});
 
             self.dimensions = dimensions;
 
-            self.local_to_texture = @as(Vec4f, @splat(1.0)) / aabb.extent() * math.vec4iTo4f(dimensions - @as(Vec4i, @splat(2)));
+            self.local_to_texture = @as(Vec4f, @splat(1.0)) / aabb.extent() * @as(Vec4f, @floatFromInt(dimensions - @as(Vec4i, @splat(2))));
 
             const num_cells = @as(usize, @intCast(dimensions[0])) * @as(usize, @intCast(dimensions[1])) * @as(usize, @intCast(dimensions[2])) + 1;
 
@@ -458,7 +459,7 @@ pub const Grid = struct {
     }
 
     fn map1(self: *const Self, v: Vec4f) u64 {
-        const c = math.vec4fTo4i((v - self.aabb.bounds[0]) * self.local_to_texture) + @as(Vec4i, @splat(1));
+        const c = @as(Vec4i, @intFromFloat((v - self.aabb.bounds[0]) * self.local_to_texture)) + @as(Vec4i, @splat(1));
         return @as(u64, @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
             @as(i64, c[0])));
@@ -466,8 +467,8 @@ pub const Grid = struct {
 
     fn map3(self: *const Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
         const r = (v - self.aabb.bounds[0]) * self.local_to_texture;
-        const c = math.vec4fTo4i(r);
-        const d = r - math.vec4iTo4f(c);
+        const c: Vec4i = @intFromFloat(r);
+        const d = r - @as(Vec4f, @floatFromInt(c));
 
         var adj = adjacent(d[0], cell_bound) << 4;
         adj |= adjacent(d[1], cell_bound) << 2;

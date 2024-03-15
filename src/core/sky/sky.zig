@@ -276,7 +276,7 @@ const SkyContext = struct {
 
         var rng = RNG{};
 
-        const idf = @as(Vec2f, @splat(1.0)) / math.vec2iTo2f(Sky.Bake_dimensions);
+        const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(Sky.Bake_dimensions));
 
         while (true) {
             const y = @atomicRmw(u32, &self.current, .Add, 1, .monotonic);
