@@ -5,6 +5,7 @@ const ro = @import("../../scene/ray_offset.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec4b = math.Vec4b;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
@@ -142,9 +143,9 @@ pub const Srgb = struct {
                             };
 
                             const cf = @as(Vec4f, @splat(255.0)) * color;
-                            const ci = math.vec4fTo4b(cf + err + @as(Vec4f, @splat(0.5)));
+                            const ci: Vec4b = @intFromFloat(cf + err + @as(Vec4f, @splat(0.5)));
 
-                            err += cf - math.vec4bTo4f(ci);
+                            err += cf - @as(Vec4f, @floatFromInt(ci));
 
                             buffer[i * 4 + 0] = ci[0];
                             buffer[i * 4 + 1] = ci[1];

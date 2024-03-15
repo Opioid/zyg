@@ -1,6 +1,7 @@
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
+const Vec2f = math.Vec2f;
 const Vec4s = math.Vec4s;
 const Vec4i = math.Vec4i;
 
@@ -31,7 +32,7 @@ pub const TileQueue = struct {
 
         const xy = Vec2i{ padded_crop[0], padded_crop[1] };
         const zw = Vec2i{ padded_crop[2], padded_crop[3] };
-        const dim = math.vec2iTo2f(zw - xy);
+        const dim: Vec2f = @floatFromInt(zw - xy);
         const tdf = @as(f32, @floatFromInt(tile_dimensions));
 
         const tiles_per_row = @as(i32, @intFromFloat(@ceil(dim[0] / tdf)));

@@ -121,21 +121,21 @@ fn sobolOwen2(scrambled_index: u32, seed: u32, dim: u32) Vec2f {
     const sob = sobol2(scrambled_index, dim);
     const hc = hashCombine2(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
-    return math.vec2uTo2f(nus) * @as(Vec2f, @splat(S));
+    return @as(Vec2f, @floatFromInt(nus)) * @as(Vec2f, @splat(S));
 }
 
 fn sobolOwen3(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol3(scrambled_index, dim);
     const hc = hashCombine4(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
-    return math.vec4uTo4f(nus) * @as(Vec4f, @splat(S));
+    return @as(Vec4f, @floatFromInt(nus)) * @as(Vec4f, @splat(S));
 }
 
 fn sobolOwen4(scrambled_index: u32, seed: u32, dim: u32) Vec4f {
     const sob = sobol4(scrambled_index, dim);
     const hc = hashCombine4(seed, dim);
     const nus = nestedUniformScrambleBase2(sob, hc);
-    return math.vec4uTo4f(nus) * @as(Vec4f, @splat(S));
+    return @as(Vec4f, @floatFromInt(nus)) * @as(Vec4f, @splat(S));
 }
 
 fn hashCombine(seed: u32, v: u32) u32 {

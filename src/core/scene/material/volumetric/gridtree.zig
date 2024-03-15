@@ -69,10 +69,10 @@ pub const Gridtree = struct {
     }
 
     pub fn setDimensions(self: *Gridtree, dimensions: Vec4i, num_cells: Vec4i) void {
-        const df = math.vec4iTo4f(dimensions);
+        const df: Vec4f = @floatFromInt(dimensions);
         self.dimensions = df;
 
-        const nc = math.vec4iTo4u(num_cells);
+        const nc: Vec4u = @bitCast(num_cells);
         self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
 
         const id = @as(Vec4f, @splat(1.0)) / df;
@@ -102,9 +102,9 @@ pub const Gridtree = struct {
 
     pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.minT());
-        const c = math.vec4fTo4i(self.dimensions * p);
+        const c: Vec4i = @intFromFloat(self.dimensions * p);
         const v = c >> Log2_cell_dim4;
-        const uv = math.vec4iTo4u(v);
+        const uv: Vec4u = @bitCast(v);
 
         if (math.anyGreaterEqual4u(uv, self.num_cells)) {
             return null;
@@ -131,8 +131,8 @@ pub const Gridtree = struct {
         }
 
         const boxf = AABB.init(
-            math.vec4iTo4f(box.bounds[0]) * self.inv_dimensions,
-            math.vec4iTo4f(box.bounds[1]) * self.inv_dimensions,
+            @as(Vec4f, @floatFromInt(box.bounds[0])) * self.inv_dimensions,
+            @as(Vec4f, @floatFromInt(box.bounds[1])) * self.inv_dimensions,
         );
 
         if (boxf.intersectP(ray.*)) |hit_t| {

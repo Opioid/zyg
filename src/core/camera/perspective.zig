@@ -82,7 +82,7 @@ pub const Perspective = struct {
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
         self.interface_stack.clear();
 
-        const fr = math.vec2iTo2f(self.resolution);
+        const fr: Vec2f = @floatFromInt(self.resolution);
         const ratio = fr[1] / fr[0];
 
         const z = 1.0 / @tan(0.5 * self.fov);
@@ -104,7 +104,7 @@ pub const Perspective = struct {
     }
 
     pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
-        const center = math.vec2iTo2f(sample.pixel) + @as(Vec2f, @splat(0.5));
+        const center = @as(Vec2f, @floatFromInt(sample.pixel)) + @as(Vec2f, @splat(0.5));
         const coordinates = center + sample.filter_uv;
 
         var direction = self.left_top + self.d_x * @as(Vec4f, @splat(coordinates[0])) + self.d_y * @as(Vec4f, @splat(coordinates[1]));

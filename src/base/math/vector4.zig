@@ -218,22 +218,6 @@ pub fn allFinite3(v: Vec4f) bool {
     return true;
 }
 
-pub inline fn vec4fTo4i(v: Vec4f) Vec4i {
-    return @intFromFloat(v);
-}
-
-pub inline fn vec4iTo4f(v: Vec4i) Vec4f {
-    return @floatFromInt(v);
-}
-
-pub inline fn vec4uTo4f(v: Vec4u) Vec4f {
-    return @floatFromInt(v);
-}
-
-pub inline fn vec4iTo4u(v: Vec4i) Vec4u {
-    return @bitCast(v);
-}
-
 pub inline fn vec3fTo4f(v: Pack3f) Vec4f {
     return .{ v.v[0], v.v[1], v.v[2], 0.0 };
 }
@@ -245,10 +229,6 @@ pub inline fn vec3bTo4f(v: Pack3b) Vec4f {
         @floatFromInt(v.v[2]),
         0.0,
     };
-}
-
-pub inline fn vec4bTo4f(v: Vec4b) Vec4f {
-    return @floatFromInt(v);
 }
 
 pub inline fn vec4fTo3f(v: Vec4f) Pack3f {
@@ -278,10 +258,6 @@ pub inline fn vec4fTo4h(v: Vec4f) Pack4h {
         @floatCast(v[2]),
         @floatCast(v[3]),
     );
-}
-
-pub inline fn vec4fTo4b(v: Vec4f) Vec4b {
-    return @intFromFloat(v);
 }
 
 pub inline fn vec3hTo4f(v: Pack3h) Vec4f {

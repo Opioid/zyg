@@ -295,8 +295,8 @@ pub const Loader = struct {
                             }
                         }
 
-                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * math.vec4iTo4f(dimensions);
-                        trafo.position += trafo.scale + voxel_scale * math.vec4iTo4f(offset);
+                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * @as(Vec4f, @floatFromInt(dimensions));
+                        trafo.position += trafo.scale + voxel_scale * @as(Vec4f, @floatFromInt(offset));
                     }
                 }
             }
