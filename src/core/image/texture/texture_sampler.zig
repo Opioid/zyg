@@ -128,39 +128,39 @@ const LinearStochastic2D = struct {
         const df: Vec2f = @floatFromInt(d);
         const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @as(Vec2f, @splat(0.5));
         const fuv = @floor(muv);
+        const w = muv - fuv;
+        const omw = @as(Vec2f, @splat(1.0)) - w;
+
         var xy: Vec2i = @intFromFloat(fuv);
 
-        // const b = d - @splat(2, @as(i32, 1));
-        const w = muv - fuv;
-        // const r = sampler.sample2D();
-        // const c = r <= w;
+        const r = sampler.sample1D();
 
-        // return .{
-        //     if (c[0]) adr.u.increment(xy[0], b[0]) else adr.u.lowerBound(xy[0], b[0]),
-        //     if (c[1]) adr.v.increment(xy[1], b[1]) else adr.v.lowerBound(xy[1], b[1]),
-        // };
+        var index: i32 = 0;
 
-        // return .{
-        //     adr.u.offset(xy[0], @boolToInt(c[0]), b[0]),
-        //     adr.v.offset(xy[1], @boolToInt(c[1]), b[1]),
-        // };
+        var threshold = omw[0] * omw[1];
+        index += @intFromBool(r > threshold);
 
-        // return adr.u.offset2(xy, @select(i32, c, @splat(2, @as(i32, 1)), @splat(2, @as(i32, 0))), d);
+        threshold += w[0] * omw[1];
+        index += @intFromBool(r > threshold);
 
-        var r = sampler.sample1D();
+        threshold += omw[0] * w[1];
+        index += @intFromBool(r > threshold);
 
-        if (r < w[0]) {
-            xy[0] += 1;
-            r /= w[0];
-        } else {
-            r = (r - w[0]) / (1.0 - w[0]);
-        }
-
-        if (r < w[1]) {
-            xy[1] += 1;
-        }
+        xy[0] += index & 1;
+        xy[1] += (index & 2) >> 1;
 
         return .{ adr.u.coord(xy[0], d[0]), adr.v.coord(xy[1], d[1]) };
+
+        // if (r < w[0]) {
+        //     xy[0] += 1;
+        //     r /= w[0];
+        // } else {
+        //     r = (r - w[0]) / (1.0 - w[0]);
+        // }
+
+        // if (r < w[1]) {
+        //     xy[1] += 1;
+        // }
     }
 };
 
@@ -201,48 +201,40 @@ const LinearStochastic3D = struct {
         const df: Vec4f = @floatFromInt(d);
         const muvw = adr.u.f3(uvw) * df - Vec4f{ 0.5, 0.5, 0.5, 0.0 };
         const fuvw = @floor(muvw);
-        const xyz: Vec4i = @intFromFloat(fuvw);
-
         const w = muvw - fuvw;
-        const r = sampler.sample3D();
-        const c = r < w;
+        const omw = @as(Vec4f, @splat(1.0)) - w;
 
-        // return .{
-        //     if (c[0]) adr.u.increment(xyz[0], b[0]) else adr.u.lowerBound(xyz[0], b[0]),
-        //     if (c[1]) adr.u.increment(xyz[1], b[1]) else adr.u.lowerBound(xyz[1], b[1]),
-        //     if (c[2]) adr.u.increment(xyz[2], b[2]) else adr.u.lowerBound(xyz[2], b[2]),
-        //     0,
-        // };
+        var xyz: Vec4i = @intFromFloat(fuvw);
 
-        // return .{
-        //     adr.u.offset(xyz[0], @boolToInt(c[0]), b[0]),
-        //     adr.u.offset(xyz[1], @boolToInt(c[1]), b[1]),
-        //     adr.u.offset(xyz[2], @boolToInt(c[2]), b[2]),
-        //     0,
-        // };
+        const r = sampler.sample1D();
 
-        return adr.u.coord3(xyz + @select(i32, c, @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0))), d);
+        var index: i32 = 0;
 
-        // var r = sampler.sample1D();
+        var threshold = omw[0] * omw[1] * omw[2];
+        index += @intFromBool(r > threshold);
 
-        // if (r < w[0]) {
-        //     xyz[0] += 1;
-        //     r /= w[0];
-        // } else {
-        //     r = (r - w[0]) / (1.0 - w[0]);
-        // }
+        threshold += w[0] * omw[1] * omw[2];
+        index += @intFromBool(r > threshold);
 
-        // if (r < w[1]) {
-        //     xyz[1] += 1;
-        //     r /= w[1];
-        // } else {
-        //     r = (r - w[1]) / (1.0 - w[1]);
-        // }
+        threshold += omw[0] * w[1] * omw[2];
+        index += @intFromBool(r > threshold);
 
-        // if (r < w[2]) {
-        //     xyz[2] += 1;
-        // }
+        threshold += w[0] * w[1] * omw[2];
+        index += @intFromBool(r > threshold);
 
-        // return adr.u.coord3(xyz, d);
+        threshold += omw[0] * omw[1] * w[2];
+        index += @intFromBool(r > threshold);
+
+        threshold += w[0] * omw[1] * w[2];
+        index += @intFromBool(r > threshold);
+
+        threshold += omw[0] * w[1] * w[2];
+        index += @intFromBool(r > threshold);
+
+        xyz[0] += index & 1;
+        xyz[1] += (index & 2) >> 1;
+        xyz[2] += (index & 4) >> 2;
+
+        return adr.u.coord3(xyz, d);
     }
 };
