@@ -95,7 +95,7 @@ pub fn TileStackN(comptime Area: u32) type {
 
         pub fn push(self: *Self, tile: Vec4i) void {
             if (tile[0] <= tile[2] and tile[1] <= tile[3]) {
-                self.buffer[self.end] = @truncate(tile);
+                self.buffer[self.end] = @intCast(tile);
                 self.end += 1;
             }
         }
