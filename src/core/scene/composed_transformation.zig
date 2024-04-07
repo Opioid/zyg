@@ -74,8 +74,34 @@ pub const ComposedTransformation = struct {
         return result + temp;
     }
 
+    pub fn frameToWorldVector(self: Self, v: Vec4f) Vec4f {
+        const a = self.rotation.r[0];
+        const b = self.rotation.r[1];
+        const c = self.rotation.r[2];
+
+        // return Vec4f{
+        //     v[0] * a[0] + v[1] * b[0] + v[2] * c[0],
+        //     v[0] * a[1] + v[1] * b[1] + v[2] * c[1],
+        //     v[0] * a[2] + v[1] * b[2] + v[2] * c[2],
+        //     0.0,
+        // };
+
+        var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
+        result = result * a;
+        var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
+        temp = temp * b;
+        result = result + temp;
+        temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
+        temp = temp * c;
+        return result + temp;
+    }
+
     pub fn objectToWorldPoint(self: Self, p: Vec4f) Vec4f {
         return self.objectToWorldVector(p) + self.position;
+    }
+
+    pub fn frameToWorldPoint(self: Self, p: Vec4f) Vec4f {
+        return self.frameToWorldVector(p) + self.position;
     }
 
     pub fn objectToWorldNormal(self: Self, n: Vec4f) Vec4f {
@@ -89,8 +115,16 @@ pub const ComposedTransformation = struct {
         return o / s;
     }
 
+    pub fn worldToFrameVector(self: Self, v: Vec4f) Vec4f {
+        return self.rotation.transformVectorTransposed(v);
+    }
+
     pub fn worldToObjectPoint(self: Self, p: Vec4f) Vec4f {
         return self.worldToObjectVector(p - self.position);
+    }
+
+    pub fn worldToFramePoint(self: Self, p: Vec4f) Vec4f {
+        return self.worldToFrameVector(p - self.position);
     }
 
     pub fn worldToObjectNormal(self: Self, n: Vec4f) Vec4f {

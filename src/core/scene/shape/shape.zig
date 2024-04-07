@@ -391,7 +391,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.pdf(ray, isec.trafo, two_sided),
             .DistantSphere => DistantSphere.pdf(isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(ray, isec.trafo, two_sided),
+            .Rectangle => Rectangle.pdf(ray, isec.trafo),
             .Sphere => Sphere.pdf(ray, isec.trafo),
             .TriangleMesh => |m| m.pdf(part, variant, ray, n, isec, two_sided, total_sphere),
         };
@@ -402,7 +402,7 @@ pub const Shape = union(enum) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Disk.pdf(ray, isec.trafo, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(isec),
-            .Rectangle => Rectangle.pdf(ray, isec.trafo, two_sided),
+            .Rectangle => Rectangle.pdfUv(ray, isec.trafo, two_sided),
             .Sphere => Sphere.pdfUv(ray, isec),
             else => 0.0,
         };
