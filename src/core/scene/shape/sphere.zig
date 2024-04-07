@@ -224,46 +224,48 @@ pub const Sphere = struct {
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
         const v = trafo.position - p;
-        const l2 = math.squaredLength3(v);
+        const l = math.length3(v);
         const r = trafo.scaleX();
-        const r2 = r * r;
-        const sin2_theta_max = r2 / l2;
 
-        // Small angles approximation from PBRT
-        const cos_theta_max = if (sin2_theta_max < 0.00068523)
-            1.0 - 0.5 * sin2_theta_max
-        else
-            @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
+        const sin_theta_max = r / l;
+        const sin2_theta_max = sin_theta_max * sin_theta_max;
+        const cos_theta_max = @sqrt(1.0 - sin2_theta_max);
+        var one_minus_cos_theta_max = 1.0 - cos_theta_max;
 
         const s2 = sampler.sample2D();
-        const dir_l = math.smpl.coneUniform(s2, cos_theta_max);
 
-        const z = @as(Vec4f, @splat(@sqrt(1.0 / l2))) * v;
-        const frame = Frame.init(z);
-        const dir = frame.frameToWorld(dir_l);
+        var cos_theta = (cos_theta_max - 1.0) * s2[0] + 1.0;
+        var sin2_theta = 1.0 - (cos_theta * cos_theta);
 
-        const b = math.dot3(dir, v);
-        const remedy_term = v - @as(Vec4f, @splat(b)) * dir;
-        const discriminant = r2 - math.dot3(remedy_term, remedy_term);
-
-        if (discriminant > 0.0) {
-            const dist = @sqrt(discriminant);
-            const t = b - dist;
-
-            const lp = p + @as(Vec4f, @splat(t)) * dir;
-            const n = math.normalize3(lp - trafo.position);
-
-            return SampleTo.init(
-                lp,
-                n,
-                dir,
-                @splat(0.0),
-                trafo,
-                math.smpl.conePdfUniform(cos_theta_max),
-            );
+        if (sin2_theta_max < 0.00068523) {
+            sin2_theta = sin2_theta_max * s2[0];
+            cos_theta = @sqrt(1.0 - sin2_theta);
+            one_minus_cos_theta_max = 0.5 * sin2_theta_max;
         }
 
-        return null;
+        const cos_alpha = sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0));
+        const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
+
+        const phi = s2[1] * 2.0 * std.math.pi;
+
+        const z = @as(Vec4f, @splat(1.0 / l)) * v;
+        const frame = Frame.init(z);
+
+        const w = math.smpl.sphereDirection(sin_alpha, cos_alpha, phi);
+        const n = frame.frameToWorld(-w);
+
+        const lp = trafo.position + @as(Vec4f, @splat(r)) * n;
+
+        const dir = math.normalize3(lp - p);
+
+        return SampleTo.init(
+            lp,
+            n,
+            dir,
+            @splat(0.0),
+            trafo,
+            math.smpl.conePdfUniform(one_minus_cos_theta_max),
+        );
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo) ?SampleTo {
@@ -332,12 +334,14 @@ pub const Sphere = struct {
         const r = trafo.scaleX();
         const r2 = r * r;
         const sin2_theta_max = r2 / l2;
-        const cos_theta_max = if (sin2_theta_max < 0.00068523)
-            1.0 - 0.5 * sin2_theta_max
-        else
-            @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
-        return math.smpl.conePdfUniform(cos_theta_max);
+        const one_minus_cos_theta_max = if (sin2_theta_max < 0.00068523)
+            0.5 * sin2_theta_max
+        else
+            1.0 - @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
+
+        // return 1.0 / (2.0 * std.math.pi * one_minus_cos_theta_max);
+        return math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
     pub fn pdfUv(ray: Ray, isec: *const Intersection) f32 {

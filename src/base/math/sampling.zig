@@ -75,11 +75,11 @@ pub fn sphereUniform(uv: Vec2f) Vec4f {
     return .{ cos_phi * r, sin_phi * r, z, 0.0 };
 }
 
-pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32) Vec4f {
     const sin_phi = @sin(phi);
     const cos_phi = @cos(phi);
 
-    return @as(Vec4f, @splat(cos_phi * sin_theta)) * x + @as(Vec4f, @splat(sin_phi * sin_theta)) * y + @as(Vec4f, @splat(cos_theta)) * z;
+    return .{ cos_phi * sin_theta, sin_phi * sin_theta, cos_theta, 0.0 };
 }
 
 pub fn coneUniform(uv: Vec2f, cos_theta_max: f32) Vec4f {
@@ -100,10 +100,9 @@ pub fn coneCosine(uv: Vec2f, cos_theta_max: f32) Vec4f {
     return .{ xy[0], xy[1], za, 0.0 };
 }
 
-const Eps: f32 = 1.0e-20;
-
-pub fn conePdfUniform(cos_theta_max: f32) f32 {
-    return 1.0 / ((2.0 * std.math.pi) * mima.max(1.0 - cos_theta_max, Eps));
+pub fn conePdfUniform(one_minus_cos_theta_max: f32) f32 {
+    const eps: f32 = comptime 1.0e-20;
+    return 1.0 / ((2.0 * std.math.pi) * mima.max(one_minus_cos_theta_max, eps));
 }
 
 pub fn conePdfCosine(cos_theta_max: f32) f32 {
