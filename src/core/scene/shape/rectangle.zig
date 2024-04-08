@@ -133,7 +133,11 @@ pub const Rectangle = struct {
         k: f32,
         S: f32,
 
-        pub fn init(s: Vec4f, ex: Vec4f, ey: Vec4f, o: Vec4f) SphQuad {
+        pub fn init(scale: Vec4f, o: Vec4f) SphQuad {
+            const s = Vec4f{ -scale[0], -scale[1], 0.0, 0.0 };
+            const ex = Vec4f{ 2.0 * scale[0], 0.0, 0.0, 0.0 };
+            const ey = Vec4f{ 0.0, 2.0 * scale[1], 0.0, 0.0 };
+
             var squad: SphQuad = undefined;
 
             squad.o = o;
@@ -205,6 +209,19 @@ pub const Rectangle = struct {
             // 4. transform (xu,yv,z0) to world coords
             return squad.o + @as(Vec4f, @splat(xu)) * squad.x + @as(Vec4f, @splat(yv)) * squad.y + @as(Vec4f, @splat(squad.z0)) * squad.z;
         }
+
+        pub fn pdf(squad: SphQuad, scale: Vec4f) f32 {
+            const lp = squad.o;
+            const sqr_dist = math.squaredLength3(lp);
+            const area = 4.0 * scale[0] * scale[1];
+            const diff_solid_angle_numer = area * @abs(lp[2]);
+            const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
+
+            return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.Dot_min)
+                (1.0 / squad.S)
+            else
+                (diff_solid_angle_denom / diff_solid_angle_numer);
+        }
     };
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
@@ -212,63 +229,39 @@ pub const Rectangle = struct {
 
         const scale = trafo.scale();
 
-        const squad = SphQuad.init(
-            .{ -scale[0], -scale[1], 0.0, 0.0 },
-            .{ 2.0 * scale[0], 0.0, 0.0, 0.0 },
-            .{ 0.0, 2.0 * scale[1], 0.0, 0.0 },
-            lp,
-        );
+        const squad = SphQuad.init(scale, lp);
 
         const uv = sampler.sample2D();
 
         const ls = squad.sample(uv);
-
         const ws = trafo.frameToWorldPoint(ls);
+        const dir = math.normalize3(ws - p);
+
         var wn = trafo.rotation.r[2];
 
-        const axis = ws - p;
-
-        if (two_sided and math.dot3(wn, axis) > 0.0) {
+        if (two_sided and math.dot3(wn, dir) > 0.0) {
             wn = -wn;
         }
 
-        const sl = math.squaredLength3(axis);
-        const t = @sqrt(sl);
-        const dir = axis / @as(Vec4f, @splat(t));
-        const c = -math.dot3(wn, dir);
-
-        if (c < math.safe.Dot_min) {
+        if (math.dot3(wn, dir) > math.safe.Dot_min) {
             return null;
         }
 
-        const sqr_dist = math.squaredLength3(lp);
-        const area = 4.0 * scale[0] * scale[1];
-        const diff_solid_angle_numer = area * @abs(lp[2]);
-        const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
-
-        const pdf_: f32 = if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.Dot_min) (1.0 / squad.S) else (diff_solid_angle_denom / diff_solid_angle_numer);
-
-        return SampleTo.init(
-            ws,
-            wn,
-            dir,
-            .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
-            pdf_,
-        );
+        return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, squad.pdf(scale));
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
         const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
+        const axis = ws - p;
+
         var wn = trafo.rotation.r[2];
 
-        if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+        if (two_sided and math.dot3(wn, axis) > 0.0) {
             wn = -wn;
         }
 
-        const axis = ws - p;
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
         const dir = axis / @as(Vec4f, @splat(t));
@@ -323,22 +316,12 @@ pub const Rectangle = struct {
 
     pub fn pdf(ray: Ray, trafo: Trafo) f32 {
         const scale = trafo.scale();
-        const area = 4.0 * scale[0] * scale[1];
 
         const lp = trafo.worldToFramePoint(ray.origin);
 
-        const squad = SphQuad.init(
-            .{ -scale[0], -scale[1], 0.0, 0.0 },
-            .{ 2.0 * scale[0], 0.0, 0.0, 0.0 },
-            .{ 0.0, 2.0 * scale[1], 0.0, 0.0 },
-            lp,
-        );
+        const squad = SphQuad.init(scale, lp);
 
-        const sqr_dist = math.squaredLength3(lp);
-        const diff_solid_angle_numer = area * @abs(lp[2]);
-        const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
-
-        return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.Dot_min) (1.0 / squad.S) else (diff_solid_angle_denom / diff_solid_angle_numer);
+        return squad.pdf(scale);
     }
 
     pub fn pdfUv(ray: Ray, trafo: Trafo, two_sided: bool) f32 {

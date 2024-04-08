@@ -13,7 +13,7 @@ pub const GzipReadStream = struct {
         UnknownGzipCompressionAlgorithm,
         InitMZStreamFailed,
         InflateMZStreamFailed,
-    } || std.os.ReadError;
+    } || std.posix.ReadError;
 
     const SeekError = error{
         Unseekable,

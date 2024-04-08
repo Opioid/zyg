@@ -246,7 +246,7 @@ pub const Sphere = struct {
         const cos_alpha = sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0));
         const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
 
-        const phi = s2[1] * 2.0 * std.math.pi;
+        const phi = s2[1] * (2.0 * std.math.pi);
 
         const z = @as(Vec4f, @splat(1.0 / l)) * v;
         const frame = Frame.init(z);
@@ -340,7 +340,6 @@ pub const Sphere = struct {
         else
             1.0 - @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
-        // return 1.0 / (2.0 * std.math.pi * one_minus_cos_theta_max);
         return math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
