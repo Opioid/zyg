@@ -243,7 +243,7 @@ pub const Rectangle = struct {
             wn = -wn;
         }
 
-        if (math.dot3(wn, dir) > math.safe.Dot_min) {
+        if (-math.dot3(wn, dir) < math.safe.Dot_min or 0.0 == squad.S) {
             return null;
         }
 
