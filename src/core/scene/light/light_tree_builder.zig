@@ -370,7 +370,7 @@ pub const Builder = struct {
             0,
             num_finite_lights,
             part.aabb(variant),
-            part.cone(variant),
+            part.totalCone(variant),
             total_power,
             part,
             variant,

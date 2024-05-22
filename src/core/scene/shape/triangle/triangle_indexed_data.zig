@@ -193,7 +193,7 @@ pub const IndexedData = struct {
         return if (0 == self.triangles[index].bts) 1.0 else -1.0;
     }
 
-    pub fn area(self: *const Self, index: u32) f32 {
+    pub fn triangleArea(self: *const Self, index: u32) f32 {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);

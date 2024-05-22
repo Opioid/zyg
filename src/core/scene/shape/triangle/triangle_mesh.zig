@@ -156,25 +156,34 @@ pub const Part = struct {
             temp.total_power += t.total_power;
         }
 
-        const da = math.normalize3(temp.dominant_axis / @as(Vec4f, @splat(temp.total_power)));
+        var cone: Vec4f = undefined;
 
-        var angle: f32 = 0.0;
-        for (self.triangle_mapping[0..self.num_alloc]) |t| {
-            const n = self.tree.data.normal(t);
-            const c = math.dot3(da, n);
-            angle = math.max(angle, std.math.acos(c));
+        if (temp.dominant_axis[0] == temp.dominant_axis[1] and temp.dominant_axis[1] == temp.dominant_axis[2]) {
+            // There are meshes where the dominant axis comes out as [0, 0, 0], because they emit equally in every direction
+            cone = .{ 0.0, 0.0, 1.0, -1.0 };
+        } else {
+            const da = math.normalize3(temp.dominant_axis / @as(Vec4f, @splat(temp.total_power)));
+            var angle: f32 = 0.0;
+            for (self.triangle_mapping[0..self.num_alloc]) |t| {
+                const n = self.tree.data.normal(t);
+                const c = math.dot3(da, n);
+                angle = math.max(angle, std.math.acos(c));
+            }
+
+            cone = .{ da[0], da[1], da[2], @cos(angle) };
         }
 
-        const v = @as(u32, @intCast(self.variants.items.len));
+        const v: u32 = @intCast(self.variants.items.len);
 
         try self.variants.append(alloc, .{
             .aabb = temp.bb,
-            .cone = .{ da[0], da[1], da[2], @cos(angle) },
+            .cone = cone,
             .material = material,
             .two_sided = two_sided,
         });
 
         var variant = &self.variants.items[v];
+
         try variant.distribution.configure(alloc, context.powers, 0);
         try builder.buildPrimitive(alloc, &variant.light_tree, self, v, threads);
         return v;
@@ -188,7 +197,7 @@ pub const Part = struct {
         return self.variants.items[variant].distribution.integral;
     }
 
-    pub fn cone(self: Part, variant: u32) Vec4f {
+    pub fn totalCone(self: Part, variant: u32) Vec4f {
         return self.variants.items[variant].cone;
     }
 
@@ -278,7 +287,7 @@ pub const Part = struct {
 
             for (begin..end) |i| {
                 const t = self.part.triangle_mapping[i];
-                const area = self.tree.data.area(t);
+                const area = self.tree.data.triangleArea(t);
 
                 var pow: f32 = undefined;
                 if (emission_map) {
@@ -321,6 +330,7 @@ pub const Part = struct {
                 if (pow > 0.0) {
                     const n = self.tree.data.normal(t);
                     temp.dominant_axis += @as(Vec4f, @splat(pow)) * n;
+
                     temp.bb.mergeAssign(self.part.lightAabb(@intCast(i)));
                     temp.total_power += pow;
                 }
@@ -422,8 +432,8 @@ pub const Mesh = struct {
         return self.parts[part].aabb(variant);
     }
 
-    pub fn cone(self: *const Mesh, part: u32, variant: u32) Vec4f {
-        return self.parts[part].cone(variant);
+    pub fn partCone(self: *const Mesh, part: u32, variant: u32) Vec4f {
+        return self.parts[part].totalCone(variant);
     }
 
     pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
@@ -514,6 +524,108 @@ pub const Mesh = struct {
         return self.tree.scatter(tray, throughput, entity, depth, sampler, worker);
     }
 
+    //Gram-Schmidt method
+    fn orthogonalize(a: Vec4f, b: Vec4f) Vec4f {
+        //we assume that a is normalized
+        return math.normalize3(b - @as(Vec4f, @splat(math.dot3(a, b))) * a);
+    }
+
+    const SphericalSample = struct {
+        dir: Vec4f,
+        uv: Vec2f,
+        pdf: f32,
+    };
+
+    // Stratified Sampling of Spherical Triangles, James Arvo
+    fn sampleSpherical(pos: Vec4f, pa: Vec4f, pb: Vec4f, pc: Vec4f, r2: Vec2f) ?SphericalSample {
+        const pap = pa - pos;
+        const pbp = pb - pos;
+        const pcp = pc - pos;
+
+        const A = math.normalize3(pap);
+        const B = math.normalize3(pbp);
+        const C = math.normalize3(pcp);
+
+        //calculate internal angles of spherical triangle: alpha, beta and gamma
+        const BA = orthogonalize(A, B - A);
+        const CA = orthogonalize(A, C - A);
+        const AB = orthogonalize(B, A - B);
+        const CB = orthogonalize(B, C - B);
+        const BC = orthogonalize(C, B - C);
+        const AC = orthogonalize(C, A - C);
+        const cos_alpha = math.clamp(math.dot3(BA, CA), -1.0, 1.0);
+        const alpha = std.math.acos(cos_alpha);
+        const beta = std.math.acos(math.clamp(math.dot3(AB, CB), -1.0, 1.0));
+        const gamma = std.math.acos(math.clamp(math.dot3(BC, AC), -1.0, 1.0));
+
+        const sarea = alpha + beta + gamma - std.math.pi;
+
+        if (0.0 == sarea) {
+            return null;
+        }
+
+        //calculate arc lengths for edges of spherical triangle
+        const cos_c = math.clamp(math.dot3(A, B), -1.0, 1.0);
+
+        //Use one random variable to select the new area.
+        const area_S = r2[0] * sarea;
+
+        //Save the sine and cosine of the angle delta
+        const angle_delta = area_S - alpha;
+        const p = @sin(angle_delta);
+        const q = @cos(angle_delta);
+
+        // Compute the pair(u; v) that determines sin(beta_s) and cos(beta_s)
+        const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
+        const u = q - cos_alpha;
+        const v = p + sin_alpha * cos_c;
+
+        const s = math.clamp(((v * q - u * p) * cos_alpha - v) / ((v * p + u * q) * sin_alpha), -1.0, 1.0);
+        const C_s = @as(Vec4f, @splat(s)) * A + @as(Vec4f, @splat(@sqrt(1.0 - s * s))) * orthogonalize(A, C);
+
+        //Compute the t coordinate using C_s and Xi2
+        const cs_b = math.dot3(C_s, B);
+
+        const z = 1.0 - r2[1] * (1.0 - cs_b);
+        const P = @as(Vec4f, @splat(z)) * B + @as(Vec4f, @splat(@sqrt(1.0 - z * z))) * orthogonalize(B, C_s);
+
+        const bary_uv = tri.barycentricCoords(P, pap, pbp, pcp);
+
+        return .{
+            .dir = P,
+            .uv = bary_uv,
+            .pdf = 1.0 / sarea,
+        };
+    }
+
+    fn pdfSpherical(pos: Vec4f, pa: Vec4f, pb: Vec4f, pc: Vec4f) f32 {
+        const pap = pa - pos;
+        const pbp = pb - pos;
+        const pcp = pc - pos;
+
+        const A = math.normalize3(pap);
+        const B = math.normalize3(pbp);
+        const C = math.normalize3(pcp);
+
+        //calculate internal angles of spherical triangle: alpha, beta and gamma
+        const BA = orthogonalize(A, B - A);
+        const CA = orthogonalize(A, C - A);
+        const AB = orthogonalize(B, A - B);
+        const CB = orthogonalize(B, C - B);
+        const BC = orthogonalize(C, B - C);
+        const AC = orthogonalize(C, A - C);
+        const cos_alpha = math.clamp(math.dot3(BA, CA), -1.0, 1.0);
+        const alpha = std.math.acos(cos_alpha);
+        const beta = std.math.acos(math.clamp(math.dot3(AB, CB), -1.0, 1.0));
+        const gamma = std.math.acos(math.clamp(math.dot3(BC, AC), -1.0, 1.0));
+
+        const sarea = alpha + beta + gamma - std.math.pi;
+
+        return 1.0 / sarea;
+    }
+
+    const Area_distance_ratio = 0.001;
+
     pub fn sampleTo(
         self: Mesh,
         part_id: u32,
@@ -538,31 +650,74 @@ pub const Mesh = struct {
 
         const global = part.triangle_mapping[s.offset];
 
-        var sv: Vec4f = undefined;
-        var tc: Vec2f = undefined;
-        self.tree.data.sample(global, .{ r[1], r[2] }, &sv, &tc);
-        const v = trafo.objectToWorldPoint(sv);
+        const puv = self.tree.data.trianglePuv(global);
 
-        const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
+        const a = puv.p[0];
+        const b = puv.p[1];
+        const c = puv.p[2];
+
+        const e1 = b - a;
+        const e2 = c - a;
+
+        const cross_axis = math.cross3(e1, e2);
+
+        const ca = (trafo.scale() * trafo.scale()) * cross_axis;
         const lca = math.length3(ca);
         const sn = ca / @as(Vec4f, @splat(lca));
         var wn = trafo.rotation.transformVector(sn);
 
-        if (two_sided and math.dot3(wn, v - p) > 0.0) {
-            wn = -wn;
+        const tri_area = 0.5 * lca;
+
+        const center = (a + b + c) / @as(Vec4f, @splat(3.0));
+
+        var dir: Vec4f = undefined;
+        var v: Vec4f = undefined;
+        var bary_uv: Vec2f = undefined;
+        var sample_pdf: f32 = undefined;
+        var n_dot_dir: f32 = undefined;
+
+        if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
+            const sample = sampleSpherical(op, a, b, c, .{ r[1], r[2] }) orelse return null;
+
+            bary_uv = sample.uv;
+
+            dir = trafo.objectToWorldNormal(sample.dir);
+
+            const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
+            v = trafo.objectToWorldPoint(sv);
+            sample_pdf = sample.pdf;
+
+            if (two_sided and math.dot3(wn, dir) > 0.0) {
+                wn = -wn;
+            }
+
+            n_dot_dir = -math.dot3(wn, dir);
+        } else {
+            bary_uv = math.smpl.triangleUniform(.{ r[1], r[2] });
+
+            const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
+            v = trafo.objectToWorldPoint(sv);
+
+            const axis = v - p;
+
+            const sl = math.squaredLength3(axis);
+            const d = @sqrt(sl);
+            dir = axis / @as(Vec4f, @splat(d));
+
+            if (two_sided and math.dot3(wn, dir) > 0.0) {
+                wn = -wn;
+            }
+
+            n_dot_dir = -math.dot3(wn, dir);
+
+            sample_pdf = sl / (n_dot_dir * tri_area);
         }
 
-        const axis = v - p;
-        const sl = math.squaredLength3(axis);
-        const d = @sqrt(sl);
-        const dir = axis / @as(Vec4f, @splat(d));
-        const c = -math.dot3(wn, dir);
-
-        if (c < math.safe.Dot_min) {
+        if (n_dot_dir < math.safe.Dot_min) {
             return null;
         }
 
-        const tri_area = 0.5 * lca;
+        const tc = tri.interpolate2(puv.uv[0], puv.uv[1], puv.uv[2], bary_uv[0], bary_uv[1]);
 
         return SampleTo.init(
             v,
@@ -570,7 +725,7 @@ pub const Mesh = struct {
             dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
             trafo,
-            (sl * s.pdf) / (c * tri_area),
+            s.pdf * sample_pdf,
         );
     }
 
@@ -635,10 +790,10 @@ pub const Mesh = struct {
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
-        var c = -math.dot3(isec.geo_n, ray.direction);
+        var n_dot_dir = -math.dot3(isec.geo_n, ray.direction);
 
         if (two_sided) {
-            c = @abs(c);
+            n_dot_dir = @abs(n_dot_dir);
         }
 
         const sl = ray.maxT() * ray.maxT();
@@ -651,10 +806,27 @@ pub const Mesh = struct {
         const part = self.parts[part_id];
         const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
 
-        const ca = (isec.trafo.scale() * isec.trafo.scale()) * self.tree.data.crossAxis(isec.primitive);
+        const ps = self.tree.data.triangleP(isec.primitive);
+
+        const a = ps[0];
+        const b = ps[1];
+        const c = ps[2];
+
+        const e1 = b - a;
+        const e2 = c - a;
+
+        const cross_axis = math.cross3(e1, e2);
+
+        const ca = (isec.trafo.scale() * isec.trafo.scale()) * cross_axis;
         const tri_area = 0.5 * math.length3(ca);
 
-        return (sl * tri_pdf) / (c * tri_area);
+        const center = (a + b + c) / @as(Vec4f, @splat(3.0));
+
+        if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
+            return tri_pdf * pdfSpherical(op, a, b, c);
+        } else {
+            return (sl * tri_pdf) / (n_dot_dir * tri_area);
+        }
     }
 
     pub fn calculateAreas(self: *Mesh) void {
@@ -667,7 +839,7 @@ pub const Mesh = struct {
         var t: u32 = 0;
         const nt = self.tree.numTriangles();
         while (t < nt) : (t += 1) {
-            self.parts[self.tree.data.part(t)].area += self.tree.data.area(t);
+            self.parts[self.tree.data.part(t)].area += self.tree.data.triangleArea(t);
         }
     }
 

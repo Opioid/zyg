@@ -80,6 +80,26 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
     return false;
 }
 
+pub fn barycentricCoords(dir: Vec4f, a: Vec4f, b: Vec4f, c: Vec4f) Vec2f {
+    const e1 = b - a;
+    const e2 = c - a;
+
+    const tvec = -a;
+    const pvec = math.cross3(dir, e2);
+    const qvec = math.cross3(tvec, e1);
+
+    const e1_d_pv = math.dot3(e1, pvec);
+    const tv_d_pv = math.dot3(tvec, pvec);
+    const di_d_qv = math.dot3(dir, qvec);
+
+    const inv_det = 1.0 / e1_d_pv;
+
+    const u = tv_d_pv * inv_det;
+    const v = di_d_qv * inv_det;
+
+    return .{ u, v };
+}
+
 pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
     return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
