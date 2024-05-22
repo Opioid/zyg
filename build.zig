@@ -14,29 +14,29 @@ pub fn build(b: *std.Build) void {
 
     const cli = b.addExecutable(.{
         .name = "zyg",
-        .root_source_file = .{ .path = "src/cli/main.zig" },
+        .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const capi = b.addSharedLibrary(.{
         .name = "zyg",
-        .root_source_file = .{ .path = "src/capi/capi.zig" },
+        .root_source_file = b.path("src/capi/capi.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const it = b.addExecutable(.{
         .name = "it",
-        .root_source_file = .{ .path = "src/it/main.zig" },
+        .root_source_file = b.path("src/it/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    cli.addIncludePath(.{ .path = "thirdparty/include" });
-    cli.addIncludePath(.{ .path = "src/cli" });
-    capi.addIncludePath(.{ .path = "thirdparty/include" });
-    it.addIncludePath(.{ .path = "thirdparty/include" });
+    cli.addIncludePath(b.path("thirdparty/include"));
+    cli.addIncludePath(b.path("src/cli"));
+    capi.addIncludePath(b.path("thirdparty/include"));
+    it.addIncludePath(b.path("thirdparty/include"));
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -50,24 +50,24 @@ pub fn build(b: *std.Build) void {
     };
 
     for (csources) |source| {
-        cli.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
-        capi.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
+        cli.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
+        capi.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
     }
 
-    cli.addCSourceFile(.{ .file = .{ .path = "src/cli/any_key.c" }, .flags = &cflags });
+    cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
 
-    it.addCSourceFile(.{ .file = .{ .path = csources[0] }, .flags = &cflags });
+    it.addCSourceFile(.{ .file = b.path(csources[0]), .flags = &cflags });
 
     const base = b.createModule(.{
-        .root_source_file = .{ .path = "src/base/base.zig" },
+        .root_source_file = b.path("src/base/base.zig"),
     });
 
     const core = b.createModule(.{
-        .root_source_file = .{ .path = "src/core/core.zig" },
+        .root_source_file = b.path("src/core/core.zig"),
         .imports = &.{.{ .name = "base", .module = base }},
     });
 
-    core.addIncludePath(.{ .path = "thirdparty/include" });
+    core.addIncludePath(b.path("thirdparty/include"));
 
     cli.root_module.addImport("base", base);
     cli.root_module.addImport("core", core);
