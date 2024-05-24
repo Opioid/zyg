@@ -49,7 +49,7 @@ pub const IndexedData = struct {
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
         vertices.copy(self.positions, self.frames, self.uvs, num_vertices);
-        self.positions[self.num_vertices * 3] = 0.0;
+        self.positions[num_vertices * 3] = 0.0;
     }
 
     pub fn setTriangle(

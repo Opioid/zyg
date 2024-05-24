@@ -59,7 +59,7 @@ pub const Tree = struct {
         self.infinite_t_max = t_max;
     }
 
-    pub fn aabb(self: Tree) AABB {
+    pub fn aabb(self: *const Tree) AABB {
         if (0 == self.num_nodes) {
             return math.aabb.Empty;
         }
@@ -67,7 +67,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, probe: *Probe, isec: *Intersection, scene: *const Scene, ipo: Interpolation) bool {
+    pub fn intersect(self: *const Tree, probe: *Probe, isec: *Intersection, scene: *const Scene, ipo: Interpolation) bool {
         var stack = NodeStack{};
 
         var hit = false;
@@ -127,7 +127,7 @@ pub const Tree = struct {
         return hit;
     }
 
-    pub fn intersectP(self: Tree, probe: *const Probe, scene: *const Scene) bool {
+    pub fn intersectP(self: *const Tree, probe: *const Probe, scene: *const Scene) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -182,7 +182,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
         var stack = NodeStack{};
 
         var vis: Vec4f = @splat(1.0);
@@ -234,7 +234,7 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn scatter(self: Tree, probe: *Probe, isec: *Intersection, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: *const Tree, probe: *Probe, isec: *Intersection, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));

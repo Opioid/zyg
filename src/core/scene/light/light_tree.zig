@@ -312,7 +312,7 @@ pub const Tree = struct {
     }
 
     pub fn randomLight(
-        self: Tree,
+        self: *const Tree,
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
@@ -413,7 +413,7 @@ pub const Tree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
+    pub fn pdf(self: *const Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
         const lo = self.light_orders[id];
         const num_infinite_lights = self.num_infinite_lights;
 
@@ -523,7 +523,7 @@ pub const PrimitiveTree = struct {
     }
 
     pub fn randomLight(
-        self: Self,
+        self: *const Self,
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
@@ -566,7 +566,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn pdf(self: Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
+    pub fn pdf(self: *const Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
         const lo = self.light_orders[id];
 
         var pd: f32 = 1.0;

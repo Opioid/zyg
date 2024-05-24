@@ -323,7 +323,7 @@ pub const Scene = struct {
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
-        const parts_start = @as(u32, @intCast(self.material_ids.items.len));
+        const parts_start: u32 = @intCast(self.material_ids.items.len);
         self.prop_parts.items[p] = parts_start;
 
         var i: u32 = 0;
@@ -405,7 +405,7 @@ pub const Scene = struct {
         const a_time = self.current_time_start + i * Tick_duration;
         const delta = time - a_time;
 
-        const t = @as(f32, @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration))));
+        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration)));
 
         return .{ .f = @intCast(i), .w = t };
     }
@@ -585,7 +585,7 @@ pub const Scene = struct {
         return self.material_ids.items[p];
     }
 
-    pub fn propMaterial(self: *const Scene, entity: usize, part: u32) *Material {
+    pub fn propMaterial(self: *const Scene, entity: u32, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
     }
@@ -670,11 +670,11 @@ pub const Scene = struct {
         return self.light_aabbs.items[light_id].bounds[0][3];
     }
 
-    pub fn lightAabb(self: *const Scene, light_id: usize) AABB {
+    pub fn lightAabb(self: *const Scene, light_id: u32) AABB {
         return self.light_aabbs.items[light_id];
     }
 
-    pub fn lightCone(self: *const Scene, light_id: usize) Vec4f {
+    pub fn lightCone(self: *const Scene, light_id: u32) Vec4f {
         return self.light_cones.items[light_id];
     }
 

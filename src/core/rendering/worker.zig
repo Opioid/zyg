@@ -156,7 +156,7 @@ pub const Worker = struct {
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     const vertex = camera.generateVertex(sample, frame, scene);
 
-                    const color = self.surface_integrator.li(vertex, self);
+                    const color = self.surface_integrator.li(&vertex, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {

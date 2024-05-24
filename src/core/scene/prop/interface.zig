@@ -113,7 +113,7 @@ pub const Stack = struct {
         const back = @as(i32, @intCast(self.index)) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {
-            const ui = @as(u32, @intCast(i));
+            const ui: u32 = @intCast(i);
             if (self.i_stack[ui].matches(isec)) {
                 var j = ui;
                 while (j < back) : (j += 1) {

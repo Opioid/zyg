@@ -189,42 +189,42 @@ pub const Part = struct {
         return v;
     }
 
-    pub fn aabb(self: Part, variant: u32) AABB {
+    pub fn aabb(self: *const Part, variant: u32) AABB {
         return self.variants.items[variant].aabb;
     }
 
-    pub fn power(self: Part, variant: u32) f32 {
+    pub fn power(self: *const Part, variant: u32) f32 {
         return self.variants.items[variant].distribution.integral;
     }
 
-    pub fn totalCone(self: Part, variant: u32) Vec4f {
+    pub fn totalCone(self: *const Part, variant: u32) Vec4f {
         return self.variants.items[variant].cone;
     }
 
-    pub fn lightAabb(self: Part, light: u32) AABB {
+    pub fn lightAabb(self: *const Part, light: u32) AABB {
         const global = self.triangle_mapping[light];
         const abc = self.tree.data.triangleP(global);
         return AABB.init(tri.min(abc[0], abc[1], abc[2]), tri.max(abc[0], abc[1], abc[2]));
     }
 
-    pub fn lightCone(self: Part, light: u32) Vec4f {
+    pub fn lightCone(self: *const Part, light: u32) Vec4f {
         const global = self.triangle_mapping[light];
         const n = self.tree.data.normal(global);
         return .{ n[0], n[1], n[2], 1.0 };
     }
 
-    pub fn lightTwoSided(self: Part, variant: u32, light: u32) bool {
+    pub fn lightTwoSided(self: *const Part, variant: u32, light: u32) bool {
         _ = light;
         return self.variants.items[variant].two_sided;
     }
 
-    pub fn lightPower(self: Part, variant: u32, light: u32) f32 {
+    pub fn lightPower(self: *const Part, variant: u32, light: u32) f32 {
         // I think it is fine to just give the primitives relative power in this case
         const dist = self.variants.items[variant].distribution;
         return dist.pdfI(light);
     }
 
-    pub fn lightProperties(self: Part, light: u32, variant: u32) LightProperties {
+    pub fn lightProperties(self: *const Part, light: u32, variant: u32) LightProperties {
         const global = self.triangle_mapping[light];
 
         const abc = self.tree.data.triangleP(global);
@@ -347,28 +347,28 @@ pub const Part = struct {
         }
     };
 
-    pub fn sampleSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
+    pub fn sampleSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.sampleRandom(variant, r);
 
-        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, &self, variant);
+        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant);
     }
 
-    pub fn sampleRandom(self: Part, variant: u32, r: f32) Distribution1D.Discrete {
+    pub fn sampleRandom(self: *const Part, variant: u32, r: f32) Distribution1D.Discrete {
         return self.variants.items[variant].distribution.sampleDiscrete(r);
     }
 
-    pub fn pdfSpatial(self: Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
+    pub fn pdfSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.variants.items[variant].distribution.pdfI(id);
 
-        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, &self, variant);
+        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
     }
 };
 
@@ -415,7 +415,7 @@ pub const Mesh = struct {
         return id + 1;
     }
 
-    pub fn partMaterialId(self: Mesh, part: u32) u32 {
+    pub fn partMaterialId(self: *const Mesh, part: u32) u32 {
         return self.parts[part].material;
     }
 
@@ -436,7 +436,7 @@ pub const Mesh = struct {
         return self.parts[part].totalCone(variant);
     }
 
-    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
+    pub fn intersect(self: *const Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(local_ray)) |hit| {
@@ -448,7 +448,7 @@ pub const Mesh = struct {
             isec.p = trafo.objectToWorldPoint(p);
 
             const geo_n = data.normal(hit.index);
-            isec.geo_n = trafo.rotation.transformVector(geo_n);
+            isec.geo_n = trafo.objectToWorldNormal(geo_n);
 
             isec.part = data.part(hit.index);
             isec.primitive = hit.index;
@@ -459,8 +459,8 @@ pub const Mesh = struct {
                 var uv: Vec2f = undefined;
                 data.interpolateData(hit.u, hit.v, hit.index, &t, &n, &uv);
 
-                const t_w = trafo.rotation.transformVector(t);
-                const n_w = trafo.rotation.transformVector(n);
+                const t_w = trafo.objectToWorldNormal(t);
+                const n_w = trafo.objectToWorldNormal(n);
                 const b_w = @as(Vec4f, @splat(data.bitangentSign(hit.index))) * math.cross3(n_w, t_w);
 
                 isec.t = t_w;
@@ -469,7 +469,7 @@ pub const Mesh = struct {
                 isec.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
             } else {
                 const n = data.interpolateShadingNormal(hit.u, hit.v, hit.index);
-                const n_w = trafo.rotation.transformVector(n);
+                const n_w = trafo.objectToWorldNormal(n);
                 isec.n = n_w;
                 isec.uvw = @splat(0.0);
             }
@@ -480,13 +480,13 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
         return self.tree.intersectP(local_ray);
     }
 
     pub fn visibility(
-        self: Mesh,
+        self: *const Mesh,
         ray: Ray,
         trafo: Trafo,
         entity: u32,
@@ -498,7 +498,7 @@ pub const Mesh = struct {
     }
 
     pub fn transmittance(
-        self: Mesh,
+        self: *const Mesh,
         ray: Ray,
         trafo: Trafo,
         entity: u32,
@@ -511,7 +511,7 @@ pub const Mesh = struct {
     }
 
     pub fn scatter(
-        self: Mesh,
+        self: *const Mesh,
         ray: Ray,
         trafo: Trafo,
         throughput: Vec4f,
@@ -627,7 +627,7 @@ pub const Mesh = struct {
     const Area_distance_ratio = 0.001;
 
     pub fn sampleTo(
-        self: Mesh,
+        self: *const Mesh,
         part_id: u32,
         variant: u32,
         p: Vec4f,
@@ -664,7 +664,7 @@ pub const Mesh = struct {
         const ca = (trafo.scale() * trafo.scale()) * cross_axis;
         const lca = math.length3(ca);
         const sn = ca / @as(Vec4f, @splat(lca));
-        var wn = trafo.rotation.transformVector(sn);
+        var wn = trafo.objectToWorldNormal(sn);
 
         const tri_area = 0.5 * lca;
 
@@ -730,7 +730,7 @@ pub const Mesh = struct {
     }
 
     pub fn sampleFrom(
-        self: Mesh,
+        self: *const Mesh,
         part_id: u32,
         variant: u32,
         trafo: Trafo,
@@ -754,7 +754,7 @@ pub const Mesh = struct {
         const ca = (trafo.scale() * trafo.scale()) * self.tree.data.crossAxis(global);
         const lca = math.length3(ca);
         const sn = ca / @as(Vec4f, @splat(lca));
-        var wn = trafo.rotation.transformVector(sn);
+        var wn = trafo.objectToWorldNormal(sn);
 
         const dir_l = math.smpl.hemisphereUniform(importance_uv);
         const frame = Frame.init(wn);
@@ -781,7 +781,7 @@ pub const Mesh = struct {
     }
 
     pub fn pdf(
-        self: Mesh,
+        self: *const Mesh,
         part_id: u32,
         variant: u32,
         ray: Ray,
@@ -874,7 +874,7 @@ pub const Mesh = struct {
         return try self.parts[part].configure(alloc, prop, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn differentialSurface(self: Mesh, primitive: u32) DifferentialSurface {
+    pub fn differentialSurface(self: *const Mesh, primitive: u32) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(primitive);
 
         const duv02 = puv.uv[0] - puv.uv[2];

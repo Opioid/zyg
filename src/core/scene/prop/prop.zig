@@ -107,8 +107,8 @@ pub const Prop = struct {
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
-        const shape_inst = scene.shape(self.shape);
-        self.properties.test_AABB = shape_inst.finite();
+        const shape = scene.shape(self.shape);
+        self.properties.test_AABB = shape.finite();
         self.properties.static = false;
     }
 
@@ -124,12 +124,13 @@ pub const Prop = struct {
             return false;
         }
 
-        if (self.properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+        const properties = self.properties;
+
+        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
-        const static = self.properties.static;
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, static);
+        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
         if (scene.shape(self.shape).intersect(&probe.ray, trafo, ipo, isec)) {
             isec.trafo = trafo;
@@ -198,10 +199,12 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
+        const shape = scene.shape(self.shape);
+
         if (properties.volume) {
-            return scene.shape(self.shape).transmittance(probe.ray, probe.depth, trafo, entity, sampler, worker);
+            return shape.transmittance(probe.ray, probe.depth, trafo, entity, sampler, worker);
         } else {
-            return scene.shape(self.shape).visibility(probe.ray, trafo, entity, sampler, scene);
+            return shape.visibility(probe.ray, trafo, entity, sampler, scene);
         }
     }
 

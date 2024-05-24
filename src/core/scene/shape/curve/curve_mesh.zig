@@ -21,7 +21,7 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn intersect(self: Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
+    pub fn intersect(self: *const Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray.*);
 
         if (self.tree.intersect(local_ray)) |hit| {
@@ -52,13 +52,13 @@ pub const Mesh = struct {
         return false;
     }
 
-    pub fn intersectP(self: Mesh, ray: Ray, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
 
         return self.tree.intersectP(local_ray);
     }
 
-    pub fn visibility(self: Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
+    pub fn visibility(self: *const Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
         return if (self.intersectP(ray, trafo)) null else @as(Vec4f, @splat(1.0));
     }
 };
