@@ -11,7 +11,7 @@ pub const Intersection = struct {
     v: f32,
 };
 
-pub const IndexTriangle = struct {
+pub const IndexTriangle align(16) = struct {
     i: [3]u32,
     part: u32,
 };

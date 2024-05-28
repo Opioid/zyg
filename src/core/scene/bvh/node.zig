@@ -6,13 +6,13 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const Node = struct {
+pub const Node align(16) = struct {
     const Vec = struct {
         v: [3]f32,
         data: u32,
     };
 
-    min: Vec align(16) = undefined,
+    min: Vec = undefined,
     max: Vec = undefined,
 
     pub fn initFrom(other: Node, o: u32) Node {
