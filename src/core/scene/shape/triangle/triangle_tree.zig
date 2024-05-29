@@ -64,6 +64,7 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.setMaxT(hit.t);
+                        isec.t = hit.t;
                         isec.u = hit.u;
                         isec.v = hit.v;
                         isec.index = i;
@@ -96,7 +97,6 @@ pub const Tree = struct {
         }
 
         if (0xFFFFFFFF != isec.index) {
-            isec.t = tray.maxT();
             return isec;
         } else {
             return null;
