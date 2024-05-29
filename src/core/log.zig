@@ -26,8 +26,8 @@ pub const StdOut = struct {
             else => "",
         };
 
-        std.debug.getStderrMutex().lock();
-        defer std.debug.getStderrMutex().unlock();
+        std.debug.lockStdErr();
+        defer std.debug.unlockStdErr();
         nosuspend std.io.getStdOut().writer().print(prefix ++ format ++ "\n", args) catch return;
     }
 };

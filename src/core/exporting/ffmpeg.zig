@@ -13,12 +13,12 @@ const Allocator = std.mem.Allocator;
 pub const FFMPEG = struct {
     srgb: Srgb,
 
-    streams: []std.ChildProcess,
+    streams: []std.process.Child,
 
     const Self = @This();
 
     pub fn init(alloc: Allocator, dimensions: []Vec2i, framerates: []u32, error_diffusion: bool) !Self {
-        var streams = try alloc.alloc(std.ChildProcess, dimensions.len);
+        var streams = try alloc.alloc(std.process.Child, dimensions.len);
 
         var framerate_buf: [11]u8 = undefined;
         var res_buf: [22]u8 = undefined;
@@ -29,7 +29,7 @@ pub const FFMPEG = struct {
             const res_str = try std.fmt.bufPrint(&res_buf, "{d}x{d}", .{ dim[0], dim[1] });
             const name_str = try std.fmt.bufPrint(&name_buf, "output_{d:0>2}.webm", .{i});
 
-            var stream = std.ChildProcess.init(
+            var stream = std.process.Child.init(
                 &[_][]const u8{
                     "ffmpeg",
                     "-r",
