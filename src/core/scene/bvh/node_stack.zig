@@ -11,8 +11,9 @@ pub const NodeStack = struct {
     }
 
     pub fn push(self: *NodeStack, value: u32) void {
-        self.stack[self.end] = value;
-        self.end += 1;
+        const end = self.end;
+        self.stack[end] = value;
+        self.end = end + 1;
     }
 
     pub fn pop(self: *NodeStack) u32 {
