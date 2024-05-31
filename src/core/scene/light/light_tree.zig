@@ -4,6 +4,7 @@ const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 const base = @import("base");
 const enc = base.encoding;
 const math = base.math;
+const Vec4us = math.Vec4us;
 const Vec4f = math.Vec4f;
 const AABB = math.AABB;
 const Distribution1D = math.Distribution1D;
@@ -23,8 +24,8 @@ const Meta = packed struct {
 };
 
 pub const Node = struct {
-    center: [4]u16,
-    cone: [4]u16,
+    center: Vec4us,
+    cone: Vec4us,
 
     power: f32,
     variance: f32,
@@ -33,35 +34,26 @@ pub const Node = struct {
     num_lights: u32,
 
     fn decompressCenter(self: Node, bounds: AABB) Vec4f {
-        const t = Vec4f{
-            enc.unorm16ToFloat(self.center[0]),
-            enc.unorm16ToFloat(self.center[1]),
-            enc.unorm16ToFloat(self.center[2]),
-            enc.unorm16ToFloat(self.center[3]),
-        };
+        const t = enc.unorm16ToFloat4(self.center);
         return math.lerp(bounds.bounds[0], bounds.bounds[1], t);
     }
 
     pub fn compressCenter(self: *Node, center: Vec4f, bounds: AABB) void {
         const d = center - bounds.bounds[0];
-        const q = d / bounds.extent();
+        const e = bounds.extent();
+        const div = Vec4f{ e[0], e[1], e[2], bounds.cachedRadius() };
 
-        self.center[0] = enc.floatToUnorm16(q[0]);
-        self.center[1] = enc.floatToUnorm16(q[1]);
-        self.center[2] = enc.floatToUnorm16(q[2]);
-        self.center[3] = enc.floatToUnorm16(center[3] / bounds.cachedRadius());
+        // assumes that bounds[0][3] == 0.0, therefore d[3] == center[3]
+        const q = d / div;
+
+        self.center = enc.floatToUnorm16_4(q);
     }
 
     pub fn weight(self: Node, p: Vec4f, n: Vec4f, bounds: AABB, total_sphere: bool) f32 {
         const center = self.decompressCenter(bounds);
         const r = center[3];
 
-        const cone = Vec4f{
-            enc.snorm16ToFloat(self.cone[0]),
-            enc.snorm16ToFloat(self.cone[1]),
-            enc.snorm16ToFloat(self.cone[2]),
-            enc.snorm16ToFloat(self.cone[3]),
-        };
+        const cone = enc.snorm16ToFloat4(self.cone);
 
         return importance(p, n, center, cone, r, self.power, self.meta.two_sided, total_sphere);
     }
