@@ -167,11 +167,12 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const material = scene.propMaterial(entity, self.data.part(i));
+                        const itri = self.data.indexTriangle(i);
+                        const material = scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
-                            const normal = self.data.normal(i);
-                            const uv = self.data.interpolateUv(hit.u, hit.v, i);
+                            const normal = self.data.normal(itri);
+                            const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
                             const tv = material.visibility(ray_dir, normal, uv, sampler, scene) orelse return null;
 
@@ -227,7 +228,7 @@ pub const Tree = struct {
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
-            const n = data.normal(hit.index);
+            const n = data.normal(data.indexTriangle(hit.index));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));
@@ -266,7 +267,7 @@ pub const Tree = struct {
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
-            const n = data.normal(hit.index);
+            const n = data.normal(data.indexTriangle(hit.index));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));
