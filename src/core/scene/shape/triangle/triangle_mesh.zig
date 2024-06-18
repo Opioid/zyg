@@ -800,8 +800,6 @@ pub const Mesh = struct {
             n_dot_dir = @abs(n_dot_dir);
         }
 
-        const sl = ray.maxT() * ray.maxT();
-
         const op = isec.trafo.worldToObjectPoint(ray.origin);
         const on = isec.trafo.worldToObjectNormal(n);
 
@@ -829,6 +827,7 @@ pub const Mesh = struct {
         if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
+            const sl = ray.maxT() * ray.maxT();
             return (sl * tri_pdf) / (n_dot_dir * tri_area);
         }
     }

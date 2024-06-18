@@ -136,6 +136,14 @@ pub inline fn hmax3(v: Vec4f) f32 {
     return math.max(v[0], math.max(v[1], v[2]));
 }
 
+pub inline fn hmin4(v: Vec4f) f32 {
+    return math.min(v[0], math.min(v[1], math.min(v[2], v[3])));
+}
+
+pub inline fn hmax4(v: Vec4f) f32 {
+    return math.max(v[0], math.max(v[1], math.max(v[2], v[3])));
+}
+
 pub inline fn indexMinComponent3(v: Vec4f) u32 {
     if (v[0] < v[1]) {
         return if (v[0] < v[2]) 0 else 2;
