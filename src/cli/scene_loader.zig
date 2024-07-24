@@ -166,7 +166,12 @@ pub const Loader = struct {
         stream.deinit();
         defer alloc.free(buffer);
 
-        var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+        var parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            alloc,
+            buffer,
+            .{ .duplicate_field_behavior = .use_last },
+        );
         defer parsed.deinit();
 
         const root = parsed.value;
