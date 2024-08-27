@@ -92,44 +92,48 @@ pub fn build(b: *std.Build) void {
     it.root_module.strip = true;
     b.installArtifact(it);
 
-    // const run_cmd = b.addRunArtifact(cli);
-    // run_cmd.step.dependOn(b.getInstallStep());
-    // run_cmd.setCwd(.{ .path = "/home/beni/workspace/sprout/system" });
-    // if (b.args) |args| {
-    //     run_cmd.addArgs(args);
-    // } else {
-    //     run_cmd.addArgs(&[_][]const u8{
-    //         "-i",
-    //         //"takes/bistro_day.take",
-    //         //"takes/bistro_night.take",
-    //         //"takes/san_miguel.take",
-    //         "takes/cornell.take",
-    //         //"takes/curve_test.take",
-    //         //"takes/imrod.take",
-    //         //"takes/model_test.take",
-    //         //"takes/animation_test.take",
-    //         //"takes/material_test.take",
-    //         //"takes/whirligig.take",
-    //         //"takes/candle.take",
-    //         //"takes/disney_cloud.take",
-    //         //"takes/rene.take",
-    //         //"takes/head.take",
-    //         //"takes/flakes.take",
-    //         //"takes/embergen.take",
-    //         //"takes/volume.take",
-    //         //"takes/intel_sponza.take",
-    //         //"scenes/island/shot_cam.take",
-    //         "-t",
-    //         "-4",
-    //         //"--no-tex",
-    //         //"--no-tex-dwim",
-    //         //"--debug-mat",
-    //         "-f",
-    //         "0",
-    //         "-n",
-    //         "1",
-    //     });
-    // }
+    const run_exe = b.addRunArtifact(cli);
+    run_exe.step.dependOn(b.getInstallStep());
+    run_exe.setCwd(b.path("system"));
+
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_exe.step);
+
+    if (b.args) |args| {
+        run_exe.addArgs(args);
+    } else {
+        run_exe.addArgs(&[_][]const u8{
+            "-i",
+            //"takes/bistro_day.take",
+            //"takes/bistro_night.take",
+            //"takes/san_miguel.take",
+            "takes/cornell.take",
+            //"takes/curve_test.take",
+            //"takes/imrod.take",
+            //"takes/model_test.take",
+            //"takes/animation_test.take",
+            //"takes/material_test.take",
+            //"takes/whirligig.take",
+            //"takes/candle.take",
+            //"takes/disney_cloud.take",
+            //"takes/rene.take",
+            //"takes/head.take",
+            //"takes/flakes.take",
+            //"takes/embergen.take",
+            //"takes/volume.take",
+            //"takes/intel_sponza.take",
+            //"scenes/island/shot_cam.take",
+            "-t",
+            "-1",
+            //"--no-tex",
+            //"--no-tex-dwim",
+            //"--debug-mat",
+            "-f",
+            "0",
+            "-n",
+            "1",
+        });
+    }
 
     // // const run_cmd = b.addRunArtifact(it);
     // // run_cmd.step.dependOn(b.getInstallStep());

@@ -111,8 +111,8 @@ const Data = struct {
             return 0.0;
         }
 
-        const hit = std.sort.lowerBound(f32, phi, horizontal_angles, {}, lessThan) - 1;
-        const vit = std.sort.lowerBound(f32, theta, vertical_angles, {}, lessThan) - 1;
+        const hit = std.sort.lowerBound(f32, horizontal_angles, phi, compareF32) - 1;
+        const vit = std.sort.lowerBound(f32, vertical_angles, theta, compareF32) - 1;
 
         // if (hit > 0) {
         //     hit -= 1;
@@ -161,10 +161,10 @@ const Data = struct {
 
             // return math.bilinear1(ins, d_theta, d_phi);
 
-            const ivit = @as(i32, @intCast(vit));
-            const ihit = @as(i32, @intCast(hit));
-            const inv = @as(i32, @intCast(num_vangles));
-            const inh = @as(i32, @intCast(num_hangles));
+            const ivit: i32 = @intCast(vit);
+            const ihit: i32 = @intCast(hit);
+            const inv: i32 = @intCast(num_vangles);
+            const inh: i32 = @intCast(num_hangles);
 
             const vm1 = offset(ivit, -1, inv);
             const vp0 = offset(ivit, 0, inv);
@@ -212,9 +212,8 @@ const Data = struct {
         return @intCast(if (y >= b) (b - i) else y);
     }
 
-    fn lessThan(context: void, a: f32, b: f32) bool {
-        _ = context;
-        return a < b;
+    fn compareF32(context: f32, item: f32) std.math.Order {
+        return std.math.order(item, context);
     }
 
     pub fn catmullRom(c: *const [4]f32, t: f32) f32 {
@@ -357,7 +356,7 @@ pub const Reader = struct {
             i.* = v;
         }
 
-        const res = @as(i32, @intFromFloat(360.0 / min_angle + 0.5));
+        const res: i32 = @intFromFloat(360.0 / min_angle + 0.5);
         const d = Vec2i{ res, res };
 
         var image = try img.Half1.init(alloc, img.Description.init2D(d));
