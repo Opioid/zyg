@@ -51,8 +51,8 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
 
-        const tboxmin = mima.max(tmins[0], mima.max(tmins[1], mima.max(tmins[2], tmins[3])));
-        const tboxmax = mima.min(tmaxs[0], mima.min(tmaxs[1], mima.min(tmaxs[2], tmaxs[3])));
+        const tboxmin = math.hmax4(tmins);
+        const tboxmax = math.hmin4(tmaxs);
 
         return tboxmin <= tboxmax;
     }
