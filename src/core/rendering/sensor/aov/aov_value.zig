@@ -36,7 +36,7 @@ pub const Value = struct {
         }
     };
 
-    pub const Num_classes = @typeInfo(Class).Enum.fields.len;
+    pub const Num_classes = @typeInfo(Class).@"enum".fields.len;
 
     slots: u32,
 
