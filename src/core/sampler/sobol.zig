@@ -171,7 +171,7 @@ fn laineKarrasPermutation(i: anytype, seed: anytype) @TypeOf(i, seed) {
     // https://psychopath.io/post/2021_01_30_building_a_better_lk_hash
 
     switch (@typeInfo(@TypeOf(i))) {
-        .Int => {
+        .int => {
             var x = i ^ (i *% 0x3d20adea);
             x +%= seed;
             x *%= (seed >> 16) | 1;
@@ -179,7 +179,7 @@ fn laineKarrasPermutation(i: anytype, seed: anytype) @TypeOf(i, seed) {
             x ^= x *% 0x53a22864;
             return x;
         },
-        .Vector => |v| {
+        .vector => |v| {
             const V = @TypeOf(i);
 
             var x = i ^ (i *% @as(V, @splat(@as(u32, 0x3d20adea))));

@@ -40,11 +40,11 @@ pub inline fn saturate(x: f32) f32 {
 
 pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
     switch (@typeInfo(@TypeOf(a))) {
-        inline .ComptimeFloat, .Float => {
+        inline .comptime_float, .float => {
             const u = 1.0 - t;
             return @mulAdd(f32, u, a, t * b);
         },
-        .Vector => {
+        .vector => {
             const u = @as(@TypeOf(a), @splat(1.0)) - t;
             return @mulAdd(@TypeOf(a), u, a, t * b);
         },
@@ -95,13 +95,13 @@ pub fn pow22(x: f32) f32 {
 
 pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
     switch (@typeInfo(T)) {
-        .Float => {
+        .float => {
             const _s = 1.0 - s;
             const _t = 1.0 - t;
 
             return _t * (_s * c[0] + s * c[1]) + t * (_s * c[2] + s * c[3]);
         },
-        .Vector => {
+        .vector => {
             const vs: T = @splat(s);
             const vt: T = @splat(t);
 
