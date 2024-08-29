@@ -14,29 +14,29 @@ pub fn build(b: *std.Build) void {
 
     const cli = b.addExecutable(.{
         .name = "zyg",
-        .root_source_file = .{ .path = "src/cli/main.zig" },
+        .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const capi = b.addSharedLibrary(.{
         .name = "zyg",
-        .root_source_file = .{ .path = "src/capi/capi.zig" },
+        .root_source_file = b.path("src/capi/capi.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const it = b.addExecutable(.{
         .name = "it",
-        .root_source_file = .{ .path = "src/it/main.zig" },
+        .root_source_file = b.path("src/it/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    cli.addIncludePath(.{ .path = "thirdparty/include" });
-    cli.addIncludePath(.{ .path = "src/cli" });
-    capi.addIncludePath(.{ .path = "thirdparty/include" });
-    it.addIncludePath(.{ .path = "thirdparty/include" });
+    cli.addIncludePath(b.path("thirdparty/include"));
+    cli.addIncludePath(b.path("src/cli"));
+    capi.addIncludePath(b.path("thirdparty/include"));
+    it.addIncludePath(b.path("thirdparty/include"));
 
     const cflags = [_][]const u8{
         "-std=c99",
@@ -50,24 +50,24 @@ pub fn build(b: *std.Build) void {
     };
 
     for (csources) |source| {
-        cli.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
-        capi.addCSourceFile(.{ .file = .{ .path = source }, .flags = &cflags });
+        cli.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
+        capi.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
     }
 
-    cli.addCSourceFile(.{ .file = .{ .path = "src/cli/any_key.c" }, .flags = &cflags });
+    cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
 
-    it.addCSourceFile(.{ .file = .{ .path = csources[0] }, .flags = &cflags });
+    it.addCSourceFile(.{ .file = b.path(csources[0]), .flags = &cflags });
 
     const base = b.createModule(.{
-        .root_source_file = .{ .path = "src/base/base.zig" },
+        .root_source_file = b.path("src/base/base.zig"),
     });
 
     const core = b.createModule(.{
-        .root_source_file = .{ .path = "src/core/core.zig" },
+        .root_source_file = b.path("src/core/core.zig"),
         .imports = &.{.{ .name = "base", .module = base }},
     });
 
-    core.addIncludePath(.{ .path = "thirdparty/include" });
+    core.addIncludePath(b.path("thirdparty/include"));
 
     cli.root_module.addImport("base", base);
     cli.root_module.addImport("core", core);
@@ -92,13 +92,17 @@ pub fn build(b: *std.Build) void {
     it.root_module.strip = true;
     b.installArtifact(it);
 
-    const run_cmd = b.addRunArtifact(cli);
-    run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.setCwd(.{ .path = "/home/beni/workspace/sprout/system" });
+    const run_exe = b.addRunArtifact(cli);
+    run_exe.step.dependOn(b.getInstallStep());
+    run_exe.setCwd(b.path("system"));
+
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_exe.step);
+
     if (b.args) |args| {
-        run_cmd.addArgs(args);
+        run_exe.addArgs(args);
     } else {
-        run_cmd.addArgs(&[_][]const u8{
+        run_exe.addArgs(&[_][]const u8{
             "-i",
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
@@ -121,7 +125,7 @@ pub fn build(b: *std.Build) void {
             //"takes/intel_sponza.take",
             //"scenes/island/shot_cam.take",
             "-t",
-            "-4",
+            "-1",
             //"--no-tex",
             //"--no-tex-dwim",
             //"--debug-mat",
@@ -132,33 +136,33 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    // const run_cmd = b.addRunArtifact(it);
-    // run_cmd.step.dependOn(b.getInstallStep());
-    // run_cmd.cwd = "/home/beni/workspace/sprout/system";
-    // if (b.args) |args| {
-    //     run_cmd.addArgs(args);
-    // } else {
-    //     run_cmd.addArgs(&[_][]const u8{
-    //         //"-d",
-    //         "-i",
-    //         //"image_00000000.exr",
-    //         //"image_00000001.exr",
-    //         //"image_00000064.exr",
-    //         //"san_miguel.exr",
-    //         "intel_sponza_day.exr",
-    //         //"Round.IES",
-    //         //"ScatterLight.IES",
-    //         "-t",
-    //         "-4",
-    //         "--tone",
-    //         "agx",
-    //         "-e",
-    //         "-1.0",
-    //         "-f",
-    //         "png",
-    //     });
-    // }
+    // // const run_cmd = b.addRunArtifact(it);
+    // // run_cmd.step.dependOn(b.getInstallStep());
+    // // run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    // // if (b.args) |args| {
+    // //     run_cmd.addArgs(args);
+    // // } else {
+    // //     run_cmd.addArgs(&[_][]const u8{
+    // //         //"-d",
+    // //         "-i",
+    // //         //"image_00000000.exr",
+    // //         //"image_00000001.exr",
+    // //         //"image_00000064.exr",
+    // //         //"san_miguel.exr",
+    // //         "intel_sponza_day.exr",
+    // //         //"Round.IES",
+    // //         //"ScatterLight.IES",
+    // //         "-t",
+    // //         "-4",
+    // //         "--tone",
+    // //         "agx",
+    // //         "-e",
+    // //         "-1.0",
+    // //         "-f",
+    // //         "png",
+    // //     });
+    // // }
 
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    // const run_step = b.step("run", "Run the app");
+    // run_step.dependOn(&run_cmd.step);
 }

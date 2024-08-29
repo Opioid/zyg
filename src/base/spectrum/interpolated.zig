@@ -26,13 +26,12 @@ pub const Interpolated = struct {
         return self.wavelengths[self.num_elements - 1];
     }
 
-    fn lessThan(context: void, a: f32, b: f32) bool {
-        _ = context;
-        return a < b;
+    fn compareF32(context: f32, item: f32) std.math.Order {
+        return std.math.order(item, context);
     }
 
     pub fn evaluate(self: Self, wl: f32) f32 {
-        const range = std.sort.equalRange(f32, wl, self.wavelengths[0..self.num_elements], {}, lessThan);
+        const range = std.sort.equalRange(f32, self.wavelengths[0..self.num_elements], wl, compareF32);
         const index = range[0];
 
         if (range[0] == range[1]) {
@@ -63,7 +62,7 @@ pub const Interpolated = struct {
         // This integration is only correct for a linearly interpolated function
         // and clamps to zero outside the given range.
 
-        const it = std.sort.lowerBound(f32, start, self.wavelengths[0..len], {}, lessThan);
+        const it = std.sort.lowerBound(f32, self.wavelengths[0..len], start, compareF32);
 
         var index = @max(it, 1) - 1;
 

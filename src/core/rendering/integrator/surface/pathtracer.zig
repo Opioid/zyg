@@ -26,8 +26,8 @@ pub const Pathtracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
-        var vertex = input;
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+        var vertex = input.*;
         var result: Vec4f = @splat(0.0);
 
         while (true) {

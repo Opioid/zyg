@@ -30,7 +30,7 @@ pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
 const Num_samples = 256;
 
 fn calculateSrgbToFloat() [Num_samples]f32 {
-    @setEvalBranchQuota(11500);
+    @setEvalBranchQuota(20100);
 
     var buf: [Num_samples]f32 = undefined;
 

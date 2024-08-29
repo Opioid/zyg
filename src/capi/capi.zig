@@ -714,7 +714,7 @@ const CopyFramebufferContext = struct {
 };
 
 export fn su_register_log(post: log.CFunc.Func) i32 {
-    log.log = .{ .CFunc = .{ .func = post } };
+    log.log = log.Log{ .CFunc = .{ .func = post } };
     return 0;
 }
 

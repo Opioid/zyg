@@ -109,28 +109,23 @@ pub fn conePdfCosine(cos_theta_max: f32) f32 {
     return 1.0 / ((1.0 - (cos_theta_max * cos_theta_max)) * std.math.pi);
 }
 
-fn signNotZero(v: Vec2f) Vec2f {
-    return .{ std.math.copysign(@as(f32, 1.0), v[0]), std.math.copysign(@as(f32, 1.0), v[1]) };
-}
-
 pub fn octEncode(v: Vec4f) Vec2f {
-    const linorm = @abs(v[0]) + @abs(v[1]) + @abs(v[2]);
-    const o = Vec2f{ v[0], v[1] } * @as(Vec2f, @splat(1.0 / linorm));
+    const inorm = 1.0 / (@abs(v[0]) + @abs(v[1]) + @abs(v[2]));
+    const t = mima.max(v[2], 0.0);
 
-    if (v[2] >= 0.0) {
-        return (@as(Vec2f, @splat(1.0)) - @abs(Vec2f{ o[1], o[0] })) * signNotZero(o);
-    }
-
-    return o;
+    return .{
+        (v[0] + if (v[0] > 0.0) t else -t) * inorm,
+        (v[1] + if (v[1] > 0.0) t else -t) * inorm,
+    };
 }
 
 pub fn octDecode(o: Vec2f) Vec4f {
     var v = Vec4f{ o[0], o[1], -1.0 + @abs(o[0]) + @abs(o[1]), 0.0 };
-    if (v[2] >= 0.0) {
-        const xy = (@as(Vec2f, @splat(1.0)) - @abs(Vec2f{ o[1], o[0] })) * signNotZero(o);
-        v[0] = xy[0];
-        v[1] = xy[1];
-    }
+
+    const t = mima.max(v[2], 0.0);
+
+    v[0] += if (v[0] > 0.0) -t else t;
+    v[1] += if (v[1] > 0.0) -t else t;
 
     return math.normalize3(v);
 }

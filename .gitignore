@@ -1,7 +1,8 @@
-zig-*/
+zig-out/
 cache/
 data/
 system/
+.zig-cache/
 source/base/platform/version.hpp
 .directory
 .DS_STORE

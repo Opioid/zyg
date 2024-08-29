@@ -24,33 +24,33 @@ pub const Ray = struct {
         self.inv_direction = id;
     }
 
-    pub inline fn minT(self: Ray) f32 {
+    pub fn minT(self: Ray) f32 {
         return self.origin[3];
     }
 
-    pub inline fn maxT(self: Ray) f32 {
+    pub fn maxT(self: Ray) f32 {
         return self.direction[3];
     }
 
-    pub inline fn setMinT(self: *Ray, t: f32) void {
+    pub fn setMinT(self: *Ray, t: f32) void {
         self.origin[3] = t;
     }
 
-    pub inline fn setMaxT(self: *Ray, t: f32) void {
+    pub fn setMaxT(self: *Ray, t: f32) void {
         self.direction[3] = t;
     }
 
-    pub inline fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
+    pub fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
         self.origin[3] = min_t;
         self.direction[3] = max_t;
     }
 
-    pub inline fn clipMaxT(self: *Ray, t: f32) void {
+    pub fn clipMaxT(self: *Ray, t: f32) void {
         const max_t = self.direction[3];
         self.direction[3] = mima.min(max_t, t);
     }
 
-    pub inline fn point(self: Ray, t: f32) Vec4f {
+    pub fn point(self: Ray, t: f32) Vec4f {
         const p = self.origin + @as(Vec4f, @splat(t)) * self.direction;
         return .{ p[0], p[1], p[2], 0.0 };
     }

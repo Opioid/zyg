@@ -29,7 +29,12 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
 
-    var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
+    var parsed = try std.json.parseFromSlice(
+        std.json.Value,
+        alloc,
+        buffer,
+        .{ .duplicate_field_behavior = .use_last },
+    );
     defer parsed.deinit();
 
     const root = parsed.value;

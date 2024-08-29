@@ -41,8 +41,8 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
-        var vertex = input;
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+        var vertex = input.*;
 
         const sampler = worker.pickSampler(0);
 
@@ -52,17 +52,17 @@ pub const AOV = struct {
         }
 
         const result = switch (self.settings.value) {
-            .AO => self.ao(vertex, &isec, worker),
-            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex, &isec, worker),
-            .LightSampleCount => self.lightSampleCount(vertex, &isec, worker),
-            .Side => self.side(vertex, &isec, worker),
+            .AO => self.ao(&vertex, &isec, worker),
+            .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(&vertex, &isec, worker),
+            .LightSampleCount => self.lightSampleCount(&vertex, &isec, worker),
+            .Side => self.side(&vertex, &isec, worker),
             .Photons => self.photons(&vertex, &isec, worker),
         };
 
         return vertex.throughput * result;
     }
 
-    fn ao(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn ao(self: *const Self, vertex: *const Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
@@ -72,7 +72,7 @@ pub const AOV = struct {
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
         if (worker.aov.active()) {
-            worker.commonAOV(&vertex, isec, &mat_sample);
+            worker.commonAOV(vertex, isec, &mat_sample);
         }
 
         const origin = isec.offsetP(mat_sample.super().geometricNormal());
@@ -100,7 +100,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn vector(self: *const Self, vertex: *const Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         const wo = -vertex.probe.ray.direction;
 
         const sampler = worker.pickSampler(0);
@@ -108,7 +108,7 @@ pub const AOV = struct {
         const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
         if (worker.aov.active()) {
-            worker.commonAOV(&vertex, isec, &mat_sample);
+            worker.commonAOV(vertex, isec, &mat_sample);
         }
 
         var vec: Vec4f = undefined;
@@ -132,7 +132,7 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: *const Self, vertex: *const Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         _ = self;
 
         var sampler = worker.pickSampler(0);
@@ -150,7 +150,7 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *const Self, vertex: Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
+    fn side(self: *const Self, vertex: *const Vertex, isec: *const Intersection, worker: *Worker) Vec4f {
         _ = self;
 
         const sampler = worker.pickSampler(0);

@@ -716,7 +716,7 @@ const Buffer = struct {
             return;
         }
 
-        const lb = std.sort.lowerBound(Entry, c, self.entries[0..num], {}, lessThan);
+        const lb = std.sort.lowerBound(Entry, self.entries[0..num], c, compareEntry);
 
         if (lb < num) {
             const begin = lb + 1;
@@ -732,8 +732,7 @@ const Buffer = struct {
         }
     }
 
-    fn lessThan(context: void, a: Entry, b: Entry) bool {
-        _ = context;
-        return a.d2 < b.d2;
+    fn compareEntry(context: Entry, item: Entry) std.math.Order {
+        return std.math.order(item.d2, context.d2);
     }
 };

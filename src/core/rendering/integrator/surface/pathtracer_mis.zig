@@ -33,7 +33,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
         const max_bounces = self.settings.max_bounces;
 
         var result: Vec4f = @splat(0.0);

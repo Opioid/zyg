@@ -26,23 +26,22 @@ pub const StdOut = struct {
             else => "",
         };
 
-        std.debug.getStderrMutex().lock();
-        defer std.debug.getStderrMutex().unlock();
+        std.debug.lockStdErr();
+        defer std.debug.unlockStdErr();
         nosuspend std.io.getStdOut().writer().print(prefix ++ format ++ "\n", args) catch return;
     }
 };
 
 pub const CFunc = struct {
-    pub const Func = *const fn (level: c_uint, text: [*:0]u8) callconv(.C) void;
+    pub const Func = *const fn (level: c_uint, text: [*:0]const u8) callconv(.C) void;
 
     func: Func,
-
-    buffer: [256]u8 = undefined,
 
     const Self = @This();
 
     pub fn post(self: *Self, comptime level: Level, comptime format: []const u8, args: anytype) void {
-        const line = std.fmt.bufPrintZ(&self.buffer, format, args) catch return;
+        var buffer: [256]u8 = undefined;
+        const line = std.fmt.bufPrintZ(&buffer, format, args) catch return;
 
         self.func(@intFromEnum(level), line);
     }

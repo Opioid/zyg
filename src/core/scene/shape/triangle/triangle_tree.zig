@@ -37,15 +37,15 @@ pub const Tree = struct {
         alloc.free(self.nodes);
     }
 
-    pub fn numTriangles(self: Tree) u32 {
+    pub fn numTriangles(self: *const Tree) u32 {
         return self.data.num_triangles;
     }
 
-    pub fn aabb(self: Tree) AABB {
+    pub fn aabb(self: *const Tree) AABB {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) ?Intersection {
+    pub fn intersect(self: *const Tree, ray: Ray) ?Intersection {
         var tray = ray;
 
         var stack = NodeStack{};
@@ -64,6 +64,7 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.setMaxT(hit.t);
+                        isec.t = hit.t;
                         isec.u = hit.u;
                         isec.v = hit.v;
                         isec.index = i;
@@ -96,14 +97,13 @@ pub const Tree = struct {
         }
 
         if (0xFFFFFFFF != isec.index) {
-            isec.t = tray.maxT();
             return isec;
         } else {
             return null;
         }
     }
 
-    pub fn intersectP(self: Tree, ray: Ray) bool {
+    pub fn intersectP(self: *const Tree, ray: Ray) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -149,7 +149,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: *const Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -167,11 +167,12 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const material = scene.propMaterial(entity, self.data.part(i));
+                        const itri = self.data.indexTriangle(i);
+                        const material = scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
-                            const normal = self.data.normal(i);
-                            const uv = self.data.interpolateUv(hit.u, hit.v, i);
+                            const normal = self.data.normal(itri);
+                            const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
                             const tv = material.visibility(ray_dir, normal, uv, sampler, scene) orelse return null;
 
@@ -209,7 +210,7 @@ pub const Tree = struct {
     }
 
     pub fn transmittance(
-        self: Tree,
+        self: *const Tree,
         ray: Ray,
         entity: u32,
         depth: u32,
@@ -227,7 +228,7 @@ pub const Tree = struct {
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
-            const n = data.normal(hit.index);
+            const n = data.normal(data.indexTriangle(hit.index));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));
@@ -247,7 +248,7 @@ pub const Tree = struct {
     }
 
     pub fn scatter(
-        self: Tree,
+        self: *const Tree,
         ray: Ray,
         throughput: Vec4f,
         entity: u32,
@@ -266,7 +267,7 @@ pub const Tree = struct {
 
         while (true) {
             const hit = self.intersect(tray) orelse break;
-            const n = data.normal(hit.index);
+            const n = data.normal(data.indexTriangle(hit.index));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));

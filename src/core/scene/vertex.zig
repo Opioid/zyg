@@ -178,8 +178,8 @@ pub const Pool = struct {
 
     alpha: f32 = undefined,
 
-    pub fn start(self: *Pool, vertex: Vertex) void {
-        self.buffer[0] = vertex;
+    pub fn start(self: *Pool, vertex: *const Vertex) void {
+        self.buffer[0] = vertex.*;
         self.current_id = Num_vertices;
         self.current_start = Num_vertices;
         self.current_end = Num_vertices;

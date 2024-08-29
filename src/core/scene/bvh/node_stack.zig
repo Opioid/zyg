@@ -1,22 +1,19 @@
-const Num_elements = 127;
-
 pub const NodeStack = struct {
+    const Num_elements = 127;
+
     end: u32 = 0,
     stack: [Num_elements]u32 = undefined,
 
     pub const End: u32 = 0xFFFFFFFF;
-
-    pub fn empty(self: NodeStack) bool {
-        return 0 == self.end;
-    }
 
     pub fn clear(self: *NodeStack) void {
         self.end = 0;
     }
 
     pub fn push(self: *NodeStack, value: u32) void {
-        self.stack[self.end] = value;
-        self.end += 1;
+        const end = self.end;
+        self.stack[end] = value;
+        self.end = end + 1;
     }
 
     pub fn pop(self: *NodeStack) u32 {

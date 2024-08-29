@@ -2,7 +2,7 @@ const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
 const Vec2f = math.Vec2f;
-const Vec4s = math.Vec4s;
+const Vec4us = math.Vec4us;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
@@ -80,7 +80,7 @@ pub fn TileStackN(comptime Area: u32) type {
         current: u32,
         end: u32,
 
-        buffer: [Area]Vec4s,
+        buffer: [Area]Vec4us,
 
         const Self = @This();
 
