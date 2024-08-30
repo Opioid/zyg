@@ -19,13 +19,17 @@ pub const TileQueue = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32) void {
-        const mc = @mod(Vec4i{ crop[0], crop[1], -crop[2], -crop[3] }, @as(Vec4i, @splat(4)));
+        // Pad the crop so that we render full size tiles
+        // This is to have the same noise estimate per tile for arbitrary crops,
+        // at the cost of potentially rendering pixels that won't be in the final image
+        const mc = @mod(Vec4i{ crop[0], crop[1], -crop[2], -crop[3] }, @as(Vec4i, @splat(tile_dimensions)));
 
-        var padded_crop: Vec4i = undefined;
-        padded_crop[0] = @max(crop[0] - mc[0], 0);
-        padded_crop[1] = @max(crop[1] - mc[1], 0);
-        padded_crop[2] = @min(crop[2] + mc[2], dimensions[0]);
-        padded_crop[3] = @min(crop[3] + mc[3], dimensions[1]);
+        const padded_crop = Vec4i{
+            @max(crop[0] - mc[0], 0),
+            @max(crop[1] - mc[1], 0),
+            @min(crop[2] + mc[2], dimensions[0]),
+            @min(crop[3] + mc[3], dimensions[1]),
+        };
 
         self.crop = padded_crop;
         self.tile_dimensions = tile_dimensions;
@@ -33,10 +37,10 @@ pub const TileQueue = struct {
         const xy = Vec2i{ padded_crop[0], padded_crop[1] };
         const zw = Vec2i{ padded_crop[2], padded_crop[3] };
         const dim: Vec2f = @floatFromInt(zw - xy);
-        const tdf = @as(f32, @floatFromInt(tile_dimensions));
+        const tdf: f32 = @floatFromInt(tile_dimensions);
 
-        const tiles_per_row = @as(i32, @intFromFloat(@ceil(dim[0] / tdf)));
-        const tiles_per_col = @as(i32, @intFromFloat(@ceil(dim[1] / tdf)));
+        const tiles_per_row: i32 = @intFromFloat(@ceil(dim[0] / tdf));
+        const tiles_per_col: i32 = @intFromFloat(@ceil(dim[1] / tdf));
 
         self.tiles_per_row = tiles_per_row;
         self.num_tiles = tiles_per_row * tiles_per_col;
