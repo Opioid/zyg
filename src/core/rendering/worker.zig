@@ -324,17 +324,16 @@ pub const Worker = struct {
             const ray_max_t = probe.ray.maxT();
             const prop = isec.prop;
 
-            var sss_isec: Intersection = undefined;
-            const hit = self.scene.prop(prop).intersectSSS(prop, probe, &sss_isec, self.scene);
+            const hit = self.scene.prop(prop).intersectSSS(probe, isec.trafo, self.scene);
 
-            if (hit) {
+            if (hit) |sss_isec| {
                 const sss_min_t = probe.ray.minT();
                 const sss_max_t = probe.ray.maxT();
                 probe.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
                 if (self.scene.visibility(probe, sampler, self)) |tv| {
                     probe.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const cc = interfaces.topCC();
-                    const tray = if (material.heterogeneousVolume()) sss_isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
+                    const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
                     if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth, sampler, self)) |tr| {
                         const wi = probe.ray.direction;
                         const n = sss_isec.n;
