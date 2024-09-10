@@ -447,14 +447,14 @@ pub const Mesh = struct {
 
             const itri = data.indexTriangle(hit.index);
 
+            isec.part = itri.part;
+            isec.primitive = hit.index;
+
             const p = data.interpolateP(itri, hit.u, hit.v);
             isec.p = trafo.objectToWorldPoint(p);
 
             const geo_n = data.normal(itri);
             isec.geo_n = trafo.objectToWorldNormal(geo_n);
-
-            isec.part = itri.part;
-            isec.primitive = hit.index;
 
             if (.All == ipo) {
                 var t: Vec4f = undefined;
@@ -472,8 +472,7 @@ pub const Mesh = struct {
                 isec.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
             } else {
                 const n = data.interpolateShadingNormal(itri, hit.u, hit.v);
-                const n_w = trafo.objectToWorldNormal(n);
-                isec.n = n_w;
+                isec.n = trafo.objectToWorldNormal(n);
                 isec.uvw = @splat(0.0);
             }
 

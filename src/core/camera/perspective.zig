@@ -291,8 +291,8 @@ pub const Perspective = struct {
 
     fn setFocus(self: *Self, focus: Focus) void {
         self.focus = focus;
-        self.focus.point[0] *= @as(f32, @floatFromInt(self.resolution[0]));
-        self.focus.point[1] *= @as(f32, @floatFromInt(self.resolution[1]));
+        self.focus.point[0] *= @floatFromInt(self.resolution[0]);
+        self.focus.point[1] *= @floatFromInt(self.resolution[1]);
         self.focus_distance = focus.distance;
     }
 
@@ -308,9 +308,9 @@ pub const Perspective = struct {
                 Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
                 time,
             );
-            var isec: Intersection = undefined;
 
-            if (scene.intersect(&probe, &isec, .Normal)) {
+            var isec: Intersection = undefined;
+            if (scene.intersect(&probe, &isec, .PositionAndNormal)) {
                 self.focus_distance = probe.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

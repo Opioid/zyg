@@ -120,6 +120,6 @@ pub const Intersection = struct {
 };
 
 pub const Interpolation = enum {
-    Normal,
+    PositionAndNormal,
     All,
 };
