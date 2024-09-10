@@ -95,7 +95,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.state.treat_as_singular = true;
 
                         if (vertex.state.primary_ray) {
-                            vertex.state.started_specular = true;
+                            next_vertex.state.started_specular = true;
                         }
                     } else if (!class.straight) {
                         next_vertex.state.treat_as_singular = false;
