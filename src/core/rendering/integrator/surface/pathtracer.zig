@@ -60,6 +60,7 @@ pub const Pathtracer = struct {
             var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
             if (0 == sample_results.len) {
+                vertex.throughput = @splat(0.0);
                 break;
             }
 
