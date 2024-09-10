@@ -5,6 +5,7 @@ const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
 const Interpolation = int.Interpolation;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
@@ -140,25 +141,24 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn intersectSSS(self: Prop, entity: u32, probe: *Probe, isec: *Intersection, scene: *const Scene) bool {
+    pub const SSSResult = struct {
+        geo_n: Vec4f,
+        n: Vec4f,
+    };
+
+    pub fn intersectSSS(self: Prop, probe: *Probe, trafo: Trafo, scene: *const Scene) ?SSSResult {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
-            return false;
+            return null;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
-            return false;
+        var isec: Intersection = undefined;
+        if (scene.shape(self.shape).intersect(&probe.ray, trafo, .Normal, &isec)) {
+            return SSSResult{ .geo_n = isec.geo_n, .n = isec.n };
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
-
-        if (scene.shape(self.shape).intersect(&probe.ray, trafo, .Normal, isec)) {
-            isec.trafo = trafo;
-            return true;
-        }
-
-        return false;
+        return null;
     }
 
     pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {
