@@ -83,6 +83,10 @@ pub const PathtracerMIS = struct {
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
 
+                if (0 == path_count) {
+                    vertex.throughput = @splat(0.0);
+                }
+
                 for (sample_results) |sample_result| {
                     var next_vertex = vertices.new();
 
