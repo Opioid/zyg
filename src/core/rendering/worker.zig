@@ -216,7 +216,7 @@ pub const Worker = struct {
             self.aov.insert3(.Albedo, vertex.throughput * mat_sample.aovAlbedo());
         }
 
-        if (vertex.probe.depth > 0) {
+        if (vertex.probe.depth.surface > 0) {
             return;
         }
 
@@ -263,7 +263,7 @@ pub const Worker = struct {
                     probe.ray.setMinMaxT(sss_min_t, sss_max_t);
                     const cc = interfaces.topCC();
                     const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth, sampler, self)) |tr| {
+                    if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth.volume, sampler, self)) |tr| {
                         const wi = probe.ray.direction;
                         const n = sss_isec.n;
                         const vbh = material.border(wi, n);
@@ -302,7 +302,7 @@ pub const Worker = struct {
 
                         vertex.probe.ray.origin = isec.offsetP(vertex.probe.ray.direction);
                         vertex.probe.ray.setMaxT(ro.Ray_max_t);
-                        vertex.probe.depth += 1;
+                        vertex.probe.depth.surface += 1;
 
                         sampler.incrementPadding();
 

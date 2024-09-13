@@ -29,14 +29,14 @@ pub const Prop = struct {
 
     properties: Properties = .{},
 
-    fn visible(self: Prop, ray_depth: u32) bool {
+    fn visible(self: Prop, depth: u32) bool {
         const properties = self.properties;
 
         if (properties.volume) {
             return false;
         }
 
-        if (0 == ray_depth) {
+        if (0 == depth) {
             return properties.visible_in_camera;
         }
 
@@ -121,7 +121,7 @@ pub const Prop = struct {
         scene: *const Scene,
         ipo: Interpolation,
     ) bool {
-        if (!self.visible(probe.depth)) {
+        if (!self.visible(probe.depth.surface)) {
             return false;
         }
 
@@ -202,7 +202,7 @@ pub const Prop = struct {
         const shape = scene.shape(self.shape);
 
         if (properties.volume) {
-            return shape.transmittance(probe.ray, probe.depth, trafo, entity, sampler, worker);
+            return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker);
         } else {
             return shape.visibility(probe.ray, trafo, entity, sampler, scene);
         }
@@ -225,6 +225,6 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).scatter(probe.ray, probe.depth, trafo, throughput, entity, sampler, worker);
+        return scene.shape(self.shape).scatter(probe.ray, probe.depth.volume, trafo, throughput, entity, sampler, worker);
     }
 };

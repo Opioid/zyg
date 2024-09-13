@@ -15,16 +15,33 @@ const Ray = math.Ray;
 
 pub const Vertex = struct {
     pub const Probe = struct {
+        pub const Depth = struct {
+            surface: u16,
+            volume: u16,
+
+            pub fn total(self: Depth) u32 {
+                return self.surface + self.volume;
+            }
+
+            pub fn increment(self: *Depth, isec: *const Intersection) void {
+                if (isec.subsurface()) {
+                    self.volume += 1;
+                } else {
+                    self.surface += 1;
+                }
+            }
+        };
+
         ray: Ray,
 
-        depth: u32,
+        depth: Depth,
         wavelength: f32,
         time: u64,
 
         pub fn init(ray: Ray, time: u64) Probe {
             return .{
                 .ray = ray,
-                .depth = 0,
+                .depth = .{ .surface = 0, .volume = 0 },
                 .wavelength = 0.0,
                 .time = time,
             };
@@ -68,12 +85,7 @@ pub const Vertex = struct {
 
     pub fn init(ray: Ray, time: u64, interfaces: *const InterfaceStack) Vertex {
         return .{
-            .probe = .{
-                .ray = ray,
-                .depth = 0,
-                .wavelength = 0.0,
-                .time = time,
-            },
+            .probe = Probe.init(ray, time),
             .state = .{},
             .bxdf_pdf = 0.0,
             .split_weight = 1.0,
@@ -155,7 +167,7 @@ pub const Vertex = struct {
         rs.prop = isec.prop;
         rs.part = isec.part;
         rs.primitive = isec.primitive;
-        rs.depth = self.probe.depth;
+        rs.volume_depth = self.probe.depth.volume;
         rs.subsurface = isec.subsurface();
         rs.primary = self.state.primary_ray;
         rs.caustics = caustics;
@@ -167,16 +179,16 @@ pub const Vertex = struct {
 pub const Pool = struct {
     const Num_vertices = 4;
 
-    buffer: [2 * Num_vertices]Vertex = undefined,
-    terminated: u32 = undefined,
+    buffer: [2 * Num_vertices]Vertex,
+    terminated: u32,
 
-    current_id: u32 = undefined,
-    current_start: u32 = undefined,
-    current_end: u32 = undefined,
-    next_start: u32 = undefined,
-    next_end: u32 = undefined,
+    current_id: u32,
+    current_start: u32,
+    current_end: u32,
+    next_start: u32,
+    next_end: u32,
 
-    alpha: f32 = undefined,
+    alpha: f32,
 
     pub fn start(self: *Pool, vertex: *const Vertex) void {
         self.buffer[0] = vertex.*;

@@ -16,8 +16,7 @@ const std = @import("std");
 
 pub const Pathtracer = struct {
     pub const Settings = struct {
-        min_bounces: u32,
-        max_bounces: u32,
+        depth: hlp.Depth,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
     };
@@ -27,11 +26,15 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+        const depth = self.settings.depth;
+
         var vertex = input.*;
         var result: Vec4f = @splat(0.0);
 
         while (true) {
-            var sampler = worker.pickSampler(vertex.probe.depth);
+            const total_depth = vertex.probe.depth.total();
+
+            var sampler = worker.pickSampler(total_depth);
 
             var isec: Intersection = undefined;
             if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
@@ -41,11 +44,11 @@ pub const Pathtracer = struct {
             const energy = self.connectLight(&vertex, &isec, sampler, worker.scene);
             result += vertex.throughput * energy;
 
-            if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+            if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == isec.event) {
                 break;
             }
 
-            if (vertex.probe.depth >= self.settings.min_bounces) {
+            if (total_depth >= depth.min) {
                 const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
                 vertex.throughput /= @splat(rr);
             }
@@ -78,7 +81,7 @@ pub const Pathtracer = struct {
 
             vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-            vertex.probe.depth += 1;
+            vertex.probe.depth.increment(&isec);
 
             if (!sample_result.class.straight) {
                 vertex.state.from_subsurface = isec.subsurface();

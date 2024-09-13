@@ -31,7 +31,7 @@ pub const Renderstate = struct {
     prop: u32,
     part: u32,
     primitive: u32,
-    depth: u32,
+    volume_depth: u32,
 
     subsurface: bool,
     primary: bool,

@@ -4,6 +4,7 @@ const Sensor = snsr.Sensor;
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").Lighttracer;
 const hlp = @import("../rendering/integrator/helper.zig");
+const Depth = hlp.Depth;
 const LightSampling = hlp.LightSampling;
 const CausticsPath = hlp.CausticsPath;
 const CausticsResolve = @import("../scene/renderstate.zig").CausticsResolve;
@@ -52,8 +53,7 @@ pub const View = struct {
     } },
 
     lighttracer: Lighttracer = .{ .settings = .{
-        .min_bounces = 0,
-        .max_bounces = 0,
+        .depth = .{ .min = 0, .max_surface = 0, .max_volume =  0},
         .full_light_path = false,
     } },
 
@@ -75,8 +75,7 @@ pub const View = struct {
 
     pub const AovValue = aov.Value;
 
-    const Default_min_bounces = 4;
-    const Default_max_bounces = 16;
+    const Default_depth = Depth { .min = 4, .max_surface = 16, .max_volume =  64 };
 
     pub fn deinit(self: *View, alloc: Allocator) void {
         self.sensor.deinit(alloc);
@@ -140,6 +139,8 @@ pub const View = struct {
     }
 
     fn loadSurfaceIntegrator(self: *View, value: std.json.Value, lighttracer: bool) void {
+        var depth = Default_depth;
+
         var light_sampling = LightSampling.Adaptive;
 
         const Default_caustics_resolve = CausticsResolve.Full;
@@ -167,7 +168,7 @@ pub const View = struct {
                 }
 
                 const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
-                const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
+                const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_depth.max_surface);
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
 
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
@@ -182,39 +183,33 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
-                const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
-                const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
                 self.surface_integrator = .{ .PT = .{
                     .settings = .{
-                        .min_bounces = min_bounces,
-                        .max_bounces = max_bounces,
+                        .depth = depth,
                         .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
-                const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
-                const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
+                loadDepth(entry.value_ptr.*, &depth);
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
                 self.surface_integrator = .{ .PTDL = .{
                     .settings = .{
-                        .min_bounces = min_bounces,
-                        .max_bounces = max_bounces,
+                        .depth = depth,
                         .light_sampling = light_sampling,
                         .caustics_path = .Off != caustics_resolve,
                         .caustics_resolve = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
-                const min_bounces = json.readUIntMember(entry.value_ptr.*, "min_bounces", Default_min_bounces);
-                const max_bounces = json.readUIntMember(entry.value_ptr.*, "max_bounces", Default_max_bounces);
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
 
+                loadDepth(entry.value_ptr.*, &depth);
                 loadLightSampling(entry.value_ptr.*, &light_sampling);
 
                 var caustics_path = false;
@@ -224,8 +219,7 @@ pub const View = struct {
 
                 self.surface_integrator = .{ .PTMIS = .{
                     .settings = .{
-                        .min_bounces = min_bounces,
-                        .max_bounces = max_bounces,
+                        .depth = depth,
                         .light_sampling = light_sampling,
                         .caustics_path = caustics_path,
                         .caustics_resolve = caustics_resolve,
@@ -247,14 +241,15 @@ pub const View = struct {
     }
 
     fn loadParticleIntegrator(self: *View, value: std.json.Value, surface_integrator: bool) void {
-        const min_bounces = json.readUIntMember(value, "min_bounces", Default_min_bounces);
-        const max_bounces = json.readUIntMember(value, "max_bounces", Default_max_bounces);
+        var depth = Default_depth;
+
+        loadDepth(value, &depth);
+
         const full_light_path = json.readBoolMember(value, "full_light_path", true);
         self.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
         self.lighttracer = .{ .settings = .{
-            .min_bounces = min_bounces,
-            .max_bounces = max_bounces,
+            .depth = depth,
             .full_light_path = full_light_path and !surface_integrator,
         } };
     }
@@ -268,6 +263,21 @@ pub const View = struct {
             .merge_radius = json.readFloatMember(value, "merge_radius", 0.001),
             .full_light_path = json.readBoolMember(value, "full_light_path", false) and !lighttracer,
         };
+    }
+
+    fn loadDepth(value: std.json.Value, depth: *Depth) void {
+        const depth_node = value.object.get("depth") orelse return;
+
+        var iter = depth_node.object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "min", entry.key_ptr.*)) {
+                depth.min = @truncate(json.readUInt(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "max_surface", entry.key_ptr.*)) {
+                depth.max_surface = @truncate(json.readUInt(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "max_volume", entry.key_ptr.*)) {
+                depth.max_volume = @truncate(json.readUInt(entry.value_ptr.*));
+            }
+        }   
     }
 
     fn loadLightSampling(value: std.json.Value, sampling: *LightSampling) void {

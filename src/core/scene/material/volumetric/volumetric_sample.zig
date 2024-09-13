@@ -35,37 +35,45 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(phase), phase);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler) bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
         const g = self.anisotropy;
 
-        const r2 = sampler.sample2D();
+        const num_samples: u32 = if (split) @truncate(buffer.len) else 1;
+        const split_weight = 1.0 / @as(f32, @floatFromInt(num_samples));
 
-        var cos_theta: f32 = undefined;
-        if (@abs(g) < 0.001) {
-            cos_theta = 1.0 - 2.0 * r2[0];
-        } else {
-            const gg = g * g;
-            const sqr = (1.0 - gg) / (1.0 - g + 2.0 * g * r2[0]);
-            cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
+        const frame = Frame.init(-self.super.wo);
+
+        for (0..num_samples) |i| {
+            const r2 = sampler.sample2D();
+
+            var cos_theta: f32 = undefined;
+            if (@abs(g) < 0.001) {
+                cos_theta = 1.0 - 2.0 * r2[0];
+            } else {
+                const gg = g * g;
+                const sqr = (1.0 - gg) / (1.0 - g + 2.0 * g * r2[0]);
+                cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
+            }
+
+            const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
+            const phi = r2[1] * (2.0 * std.math.pi);
+
+            const wil = math.smpl.sphereDirection(sin_theta, cos_theta, phi);
+            const wi = frame.frameToWorld(wil);
+
+            const phase = phaseHg(-cos_theta, g);
+
+            buffer[i] = .{
+                .reflection = @splat(phase),
+                .wi = wi,
+                .pdf = phase,
+                .split_weight = split_weight,
+                .wavelength = 0.0,
+                .class = .{ .diffuse = true, .reflection = true },
+            };
         }
 
-        const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
-        const phi = r2[1] * (2.0 * std.math.pi);
-
-        const wil = math.smpl.sphereDirection(sin_theta, cos_theta, phi);
-        const frame = Frame.init(-self.super.wo);
-        const wi = frame.frameToWorld(wil);
-
-        const phase = phaseHg(-cos_theta, g);
-
-        return .{
-            .reflection = @splat(phase),
-            .wi = wi,
-            .pdf = phase,
-            .split_weight = 1.0,
-            .wavelength = 0.0,
-            .class = .{ .diffuse = true, .reflection = true },
-        };
+        return buffer[0..num_samples];
     }
 
     fn phaseHg(cos_theta: f32, g: f32) f32 {

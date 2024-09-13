@@ -180,7 +180,7 @@ pub const Multi = struct {
             material,
             vertex.interfaces.topCC(),
             interface.prop,
-            vertex.probe.depth,
+            vertex.probe.depth.volume,
             sampler,
             worker,
         );

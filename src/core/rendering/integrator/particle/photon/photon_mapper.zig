@@ -111,7 +111,7 @@ pub const Mapper = struct {
                 vertex.interfaces.pushVolumeLight(light);
             }
 
-            while (vertex.probe.depth <= self.settings.max_bounces) {
+            while (vertex.probe.depth.surface <= self.settings.max_bounces) {
                 var sampler = &self.sampler;
 
                 var isec: Intersection = undefined;
@@ -123,7 +123,7 @@ pub const Mapper = struct {
                     break;
                 }
 
-                if (0 == vertex.probe.depth) {
+                if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
                     const energy = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / pdf;
                     vertex.throughput *= energy;
@@ -188,7 +188,7 @@ pub const Mapper = struct {
 
                 vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
                 vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                vertex.probe.depth += 1;
+                vertex.probe.depth.increment(&isec);
 
                 if (!sample_result.class.straight) {
                     vertex.state.from_subsurface = isec.subsurface();
