@@ -1,7 +1,7 @@
 const vt = @import("../../../scene/vertex.zig");
 const Vertex = vt.Vertex;
 const VertexPool = vt.Pool;
-const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
@@ -28,8 +28,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
     pub const Settings = struct {
-        min_bounces: u32,
-        max_bounces: u32,
+        depth: hlp.Depth,
         full_light_path: bool,
     };
 
@@ -67,16 +66,20 @@ pub const Lighttracer = struct {
         const camera = worker.camera;
         const sensor = worker.sensor;
 
-        var vertices: VertexPool = .{};
+        const depth = self.settings.depth;
+
+        var vertices: VertexPool = undefined;
         vertices.start(input);
 
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
-                if (vertex.probe.depth >= self.settings.max_bounces) {
+                const total_depth = vertex.probe.depth.total();
+
+                if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume) {
                     continue;
                 }
 
-                const sampler = worker.pickSampler(vertex.probe.depth);
+                const sampler = worker.pickSampler(total_depth);
 
                 var isec: Intersection = undefined;
                 if (!worker.nextEvent(true, vertex, &isec, sampler)) {
@@ -87,7 +90,7 @@ pub const Lighttracer = struct {
                     continue;
                 }
 
-                if (0 == vertex.probe.depth) {
+                if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
                     const energy = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / pdf;
                     vertex.throughput *= energy;
@@ -101,7 +104,7 @@ pub const Lighttracer = struct {
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     _ = directCamera(camera, sensor, vertex, &isec, &mat_sample, split, sampler, worker);
 
-                    if (vertex.probe.depth >= self.settings.min_bounces) {
+                    if (total_depth >= depth.min) {
                         const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
                         vertex.throughput /= @splat(rr);
                     }
@@ -140,7 +143,7 @@ pub const Lighttracer = struct {
 
                     next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
                     next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    next_vertex.probe.depth += 1;
+                    next_vertex.probe.depth.increment(&isec);
 
                     if (!class.straight) {
                         next_vertex.state.from_subsurface = isec.subsurface();

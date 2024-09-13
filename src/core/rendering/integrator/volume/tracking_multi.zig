@@ -136,7 +136,7 @@ pub const Multi = struct {
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(interface.prop, &vertex.probe, isec, .Normal)) {
+            if (!worker.propIntersect(interface.prop, &vertex.probe, isec, .PositionAndNormal)) {
                 return false;
             }
         } else {
@@ -156,7 +156,7 @@ pub const Multi = struct {
 
                 var tprobe = vertex.probe.clone(Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t));
                 var tisec: Intersection = undefined;
-                if (worker.propIntersect(interface.prop, &tprobe, &tisec, .Normal)) {
+                if (worker.propIntersect(interface.prop, &tprobe, &tisec, .PositionAndNormal)) {
                     missed = math.dot3(tisec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
@@ -180,7 +180,7 @@ pub const Multi = struct {
             material,
             vertex.interfaces.topCC(),
             interface.prop,
-            vertex.probe.depth,
+            vertex.probe.depth.volume,
             sampler,
             worker,
         );

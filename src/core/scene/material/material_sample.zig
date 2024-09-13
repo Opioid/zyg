@@ -54,7 +54,7 @@ pub const Sample = union(enum) {
             .Light => {
                 return buffer[0..0];
             },
-            inline .Glass, .Substitute => |*s| {
+            inline .Glass, .Substitute, .Volumetric => |*s| {
                 return s.sample(sampler, split, buffer);
             },
             inline else => |*s| {

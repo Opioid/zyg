@@ -4,7 +4,7 @@ const VertexPool = vt.Pool;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
-const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
 const ro = @import("../../../scene/ray_offset.zig");
@@ -20,9 +20,7 @@ const std = @import("std");
 
 pub const PathtracerMIS = struct {
     pub const Settings = struct {
-        min_bounces: u32,
-        max_bounces: u32,
-
+        depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
@@ -34,16 +32,18 @@ pub const PathtracerMIS = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
-        const max_bounces = self.settings.max_bounces;
+        const depth = self.settings.depth;
 
         var result: Vec4f = @splat(0.0);
 
-        var vertices: VertexPool = .{};
+        var vertices: VertexPool = undefined;
         vertices.start(input);
 
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
-                var sampler = worker.pickSampler(vertex.probe.depth);
+                const total_depth = vertex.probe.depth.total();
+
+                var sampler = worker.pickSampler(total_depth);
 
                 var isec: Intersection = undefined;
                 if (!worker.nextEvent(false, vertex, &isec, sampler)) {
@@ -54,11 +54,11 @@ pub const PathtracerMIS = struct {
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 result += vertex.throughput * split_weight * energy;
 
-                if (vertex.probe.depth >= max_bounces or .Absorb == isec.event) {
+                if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == isec.event) {
                     continue;
                 }
 
-                if (vertex.probe.depth >= self.settings.min_bounces) {
+                if (total_depth >= depth.min) {
                     const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
                     vertex.throughput /= @splat(rr);
                 }
@@ -75,7 +75,7 @@ pub const PathtracerMIS = struct {
                     worker.addPhoton(vertex.throughput * split_weight * worker.photonLi(&isec, &mat_sample, sampler));
                 }
 
-                const split = vertex.path_count <= 2 and vertex.state.primary_ray;
+                const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 2);
 
                 result += vertex.throughput * split_weight * self.sampleLights(vertex, &isec, &mat_sample, split, sampler, worker);
 
@@ -111,7 +111,7 @@ pub const PathtracerMIS = struct {
 
                     next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
                     next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    next_vertex.probe.depth += 1;
+                    next_vertex.probe.depth.increment(&isec);
 
                     if (!class.straight) {
                         next_vertex.state.from_subsurface = isec.subsurface();
@@ -155,7 +155,7 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split = self.splitting(vertex.probe.depth);
+        const split = self.splitting(vertex.probe.depth, 0);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split, &lights_buffer);
@@ -225,7 +225,7 @@ pub const PathtracerMIS = struct {
         }
 
         const translucent = vertex.state.is_translucent;
-        const split = self.splitting(vertex.probe.depth - 1);
+        const split = self.splitting(vertex.probe.depth, 1);
 
         const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split);
         const light = scene.light(light_pick.offset);
@@ -236,8 +236,10 @@ pub const PathtracerMIS = struct {
         return weight * energy;
     }
 
-    fn splitting(self: *const Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and bounce < 3;
+    fn splitting(self: *const Self, depth: Vertex.Probe.Depth, offset: u32) bool {
+        const weighted_depth = depth.surface + (depth.volume / 4) - offset;
+
+        return .Adaptive == self.settings.light_sampling and weighted_depth < 3;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {

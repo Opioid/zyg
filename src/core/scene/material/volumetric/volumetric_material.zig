@@ -165,7 +165,7 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
-        const gs = self.super.vanDeHulstAnisotropy(rs.depth);
+        const gs = self.super.vanDeHulstAnisotropy(rs.volume_depth);
         return Sample.init(wo, rs, gs);
     }
 

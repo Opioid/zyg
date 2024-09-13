@@ -4,7 +4,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
-const MaterialSample = @import("../../../scene/material/sample.zig").Sample;
+const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
@@ -18,9 +18,7 @@ const std = @import("std");
 
 pub const PathtracerDL = struct {
     pub const Settings = struct {
-        min_bounces: u32,
-        max_bounces: u32,
-
+        depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
@@ -31,11 +29,15 @@ pub const PathtracerDL = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+        const depth = self.settings.depth;
+
         var vertex = input.*;
         var result: Vec4f = @splat(0.0);
 
         while (true) {
-            var sampler = worker.pickSampler(vertex.probe.depth);
+            const total_depth = vertex.probe.depth.total();
+
+            var sampler = worker.pickSampler(total_depth);
 
             var isec: Intersection = undefined;
             if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
@@ -47,11 +49,11 @@ pub const PathtracerDL = struct {
                 result += vertex.throughput * energy;
             }
 
-            if (vertex.probe.depth >= self.settings.max_bounces or .Absorb == isec.event) {
+            if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == isec.event) {
                 break;
             }
 
-            if (vertex.probe.depth >= self.settings.min_bounces) {
+            if (total_depth >= depth.min) {
                 const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
                 vertex.throughput /= @splat(rr);
             }
@@ -86,7 +88,7 @@ pub const PathtracerDL = struct {
 
             vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-            vertex.probe.depth += 1;
+            vertex.probe.depth.increment(&isec);
 
             if (!sample_result.class.straight) {
                 vertex.state.from_subsurface = isec.subsurface();
@@ -177,8 +179,10 @@ pub const PathtracerDL = struct {
         return isec.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }
 
-    fn splitting(self: *const Self, bounce: u32) bool {
-        return .Adaptive == self.settings.light_sampling and bounce < 3;
+    fn splitting(self: *const Self, depth: Vertex.Probe.Depth) bool {
+        const weighted_depth = depth.surface + (depth.volume / 4);
+
+        return .Adaptive == self.settings.light_sampling and weighted_depth < 3;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {

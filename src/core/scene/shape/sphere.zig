@@ -227,6 +227,10 @@ pub const Sphere = struct {
         const l = math.length3(v);
         const r = trafo.scaleX();
 
+        if (l <= (r + 0.0000001)) {
+            return null;
+        }
+
         const sin_theta_max = r / l;
         const sin2_theta_max = sin_theta_max * sin_theta_max;
         const cos_theta_max = @sqrt(1.0 - sin2_theta_max);

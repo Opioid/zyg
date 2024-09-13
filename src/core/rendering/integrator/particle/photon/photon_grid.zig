@@ -1,7 +1,7 @@
 const Photon = @import("photon.zig").Photon;
 const Scene = @import("../../../../scene/scene.zig").Scene;
 const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
-const MaterialSample = @import("../../../../scene/material/sample.zig").Sample;
+const MaterialSample = @import("../../../../scene/material/material_sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");

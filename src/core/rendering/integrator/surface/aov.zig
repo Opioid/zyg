@@ -167,7 +167,9 @@ pub const AOV = struct {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {
-            var sampler = worker.pickSampler(vertex.probe.depth);
+            const total_depth = vertex.probe.depth.total();
+
+            var sampler = worker.pickSampler(total_depth);
 
             const mat_sample = vertex.sample(isec, sampler, .Off, worker);
 
@@ -200,9 +202,9 @@ pub const AOV = struct {
 
             vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-            vertex.probe.depth += 1;
+            vertex.probe.depth.increment(isec);
 
-            if (vertex.probe.depth >= self.settings.max_bounces or !vertex.state.forward) {
+            if (vertex.probe.depth.surface >= self.settings.max_bounces or !vertex.state.forward) {
                 break;
             }
 
