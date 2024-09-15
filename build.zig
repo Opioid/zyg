@@ -115,6 +115,7 @@ pub fn build(b: *std.Build) void {
             //"takes/material_test.take",
             //"takes/whirligig.take",
             "takes/candle.take",
+            //"takes/sss.take",
             //"takes/disney_cloud.take",
             //"takes/sky.take",
             //"takes/rene.take",

@@ -130,8 +130,11 @@ pub const Worker = struct {
 
         var rng = &self.rng;
 
-        var old_ms: [Tile_area]Vec4f = undefined;
-        @memset(&old_ms, @as(Vec4f, @splat(0.0)));
+        var old_mm: [Tile_area]Vec4f = undefined;
+        var old_ss: [Tile_area]Vec4f = undefined;
+
+        @memset(&old_mm, @as(Vec4f, @splat(0.0)));
+        @memset(&old_ss, @as(Vec4f, @splat(0.0)));
 
         var tile_stacks: [2]TileStack = undefined;
 
@@ -177,8 +180,8 @@ pub const Worker = struct {
 
                         const pixel = Vec2i{ x, y };
 
-                        var old_m = old_ms[ii];
-                        var old_s = old_m[3];
+                        var old_m = old_mm[ii];
+                        var old_s = old_ss[ii];
 
                         for (ss..s_end) |_| {
                             self.aov.clear();
@@ -199,15 +202,16 @@ pub const Worker = struct {
                             const value = ef * clamped.last;
                             const new_m = ef * clamped.mean;
 
-                            old_s += math.hmax3((value - old_m) * (value - new_m));
+                            old_s += (value - old_m) * (value - new_m);
                             old_m = new_m;
 
                             self.samplers[0].incrementSample();
                         }
 
-                        old_ms[ii] = .{ old_m[0], old_m[1], old_m[2], old_s };
+                        old_mm[ii] = old_m;
+                        old_ss[ii] = old_s;
 
-                        const variance = old_s / @as(f32, @floatFromInt(s_end));
+                        const variance = math.hmax3(old_s) / @as(f32, @floatFromInt(s_end));
                         const mean = math.max(math.average3(old_m), 0.01);
 
                         const qm = @sqrt(variance) / mean;
