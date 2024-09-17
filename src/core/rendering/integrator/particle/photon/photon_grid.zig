@@ -733,6 +733,6 @@ const Buffer = struct {
     }
 
     fn compareEntry(context: Entry, item: Entry) std.math.Order {
-        return std.math.order(item.d2, context.d2);
+        return std.math.order(context.d2, item.d2);
     }
 };
