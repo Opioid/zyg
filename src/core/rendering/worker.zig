@@ -222,6 +222,8 @@ pub const Worker = struct {
                     yy += 1;
                 }
 
+                var terminates = true;
+
                 if (tile_qm > qm_threshold or (tile_qm > 0.0 and s_end < 64)) {
                     if (s_end == 128) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 2 - 1);
@@ -234,6 +236,12 @@ pub const Worker = struct {
                     } else {
                         stack_b.push(tile);
                     }
+
+                    terminates = s_end == num_samples;
+                }
+
+                if (terminates) {
+                    sensor.writeTileQuality(tile, tile_qm);
                 }
             }
 

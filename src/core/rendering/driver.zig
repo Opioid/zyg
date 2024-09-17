@@ -128,7 +128,7 @@ pub const Driver = struct {
 
         const view = self.view;
 
-        try view.sensor.resize(alloc, dim, view.aovs);
+        try view.sensor.resize(alloc, dim, view.aovs, view.aov_quality);
 
         self.tiles.configure(camera.resolution, camera.crop, Worker.Tile_dimensions);
 
@@ -262,6 +262,25 @@ pub const Driver = struct {
             try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
 
             log.info("Sample count [{}, {}]", .{ @as(u32, @intFromFloat(@ceil(min))), @as(u32, @intFromFloat(@ceil(max))) });
+        }
+
+        if (self.view.aov_quality) {
+            const d = camera.resolution;
+
+            var min: f32 = std.math.floatMax(f32);
+            var max: f32 = 0.0;
+
+            for (self.view.sensor.aov_quality_buffer) |w| {
+                if (w > 0.0) {
+                    min = math.min(min, w);
+                }
+                max = math.max(max, w);
+            }
+
+            var buf: [22]u8 = undefined;
+            const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}_qm.png", .{ camera_id, frame });
+
+            try PngWriter.writeHeatmap(alloc, d[0], d[1], self.view.sensor.aov_quality_buffer, min, max, filename);
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});

@@ -63,6 +63,8 @@ pub const Sensor = struct {
 
     aov: AovBuffer = .{},
 
+    aov_quality_buffer: []f32 = &.{},
+
     dimensions: Vec2i = @splat(0),
 
     clamp_max: f32,
@@ -117,15 +119,20 @@ pub const Sensor = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.buffer.deinit(alloc);
         self.aov.deinit(alloc);
+        alloc.free(self.aov_quality_buffer);
     }
 
-    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory) !void {
+    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory, aov_quality: bool) !void {
         self.dimensions = dimensions;
 
         const len: usize = @intCast(dimensions[0] * dimensions[1]);
 
         try self.buffer.resize(alloc, len);
         try self.aov.resize(alloc, len, factory);
+
+        if (aov_quality and len > self.aov_quality_buffer.len) {
+            self.aov_quality_buffer = try alloc.realloc(self.aov_quality_buffer, len);
+        }
     }
 
     pub fn cameraSample(self: *const Self, pixel: Vec2i, sampler: *Sampler) Sample {
@@ -266,6 +273,24 @@ pub const Sensor = struct {
             self.splat(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
             self.splat(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
             self.splat(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
+        }
+    }
+
+    pub fn writeTileQuality(self: *Sensor, tile: Vec4i, quality: f32) void {
+        if (0 == self.aov_quality_buffer.len) {
+            return;
+        }
+
+        const d = self.dimensions;
+
+        var y: i32 = tile[1];
+
+        while (y <= tile[3]) : (y += 1) {
+            var x: i32 = tile[0];
+            while (x <= tile[2]) : (x += 1) {
+                const id: u32 = @intCast(d[0] * y + x);
+                self.aov_quality_buffer[id] = quality;
+            }
         }
     }
 
