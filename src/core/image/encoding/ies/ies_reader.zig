@@ -213,7 +213,7 @@ const Data = struct {
     }
 
     fn compareF32(context: f32, item: f32) std.math.Order {
-        return std.math.order(item, context);
+        return std.math.order(context, item);
     }
 
     pub fn catmullRom(c: *const [4]f32, t: f32) f32 {
