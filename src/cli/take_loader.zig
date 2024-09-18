@@ -213,13 +213,8 @@ fn loadSampler(value: std.json.Value, view: *View) void {
         const num_samples = json.readUIntMember(entry.value_ptr.*, "samples_per_pixel", 1);
         const quality = json.readFloatMember(entry.value_ptr.*, "quality", 1.0);
 
-        if (quality <= 0.0) {
-            view.num_samples_per_pixel = 1;
-            view.qm_threshold = 0.0;
-        } else {
-            view.num_samples_per_pixel = num_samples;
-            view.qm_threshold = 0.02 + @abs(1.0 - (1.0 / quality));
-        }
+        view.num_samples_per_pixel = num_samples;
+        view.qm_threshold = 1.0 - math.min(quality, 1.0);
 
         if (std.mem.eql(u8, "Random", entry.key_ptr.*)) {
             view.samplers = .{ .Random = {} };

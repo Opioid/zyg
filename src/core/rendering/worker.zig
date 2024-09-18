@@ -109,6 +109,21 @@ pub const Worker = struct {
         self.photon_map = photon_map;
     }
 
+    fn curve(value: Vec4f) Vec4f {
+        const p = Vec4f{
+            std.math.pow(f32, value[0], 1.0 / 2.2),
+            std.math.pow(f32, value[1], 1.0 / 2.2),
+            std.math.pow(f32, value[2], 1.0 / 2.2),
+            0.0,
+        };
+
+        const one: Vec4f = @splat(1.0);
+
+        const l = one + @log10(value);
+
+        return @select(f32, value < one, p, l);
+    }
+
     // Running variance calculation inspired by
     // https://www.johndcook.com/blog/standard_deviation/
 
@@ -211,10 +226,17 @@ pub const Worker = struct {
                         old_mm[ii] = old_m;
                         old_ss[ii] = old_s;
 
-                        const variance = math.hmax3(old_s) / @as(f32, @floatFromInt(s_end));
-                        const mean = math.max(math.average3(old_m), 0.01);
+                        const variance = old_s / @as(Vec4f, @splat(@as(f32, @floatFromInt(s_end))));
 
-                        const qm = @sqrt(variance) / mean;
+                        const std_dev = @sqrt(variance);
+
+                        const zero: Vec4f = @splat(0.0);
+
+                        const mapped_value = curve(math.max4(old_m, zero));
+                        const mapped_lower = curve(math.max4(old_m - std_dev, zero));
+                        const mapped_upper = curve(math.max4(old_m + std_dev, zero));
+
+                        const qm = math.max(math.hmax3(mapped_value - mapped_lower), math.hmax3(mapped_upper - mapped_value));
 
                         tile_qm = math.max(tile_qm, qm);
                     }
