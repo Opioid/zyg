@@ -72,7 +72,7 @@ pub const View = struct {
     num_particles_per_pixel: u32 = 0,
     qm_threshold: f32 = 0.0,
     aov_sample_count: bool = false,
-    aov_quality: bool = false,
+    aov_noise: bool = false,
 
     photon_settings: PhotonSettings = .{},
 
@@ -122,8 +122,8 @@ pub const View = struct {
                 self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Sample_count", entry.key_ptr.*)) {
                 self.aov_sample_count = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "Quality", entry.key_ptr.*)) {
-                self.aov_quality = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "Noise", entry.key_ptr.*)) {
+                self.aov_noise = json.readBool(entry.value_ptr.*);
             }
         }
     }

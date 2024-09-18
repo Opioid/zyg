@@ -63,7 +63,7 @@ pub const Sensor = struct {
 
     aov: AovBuffer = .{},
 
-    aov_quality_buffer: []f32 = &.{},
+    aov_noise_buffer: []f32 = &.{},
 
     dimensions: Vec2i = @splat(0),
 
@@ -119,10 +119,10 @@ pub const Sensor = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.buffer.deinit(alloc);
         self.aov.deinit(alloc);
-        alloc.free(self.aov_quality_buffer);
+        alloc.free(self.aov_noise_buffer);
     }
 
-    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory, aov_quality: bool) !void {
+    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory, aov_noise: bool) !void {
         self.dimensions = dimensions;
 
         const len: usize = @intCast(dimensions[0] * dimensions[1]);
@@ -130,8 +130,8 @@ pub const Sensor = struct {
         try self.buffer.resize(alloc, len);
         try self.aov.resize(alloc, len, factory);
 
-        if (aov_quality and len > self.aov_quality_buffer.len) {
-            self.aov_quality_buffer = try alloc.realloc(self.aov_quality_buffer, len);
+        if (aov_noise and len > self.aov_noise_buffer.len) {
+            self.aov_noise_buffer = try alloc.realloc(self.aov_noise_buffer, len);
         }
     }
 
@@ -276,8 +276,8 @@ pub const Sensor = struct {
         }
     }
 
-    pub fn writeTileQuality(self: *Sensor, tile: Vec4i, quality: f32) void {
-        if (0 == self.aov_quality_buffer.len) {
+    pub fn writeTileNoise(self: *Sensor, tile: Vec4i, noise: f32) void {
+        if (0 == self.aov_noise_buffer.len) {
             return;
         }
 
@@ -289,7 +289,7 @@ pub const Sensor = struct {
             var x: i32 = tile[0];
             while (x <= tile[2]) : (x += 1) {
                 const id: u32 = @intCast(d[0] * y + x);
-                self.aov_quality_buffer[id] = quality;
+                self.aov_noise_buffer[id] = noise;
             }
         }
     }

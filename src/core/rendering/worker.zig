@@ -241,7 +241,7 @@ pub const Worker = struct {
                 }
 
                 if (terminates) {
-                    sensor.writeTileQuality(tile, tile_qm);
+                    sensor.writeTileNoise(tile, tile_qm);
                 }
             }
 
