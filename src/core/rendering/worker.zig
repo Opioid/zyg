@@ -142,6 +142,7 @@ pub const Worker = struct {
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
+        const wp = sensor.tonemapper.white_point;
 
         var rng = &self.rng;
 
@@ -214,8 +215,8 @@ pub const Worker = struct {
 
                             const clamped = sensor.addSample(sample, color + photon, self.aov);
 
-                            const value = ef * clamped.last;
-                            const new_m = ef * clamped.mean;
+                            const value = math.clamp4(ef * clamped.last, -wp, wp);
+                            const new_m = math.clamp4(ef * clamped.mean, -wp, wp);
 
                             old_s += (value - old_m) * (value - new_m);
                             old_m = new_m;

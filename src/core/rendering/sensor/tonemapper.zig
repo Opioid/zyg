@@ -14,9 +14,10 @@ pub const Tonemapper = struct {
 
     class: Class,
     exposure_factor: f32,
+    white_point: f32,
 
     pub fn init(class: Class, exposure: f32) Tonemapper {
-        return .{ .class = class, .exposure_factor = @exp2(exposure) };
+        return .{ .class = class, .exposure_factor = @exp2(exposure), .white_point = 12.0 };
     }
 
     pub fn tonemap(self: Tonemapper, color: Vec4f) Vec4f {
