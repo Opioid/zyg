@@ -34,7 +34,7 @@ pub const Reader = struct {
     };
 
     pub fn read(alloc: Allocator, stream: ReadStream) !Result {
-        const generic = true;
+        const generic = false;
         if (generic) {
             return try genericCrap(alloc);
         }
