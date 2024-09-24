@@ -3,7 +3,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Worker = @import("../../worker.zig").Worker;
 const int = @import("../../../scene/shape/intersection.zig");
-const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Volume = int.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
@@ -131,19 +131,21 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, isec: *Intersection, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(interface.prop, &vertex.probe, isec, .PositionAndNormal)) {
+            if (!worker.propIntersect(interface.prop, &vertex.probe, frag)) {
                 return false;
             }
+
+            frag.prop = interface.prop;
         } else {
             const ray_max_t = vertex.probe.ray.maxT();
             const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse ray_max_t;
             vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(&vertex.probe, isec, sampler)) {
+            if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
                 vertex.probe.ray.setMinMaxT(vertex.probe.ray.maxT(), ray_max_t);
                 return false;
             }
@@ -151,12 +153,13 @@ pub const Multi = struct {
             // This test is intended to catch corner cases where we actually left the scattering medium,
             // but the intersection point was too close to detect.
             var missed = false;
-            if (!interface.matches(isec) or !isec.sameHemisphere(vertex.probe.ray.direction)) {
+            if (!interface.matches(frag) or !frag.sameHemisphere(vertex.probe.ray.direction)) {
                 const v = -vertex.probe.ray.direction;
 
-                var tprobe = vertex.probe.clone(Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t));
-                var tisec: Intersection = undefined;
-                if (worker.propIntersect(interface.prop, &tprobe, &tisec, .PositionAndNormal)) {
+                var tprobe = vertex.probe.clone(Ray.init(frag.offsetP(v), v, 0.0, ro.Ray_max_t));
+                var tisec: Fragment = undefined;
+                if (worker.propIntersect(interface.prop, &tprobe, &tisec)) {
+                    worker.propInterpolateFragment(interface.prop, &tprobe, .PositionAndNormal, &tisec);
                     missed = math.dot3(tisec.geo_n, v) <= 0.0;
                 } else {
                     missed = true;
@@ -186,13 +189,15 @@ pub const Multi = struct {
         );
 
         if (.Pass != result.event) {
-            isec.prop = interface.prop;
-            isec.part = interface.part;
-            isec.p = vertex.probe.ray.point(result.t);
-            isec.uvw = result.uvw;
+            frag.prop = interface.prop;
+            frag.part = interface.part;
+            frag.p = vertex.probe.ray.point(result.t);
+            frag.uvw = result.uvw;
+        } else if (material.denseSSSOptimization()) {
+            worker.propInterpolateFragment(frag.prop, &vertex.probe, .PositionAndNormal, frag);
         }
 
-        isec.setVolume(result);
+        frag.setVolume(result);
         return true;
     }
 };

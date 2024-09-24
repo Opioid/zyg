@@ -1,4 +1,4 @@
-const Intersection = @import("../shape/intersection.zig").Intersection;
+const Fragment = @import("../shape/intersection.zig").Fragment;
 const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
 const CC = @import("../material/collision_coefficients.zig").CC;
@@ -18,8 +18,8 @@ pub const Interface = struct {
         return scene.propMaterial(self.prop, self.part);
     }
 
-    pub fn matches(self: Interface, isec: *const Intersection) bool {
-        return self.prop == isec.prop and self.part == isec.part;
+    pub fn matches(self: Interface, frag: *const Fragment) bool {
+        return self.prop == frag.prop and self.part == frag.part;
     }
 };
 
@@ -72,24 +72,24 @@ pub const Stack = struct {
         return 1.0;
     }
 
-    pub fn peekIor(self: *const Stack, isec: *const Intersection, scene: *const Scene) f32 {
+    pub fn peekIor(self: *const Stack, frag: *const Fragment, scene: *const Scene) f32 {
         const index = self.index;
         if (index <= 1) {
             return 1.0;
         }
 
         const back = index - 1;
-        if (self.i_stack[back].matches(isec)) {
+        if (self.i_stack[back].matches(frag)) {
             return self.i_stack[back - 1].material(scene).ior();
         } else {
             return self.i_stack[back].material(scene).ior();
         }
     }
 
-    pub fn push(self: *Stack, isec: *const Intersection, cc: CC) void {
+    pub fn push(self: *Stack, frag: *const Fragment, cc: CC) void {
         const index = self.index;
         if (index < Num_entries - 1) {
-            self.i_stack[index] = .{ .prop = isec.prop, .part = isec.part };
+            self.i_stack[index] = .{ .prop = frag.prop, .part = frag.part };
             self.cc_stack[index] = cc;
             self.index += 1;
         }
@@ -109,12 +109,12 @@ pub const Stack = struct {
         }
     }
 
-    pub fn remove(self: *Stack, isec: *const Intersection) void {
+    pub fn remove(self: *Stack, frag: *const Fragment) void {
         const back = @as(i32, @intCast(self.index)) - 1;
         var i = back;
         while (i >= 0) : (i -= 1) {
             const ui: u32 = @intCast(i);
-            if (self.i_stack[ui].matches(isec)) {
+            if (self.i_stack[ui].matches(frag)) {
                 var j = ui;
                 while (j < back) : (j += 1) {
                     self.i_stack[j] = self.i_stack[j + 1];

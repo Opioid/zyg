@@ -2,7 +2,7 @@ const Prop = @import("prop.zig").Prop;
 const Probe = @import("../vertex.zig").Vertex.Probe;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
-const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const Node = @import("../bvh/node.zig").Node;
@@ -67,10 +67,9 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: *const Tree, probe: *Probe, isec: *Intersection, scene: *const Scene, ipo: Interpolation) bool {
+    pub fn intersect(self: *const Tree, probe: *Probe, frag: *Fragment, scene: *const Scene, ipo: Interpolation) bool {
         var stack = NodeStack{};
 
-        var hit = false;
         var prop = Prop.Null;
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
@@ -83,9 +82,8 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, probe, isec, scene, ipo)) {
+                    if (props[p].intersect(p, probe, frag, scene)) {
                         prop = p;
-                        hit = true;
                     }
                 }
 
@@ -116,14 +114,19 @@ pub const Tree = struct {
 
         if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, probe, isec, scene, ipo)) {
+                if (props[p].intersect(p, probe, frag, scene)) {
                     prop = p;
-                    hit = true;
                 }
             }
         }
 
-        isec.prop = prop;
+        const hit = Prop.Null != prop;
+
+        if (hit) {
+            props[prop].fragment(probe, ipo, frag, scene);
+        }
+
+        frag.prop = prop;
         return hit;
     }
 
@@ -234,7 +237,7 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn scatter(self: *const Tree, probe: *Probe, isec: *Intersection, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -286,16 +289,16 @@ pub const Tree = struct {
             }
         }
 
-        isec.setVolume(result);
+        frag.setVolume(result);
 
         if (.Pass != result.event) {
-            isec.prop = prop;
-            isec.part = 0;
-            isec.p = probe.ray.point(result.t);
+            frag.prop = prop;
+            frag.part = 0;
+            frag.p = probe.ray.point(result.t);
             const vn = -probe.ray.direction;
-            isec.geo_n = vn;
-            isec.n = vn;
-            isec.uvw = result.uvw;
+            frag.geo_n = vn;
+            frag.n = vn;
+            frag.uvw = result.uvw;
 
             return true;
         }

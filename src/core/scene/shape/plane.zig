@@ -1,5 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
@@ -9,30 +11,35 @@ const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Plane = struct {
-    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+        var hpoint = Intersection{};
+
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
         if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
-            const p = ray.point(hit_t);
-            const k = p - trafo.position;
-            const t = -trafo.rotation.r[0];
-            const b = -trafo.rotation.r[1];
-
-            isec.p = p;
-            isec.geo_n = n;
-            isec.t = t;
-            isec.b = b;
-            isec.n = n;
-            isec.uvw = .{ math.dot3(t, k), math.dot3(b, k), 0.0, 0.0 };
-            isec.part = 0;
-
-            ray.setMaxT(hit_t);
-            return true;
+            hpoint.t = hit_t;
+            hpoint.primitive = 0;
         }
 
-        return false;
+        return hpoint;
+    }
+
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        const p = ray.point(ray.maxT());
+        const k = p - frag.trafo.position;
+        const n = frag.trafo.rotation.r[2];
+        const t = -frag.trafo.rotation.r[0];
+        const b = -frag.trafo.rotation.r[1];
+
+        frag.p = p;
+        frag.geo_n = n;
+        frag.t = t;
+        frag.b = b;
+        frag.n = n;
+        frag.uvw = .{ math.dot3(t, k), math.dot3(b, k), 0.0, 0.0 };
+        frag.part = 0;
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {

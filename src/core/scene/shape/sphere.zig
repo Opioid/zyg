@@ -1,6 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -20,16 +21,47 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Sphere = struct {
-    fn intersectDetail(hit_t: f32, ray: Ray, trafo: Trafo, isec: *Intersection) void {
-        const p = ray.point(hit_t);
-        const n = math.normalize3(p - trafo.position);
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+        const v = trafo.position - ray.origin;
+        const b = math.dot3(ray.direction, v);
 
-        isec.p = p;
-        isec.geo_n = n;
-        isec.n = n;
-        isec.part = 0;
+        const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
+        const radius = trafo.scaleX();
+        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
-        const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
+        var hpoint = Intersection{};
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+
+            const t0 = b - dist;
+            if (t0 >= ray.minT() and ray.maxT() >= t0) {
+                hpoint.t = t0;
+                hpoint.primitive = 0;
+                return hpoint;
+            }
+
+            const t1 = b + dist;
+            if (t1 >= ray.minT() and ray.maxT() >= t1) {
+                hpoint.t = t1;
+                hpoint.primitive = 0;
+                return hpoint;
+            }
+        }
+
+        return hpoint;
+    }
+
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        const p = ray.point(ray.maxT());
+        const n = math.normalize3(p - frag.trafo.position);
+
+        frag.p = p;
+        frag.geo_n = n;
+        frag.n = n;
+        frag.part = 0;
+
+        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(n));
         const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
         const theta = std.math.acos(xyz[1]);
 
@@ -38,47 +70,16 @@ pub const Sphere = struct {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(theta), 0.00001);
 
-        const t = math.normalize3(trafo.rotation.transformVector(.{
+        const t = math.normalize3(frag.trafo.rotation.transformVector(.{
             sin_theta * cos_phi,
             0.0,
             sin_theta * sin_phi,
             0.0,
         }));
 
-        isec.t = t;
-        isec.b = -math.cross3(t, n);
-        isec.uvw = .{ phi * (0.5 * math.pi_inv), theta * math.pi_inv, 0.0, 0.0 };
-    }
-
-    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
-        const v = trafo.position - ray.origin;
-        const b = math.dot3(ray.direction, v);
-
-        const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
-        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
-
-        if (discriminant > 0.0) {
-            const dist = @sqrt(discriminant);
-
-            const t0 = b - dist;
-            if (t0 >= ray.minT() and ray.maxT() >= t0) {
-                intersectDetail(t0, ray.*, trafo, isec);
-
-                ray.setMaxT(t0);
-                return true;
-            }
-
-            const t1 = b + dist;
-            if (t1 >= ray.minT() and ray.maxT() >= t1) {
-                intersectDetail(t1, ray.*, trafo, isec);
-
-                ray.setMaxT(t1);
-                return true;
-            }
-        }
-
-        return false;
+        frag.t = t;
+        frag.b = -math.cross3(t, n);
+        frag.uvw = .{ phi * (0.5 * math.pi_inv), theta * math.pi_inv, 0.0, 0.0 };
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
@@ -347,15 +348,15 @@ pub const Sphere = struct {
         return math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
-    pub fn pdfUv(ray: Ray, isec: *const Intersection) f32 {
+    pub fn pdfUv(ray: Ray, frag: *const Fragment) f32 {
         // avoid singularity at poles
-        const sin_theta = math.max(@sin(isec.uvw[1] * std.math.pi), 0.00001);
+        const sin_theta = math.max(@sin(frag.uvw[1] * std.math.pi), 0.00001);
 
         const max_t = ray.maxT();
         const sl = max_t * max_t;
-        const c = -math.dot3(isec.geo_n, ray.direction);
+        const c = -math.dot3(frag.geo_n, ray.direction);
 
-        const r = isec.trafo.scaleX();
+        const r = frag.trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
         return sl / (c * area * sin_theta);

@@ -1,6 +1,6 @@
 const Photon = @import("photon.zig").Photon;
 const Scene = @import("../../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
+const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const MaterialSample = @import("../../../../scene/material/material_sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
@@ -530,10 +530,10 @@ pub const Grid = struct {
         self.num_paths = @as(f64, @floatFromInt(num_paths));
     }
 
-    pub fn li(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
-        const position = isec.p;
+        const position = frag.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -544,10 +544,10 @@ pub const Grid = struct {
         const radius = self.search_radius;
         const radius2 = radius * radius;
 
-        if (isec.subsurface()) {} else {
+        if (frag.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
-            const two_sided = isec.material(scene).twoSided();
+            const two_sided = frag.material(scene).twoSided();
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
                 var i = cell[0];
@@ -586,10 +586,10 @@ pub const Grid = struct {
         return result * @as(Vec4f, @splat(self.surface_normalization));
     }
 
-    pub fn li2(self: *const Self, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn li2(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         var result: Vec4f = @splat(0.0);
 
-        const position = isec.p;
+        const position = frag.p;
 
         if (!self.aabb.pointInside(position)) {
             return result;
@@ -603,7 +603,7 @@ pub const Grid = struct {
         var buffer = Buffer{};
         buffer.clear();
 
-        const subsurface = isec.subsurface();
+        const subsurface = frag.subsurface();
 
         for (adjacency.cells[0..adjacency.num_cells]) |cell| {
             for (self.photons[cell[0]..cell[1]], 0..) |p, i| {
@@ -634,11 +634,11 @@ pub const Grid = struct {
                 }
 
                 const normalization = @as(f32, @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3)))));
-                const mu_s = scatteringCoefficient(isec, sampler, scene);
+                const mu_s = scatteringCoefficient(frag, sampler, scene);
 
                 result /= @as(Vec4f, @splat(normalization)) * mu_s;
             } else {
-                const two_sided = isec.material(scene).twoSided();
+                const two_sided = frag.material(scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
                 for (buffer.entries[0..used_entries]) |entry| {
@@ -677,20 +677,20 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(isec: *const Intersection, sampler: *Sampler, scene: *const Scene) Vec4f {
-        const material = isec.material(scene);
+    fn scatteringCoefficient(frag: *const Fragment, sampler: *Sampler, scene: *const Scene) Vec4f {
+        const material = frag.material(scene);
 
         if (material.heterogeneousVolume()) {
-            const trafo = isec.trafo;
-            const local_position = trafo.worldToObjectPoint(isec.p);
+            const trafo = frag.trafo;
+            const local_position = trafo.worldToObjectPoint(frag.p);
 
-            const aabb = scene.propShape(isec.prop).aabb();
+            const aabb = scene.propShape(frag.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
             return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients2D(isec.uv(), sampler, scene).s;
+        return material.collisionCoefficients2D(frag.uv(), sampler, scene).s;
     }
 };
 

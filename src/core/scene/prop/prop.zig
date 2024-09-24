@@ -4,6 +4,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Interpolation = int.Interpolation;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
@@ -113,14 +114,7 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(
-        self: Prop,
-        entity: u32,
-        probe: *Probe,
-        isec: *Intersection,
-        scene: *const Scene,
-        ipo: Interpolation,
-    ) bool {
+    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, scene: *const Scene) bool {
         if (!self.visible(probe.depth.surface)) {
             return false;
         }
@@ -133,32 +127,37 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        if (scene.shape(self.shape).intersect(&probe.ray, trafo, ipo, isec)) {
-            isec.trafo = trafo;
+        const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
+        if (Intersection.Null != hit.primitive) {
+            probe.ray.setMaxT(hit.t);
+            frag.isec = hit;
+            frag.trafo = trafo;
             return true;
         }
 
         return false;
     }
 
-    pub const SSSResult = struct {
-        geo_n: Vec4f,
-        n: Vec4f,
-    };
+    pub fn fragment(self: Prop, probe: *const Probe, ipo: Interpolation, frag: *Fragment, scene: *const Scene) void {
+        scene.shape(self.shape).fragment(probe.ray, ipo, frag);
+    }
 
-    pub fn intersectSSS(self: Prop, probe: *Probe, trafo: Trafo, scene: *const Scene) ?SSSResult {
+    pub fn intersectSSS(self: Prop, probe: *Probe, trafo: Trafo, frag: *Fragment, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible_in_shadow) {
-            return null;
+            return false;
         }
 
-        var isec: Intersection = undefined;
-        if (scene.shape(self.shape).intersect(&probe.ray, trafo, .PositionAndNormal, &isec)) {
-            return SSSResult{ .geo_n = isec.geo_n, .n = isec.n };
+        const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
+        if (Intersection.Null != hit.primitive) {
+            probe.ray.setMaxT(hit.t);
+            frag.isec = hit;
+            frag.trafo = trafo;
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {

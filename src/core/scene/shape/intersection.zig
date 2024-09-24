@@ -29,10 +29,19 @@ pub const Volume = struct {
 };
 
 pub const Intersection = struct {
-    event: Volume.Event,
+    pub const Null: u32 = 0xFFFFFFFF;
+
+    t: f32 = undefined,
+    u: f32 = undefined,
+    v: f32 = undefined,
+    primitive: u32 = Null,
+};
+
+pub const Fragment = struct {
+    isec: Intersection,
     prop: u32,
     part: u32,
-    primitive: u32,
+    event: Volume.Event,
 
     trafo: Trafo,
     p: Vec4f,

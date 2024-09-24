@@ -11,7 +11,7 @@ const Vertex = vt.Vertex;
 const Probe = Vertex.Probe;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
-const Intersection = @import("../scene/shape/intersection.zig").Intersection;
+const Fragment = @import("../scene/shape/intersection.zig").Fragment;
 const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
 const tx = @import("../image/texture/texture_provider.zig");
@@ -309,8 +309,8 @@ pub const Perspective = struct {
                 time,
             );
 
-            var isec: Intersection = undefined;
-            if (scene.intersect(&probe, &isec, .PositionAndNormal)) {
+            var frag: Fragment = undefined;
+            if (scene.intersect(&probe, &frag, .PositionAndNormal)) {
                 self.focus_distance = probe.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

@@ -7,7 +7,7 @@ const hlp = @import("../helper.zig");
 const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const ro = @import("../../../scene/ray_offset.zig");
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
+const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -39,17 +39,17 @@ pub const PathtracerDL = struct {
 
             var sampler = worker.pickSampler(total_depth);
 
-            var isec: Intersection = undefined;
-            if (!worker.nextEvent(false, &vertex, &isec, sampler)) {
+            var frag: Fragment = undefined;
+            if (!worker.nextEvent(false, &vertex, &frag, sampler)) {
                 break;
             }
 
-            if (vertex.state.treat_as_singular or !Light.isLight(isec.lightId(worker.scene))) {
-                const energy = self.connectLight(&vertex, &isec, sampler, worker.scene);
+            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
+                const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
                 result += vertex.throughput * energy;
             }
 
-            if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == isec.event) {
+            if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == frag.event) {
                 break;
             }
 
@@ -59,13 +59,13 @@ pub const PathtracerDL = struct {
             }
 
             const caustics = self.causticsResolve(vertex.state);
-            const mat_sample = vertex.sample(&isec, sampler, caustics, worker);
+            const mat_sample = vertex.sample(&frag, sampler, caustics, worker);
 
             if (worker.aov.active()) {
-                worker.commonAOV(&vertex, &isec, &mat_sample);
+                worker.commonAOV(&vertex, &frag, &mat_sample);
             }
 
-            result += vertex.throughput * self.directLight(&vertex, &isec, &mat_sample, sampler, worker);
+            result += vertex.throughput * self.directLight(&vertex, &frag, &mat_sample, sampler, worker);
 
             var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
@@ -86,13 +86,13 @@ pub const PathtracerDL = struct {
             vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+            vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-            vertex.probe.depth.increment(&isec);
+            vertex.probe.depth.increment(&frag);
 
             if (!sample_result.class.straight) {
-                vertex.state.from_subsurface = isec.subsurface();
-                vertex.origin = isec.p;
+                vertex.state.from_subsurface = frag.subsurface();
+                vertex.origin = frag.p;
             }
 
             if (0.0 == vertex.probe.wavelength) {
@@ -100,7 +100,7 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(&isec, sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
@@ -114,7 +114,7 @@ pub const PathtracerDL = struct {
     fn directLight(
         self: *const Self,
         vertex: *const Vertex,
-        isec: *const Intersection,
+        frag: *const Fragment,
         mat_sample: *const MaterialSample,
         sampler: *Sampler,
         worker: *Worker,
@@ -126,7 +126,7 @@ pub const PathtracerDL = struct {
         }
 
         const n = mat_sample.super().geometricNormal();
-        const p = isec.p;
+        const p = frag.p;
 
         const translucent = mat_sample.isTranslucent();
 
@@ -147,9 +147,9 @@ pub const PathtracerDL = struct {
                 worker.scene,
             ) orelse continue;
 
-            var shadow_probe = vertex.probe.clone(light.shadowRay(isec.offsetP(light_sample.wi), light_sample, worker.scene));
+            var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-            const tr = worker.visibility(&shadow_probe, isec, &vertex.interfaces, sampler) orelse continue;
+            const tr = worker.visibility(&shadow_probe, frag, &vertex.interfaces, sampler) orelse continue;
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 
@@ -166,7 +166,7 @@ pub const PathtracerDL = struct {
     fn connectLight(
         self: *const Self,
         vertex: *const Vertex,
-        isec: *const Intersection,
+        frag: *const Fragment,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
@@ -176,7 +176,7 @@ pub const PathtracerDL = struct {
 
         const p = vertex.probe.ray.origin;
         const wo = -vertex.probe.ray.direction;
-        return isec.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
+        return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }
 
     fn splitting(self: *const Self, depth: Vertex.Probe.Depth) bool {

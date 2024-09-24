@@ -1,4 +1,4 @@
-const Intersection = @import("shape/intersection.zig").Intersection;
+const Fragment = @import("shape/intersection.zig").Fragment;
 const Scene = @import("scene.zig").Scene;
 const InterfaceStack = @import("prop/interface.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -23,8 +23,8 @@ pub const Vertex = struct {
                 return self.surface + self.volume;
             }
 
-            pub fn increment(self: *Depth, isec: *const Intersection) void {
-                if (isec.subsurface()) {
+            pub fn increment(self: *Depth, frag: *const Fragment) void {
+                if (frag.subsurface()) {
                     self.volume += 1;
                 } else {
                     self.surface += 1;
@@ -98,77 +98,77 @@ pub const Vertex = struct {
         };
     }
 
-    inline fn iorOutside(self: *const Self, isec: *const Intersection, wo: Vec4f, scene: *const Scene) f32 {
-        if (isec.sameHemisphere(wo)) {
+    inline fn iorOutside(self: *const Self, frag: *const Fragment, wo: Vec4f, scene: *const Scene) f32 {
+        if (frag.sameHemisphere(wo)) {
             return self.interfaces.topIor(scene);
         }
 
-        return self.interfaces.peekIor(isec, scene);
+        return self.interfaces.peekIor(frag, scene);
     }
 
-    pub fn interfaceChange(self: *Self, isec: *const Intersection, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
-        const leave = isec.sameHemisphere(dir);
+    pub fn interfaceChange(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
+        const leave = frag.sameHemisphere(dir);
         if (leave) {
-            self.interfaces.remove(isec);
+            self.interfaces.remove(frag);
         } else {
-            const cc = isec.material(scene).collisionCoefficients2D(isec.uv(), sampler, scene);
-            self.interfaces.push(isec, cc);
+            const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
+            self.interfaces.push(frag, cc);
         }
     }
 
-    pub fn interfaceChangeIor(self: *Self, isec: *const Intersection, dir: Vec4f, sampler: *Sampler, scene: *const Scene) IoR {
-        const inter_ior = isec.material(scene).ior();
+    pub fn interfaceChangeIor(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) IoR {
+        const inter_ior = frag.material(scene).ior();
 
-        const leave = isec.sameHemisphere(dir);
+        const leave = frag.sameHemisphere(dir);
         if (leave) {
-            const ior = IoR{ .eta_t = self.interfaces.peekIor(isec, scene), .eta_i = inter_ior };
-            self.interfaces.remove(isec);
+            const ior = IoR{ .eta_t = self.interfaces.peekIor(frag, scene), .eta_i = inter_ior };
+            self.interfaces.remove(frag);
             return ior;
         }
 
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interfaces.topIor(scene) };
 
-        const cc = isec.material(scene).collisionCoefficients2D(isec.uv(), sampler, scene);
-        self.interfaces.push(isec, cc);
+        const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
+        self.interfaces.push(frag, cc);
 
         return ior;
     }
 
     pub fn sample(
         self: *const Self,
-        isec: *const Intersection,
+        frag: *const Fragment,
         sampler: *Sampler,
         caustics: CausticsResolve,
         worker: *const Worker,
     ) mat.Sample {
         const wo = -self.probe.ray.direction;
 
-        const m = isec.material(worker.scene);
+        const m = frag.material(worker.scene);
 
         var rs: Renderstate = undefined;
-        rs.trafo = isec.trafo;
-        rs.p = isec.p;
-        rs.t = isec.t;
-        rs.b = isec.b;
+        rs.trafo = frag.trafo;
+        rs.p = frag.p;
+        rs.t = frag.t;
+        rs.b = frag.b;
 
-        if (m.twoSided() and !isec.sameHemisphere(wo)) {
-            rs.geo_n = -isec.geo_n;
-            rs.n = -isec.n;
+        if (m.twoSided() and !frag.sameHemisphere(wo)) {
+            rs.geo_n = -frag.geo_n;
+            rs.n = -frag.n;
         } else {
-            rs.geo_n = isec.geo_n;
-            rs.n = isec.n;
+            rs.geo_n = frag.geo_n;
+            rs.n = frag.n;
         }
 
         rs.origin = self.origin;
-        rs.uv = isec.uv();
-        rs.ior = self.iorOutside(isec, wo, worker.scene);
+        rs.uv = frag.uv();
+        rs.ior = self.iorOutside(frag, wo, worker.scene);
         rs.wavelength = self.probe.wavelength;
         rs.time = self.probe.time;
-        rs.prop = isec.prop;
-        rs.part = isec.part;
-        rs.primitive = isec.primitive;
+        rs.prop = frag.prop;
+        rs.part = frag.part;
+        rs.primitive = frag.isec.primitive;
         rs.volume_depth = self.probe.depth.volume;
-        rs.subsurface = isec.subsurface();
+        rs.subsurface = frag.subsurface();
         rs.primary = self.state.primary_ray;
         rs.caustics = caustics;
 

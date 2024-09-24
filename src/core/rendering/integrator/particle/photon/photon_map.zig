@@ -1,7 +1,7 @@
 const Photon = @import("photon.zig").Photon;
 const Grid = @import("photon_grid.zig").Grid;
 const Scene = @import("../../../../scene/scene.zig").Scene;
-const Intersection = @import("../../../../scene/shape/intersection.zig").Intersection;
+const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const MaterialSample = @import("../../../../scene/material/material_sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
 
@@ -82,7 +82,7 @@ pub const Map = struct {
 
     pub fn li(
         self: *const Self,
-        isec: *const Intersection,
+        frag: *const Fragment,
         sample: *const MaterialSample,
         sampler: *Sampler,
         scene: *const Scene,
@@ -91,7 +91,7 @@ pub const Map = struct {
             return @splat(0.0);
         }
 
-        return self.grid.li2(isec, sample, sampler, scene);
+        return self.grid.li2(frag, sample, sampler, scene);
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {

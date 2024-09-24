@@ -5,7 +5,9 @@ const ro = @import("../../ray_offset.zig");
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
-const Volume = @import("../../shape/intersection.zig").Volume;
+const int = @import("../../shape/intersection.zig");
+const Intersection = int.Intersection;
+const Volume = int.Volume;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -18,13 +20,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
-    pub const Intersection = struct {
-        t: f32 = undefined,
-        u: f32 = undefined,
-        v: f32 = undefined,
-        index: u32 = 0xFFFFFFFF,
-    };
-
     nodes: []Node = &.{},
     data: IndexedData = .{},
 
@@ -45,13 +40,13 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: *const Tree, ray: Ray) ?Intersection {
+    pub fn intersect(self: *const Tree, ray: Ray) Intersection {
         var tray = ray;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var isec: Intersection = .{};
+        var hpoint = Intersection{};
 
         const nodes = self.nodes;
 
@@ -64,10 +59,10 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.setMaxT(hit.t);
-                        isec.t = hit.t;
-                        isec.u = hit.u;
-                        isec.v = hit.v;
-                        isec.index = i;
+                        hpoint.t = hit.t;
+                        hpoint.u = hit.u;
+                        hpoint.v = hit.v;
+                        hpoint.primitive = i;
                     }
                 }
 
@@ -96,11 +91,7 @@ pub const Tree = struct {
             }
         }
 
-        if (0xFFFFFFFF != isec.index) {
-            return isec;
-        } else {
-            return null;
-        }
+        return hpoint;
     }
 
     pub fn intersectP(self: *const Tree, ray: Ray) bool {
@@ -227,8 +218,12 @@ pub const Tree = struct {
         var tr: Vec4f = @splat(1.0);
 
         while (true) {
-            const hit = self.intersect(tray) orelse break;
-            const n = data.normal(data.indexTriangle(hit.index));
+            const hit = self.intersect(tray);
+            if (Intersection.Null == hit.primitive) {
+                break;
+            }
+
+            const n = data.normal(data.indexTriangle(hit.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));
@@ -266,8 +261,12 @@ pub const Tree = struct {
         var tr: Vec4f = @splat(1.0);
 
         while (true) {
-            const hit = self.intersect(tray) orelse break;
-            const n = data.normal(data.indexTriangle(hit.index));
+            const hit = self.intersect(tray);
+            if (Intersection.Null == hit.primitive) {
+                break;
+            }
+
+            const n = data.normal(data.indexTriangle(hit.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));

@@ -1,5 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -16,43 +18,54 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const DistantSphere = struct {
-    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+        var hpoint = Intersection{};
+
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
         if (b > 0.0 or ray.maxT() < ro.Ray_max_t) {
-            return false;
+            return hpoint;
         }
 
         const radius = trafo.scaleX();
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
 
         if (det >= 0.0) {
-            isec.p = @as(Vec4f, @splat(ro.Almost_ray_max_t)) * ray.direction;
-            isec.geo_n = n;
-            isec.t = trafo.rotation.r[0];
-            isec.b = trafo.rotation.r[1];
-            isec.n = n;
-
             const k = ray.direction - n;
             const sk = k / @as(Vec4f, @splat(radius));
 
-            isec.uvw = .{
-                (math.dot3(isec.t, sk) + 1.0) * 0.5,
-                (math.dot3(isec.b, sk) + 1.0) * 0.5,
-                0.0,
-                0.0,
-            };
+            const isec_t = trafo.rotation.r[0];
+            const isec_b = trafo.rotation.r[1];
 
-            isec.part = 0;
-            isec.primitive = 0;
+            hpoint.u = math.dot3(isec_t, sk);
+            hpoint.v = math.dot3(isec_b, sk);
 
-            ray.setMaxT(ro.Almost_ray_max_t);
-
-            return true;
+            hpoint.primitive = 0;
+            hpoint.t = ro.Almost_ray_max_t;
         }
 
-        return false;
+        return hpoint;
+    }
+
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        frag.p = @as(Vec4f, @splat(ro.Almost_ray_max_t)) * ray.direction;
+
+        const n = frag.trafo.rotation.r[2];
+
+        frag.geo_n = n;
+        frag.t = frag.trafo.rotation.r[0];
+        frag.b = frag.trafo.rotation.r[1];
+        frag.n = n;
+
+        frag.uvw = .{
+            (frag.isec.u + 1.0) * 0.5,
+            (frag.isec.v + 1.0) * 0.5,
+            0.0,
+            0.0,
+        };
+
+        frag.part = 0;
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {

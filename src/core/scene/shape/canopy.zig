@@ -1,5 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -20,15 +22,24 @@ const std = @import("std");
 pub const Canopy = struct {
     const Eps = -0.0005;
 
-    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+        var hpoint = Intersection{};
+
         if (ray.maxT() < ro.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
-            return false;
+            return hpoint;
         }
 
-        const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
+        hpoint.primitive = 0;
+        hpoint.t = ro.Ray_max_t;
+
+        return hpoint;
+    }
+
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(ray.direction));
 
         const disk = hemisphereToDiskEquidistant(xyz);
-        isec.uvw = .{
+        frag.uvw = .{
             0.5 * disk[0] + 0.5,
             0.5 * disk[1] + 0.5,
             0.0,
@@ -37,18 +48,13 @@ pub const Canopy = struct {
 
         // This is nonsense
         const dir = Vec4f{ ray.direction[0], ray.direction[1], ray.direction[2], 0.0 };
-        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
+        frag.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
         const n = -dir;
-        isec.geo_n = n;
-        isec.t = trafo.rotation.r[0];
-        isec.b = trafo.rotation.r[1];
-        isec.n = n;
-        isec.part = 0;
-        isec.primitive = 0;
-
-        ray.setMaxT(ro.Ray_max_t);
-
-        return true;
+        frag.geo_n = n;
+        frag.t = frag.trafo.rotation.r[0];
+        frag.b = frag.trafo.rotation.r[1];
+        frag.n = n;
+        frag.part = 0;
     }
 
     pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {

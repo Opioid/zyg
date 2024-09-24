@@ -5,7 +5,7 @@ const LightNode = @import("scene/light/light_tree.zig").Node;
 const mt = @import("scene/material/material.zig");
 const mtsmpl = @import("scene/material/material_sample.zig");
 const intf = @import("scene/prop/interface.zig");
-const Intersection = @import("scene/shape/intersection.zig").Intersection;
+const Fragment = @import("scene/shape/intersection.zig").Fragment;
 const smpl = @import("scene/shape/sample.zig");
 const Renderstate = @import("scene/renderstate.zig").Renderstate;
 const Vertex = @import("scene/vertex.zig").Vertex;
@@ -30,7 +30,7 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 208);
-    testType(Intersection, "Intersection", 208);
+    testType(Fragment, "Fragment", 224);
     testType(Vertex, "Vertex", 480);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);

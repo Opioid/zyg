@@ -1,5 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -17,12 +19,14 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Disk = struct {
-    pub fn intersect(ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
+
+        var hpoint = Intersection{};
 
         if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
             const p = ray.point(hit_t);
@@ -35,23 +39,32 @@ pub const Disk = struct {
                 const b = -trafo.rotation.r[1];
 
                 const sk = k / @as(Vec4f, @splat(radius));
-                const u = math.dot3(t, sk);
-                const v = math.dot3(b, sk);
+                hpoint.u = math.dot3(t, sk);
+                hpoint.v = math.dot3(b, sk);
 
-                isec.p = p;
-                isec.t = t;
-                isec.b = b;
-                isec.n = normal;
-                isec.geo_n = normal;
-                isec.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
-                isec.part = 0;
-
-                ray.setMaxT(hit_t);
-                return true;
+                hpoint.t = hit_t;
+                hpoint.primitive = 0;
             }
         }
 
-        return false;
+        return hpoint;
+    }
+
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        const u = frag.isec.u;
+        const v = frag.isec.v;
+
+        const n = frag.trafo.rotation.r[2];
+        const t = -frag.trafo.rotation.r[0];
+        const b = -frag.trafo.rotation.r[1];
+
+        frag.p = ray.point(ray.maxT());
+        frag.t = t;
+        frag.b = b;
+        frag.n = n;
+        frag.geo_n = n;
+        frag.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
+        frag.part = 0;
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
