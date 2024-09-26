@@ -37,7 +37,7 @@ pub const Pathtracer = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            if (!worker.nextEvent(false, &vertex, &frag, sampler)) {
+            if (!worker.nextEvent(&vertex, &frag, sampler, depth.max_volume)) {
                 break;
             }
 
@@ -84,7 +84,6 @@ pub const Pathtracer = struct {
             vertex.probe.depth.increment(&frag);
 
             if (!sample_result.class.straight) {
-                vertex.state.from_subsurface = frag.subsurface();
                 vertex.origin = frag.p;
             }
 

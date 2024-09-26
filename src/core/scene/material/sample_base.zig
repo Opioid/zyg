@@ -14,6 +14,7 @@ pub const Base = struct {
         avoid_caustics: bool = false,
         volumetric: bool = false,
         flakes: bool = false,
+        exit_sss: bool = false,
     };
 
     frame: Frame,

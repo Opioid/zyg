@@ -22,7 +22,7 @@ const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const surface = @import("integrator/surface/integrator.zig");
-const vlhlp = @import("integrator/volume/tracking_multi.zig").Multi;
+const VolumeIntegrator = @import("integrator/volume/volume_integrator.zig").Integrator;
 const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
@@ -240,87 +240,29 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(
-        self: *Worker,
-        probe: *Probe,
-        frag: *const Fragment,
-        interfaces: *const InterfaceStack,
-        sampler: *Sampler,
-    ) ?Vec4f {
-        const material = frag.material(self.scene);
-
-        if (frag.subsurface() and !interfaces.empty() and material.denseSSSOptimization()) {
-            const ray_max_t = probe.ray.maxT();
-            const prop = frag.prop;
-
-            var sss_frag: Fragment = undefined;
-            const hit = self.scene.prop(prop).intersectSSS(probe, frag.trafo, &sss_frag, self.scene);
-
-            if (hit) {
-                const sss_min_t = probe.ray.minT();
-                const sss_max_t = probe.ray.maxT();
-                probe.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(probe, sampler, self)) |tv| {
-                    probe.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const cc = interfaces.topCC();
-                    const tray = if (material.heterogeneousVolume()) frag.trafo.worldToObjectRay(probe.ray) else probe.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth.volume, sampler, self)) |tr| {
-                        self.scene.prop(prop).fragment(probe, .PositionAndNormal, &sss_frag, self.scene);
-
-                        const wi = probe.ray.direction;
-                        const n = sss_frag.n;
-                        const vbh = material.border(wi, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, sss_frag.geo_n, n));
-
-                        return (vbh * nsc) * (tv * tr);
-                    }
-                }
-
-                return null;
-            }
-        }
-
+    pub fn visibility(self: *Worker, probe: *Probe, sampler: *Sampler) ?Vec4f {
         return self.scene.visibility(probe, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, comptime Particle: bool, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, max_sss_depth: u32) bool {
         while (!vertex.interfaces.empty()) {
-            if (vlhlp.integrate(vertex, frag, sampler, self)) {
-                vertex.throughput *= frag.vol_tr;
+            const interface = vertex.interfaces.top();
+            const material = interface.material(self.scene);
 
-                if (.Pass == frag.event) {
-                    const wo = -vertex.probe.ray.direction;
-                    const material = frag.material(self.scene);
-                    const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
+            if (material.denseSSSOptimization()) {
+                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), max_sss_depth, self)) {
+                    vertex.throughput *= frag.vol_tr;
 
-                    if (straight_border and !frag.sameHemisphere(wo)) {
-                        const geo_n = frag.geo_n;
-                        const n = frag.n;
-
-                        const vbh = material.border(wo, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
-                        const weight = nsc * vbh;
-
-                        vertex.throughput *= weight;
-
-                        vertex.probe.ray.origin = frag.offsetP(vertex.probe.ray.direction);
-                        vertex.probe.ray.setMaxT(ro.Ray_max_t);
-                        vertex.probe.depth.surface += 1;
-
-                        sampler.incrementPadding();
-
-                        if (Particle) {
-                            const ior_t = vertex.interfaces.surroundingIor(self.scene);
-                            const eta = material.ior() / ior_t;
-                            vertex.throughput *= @splat(eta * eta);
-                        }
-
-                        vertex.interfaces.pop();
-                        continue;
-                    }
+                    vertex.interfaces.pop();
+                    return true;
+                } else {
+                    return false;
                 }
-
-                return true;
+            } else {
+                if (VolumeIntegrator.integrate(vertex, frag, sampler, self)) {
+                    vertex.throughput *= frag.vol_tr;
+                    return true;
+                }
             }
 
             vertex.interfaces.pop();
@@ -349,7 +291,7 @@ pub const Worker = struct {
         sampler: *Sampler,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return vlhlp.propTransmittance(ray, material, cc, entity, depth, sampler, self);
+        return VolumeIntegrator.propTransmittance(ray, material, cc, entity, depth, sampler, self);
     }
 
     pub fn propScatter(
@@ -362,7 +304,7 @@ pub const Worker = struct {
         sampler: *Sampler,
     ) Volume {
         const cc = material.super().cc;
-        return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
+        return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
     pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, frag: *Fragment) bool {
@@ -410,10 +352,6 @@ pub const Worker = struct {
         const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
 
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
-    }
-
-    inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @abs(math.dot3(wo, n)) / math.safe.clampAbsDot(wo, geo_n);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html

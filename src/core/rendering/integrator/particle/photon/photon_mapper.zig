@@ -115,7 +115,7 @@ pub const Mapper = struct {
                 var sampler = &self.sampler;
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(true, &vertex, &frag, sampler)) {
+                if (!worker.nextEvent(&vertex, &frag, sampler, 128)) {
                     break;
                 }
 
@@ -191,7 +191,6 @@ pub const Mapper = struct {
                 vertex.probe.depth.increment(&frag);
 
                 if (!sample_result.class.straight) {
-                    vertex.state.from_subsurface = frag.subsurface();
                     vertex.origin = frag.p;
                 }
 

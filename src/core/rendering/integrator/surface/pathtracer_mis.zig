@@ -46,7 +46,7 @@ pub const PathtracerMIS = struct {
                 var sampler = worker.pickSampler(total_depth);
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(false, vertex, &frag, sampler)) {
+                if (!worker.nextEvent(vertex, &frag, sampler, depth.max_volume)) {
                     continue;
                 }
 
@@ -114,7 +114,6 @@ pub const PathtracerMIS = struct {
                     next_vertex.probe.depth.increment(&frag);
 
                     if (!class.straight) {
-                        next_vertex.state.from_subsurface = frag.subsurface();
                         next_vertex.state.is_translucent = mat_sample.isTranslucent();
                         next_vertex.bxdf_pdf = sample_result.pdf;
                         next_vertex.origin = frag.p;
@@ -192,7 +191,7 @@ pub const PathtracerMIS = struct {
 
         var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-        const tr = worker.visibility(&shadow_probe, frag, &vertex.interfaces, sampler) orelse return @splat(0.0);
+        const tr = worker.visibility(&shadow_probe, sampler) orelse return @splat(0.0);
 
         const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 

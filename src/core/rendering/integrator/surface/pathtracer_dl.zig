@@ -40,7 +40,7 @@ pub const PathtracerDL = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            if (!worker.nextEvent(false, &vertex, &frag, sampler)) {
+            if (!worker.nextEvent(&vertex, &frag, sampler, depth.max_volume)) {
                 break;
             }
 
@@ -91,7 +91,6 @@ pub const PathtracerDL = struct {
             vertex.probe.depth.increment(&frag);
 
             if (!sample_result.class.straight) {
-                vertex.state.from_subsurface = frag.subsurface();
                 vertex.origin = frag.p;
             }
 
@@ -149,7 +148,7 @@ pub const PathtracerDL = struct {
 
             var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-            const tr = worker.visibility(&shadow_probe, frag, &vertex.interfaces, sampler) orelse continue;
+            const tr = worker.visibility(&shadow_probe, sampler) orelse continue;
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 

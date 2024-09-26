@@ -63,7 +63,6 @@ pub const Vertex = struct {
         treat_as_singular: bool = true,
         forward: bool = true,
         is_translucent: bool = false,
-        from_subsurface: bool = false,
         started_specular: bool = false,
     };
 
@@ -168,7 +167,7 @@ pub const Vertex = struct {
         rs.part = frag.part;
         rs.primitive = frag.isec.primitive;
         rs.volume_depth = self.probe.depth.volume;
-        rs.subsurface = frag.subsurface();
+        rs.event = frag.event;
         rs.primary = self.state.primary_ray;
         rs.caustics = caustics;
 

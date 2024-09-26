@@ -82,7 +82,7 @@ pub const Lighttracer = struct {
                 const sampler = worker.pickSampler(total_depth);
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(true, vertex, &frag, sampler)) {
+                if (!worker.nextEvent(vertex, &frag, sampler, depth.max_volume)) {
                     continue;
                 }
 
@@ -146,7 +146,6 @@ pub const Lighttracer = struct {
                     next_vertex.probe.depth.increment(&frag);
 
                     if (!class.straight) {
-                        next_vertex.state.from_subsurface = frag.subsurface();
                         next_vertex.origin = frag.p;
                     }
 
@@ -222,7 +221,7 @@ pub const Lighttracer = struct {
         const p = frag.offsetP(wi);
         var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
-        const tr = worker.visibility(&tprobe, frag, &vertex.interfaces, sampler) orelse return false;
+        const tr = worker.visibility(&tprobe, sampler) orelse return false;
 
         const bxdf_result = mat_sample.evaluate(wi, material_split);
 

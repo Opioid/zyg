@@ -128,7 +128,7 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
-        if (rs.subsurface) {
+        if (rs.volumeScatter()) {
             const g = self.super.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
@@ -265,6 +265,8 @@ pub const Material = struct {
                 result.super.properties.flakes = true;
             }
         }
+
+        result.super.properties.exit_sss = rs.exitSSS();
 
         return Sample{ .Substitute = result };
     }

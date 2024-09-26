@@ -10,7 +10,7 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Volume = struct {
-    pub const Event = enum { Absorb, Scatter, Pass };
+    pub const Event = enum(u8) { Absorb, Scatter, ExitSSS, Pass };
 
     li: Vec4f,
     tr: Vec4f,
