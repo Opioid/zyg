@@ -252,8 +252,6 @@ pub const Worker = struct {
             if (material.denseSSSOptimization()) {
                 if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), max_sss_depth, self)) {
                     vertex.throughput *= frag.vol_tr;
-
-                    vertex.interfaces.pop();
                     return true;
                 } else {
                     return false;

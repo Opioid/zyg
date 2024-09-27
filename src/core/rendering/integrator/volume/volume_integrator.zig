@@ -223,14 +223,11 @@ pub const Integrator = struct {
             if (.Scatter != result.event) {
                 worker.propInterpolateFragment(frag.prop, &vertex.probe, .All, frag);
 
-                if (math.dot3(frag.geo_n, vertex.probe.ray.direction) < 0.0) {
-                    vertex.probe.ray.origin = frag.offsetP(vertex.probe.ray.direction);
-                    vertex.probe.ray.setMaxT(ro.Ray_max_t);
-                    vertex.throughput *= result.tr;
-                    continue;
+                if (frag.sameHemisphere(vertex.probe.ray.direction)) {
+                    vertex.interfaces.pop();
+                    result.event = .ExitSSS;
                 }
 
-                result.event = .ExitSSS;
                 frag.setVolume(result);
 
                 return true;
