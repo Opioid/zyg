@@ -90,7 +90,7 @@ pub const Fragment = struct {
     }
 
     pub inline fn subsurface(self: Self) bool {
-        return .Pass != self.event;
+        return .Scatter == self.event;
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

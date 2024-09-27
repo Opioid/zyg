@@ -227,14 +227,7 @@ pub const Lighttracer = struct {
 
         const wo = mat_sample.super().wo;
         const n = mat_sample.super().interpolatedNormal();
-        var nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
-
-        const material = frag.material(worker.scene);
-        if (frag.subsurface() and material.denseSSSOptimization()) {
-            const ior_t = vertex.interfaces.surroundingIor(worker.scene);
-            const eta = material.ior() / ior_t;
-            nsc *= eta * eta;
-        }
+        const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 
         const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
         const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
