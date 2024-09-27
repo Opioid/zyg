@@ -200,8 +200,12 @@ pub const Integrator = struct {
         const g = material.super().volumetric_anisotropy;
 
         for (0..max_depth) |_| {
-            if (!worker.propIntersect(interface.prop, &vertex.probe, frag)) {
-                return false;
+            const hit = worker.propIntersect(interface.prop, &vertex.probe, frag);
+            if (!hit) {
+                // We don't immediately abort even if not hitting the prop.
+                // This way SSS looks less wrong in case of geometry that isn't "watertight".
+                const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse return false;
+                vertex.probe.ray.setMaxT(limit);
             }
 
             const tray = if (material.heterogeneousVolume())
@@ -220,7 +224,7 @@ pub const Integrator = struct {
                 worker,
             );
 
-            if (.Scatter != result.event) {
+            if (hit and .Scatter != result.event) {
                 worker.propInterpolateFragment(frag.prop, &vertex.probe, .All, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
@@ -231,6 +235,8 @@ pub const Integrator = struct {
                 frag.setVolume(result);
 
                 return true;
+            } else if (!hit and .Pass == result.event) {
+                return false;
             }
 
             vertex.throughput_old = vertex.throughput;
