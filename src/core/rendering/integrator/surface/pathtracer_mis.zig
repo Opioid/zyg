@@ -20,7 +20,7 @@ const std = @import("std");
 
 pub const PathtracerMIS = struct {
     pub const Settings = struct {
-        depth: hlp.Depth,
+        max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
@@ -32,7 +32,7 @@ pub const PathtracerMIS = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
-        const depth = self.settings.depth;
+        const max_depth = self.settings.max_depth;
 
         var result: Vec4f = @splat(0.0);
 
@@ -54,7 +54,7 @@ pub const PathtracerMIS = struct {
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 result += vertex.throughput * split_weight * energy;
 
-                if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == frag.event) {
+                if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                     continue;
                 }
 

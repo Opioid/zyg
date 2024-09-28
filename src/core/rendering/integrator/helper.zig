@@ -2,9 +2,8 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Depth = struct {
-    min: u16,
-    max_surface: u16,
-    max_volume: u16,
+    surface: u16,
+    volume: u16,
 };
 
 pub const LightSampling = enum(u8) {

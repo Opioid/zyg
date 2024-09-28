@@ -16,7 +16,7 @@ const std = @import("std");
 
 pub const Pathtracer = struct {
     pub const Settings = struct {
-        depth: hlp.Depth,
+        max_depth: hlp.Depth,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
     };
@@ -26,7 +26,7 @@ pub const Pathtracer = struct {
     const Self = @This();
 
     pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
-        const depth = self.settings.depth;
+        const max_depth = self.settings.max_depth;
 
         var vertex = input.*;
         var result: Vec4f = @splat(0.0);
@@ -44,7 +44,7 @@ pub const Pathtracer = struct {
             const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
             result += vertex.throughput * energy;
 
-            if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume or .Absorb == frag.event) {
+            if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                 break;
             }
 

@@ -28,7 +28,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
     pub const Settings = struct {
-        depth: hlp.Depth,
+        max_depth: hlp.Depth,
         full_light_path: bool,
     };
 
@@ -66,7 +66,7 @@ pub const Lighttracer = struct {
         const camera = worker.camera;
         const sensor = worker.sensor;
 
-        const depth = self.settings.depth;
+        const max_depth = self.settings.max_depth;
 
         var vertices: VertexPool = undefined;
         vertices.start(input);
@@ -75,7 +75,7 @@ pub const Lighttracer = struct {
             while (vertices.consume()) |vertex| {
                 const total_depth = vertex.probe.depth.total();
 
-                if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume) {
+                if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume) {
                     continue;
                 }
 

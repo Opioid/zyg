@@ -30,7 +30,7 @@ pub const AOV = struct {
         value: Value,
 
         num_samples: u32,
-        max_bounces: u32,
+        max_depth: u32,
 
         radius: f32,
 
@@ -204,7 +204,7 @@ pub const AOV = struct {
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
             vertex.probe.depth.increment(frag);
 
-            if (vertex.probe.depth.surface >= self.settings.max_bounces or !vertex.state.forward) {
+            if (vertex.probe.depth.surface >= self.settings.max_depth or !vertex.state.forward) {
                 break;
             }
 
