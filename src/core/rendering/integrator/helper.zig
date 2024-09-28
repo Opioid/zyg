@@ -2,9 +2,8 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const Depth = struct {
-    min: u16,
-    max_surface: u16,
-    max_volume: u16,
+    surface: u16,
+    volume: u16,
 };
 
 pub const LightSampling = enum(u8) {
@@ -36,14 +35,20 @@ pub inline fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
     return f_pdf / (f_pdf * f_pdf + g_pdf * g_pdf);
 }
 
-pub inline fn russianRoulette(new_throughput: Vec4f, old_throughput: Vec4f, r: f32) ?f32 {
-    const continuation_probability = @sqrt(math.max(math.hmax3(new_throughput) / math.hmax3(old_throughput), 0.0));
+pub inline fn russianRoulette(throughput: *Vec4f, r: f32) bool {
+    const max = math.hmax3(throughput.*);
 
-    if (r >= continuation_probability) {
-        return null;
+    const continuation_probability = max / 0.1;
+
+    if (continuation_probability < 1.0) {
+        if (r >= continuation_probability) {
+            return true;
+        }
+
+        throughput.* /= @splat(continuation_probability);
     }
 
-    return continuation_probability;
+    return false;
 }
 
 pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {

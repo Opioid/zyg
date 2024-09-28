@@ -5,6 +5,7 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const smpl = @import("../sample.zig");
@@ -437,49 +438,46 @@ pub const Mesh = struct {
         return self.parts[part].totalCone(variant);
     }
 
-    pub fn intersect(self: *const Mesh, ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
-        const local_ray = trafo.worldToObjectRay(ray.*);
+    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo) Intersection {
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersect(local_ray);
+    }
 
-        if (self.tree.intersect(local_ray)) |hit| {
-            const data = self.tree.data;
+    pub fn fragment(self: *const Mesh, ipo: Interpolation, frag: *Fragment) void {
+        const data = self.tree.data;
 
-            ray.setMaxT(hit.t);
+        const itri = data.indexTriangle(frag.isec.primitive);
 
-            const itri = data.indexTriangle(hit.index);
+        frag.part = itri.part;
 
-            isec.part = itri.part;
-            isec.primitive = hit.index;
+        const hit_u = frag.isec.u;
+        const hit_v = frag.isec.v;
 
-            const p = data.interpolateP(itri, hit.u, hit.v);
-            isec.p = trafo.objectToWorldPoint(p);
+        const p = data.interpolateP(itri, hit_u, hit_v);
+        frag.p = frag.trafo.objectToWorldPoint(p);
 
-            const geo_n = data.normal(itri);
-            isec.geo_n = trafo.objectToWorldNormal(geo_n);
+        const geo_n = data.normal(itri);
+        frag.geo_n = frag.trafo.objectToWorldNormal(geo_n);
 
-            if (.All == ipo) {
-                var t: Vec4f = undefined;
-                var n: Vec4f = undefined;
-                var uv: Vec2f = undefined;
-                data.interpolateData(itri, hit.u, hit.v, &t, &n, &uv);
+        if (.All == ipo) {
+            var t: Vec4f = undefined;
+            var n: Vec4f = undefined;
+            var uv: Vec2f = undefined;
+            data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv);
 
-                const t_w = trafo.objectToWorldNormal(t);
-                const n_w = trafo.objectToWorldNormal(n);
-                const b_w = @as(Vec4f, @splat(itri.bitangentSign())) * math.cross3(n_w, t_w);
+            const t_w = frag.trafo.objectToWorldNormal(t);
+            const n_w = frag.trafo.objectToWorldNormal(n);
+            const b_w = @as(Vec4f, @splat(itri.bitangentSign())) * math.cross3(n_w, t_w);
 
-                isec.t = t_w;
-                isec.b = b_w;
-                isec.n = n_w;
-                isec.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
-            } else {
-                const n = data.interpolateShadingNormal(itri, hit.u, hit.v);
-                isec.n = trafo.objectToWorldNormal(n);
-                isec.uvw = @splat(0.0);
-            }
-
-            return true;
+            frag.t = t_w;
+            frag.b = b_w;
+            frag.n = n_w;
+            frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+        } else {
+            const n = data.interpolateShadingNormal(itri, hit_u, hit_v);
+            frag.n = frag.trafo.objectToWorldNormal(n);
+            frag.uvw = @splat(0.0);
         }
-
-        return false;
     }
 
     pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
@@ -789,25 +787,25 @@ pub const Mesh = struct {
         variant: u32,
         ray: Ray,
         n: Vec4f,
-        isec: *const Intersection,
+        frag: *const Fragment,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
-        var n_dot_dir = -math.dot3(isec.geo_n, ray.direction);
+        var n_dot_dir = -math.dot3(frag.geo_n, ray.direction);
 
         if (two_sided) {
             n_dot_dir = @abs(n_dot_dir);
         }
 
-        const op = isec.trafo.worldToObjectPoint(ray.origin);
-        const on = isec.trafo.worldToObjectNormal(n);
+        const op = frag.trafo.worldToObjectPoint(ray.origin);
+        const on = frag.trafo.worldToObjectNormal(n);
 
-        const pm = self.primitive_mapping[isec.primitive];
+        const pm = self.primitive_mapping[frag.isec.primitive];
 
         const part = self.parts[part_id];
         const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
 
-        const ps = self.tree.data.triangleP(self.tree.data.indexTriangle(isec.primitive));
+        const ps = self.tree.data.triangleP(self.tree.data.indexTriangle(frag.isec.primitive));
 
         const a = ps[0];
         const b = ps[1];
@@ -818,7 +816,7 @@ pub const Mesh = struct {
 
         const cross_axis = math.cross3(e1, e2);
 
-        const ca = (isec.trafo.scale() * isec.trafo.scale()) * cross_axis;
+        const ca = (frag.trafo.scale() * frag.trafo.scale()) * cross_axis;
         const tri_area = 0.5 * math.length3(ca);
 
         const center = (a + b + c) / @as(Vec4f, @splat(3.0));

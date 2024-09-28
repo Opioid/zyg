@@ -2,7 +2,7 @@ const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Prop = @import("../prop/prop.zig").Prop;
 const Vertex = @import("../vertex.zig").Vertex;
-const Intersection = @import("../shape/intersection.zig").Intersection;
+const Fragment = @import("../shape/intersection.zig").Fragment;
 const shp = @import("../shape/sample.zig");
 const SampleTo = shp.To;
 const SampleFrom = shp.From;
@@ -145,7 +145,7 @@ pub const Light align(16) = struct {
         );
     }
 
-    pub fn pdf(self: Light, vertex: *const Vertex, isec: *const Intersection, scene: *const Scene) f32 {
+    pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const total_sphere = vertex.state.is_translucent;
 
         return switch (self.class) {
@@ -154,13 +154,13 @@ pub const Light align(16) = struct {
                 self.variant,
                 vertex.probe.ray,
                 vertex.geo_n,
-                isec,
+                frag,
                 self.two_sided,
                 total_sphere,
             ),
-            .PropImage => self.propImagePdf(vertex.probe.ray, isec, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(vertex.probe.ray, isec),
-            .VolumeImage => self.volumeImagePdf(vertex.probe.ray, isec, scene),
+            .PropImage => self.propImagePdf(vertex.probe.ray, frag, scene),
+            .Volume => scene.propShape(self.prop).volumePdf(vertex.probe.ray, frag),
+            .VolumeImage => self.volumeImagePdf(vertex.probe.ray, frag, scene),
         };
     }
 
@@ -351,18 +351,18 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn propImagePdf(self: Light, ray: Ray, isec: *const Intersection, scene: *const Scene) f32 {
-        const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
+    fn propImagePdf(self: Light, ray: Ray, frag: *const Fragment, scene: *const Scene) f32 {
+        const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = scene.propShape(self.prop).pdfUv(ray, isec, self.two_sided);
+        const shape_pdf = scene.propShape(self.prop).pdfUv(ray, frag, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, isec: *const Intersection, scene: *const Scene) f32 {
-        const material_pdf = isec.material(scene).emissionPdf(isec.uvw);
-        const shape_pdf = scene.propShape(self.prop).volumePdf(ray, isec);
+    fn volumeImagePdf(self: Light, ray: Ray, frag: *const Fragment, scene: *const Scene) f32 {
+        const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
+        const shape_pdf = scene.propShape(self.prop).volumePdf(ray, frag);
 
         return material_pdf * shape_pdf;
     }

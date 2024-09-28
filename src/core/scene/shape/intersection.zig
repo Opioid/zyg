@@ -10,7 +10,7 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Volume = struct {
-    pub const Event = enum { Absorb, Scatter, Pass };
+    pub const Event = enum(u8) { Absorb, Scatter, ExitSSS, Pass };
 
     li: Vec4f,
     tr: Vec4f,
@@ -29,10 +29,19 @@ pub const Volume = struct {
 };
 
 pub const Intersection = struct {
-    event: Volume.Event,
+    pub const Null: u32 = 0xFFFFFFFF;
+
+    t: f32 = undefined,
+    u: f32 = undefined,
+    v: f32 = undefined,
+    primitive: u32 = Null,
+};
+
+pub const Fragment = struct {
+    isec: Intersection,
     prop: u32,
     part: u32,
-    primitive: u32,
+    event: Volume.Event,
 
     trafo: Trafo,
     p: Vec4f,
@@ -81,7 +90,7 @@ pub const Intersection = struct {
     }
 
     pub inline fn subsurface(self: Self) bool {
-        return .Pass != self.event;
+        return .Scatter == self.event;
     }
 
     pub fn sameHemisphere(self: Self, v: Vec4f) bool {

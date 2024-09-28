@@ -69,6 +69,15 @@ pub const Sample = struct {
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
+        if (self.super.properties.exit_sss) {
+            const n_dot_wi = self.super.frame.clampNdot(wi);
+            const pdf = n_dot_wi * math.pi_inv;
+
+            const reflection = @as(Vec4f, @splat(pdf));
+
+            return bxdf.Result.init(reflection, pdf);
+        }
+
         if (self.super.properties.volumetric) {
             return self.volumetricEvaluate(wi, split);
         }
@@ -119,6 +128,29 @@ pub const Sample = struct {
     }
 
     pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+        if (self.super.properties.exit_sss) {
+            const s2d = sampler.sample2D();
+
+            const is = math.smpl.hemisphereCosine(s2d);
+            const wi = math.normalize3(self.super.frame.frameToWorld(is));
+
+            const n_dot_wi = self.super.frame.clampNdot(wi);
+            const pdf = n_dot_wi * math.pi_inv;
+
+            const reflection = @as(Vec4f, @splat(pdf));
+
+            buffer[0] = .{
+                .reflection = reflection,
+                .wi = wi,
+                .pdf = pdf,
+                .split_weight = 1.0,
+                .wavelength = 0.0,
+                .class = .{ .diffuse = true, .reflection = true },
+            };
+
+            return buffer[0..1];
+        }
+
         const th = self.super.thickness;
         if (th > 0.0) {
             var result = &buffer[0];
@@ -634,6 +666,9 @@ pub const Sample = struct {
 
                 const omf = 1.0 - f;
                 buffer[1].reflection *= @splat(n_dot_wi);
+                // _ = n_dot_wi;
+                // buffer[1].reflection = @splat(1.0);
+                // buffer[1].pdf = 1.0;
                 buffer[1].split_weight = omf;
                 buffer[1].wavelength = 0.0;
             }

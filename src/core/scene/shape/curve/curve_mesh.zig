@@ -1,7 +1,8 @@
 const curve = @import("curve.zig");
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const int = @import("../intersection.zig");
-const Intersection = @import("../intersection.zig").Intersection;
+const Intersection = int.Intersection;
+const Fragment = @import("../intersection.zig").Fragment;
 const Tree = @import("curve_tree.zig").Tree;
 
 const base = @import("base");
@@ -21,40 +22,37 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn intersect(self: *const Mesh, ray: *Ray, trafo: Trafo, isec: *Intersection) bool {
-        const local_ray = trafo.worldToObjectRay(ray.*);
+    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo) Intersection {
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersect(local_ray);
+    }
 
-        if (self.tree.intersect(local_ray)) |hit| {
-            ray.setMaxT(hit.t);
+    pub fn fragment(self: *const Mesh, ray: Ray, frag: *Fragment) void {
+        const local_ray = frag.trafo.worldToObjectRay(ray);
 
-            const data = self.tree.data.interpolateData(local_ray, hit.index, hit.u);
+        const hit_u = frag.isec.u;
 
-            const t = math.normalize3(trafo.objectToWorldNormal(data.dpdu));
-            const b = math.normalize3(trafo.objectToWorldNormal(data.dpdv));
-            const n = math.cross3(t, b);
+        const data = self.tree.data.interpolateData(local_ray, frag.isec.primitive, hit_u);
 
-            const geo_n = trafo.objectToWorldNormal(data.geo_n);
+        const t = math.normalize3(frag.trafo.objectToWorldNormal(data.dpdu));
+        const b = math.normalize3(frag.trafo.objectToWorldNormal(data.dpdv));
+        const n = math.cross3(t, b);
 
-            const offset = @abs(data.v - 0.5) * trafo.scaleX() * data.width;
+        const geo_n = frag.trafo.objectToWorldNormal(data.geo_n);
 
-            isec.p = ray.point(hit.t);
-            isec.t = t;
-            isec.b = b;
-            isec.n = n;
-            isec.geo_n = geo_n;
-            isec.uvw = .{ hit.u, data.v, 0.0, offset };
-            isec.part = 0;
-            isec.primitive = hit.index;
+        const offset = @abs(data.v - 0.5) * frag.trafo.scaleX() * data.width;
 
-            return true;
-        }
-
-        return false;
+        frag.p = ray.point(ray.maxT());
+        frag.t = t;
+        frag.b = b;
+        frag.n = n;
+        frag.geo_n = geo_n;
+        frag.uvw = .{ hit_u, data.v, 0.0, offset };
+        frag.part = 0;
     }
 
     pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
-
         return self.tree.intersectP(local_ray);
     }
 

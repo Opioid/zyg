@@ -13,7 +13,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
-    pub const Intersection = struct {
+    pub const Fragment = struct {
         t: f32,
         u: f32,
     };
@@ -65,7 +65,7 @@ pub const IndexedData = struct {
         self.partitions[curve_id] = partition;
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Intersection {
+    pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Fragment {
         const index = self.indices[id];
 
         const partition = curve.partition(self.curvePoints(index), self.partitions[id]);
@@ -181,7 +181,7 @@ pub const IndexedData = struct {
         width: Vec2f,
         u_range: Vec2f,
         depth: u32,
-    ) ?Intersection {
+    ) ?Fragment {
         const curve_bounds = segmentBounds(cp, width, u_range);
         const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
@@ -211,7 +211,7 @@ pub const IndexedData = struct {
         return hit0;
     }
 
-    fn intersectSegment(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) ?Intersection {
+    fn intersectSegment(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) ?Fragment {
         if (!testTangents(cp)) {
             return null;
         }

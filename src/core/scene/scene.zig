@@ -7,7 +7,7 @@ const LightProperties = lgt.Properties;
 const LightTree = @import("light/light_tree.zig").Tree;
 const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const int = @import("shape/intersection.zig");
-const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
@@ -264,8 +264,8 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, probe: *Probe, isec: *Intersection, ipo: Interpolation) bool {
-        return self.prop_bvh.intersect(probe, isec, self, ipo);
+    pub fn intersect(self: *const Scene, probe: *Probe, frag: *Fragment, ipo: Interpolation) bool {
+        return self.prop_bvh.intersect(probe, frag, self, ipo);
     }
 
     pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
@@ -283,17 +283,17 @@ pub const Scene = struct {
     pub fn scatter(
         self: *const Scene,
         probe: *Probe,
-        isec: *Intersection,
+        frag: *Fragment,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
         if (!self.has_volumes) {
-            isec.setVolume(Volume.initPass(@splat(1.0)));
+            frag.setVolume(Volume.initPass(@splat(1.0)));
             return false;
         }
 
-        return self.volume_bvh.scatter(probe, isec, throughput, sampler, worker);
+        return self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

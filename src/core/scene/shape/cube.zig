@@ -1,6 +1,7 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -21,39 +22,44 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Cube = struct {
-    pub fn intersect(ray: *Ray, trafo: Trafo, ipo: Interpolation, isec: *Intersection) bool {
-        const local_ray = trafo.worldToObjectRay(ray.*);
+    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+        var hpoint = Intersection{};
+
+        const local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP(local_ray) orelse return false;
-        if (hit_t > ray.maxT()) {
-            return false;
+        const hit_t = aabb.intersectP(local_ray) orelse return hpoint;
+        if (hit_t < ray.maxT()) {
+            hpoint.t = hit_t;
+            hpoint.primitive = 0;
         }
 
-        ray.setMaxT(hit_t);
+        return hpoint;
+    }
 
-        isec.p = ray.point(hit_t);
+    pub fn fragment(ray: Ray, ipo: Interpolation, frag: *Fragment) void {
+        const hit_t = ray.maxT();
 
+        frag.p = ray.point(hit_t);
+
+        const local_ray = frag.trafo.worldToObjectRay(ray);
         const local_p = local_ray.point(hit_t);
         const distance = @abs(@as(Vec4f, @splat(1.0)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
-        const n = @as(Vec4f, @splat(s)) * trafo.rotation.r[i];
+        const n = @as(Vec4f, @splat(s)) * frag.trafo.rotation.r[i];
 
-        isec.part = 0;
-        isec.primitive = 0;
-        isec.geo_n = n;
-        isec.n = n;
-        isec.uvw = @splat(0.0);
+        frag.part = 0;
+        frag.geo_n = n;
+        frag.n = n;
+        frag.uvw = @splat(0.0);
 
         if (.All == ipo) {
             const tb = math.orthonormalBasis3(n);
-            isec.t = tb[0];
-            isec.b = tb[1];
+            frag.t = tb[0];
+            frag.b = tb[1];
         }
-
-        return true;
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {

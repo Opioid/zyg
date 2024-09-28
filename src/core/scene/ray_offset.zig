@@ -6,7 +6,7 @@ pub const Ray_max_t = 2.14748313e+09;
 pub const Almost_ray_max_t = 2.14748300e+09;
 
 // The following block implements the ray offset technique described in
-// "A Fast and Robust Method for Avoiding Self-Intersection"
+// "A Fast and Robust Method for Avoiding Self-Fragment"
 
 const origin: f32 = 1.0 / 32.0;
 const float_scale: f32 = 1.0 / 65536.0;

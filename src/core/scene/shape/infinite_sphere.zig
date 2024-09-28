@@ -1,5 +1,7 @@
-const Transformation = @import("../composed_transformation.zig").ComposedTransformation;
-const Intersection = @import("intersection.zig").Intersection;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+const int = @import("intersection.zig");
+const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -19,14 +21,20 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const InfiniteSphere = struct {
-    pub fn intersect(ray: *Ray, trafo: Transformation, isec: *Intersection) bool {
-        if (ray.maxT() < ro.Ray_max_t) {
-            return false;
+    pub fn intersect(ray: Ray) Intersection {
+        var hpoint = Intersection{};
+
+        if (ray.maxT() >= ro.Ray_max_t) {
+            hpoint.primitive = 0;
         }
 
-        const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(ray.direction));
+        return hpoint;
+    }
 
-        isec.uvw = .{
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
+        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(ray.direction));
+
+        frag.uvw = .{
             std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
             std.math.acos(xyz[1]) * math.pi_inv,
             0.0,
@@ -35,21 +43,16 @@ pub const InfiniteSphere = struct {
 
         // This is nonsense
         const dir = Vec4f{ ray.direction[0], ray.direction[1], ray.direction[2], 0.0 };
-        isec.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
+        frag.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
         const n = -dir;
-        isec.geo_n = n;
-        isec.t = trafo.rotation.r[0];
-        isec.b = trafo.rotation.r[1];
-        isec.n = n;
-        isec.part = 0;
-        isec.primitive = 0;
-
-        ray.setMaxT(ro.Ray_max_t);
-
-        return true;
+        frag.geo_n = n;
+        frag.t = frag.trafo.rotation.r[0];
+        frag.b = frag.trafo.rotation.r[1];
+        frag.n = n;
+        frag.part = 0;
     }
 
-    pub fn sampleTo(n: Vec4f, trafo: Transformation, total_sphere: bool, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler) SampleTo {
         const uv = sampler.sample2D();
 
         var dir: Vec4f = undefined;
@@ -83,7 +86,7 @@ pub const InfiniteSphere = struct {
         );
     }
 
-    pub fn sampleToUv(uv: Vec2f, trafo: Transformation) SampleTo {
+    pub fn sampleToUv(uv: Vec2f, trafo: Trafo) SampleTo {
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -106,7 +109,7 @@ pub const InfiniteSphere = struct {
         );
     }
 
-    pub fn sampleFrom(trafo: Transformation, uv: Vec2f, importance_uv: Vec2f, bounds: AABB, from_image: bool) ?SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB, from_image: bool) ?SampleFrom {
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -154,9 +157,9 @@ pub const InfiniteSphere = struct {
         return 1.0 / (2.0 * std.math.pi);
     }
 
-    pub fn pdfUv(isec: *const Intersection) f32 {
+    pub fn pdfUv(frag: *const Fragment) f32 {
         // sin_theta because of the uv weight
-        const sin_theta = @sin(isec.uvw[1] * std.math.pi);
+        const sin_theta = @sin(frag.uvw[1] * std.math.pi);
 
         if (0.0 == sin_theta) {
             return 0.0;

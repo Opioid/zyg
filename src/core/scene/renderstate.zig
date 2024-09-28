@@ -1,5 +1,6 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
 const ggx = @import("material/ggx.zig");
+const Event = @import("shape/intersection.zig").Volume.Event;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -33,8 +34,8 @@ pub const Renderstate = struct {
     primitive: u32,
     volume_depth: u32,
 
-    subsurface: bool,
     primary: bool,
+    event: Event,
     caustics: CausticsResolve,
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
@@ -54,5 +55,13 @@ pub const Renderstate = struct {
         }
 
         return alpha;
+    }
+
+    pub fn volumeScatter(self: Renderstate) bool {
+        return .Scatter == self.event;
+    }
+
+    pub fn exitSSS(self: Renderstate) bool {
+        return .ExitSSS == self.event;
     }
 };

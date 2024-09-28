@@ -16,14 +16,14 @@ const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
-const Intersection = shp.Intersection;
+const Fragment = shp.Fragment;
 const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const surface = @import("integrator/surface/integrator.zig");
-const vlhlp = @import("integrator/volume/tracking_multi.zig").Multi;
+const VolumeIntegrator = @import("integrator/volume/volume_integrator.zig").Integrator;
 const lt = @import("integrator/particle/lighttracer.zig");
 const PhotonSettings = @import("../take/take.zig").PhotonSettings;
 const PhotonMapper = @import("integrator/particle/photon/photon_mapper.zig").Mapper;
@@ -299,8 +299,8 @@ pub const Worker = struct {
         return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
     }
 
-    pub fn photonLi(self: *const Worker, isec: *const Intersection, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
-        return self.photon_map.li(isec, sample, sampler, self.scene);
+    pub fn photonLi(self: *const Worker, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
+        return self.photon_map.li(frag, sample, sampler, self.scene);
     }
 
     pub fn addPhoton(self: *Worker, photon: Vec4f) void {
@@ -315,7 +315,7 @@ pub const Worker = struct {
         return &self.samplers[1];
     }
 
-    pub fn commonAOV(self: *Worker, vertex: *const Vertex, isec: *const Intersection, mat_sample: *const MaterialSample) void {
+    pub fn commonAOV(self: *Worker, vertex: *const Vertex, frag: *const Fragment, mat_sample: *const MaterialSample) void {
         const primary_ray = vertex.state.primary_ray;
 
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
@@ -341,89 +341,32 @@ pub const Worker = struct {
         if (self.aov.activeClass(.MaterialId)) {
             self.aov.insert1(
                 .MaterialId,
-                @floatFromInt(1 + self.scene.propMaterialId(isec.prop, isec.part)),
+                @floatFromInt(1 + self.scene.propMaterialId(frag.prop, frag.part)),
             );
         }
     }
 
-    pub fn visibility(
-        self: *Worker,
-        probe: *Probe,
-        isec: *const Intersection,
-        interfaces: *const InterfaceStack,
-        sampler: *Sampler,
-    ) ?Vec4f {
-        const material = isec.material(self.scene);
-
-        if (isec.subsurface() and !interfaces.empty() and material.denseSSSOptimization()) {
-            const ray_max_t = probe.ray.maxT();
-            const prop = isec.prop;
-
-            const hit = self.scene.prop(prop).intersectSSS(probe, isec.trafo, self.scene);
-
-            if (hit) |sss_isec| {
-                const sss_min_t = probe.ray.minT();
-                const sss_max_t = probe.ray.maxT();
-                probe.ray.setMinMaxT(ro.offsetF(sss_max_t), ray_max_t);
-                if (self.scene.visibility(probe, sampler, self)) |tv| {
-                    probe.ray.setMinMaxT(sss_min_t, sss_max_t);
-                    const cc = interfaces.topCC();
-                    const tray = if (material.heterogeneousVolume()) isec.trafo.worldToObjectRay(probe.ray) else probe.ray;
-                    if (vlhlp.propTransmittance(tray, material, cc, prop, probe.depth.volume, sampler, self)) |tr| {
-                        const wi = probe.ray.direction;
-                        const n = sss_isec.n;
-                        const vbh = material.border(wi, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wi, sss_isec.geo_n, n));
-
-                        return (vbh * nsc) * (tv * tr);
-                    }
-                }
-
-                return null;
-            }
-        }
-
+    pub fn visibility(self: *Worker, probe: *Probe, sampler: *Sampler) ?Vec4f {
         return self.scene.visibility(probe, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, comptime Particle: bool, vertex: *Vertex, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
         while (!vertex.interfaces.empty()) {
-            if (vlhlp.integrate(vertex, isec, sampler, self)) {
-                vertex.throughput *= isec.vol_tr;
+            const interface = vertex.interfaces.top();
+            const material = interface.material(self.scene);
 
-                if (.Pass == isec.event) {
-                    const wo = -vertex.probe.ray.direction;
-                    const material = isec.material(self.scene);
-                    const straight_border = vertex.state.from_subsurface and material.denseSSSOptimization();
-
-                    if (straight_border and !isec.sameHemisphere(wo)) {
-                        const geo_n = isec.geo_n;
-                        const n = isec.n;
-
-                        const vbh = material.border(wo, n);
-                        const nsc: Vec4f = @splat(subsurfaceNonSymmetryCompensation(wo, geo_n, n));
-                        const weight = nsc * vbh;
-
-                        vertex.throughput *= weight;
-
-                        vertex.probe.ray.origin = isec.offsetP(vertex.probe.ray.direction);
-                        vertex.probe.ray.setMaxT(ro.Ray_max_t);
-                        vertex.probe.depth.surface += 1;
-
-                        sampler.incrementPadding();
-
-                        if (Particle) {
-                            const ior_t = vertex.interfaces.surroundingIor(self.scene);
-                            const eta = material.ior() / ior_t;
-                            vertex.throughput *= @splat(eta * eta);
-                        }
-
-                        vertex.interfaces.pop();
-                        continue;
-                    }
+            if (material.denseSSSOptimization()) {
+                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), self)) {
+                    vertex.throughput *= frag.vol_tr;
+                    return true;
+                } else {
+                    return false;
                 }
-
-                return true;
+            } else {
+                if (VolumeIntegrator.integrate(vertex, frag, sampler, self)) {
+                    vertex.throughput *= frag.vol_tr;
+                    return true;
+                }
             }
 
             vertex.interfaces.pop();
@@ -431,14 +374,14 @@ pub const Worker = struct {
 
         const origin = vertex.probe.ray.origin;
 
-        const hit = self.intersectAndResolveMask(&vertex.probe, isec, sampler);
+        const hit = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
         vertex.probe.ray.setMaxT(dif_t + vertex.probe.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.probe, isec, vertex.throughput, sampler, self);
-        vertex.throughput *= isec.vol_tr;
+        const volume_hit = self.scene.scatter(&vertex.probe, frag, vertex.throughput, sampler, self);
+        vertex.throughput *= frag.vol_tr;
 
         return hit or volume_hit;
     }
@@ -452,7 +395,7 @@ pub const Worker = struct {
         sampler: *Sampler,
     ) ?Vec4f {
         const cc = material.super().cc;
-        return vlhlp.propTransmittance(ray, material, cc, entity, depth, sampler, self);
+        return VolumeIntegrator.propTransmittance(ray, material, cc, entity, depth, sampler, self);
     }
 
     pub fn propScatter(
@@ -465,31 +408,35 @@ pub const Worker = struct {
         sampler: *Sampler,
     ) Volume {
         const cc = material.super().cc;
-        return vlhlp.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
+        return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, isec: *Intersection, ipo: Interpolation) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, isec, self.scene, ipo)) {
-            isec.prop = entity;
+    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, frag: *Fragment) bool {
+        if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
+            frag.prop = entity;
             return true;
         }
 
         return false;
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, isec: *Intersection, sampler: *Sampler) bool {
+    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, ipo: Interpolation, frag: *Fragment) void {
+        self.scene.prop(entity).fragment(probe, ipo, frag, self.scene);
+    }
+
+    pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
         while (true) {
-            if (!self.scene.intersect(probe, isec, .All)) {
+            if (!self.scene.intersect(probe, frag, .All)) {
                 return false;
             }
 
-            const o = isec.opacity(sampler, self.scene);
+            const o = frag.opacity(sampler, self.scene);
             if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
 
             // Offset ray until opaque surface is found
-            probe.ray.origin = isec.offsetP(probe.ray.direction);
+            probe.ray.origin = frag.offsetP(probe.ray.direction);
             probe.ray.setMaxT(ro.Ray_max_t);
         }
 
@@ -511,13 +458,9 @@ pub const Worker = struct {
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
     }
 
-    inline fn subsurfaceNonSymmetryCompensation(wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32 {
-        return @abs(math.dot3(wo, n)) / math.safe.clampAbsDot(wo, geo_n);
-    }
-
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
     fn calculateScreenspaceDifferential(p: Vec4f, n: Vec4f, rd: RayDif, dpdu: Vec4f, dpdv: Vec4f) Vec4f {
-        // Compute offset-ray isec points with tangent plane
+        // Compute offset-ray frag points with tangent plane
         const d = math.dot3(n, p);
 
         const tx = -(math.dot3(n, rd.x_origin) - d) / math.dot3(n, rd.x_direction);
@@ -526,7 +469,7 @@ pub const Worker = struct {
         const px = rd.x_origin + @as(Vec4f, @splat(tx)) * rd.x_direction;
         const py = rd.y_origin + @as(Vec4f, @splat(ty)) * rd.y_direction;
 
-        // Compute uv offsets at offset-ray isec points
+        // Compute uv offsets at offset-ray frag points
         // Choose two dimensions to use for ray offset computations
         const dim = if (@abs(n[0]) > @abs(n[1]) and @abs(n[0]) > @abs(n[2])) Vec2b{
             1,

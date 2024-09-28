@@ -124,6 +124,7 @@ pub fn build(b: *std.Build) void {
             //"takes/embergen.take",
             //"takes/volume.take",
             //"takes/intel_sponza.take",
+            //"takes/sss.take",
             //"scenes/island/shot_cam.take",
             "-t",
             "-1",

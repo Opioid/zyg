@@ -5,7 +5,7 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const Intersection = struct {
+pub const Fragment = struct {
     t: f32,
     u: f32,
     v: f32,
@@ -24,7 +24,7 @@ pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
     return math.max4(a, math.max4(b, c));
 }
 
-pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
+pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Fragment {
     const e1 = b - a;
     const e2 = c - a;
 
@@ -46,7 +46,7 @@ pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Intersection {
     const uv = u + v;
 
     if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
-        return Intersection{ .t = hit_t, .u = u, .v = v };
+        return Fragment{ .t = hit_t, .u = u, .v = v };
     }
 
     return null;

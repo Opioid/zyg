@@ -3,7 +3,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Worker = @import("../../worker.zig").Worker;
 const int = @import("../../../scene/shape/intersection.zig");
-const Intersection = int.Intersection;
+const Fragment = int.Fragment;
 const Volume = int.Volume;
 const Interface = @import("../../../scene/prop/interface.zig").Interface;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
@@ -14,13 +14,14 @@ const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
 
 const math = @import("base").math;
+const Frame = math.Frame;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Multi = struct {
+pub const Integrator = struct {
     pub fn propTransmittance(
         ray: Ray,
         material: *const Material,
@@ -131,42 +132,37 @@ pub const Multi = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, isec: *Intersection, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
-        if (material.denseSSSOptimization()) {
-            if (!worker.propIntersect(interface.prop, &vertex.probe, isec, .PositionAndNormal)) {
-                return false;
-            }
-        } else {
-            const ray_max_t = vertex.probe.ray.maxT();
-            const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse ray_max_t;
-            vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
-            if (!worker.intersectAndResolveMask(&vertex.probe, isec, sampler)) {
-                vertex.probe.ray.setMinMaxT(vertex.probe.ray.maxT(), ray_max_t);
-                return false;
-            }
+        const ray_max_t = vertex.probe.ray.maxT();
+        const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse ray_max_t;
+        vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
+        if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
+            vertex.probe.ray.setMinMaxT(vertex.probe.ray.maxT(), ray_max_t);
+            return false;
+        }
 
-            // This test is intended to catch corner cases where we actually left the scattering medium,
-            // but the intersection point was too close to detect.
-            var missed = false;
-            if (!interface.matches(isec) or !isec.sameHemisphere(vertex.probe.ray.direction)) {
-                const v = -vertex.probe.ray.direction;
+        // This test is intended to catch corner cases where we actually left the scattering medium,
+        // but the intersection point was too close to detect.
+        var missed = false;
+        if (!interface.matches(frag) or !frag.sameHemisphere(vertex.probe.ray.direction)) {
+            const v = -vertex.probe.ray.direction;
 
-                var tprobe = vertex.probe.clone(Ray.init(isec.offsetP(v), v, 0.0, ro.Ray_max_t));
-                var tisec: Intersection = undefined;
-                if (worker.propIntersect(interface.prop, &tprobe, &tisec, .PositionAndNormal)) {
-                    missed = math.dot3(tisec.geo_n, v) <= 0.0;
-                } else {
-                    missed = true;
-                }
+            var tprobe = vertex.probe.clone(Ray.init(frag.offsetP(v), v, 0.0, ro.Ray_max_t));
+            var tisec: Fragment = undefined;
+            if (worker.propIntersect(interface.prop, &tprobe, &tisec)) {
+                worker.propInterpolateFragment(interface.prop, &tprobe, .PositionAndNormal, &tisec);
+                missed = math.dot3(tisec.geo_n, v) <= 0.0;
+            } else {
+                missed = true;
             }
+        }
 
-            if (missed) {
-                vertex.probe.ray.setMinMaxT(math.min(ro.offsetF(vertex.probe.ray.maxT()), ray_max_t), ray_max_t);
-                return false;
-            }
+        if (missed) {
+            vertex.probe.ray.setMinMaxT(math.min(ro.offsetF(vertex.probe.ray.maxT()), ray_max_t), ray_max_t);
+            return false;
         }
 
         const tray = if (material.heterogeneousVolume())
@@ -186,13 +182,92 @@ pub const Multi = struct {
         );
 
         if (.Pass != result.event) {
-            isec.prop = interface.prop;
-            isec.part = interface.part;
-            isec.p = vertex.probe.ray.point(result.t);
-            isec.uvw = result.uvw;
+            frag.prop = interface.prop;
+            frag.part = interface.part;
+            frag.p = vertex.probe.ray.point(result.t);
+            frag.uvw = result.uvw;
         }
 
-        isec.setVolume(result);
+        frag.setVolume(result);
         return true;
+    }
+
+    pub fn integrateSSS(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+        const interface = vertex.interfaces.top();
+        const material = interface.material(worker.scene);
+
+        const cc = vertex.interfaces.topCC();
+        const g = material.super().volumetric_anisotropy;
+
+        for (0..256) |_| {
+            const hit = worker.propIntersect(interface.prop, &vertex.probe, frag);
+            if (!hit) {
+                // We don't immediately abort even if not hitting the prop.
+                // This way SSS looks less wrong in case of geometry that isn't "watertight".
+                const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse return false;
+                vertex.probe.ray.setMaxT(limit);
+            }
+
+            const tray = if (material.heterogeneousVolume())
+                worker.scene.propTransformationAt(interface.prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
+            else
+                vertex.probe.ray;
+
+            var result = propScatter(
+                tray,
+                vertex.throughput,
+                material,
+                cc,
+                interface.prop,
+                vertex.probe.depth.volume,
+                sampler,
+                worker,
+            );
+
+            if (hit and .Scatter != result.event) {
+                worker.propInterpolateFragment(frag.prop, &vertex.probe, .All, frag);
+
+                if (frag.sameHemisphere(vertex.probe.ray.direction)) {
+                    vertex.interfaces.pop();
+                    result.event = .ExitSSS;
+                }
+
+                frag.setVolume(result);
+
+                return true;
+            } else if (!hit and .Pass == result.event) {
+                return false;
+            }
+
+            vertex.throughput *= result.tr;
+
+            if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                return false;
+            }
+
+            const frame = Frame.init(vertex.probe.ray.direction);
+
+            const r2 = sampler.sample2D();
+
+            var cos_theta: f32 = undefined;
+            if (@abs(g) < 0.001) {
+                cos_theta = 1.0 - 2.0 * r2[0];
+            } else {
+                const gg = g * g;
+                const sqr = (1.0 - gg) / (1.0 - g + 2.0 * g * r2[0]);
+                cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
+            }
+
+            const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
+            const phi = r2[1] * (2.0 * std.math.pi);
+
+            const wil = math.smpl.sphereDirection(sin_theta, cos_theta, phi);
+            const wi = frame.frameToWorld(wil);
+
+            vertex.probe.ray.origin = vertex.probe.ray.point(result.t);
+            vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+        }
+
+        return false;
     }
 };

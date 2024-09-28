@@ -9,7 +9,7 @@ const Sensor = @import("../../../rendering/sensor/sensor.zig").Sensor;
 const Light = @import("../../../scene/light/light.zig").Light;
 const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
-const Intersection = @import("../../../scene/shape/intersection.zig").Intersection;
+const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../scene/ray_offset.zig");
 const hlp = @import("../helper.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -28,7 +28,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Lighttracer = struct {
     pub const Settings = struct {
-        depth: hlp.Depth,
+        max_depth: hlp.Depth,
         full_light_path: bool,
     };
 
@@ -66,7 +66,7 @@ pub const Lighttracer = struct {
         const camera = worker.camera;
         const sensor = worker.sensor;
 
-        const depth = self.settings.depth;
+        const max_depth = self.settings.max_depth;
 
         var vertices: VertexPool = undefined;
         vertices.start(input);
@@ -75,38 +75,36 @@ pub const Lighttracer = struct {
             while (vertices.consume()) |vertex| {
                 const total_depth = vertex.probe.depth.total();
 
-                if (vertex.probe.depth.surface >= depth.max_surface or vertex.probe.depth.volume >= depth.max_volume) {
+                if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume) {
                     continue;
                 }
 
                 const sampler = worker.pickSampler(total_depth);
 
-                var isec: Intersection = undefined;
-                if (!worker.nextEvent(true, vertex, &isec, sampler)) {
+                var frag: Fragment = undefined;
+                if (!worker.nextEvent(vertex, &frag, sampler)) {
                     continue;
                 }
 
-                if (.Absorb == isec.event) {
+                if (.Absorb == frag.event) {
                     continue;
                 }
 
                 if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
-                    const energy = light.evaluateFrom(isec.p, light_sample, sampler, worker.scene) / pdf;
+                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.scene) / pdf;
                     vertex.throughput *= energy;
-                    vertex.throughput_old = vertex.throughput;
                 }
 
-                const mat_sample = vertex.sample(&isec, sampler, .Full, worker);
+                const mat_sample = vertex.sample(&frag, sampler, .Full, worker);
 
                 const split = vertex.path_count <= 2 and vertex.state.primary_ray;
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
-                    _ = directCamera(camera, sensor, vertex, &isec, &mat_sample, split, sampler, worker);
+                    _ = directCamera(camera, sensor, vertex, &frag, &mat_sample, split, sampler, worker);
 
-                    if (total_depth >= depth.min) {
-                        const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse continue;
-                        vertex.throughput /= @splat(rr);
+                    if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                        continue;
                     }
                 }
 
@@ -138,16 +136,14 @@ pub const Lighttracer = struct {
                         next_vertex.state.primary_ray = false;
                     }
 
-                    next_vertex.throughput_old = next_vertex.throughput;
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                    next_vertex.probe.ray.origin = isec.offsetP(sample_result.wi);
+                    next_vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
                     next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
-                    next_vertex.probe.depth.increment(&isec);
+                    next_vertex.probe.depth.increment(&frag);
 
                     if (!class.straight) {
-                        next_vertex.state.from_subsurface = isec.subsurface();
-                        next_vertex.origin = isec.p;
+                        next_vertex.origin = frag.p;
                     }
 
                     if (0.0 == next_vertex.probe.wavelength) {
@@ -155,7 +151,7 @@ pub const Lighttracer = struct {
                     }
 
                     if (class.transmission) {
-                        const ior = next_vertex.interfaceChangeIor(&isec, sample_result.wi, sampler, worker.scene);
+                        const ior = next_vertex.interfaceChangeIor(&frag, sample_result.wi, sampler, worker.scene);
                         const eta = ior.eta_i / ior.eta_t;
                         next_vertex.throughput *= @as(Vec4f, @splat(eta * eta));
                     }
@@ -193,13 +189,13 @@ pub const Lighttracer = struct {
         camera: *const Camera,
         sensor: *Sensor,
         vertex: *const Vertex,
-        isec: *const Intersection,
+        frag: *const Fragment,
         mat_sample: *const MaterialSample,
         material_split: bool,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!isec.visibleInCamera(worker.scene)) {
+        if (!frag.visibleInCamera(worker.scene)) {
             return false;
         }
 
@@ -213,29 +209,22 @@ pub const Lighttracer = struct {
         const camera_sample = camera.sampleTo(
             filter_crop,
             vertex.probe.time,
-            isec.p,
+            frag.p,
             sampler,
             worker.scene,
         ) orelse return false;
 
         const wi = -camera_sample.dir;
-        const p = isec.offsetP(wi);
+        const p = frag.offsetP(wi);
         var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
-        const tr = worker.visibility(&tprobe, isec, &vertex.interfaces, sampler) orelse return false;
+        const tr = worker.visibility(&tprobe, sampler) orelse return false;
 
         const bxdf_result = mat_sample.evaluate(wi, material_split);
 
         const wo = mat_sample.super().wo;
         const n = mat_sample.super().interpolatedNormal();
-        var nsc = hlp.nonSymmetryCompensation(wi, wo, isec.geo_n, n);
-
-        const material = isec.material(worker.scene);
-        if (isec.subsurface() and material.denseSSSOptimization()) {
-            const ior_t = vertex.interfaces.surroundingIor(worker.scene);
-            const eta = material.ior() / ior_t;
-            nsc *= eta * eta;
-        }
+        const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 
         const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
         const result = weight * (tr * vertex.throughput * bxdf_result.reflection);

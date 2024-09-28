@@ -84,7 +84,7 @@ pub const IndexedData = struct {
         return self.positions[index * 3 ..][0..4].*;
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Intersection {
+    pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Fragment {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);
