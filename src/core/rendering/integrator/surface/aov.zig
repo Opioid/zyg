@@ -47,7 +47,7 @@ pub const AOV = struct {
         const sampler = worker.pickSampler(0);
 
         var frag: Fragment = undefined;
-        if (!worker.nextEvent(&vertex, &frag, sampler, 0)) {
+        if (!worker.nextEvent(&vertex, &frag, sampler)) {
             return @splat(0.0);
         }
 
@@ -208,7 +208,6 @@ pub const AOV = struct {
                 break;
             }
 
-            vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             if (!sample_result.class.straight) {
@@ -223,7 +222,7 @@ pub const AOV = struct {
                 vertex.interfaceChange(frag, sample_result.wi, sampler, worker.scene);
             }
 
-            if (!worker.nextEvent(vertex, frag, sampler, 0)) {
+            if (!worker.nextEvent(vertex, frag, sampler)) {
                 break;
             }
 

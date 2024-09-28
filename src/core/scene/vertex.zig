@@ -74,7 +74,6 @@ pub const Vertex = struct {
     path_count: u32,
 
     throughput: Vec4f,
-    throughput_old: Vec4f,
     origin: Vec4f,
     geo_n: Vec4f,
 
@@ -90,7 +89,6 @@ pub const Vertex = struct {
             .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
-            .throughput_old = @splat(1.0),
             .origin = ray.origin,
             .geo_n = @splat(0.0),
             .interfaces = interfaces.clone(),

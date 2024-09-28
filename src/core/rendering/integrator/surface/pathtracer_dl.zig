@@ -40,7 +40,7 @@ pub const PathtracerDL = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            if (!worker.nextEvent(&vertex, &frag, sampler, depth.max_volume)) {
+            if (!worker.nextEvent(&vertex, &frag, sampler)) {
                 break;
             }
 
@@ -53,9 +53,8 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            if (total_depth >= depth.min) {
-                const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
-                vertex.throughput /= @splat(rr);
+            if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                break;
             }
 
             const caustics = self.causticsResolve(vertex.state);
@@ -83,7 +82,6 @@ pub const PathtracerDL = struct {
                 vertex.state.primary_ray = false;
             }
 
-            vertex.throughput_old = vertex.throughput;
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             vertex.probe.ray.origin = frag.offsetP(sample_result.wi);

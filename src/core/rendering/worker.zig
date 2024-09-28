@@ -244,13 +244,13 @@ pub const Worker = struct {
         return self.scene.visibility(probe, sampler, self);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, max_sss_depth: u32) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
         while (!vertex.interfaces.empty()) {
             const interface = vertex.interfaces.top();
             const material = interface.material(self.scene);
 
             if (material.denseSSSOptimization()) {
-                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), max_sss_depth, self)) {
+                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), self)) {
                     vertex.throughput *= frag.vol_tr;
                     return true;
                 } else {

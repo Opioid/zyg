@@ -115,7 +115,7 @@ pub const Mapper = struct {
                 var sampler = &self.sampler;
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(&vertex, &frag, sampler, 128)) {
+                if (!worker.nextEvent(&vertex, &frag, sampler)) {
                     break;
                 }
 
@@ -127,7 +127,6 @@ pub const Mapper = struct {
                     const pdf: Vec4f = @splat(light_sample.pdf());
                     const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.scene) / pdf;
                     vertex.throughput *= energy;
-                    vertex.throughput_old = vertex.throughput;
                 }
 
                 const mat_sample = vertex.sample(&frag, &self.sampler, .Full, worker);
@@ -169,11 +168,11 @@ pub const Mapper = struct {
 
                 const class = sample_result.class;
 
-                vertex.throughput_old = vertex.throughput;
                 vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse break;
-                vertex.throughput /= @splat(rr);
+                if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                    break;
+                }
 
                 if (class.specular) {
                     vertex.state.treat_as_singular = true;

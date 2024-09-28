@@ -192,14 +192,14 @@ pub const Integrator = struct {
         return true;
     }
 
-    pub fn integrateSSS(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, max_depth: u32, worker: *Worker) bool {
+    pub fn integrateSSS(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
         const cc = vertex.interfaces.topCC();
         const g = material.super().volumetric_anisotropy;
 
-        for (0..max_depth) |_| {
+        for (0..256) |_| {
             const hit = worker.propIntersect(interface.prop, &vertex.probe, frag);
             if (!hit) {
                 // We don't immediately abort even if not hitting the prop.
@@ -239,28 +239,11 @@ pub const Integrator = struct {
                 return false;
             }
 
-            vertex.throughput_old = vertex.throughput;
             vertex.throughput *= result.tr;
 
-            // const rr = hlp.russianRoulette(vertex.throughput, vertex.throughput_old, sampler.sample1D()) orelse return false;
-            // vertex.throughput /= @splat(rr);
-
-            // const sum_weight = vertex.throughput[0] + vertex.throughput[1] + vertex.throughput[2];
-
-            // const epsilon = 1e-6;
-            // if (sum_weight < epsilon) {
-            //     return false; // Path went extinct.
-            // }
-
-            // const avg_weights = sum_weight / 3.0;
-            // const russian_roulette = 0.1;
-            // if (avg_weights <= russian_roulette) {
-            //     if (sampler.sample1D() * russian_roulette < avg_weights) {
-            //         vertex.throughput *= @splat(russian_roulette / avg_weights);
-            //     } else {
-            //         return false;
-            //     }
-            // }
+            if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                return false;
+            }
 
             const frame = Frame.init(vertex.probe.ray.direction);
 
