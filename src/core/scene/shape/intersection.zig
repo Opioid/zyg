@@ -50,7 +50,6 @@ pub const Fragment = struct {
     b: Vec4f,
     n: Vec4f,
     vol_li: Vec4f,
-    vol_tr: Vec4f,
     uvw: Vec4f,
 
     const Self = @This();
@@ -58,7 +57,6 @@ pub const Fragment = struct {
     pub fn setVolume(self: *Self, vol: Volume) void {
         self.event = vol.event;
         self.vol_li = vol.li;
-        self.vol_tr = vol.tr;
     }
 
     pub inline fn uv(self: Self) Vec2f {
@@ -110,7 +108,7 @@ pub const Fragment = struct {
         }
 
         const m = self.material(scene);
-        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Scatter == volume) {
+        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Pass != volume) {
             return null;
         }
 

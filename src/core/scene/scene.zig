@@ -284,7 +284,7 @@ pub const Scene = struct {
         self: *const Scene,
         probe: *Probe,
         frag: *Fragment,
-        throughput: Vec4f,
+        throughput: *Vec4f,
         sampler: *Sampler,
         worker: *Worker,
     ) bool {

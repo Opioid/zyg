@@ -245,25 +245,8 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
-        while (!vertex.interfaces.empty()) {
-            const interface = vertex.interfaces.top();
-            const material = interface.material(self.scene);
-
-            if (material.denseSSSOptimization()) {
-                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), self)) {
-                    vertex.throughput *= frag.vol_tr;
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                if (VolumeIntegrator.integrate(vertex, frag, sampler, self)) {
-                    vertex.throughput *= frag.vol_tr;
-                    return true;
-                }
-            }
-
-            vertex.interfaces.pop();
+        if (!vertex.interfaces.empty()) {
+            return VolumeIntegrator.integrate(vertex, frag, sampler, self);
         }
 
         const origin = vertex.probe.ray.origin;
@@ -274,8 +257,7 @@ pub const Worker = struct {
         vertex.probe.ray.origin = origin;
         vertex.probe.ray.setMaxT(dif_t + vertex.probe.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.probe, frag, vertex.throughput, sampler, self);
-        vertex.throughput *= frag.vol_tr;
+        const volume_hit = self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
 
         return hit or volume_hit;
     }

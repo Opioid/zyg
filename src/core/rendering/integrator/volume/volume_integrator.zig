@@ -136,32 +136,15 @@ pub const Integrator = struct {
         const interface = vertex.interfaces.top();
         const material = interface.material(worker.scene);
 
+        if (material.denseSSSOptimization()) {
+            // Override the sampler choice with "low quality" in case of SSS
+            return integrateSSS(interface.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
+        }
+
         const ray_max_t = vertex.probe.ray.maxT();
         const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse ray_max_t;
         vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
-            vertex.probe.ray.setMinMaxT(vertex.probe.ray.maxT(), ray_max_t);
-            return false;
-        }
-
-        // This test is intended to catch corner cases where we actually left the scattering medium,
-        // but the intersection point was too close to detect.
-        var missed = false;
-        if (!interface.matches(frag) or !frag.sameHemisphere(vertex.probe.ray.direction)) {
-            const v = -vertex.probe.ray.direction;
-
-            var tprobe = vertex.probe.clone(Ray.init(frag.offsetP(v), v, 0.0, ro.Ray_max_t));
-            var tisec: Fragment = undefined;
-            if (worker.propIntersect(interface.prop, &tprobe, &tisec)) {
-                worker.propInterpolateFragment(interface.prop, &tprobe, .PositionAndNormal, &tisec);
-                missed = math.dot3(tisec.geo_n, v) <= 0.0;
-            } else {
-                missed = true;
-            }
-        }
-
-        if (missed) {
-            vertex.probe.ray.setMinMaxT(math.min(ro.offsetF(vertex.probe.ray.maxT()), ray_max_t), ray_max_t);
             return false;
         }
 
@@ -189,27 +172,25 @@ pub const Integrator = struct {
         }
 
         frag.setVolume(result);
+        vertex.throughput *= result.tr;
         return true;
     }
 
-    pub fn integrateSSS(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        const interface = vertex.interfaces.top();
-        const material = interface.material(worker.scene);
-
+    fn integrateSSS(prop: u32, material: *const Material, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
         const cc = vertex.interfaces.topCC();
         const g = material.super().volumetric_anisotropy;
 
         for (0..256) |_| {
-            const hit = worker.propIntersect(interface.prop, &vertex.probe, frag);
+            const hit = worker.propIntersect(prop, &vertex.probe, frag);
             if (!hit) {
                 // We don't immediately abort even if not hitting the prop.
                 // This way SSS looks less wrong in case of geometry that isn't "watertight".
-                const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse return false;
+                const limit = worker.scene.propAabbIntersectP(prop, vertex.probe.ray) orelse return false;
                 vertex.probe.ray.setMaxT(limit);
             }
 
             const tray = if (material.heterogeneousVolume())
-                worker.scene.propTransformationAt(interface.prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
+                worker.scene.propTransformationAt(prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
             else
                 vertex.probe.ray;
 
@@ -218,14 +199,16 @@ pub const Integrator = struct {
                 vertex.throughput,
                 material,
                 cc,
-                interface.prop,
+                prop,
                 vertex.probe.depth.volume,
                 sampler,
                 worker,
             );
 
+            vertex.throughput *= result.tr;
+
             if (hit and .Scatter != result.event) {
-                worker.propInterpolateFragment(frag.prop, &vertex.probe, .All, frag);
+                worker.propInterpolateFragment(prop, &vertex.probe, .All, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.interfaces.pop();
@@ -238,8 +221,6 @@ pub const Integrator = struct {
             } else if (!hit and .Pass == result.event) {
                 return false;
             }
-
-            vertex.throughput *= result.tr;
 
             if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
                 return false;

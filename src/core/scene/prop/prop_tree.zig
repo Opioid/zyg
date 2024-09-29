@@ -237,7 +237,7 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -253,7 +253,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, probe, throughput, sampler, worker);
+                    const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.setMaxT(lr.t);
@@ -290,6 +290,7 @@ pub const Tree = struct {
         }
 
         frag.setVolume(result);
+        throughput.* *= result.tr;
 
         if (.Pass != result.event) {
             frag.prop = prop;
