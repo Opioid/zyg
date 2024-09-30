@@ -3,7 +3,6 @@ const Probe = @import("../vertex.zig").Vertex.Probe;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
@@ -67,7 +66,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: *const Tree, probe: *Probe, frag: *Fragment, scene: *const Scene, ipo: Interpolation) bool {
+    pub fn intersect(self: *const Tree, probe: *Probe, frag: *Fragment, scene: *const Scene) bool {
         var stack = NodeStack{};
 
         var prop = Prop.Null;
@@ -123,7 +122,7 @@ pub const Tree = struct {
         const hit = Prop.Null != prop;
 
         if (hit) {
-            props[prop].fragment(probe, ipo, frag, scene);
+            props[prop].fragment(probe, frag, scene);
         }
 
         frag.prop = prop;

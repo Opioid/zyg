@@ -14,7 +14,6 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -176,10 +175,10 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn fragment(self: *const Shape, ray: Ray, ipo: Interpolation, frag: *Fragment) void {
+    pub fn fragment(self: *const Shape, ray: Ray, frag: *Fragment) void {
         switch (self.*) {
             .Canopy => Canopy.fragment(ray, frag),
-            .Cube => Cube.fragment(ray, ipo, frag),
+            .Cube => Cube.fragment(ray, frag),
             .CurveMesh => |m| m.fragment(ray, frag),
             .Disk => Disk.fragment(ray, frag),
             .DistantSphere => DistantSphere.fragment(ray, frag),
@@ -187,7 +186,7 @@ pub const Shape = union(enum) {
             .Plane => Plane.fragment(ray, frag),
             .Rectangle => Rectangle.fragment(ray, frag),
             .Sphere => Sphere.fragment(ray, frag),
-            .TriangleMesh => |m| m.fragment(ipo, frag),
+            .TriangleMesh => |m| m.fragment(frag),
         }
     }
 

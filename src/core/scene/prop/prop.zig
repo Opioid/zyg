@@ -5,7 +5,6 @@ const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -138,26 +137,8 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn fragment(self: Prop, probe: *const Probe, ipo: Interpolation, frag: *Fragment, scene: *const Scene) void {
-        scene.shape(self.shape).fragment(probe.ray, ipo, frag);
-    }
-
-    pub fn intersectSSS(self: Prop, probe: *Probe, trafo: Trafo, frag: *Fragment, scene: *const Scene) bool {
-        const properties = self.properties;
-
-        if (!properties.visible_in_shadow) {
-            return false;
-        }
-
-        const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
-        if (Intersection.Null != hit.primitive) {
-            probe.ray.setMaxT(hit.t);
-            frag.isec = hit;
-            frag.trafo = trafo;
-            return true;
-        }
-
-        return false;
+    pub fn fragment(self: Prop, probe: *const Probe, frag: *Fragment, scene: *const Scene) void {
+        scene.shape(self.shape).fragment(probe.ray, frag);
     }
 
     pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {

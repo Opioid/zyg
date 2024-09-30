@@ -16,7 +16,6 @@ const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Fragment = shp.Fragment;
-const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
@@ -296,13 +295,13 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, ipo: Interpolation, frag: *Fragment) void {
-        self.scene.prop(entity).fragment(probe, ipo, frag, self.scene);
+    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
+        self.scene.prop(entity).fragment(probe, frag, self.scene);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
         while (true) {
-            if (!self.scene.intersect(probe, frag, .All)) {
+            if (!self.scene.intersect(probe, frag)) {
                 return false;
             }
 

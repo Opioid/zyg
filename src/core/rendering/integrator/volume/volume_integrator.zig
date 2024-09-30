@@ -208,7 +208,7 @@ pub const Integrator = struct {
             vertex.throughput *= result.tr;
 
             if (hit and .Scatter != result.event) {
-                worker.propInterpolateFragment(prop, &vertex.probe, .All, frag);
+                worker.propInterpolateFragment(prop, &vertex.probe, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.interfaces.pop();

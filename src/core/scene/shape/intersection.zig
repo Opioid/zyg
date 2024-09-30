@@ -125,8 +125,3 @@ pub const Fragment = struct {
         );
     }
 };
-
-pub const Interpolation = enum {
-    PositionAndNormal,
-    All,
-};

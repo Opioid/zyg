@@ -310,7 +310,7 @@ pub const Perspective = struct {
             );
 
             var frag: Fragment = undefined;
-            if (scene.intersect(&probe, &frag, .PositionAndNormal)) {
+            if (scene.intersect(&probe, &frag)) {
                 self.focus_distance = probe.ray.maxT() + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

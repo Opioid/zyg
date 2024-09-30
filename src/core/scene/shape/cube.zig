@@ -2,7 +2,6 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
@@ -37,7 +36,7 @@ pub const Cube = struct {
         return hpoint;
     }
 
-    pub fn fragment(ray: Ray, ipo: Interpolation, frag: *Fragment) void {
+    pub fn fragment(ray: Ray, frag: *Fragment) void {
         const hit_t = ray.maxT();
 
         frag.p = ray.point(hit_t);
@@ -55,11 +54,9 @@ pub const Cube = struct {
         frag.n = n;
         frag.uvw = @splat(0.0);
 
-        if (.All == ipo) {
-            const tb = math.orthonormalBasis3(n);
-            frag.t = tb[0];
-            frag.b = tb[1];
-        }
+        const tb = math.orthonormalBasis3(n);
+        frag.t = tb[0];
+        frag.b = tb[1];
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
