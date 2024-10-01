@@ -164,7 +164,7 @@ pub const View = struct {
 
                 const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);
                 const radius = json.readFloatMember(entry.value_ptr.*, "radius", 1.0);
-                const depth = loadDepth(value, Default_depth);
+                const depth = loadDepth(entry.value_ptr.*, Default_depth);
 
                 self.surface_integrator = .{ .AOV = .{
                     .settings = .{
@@ -177,7 +177,7 @@ pub const View = struct {
                 } };
             } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
-                const depth = loadDepth(value, Default_depth);
+                const depth = loadDepth(entry.value_ptr.*, Default_depth);
 
                 self.surface_integrator = .{ .PT = .{
                     .settings = .{
@@ -188,7 +188,7 @@ pub const View = struct {
                 } };
             } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
-                const depth = loadDepth(value, Default_depth);
+                const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*, LightSampling.Adaptive);
 
                 self.surface_integrator = .{ .PTDL = .{
@@ -201,7 +201,7 @@ pub const View = struct {
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
-                const depth = loadDepth(value, Default_depth);
+                const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*, LightSampling.Adaptive);
 
                 var caustics_path = false;
