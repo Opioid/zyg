@@ -73,7 +73,14 @@ pub const Sample = struct {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
 
-            const reflection = @as(Vec4f, @splat(pdf));
+            var reflection = @as(Vec4f, @splat(pdf));
+
+            const coated = self.coating.thickness > 0.0;
+            if (coated) {
+                const coat_n_dot_wi = math.safe.clampDot(self.coating.n, wi);
+                const attenuation = self.coating.singleAttenuation(coat_n_dot_wi);
+                reflection *= attenuation;
+            }
 
             return bxdf.Result.init(reflection, pdf);
         }
@@ -137,7 +144,14 @@ pub const Sample = struct {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
 
-            const reflection = @as(Vec4f, @splat(pdf));
+            var reflection = @as(Vec4f, @splat(pdf));
+
+            const coated = self.coating.thickness > 0.0;
+            if (coated) {
+                const coat_n_dot_wi = math.safe.clampDot(self.coating.n, wi);
+                const attenuation = self.coating.singleAttenuation(coat_n_dot_wi);
+                reflection *= attenuation;
+            }
 
             buffer[0] = .{
                 .reflection = reflection,
