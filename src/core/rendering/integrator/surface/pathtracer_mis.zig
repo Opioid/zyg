@@ -74,7 +74,7 @@ pub const PathtracerMIS = struct {
                     worker.addPhoton(vertex.throughput * split_weight * worker.photonLi(&frag, &mat_sample, sampler));
                 }
 
-                const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 2);
+                const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 1);
 
                 result += vertex.throughput * split_weight * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
 
@@ -234,9 +234,9 @@ pub const PathtracerMIS = struct {
     }
 
     fn splitting(self: *const Self, depth: Vertex.Probe.Depth, offset: u32) bool {
-        const weighted_depth = depth.surface + (depth.volume / 4) - offset;
+        const total_depth = depth.surface + depth.volume - offset;
 
-        return .Adaptive == self.settings.light_sampling and weighted_depth < 4;
+        return .Adaptive == self.settings.light_sampling and total_depth < 4;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {

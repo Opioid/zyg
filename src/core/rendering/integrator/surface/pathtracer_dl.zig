@@ -177,9 +177,9 @@ pub const PathtracerDL = struct {
     }
 
     fn splitting(self: *const Self, depth: Vertex.Probe.Depth) bool {
-        const weighted_depth = depth.surface + (depth.volume / 4);
+        const total_depth = depth.surface + depth.volume;
 
-        return .Adaptive == self.settings.light_sampling and weighted_depth < 4;
+        return .Adaptive == self.settings.light_sampling and total_depth < 4;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
