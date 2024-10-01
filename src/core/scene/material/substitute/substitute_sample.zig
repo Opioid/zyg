@@ -223,6 +223,10 @@ pub const Sample = struct {
                 self.baseSample(sampler, result);
             }
 
+            if (0.0 == result.pdf) {
+                return buffer[0..0];
+            }
+
             return buffer[0..1];
         }
     }
