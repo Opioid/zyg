@@ -9,7 +9,7 @@ const rst = @import("../scene/renderstate.zig");
 const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
-const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
@@ -244,7 +244,7 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
-        if (!vertex.interfaces.empty()) {
+        if (!vertex.mediums.empty()) {
             return VolumeIntegrator.integrate(vertex, frag, sampler, self);
         }
 

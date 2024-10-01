@@ -10,30 +10,30 @@ const Vec2f = math.Vec2f;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Interface = struct {
+pub const Medium = struct {
     prop: u32,
     part: u32,
 
-    pub fn material(self: Interface, scene: *const Scene) *const Material {
+    pub fn material(self: Medium, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
     }
 
-    pub fn matches(self: Interface, frag: *const Fragment) bool {
+    pub fn matches(self: Medium, frag: *const Fragment) bool {
         return self.prop == frag.prop and self.part == frag.part;
     }
 };
 
 pub const Stack = struct {
-    const Num_entries = 8;
+    const Num_entries = 6;
 
     index: u32 = 0,
-    i_stack: [Num_entries]Interface = undefined,
+    m_stack: [Num_entries]Medium = undefined,
     cc_stack: [Num_entries]CC = undefined,
 
     pub fn clone(self: *const Stack) Stack {
         const index = self.index;
         var result: Stack = .{ .index = index };
-        @memcpy(result.i_stack[0..index], self.i_stack[0..index]);
+        @memcpy(result.m_stack[0..index], self.m_stack[0..index]);
         @memcpy(result.cc_stack[0..index], self.cc_stack[0..index]);
         return result;
     }
@@ -46,8 +46,8 @@ pub const Stack = struct {
         self.index = 0;
     }
 
-    pub fn top(self: *const Stack) Interface {
-        return self.i_stack[self.index - 1];
+    pub fn top(self: *const Stack) Medium {
+        return self.m_stack[self.index - 1];
     }
 
     pub fn topCC(self: *const Stack) CC {
@@ -57,7 +57,7 @@ pub const Stack = struct {
     pub fn topIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 0) {
-            return self.i_stack[index - 1].material(scene).ior();
+            return self.m_stack[index - 1].material(scene).ior();
         }
 
         return 1.0;
@@ -66,7 +66,7 @@ pub const Stack = struct {
     pub fn surroundingIor(self: *const Stack, scene: *const Scene) f32 {
         const index = self.index;
         if (index > 1) {
-            return self.i_stack[1].material(scene).ior();
+            return self.m_stack[1].material(scene).ior();
         }
 
         return 1.0;
@@ -79,17 +79,17 @@ pub const Stack = struct {
         }
 
         const back = index - 1;
-        if (self.i_stack[back].matches(frag)) {
-            return self.i_stack[back - 1].material(scene).ior();
+        if (self.m_stack[back].matches(frag)) {
+            return self.m_stack[back - 1].material(scene).ior();
         } else {
-            return self.i_stack[back].material(scene).ior();
+            return self.m_stack[back].material(scene).ior();
         }
     }
 
     pub fn push(self: *Stack, frag: *const Fragment, cc: CC) void {
         const index = self.index;
         if (index < Num_entries - 1) {
-            self.i_stack[index] = .{ .prop = frag.prop, .part = frag.part };
+            self.m_stack[index] = .{ .prop = frag.prop, .part = frag.part };
             self.cc_stack[index] = cc;
             self.index += 1;
         }
@@ -98,7 +98,7 @@ pub const Stack = struct {
     pub fn pushVolumeLight(self: *Stack, light: Light) void {
         const index = self.index;
         if (index < Num_entries - 1) {
-            self.i_stack[index] = .{ .prop = light.prop, .part = light.part };
+            self.m_stack[index] = .{ .prop = light.prop, .part = light.part };
             self.index += 1;
         }
     }
@@ -114,10 +114,10 @@ pub const Stack = struct {
         var i = back;
         while (i >= 0) : (i -= 1) {
             const ui: u32 = @intCast(i);
-            if (self.i_stack[ui].matches(frag)) {
+            if (self.m_stack[ui].matches(frag)) {
                 var j = ui;
                 while (j < back) : (j += 1) {
-                    self.i_stack[j] = self.i_stack[j + 1];
+                    self.m_stack[j] = self.m_stack[j + 1];
                     self.cc_stack[j] = self.cc_stack[j + 1];
                 }
 

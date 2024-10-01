@@ -1,7 +1,4 @@
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
-const intr = @import("../../../scene/prop/interface.zig");
-const Interface = intr.Interface;
-const Stack = intr.Stack;
 const Volume = @import("../../../scene/shape/intersection.zig").Volume;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;

@@ -5,7 +5,7 @@ const Worker = @import("../../worker.zig").Worker;
 const int = @import("../../../scene/shape/intersection.zig");
 const Fragment = int.Fragment;
 const Volume = int.Volume;
-const Interface = @import("../../../scene/prop/interface.zig").Interface;
+const Medium = @import("../../../scene/prop/medium.zig").Medium;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
 const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
@@ -133,23 +133,23 @@ pub const Integrator = struct {
     }
 
     pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        const interface = vertex.interfaces.top();
-        const material = interface.material(worker.scene);
+        const medium = vertex.mediums.top();
+        const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
             // Override the sampler choice with "low quality" in case of SSS
-            return integrateSSS(interface.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
+            return integrateSSS(medium.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
         }
 
         const ray_max_t = vertex.probe.ray.maxT();
-        const limit = worker.scene.propAabbIntersectP(interface.prop, vertex.probe.ray) orelse ray_max_t;
+        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
         vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return false;
         }
 
         const tray = if (material.heterogeneousVolume())
-            worker.scene.propTransformationAt(interface.prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
+            worker.scene.propTransformationAt(medium.prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
         else
             vertex.probe.ray;
 
@@ -157,16 +157,16 @@ pub const Integrator = struct {
             tray,
             vertex.throughput,
             material,
-            vertex.interfaces.topCC(),
-            interface.prop,
+            vertex.mediums.topCC(),
+            medium.prop,
             vertex.probe.depth.volume,
             sampler,
             worker,
         );
 
         if (.Pass != result.event) {
-            frag.prop = interface.prop;
-            frag.part = interface.part;
+            frag.prop = medium.prop;
+            frag.part = medium.part;
             frag.p = vertex.probe.ray.point(result.t);
             frag.uvw = result.uvw;
         }
@@ -177,7 +177,7 @@ pub const Integrator = struct {
     }
 
     fn integrateSSS(prop: u32, material: *const Material, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        const cc = vertex.interfaces.topCC();
+        const cc = vertex.mediums.topCC();
         const g = material.super().volumetric_anisotropy;
 
         for (0..256) |_| {
@@ -211,7 +211,7 @@ pub const Integrator = struct {
                 worker.propInterpolateFragment(prop, &vertex.probe, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
-                    vertex.interfaces.pop();
+                    vertex.mediums.pop();
                     result.event = .ExitSSS;
                 }
 
