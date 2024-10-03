@@ -14,9 +14,6 @@ const Allocator = std.mem.Allocator;
 
 const Pick = Distribution1D.Discrete;
 
-// 0.08 ^ 4
-pub var Splitting_threshold: f32 = 0.00004096;
-
 const Meta = packed struct {
     has_children: bool,
     two_sided: bool,
@@ -58,7 +55,7 @@ pub const Node = struct {
         return importance(p, n, center, cone, r, self.power, self.meta.two_sided, total_sphere);
     }
 
-    pub fn split(self: Node, p: Vec4f, bounds: AABB) bool {
+    pub fn split(self: Node, p: Vec4f, bounds: AABB, threshold: f32) bool {
         const center = self.decompressCenter(bounds);
 
         const r = center[3];
@@ -77,12 +74,11 @@ pub const Node = struct {
         const vg = e2g - eg2;
 
         const ve = self.variance;
-        const ee = self.power / @as(f32, @floatFromInt(self.num_lights));
-
+        const ee = self.power;
         const s2 = math.max(ve * vg + ve * eg2 + ee * ee * vg, 0.0);
         const ns = 1.0 / (1.0 + @sqrt(s2));
 
-        return ns <= Splitting_threshold;
+        return ns < threshold;
     }
 
     pub fn randomLight(
@@ -234,7 +230,7 @@ fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype,
 }
 
 pub const Tree = struct {
-    pub const Max_split_depth = 8;
+    pub const Max_split_depth = 6;
     pub const Max_lights = 64;
 
     pub const Lights = [Max_lights]Pick;
@@ -303,13 +299,18 @@ pub const Tree = struct {
         }
     }
 
+    pub fn potentialMaxights(self: *const Tree) u32 {
+        const num_finite: u32 = @intFromFloat(std.math.pow(f32, 2.0, @floatFromInt(self.max_split_depth)));
+        return num_finite + self.num_infinite_lights;
+    }
+
     pub fn randomLight(
         self: *const Tree,
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
         random: f32,
-        split: bool,
+        split_threshold: f32,
         scene: *const Scene,
         buffer: *Lights,
     ) []Pick {
@@ -317,6 +318,7 @@ pub const Tree = struct {
 
         var ip: f32 = 0.0;
         const num_infinite_lights = self.num_infinite_lights;
+        const split = split_threshold > 0.0;
 
         if (split and num_infinite_lights < Max_lights - 1) {
             for (self.light_mapping[0..num_infinite_lights]) |lm| {
@@ -355,18 +357,19 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = self.nodes[t.node];
 
-            const do_split = t.depth < max_split_depth and node.split(p, self.bounds);
+            const do_split = t.depth < max_split_depth and node.split(p, self.bounds, split_threshold);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
-                t.depth += 1;
-
                 if (do_split) {
+                    t.depth += 1;
                     t.node = c0;
                     stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
+                    t.depth = max_split_depth;
+
                     var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                     var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
 
@@ -405,9 +408,10 @@ pub const Tree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: *const Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool, id: u32, scene: *const Scene) f32 {
+    pub fn pdf(self: *const Tree, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32, id: u32, scene: *const Scene) f32 {
         const lo = self.light_orders[id];
         const num_infinite_lights = self.num_infinite_lights;
+        const split = split_threshold > 0.0;
 
         const split_infinite = split and num_infinite_lights < Max_lights - 1;
 
@@ -430,10 +434,10 @@ pub const Tree = struct {
 
         var nid: u32 = 0;
         var depth: u32 = if (split) 0 else max_split_depth;
-        while (true) : (depth += 1) {
+        while (true) {
             const node = self.nodes[nid];
 
-            const do_split = depth < max_split_depth and node.split(p, self.bounds);
+            const do_split = depth < max_split_depth and node.split(p, self.bounds, split_threshold);
 
             if (node.meta.has_children) {
                 const c0 = node.meta.children_or_light;
@@ -442,12 +446,16 @@ pub const Tree = struct {
                 const middle = self.node_middles[nid];
 
                 if (do_split) {
+                    depth += 1;
+
                     if (lo < middle) {
                         nid = c0;
                     } else {
                         nid = c1;
                     }
                 } else {
+                    depth = max_split_depth;
+
                     const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                     const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
                     const pt = p0 + p1;

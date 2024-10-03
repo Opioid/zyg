@@ -317,7 +317,7 @@ pub const Builder = struct {
                 num_split_lights += s;
 
                 if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
-                    max_split_depth = @as(u32, @intCast(i));
+                    max_split_depth = @intCast(i);
                     break;
                 }
             }
@@ -334,9 +334,9 @@ pub const Builder = struct {
 
         tree.infinite_weight = infinite_weight;
 
-        // This is because I'm afraid of the 1.f == random case
+        // This is because I'm afraid of the 1.0 == random case
         tree.infinite_guard = if (0 == num_finite_lights)
-            @as(f32, (if (0 == num_infinite_lights) 0.0 else 1.1))
+            (if (0 == num_infinite_lights) 0.0 else 1.1)
         else
             infinite_weight;
     }
@@ -355,7 +355,7 @@ pub const Builder = struct {
         self.light_order = 0;
 
         for (tree.light_mapping, 0..num_finite_lights) |*lm, l| {
-            lm.* = @as(u32, @intCast(l));
+            lm.* = @intCast(l);
         }
 
         try self.allocate(alloc, num_finite_lights, Part_sweep_threshold);

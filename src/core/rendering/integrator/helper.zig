@@ -1,3 +1,5 @@
+const Probe = @import("../../scene/vertex.zig").Vertex.Probe;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
@@ -6,9 +8,20 @@ pub const Depth = struct {
     volume: u16,
 };
 
-pub const LightSampling = enum(u8) {
-    Single,
-    Adaptive,
+pub const LightSampling = struct {
+    split_threshold: f32,
+
+    pub fn splitThreshold(self: LightSampling, depth: Probe.Depth, offset: u32) f32 {
+        const total_depth = depth.surface + depth.volume - offset;
+
+        // 0.01^4 = 0.00000001
+
+        const threshold = self.split_threshold;
+
+        const low_threshold: f32 = 0.00000001;
+
+        return math.min(if (total_depth < 4) threshold else low_threshold, threshold);
+    }
 };
 
 pub inline fn attenuation1(c: f32, distance: f32) f32 {

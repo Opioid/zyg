@@ -632,7 +632,7 @@ pub const Scene = struct {
         n: Vec4f,
         total_sphere: bool,
         random: f32,
-        split: bool,
+        split_threshold: f32,
         buffer: *Lights,
     ) []LightPick {
         // _ = p;
@@ -643,10 +643,10 @@ pub const Scene = struct {
         // buffer[0] = self.light_distribution.sampleDiscrete(random);
         // return buffer[0..1];
 
-        return self.light_tree.randomLight(p, n, total_sphere, random, split, self, buffer);
+        return self.light_tree.randomLight(p, n, total_sphere, random, split_threshold, self, buffer);
     }
 
-    pub fn lightPdfSpatial(self: *const Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split: bool) LightPick {
+    pub fn lightPdfSpatial(self: *const Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32) LightPick {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -655,7 +655,7 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        const pdf = self.light_tree.pdf(p, n, total_sphere, split, id, self);
+        const pdf = self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
         return .{ .offset = id, .pdf = pdf };
     }
 

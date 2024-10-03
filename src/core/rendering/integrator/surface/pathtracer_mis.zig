@@ -152,10 +152,10 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split = self.splitting(vertex.probe.depth, 0);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split, &lights_buffer);
+        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
@@ -222,21 +222,15 @@ pub const PathtracerMIS = struct {
         }
 
         const translucent = vertex.state.is_translucent;
-        const split = self.splitting(vertex.probe.depth, 1);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 1);
 
-        const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split);
+        const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
         const light = scene.light(light_pick.offset);
 
         const pdf = light.pdf(vertex, frag, scene);
         const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, pdf * light_pick.pdf));
 
         return weight * energy;
-    }
-
-    fn splitting(self: *const Self, depth: Vertex.Probe.Depth, offset: u32) bool {
-        const total_depth = depth.surface + depth.volume - offset;
-
-        return .Adaptive == self.settings.light_sampling and total_depth < 4;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {

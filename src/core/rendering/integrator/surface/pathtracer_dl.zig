@@ -128,10 +128,10 @@ pub const PathtracerDL = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split = self.splitting(vertex.probe.depth);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split, &lights_buffer);
+        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
@@ -174,12 +174,6 @@ pub const PathtracerDL = struct {
         const p = vertex.probe.ray.origin;
         const wo = -vertex.probe.ray.direction;
         return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
-    }
-
-    fn splitting(self: *const Self, depth: Vertex.Probe.Depth) bool {
-        const total_depth = depth.surface + depth.volume;
-
-        return .Adaptive == self.settings.light_sampling and total_depth < 4;
     }
 
     fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
