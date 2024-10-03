@@ -640,7 +640,7 @@ fn createTexture(
     tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
-    if (tex == .No or (tex == .DWIM and usage != .Emission)) {
+    if (tex == .No or (tex == .DWIM and usage != .Emission and usage != .Opacity)) {
         return .{};
     }
 
