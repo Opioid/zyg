@@ -6,7 +6,6 @@ const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
@@ -443,7 +442,7 @@ pub const Mesh = struct {
         return self.tree.intersect(local_ray);
     }
 
-    pub fn fragment(self: *const Mesh, ipo: Interpolation, frag: *Fragment) void {
+    pub fn fragment(self: *const Mesh, frag: *Fragment) void {
         const data = self.tree.data;
 
         const itri = data.indexTriangle(frag.isec.primitive);
@@ -459,25 +458,19 @@ pub const Mesh = struct {
         const geo_n = data.normal(itri);
         frag.geo_n = frag.trafo.objectToWorldNormal(geo_n);
 
-        if (.All == ipo) {
-            var t: Vec4f = undefined;
-            var n: Vec4f = undefined;
-            var uv: Vec2f = undefined;
-            data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv);
+        var t: Vec4f = undefined;
+        var n: Vec4f = undefined;
+        var uv: Vec2f = undefined;
+        data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv);
 
-            const t_w = frag.trafo.objectToWorldNormal(t);
-            const n_w = frag.trafo.objectToWorldNormal(n);
-            const b_w = @as(Vec4f, @splat(itri.bitangentSign())) * math.cross3(n_w, t_w);
+        const t_w = frag.trafo.objectToWorldNormal(t);
+        const n_w = frag.trafo.objectToWorldNormal(n);
+        const b_w = @as(Vec4f, @splat(itri.bitangentSign())) * math.cross3(n_w, t_w);
 
-            frag.t = t_w;
-            frag.b = b_w;
-            frag.n = n_w;
-            frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
-        } else {
-            const n = data.interpolateShadingNormal(itri, hit_u, hit_v);
-            frag.n = frag.trafo.objectToWorldNormal(n);
-            frag.uvw = @splat(0.0);
-        }
+        frag.t = t_w;
+        frag.b = b_w;
+        frag.n = n_w;
+        frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
     }
 
     pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {

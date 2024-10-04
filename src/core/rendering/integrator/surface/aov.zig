@@ -1,10 +1,12 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
-const Scene = @import("../../../scene/scene.zig").Scene;
-const Worker = @import("../../worker.zig").Worker;
-const bxdf = @import("../../../scene/material/bxdf.zig");
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../scene/ray_offset.zig");
+const Scene = @import("../../../scene/scene.zig").Scene;
+const Worker = @import("../../worker.zig").Worker;
+const hlp = @import("../helper.zig");
+const IValue = hlp.IValue;
+const bxdf = @import("../../../scene/material/bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -27,10 +29,12 @@ pub const AOV = struct {
     };
 
     pub const Settings = struct {
+        max_depth: hlp.Depth,
+        light_sampling: hlp.LightSampling,
+
         value: Value,
 
         num_samples: u32,
-        max_depth: u32,
 
         radius: f32,
 
@@ -41,14 +45,14 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
         var vertex = input.*;
 
         const sampler = worker.pickSampler(0);
 
         var frag: Fragment = undefined;
         if (!worker.nextEvent(&vertex, &frag, sampler)) {
-            return @splat(0.0);
+            return .{};
         }
 
         const result = switch (self.settings.value) {
@@ -59,7 +63,7 @@ pub const AOV = struct {
             .Photons => self.photons(&vertex, &frag, worker),
         };
 
-        return vertex.throughput * result;
+        return .{ .reflection = @splat(0.0), .emission = vertex.throughput * result };
     }
 
     fn ao(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
@@ -133,8 +137,6 @@ pub const AOV = struct {
     }
 
     fn lightSampleCount(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
-        _ = self;
-
         var sampler = worker.pickSampler(0);
 
         const mat_sample = vertex.sample(frag, sampler, .Off, worker);
@@ -142,10 +144,13 @@ pub const AOV = struct {
         const n = mat_sample.super().geometricNormal();
         const p = frag.offsetP(n);
 
-        var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), true, &lights_buffer);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
 
-        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(lights_buffer.len));
+        var lights_buffer: Scene.Lights = undefined;
+        const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);
+
+        const max_lights = worker.scene.light_tree.potentialMaxights();
+        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(max_lights));
 
         return .{ r, r, r, 1.0 };
     }
@@ -204,7 +209,7 @@ pub const AOV = struct {
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
             vertex.probe.depth.increment(frag);
 
-            if (vertex.probe.depth.surface >= self.settings.max_depth or !vertex.state.forward) {
+            if (vertex.probe.depth.surface >= self.settings.max_depth.surface or !vertex.state.forward) {
                 break;
             }
 

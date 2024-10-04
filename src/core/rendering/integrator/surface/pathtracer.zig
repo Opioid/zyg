@@ -4,6 +4,7 @@ const Worker = @import("../../worker.zig").Worker;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const hlp = @import("../helper.zig");
+const IValue = hlp.IValue;
 const ro = @import("../../../scene/ray_offset.zig");
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -25,11 +26,12 @@ pub const Pathtracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var vertex = input.*;
-        var result: Vec4f = @splat(0.0);
+
+        var result: IValue = .{};
 
         while (true) {
             const total_depth = vertex.probe.depth.total();
@@ -42,7 +44,13 @@ pub const Pathtracer = struct {
             }
 
             const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
-            result += vertex.throughput * energy;
+            const weighted_energy = vertex.throughput * energy;
+
+            if (vertex.state.treat_as_singular) {
+                result.emission += weighted_energy;
+            } else {
+                result.reflection += weighted_energy;
+            }
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                 break;
@@ -98,7 +106,8 @@ pub const Pathtracer = struct {
             sampler.incrementPadding();
         }
 
-        return hlp.composeAlpha(result, vertex.throughput, vertex.state.transparent);
+        result.reflection[3] = hlp.composeAlpha(vertex.throughput, vertex.state.transparent);
+        return result;
     }
 
     fn connectLight(

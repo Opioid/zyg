@@ -364,26 +364,6 @@ pub const Material = struct {
         return rad;
     }
 
-    pub fn border(self: *const Material, wo: Vec4f, n: Vec4f) Vec4f {
-        const f0 = fresnel.Schlick.IorToF0(self.super.ior, 1.0);
-        const n_dot_wo = math.safe.clampAbsDot(n, wo);
-        const omf: Vec4f = @splat(1.0 - fresnel.schlick1(n_dot_wo, f0));
-
-        const coating_thickness = self.coating_thickness;
-
-        if (coating_thickness > 0.0) {
-            const att = SampleCoating.singleAttenuationStatic(
-                self.coating_absorption_coef,
-                coating_thickness,
-                n_dot_wo,
-            );
-
-            return att * omf;
-        }
-
-        return omf;
-    }
-
     fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {
         if (anisotropy > 0.0) {
             const rv = ggx.clampRoughness(r * (1.0 - anisotropy));

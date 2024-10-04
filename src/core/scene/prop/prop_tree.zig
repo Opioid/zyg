@@ -3,7 +3,6 @@ const Probe = @import("../vertex.zig").Vertex.Probe;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Fragment = int.Fragment;
-const Interpolation = int.Interpolation;
 const Volume = int.Volume;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
@@ -67,7 +66,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: *const Tree, probe: *Probe, frag: *Fragment, scene: *const Scene, ipo: Interpolation) bool {
+    pub fn intersect(self: *const Tree, probe: *Probe, frag: *Fragment, scene: *const Scene) bool {
         var stack = NodeStack{};
 
         var prop = Prop.Null;
@@ -123,7 +122,7 @@ pub const Tree = struct {
         const hit = Prop.Null != prop;
 
         if (hit) {
-            props[prop].fragment(probe, ipo, frag, scene);
+            props[prop].fragment(probe, frag, scene);
         }
 
         frag.prop = prop;
@@ -237,7 +236,7 @@ pub const Tree = struct {
         return vis;
     }
 
-    pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) bool {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -253,7 +252,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    const lr = props[p].scatter(p, probe, throughput, sampler, worker);
+                    const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.setMaxT(lr.t);
@@ -290,6 +289,7 @@ pub const Tree = struct {
         }
 
         frag.setVolume(result);
+        throughput.* *= result.tr;
 
         if (.Pass != result.event) {
             frag.prop = prop;

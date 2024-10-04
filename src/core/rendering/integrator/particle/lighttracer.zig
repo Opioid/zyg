@@ -7,7 +7,7 @@ const Worker = @import("../../worker.zig").Worker;
 const Camera = @import("../../../camera/perspective.zig").Perspective;
 const Sensor = @import("../../../rendering/sensor/sensor.zig").Sensor;
 const Light = @import("../../../scene/light/light.zig").Light;
-const InterfaceStack = @import("../../../scene/prop/interface.zig").Stack;
+const MediumStack = @import("../../../scene/prop/medium.zig").Stack;
 const SampleFrom = @import("../../../scene/shape/sample.zig").From;
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../scene/ray_offset.zig");
@@ -36,7 +36,7 @@ pub const Lighttracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const InterfaceStack) void {
+    pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const MediumStack) void {
         _ = initial_stack;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
@@ -56,7 +56,7 @@ pub const Lighttracer = struct {
 
         const light = worker.scene.light(light_id);
         if (light.volumetric()) {
-            vertex.interfaces.pushVolumeLight(light);
+            vertex.mediums.pushVolumeLight(light);
         }
 
         self.integrate(&vertex, worker, light, light_sample);

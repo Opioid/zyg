@@ -67,3 +67,11 @@ pub fn scattering(mu_t: Vec4f, ssc: Vec4f, g: f32) CC {
 
     return .{ .a = .{ mu_a[0], mu_a[1], mu_a[2], 0.0 }, .s = .{ mu_s[0], mu_s[1], mu_s[2], 0.0 } };
 }
+
+pub inline fn attenuation1(c: f32, distance: f32) f32 {
+    return @exp(-distance * c);
+}
+
+pub inline fn attenuation3(c: Vec4f, distance: f32) Vec4f {
+    return @exp(@as(Vec4f, @splat(-distance)) * c);
+}

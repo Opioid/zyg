@@ -108,7 +108,7 @@ pub const Mapper = struct {
 
             const light = worker.scene.light(light_id);
             if (light.volumetric()) {
-                vertex.interfaces.pushVolumeLight(light);
+                vertex.mediums.pushVolumeLight(light);
             }
 
             while (vertex.probe.depth.surface <= self.settings.max_bounces) {
@@ -137,7 +137,7 @@ pub const Mapper = struct {
 
                         const material_ior = frag.material(worker.scene).ior();
                         if (frag.subsurface() and material_ior > 1.0) {
-                            const ior_t = vertex.interfaces.surroundingIor(worker.scene);
+                            const ior_t = vertex.mediums.surroundingIor(worker.scene);
                             const eta = material_ior / ior_t;
                             radiance *= @as(Vec4f, @splat(eta * eta));
                         }

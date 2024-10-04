@@ -1,6 +1,6 @@
 const Fragment = @import("shape/intersection.zig").Fragment;
 const Scene = @import("scene.zig").Scene;
-const InterfaceStack = @import("prop/interface.zig").Stack;
+const MediumStack = @import("prop/medium.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const rst = @import("renderstate.zig");
 const Renderstate = rst.Renderstate;
@@ -77,11 +77,11 @@ pub const Vertex = struct {
     origin: Vec4f,
     geo_n: Vec4f,
 
-    interfaces: InterfaceStack,
+    mediums: MediumStack,
 
     const Self = @This();
 
-    pub fn init(ray: Ray, time: u64, interfaces: *const InterfaceStack) Vertex {
+    pub fn init(ray: Ray, time: u64, mediums: *const MediumStack) Vertex {
         return .{
             .probe = Probe.init(ray, time),
             .state = .{},
@@ -91,25 +91,25 @@ pub const Vertex = struct {
             .throughput = @splat(1.0),
             .origin = ray.origin,
             .geo_n = @splat(0.0),
-            .interfaces = interfaces.clone(),
+            .mediums = mediums.clone(),
         };
     }
 
     inline fn iorOutside(self: *const Self, frag: *const Fragment, wo: Vec4f, scene: *const Scene) f32 {
         if (frag.sameHemisphere(wo)) {
-            return self.interfaces.topIor(scene);
+            return self.mediums.topIor(scene);
         }
 
-        return self.interfaces.peekIor(frag, scene);
+        return self.mediums.peekIor(frag, scene);
     }
 
     pub fn interfaceChange(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
         const leave = frag.sameHemisphere(dir);
         if (leave) {
-            self.interfaces.remove(frag);
+            self.mediums.remove(frag);
         } else {
             const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
-            self.interfaces.push(frag, cc);
+            self.mediums.push(frag, cc);
         }
     }
 
@@ -118,15 +118,15 @@ pub const Vertex = struct {
 
         const leave = frag.sameHemisphere(dir);
         if (leave) {
-            const ior = IoR{ .eta_t = self.interfaces.peekIor(frag, scene), .eta_i = inter_ior };
-            self.interfaces.remove(frag);
+            const ior = IoR{ .eta_t = self.mediums.peekIor(frag, scene), .eta_i = inter_ior };
+            self.mediums.remove(frag);
             return ior;
         }
 
-        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.interfaces.topIor(scene) };
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.mediums.topIor(scene) };
 
         const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
-        self.interfaces.push(frag, cc);
+        self.mediums.push(frag, cc);
 
         return ior;
     }

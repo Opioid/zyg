@@ -270,13 +270,6 @@ pub const Material = union(enum) {
         }
     }
 
-    pub fn border(self: *const Material, wo: Vec4f, n: Vec4f) Vec4f {
-        return switch (self.*) {
-            .Substitute => |*m| m.border(wo, n),
-            else => @splat(self.super().border(wo, n)),
-        };
-    }
-
     pub fn usefulTexture(self: *const Material) ?Texture {
         switch (self.*) {
             .Light => |*m| {

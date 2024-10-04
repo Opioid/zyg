@@ -1,8 +1,8 @@
 const bxdf = @import("../bxdf.zig");
+const ccoef = @import("../collision_coefficients.zig");
 const fresnel = @import("../fresnel.zig");
 const ggx = @import("../ggx.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const inthlp = @import("../../../rendering/integrator/helper.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -102,7 +102,7 @@ pub const Coating = struct {
     pub fn singleAttenuationStatic(absorption_coef: Vec4f, thickness: f32, n_dot_wo: f32) Vec4f {
         const d = thickness * (1.0 / n_dot_wo);
 
-        return inthlp.attenuation3(absorption_coef, d);
+        return ccoef.attenuation3(absorption_coef, d);
     }
 
     pub fn singleAttenuation(self: *const Self, n_dot_wo: f32) Vec4f {
@@ -113,7 +113,7 @@ pub const Coating = struct {
         const f = self.weight * fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), self.f0);
         const d = self.thickness * (1.0 / n_dot_wi + 1.0 / n_dot_wo);
 
-        const absorption = inthlp.attenuation3(self.absorption_coef, d);
+        const absorption = ccoef.attenuation3(self.absorption_coef, d);
         return @as(Vec4f, @splat(1.0 - f)) * absorption;
     }
 };

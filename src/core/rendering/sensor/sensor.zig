@@ -9,6 +9,7 @@ const cs = @import("../../camera/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const IValue = @import("../integrator/helper.zig").IValue;
 
 const base = @import("base");
 const math = base.math;
@@ -154,7 +155,7 @@ pub const Sensor = struct {
         };
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, color: Vec4f, aov: AovValue) Result {
+    pub fn addSample(self: *Sensor, sample: Sample, value: IValue, aov: AovValue) Result {
         const w = self.eval(sample.filter_uv[0]) * self.eval(sample.filter_uv[1]);
         const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
@@ -169,22 +170,22 @@ pub const Sensor = struct {
             while (i < len) : (i += 1) {
                 const class = @as(AovValue.Class, @enumFromInt(i));
                 if (aov.activeClass(class)) {
-                    const value = aov.values[i];
+                    const avalue = aov.values[i];
 
                     if (.Depth == class) {
-                        self.aov.lessPixel(id, i, value[0]);
+                        self.aov.lessPixel(id, i, avalue[0]);
                     } else if (.MaterialId == class) {
-                        self.aov.overwritePixel(id, i, value[0], weight);
+                        self.aov.overwritePixel(id, i, avalue[0], weight);
                     } else if (.ShadingNormal == class) {
-                        self.aov.addPixel(id, i, value, 1.0);
+                        self.aov.addPixel(id, i, avalue, 1.0);
                     } else {
-                        self.aov.addPixel(id, i, value, weight);
+                        self.aov.addPixel(id, i, avalue, weight);
                     }
                 }
             }
         }
 
-        return self.buffer.addPixel(id, self.clamp(color), weight);
+        return self.buffer.addPixel(id, self.clamp(value.reflection) + value.emission, weight);
     }
 
     pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {

@@ -9,7 +9,7 @@ const rst = @import("../scene/renderstate.zig");
 const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
-const InterfaceStack = @import("../scene/prop/interface.zig").Stack;
+const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const TileStackN = @import("tile_queue.zig").TileStackN;
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
@@ -17,7 +17,6 @@ const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
 const Fragment = shp.Fragment;
-const Interpolation = shp.Interpolation;
 const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
@@ -205,7 +204,7 @@ pub const Worker = struct {
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                             const vertex = camera.generateVertex(sample, frame, scene);
 
-                            const color = self.surface_integrator.li(&vertex, self);
+                            var ivalue = self.surface_integrator.li(&vertex, self);
 
                             var photon = self.photon;
                             if (photon[3] > 0.0) {
@@ -213,7 +212,9 @@ pub const Worker = struct {
                                 photon[3] = 0.0;
                             }
 
-                            const clamped = sensor.addSample(sample, color + photon, self.aov);
+                            ivalue.reflection += photon;
+
+                            const clamped = sensor.addSample(sample, ivalue, self.aov);
 
                             const value = math.clamp4(ef * clamped.last, -wp, wp);
                             const new_m = math.clamp4(ef * clamped.mean, -wp, wp);
@@ -351,25 +352,8 @@ pub const Worker = struct {
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
-        while (!vertex.interfaces.empty()) {
-            const interface = vertex.interfaces.top();
-            const material = interface.material(self.scene);
-
-            if (material.denseSSSOptimization()) {
-                if (VolumeIntegrator.integrateSSS(vertex, frag, self.pickSampler(0xFFFFFFFF), self)) {
-                    vertex.throughput *= frag.vol_tr;
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                if (VolumeIntegrator.integrate(vertex, frag, sampler, self)) {
-                    vertex.throughput *= frag.vol_tr;
-                    return true;
-                }
-            }
-
-            vertex.interfaces.pop();
+        if (!vertex.mediums.empty()) {
+            return VolumeIntegrator.integrate(vertex, frag, sampler, self);
         }
 
         const origin = vertex.probe.ray.origin;
@@ -380,8 +364,7 @@ pub const Worker = struct {
         vertex.probe.ray.origin = origin;
         vertex.probe.ray.setMaxT(dif_t + vertex.probe.ray.maxT());
 
-        const volume_hit = self.scene.scatter(&vertex.probe, frag, vertex.throughput, sampler, self);
-        vertex.throughput *= frag.vol_tr;
+        const volume_hit = self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
 
         return hit or volume_hit;
     }
@@ -420,13 +403,13 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, ipo: Interpolation, frag: *Fragment) void {
-        self.scene.prop(entity).fragment(probe, ipo, frag, self.scene);
+    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
+        self.scene.prop(entity).fragment(probe, frag, self.scene);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
         while (true) {
-            if (!self.scene.intersect(probe, frag, .All)) {
+            if (!self.scene.intersect(probe, frag)) {
                 return false;
             }
 
