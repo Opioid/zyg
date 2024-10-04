@@ -5,6 +5,7 @@ const ro = @import("../../../scene/ray_offset.zig");
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const hlp = @import("../helper.zig");
+const IValue = hlp.IValue;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
@@ -44,14 +45,14 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
         var vertex = input.*;
 
         const sampler = worker.pickSampler(0);
 
         var frag: Fragment = undefined;
         if (!worker.nextEvent(&vertex, &frag, sampler)) {
-            return @splat(0.0);
+            return .{};
         }
 
         const result = switch (self.settings.value) {
@@ -62,7 +63,7 @@ pub const AOV = struct {
             .Photons => self.photons(&vertex, &frag, worker),
         };
 
-        return vertex.throughput * result;
+        return .{ .reflection = @splat(0.0), .emission = vertex.throughput * result };
     }
 
     fn ao(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {

@@ -14,6 +14,8 @@ const ptmis = @import("pathtracer_mis.zig");
 pub const PathtracerMIS = ptmis.PathtracerMIS;
 pub const PathtracerMISFactory = ptmis.Factory;
 
+const IValue = @import("../helper.zig").IValue;
+
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
 
@@ -28,25 +30,9 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn li(self: *const Integrator, vertex: *const Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Integrator, vertex: *const Vertex, worker: *Worker) IValue {
         return switch (self.*) {
             inline else => |*i| i.li(vertex, worker),
-        };
-    }
-};
-
-pub const Factory = union(enum) {
-    AOV: AOVFactory,
-    PT: PathtracerFactory,
-    PTDL: PathtracerDLFactory,
-    PTMIS: PathtracerMISFactory,
-
-    pub fn create(self: Factory) Integrator {
-        return switch (self) {
-            .AOV => |i| Integrator{ .AOV = i.create() },
-            .PT => |i| Integrator{ .PT = i.create() },
-            .PTDL => |i| Integrator{ .PTDL = i.create() },
-            .PTMIS => |i| Integrator{ .PTMIS = i.create() },
         };
     }
 };

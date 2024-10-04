@@ -10,6 +10,7 @@ const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../scene/ray_offset.zig");
 const Worker = @import("../../worker.zig").Worker;
 const hlp = @import("../helper.zig");
+const IValue = hlp.IValue;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -31,10 +32,10 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) Vec4f {
+    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
-        var result: Vec4f = @splat(0.0);
+        var result: IValue = .{};
 
         var vertices: VertexPool = undefined;
         vertices.start(input);
@@ -52,7 +53,13 @@ pub const PathtracerMIS = struct {
 
                 const energy = self.connectLight(vertex, &frag, sampler, worker.scene);
                 const split_weight: Vec4f = @splat(vertex.split_weight);
-                result += vertex.throughput * split_weight * energy;
+                const weighted_energy = vertex.throughput * split_weight * energy;
+
+                if (vertex.state.treat_as_singular) {
+                    result.emission += weighted_energy;
+                } else {
+                    result.reflection += weighted_energy;
+                }
 
                 if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                     continue;
@@ -76,7 +83,7 @@ pub const PathtracerMIS = struct {
 
                 const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 1);
 
-                result += vertex.throughput * split_weight * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
+                result.reflection += vertex.throughput * split_weight * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
@@ -133,7 +140,8 @@ pub const PathtracerMIS = struct {
             }
         }
 
-        return .{ result[0], result[1], result[2], vertices.alpha };
+        result.reflection[3] = vertices.alpha;
+        return result;
     }
 
     fn sampleLights(

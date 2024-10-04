@@ -155,7 +155,7 @@ pub const Worker = struct {
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     const vertex = camera.generateVertex(sample, frame, scene);
 
-                    const color = self.surface_integrator.li(&vertex, self);
+                    var ivalue = self.surface_integrator.li(&vertex, self);
 
                     var photon = self.photon;
                     if (photon[3] > 0.0) {
@@ -163,7 +163,9 @@ pub const Worker = struct {
                         photon[3] = 0.0;
                     }
 
-                    sensor.addSample(sample, color + photon, self.aov, crop, isolated_bounds);
+                    ivalue.reflection += photon;
+
+                    sensor.addSample(sample, ivalue, self.aov, crop, isolated_bounds);
 
                     self.samplers[0].incrementSample();
                 }

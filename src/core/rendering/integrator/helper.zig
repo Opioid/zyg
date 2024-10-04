@@ -3,6 +3,11 @@ const Probe = @import("../../scene/vertex.zig").Vertex.Probe;
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
+pub const IValue = struct {
+    reflection: Vec4f = @splat(0.0),
+    emission: Vec4f = @splat(0.0),
+};
+
 pub const Depth = struct {
     surface: u16,
     volume: u16,
@@ -24,10 +29,8 @@ pub const LightSampling = struct {
     }
 };
 
-pub inline fn composeAlpha(radiance: Vec4f, throughput: Vec4f, transparent: bool) Vec4f {
-    const alpha = if (transparent) math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
-
-    return .{ radiance[0], radiance[1], radiance[2], alpha };
+pub inline fn composeAlpha(throughput: Vec4f, transparent: bool) f32 {
+    return if (transparent) math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
 }
 
 pub inline fn powerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
