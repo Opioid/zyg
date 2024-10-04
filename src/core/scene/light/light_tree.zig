@@ -131,6 +131,10 @@ pub const Node = struct {
             }
         }
 
+        if (0.0 == w_sum) {
+            return .{ .offset = undefined, .pdf = 0.0 };
+        }
+
         return .{ .offset = light_mapping[front], .pdf = w_front / w_sum };
     }
 
@@ -164,6 +168,10 @@ pub const Node = struct {
             if (id == i) {
                 w_id = lw;
             }
+        }
+
+        if (0.0 == sum) {
+            return 0.0;
         }
 
         return w_id / sum;
@@ -206,9 +214,11 @@ fn importance(
 
     const ra = if (total_sphere) 1.0 else tn;
     const rb = math.max(tc, 0.0);
-    const rc = power / math.max(l * l, radius);
 
-    return math.max(ra * rb * rc, math.safe.Dot_min);
+    const clamped_dist = math.max(l, 0.5 * radius);
+    const rc = power / (clamped_dist * clamped_dist);
+
+    return math.max(ra * rb * rc, 0.0);
 }
 
 fn clampedCosSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
@@ -375,6 +385,11 @@ pub const Tree = struct {
 
                     const pt = p0 + p1;
 
+                    if (0.0 == pt) {
+                        t = stack.pop();
+                        continue;
+                    }
+
                     p0 /= pt;
                     p1 /= pt;
 
@@ -397,8 +412,10 @@ pub const Tree = struct {
                     }
                 } else {
                     const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, scene, 0);
-                    buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
-                    current_light += 1;
+                    if (pick.pdf > 0.0) {
+                        buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
+                        current_light += 1;
+                    }
                 }
 
                 t = stack.pop();
@@ -459,6 +476,10 @@ pub const Tree = struct {
                     const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                     const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
                     const pt = p0 + p1;
+
+                    if (0.0 == pt) {
+                        return 0.0;
+                    }
 
                     if (lo < middle) {
                         nid = c0;
@@ -547,6 +568,10 @@ pub const PrimitiveTree = struct {
 
                 const pt = p0 + p1;
 
+                if (0.0 == pt) {
+                    return .{ .offset = undefined, .pdf = 0.0 };
+                }
+
                 p0 /= pt;
                 p1 /= pt;
 
@@ -583,6 +608,10 @@ pub const PrimitiveTree = struct {
                 const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                 const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
                 const pt = p0 + p1;
+
+                if (0.0 == pt) {
+                    return 0.0;
+                }
 
                 if (lo < middle) {
                     nid = c0;
