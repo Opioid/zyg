@@ -6,9 +6,9 @@ const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
+const ccoef = @import("../collision_coefficients.zig");
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
-const inthlp = @import("../../../rendering/integrator/helper.zig");
 
 const math = @import("base").math;
 const Frame = math.Frame;
@@ -99,7 +99,7 @@ pub const Material = struct {
             const n_dot_wi = math.safe.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
-            const attenuation = inthlp.attenuation3(self.super.cc.a, approx_dist);
+            const attenuation = ccoef.attenuation3(self.super.cc.a, approx_dist);
 
             const ta = math.min4(@as(Vec4f, @splat(1.0 - o)) + attenuation, @splat(1.0));
 

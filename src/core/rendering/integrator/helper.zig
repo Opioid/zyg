@@ -24,14 +24,6 @@ pub const LightSampling = struct {
     }
 };
 
-pub inline fn attenuation1(c: f32, distance: f32) f32 {
-    return @exp(-distance * c);
-}
-
-pub inline fn attenuation3(c: Vec4f, distance: f32) Vec4f {
-    return @exp(@as(Vec4f, @splat(-distance)) * c);
-}
-
 pub inline fn composeAlpha(radiance: Vec4f, throughput: Vec4f, transparent: bool) Vec4f {
     const alpha = if (transparent) math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
 

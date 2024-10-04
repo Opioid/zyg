@@ -8,7 +8,6 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
 const diffuse = @import("../diffuse.zig");
 const fresnel = @import("../fresnel.zig");
-const inthlp = @import("../../../rendering/integrator/helper.zig");
 const ggx = @import("../ggx.zig");
 
 const base = @import("base");
@@ -103,7 +102,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+                const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
                 const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
@@ -185,7 +184,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+                const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
                 result.wi = -result.wi;
                 result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f))) * attenuation;

@@ -71,7 +71,7 @@ fn trackingTransmitted(
 
     if (minorant_mu_t > 0.0) {
         // Transmittance of the control medium
-        transmitted.* *= @as(Vec4f, @splat(hlp.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t)));
+        transmitted.* *= @splat(ccoef.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
@@ -98,7 +98,7 @@ fn trackingTransmitted(
 
         const uvw = ray.point(t);
         var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
-        mu.s *= @as(Vec4f, @splat(srs));
+        mu.s *= @splat(srs);
 
         const mu_t = (mu.a + mu.s) - @as(Vec4f, @splat(minorant_mu_t));
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;

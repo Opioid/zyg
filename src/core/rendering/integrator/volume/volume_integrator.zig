@@ -8,7 +8,8 @@ const Volume = int.Volume;
 const Medium = @import("../../../scene/prop/medium.zig").Medium;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Material = @import("../../../scene/material/material.zig").Material;
-const CC = @import("../../../scene/material/collision_coefficients.zig").CC;
+const ccoef = @import("../../../scene/material/collision_coefficients.zig");
+const CC = ccoef.CC;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -41,7 +42,7 @@ pub const Integrator = struct {
             return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker);
         }
 
-        return hlp.attenuation3(cc.a + cc.s, d - ray.minT());
+        return ccoef.attenuation3(cc.a + cc.s, d - ray.minT());
     }
 
     pub fn propScatter(
@@ -58,7 +59,7 @@ pub const Integrator = struct {
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            return Volume.initPass(hlp.attenuation3(cc.a, d - ray.minT()));
+            return Volume.initPass(ccoef.attenuation3(cc.a, d - ray.minT()));
         }
 
         if (math.allLess4(throughput, tracking.Abort_epsilon4)) {

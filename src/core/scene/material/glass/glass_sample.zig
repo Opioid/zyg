@@ -4,9 +4,9 @@ const IoR = smpl.IoR;
 const Material = @import("../material_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
+const ccoef = @import("../collision_coefficients.zig");
 const fresnel = @import("../fresnel.zig");
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const inthlp = @import("../../../rendering/integrator/helper.zig");
 const ggx = @import("../ggx.zig");
 
 const base = @import("base");
@@ -478,7 +478,7 @@ pub const Sample = struct {
             }
 
             const approx_dist = self.super.thickness / n_dot_wo;
-            const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+            const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
             result.reflection *= attenuation;
             result.class = .{ .straight = true };
@@ -503,7 +503,7 @@ pub const Sample = struct {
 
     fn thinSpecularRefract(self: *const Sample, wo: Vec4f, n_dot_wo: f32, split_weight: f32) bxdf.Sample {
         const approx_dist = self.super.thickness / math.safe.clamp(n_dot_wo);
-        const attenuation = inthlp.attenuation3(self.absorption_coef, approx_dist);
+        const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
         return .{
             .reflection = attenuation,
