@@ -94,12 +94,7 @@ pub const Material = struct {
         }
     }
 
-    pub fn prepareSampling(
-        self: *Material,
-        alloc: Allocator,
-        scene: *const Scene,
-        threads: *Threads,
-    ) Vec4f {
+    pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) Vec4f {
         if (self.average_emission[0] >= 0.0) {
             // Hacky way to check whether prepare_sampling has been called before
             // average_emission_ is initialized with negative values...
@@ -113,7 +108,7 @@ pub const Material = struct {
 
         const d = self.density_map.description(scene).dimensions;
 
-        const luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1] * d[2]))) catch return @splat(0.0);
+        const luminance = alloc.alloc(f32, @intCast(d[0] * d[1] * d[2])) catch return @splat(0.0);
         defer alloc.free(luminance);
 
         var avg: Vec4f = @splat(0.0);
@@ -128,13 +123,13 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @as(u32, @intCast(d[2])), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(d[2]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
         }
 
-        const num_pixels = @as(f32, @floatFromInt(d[0] * d[1] * d[2]));
+        const num_pixels: f32 = @floatFromInt(d[0] * d[1] * d[2]);
 
         const average_emission = avg / @as(Vec4f, @splat(num_pixels));
 
@@ -148,7 +143,7 @@ pub const Material = struct {
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @as(u32, @intCast(d[2])), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[2]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -215,12 +210,7 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(
-        self: *const Material,
-        uvw: Vec4f,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) CCE {
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
         const cc = self.super.cc;
 
         if (self.density_map.valid() and self.temperature_map.valid()) {
@@ -264,8 +254,8 @@ const LuminanceContext = struct {
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene).dimensions;
-        const width = @as(u32, @intCast(d[0]));
-        const height = @as(u32, @intCast(d[1]));
+        const width: u32 = @intCast(d[0]);
+        const height: u32 = @intCast(d[1]);
 
         var avg: Vec4f = @splat(0.0);
 
@@ -278,18 +268,8 @@ const LuminanceContext = struct {
                     const row = y * width;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const density = mat.density_map.get3D_2(
-                            @as(i32, @intCast(x)),
-                            @as(i32, @intCast(y)),
-                            @as(i32, @intCast(z)),
-                            self.scene,
-                        );
-                        const t = mat.temperature_map.get3D_1(
-                            @as(i32, @intCast(x)),
-                            @as(i32, @intCast(y)),
-                            @as(i32, @intCast(z)),
-                            self.scene,
-                        );
+                        const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                        const t = mat.temperature_map.get3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
                         const c = mat.blackbody.eval(t);
                         const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
@@ -316,8 +296,8 @@ const DistributionContext = struct {
         _ = id;
         const self = @as(*DistributionContext, @ptrCast(@alignCast(context)));
         const d = self.d;
-        const width = @as(u32, @intCast(d[0]));
-        const height = @as(u32, @intCast(d[1]));
+        const width: u32 = @intCast(d[0]);
+        const height: u32 = @intCast(d[1]);
 
         var z = begin;
         while (z < end) : (z += 1) {
