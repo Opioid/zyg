@@ -142,9 +142,9 @@ pub const AOV = struct {
         const mat_sample = vertex.sample(frag, sampler, .Off, worker);
 
         const n = mat_sample.super().geometricNormal();
-        const p = frag.offsetP(n);
+        const p = frag.p;
 
-        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);

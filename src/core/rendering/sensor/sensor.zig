@@ -77,7 +77,7 @@ pub const Sensor = struct {
         var result = Self{
             .buffer = buffer,
             .clamp_max = clamp_max,
-            .filter_radius_int = @as(i32, @intFromFloat(@ceil(radius))),
+            .filter_radius_int = @intFromFloat(@ceil(radius)),
             .filter = Func.init(0.0, radius, f),
         };
 

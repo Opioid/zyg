@@ -90,15 +90,15 @@ pub const PathtracerDL = struct {
                 vertex.state.primary_ray = false;
             }
 
+            if (!sample_result.class.straight) {
+                vertex.origin = frag.p;
+            }
+
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
             vertex.probe.depth.increment(&frag);
-
-            if (!sample_result.class.straight) {
-                vertex.origin = frag.p;
-            }
 
             if (0.0 == vertex.probe.wavelength) {
                 vertex.probe.wavelength = sample_result.wavelength;
@@ -137,7 +137,7 @@ pub const PathtracerDL = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
@@ -180,7 +180,7 @@ pub const PathtracerDL = struct {
             return @splat(0.0);
         }
 
-        const p = vertex.probe.ray.origin;
+        const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
         return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }

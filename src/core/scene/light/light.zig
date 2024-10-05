@@ -152,15 +152,16 @@ pub const Light align(16) = struct {
             .Prop => scene.propShape(self.prop).pdf(
                 self.part,
                 self.variant,
-                vertex.probe.ray,
+                vertex.probe.ray.direction,
+                vertex.origin,
                 vertex.geo_n,
                 frag,
                 self.two_sided,
                 total_sphere,
             ),
-            .PropImage => self.propImagePdf(vertex.probe.ray, frag, scene),
-            .Volume => scene.propShape(self.prop).volumePdf(vertex.probe.ray, frag),
-            .VolumeImage => self.volumeImagePdf(vertex.probe.ray, frag, scene),
+            .PropImage => self.propImagePdf(vertex, frag, scene),
+            .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
+            .VolumeImage => self.volumeImagePdf(vertex.probe.ray.direction, frag, scene),
         };
     }
 
@@ -351,18 +352,18 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn propImagePdf(self: Light, ray: Ray, frag: *const Fragment, scene: *const Scene) f32 {
+    fn propImagePdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = scene.propShape(self.prop).pdfUv(ray, frag, self.two_sided);
+        const shape_pdf = scene.propShape(self.prop).pdfUv(vertex.probe.ray.direction, vertex.origin, frag, self.two_sided);
 
         return material_pdf * shape_pdf;
     }
 
-    fn volumeImagePdf(self: Light, ray: Ray, frag: *const Fragment, scene: *const Scene) f32 {
+    fn volumeImagePdf(self: Light, p: Vec4f, frag: *const Fragment, scene: *const Scene) f32 {
         const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
-        const shape_pdf = scene.propShape(self.prop).volumePdf(ray, frag);
+        const shape_pdf = scene.propShape(self.prop).volumePdf(p, frag);
 
         return material_pdf * shape_pdf;
     }

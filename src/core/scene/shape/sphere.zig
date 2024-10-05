@@ -333,8 +333,8 @@ pub const Sphere = struct {
         );
     }
 
-    pub fn pdf(ray: Ray, trafo: Trafo) f32 {
-        const v = trafo.position - ray.origin;
+    pub fn pdf(p: Vec4f, trafo: Trafo) f32 {
+        const v = trafo.position - p;
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
         const r2 = r * r;
@@ -348,13 +348,12 @@ pub const Sphere = struct {
         return math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
-    pub fn pdfUv(ray: Ray, frag: *const Fragment) f32 {
+    pub fn pdfUv(dir: Vec4f, p: Vec4f, frag: *const Fragment) f32 {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(frag.uvw[1] * std.math.pi), 0.00001);
 
-        const max_t = ray.maxT();
-        const sl = max_t * max_t;
-        const c = -math.dot3(frag.geo_n, ray.direction);
+        const sl = math.squaredDistance3(p, frag.p);
+        const c = -math.dot3(frag.geo_n, dir);
 
         const r = frag.trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);

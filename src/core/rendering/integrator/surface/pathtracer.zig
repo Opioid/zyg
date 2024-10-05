@@ -83,15 +83,15 @@ pub const Pathtracer = struct {
                 vertex.state.primary_ray = false;
             }
 
+            if (!sample_result.class.straight) {
+                vertex.origin = frag.p;
+            }
+
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
             vertex.probe.depth.increment(&frag);
-
-            if (!sample_result.class.straight) {
-                vertex.origin = frag.p;
-            }
 
             if (0.0 == vertex.probe.wavelength) {
                 vertex.probe.wavelength = sample_result.wavelength;
@@ -121,7 +121,7 @@ pub const Pathtracer = struct {
             return @splat(0.0);
         }
 
-        const p = vertex.probe.ray.origin;
+        const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
         return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }

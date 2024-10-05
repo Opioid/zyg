@@ -182,11 +182,11 @@ pub const Cube = struct {
         );
     }
 
-    pub fn volumePdf(ray: Ray, scale: Vec4f) f32 {
-        const d = @as(Vec4f, @splat(2.0)) * scale;
+    pub fn volumePdf(p: Vec4f, frag: *const Fragment) f32 {
+        const d = @as(Vec4f, @splat(2.0)) * frag.trafo.scale();
         const volume = d[0] * d[1] * d[2];
 
-        const t = ray.maxT();
-        return (t * t) / volume;
+        const sl = math.squaredDistance3(p, frag.p);
+        return sl / volume;
     }
 };

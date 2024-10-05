@@ -778,19 +778,20 @@ pub const Mesh = struct {
         self: *const Mesh,
         part_id: u32,
         variant: u32,
-        ray: Ray,
+        dir: Vec4f,
+        p: Vec4f,
         n: Vec4f,
         frag: *const Fragment,
         two_sided: bool,
         total_sphere: bool,
     ) f32 {
-        var n_dot_dir = -math.dot3(frag.geo_n, ray.direction);
+        var n_dot_dir = -math.dot3(frag.geo_n, dir);
 
         if (two_sided) {
             n_dot_dir = @abs(n_dot_dir);
         }
 
-        const op = frag.trafo.worldToObjectPoint(ray.origin);
+        const op = frag.trafo.worldToObjectPoint(p);
         const on = frag.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[frag.isec.primitive];
@@ -817,7 +818,7 @@ pub const Mesh = struct {
         if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
-            const sl = ray.maxT() * ray.maxT();
+            const sl = math.squaredDistance3(p, frag.p);
             return (sl * tri_pdf) / (n_dot_dir * tri_area);
         }
     }
