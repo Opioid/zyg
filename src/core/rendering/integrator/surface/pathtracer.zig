@@ -26,7 +26,7 @@ pub const Pathtracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var vertex = input.*;
@@ -111,7 +111,7 @@ pub const Pathtracer = struct {
     }
 
     fn connectLight(
-        self: *const Self,
+        self: Self,
         vertex: *const Vertex,
         frag: *const Fragment,
         sampler: *Sampler,
@@ -126,7 +126,7 @@ pub const Pathtracer = struct {
         return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }
 
-    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
         if (!state.primary_ray) {
             if (!self.settings.caustics_path) {
                 return .Off;

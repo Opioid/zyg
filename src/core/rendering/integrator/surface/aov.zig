@@ -45,7 +45,7 @@ pub const AOV = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
         var vertex = input.*;
 
         const sampler = worker.pickSampler(0);
@@ -66,7 +66,7 @@ pub const AOV = struct {
         return .{ .reflection = @splat(0.0), .emission = vertex.throughput * result };
     }
 
-    fn ao(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
+    fn ao(self: Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         const num_samples_reciprocal = 1.0 / @as(f32, @floatFromInt(self.settings.num_samples));
         const radius = self.settings.radius;
 
@@ -104,7 +104,7 @@ pub const AOV = struct {
         return .{ result, result, result, 1.0 };
     }
 
-    fn vector(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
+    fn vector(self: Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         const wo = -vertex.probe.ray.direction;
 
         const sampler = worker.pickSampler(0);
@@ -136,7 +136,7 @@ pub const AOV = struct {
         return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
     }
 
-    fn lightSampleCount(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
+    fn lightSampleCount(self: Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
         const mat_sample = vertex.sample(frag, sampler, .Off, worker);
@@ -155,7 +155,7 @@ pub const AOV = struct {
         return .{ r, r, r, 1.0 };
     }
 
-    fn side(self: *const Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
+    fn side(self: Self, vertex: *const Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         _ = self;
 
         const sampler = worker.pickSampler(0);
@@ -168,7 +168,7 @@ pub const AOV = struct {
         return if (same_side) .{ 0.2, 1.0, 0.1, 0.0 } else .{ 1.0, 0.1, 0.2, 0.0 };
     }
 
-    fn photons(self: *const Self, vertex: *Vertex, frag: *Fragment, worker: *Worker) Vec4f {
+    fn photons(self: Self, vertex: *Vertex, frag: *Fragment, worker: *Worker) Vec4f {
         var bxdf_samples: bxdf.Samples = undefined;
 
         while (true) {

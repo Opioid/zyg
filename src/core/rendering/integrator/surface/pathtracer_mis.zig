@@ -32,7 +32,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var result: IValue = .{};
@@ -146,7 +146,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn sampleLights(
-        self: *const Self,
+        self: Self,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
@@ -211,7 +211,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectLight(
-        self: *const Self,
+        self: Self,
         vertex: *const Vertex,
         frag: *const Fragment,
         sampler: *Sampler,
@@ -241,7 +241,7 @@ pub const PathtracerMIS = struct {
         return weight * energy;
     }
 
-    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
         if (!state.primary_ray) {
             if (!self.settings.caustics_path) {
                 return .Off;
