@@ -69,38 +69,10 @@ pub const Light align(16) = struct {
         const trafo = scene.propTransformationAt(self.prop, time);
 
         return switch (self.class) {
-            .Prop => self.propSampleTo(
-                p,
-                n,
-                trafo,
-                total_sphere,
-                sampler,
-                scene,
-            ),
-            .PropImage => self.propImageSampleTo(
-                p,
-                n,
-                trafo,
-                total_sphere,
-                sampler,
-                scene,
-            ),
-            .Volume => self.volumeSampleTo(
-                p,
-                n,
-                trafo,
-                total_sphere,
-                sampler,
-                scene,
-            ),
-            .VolumeImage => self.volumeImageSampleTo(
-                p,
-                n,
-                trafo,
-                total_sphere,
-                sampler,
-                scene,
-            ),
+            .Prop => self.propSampleTo(p, n, trafo, total_sphere, sampler, scene),
+            .PropImage => self.propImageSampleTo(p, n, trafo, total_sphere, sampler, scene),
+            .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene),
+            .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene),
         };
     }
 
@@ -293,12 +265,7 @@ pub const Light align(16) = struct {
 
     fn volumeSampleTo(self: Light, p: Vec4f, n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {
         const shape = scene.propShape(self.prop);
-        const result = shape.sampleVolumeTo(
-            self.part,
-            p,
-            trafo,
-            sampler,
-        ) orelse return null;
+        const result = shape.sampleVolumeTo(self.part, p, trafo, sampler) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
             return result;
@@ -315,12 +282,7 @@ pub const Light align(16) = struct {
         }
 
         const shape = scene.propShape(self.prop);
-        var result = shape.sampleVolumeToUvw(
-            self.part,
-            p,
-            rs.uvw,
-            trafo,
-        ) orelse return null;
+        var result = shape.sampleVolumeToUvw(self.part, p, rs.uvw, trafo) orelse return null;
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
             result.mulAssignPdf(rs.pdf());
@@ -340,12 +302,7 @@ pub const Light align(16) = struct {
         const importance_uv = sampler.sample2D();
 
         const shape = scene.propShape(self.prop);
-        var result = shape.sampleVolumeFromUvw(
-            self.part,
-            rs.uvw,
-            trafo,
-            importance_uv,
-        ) orelse return null;
+        var result = shape.sampleVolumeFromUvw(self.part, rs.uvw, trafo, importance_uv) orelse return null;
 
         result.mulAssignPdf(rs.pdf());
 
