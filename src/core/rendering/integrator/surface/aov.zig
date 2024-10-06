@@ -149,7 +149,7 @@ pub const AOV = struct {
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);
 
-        const max_lights = worker.scene.light_tree.potentialMaxights();
+        const max_lights = worker.scene.light_tree.potentialMaxLights();
         const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(max_lights));
 
         return .{ r, r, r, 1.0 };

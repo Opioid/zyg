@@ -9,6 +9,7 @@ const base = @import("base");
 const enc = base.encoding;
 const math = base.math;
 const AABB = math.AABB;
+const Vec2u = math.Vec2u;
 const Vec4f = math.Vec4f;
 const Threads = base.thread.Pool;
 
@@ -50,6 +51,20 @@ const BuildNode = struct {
             if (next_depth < max_depth) {
                 nodes[self.children_or_light].countLightsPerDepth(nodes, next_depth, splits, max_depth);
                 nodes[self.children_or_light + 1].countLightsPerDepth(nodes, next_depth, splits, max_depth);
+            }
+        }
+    }
+
+    pub fn countPotentialLights(self: BuildNode, nodes: []const BuildNode, depth: u32, num_lights: []Vec2u, comptime max_depth: u32) void {
+        if (!self.hasChildren()) {
+            num_lights[depth][0] += 1;
+        } else {
+            num_lights[depth][1] += 2;
+
+            const next_depth = depth + 1;
+            if (next_depth < max_depth) {
+                nodes[self.children_or_light].countPotentialLights(nodes, next_depth, num_lights, max_depth);
+                nodes[self.children_or_light + 1].countPotentialLights(nodes, next_depth, num_lights, max_depth);
             }
         }
     }
@@ -309,14 +324,27 @@ pub const Builder = struct {
             self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
             tree.bounds = self.build_nodes[0].bounds;
 
-            var splits = [_]u32{0} ** Tree.Max_split_depth;
-            self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
+            // var splits = [_]u32{0} ** Tree.Max_split_depth;
+            // self.build_nodes[0].countLightsPerDepth(self.build_nodes, 0, &splits, Tree.Max_split_depth);
+
+            // var num_split_lights: u32 = 0;
+            // for (splits, 0..) |s, i| {
+            //     num_split_lights += s;
+
+            //     if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
+            //         max_split_depth = @intCast(i);
+            //         break;
+            //     }
+            // }
+
+            var split_lights = [_]Vec2u{.{ 0, 0 }} ** Tree.Max_split_depth;
+            self.build_nodes[0].countPotentialLights(self.build_nodes, 0, &split_lights, Tree.Max_split_depth);
 
             var num_split_lights: u32 = 0;
-            for (splits, 0..) |s, i| {
-                num_split_lights += s;
+            for (split_lights, 0..) |s, i| {
+                num_split_lights += s[0];
 
-                if (num_split_lights >= Tree.Max_lights - num_infinite_lights or 0 == s) {
+                if ((num_split_lights + s[1]) >= (Tree.Max_lights - num_infinite_lights) or 0 == s[1]) {
                     max_split_depth = @intCast(i);
                     break;
                 }
@@ -416,7 +444,7 @@ pub const Builder = struct {
 
         var node = &self.build_nodes[node_id];
 
-        if (len <= 4) {
+        if (len <= 2) {
             var node_two_sided = false;
 
             for (lights) |l| {
@@ -715,7 +743,7 @@ pub const Builder = struct {
 };
 
 fn coneCost(cos: f32, two_sided: bool) f32 {
-    const o = if (two_sided) @as(f32, std.math.pi) else std.math.acos(cos);
+    const o: f32 = if (two_sided) std.math.pi else std.math.acos(cos);
     const w = math.min(o + (std.math.pi / 2.0), std.math.pi);
 
     const sin = @sin(o);
