@@ -65,7 +65,7 @@ pub fn scattering(mu_t: Vec4f, ssc: Vec4f, g: f32) CC {
     const mu_a = mu_t * (@as(Vec4f, @splat(1.0)) - pss);
     const mu_s = mu_t - mu_a;
 
-    return .{ .a = .{ mu_a[0], mu_a[1], mu_a[2], 0.0 }, .s = .{ mu_s[0], mu_s[1], mu_s[2], 0.0 } };
+    return .{ .a = .{ mu_a[0], mu_a[1], mu_a[2], 1.0 }, .s = .{ mu_s[0], mu_s[1], mu_s[2], 1.0 } };
 }
 
 pub inline fn attenuation1(c: f32, distance: f32) f32 {

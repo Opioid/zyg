@@ -239,6 +239,15 @@ pub fn allFinite3(v: Vec4f) bool {
     return true;
 }
 
+pub fn allFinite4(v: Vec4f) bool {
+    if (!std.math.isFinite(v[0])) return false;
+    if (!std.math.isFinite(v[1])) return false;
+    if (!std.math.isFinite(v[2])) return false;
+    if (!std.math.isFinite(v[3])) return false;
+
+    return true;
+}
+
 pub inline fn vec3fTo4f(v: Pack3f) Vec4f {
     return .{ v.v[0], v.v[1], v.v[2], 0.0 };
 }
