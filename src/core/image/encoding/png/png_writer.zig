@@ -129,7 +129,7 @@ pub const Writer = struct {
         max: f32,
         name: []const u8,
     ) !void {
-        const num_pixels = @as(u32, @intCast(width * height));
+        const num_pixels: u32 = @intCast(width * height);
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 

@@ -281,6 +281,8 @@ pub const Driver = struct {
             const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}_noise.png", .{ camera_id, frame });
 
             try PngWriter.writeHeatmap(alloc, d[0], d[1], self.view.sensor.aov_noise_buffer, min, max, filename);
+
+            log.info("Noise [{}, {}]", .{ min, max });
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
@@ -343,6 +345,7 @@ pub const Driver = struct {
 
         sensor.buffer.clear(0.0);
         sensor.aov.clear();
+        sensor.clearNoiseAov();
 
         self.progressor.start(self.tiles.size());
 

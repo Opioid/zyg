@@ -74,7 +74,7 @@ pub fn turbo(x: f32) [3]u8 {
         return .{ 0, 0, 0 };
     }
 
-    const i = @as(u8, @intFromFloat(x * 255.0 + 0.5));
+    const i: u8 = @intFromFloat(x * 255.0 + 0.5);
 
     return turbo_srgb_bytes[i];
 }

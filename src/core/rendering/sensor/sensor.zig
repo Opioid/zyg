@@ -136,6 +136,12 @@ pub const Sensor = struct {
         }
     }
 
+    pub fn clearNoiseAov(self: *Self) void {
+        for (self.aov_noise_buffer) |*n| {
+            n.* = 0.0;
+        }
+    }
+
     pub fn cameraSample(self: *const Self, pixel: Vec2i, sampler: *Sampler) Sample {
         const s4 = sampler.sample4D();
         const s1 = sampler.sample1D();
