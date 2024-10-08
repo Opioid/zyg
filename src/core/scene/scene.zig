@@ -288,7 +288,8 @@ pub const Scene = struct {
         worker: *Worker,
     ) bool {
         if (!self.has_volumes) {
-            frag.setVolume(Volume.initPass(@splat(1.0)));
+            frag.event = .Pass;
+            frag.vol_li = @splat(0.0);
             return false;
         }
 

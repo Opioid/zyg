@@ -54,11 +54,6 @@ pub const Fragment = struct {
 
     const Self = @This();
 
-    pub fn setVolume(self: *Self, vol: Volume) void {
-        self.event = vol.event;
-        self.vol_li = vol.li;
-    }
-
     pub inline fn uv(self: Self) Vec2f {
         return .{ self.uvw[0], self.uvw[1] };
     }
