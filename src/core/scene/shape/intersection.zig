@@ -26,6 +26,15 @@ pub const Volume = struct {
             .event = .Pass,
         };
     }
+
+    pub fn initAbort() Volume {
+        return .{
+            .li = @splat(0.0),
+            .tr = @splat(0.0),
+            .t = 0.0,
+            .event = .Absorb,
+        };
+    }
 };
 
 pub const Intersection = struct {

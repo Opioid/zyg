@@ -63,7 +63,7 @@ pub const Integrator = struct {
         }
 
         if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
-            return Volume.initPass(@splat(1.0));
+            return Volume.initAbort();
         }
 
         if (material.volumetricTree()) |tree| {
