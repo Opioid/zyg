@@ -393,7 +393,8 @@ pub const Shape = union(enum) {
         self: *const Shape,
         part: u32,
         variant: u32,
-        ray: Ray,
+        dir: Vec4f,
+        p: Vec4f,
         n: Vec4f,
         frag: *const Fragment,
         two_sided: bool,
@@ -403,29 +404,29 @@ pub const Shape = union(enum) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Cube, .Plane => 0.0,
             .CurveMesh => 0.0,
-            .Disk => Disk.pdf(ray, frag.trafo, two_sided),
+            .Disk => Disk.pdf(dir, p, frag, two_sided),
             .DistantSphere => DistantSphere.pdf(frag.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(ray, frag.trafo),
-            .Sphere => Sphere.pdf(ray, frag.trafo),
-            .TriangleMesh => |m| m.pdf(part, variant, ray, n, frag, two_sided, total_sphere),
+            .Rectangle => Rectangle.pdf(p, frag.trafo),
+            .Sphere => Sphere.pdf(p, frag.trafo),
+            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, two_sided, total_sphere),
         };
     }
 
-    pub fn pdfUv(self: *const Shape, ray: Ray, frag: *const Fragment, two_sided: bool) f32 {
+    pub fn pdfUv(self: *const Shape, dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Disk.pdf(ray, frag.trafo, two_sided),
+            .Disk => Disk.pdf(dir, p, frag, two_sided),
             .InfiniteSphere => InfiniteSphere.pdfUv(frag),
-            .Rectangle => Rectangle.pdfUv(ray, frag.trafo, two_sided),
-            .Sphere => Sphere.pdfUv(ray, frag),
+            .Rectangle => Rectangle.pdfUv(dir, p, frag, two_sided),
+            .Sphere => Sphere.pdfUv(dir, p, frag),
             else => 0.0,
         };
     }
 
-    pub fn volumePdf(self: *const Shape, ray: Ray, frag: *const Fragment) f32 {
+    pub fn volumePdf(self: *const Shape, p: Vec4f, frag: *const Fragment) f32 {
         return switch (self.*) {
-            .Cube => Cube.volumePdf(ray, frag.trafo.scale()),
+            .Cube => Cube.volumePdf(p, frag),
             else => 0.0,
         };
     }

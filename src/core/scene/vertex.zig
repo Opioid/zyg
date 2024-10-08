@@ -16,8 +16,8 @@ const Ray = math.Ray;
 pub const Vertex = struct {
     pub const Probe = struct {
         pub const Depth = struct {
-            surface: u16,
-            volume: u16,
+            surface: u16 = 0,
+            volume: u16 = 0,
 
             pub fn total(self: Depth) u32 {
                 return self.surface + self.volume;
@@ -41,7 +41,7 @@ pub const Vertex = struct {
         pub fn init(ray: Ray, time: u64) Probe {
             return .{
                 .ray = ray,
-                .depth = .{ .surface = 0, .volume = 0 },
+                .depth = .{},
                 .wavelength = 0.0,
                 .time = time,
             };
@@ -69,6 +69,7 @@ pub const Vertex = struct {
     probe: Probe,
 
     state: State,
+    depth: Probe.Depth,
     bxdf_pdf: f32,
     split_weight: f32,
     path_count: u32,
@@ -85,6 +86,7 @@ pub const Vertex = struct {
         return .{
             .probe = Probe.init(ray, time),
             .state = .{},
+            .depth = .{},
             .bxdf_pdf = 0.0,
             .split_weight = 1.0,
             .path_count = 1,

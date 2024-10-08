@@ -222,18 +222,17 @@ pub const Disk = struct {
         return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf_);
     }
 
-    pub fn pdf(ray: Ray, trafo: Trafo, two_sided: bool) f32 {
-        var c = -math.dot3(trafo.rotation.r[2], ray.direction);
+    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool) f32 {
+        var c = -math.dot3(frag.trafo.rotation.r[2], dir);
 
         if (two_sided) {
             c = @abs(c);
         }
 
-        const radius = trafo.scaleX();
+        const radius = frag.trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        const max_t = ray.maxT();
-        const sl = max_t * max_t;
+        const sl = math.squaredDistance3(p, frag.p);
         return sl / (c * area);
     }
 };

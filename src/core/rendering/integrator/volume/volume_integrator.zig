@@ -63,7 +63,7 @@ pub const Integrator = struct {
         }
 
         if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
-            return Volume.initPass(@splat(1.0));
+            return Volume.initAbort();
         }
 
         if (material.volumetricTree()) |tree| {
@@ -139,7 +139,7 @@ pub const Integrator = struct {
 
         if (material.denseSSSOptimization()) {
             // Override the sampler choice with "low quality" in case of SSS
-            return integrateSSS(medium.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
+            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
         }
 
         const ray_max_t = vertex.probe.ray.maxT();
@@ -172,7 +172,8 @@ pub const Integrator = struct {
             frag.uvw = result.uvw;
         }
 
-        frag.setVolume(result);
+        frag.event = result.event;
+        frag.vol_li = result.li;
         vertex.throughput *= result.tr;
         return true;
     }
@@ -195,7 +196,7 @@ pub const Integrator = struct {
             else
                 vertex.probe.ray;
 
-            var result = propScatter(
+            const result = propScatter(
                 tray,
                 vertex.throughput,
                 material,
@@ -213,10 +214,12 @@ pub const Integrator = struct {
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.mediums.pop();
-                    result.event = .ExitSSS;
+                    frag.event = .ExitSSS;
+                } else {
+                    frag.event = .Pass;
                 }
 
-                frag.setVolume(result);
+                frag.vol_li = @splat(0.0);
 
                 return true;
             } else if (!hit and .Pass == result.event) {
@@ -251,5 +254,99 @@ pub const Integrator = struct {
         }
 
         return false;
+    }
+
+    fn integrateHomogeneousSSS(prop: u32, material: *const Material, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+        const cc = vertex.mediums.topCC();
+        const g = material.super().volumetric_anisotropy;
+
+        const mu_t = cc.a + cc.s;
+        const albedo = cc.s / mu_t;
+
+        var local_weight: Vec4f = @splat(1.0);
+
+        for (0..256) |_| {
+            var channel_weights = local_weight * vertex.throughput;
+            const sum_weights = channel_weights[0] + channel_weights[1] + channel_weights[2];
+
+            if (sum_weights < 1e-6) {
+                return false;
+            }
+
+            channel_weights /= @splat(sum_weights);
+
+            const r3 = sampler.sample3D();
+            const rc = r3[0];
+
+            var channel_id: u32 = 2;
+            if (rc < channel_weights[0]) {
+                channel_id = 0;
+            } else if (rc < channel_weights[0] + channel_weights[1]) {
+                channel_id = 1;
+            }
+
+            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
+
+            // Calculate the visibility of the sample point for each channel
+            const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);
+
+            // Calculate the probability of generating a sample here
+            var pdf = exp_free_path_sigma_t * mu_t;
+            pdf /= @splat(math.dot3(pdf, channel_weights));
+
+            local_weight *= pdf;
+
+            if (hlp.russianRoulette(&local_weight, r3[2])) {
+                return false;
+            }
+
+            vertex.probe.ray.setMaxT(free_path);
+
+            if (!worker.propIntersect(prop, &vertex.probe, frag)) {
+                const wil = sampleHg(g, sampler);
+                const frame = Frame.init(vertex.probe.ray.direction);
+                const wi = frame.frameToWorld(wil);
+
+                vertex.probe.ray.origin = vertex.probe.ray.point(free_path);
+                vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+
+                local_weight *= albedo;
+            } else {
+                worker.propInterpolateFragment(prop, &vertex.probe, frag);
+
+                if (frag.sameHemisphere(vertex.probe.ray.direction)) {
+                    vertex.mediums.pop();
+                    frag.event = .ExitSSS;
+                } else {
+                    frag.event = .Pass;
+                }
+
+                frag.vol_li = @splat(0.0);
+
+                vertex.throughput *= local_weight;
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    fn sampleHg(g: f32, sampler: *Sampler) Vec4f {
+        const r2 = sampler.sample2D();
+
+        var cos_theta: f32 = undefined;
+        if (@abs(g) < 0.001) {
+            cos_theta = 1.0 - 2.0 * r2[0];
+        } else {
+            const gg = g * g;
+            const sqr = (1.0 - gg) / (1.0 - g + 2.0 * g * r2[0]);
+            cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
+        }
+
+        const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
+        const phi = r2[1] * (2.0 * std.math.pi);
+
+        return math.smpl.sphereDirection(sin_theta, cos_theta, phi);
     }
 };

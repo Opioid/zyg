@@ -240,7 +240,7 @@ fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype,
 }
 
 pub const Tree = struct {
-    pub const Max_split_depth = 6;
+    pub const Max_split_depth = 10;
     pub const Max_lights = 64;
 
     pub const Lights = [Max_lights]Pick;
@@ -309,7 +309,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn potentialMaxights(self: *const Tree) u32 {
+    pub fn potentialMaxLights(self: *const Tree) u32 {
         const num_finite: u32 = @intFromFloat(std.math.pow(f32, 2.0, @floatFromInt(self.max_split_depth)));
         return num_finite + self.num_infinite_lights;
     }
@@ -367,9 +367,9 @@ pub const Tree = struct {
         while (!stack.empty()) {
             const node = self.nodes[t.node];
 
-            const do_split = t.depth < max_split_depth and node.split(p, self.bounds, split_threshold);
-
             if (node.meta.has_children) {
+                const do_split = t.depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
@@ -404,18 +404,10 @@ pub const Tree = struct {
                     }
                 }
             } else {
-                if (do_split) {
-                    const begin = node.meta.children_or_light;
-                    for (self.light_mapping[begin .. begin + node.num_lights]) |lm| {
-                        buffer[current_light] = .{ .offset = lm, .pdf = t.pdf };
-                        current_light += 1;
-                    }
-                } else {
-                    const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, scene, 0);
-                    if (pick.pdf > 0.0) {
-                        buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
-                        current_light += 1;
-                    }
+                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, scene, 0);
+                if (pick.pdf > 0.0) {
+                    buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
+                    current_light += 1;
                 }
 
                 t = stack.pop();
@@ -454,9 +446,9 @@ pub const Tree = struct {
         while (true) {
             const node = self.nodes[nid];
 
-            const do_split = depth < max_split_depth and node.split(p, self.bounds, split_threshold);
-
             if (node.meta.has_children) {
+                const do_split = depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
@@ -490,11 +482,7 @@ pub const Tree = struct {
                     }
                 }
             } else {
-                if (do_split) {
-                    return pd;
-                } else {
-                    return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, scene, 0);
-                }
+                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, scene, 0);
             }
         }
     }
@@ -635,7 +623,7 @@ const TraversalStack = struct {
         depth: u32,
     };
 
-    const Stack_size = (1 << (Tree.Max_split_depth - 1)) + 1;
+    const Stack_size = Tree.Max_split_depth + 1;
 
     end: u32 = 0,
     stack: [Stack_size]Value = undefined,

@@ -26,6 +26,15 @@ pub const Volume = struct {
             .event = .Pass,
         };
     }
+
+    pub fn initAbort() Volume {
+        return .{
+            .li = @splat(0.0),
+            .tr = @splat(0.0),
+            .t = 0.0,
+            .event = .Absorb,
+        };
+    }
 };
 
 pub const Intersection = struct {
@@ -53,11 +62,6 @@ pub const Fragment = struct {
     uvw: Vec4f,
 
     const Self = @This();
-
-    pub fn setVolume(self: *Self, vol: Volume) void {
-        self.event = vol.event;
-        self.vol_li = vol.li;
-    }
 
     pub inline fn uv(self: Self) Vec2f {
         return .{ self.uvw[0], self.uvw[1] };

@@ -32,7 +32,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: *const Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var result: IValue = .{};
@@ -112,18 +112,19 @@ pub const PathtracerMIS = struct {
                         next_vertex.state.primary_ray = false;
                     }
 
+                    if (!class.straight) {
+                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
+                        next_vertex.depth = next_vertex.probe.depth;
+                        next_vertex.bxdf_pdf = sample_result.pdf;
+                        next_vertex.origin = frag.p;
+                        next_vertex.geo_n = mat_sample.super().geometricNormal();
+                    }
+
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                     next_vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
                     next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
                     next_vertex.probe.depth.increment(&frag);
-
-                    if (!class.straight) {
-                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
-                        next_vertex.bxdf_pdf = sample_result.pdf;
-                        next_vertex.origin = frag.p;
-                        next_vertex.geo_n = mat_sample.super().geometricNormal();
-                    }
 
                     if (0.0 == next_vertex.probe.wavelength) {
                         next_vertex.probe.wavelength = sample_result.wavelength;
@@ -145,7 +146,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn sampleLights(
-        self: *const Self,
+        self: Self,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
@@ -160,7 +161,7 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const select = sampler.sample1D();
-        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 0);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
@@ -210,7 +211,7 @@ pub const PathtracerMIS = struct {
     }
 
     fn connectLight(
-        self: *const Self,
+        self: Self,
         vertex: *const Vertex,
         frag: *const Fragment,
         sampler: *Sampler,
@@ -230,18 +231,17 @@ pub const PathtracerMIS = struct {
         }
 
         const translucent = vertex.state.is_translucent;
-        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth, 1);
+        const split_threshold = self.settings.light_sampling.splitThreshold(vertex.depth);
 
-        const light_pick = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
-        const light = scene.light(light_pick.offset);
-
-        const pdf = light.pdf(vertex, frag, scene);
-        const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, pdf * light_pick.pdf));
+        const select_pdf = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
+        const light = scene.light(light_id);
+        const sample_pdf = light.pdf(vertex, frag, scene);
+        const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf));
 
         return weight * energy;
     }
 
-    fn causticsResolve(self: *const Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
         if (!state.primary_ray) {
             if (!self.settings.caustics_path) {
                 return .Off;

@@ -288,7 +288,9 @@ pub const Tree = struct {
             }
         }
 
-        frag.setVolume(result);
+        frag.event = result.event;
+        frag.vol_li = result.li;
+
         throughput.* *= result.tr;
 
         if (.Pass != result.event) {

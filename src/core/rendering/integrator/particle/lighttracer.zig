@@ -36,7 +36,7 @@ pub const Lighttracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: *Self, frame: u32, worker: *Worker, initial_stack: *const MediumStack) void {
+    pub fn li(self: Self, frame: u32, worker: *Worker, initial_stack: *const MediumStack) void {
         _ = initial_stack;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
@@ -62,7 +62,7 @@ pub const Lighttracer = struct {
         self.integrate(&vertex, worker, light, light_sample);
     }
 
-    fn integrate(self: *Self, input: *const Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
+    fn integrate(self: Self, input: *const Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
         const camera = worker.camera;
         const sensor = worker.sensor;
 
@@ -236,13 +236,5 @@ pub const Lighttracer = struct {
         sensor.splatSample(camera_sample, result, crop);
 
         return true;
-    }
-};
-
-pub const Factory = struct {
-    settings: Lighttracer.Settings,
-
-    pub fn create(self: Factory) Lighttracer {
-        return .{ .settings = self.settings };
     }
 };

@@ -21,7 +21,6 @@ pub const Prop = struct {
         evaluate_visibility: bool = false,
         volume: bool = false,
         caustic: bool = false,
-        test_AABB: bool = false,
         static: bool = true,
     };
 
@@ -55,20 +54,12 @@ pub const Prop = struct {
         return self.properties.visible_in_shadow;
     }
 
-    pub fn evaluateVisibility(self: Prop) bool {
-        return self.properties.evaluate_visibility;
-    }
-
     pub fn volume(self: Prop) bool {
         return self.properties.volume;
     }
 
     pub fn caustic(self: Prop) bool {
         return self.properties.caustic;
-    }
-
-    pub fn setVisibleInShadow(self: *Prop, value: bool) void {
-        self.properties.visible_in_shadow = value;
     }
 
     pub fn setVisibility(self: *Prop, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
@@ -81,7 +72,6 @@ pub const Prop = struct {
         self.shape = shape;
 
         const shape_inst = scene.shape(shape);
-        self.properties.test_AABB = shape_inst.finite() and shape_inst.complex();
 
         var mono = true;
 
@@ -108,8 +98,7 @@ pub const Prop = struct {
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
-        const shape = scene.shape(self.shape);
-        self.properties.test_AABB = shape.finite();
+        _ = scene;
         self.properties.static = false;
     }
 
@@ -120,7 +109,7 @@ pub const Prop = struct {
 
         const properties = self.properties;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+        if (!scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
@@ -148,7 +137,7 @@ pub const Prop = struct {
             return false;
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+        if (!scene.propAabbIntersect(entity, probe.ray)) {
             return false;
         }
 
@@ -173,7 +162,7 @@ pub const Prop = struct {
             return @as(Vec4f, @splat(1.0));
         }
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+        if (!scene.propAabbIntersect(entity, probe.ray)) {
             return @as(Vec4f, @splat(1.0));
         }
 
@@ -199,7 +188,7 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (properties.test_AABB and !scene.propAabbIntersect(entity, probe.ray)) {
+        if (!scene.propAabbIntersect(entity, probe.ray)) {
             return int.Volume.initPass(@splat(1.0));
         }
 

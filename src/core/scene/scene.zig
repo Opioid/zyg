@@ -288,7 +288,8 @@ pub const Scene = struct {
         worker: *Worker,
     ) bool {
         if (!self.has_volumes) {
-            frag.setVolume(Volume.initPass(@splat(1.0)));
+            frag.event = .Pass;
+            frag.vol_li = @splat(0.0);
             return false;
         }
 
@@ -646,7 +647,7 @@ pub const Scene = struct {
         return self.light_tree.randomLight(p, n, total_sphere, random, split_threshold, self, buffer);
     }
 
-    pub fn lightPdfSpatial(self: *const Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32) LightPick {
+    pub fn lightPdfSpatial(self: *const Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -655,8 +656,7 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        const pdf = self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
-        return .{ .offset = id, .pdf = pdf };
+        return self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
     }
 
     pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {

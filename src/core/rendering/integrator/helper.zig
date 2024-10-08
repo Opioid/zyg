@@ -16,8 +16,8 @@ pub const Depth = struct {
 pub const LightSampling = struct {
     split_threshold: f32,
 
-    pub fn splitThreshold(self: LightSampling, depth: Probe.Depth, offset: u32) f32 {
-        const total_depth = depth.surface + depth.volume - offset;
+    pub fn splitThreshold(self: LightSampling, depth: Probe.Depth) f32 {
+        const total_depth = depth.surface + depth.volume;
 
         // 0.01^4 = 0.00000001
 
