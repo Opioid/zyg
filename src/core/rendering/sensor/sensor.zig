@@ -4,7 +4,6 @@ const aovns = @import("aov/aov_value.zig");
 const AovValue = aovns.Value;
 const AovFactory = aovns.Factory;
 pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
-const Result = @import("result.zig").Result;
 const cs = @import("../../camera/camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
@@ -161,7 +160,7 @@ pub const Sensor = struct {
         };
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, value: IValue, aov: AovValue) Result {
+    pub fn addSample(self: *Sensor, sample: Sample, value: IValue, aov: AovValue) Vec4f {
         const w = self.eval(sample.filter_uv[0]) * self.eval(sample.filter_uv[1]);
         const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 

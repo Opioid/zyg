@@ -116,14 +116,10 @@ pub const Worker = struct {
             0.0,
         };
 
-        const one: Vec4f = @splat(1.0);
-
-        const l = one + @log10(value);
-
-        return @select(f32, value < one, p, l);
+        return p;
     }
 
-    // Running variance calculation inspired by
+    // Running variance calculation as described in
     // https://www.johndcook.com/blog/standard_deviation/
 
     pub fn render(
@@ -140,8 +136,12 @@ pub const Worker = struct {
         const scene = self.scene;
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
+
+        // Those values are only used for variance estimation
+        // Exposure and tonemapping is not done here
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
-        const wp = sensor.tonemapper.white_point;
+        const wp: f32 = 4.0;
+        const qm_threshold_squared = qm_threshold * qm_threshold;
 
         var rng = &self.rng;
 
@@ -198,7 +198,7 @@ pub const Worker = struct {
                         var old_m = old_mm[ii];
                         var old_s = old_ss[ii];
 
-                        for (ss..s_end) |_| {
+                        for (ss..s_end) |current_sample| {
                             self.aov.clear();
 
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
@@ -214,10 +214,13 @@ pub const Worker = struct {
 
                             ivalue.reflection += photon;
 
-                            const clamped = sensor.addSample(sample, ivalue, self.aov);
+                            // The weightd value is what was added to the pixel
+                            const weighted = sensor.addSample(sample, ivalue, self.aov);
 
-                            const value = math.clamp4(ef * clamped.last, -wp, wp);
-                            const new_m = math.clamp4(ef * clamped.mean, -wp, wp);
+                            // This clipped value is what we use for the noise estimate
+                            const value = math.clamp4(ef * weighted, -wp, wp);
+
+                            const new_m = old_m + (value - old_m) / @as(Vec4f, @splat(@as(f32, @floatFromInt(current_sample + 1))));
 
                             old_s += (value - old_m) * (value - new_m);
                             old_m = new_m;
@@ -228,7 +231,7 @@ pub const Worker = struct {
                         old_mm[ii] = old_m;
                         old_ss[ii] = old_s;
 
-                        const variance = old_s / @as(Vec4f, @splat(@as(f32, @floatFromInt(s_end))));
+                        const variance = old_s / @as(Vec4f, @splat(@as(f32, @floatFromInt(s_end - 1))));
 
                         const std_dev = @sqrt(variance);
 
@@ -248,7 +251,9 @@ pub const Worker = struct {
 
                 var terminates = true;
 
-                if (tile_qm > qm_threshold or (tile_qm > 0.0 and s_end < 64)) {
+                const target_samples: u32 = @intFromFloat(@ceil(tile_qm / qm_threshold_squared));
+
+                if (target_samples > s_end or (tile_qm > 0.0 and s_end < 64)) {
                     if (s_end == 128) {
                         stack_b.pushQuartet(tile, Tile_dimensions / 2 - 1);
                     } else if (s_end == 256) {

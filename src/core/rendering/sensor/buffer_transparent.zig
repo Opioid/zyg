@@ -1,5 +1,4 @@
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
-const Result = @import("result.zig").Result;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -44,7 +43,7 @@ pub const Transparent = struct {
         }
     }
 
-    pub fn addPixel(self: *Transparent, i: u32, color: Vec4f, weight: f32) Result {
+    pub fn addPixel(self: *Transparent, i: u32, color: Vec4f, weight: f32) Vec4f {
         const pixel_weight = self.pixel_weights[i] + weight;
 
         const wc = @as(Vec4f, @splat(weight)) * color;
@@ -54,11 +53,7 @@ pub const Transparent = struct {
         self.pixels[i].v = value;
         self.pixel_weights[i] = pixel_weight;
 
-        const nw = 1.0 / (if (0.0 == pixel_weight) 1.0 else pixel_weight);
-        return .{
-            .last = wc,
-            .mean = value * @as(Vec4f, @splat(nw)),
-        };
+        return wc;
     }
 
     pub fn splatPixelAtomic(self: *Transparent, i: u32, color: Vec4f, weight: f32) void {

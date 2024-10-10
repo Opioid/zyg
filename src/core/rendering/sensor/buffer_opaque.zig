@@ -1,5 +1,4 @@
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
-const Result = @import("result.zig").Result;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
@@ -37,18 +36,14 @@ pub const Opaque = struct {
         }
     }
 
-    pub fn addPixel(self: *Opaque, i: u32, color: Vec4f, weight: f32) Result {
+    pub fn addPixel(self: *Opaque, i: u32, color: Vec4f, weight: f32) Vec4f {
         const wc = @as(Vec4f, @splat(weight)) * color;
         var value: Vec4f = self.pixels[i].v;
         value += Vec4f{ wc[0], wc[1], wc[2], weight };
 
         self.pixels[i].v = value;
 
-        const nw = 1.0 / (if (0.0 == value[3]) 1.0 else value[3]);
-        return .{
-            .last = wc,
-            .mean = value * @as(Vec4f, @splat(nw)),
-        };
+        return wc;
     }
 
     pub fn splatPixelAtomic(self: *Opaque, i: u32, color: Vec4f, weight: f32) void {

@@ -1,7 +1,6 @@
 const Opaque = @import("buffer_opaque.zig").Opaque;
 const Transparent = @import("buffer_transparent.zig").Transparent;
 const Tonemapper = @import("tonemapper.zig").Tonemapper;
-const Result = @import("result.zig").Result;
 
 const base = @import("base");
 const math = base.math;
@@ -42,7 +41,7 @@ pub const Buffer = union(enum) {
         }
     }
 
-    pub fn addPixel(self: *Self, i: u32, color: Vec4f, weight: f32) Result {
+    pub fn addPixel(self: *Self, i: u32, color: Vec4f, weight: f32) Vec4f {
         return switch (self.*) {
             inline else => |*s| s.addPixel(i, color, weight),
         };
