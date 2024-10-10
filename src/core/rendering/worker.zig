@@ -140,7 +140,7 @@ pub const Worker = struct {
         // Those values are only used for variance estimation
         // Exposure and tonemapping is not done here
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
-        const wp: f32 = 4.0;
+        const wp: f32 = 1.0;
         const qm_threshold_squared = qm_threshold * qm_threshold;
 
         var rng = &self.rng;
@@ -159,9 +159,9 @@ pub const Worker = struct {
         stack_a.clear();
         stack_a.push(target_tile);
 
-        var ss: u32 = 0;
-        while (ss < num_samples) {
-            const s_end = @min(ss + Step, num_samples);
+        var s_start: u32 = 0;
+        while (s_start < num_samples) {
+            const s_end = @min(s_start + Step, num_samples);
 
             stack_b.clear();
 
@@ -184,7 +184,7 @@ pub const Worker = struct {
 
                         const pixel_id = pixel_n + @as(u32, @intCast(x));
 
-                        const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + ss);
+                        const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + s_start);
                         const tsi: u32 = @truncate(sample_index);
                         const seed = @as(u32, @truncate(sample_index >> 32)) + so;
 
@@ -198,7 +198,7 @@ pub const Worker = struct {
                         var old_m = old_mm[ii];
                         var old_s = old_ss[ii];
 
-                        for (ss..s_end) |current_sample| {
+                        for (s_start..s_end) |cs| {
                             self.aov.clear();
 
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
@@ -218,9 +218,9 @@ pub const Worker = struct {
                             const weighted = sensor.addSample(sample, ivalue, self.aov);
 
                             // This clipped value is what we use for the noise estimate
-                            const value = math.clamp4(ef * weighted, -wp, wp);
+                            const value = math.min4(@abs(ef * weighted), @splat(wp));
 
-                            const new_m = old_m + (value - old_m) / @as(Vec4f, @splat(@as(f32, @floatFromInt(current_sample + 1))));
+                            const new_m = old_m + (value - old_m) / @as(Vec4f, @splat(@floatFromInt(cs + 1)));
 
                             old_s += (value - old_m) * (value - new_m);
                             old_m = new_m;
@@ -231,15 +231,13 @@ pub const Worker = struct {
                         old_mm[ii] = old_m;
                         old_ss[ii] = old_s;
 
-                        const variance = old_s / @as(Vec4f, @splat(@as(f32, @floatFromInt(s_end - 1))));
+                        const variance = old_s / @as(Vec4f, @splat(@floatFromInt(s_end - 1)));
 
                         const std_dev = @sqrt(variance);
 
-                        const zero: Vec4f = @splat(0.0);
-
-                        const mapped_value = curve(math.max4(old_m, zero));
-                        const mapped_lower = curve(math.max4(old_m - std_dev, zero));
-                        const mapped_upper = curve(math.max4(old_m + std_dev, zero));
+                        const mapped_value = curve(old_m);
+                        const mapped_lower = curve(math.max4(old_m - std_dev, @splat(0.0)));
+                        const mapped_upper = curve(old_m + std_dev);
 
                         const qm = math.max(math.hmax3(mapped_value - mapped_lower), math.hmax3(mapped_upper - mapped_value));
 
@@ -278,7 +276,7 @@ pub const Worker = struct {
                 break;
             }
 
-            ss += Step;
+            s_start += Step;
 
             std.mem.swap(TileStack, stack_a, stack_b);
         }
