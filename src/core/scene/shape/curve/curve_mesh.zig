@@ -40,7 +40,7 @@ pub const Mesh = struct {
 
         const geo_n = frag.trafo.objectToWorldNormal(data.geo_n);
 
-        const offset = @abs(data.v - 0.5) * frag.trafo.scaleX() * data.width;
+        const offset = frag.trafo.scaleX() * 0.5 * data.width;
 
         frag.p = ray.point(ray.maxT());
         frag.t = t;

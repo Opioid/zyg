@@ -179,8 +179,8 @@ pub const Worker = struct {
         var rng = &self.rng;
         rng.start(0, offset);
 
-        const tsi = @as(u32, @truncate(range[0]));
-        const seed = @as(u32, @truncate(range[0] >> 32));
+        const tsi: u32 = @truncate(range[0]);
+        const seed: u32 = @truncate(range[0] >> 32);
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
