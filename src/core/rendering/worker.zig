@@ -136,6 +136,7 @@ pub const Worker = struct {
         const scene = self.scene;
         const r = camera.resolution;
         const so = iteration / num_expected_samples;
+        const offset = Vec2i{ target_tile[0], target_tile[1] };
 
         // Those values are only used for variance estimation
         // Exposure and tonemapping is not done here
@@ -145,11 +146,8 @@ pub const Worker = struct {
 
         var rng = &self.rng;
 
-        var old_mm: [Tile_area]Vec4f = undefined;
-        var old_ss: [Tile_area]Vec4f = undefined;
-
-        @memset(&old_mm, @as(Vec4f, @splat(0.0)));
-        @memset(&old_ss, @as(Vec4f, @splat(0.0)));
+        var old_mm = [_]Vec4f{@splat(0)} ** Tile_area;
+        var old_ss = [_]Vec4f{@splat(0)} ** Tile_area;
 
         var tile_stacks: [2]TileStack = undefined;
 
@@ -157,7 +155,7 @@ pub const Worker = struct {
         var stack_b = &tile_stacks[1];
 
         stack_a.clear();
-        stack_a.push(target_tile);
+        stack_a.push(target_tile, offset);
 
         var s_start: u32 = 0;
         while (s_start < num_samples) {
@@ -165,7 +163,7 @@ pub const Worker = struct {
 
             stack_b.clear();
 
-            while (stack_a.pop()) |tile| {
+            while (stack_a.pop(offset)) |tile| {
                 const y_back = tile[3];
                 var y = tile[1];
                 var yy = @rem(y, Tile_dimensions);
@@ -253,15 +251,15 @@ pub const Worker = struct {
 
                 if (target_samples > s_end or (tile_qm > 0.0 and s_end < 64)) {
                     if (s_end == 128) {
-                        stack_b.pushQuartet(tile, Tile_dimensions / 2 - 1);
+                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 2 - 1);
                     } else if (s_end == 256) {
-                        stack_b.pushQuartet(tile, Tile_dimensions / 4 - 1);
+                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 4 - 1);
                     } else if (s_end == 512) {
-                        stack_b.pushQuartet(tile, Tile_dimensions / 8 - 1);
+                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 8 - 1);
                     } else if (s_end == 1024) {
-                        stack_b.pushQuartet(tile, Tile_dimensions / 16 - 1);
+                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 16 - 1);
                     } else {
-                        stack_b.push(tile);
+                        stack_b.push(tile, offset);
                     }
 
                     terminates = s_end == num_samples;

@@ -2,7 +2,7 @@ const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
 const Vec2f = math.Vec2f;
-const Vec4us = math.Vec4us;
+const Vec4b = math.Vec4b;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
@@ -84,7 +84,7 @@ pub fn TileStackN(comptime Area: u32) type {
         current: u32,
         end: u32,
 
-        buffer: [Area]Vec4us,
+        buffer: [Area]Vec4b,
 
         const Self = @This();
 
@@ -97,24 +97,24 @@ pub fn TileStackN(comptime Area: u32) type {
             self.end = 0;
         }
 
-        pub fn push(self: *Self, tile: Vec4i) void {
+        pub fn push(self: *Self, tile: Vec4i, offset: Vec2i) void {
             if (tile[0] <= tile[2] and tile[1] <= tile[3]) {
-                self.buffer[self.end] = @intCast(tile);
+                self.buffer[self.end] = @intCast(tile - Vec4i{ offset[0], offset[1], offset[0], offset[1] });
                 self.end += 1;
             }
         }
 
-        pub fn pushQuartet(self: *Self, tile: Vec4i, comptime d: i32) void {
+        pub fn pushQuartet(self: *Self, tile: Vec4i, offset: Vec2i, comptime d: i32) void {
             const mx = @min(tile[0] + d, tile[2]);
             const my = @min(tile[1] + d, tile[3]);
 
-            self.push(.{ tile[0], tile[1], mx, my });
-            self.push(.{ mx + 1, tile[1], tile[2], my });
-            self.push(.{ tile[0], my + 1, mx, tile[3] });
-            self.push(.{ mx + 1, my + 1, tile[2], tile[3] });
+            self.push(.{ tile[0], tile[1], mx, my }, offset);
+            self.push(.{ mx + 1, tile[1], tile[2], my }, offset);
+            self.push(.{ tile[0], my + 1, mx, tile[3] }, offset);
+            self.push(.{ mx + 1, my + 1, tile[2], tile[3] }, offset);
         }
 
-        pub fn pop(self: *Self) ?Vec4i {
+        pub fn pop(self: *Self, offset: Vec2i) ?Vec4i {
             const current = self.current;
 
             if (current >= self.end) {
@@ -123,7 +123,7 @@ pub fn TileStackN(comptime Area: u32) type {
 
             self.current += 1;
 
-            return self.buffer[current];
+            return Vec4i{ offset[0], offset[1], offset[0], offset[1] } + self.buffer[current];
         }
     };
 }
@@ -150,8 +150,8 @@ pub const RangeQueue = struct {
         self.total0 = total0;
         self.total1 = total1;
         self.range_size = range_size;
-        self.num_ranges0 = @as(u32, @intFromFloat(@ceil(@as(f32, @floatFromInt(total0)) / @as(f32, @floatFromInt(range_size)))));
-        self.num_ranges1 = @as(u32, @intFromFloat(@ceil(@as(f32, @floatFromInt(total1)) / @as(f32, @floatFromInt(range_size)))));
+        self.num_ranges0 = @intFromFloat(@ceil(@as(f32, @floatFromInt(total0)) / @as(f32, @floatFromInt(range_size))));
+        self.num_ranges1 = @intFromFloat(@ceil(@as(f32, @floatFromInt(total1)) / @as(f32, @floatFromInt(range_size))));
     }
 
     pub fn head(self: Self) u64 {
