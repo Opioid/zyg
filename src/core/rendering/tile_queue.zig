@@ -26,10 +26,10 @@ pub const TileQueue = struct {
         const xy = Vec2i{ crop[0], crop[1] };
         const zw = Vec2i{ crop[2], crop[3] };
         const dim: Vec2f = @floatFromInt(zw - xy);
-        const tdf = @as(f32, @floatFromInt(tile_dimensions));
+        const tdf: f32 = @floatFromInt(tile_dimensions);
 
-        const tiles_per_row = @as(i32, @intFromFloat(@ceil(dim[0] / tdf)));
-        const tiles_per_col = @as(i32, @intFromFloat(@ceil(dim[1] / tdf)));
+        const tiles_per_row: i32 = @intFromFloat(@ceil(dim[0] / tdf));
+        const tiles_per_col: i32 = @intFromFloat(@ceil(dim[1] / tdf));
 
         self.tiles_per_row = tiles_per_row;
         self.num_tiles = tiles_per_row * tiles_per_col;
@@ -37,7 +37,7 @@ pub const TileQueue = struct {
     }
 
     pub fn size(self: Self) u32 {
-        return @as(u32, @intCast(self.num_tiles));
+        return @intCast(self.num_tiles);
     }
 
     pub fn restart(self: *Self) void {
@@ -107,8 +107,8 @@ pub const RangeQueue = struct {
         self.total0 = total0;
         self.total1 = total1;
         self.range_size = range_size;
-        self.num_ranges0 = @as(u32, @intFromFloat(@ceil(@as(f32, @floatFromInt(total0)) / @as(f32, @floatFromInt(range_size)))));
-        self.num_ranges1 = @as(u32, @intFromFloat(@ceil(@as(f32, @floatFromInt(total1)) / @as(f32, @floatFromInt(range_size)))));
+        self.num_ranges0 = @intFromFloat(@ceil(@as(f32, @floatFromInt(total0)) / @as(f32, @floatFromInt(range_size))));
+        self.num_ranges1 = @intFromFloat(@ceil(@as(f32, @floatFromInt(total1)) / @as(f32, @floatFromInt(range_size))));
     }
 
     pub fn head(self: Self) u64 {

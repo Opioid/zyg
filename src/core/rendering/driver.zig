@@ -168,6 +168,10 @@ pub const Driver = struct {
 
         camera.update(start, self.scene);
 
+        for (self.workers) |*w| {
+            w.camera = camera;
+        }
+
         if (progressive) {
             self.view.sensor.buffer.clear(0.0);
         }
@@ -271,8 +275,6 @@ pub const Driver = struct {
     fn renderTiles(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
-        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
-
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
@@ -320,8 +322,6 @@ pub const Driver = struct {
 
     fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
-
-        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
