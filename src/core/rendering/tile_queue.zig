@@ -48,7 +48,7 @@ pub const TileQueue = struct {
     }
 
     pub fn size(self: Self) u32 {
-        return @as(u32, @intCast(self.num_tiles));
+        return @intCast(self.num_tiles);
     }
 
     pub fn restart(self: *Self) void {

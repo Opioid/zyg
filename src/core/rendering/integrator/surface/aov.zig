@@ -171,6 +171,8 @@ pub const AOV = struct {
     fn photons(self: Self, vertex: *Vertex, frag: *Fragment, worker: *Worker) Vec4f {
         var bxdf_samples: bxdf.Samples = undefined;
 
+        var result: Vec4f = @splat(0.0);
+
         while (true) {
             const total_depth = vertex.probe.depth.total();
 
@@ -180,7 +182,7 @@ pub const AOV = struct {
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
             if (mat_sample.canEvaluate() and vertex.state.forward and gather_photons) {
-                worker.addPhoton(vertex.throughput * worker.photonLi(frag, &mat_sample, sampler));
+                result += vertex.throughput * worker.photonLi(frag, &mat_sample, sampler);
             }
 
             const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
@@ -234,6 +236,6 @@ pub const AOV = struct {
             sampler.incrementPadding();
         }
 
-        return @splat(0.0);
+        return result;
     }
 };

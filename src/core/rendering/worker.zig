@@ -68,8 +68,6 @@ pub const Worker = struct {
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
-    photon: Vec4f = undefined,
-
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
     }
@@ -189,8 +187,6 @@ pub const Worker = struct {
                         rng.start(0, sample_index);
                         self.samplers[0].startPixel(tsi, seed);
 
-                        self.photon = @splat(0.0);
-
                         const pixel = Vec2i{ x, y };
 
                         var old_m = old_mm[ii];
@@ -202,15 +198,7 @@ pub const Worker = struct {
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                             const vertex = camera.generateVertex(sample, frame, scene);
 
-                            var ivalue = self.surface_integrator.li(&vertex, self);
-
-                            var photon = self.photon;
-                            if (photon[3] > 0.0) {
-                                photon /= @splat(photon[3]);
-                                photon[3] = 0.0;
-                            }
-
-                            ivalue.reflection += photon;
+                            const ivalue = self.surface_integrator.li(&vertex, self);
 
                             // The weightd value is what was added to the pixel
                             const weighted = sensor.addSample(sample, ivalue, self.aov);
@@ -303,10 +291,6 @@ pub const Worker = struct {
 
     pub fn photonLi(self: *const Worker, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
         return self.photon_map.li(frag, sample, sampler, self.scene);
-    }
-
-    pub fn addPhoton(self: *Worker, photon: Vec4f) void {
-        self.photon += Vec4f{ photon[0], photon[1], photon[2], 1.0 };
     }
 
     pub inline fn pickSampler(self: *Worker, bounce: u32) *Sampler {

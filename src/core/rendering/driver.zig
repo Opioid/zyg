@@ -169,6 +169,10 @@ pub const Driver = struct {
 
         camera.update(start, self.scene);
 
+        for (self.workers) |*w| {
+            w.camera = camera;
+        }
+
         if (progressive) {
             self.view.sensor.buffer.clear(0.0);
         }
@@ -319,8 +323,6 @@ pub const Driver = struct {
     fn renderTiles(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
-        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
-
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
@@ -370,8 +372,6 @@ pub const Driver = struct {
     fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
 
-        self.workers[id].camera = &self.view.cameras.items[self.camera_id];
-
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);
 
@@ -396,7 +396,7 @@ pub const Driver = struct {
         var num_paths: u64 = 0;
         var begin: u32 = 0;
 
-        const iteration_threshold = self.view.photon_settings.iteration_threshold;
+        //   const iteration_threshold = self.view.photon_settings.iteration_threshold;
 
         self.photon_map.start();
 
@@ -423,13 +423,15 @@ pub const Driver = struct {
                 self.threads,
             ) catch break;
 
-            if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
-                @as(f32, @floatFromInt(begin)) / @as(f32, @floatFromInt(new_begin)) > (1.0 - iteration_threshold))
-            {
-                break;
-            }
+            // if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
+            //     @as(f32, @floatFromInt(begin)) / @as(f32, @floatFromInt(new_begin)) > (1.0 - iteration_threshold))
+            // {
+            //     break;
+            // }
 
             begin = new_begin;
+
+            break;
         }
 
         self.photon_map.compileFinalize();

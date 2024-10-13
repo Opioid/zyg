@@ -358,12 +358,12 @@ pub const Grid = struct {
     pub fn reduce(self: *Self, photons: []Photon, threads: *Threads) u32 {
         self.photons = photons;
 
-        // _ = threads.runRange(self, reduceRange, 0, @intCast(u32, photons.len));
+        _ = threads.runRange(self, reduceRange, 0, @intCast(photons.len), 0);
 
-        // return @intCast(u32, base.memory.partition(Photon, photons, {}, alphaPositive));
+        return @intCast(base.memory.partition(Photon, photons, {}, alphaPositive));
 
-        _ = threads;
-        return @as(u32, @intCast(photons.len));
+        // _ = threads;
+        // return @intCast(photons.len);
     }
 
     fn alphaPositive(context: void, p: Photon) bool {
@@ -373,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @as(*Self, @ptrFromInt(context));
+        const self = @as(*Self, @ptrCast(@alignCast(context)));
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;

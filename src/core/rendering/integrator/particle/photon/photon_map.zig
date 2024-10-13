@@ -56,7 +56,7 @@ pub const Map = struct {
 
         self.grid.initCells(self.photons[0..num_photons]);
 
-        const total_num_photons = @as(u32, @intCast(self.photons.len));
+        const total_num_photons: u32 = @intCast(self.photons.len);
 
         const reduced_num = if (num_photons == total_num_photons)
             self.grid.reduce(self.photons, threads)
@@ -76,7 +76,7 @@ pub const Map = struct {
     }
 
     pub fn compileFinalize(self: *Self) void {
-        //   self.grid.initCells(self.photons[0..self.reduced_num]);
+        self.grid.initCells(self.photons[0..self.reduced_num]);
         self.grid.setNumPaths(self.num_paths);
     }
 
