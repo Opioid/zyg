@@ -347,7 +347,7 @@ pub const Driver = struct {
         var num_paths: u64 = 0;
         var begin: u32 = 0;
 
-        const iteration_threshold = self.view.photon_settings.iteration_threshold;
+        //   const iteration_threshold = self.view.photon_settings.iteration_threshold;
 
         self.photon_map.start();
 
@@ -374,13 +374,15 @@ pub const Driver = struct {
                 self.threads,
             ) catch break;
 
-            if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
-                @as(f32, @floatFromInt(begin)) / @as(f32, @floatFromInt(new_begin)) > (1.0 - iteration_threshold))
-            {
-                break;
-            }
+            // if (0 == new_begin or num_photons == new_begin or 1.0 <= iteration_threshold or
+            //     @as(f32, @floatFromInt(begin)) / @as(f32, @floatFromInt(new_begin)) > (1.0 - iteration_threshold))
+            // {
+            //     break;
+            // }
 
             begin = new_begin;
+
+            break;
         }
 
         self.photon_map.compileFinalize();

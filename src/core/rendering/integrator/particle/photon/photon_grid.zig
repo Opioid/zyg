@@ -358,12 +358,12 @@ pub const Grid = struct {
     pub fn reduce(self: *Self, photons: []Photon, threads: *Threads) u32 {
         self.photons = photons;
 
-        // _ = threads.runRange(self, reduceRange, 0, @intCast(photons.len), 0);
+        _ = threads.runRange(self, reduceRange, 0, @intCast(photons.len), 0);
 
-        // return @intCast(base.memory.partition(Photon, photons, {}, alphaPositive));
+        return @intCast(base.memory.partition(Photon, photons, {}, alphaPositive));
 
-        _ = threads;
-        return @intCast(photons.len);
+        // _ = threads;
+        // return @intCast(photons.len);
     }
 
     fn alphaPositive(context: void, p: Photon) bool {

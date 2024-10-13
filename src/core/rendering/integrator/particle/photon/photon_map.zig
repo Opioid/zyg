@@ -76,7 +76,7 @@ pub const Map = struct {
     }
 
     pub fn compileFinalize(self: *Self) void {
-        //   self.grid.initCells(self.photons[0..self.reduced_num]);
+        self.grid.initCells(self.photons[0..self.reduced_num]);
         self.grid.setNumPaths(self.num_paths);
     }
 
