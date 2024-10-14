@@ -460,9 +460,9 @@ pub const Grid = struct {
 
     fn map1(self: *const Self, v: Vec4f) u64 {
         const c = @as(Vec4i, @intFromFloat((v - self.aabb.bounds[0]) * self.local_to_texture)) + @as(Vec4i, @splat(1));
-        return @as(u64, @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
+        return @intCast((@as(i64, c[2]) * @as(i64, self.dimensions[1]) + @as(i64, c[1])) *
             @as(i64, self.dimensions[0]) +
-            @as(i64, c[0])));
+            @as(i64, c[0]));
     }
 
     fn map3(self: *const Self, v: Vec4f, cell_bound: f32, adjacents: *u8) Vec4i {
@@ -510,8 +510,8 @@ pub const Grid = struct {
         result.num_cells = adjacency.num_cells;
 
         for (adjacency.cells[0..adjacency.num_cells], 0..) |cell, i| {
-            result.cells[i][0] = self.grid[@as(usize, @intCast(@as(i64, cell[0]) + ic))];
-            result.cells[i][1] = self.grid[@as(usize, @intCast(@as(i64, cell[1]) + ic + 1))];
+            result.cells[i][0] = self.grid[@intCast(@as(i64, cell[0]) + ic)];
+            result.cells[i][1] = self.grid[@intCast(@as(i64, cell[1]) + ic + 1)];
         }
 
         return result;
@@ -527,7 +527,7 @@ pub const Grid = struct {
         // cone
         self.surface_normalization = 1.0 / (((1.0 / 3.0) * std.math.pi) * @as(f32, @floatFromInt(num_paths)) * radius2);
 
-        self.num_paths = @as(f64, @floatFromInt(num_paths));
+        self.num_paths = @floatFromInt(num_paths);
     }
 
     pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, scene: *const Scene) Vec4f {
@@ -633,7 +633,7 @@ pub const Grid = struct {
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
 
-                const normalization = @as(f32, @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3)))));
+                const normalization: f32 = @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3))));
                 const mu_s = scatteringCoefficient(frag, sampler, scene);
 
                 result /= @as(Vec4f, @splat(normalization)) * mu_s;
@@ -665,7 +665,7 @@ pub const Grid = struct {
 
                 const normalization: f32 = @floatCast((((1.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius2))));
 
-                result /= @as(Vec4f, @splat(normalization));
+                result /= @splat(normalization);
             }
         }
 

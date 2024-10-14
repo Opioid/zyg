@@ -21,8 +21,8 @@ pub const Operator = struct {
 
     class: Class,
 
-    textures: std.ArrayListUnmanaged(core.tx.Texture) = .{},
-    input_ids: std.ArrayListUnmanaged(u32) = .{},
+    textures: std.ArrayListUnmanaged(core.tx.Texture) = .empty,
+    input_ids: std.ArrayListUnmanaged(u32) = .empty,
     target: core.image.Float4 = .{},
     tonemapper: core.Tonemapper,
     scene: *const scn.Scene,

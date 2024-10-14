@@ -89,8 +89,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
         resources: *List(T),
-        entries: EntryHashMap = .{},
-        metadata: MetaHashMap = .{},
+        entries: EntryHashMap = .empty,
+        metadata: MetaHashMap = .empty,
 
         const Self = @This();
 

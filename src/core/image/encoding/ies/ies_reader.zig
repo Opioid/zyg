@@ -18,9 +18,9 @@ const List = std.ArrayListUnmanaged;
 const Data = struct {
     gonio_type: u32,
 
-    vertical_angles: List(f32) = .{},
-    horizontal_angles: List(f32) = .{},
-    intensities: List(f32) = .{},
+    vertical_angles: List(f32) = .empty,
+    horizontal_angles: List(f32) = .empty,
+    intensities: List(f32) = .empty,
 
     pub fn deinit(self: *Data, alloc: Allocator) void {
         self.intensities.deinit(alloc);

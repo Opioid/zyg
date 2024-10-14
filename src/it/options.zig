@@ -10,7 +10,7 @@ pub const Options = struct {
         RGBE,
     };
 
-    inputs: std.ArrayListUnmanaged([]u8) = .{},
+    inputs: std.ArrayListUnmanaged([]u8) = .empty,
     operator: Operator = .Over,
     format: ?Format = null,
     exposure: f32 = 0.0,

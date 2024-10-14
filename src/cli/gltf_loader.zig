@@ -74,13 +74,13 @@ pub const Loader = struct {
 
     fallback_material: u32,
 
-    accessors: List(Accessor) = .{},
-    buffer_views: List(BufferView) = .{},
-    buffers: List(Buffer) = .{},
+    accessors: List(Accessor) = .empty,
+    buffer_views: List(BufferView) = .empty,
+    buffers: List(Buffer) = .empty,
 
-    materials: List(u32) = .{},
+    materials: List(u32) = .empty,
 
-    material_map: std.AutoHashMapUnmanaged(u32, u32) = .{},
+    material_map: std.AutoHashMapUnmanaged(u32, u32) = .empty,
 
     const Null = resource.Null;
 
