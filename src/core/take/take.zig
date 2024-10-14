@@ -67,7 +67,7 @@ pub const View = struct {
 
     aovs: aov.Factory = .{},
 
-    cameras: List(cam.Perspective) = .{},
+    cameras: List(cam.Perspective) = .empty,
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,

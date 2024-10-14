@@ -59,8 +59,8 @@ pub const Scene = struct {
         Sphere,
     };
 
-    images: List(Image) = .{},
-    materials: List(Material) = .{},
+    images: List(Image) = .empty,
+    materials: List(Material) = .empty,
     shapes: List(Shape),
 
     num_interpolation_frames: u32 = 0,

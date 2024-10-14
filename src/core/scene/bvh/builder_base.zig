@@ -40,8 +40,8 @@ const Kernel = struct {
     settings: Settings,
 
     split_candidates: std.ArrayListUnmanaged(SplitCandidate),
-    reference_ids: std.ArrayListUnmanaged(u32) = .{},
-    build_nodes: std.ArrayListUnmanaged(Node) = .{},
+    reference_ids: std.ArrayListUnmanaged(u32) = .empty,
+    build_nodes: std.ArrayListUnmanaged(Node) = .empty,
 
     aabb_surface_area: f32 = undefined,
     references: []const Reference = undefined,

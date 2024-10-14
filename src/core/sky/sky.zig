@@ -5,7 +5,7 @@ const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Canopy = @import("../scene/shape/canopy.zig").Canopy;
-const ComposedTransformation = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
 const img = @import("../image/image.zig");
@@ -19,6 +19,7 @@ const json = base.json;
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
 const Transformation = math.Transformation;
@@ -198,7 +199,7 @@ pub const Sky = struct {
         var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ Bake_dimensions_sun, 1 }));
         defer sun_image.deinit(alloc);
 
-        const n = @as(f32, @floatFromInt(Bake_dimensions_sun - 1));
+        const n: f32 = @floatFromInt(Bake_dimensions_sun - 1);
 
         var rng = RNG.init(0, 0);
 
@@ -266,7 +267,7 @@ const SkyContext = struct {
     model: *const Model,
     shape: *const Shape,
     image: *img.Float3,
-    trafo: ComposedTransformation,
+    trafo: Trafo,
     current: u32 = 0,
 
     pub fn bakeSky(context: Threads.Context, id: u32) void {
@@ -288,23 +289,30 @@ const SkyContext = struct {
 
             var x: u32 = 0;
             while (x < Sky.Bake_dimensions[0]) : (x += 1) {
-                rng.start(0, @as(u64, @intCast(y * Sky.Bake_dimensions[0] + x)));
+                rng.start(0, y * Sky.Bake_dimensions[0] + x);
 
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv = Vec2f{ u, v };
-                const wi = clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0]);
+                if (clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0])) |wi| {
+                    const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
-                const li = self.model.evaluateSky(math.normalize3(wi), &rng);
-
-                self.image.set2D(@as(i32, @intCast(x)), @as(i32, @intCast(y)), math.vec4fTo3f(li));
+                    self.image.set2D(@intCast(x), @intCast(y), math.vec4fTo3f(li));
+                } else {
+                    self.image.set2D(@intCast(x), @intCast(y), Pack3f.init1(0.0));
+                }
             }
         }
     }
 
-    fn clippedCanopyMapping(trafo: ComposedTransformation, uv: Vec2f, e: f32) Vec4f {
+    fn clippedCanopyMapping(trafo: Trafo, uv: Vec2f, e: f32) ?Vec4f {
         var disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
 
         const l = math.length2(disk);
+
+        if (l > 1.0 + e) {
+            return null;
+        }
+
         if (l >= 1.0 - e) {
             disk /= @splat(l + e);
         }

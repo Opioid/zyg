@@ -38,7 +38,7 @@ const Engine = struct {
     scene: scn.Scene = undefined,
     resources: resource.Manager = undefined,
     fallback_material: u32 = undefined,
-    materials: std.ArrayListUnmanaged(u32) = .{},
+    materials: std.ArrayListUnmanaged(u32) = .empty,
 
     take: Take = .{},
     driver: rendering.Driver = undefined,

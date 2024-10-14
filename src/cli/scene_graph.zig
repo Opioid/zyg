@@ -36,7 +36,7 @@ pub const Graph = struct {
 
     scene: Scene,
 
-    materials: List(u32) = .{},
+    materials: List(u32) = .empty,
 
     prop_props: List(u32),
     prop_properties: List(Properties),
@@ -45,9 +45,9 @@ pub const Graph = struct {
 
     keyframes: List(math.Transformation),
 
-    animations: List(Animation) = .{},
+    animations: List(Animation) = .empty,
 
-    camera_trafos: List(math.Transformation) = .{},
+    camera_trafos: List(math.Transformation) = .empty,
 
     const Self = @This();
 

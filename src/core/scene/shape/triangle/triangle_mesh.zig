@@ -75,7 +75,7 @@ pub const Part = struct {
 
     tree: *const Tree = undefined,
 
-    variants: std.ArrayListUnmanaged(Variant) = .{},
+    variants: std.ArrayListUnmanaged(Variant) = .empty,
 
     pub fn deinit(self: *Part, alloc: Allocator) void {
         for (self.variants.items) |*v| {

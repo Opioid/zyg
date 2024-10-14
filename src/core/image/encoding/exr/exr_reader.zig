@@ -397,7 +397,7 @@ const Channels = struct {
     }
 
     pub fn read(self: *Channels, alloc: Allocator, stream: ReadStream) !void {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf: std.ArrayListUnmanaged(u8) = .empty;
 
         while (true) {
             var channel: exr.Channel = undefined;

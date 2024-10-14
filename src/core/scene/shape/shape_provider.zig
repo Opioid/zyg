@@ -43,13 +43,13 @@ const Handler = struct {
     pub const Vec2fs = std.ArrayListUnmanaged(Vec2f);
     pub const u8s = std.ArrayListUnmanaged(u8);
 
-    parts: Parts = .{},
-    triangles: Triangles = .{},
-    positions: Vec3fs = .{},
-    normals: Vec3fs = .{},
-    tangents: Vec3fs = .{},
-    uvs: Vec2fs = .{},
-    bitangent_signs: u8s = .{},
+    parts: Parts = .empty,
+    triangles: Triangles = .empty,
+    positions: Vec3fs = .empty,
+    normals: Vec3fs = .empty,
+    tangents: Vec3fs = .empty,
+    uvs: Vec2fs = .empty,
+    bitangent_signs: u8s = .empty,
 
     pub fn deinit(self: *Handler, alloc: Allocator) void {
         self.bitangent_signs.deinit(alloc);

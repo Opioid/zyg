@@ -68,7 +68,7 @@ pub const Reader = struct {
         // miniz
         stream: mz.mz_stream = undefined,
 
-        data_chunks: std.ArrayListUnmanaged(Chunk) = .{},
+        data_chunks: std.ArrayListUnmanaged(Chunk) = .empty,
         num_chunks: u32 = 0,
 
         buffer_data: []u8 = &.{},
