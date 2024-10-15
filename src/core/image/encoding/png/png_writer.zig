@@ -48,7 +48,7 @@ pub const Writer = struct {
             @as(*const anyopaque, @ptrCast(self.srgb.buffer.ptr)),
             d[0],
             d[1],
-            @as(c_int, @intCast(num_channels)),
+            @intCast(num_channels),
             &buffer_len,
         );
 
@@ -59,13 +59,16 @@ pub const Writer = struct {
 
     pub fn writeFloat3Scaled(alloc: Allocator, image: Float3, factor: f32) !void {
         const d = image.description.dimensions;
-        const num_pixels = @as(u32, @intCast(d[0] * d[1]));
+
+        const num_pixels: u32 = @intCast(d[0] * d[1]);
 
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
 
+        const factor3: Vec4f = @splat(factor);
+
         for (image.pixels, 0..) |p, i| {
-            const srgb = @as(Vec4f, @splat(factor)) * spectrum.AP1tosRGB(math.vec3fTo4f(p));
+            const srgb = factor3 * spectrum.AP1tosRGB(math.vec3fTo4f(p));
 
             buffer[i * 3 + 0] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[0]));
             buffer[i * 3 + 1] = enc.floatToUnorm(spectrum.linearToGamma_sRGB(srgb[1]));
@@ -92,7 +95,7 @@ pub const Writer = struct {
     pub fn writeFloat3Normal(alloc: Allocator, image: Float3) !void {
         const d = image.description.dimensions;
 
-        const num_pixels = @as(u32, @intCast(d[0] * d[1]));
+        const num_pixels: u32 = @intCast(d[0] * d[1]);
 
         const buffer = try alloc.alloc(u8, 3 * num_pixels);
         defer alloc.free(buffer);
