@@ -67,6 +67,7 @@ pub const Base = struct {
 
     emittance: Emittance = .{},
 
+    priority: i8 = 0,
     ior: f32 = 1.5,
     attenuation_distance: f32 = 0.0,
     volumetric_anisotropy: f32 = 0.0,

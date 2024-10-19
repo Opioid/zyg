@@ -11,7 +11,7 @@ pub const Sample = struct {
     super: Base,
 
     pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
-        return .{ .super = Base.initTBN(rs, wo, albedo, @splat(1.0), 0.0, true) };
+        return .{ .super = Base.initTBN(rs, wo, albedo, @splat(1.0), 0.0, 0, true) };
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {

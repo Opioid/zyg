@@ -35,6 +35,7 @@ pub const Renderstate = struct {
     volume_depth: u32,
 
     primary: bool,
+    highest_priority: i8,
     event: Event,
     caustics: CausticsResolve,
 

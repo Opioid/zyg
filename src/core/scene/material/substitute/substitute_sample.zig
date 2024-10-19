@@ -41,11 +41,12 @@ pub const Sample = struct {
         ior_medium: f32,
         metallic: f32,
         volumetric: bool,
+        priority: i8,
     ) Sample {
         const color = @as(Vec4f, @splat(1.0 - metallic)) * albedo;
         const reg_alpha = rs.regularizeAlpha(alpha);
 
-        var super = Base.init(rs, wo, color, reg_alpha, 0.0);
+        var super = Base.init(rs, wo, color, reg_alpha, 0.0, priority);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 

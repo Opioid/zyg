@@ -57,7 +57,7 @@ pub const Perspective = struct {
 
     focus: Focus = .{},
 
-    interface_stack: MediumStack = undefined,
+    mediums: MediumStack = undefined,
 
     frame_step: u64 = Default_frame_time,
     frame_duration: u64 = Default_frame_time,
@@ -80,7 +80,7 @@ pub const Perspective = struct {
     }
 
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
-        self.interface_stack.clear();
+        self.mediums.clear();
 
         const fr: Vec2f = @floatFromInt(self.resolution);
         const ratio = fr[1] / fr[0];
@@ -127,7 +127,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time, &self.interface_stack);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time, &self.mediums);
     }
 
     pub fn sampleTo(

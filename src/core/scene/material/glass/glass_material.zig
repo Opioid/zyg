@@ -62,6 +62,7 @@ pub const Material = struct {
             self.thickness,
             self.abbe,
             rs.wavelength,
+            self.super.priority,
         );
 
         if (self.normal_map.valid()) {

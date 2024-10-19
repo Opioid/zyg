@@ -97,12 +97,12 @@ pub const Vertex = struct {
         };
     }
 
-    inline fn iorOutside(self: *const Self, frag: *const Fragment, wo: Vec4f, scene: *const Scene) f32 {
+    inline fn iorOutside(self: *const Self, frag: *const Fragment, wo: Vec4f) f32 {
         if (frag.sameHemisphere(wo)) {
-            return self.mediums.topIor(scene);
+            return self.mediums.topIor();
         }
 
-        return self.mediums.peekIor(frag, scene);
+        return self.mediums.peekIor(frag);
     }
 
     pub fn interfaceChange(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
@@ -110,8 +110,9 @@ pub const Vertex = struct {
         if (leave) {
             self.mediums.remove(frag);
         } else {
-            const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
-            self.mediums.push(frag, cc);
+            const material = frag.material(scene);
+            const cc = material.collisionCoefficients2D(frag.uv(), sampler, scene);
+            self.mediums.push(frag, cc, material.super().ior, material.super().priority);
         }
     }
 
@@ -120,15 +121,16 @@ pub const Vertex = struct {
 
         const leave = frag.sameHemisphere(dir);
         if (leave) {
-            const ior = IoR{ .eta_t = self.mediums.peekIor(frag, scene), .eta_i = inter_ior };
+            const ior = IoR{ .eta_t = self.mediums.peekIor(frag), .eta_i = inter_ior };
             self.mediums.remove(frag);
             return ior;
         }
 
-        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.mediums.topIor(scene) };
+        const ior = IoR{ .eta_t = inter_ior, .eta_i = self.mediums.topIor() };
 
-        const cc = frag.material(scene).collisionCoefficients2D(frag.uv(), sampler, scene);
-        self.mediums.push(frag, cc);
+        const material = frag.material(scene);
+        const cc = material.collisionCoefficients2D(frag.uv(), sampler, scene);
+        self.mediums.push(frag, cc, material.super().ior, material.super().priority);
 
         return ior;
     }
@@ -160,7 +162,7 @@ pub const Vertex = struct {
 
         rs.origin = self.origin;
         rs.uv = frag.uv();
-        rs.ior = self.iorOutside(frag, wo, worker.scene);
+        rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
         rs.time = self.probe.time;
         rs.prop = frag.prop;
@@ -170,6 +172,7 @@ pub const Vertex = struct {
         rs.event = frag.event;
         rs.primary = self.state.primary_ray;
         rs.caustics = caustics;
+        rs.highest_priority = self.mediums.highestPriority();
 
         return m.sample(wo, rs, sampler, worker);
     }

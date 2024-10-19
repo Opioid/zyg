@@ -172,7 +172,7 @@ pub const Worker = struct {
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
-            self.lighttracer.li(frame, self, &camera.interface_stack);
+            self.lighttracer.li(frame, self, &camera.mediums);
 
             self.samplers[0].incrementSample();
         }

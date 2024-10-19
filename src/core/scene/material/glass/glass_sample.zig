@@ -37,10 +37,11 @@ pub const Sample = struct {
         thickness: f32,
         abbe: f32,
         wavelength: f32,
+        priority: i8,
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
 
-        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness);
+        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness, priority);
 
         const rough = reg_alpha[0] > 0.0;
 
@@ -62,7 +63,7 @@ pub const Sample = struct {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
-        if (self.ior == self.ior_outside or !rough or
+        if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
             (self.super.avoidCaustics() and alpha <= ggx.Min_alpha))
         {
             return bxdf.Result.empty();
@@ -201,7 +202,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        if (eta_i == eta_t) {
+        if (eta_i == eta_t or self.super.properties.lower_priority) {
             buffer[0] = .{
                 .reflection = weight,
                 .wi = -wo,
@@ -282,7 +283,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7) or self.super.properties.lower_priority) {
             buffer[0] = .{
                 .reflection = weight,
                 .wi = -wo,

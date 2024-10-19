@@ -180,6 +180,8 @@ pub const Provider = struct {
                 material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
+            } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
+                material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
@@ -310,6 +312,8 @@ pub const Provider = struct {
                 material.metallic = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
+                material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {

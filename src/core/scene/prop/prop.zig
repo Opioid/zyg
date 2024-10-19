@@ -94,7 +94,7 @@ pub const Prop = struct {
             }
         }
 
-        self.properties.volume = shape_inst.finite() and mono and 1.0 == scene.material(materials[0]).ior();
+        self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {

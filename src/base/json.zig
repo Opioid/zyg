@@ -49,6 +49,10 @@ pub fn readUIntMember(value: Value, name: []const u8, default: u32) u32 {
     return @truncate(@as(u64, @bitCast(member.integer)));
 }
 
+pub fn readInt(value: Value) i32 {
+    return @truncate(value.integer);
+}
+
 pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
     const member = value.object.get(name) orelse return default;
 
