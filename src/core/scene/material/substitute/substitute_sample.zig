@@ -242,7 +242,7 @@ pub const Sample = struct {
         const d = diffuse.Micro.reflection(albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, d.pdf());
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, 0.5 * d.pdf());
         }
 
         const schlick = fresnel.Schlick.init(self.f0);
@@ -365,6 +365,7 @@ pub const Sample = struct {
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
             result.reflection *= @splat(micro.n_dot_wi);
+            result.pdf *= 0.5;
             return micro;
         }
 

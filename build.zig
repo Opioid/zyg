@@ -107,8 +107,8 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
-            "takes/cornell_nd.take",
+            "takes/cornell.take",
+            //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
@@ -134,7 +134,7 @@ pub fn build(b: *std.Build) void {
             "-f",
             "0",
             "-n",
-            "3",
+            "1",
         });
     }
 
