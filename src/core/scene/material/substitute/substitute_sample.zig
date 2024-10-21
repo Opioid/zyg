@@ -68,6 +68,10 @@ pub const Sample = struct {
         self.opacity = 1.0 - transparency;
     }
 
+    fn avoidCaustics(self: *const Sample) bool {
+        return self.super.avoidCaustics() and self.super.alpha[1] <= ggx.Min_alpha;
+    }
+
     pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
         if (self.super.properties.exit_sss) {
             const n_dot_wi = self.super.frame.clampNdot(wi);
@@ -247,17 +251,7 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        var gg = ggx.Aniso.reflection(
-            wi,
-            wo,
-            h,
-            n_dot_wi,
-            n_dot_wo,
-            wo_dot_h,
-            alpha,
-            schlick,
-            frame,
-        );
+        var gg = ggx.Aniso.reflection(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, frame);
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const pdf = 0.5 * (d.pdf() + gg.pdf());
@@ -311,6 +305,7 @@ pub const Sample = struct {
             const s3 = sampler.sample3D();
             const p = s3[0];
             const xi = Vec2f{ s3[1], s3[2] };
+
             if (p < 0.5) {
                 _ = self.diffuseSample(xi, result);
             } else {
@@ -363,11 +358,10 @@ pub const Sample = struct {
             result,
         );
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
-            result.reflection *= @splat(micro.n_dot_wi);
-            result.pdf *= 0.5;
-            return micro;
-        }
+        // if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
+        //     result.reflection *= @splat(micro.n_dot_wi);
+        //     return micro;
+        // }
 
         const schlick = fresnel.Schlick.init(self.f0);
 
@@ -455,14 +449,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
 
-        const coating_attenuation = self.coating.reflect(
-            wo,
-            h,
-            n_dot_wo,
-            n_dot_h,
-            h_dot_wi,
-            result,
-        );
+        const coating_attenuation = self.coating.reflect(wo, h, n_dot_wo, n_dot_h, h_dot_wi, result);
 
         const base_result = if (1.0 == self.metallic)
             self.pureGlossEvaluate(result.wi, wo, h, h_dot_wi)
