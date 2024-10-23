@@ -4,25 +4,14 @@ const Vec4f = math.Vec4f;
 
 pub const Result = struct {
     reflection: Vec4f,
+    pdf: f32,
 
-    pub fn init(reflection: Vec4f, p: f32) Result {
-        return .{ .reflection = .{ reflection[0], reflection[1], reflection[2], p } };
+    pub fn init(reflection: Vec4f, pdf: f32) Result {
+        return .{ .reflection = reflection, .pdf = pdf };
     }
 
     pub fn empty() Result {
-        return .{ .reflection = @splat(0.0) };
-    }
-
-    pub fn pdf(self: Result) f32 {
-        return self.reflection[3];
-    }
-
-    pub fn setPdf(self: *Result, p: f32) void {
-        self.reflection[3] = p;
-    }
-
-    pub fn mulAssignPdf(self: *Result, p: f32) void {
-        self.reflection[3] *= p;
+        return .{ .reflection = @splat(0.0), .pdf = 0.0 };
     }
 };
 

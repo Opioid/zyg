@@ -122,12 +122,12 @@ pub const Sample = struct {
             self.baseEvaluate(wi, wo, h, wo_dot_h);
 
         if (translucent) {
-            base_result.mulAssignPdf(op);
+            base_result.pdf *= op;
         }
 
         if (self.coating.thickness > 0.0) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
-            const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_result.pdf();
+            const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_result.pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_result.reflection, pdf);
         }
 
@@ -242,7 +242,7 @@ pub const Sample = struct {
         const d = diffuse.Micro.reflection(albedo, self.f0, n_dot_wi, n_dot_wo, alpha[1]);
 
         if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, 0.5 * d.pdf());
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, 0.5 * d.pdf);
         }
 
         const schlick = fresnel.Schlick.init(self.f0);
@@ -250,7 +250,7 @@ pub const Sample = struct {
         const gg = ggx.Aniso.reflection(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, frame);
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-        const pdf = 0.5 * (d.pdf() + gg.pdf());
+        const pdf = 0.5 * (d.pdf + gg.pdf);
         return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * (d.reflection + gg.reflection + mms), pdf);
     }
 
@@ -280,7 +280,7 @@ pub const Sample = struct {
         const gg = ggx.Aniso.reflection(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, frame);
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-        return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * (gg.reflection + mms), gg.pdf());
+        return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * (gg.reflection + mms), gg.pdf);
     }
 
     fn baseSample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
@@ -337,12 +337,12 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        var gg = ggx.Aniso.reflection(result.wi, wo, micro.h, micro.n_dot_wi, n_dot_wo, micro.h_dot_wi, alpha, schlick, frame);
+        const gg = ggx.Aniso.reflection(result.wi, wo, micro.h, micro.n_dot_wi, n_dot_wo, micro.h_dot_wi, alpha, schlick, frame);
 
         const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, n_dot_wo, alpha[1]);
 
         result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + gg.reflection + mms);
-        result.pdf = 0.5 * (result.pdf + gg.pdf());
+        result.pdf = 0.5 * (result.pdf + gg.pdf);
 
         return micro;
     }
@@ -364,7 +364,7 @@ pub const Sample = struct {
         const d = diffuse.Micro.reflection(albedo, self.f0, micro.n_dot_wi, n_dot_wo, alpha[1]);
 
         result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + mms + d.reflection);
-        result.pdf = 0.5 * (result.pdf + d.pdf());
+        result.pdf = 0.5 * (result.pdf + d.pdf);
 
         return micro;
     }
@@ -419,7 +419,7 @@ pub const Sample = struct {
             self.baseEvaluate(result.wi, wo, h, h_dot_wi);
 
         result.reflection = (result.reflection * @as(Vec4f, @splat(f))) + coating_attenuation * base_result.reflection;
-        result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf();
+        result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf;
     }
 
     const SampleFunc = *const fn (self: *const Sample, xi: Vec2f, result: *bxdf.Sample) ggx.Micro;
@@ -483,7 +483,7 @@ pub const Sample = struct {
 
             return bxdf.Result.init(
                 @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.r.reflection,
-                split_pdf * gg.r.pdf(),
+                split_pdf * gg.r.pdf,
             );
         }
 
@@ -498,7 +498,7 @@ pub const Sample = struct {
 
         const schlick = fresnel.Schlick.init(self.f0);
 
-        var gg = ggx.Aniso.reflectionF(
+        const gg = ggx.Aniso.reflectionF(
             wi,
             wo,
             h,
@@ -515,7 +515,7 @@ pub const Sample = struct {
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @as(Vec4f, @splat(n_dot_wi)) * (gg.r.reflection + mms);
         const split_pdf = if (split and !coated) 1.0 else gg.f[0];
-        const base_pdf = split_pdf * gg.r.pdf();
+        const base_pdf = split_pdf * gg.r.pdf;
 
         if (coated) {
             const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());

@@ -116,7 +116,7 @@ pub const Sample = struct {
 
             return bxdf.Result.init(
                 @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.r.reflection,
-                split_pdf * gg.r.pdf(),
+                split_pdf * gg.r.pdf,
             );
         } else if (self.super.sameHemisphere(wi)) {
             // Only evaluate "front" with light from the same side
@@ -135,7 +135,7 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             const split_pdf = if (split) 1.0 else gg.f[0];
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf());
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf);
         }
 
         return bxdf.Result.empty();

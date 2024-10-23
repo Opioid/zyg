@@ -147,7 +147,7 @@ pub const Sample = struct {
             const mnp = tmp * tnp;
 
             fsum += @as(Vec4f, @splat(mnp)) * ta.reflection;
-            pdf_sum += mnp * ta.pdf();
+            pdf_sum += mnp * ta.pdf;
         }
 
         // Compute contribution of remaining terms after _pMax_
@@ -155,7 +155,7 @@ pub const Sample = struct {
         const ta = ap[MaxP];
 
         fsum += @as(Vec4f, @splat(tmp)) * ta.reflection;
-        pdf_sum += tmp * ta.pdf();
+        pdf_sum += tmp * ta.pdf;
 
         return bxdf.Result.init(fsum, pdf_sum);
     }
@@ -175,7 +175,7 @@ pub const Sample = struct {
         var p: u32 = MaxP;
         var cdf: f32 = 0.0;
         for (self.ap, 0..) |ae, i| {
-            cdf += ae.pdf();
+            cdf += ae.pdf;
             if (cdf >= r) {
                 p = @intCast(i);
                 break;
@@ -228,7 +228,7 @@ pub const Sample = struct {
         return .{
             .reflection = er.reflection,
             .wi = wi,
-            .pdf = er.pdf(),
+            .pdf = er.pdf,
             .split_weight = 1.0,
             .wavelength = 0.0,
             .class = .{ .glossy = true, .reflection = true },
@@ -292,7 +292,7 @@ pub const Sample = struct {
 
         const norm = 1.0 / asum;
         for (&result) |*r| {
-            r.setPdf(math.average3(r.reflection) * norm);
+            r.pdf = math.average3(r.reflection) * norm;
         }
 
         return result;
