@@ -40,8 +40,51 @@ const E_avg_tex = math.InterpolatedFunction2D_N(
 ).fromArray(&integral.E_avg);
 
 pub const Micro = struct {
-    pub fn reflection(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) bxdf.Result {
-        const refl = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
+    pub fn estimateContribution(n_dot_wo: f32, alpha: f32, f0: f32, albedo: f32) f32 {
+        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        // const e_wi = E_tex.eval(1.0, alpha, f0);
+        // const e_avg = E_avg_tex.eval(alpha, f0);
+
+        // //return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * math.max(albedo, 0.5);
+        // //   return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * math.min(8.0 * albedo, 1.0);
+
+        // return math.min(((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg), math.max(albedo, 0.5));
+
+        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        // const e_wi = E_tex.eval(1.0, alpha, f0);
+        // const e_avg = E_avg_tex.eval(alpha, f0);
+
+        // return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * albedo;
+
+        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        // const e_wi = E_tex.eval(1.0, alpha, f0);
+        // const e_avg = E_avg_tex.eval(alpha, f0);
+        // _ = albedo;
+
+        // return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg);
+
+        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        // const e_wi = E_tex.eval(1.0, alpha, f0);
+        // // _ = albedo;
+
+        // return (1.0 - e_wo) * (1.0 - e_wi) * math.max(albedo, 0.5);
+
+        // _ = n_dot_wo;
+        // _ = albedo;
+        // const e_avg = E_avg_tex.eval(alpha, f0);
+
+        // return 1.0 - e_avg;
+
+        _ = n_dot_wo;
+        _ = alpha;
+        _ = f0;
+        _ = albedo;
+
+        return 0.5;
+    }
+
+    pub fn reflection(color: Vec4f, f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) bxdf.Result {
+        const refl = evaluate(color, n_dot_wi, n_dot_wo, alpha, f0);
 
         const pdf = n_dot_wi * math.pi_inv;
 
@@ -50,7 +93,7 @@ pub const Micro = struct {
 
     pub fn reflect(
         color: Vec4f,
-        f0: Vec4f,
+        f0: f32,
         wo: Vec4f,
         n_dot_wo: f32,
         frame: Frame,
@@ -65,7 +108,7 @@ pub const Micro = struct {
         const h_dot_wi = math.safe.clampDot(h, wi);
         const n_dot_wi = frame.clampNdot(wi);
 
-        result.reflection = evaluate(color, f0, n_dot_wi, n_dot_wo, alpha);
+        result.reflection = evaluate(color, n_dot_wi, n_dot_wo, alpha, f0);
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
         result.class = .{ .diffuse = true, .reflection = true };
@@ -73,12 +116,10 @@ pub const Micro = struct {
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = h_dot_wi };
     }
 
-    fn evaluate(color: Vec4f, f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
-        const f0m = math.hmax3(f0);
-
-        const e_wo = E_tex.eval(n_dot_wo, alpha, f0m);
-        const e_wi = E_tex.eval(n_dot_wi, alpha, f0m);
-        const e_avg = E_avg_tex.eval(alpha, f0m);
+    fn evaluate(color: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, f0: f32) Vec4f {
+        const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        const e_wi = E_tex.eval(n_dot_wi, alpha, f0);
+        const e_avg = E_avg_tex.eval(alpha, f0);
 
         return @as(Vec4f, @splat(((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg)))) * color;
     }
