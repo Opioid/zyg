@@ -38,7 +38,7 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 
     const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
 
-    const f_avg = @as(Vec4f, @splat(20.0 / 21.0)) * f0;
+    const f_avg = @as(Vec4f, @splat(1.0 / 21.0)) + @as(Vec4f, @splat(20.0 / 21.0)) * f0;
 
     const f = ((f_avg * f_avg) * @as(Vec4f, @splat(e_avg))) / (@as(Vec4f, @splat(1.0)) - f_avg * @as(Vec4f, @splat(1.0 - e_avg)));
 
@@ -393,7 +393,7 @@ pub const Aniso = struct {
         const wo_l = frame.worldToFrame(wo);
         const v = math.normalize3(.{ alpha[0] * wo_l[0], alpha[1] * wo_l[1], wo_l[2], 0.0 });
 
-        const phi = 2.0 * std.math.pi * xi[0];
+        const phi = (2.0 * std.math.pi) * xi[0];
         const z = @mulAdd(f32, 1.0 - xi[1], 1.0 + v[2], -v[2]);
         const sin_theta = @sqrt(math.saturate(1.0 - z * z));
         const x = sin_theta * @cos(phi);

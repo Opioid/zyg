@@ -35,8 +35,6 @@ fn integrate_micro_directional_albedo(alpha: f32, n_dot_wo: f32, num_samples: u3
         .z = .{ 0.0, 0.0, 1.0, 0.0 },
     };
 
-    const cn_dot_wo = math.safe.clamp(n_dot_wo);
-
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
 
@@ -46,7 +44,7 @@ fn integrate_micro_directional_albedo(alpha: f32, n_dot_wo: f32, num_samples: u3
         const xi = math.hammersley(i, num_samples, 0);
 
         var result: bxdf.Sample = undefined;
-        const micro = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, frame, &result);
+        const micro = ggx.Iso.reflect(wo, n_dot_wo, calpha, xi, schlick, frame, &result);
 
         accum += ((micro.n_dot_wi * result.reflection[0]) / result.pdf) / @as(f32, @floatFromInt(num_samples));
     }
@@ -55,16 +53,16 @@ fn integrate_micro_directional_albedo(alpha: f32, n_dot_wo: f32, num_samples: u3
 }
 
 fn integrate_micro_average_albedo(alpha: f32, e_m: E_m_func, num_samples: u32) f32 {
-    const step = 1.0 / @as(f32, @floatFromInt(num_samples - 1));
-
-    var n_dot_wo: f32 = 0.0;
-
     var accum: f32 = 0.0;
     var i: u32 = 0;
     while (i < num_samples) : (i += 1) {
-        accum += e_m.eval(n_dot_wo, alpha) / @as(f32, @floatFromInt(num_samples));
+        const xi = math.hammersley(i, num_samples, 0);
 
-        n_dot_wo += step;
+        const wo = math.smpl.hemisphereCosine(xi);
+
+        const n_dot_wo = wo[2];
+
+        accum += e_m.eval(n_dot_wo, alpha) / @as(f32, @floatFromInt(num_samples));
     }
 
     return accum;
@@ -77,7 +75,7 @@ fn dspbrMicroEc(f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32, e_m: E_m_func
 
     const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
 
-    const f_avg = (20.0 / 21.0) * f0;
+    const f_avg = (1.0 / 21.0) + (20.0 / 21.0) * f0;
 
     const f = (f_avg * f_avg * e_avg) / (1.0 - (f_avg * (1.0 - e_avg)));
 
@@ -94,8 +92,6 @@ fn integrate_directional_albedo(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_fun
         .z = .{ 0.0, 0.0, 1.0, 0.0 },
     };
 
-    const cn_dot_wo = math.safe.clamp(n_dot_wo);
-
     // (sin, 0, cos)
     const wo = Vec4f{ @sqrt(1.0 - n_dot_wo * n_dot_wo), 0.0, n_dot_wo, 0.0 };
 
@@ -105,7 +101,7 @@ fn integrate_directional_albedo(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_fun
         const xi = math.hammersley(i, num_samples, 0);
 
         var result: bxdf.Sample = undefined;
-        const micro = ggx.Iso.reflect(wo, cn_dot_wo, calpha, xi, schlick, frame, &result);
+        const micro = ggx.Iso.reflect(wo, n_dot_wo, calpha, xi, schlick, frame, &result);
 
         const mms = dspbrMicroEc(f0, micro.n_dot_wi, n_dot_wo, calpha, e_m, e_m_avg);
 
@@ -116,16 +112,16 @@ fn integrate_directional_albedo(alpha: f32, f0: f32, n_dot_wo: f32, e_m: E_m_fun
 }
 
 fn integrate_average_albedo(alpha: f32, f0: f32, e: E_func, num_samples: u32) f32 {
-    const step = 1.0 / @as(f32, @floatFromInt(num_samples - 1));
-
-    var n_dot_wo: f32 = 0.0;
-
     var accum: f32 = 0.0;
     var i: u32 = 0;
     while (i < num_samples) : (i += 1) {
-        accum += e.eval(n_dot_wo, alpha, f0) / @as(f32, @floatFromInt(num_samples));
+        const xi = math.hammersley(i, num_samples, 0);
 
-        n_dot_wo += step;
+        const wo = math.smpl.hemisphereCosine(xi);
+
+        const n_dot_wo = wo[2];
+
+        accum += e.eval(n_dot_wo, alpha, f0) / @as(f32, @floatFromInt(num_samples));
     }
 
     return accum;
@@ -233,7 +229,7 @@ fn make_micro_directional_albedo_table(comptime Num_samples: comptime_int, write
             _ = try writer.write(line);
 
             if (i < Num_samples - 1) {
-                if (i > 0 and 0 == ((i + 1) % 8)) {
+                if (0 == ((i + 1) % 8)) {
                     _ = try writer.write("\n    ");
                 } else {
                     _ = try writer.write(" ");
@@ -280,7 +276,7 @@ fn make_micro_average_albedo_table(
         _ = try writer.write(line);
 
         if (a < Num_samples - 1) {
-            if (a > 0 and 0 == ((a + 1) % 8)) {
+            if (0 == ((a + 1) % 8)) {
                 _ = try writer.write("\n    ");
             } else {
                 _ = try writer.write(" ");
@@ -337,7 +333,7 @@ fn make_directional_albedo_table(
                 _ = try writer.write(line);
 
                 if (i < Num_samples - 1) {
-                    if (i > 0 and 0 == ((i + 1) % 8)) {
+                    if (0 == ((i + 1) % 8)) {
                         _ = try writer.write("\n    ");
                     } else {
                         _ = try writer.write(" ");
@@ -395,7 +391,7 @@ fn make_average_albedo_table(comptime Num_samples: comptime_int, e: E_func, writ
             _ = try writer.write(line);
 
             if (i < Num_samples - 1) {
-                if (i > 0 and 0 == ((i + 1) % 8)) {
+                if (0 == ((i + 1) % 8)) {
                     _ = try writer.write("\n    ");
                 } else {
                     _ = try writer.write(" ");
@@ -459,7 +455,7 @@ fn make_f_s_ss_table(writer: anytype, buffer: []u8) !void {
                 _ = try writer.write(line);
 
                 if (i < Num_samples - 1) {
-                    if (i > 0 and 0 == ((i + 1) % 8)) {
+                    if (0 == ((i + 1) % 8)) {
                         _ = try writer.write("\n    ");
                     } else {
                         _ = try writer.write(" ");
