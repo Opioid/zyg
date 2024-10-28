@@ -136,15 +136,15 @@ pub const Reader = struct {
             .XYZW => 4,
         };
 
-        const file_num_channels = @as(u32, @intCast(channels.channels.items.len));
+        const file_num_channels: u32 = @intCast(channels.channels.items.len);
         num_channels = @min(num_channels, file_num_channels);
 
         const data_xy = Vec2i{ data_window[0], data_window[1] };
         const data_zw = Vec2i{ data_window[2], data_window[3] };
         const data_dim = (data_zw - data_xy) + @as(Vec2i, @splat(1));
 
-        const width = @as(u32, @intCast(data_dim[0]));
-        const height = @as(u32, @intCast(data_dim[1]));
+        const width: u32 = @intCast(data_dim[0]);
+        const height: u32 = @intCast(data_dim[1]);
 
         const rows_per_block = exr.Compression.ZIP.numScanlinesPerBlock();
         const row_blocks = exr.Compression.ZIP.numScanlineBlocks(height);
@@ -165,8 +165,8 @@ pub const Reader = struct {
         const display_zw = Vec2i{ display_window[2], display_window[3] };
         const display_dim = (display_zw - display_xy) + @as(Vec2i, @splat(1));
 
-        const display_width = @as(u32, @intCast(display_dim[0]));
-        const display_height = @as(u32, @intCast(display_dim[1]));
+        const display_width: u32 = @intCast(display_dim[0]);
+        const display_height: u32 = @intCast(display_dim[1]);
 
         const half = .Half == channels.channels.items[0].format;
         const desc = img.Description.init2D(display_dim);
@@ -266,7 +266,7 @@ pub const Reader = struct {
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = row * display_width + @as(u32, @intCast(data_window[0]));
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const r = halfs[o + 3 * width + x];
@@ -294,7 +294,7 @@ pub const Reader = struct {
                     while (y < num_rows_here) : (y += 1) {
                         const o = file_num_channels * y * width;
 
-                        var p = row * display_width + @as(u32, @intCast(data_window[0]));
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
                             const a = floats[o + 3 * width + x];

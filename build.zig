@@ -104,14 +104,15 @@ pub fn build(b: *std.Build) void {
     } else {
         run_exe.addArgs(&[_][]const u8{
             "-i",
-            //"takes/bistro_day.take",
+            "takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
+            "takes/furnace_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
@@ -138,9 +139,26 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    // // const run_cmd = b.addRunArtifact(it);
-    // // run_cmd.step.dependOn(b.getInstallStep());
-    // // run_cmd.cwd = "/home/beni/workspace/sprout/system";
+    // const run_exe = b.addRunArtifact(it);
+    // run_exe.step.dependOn(b.getInstallStep());
+    // run_exe.setCwd(b.path("system"));
+
+    // const run_step = b.step("run", "Run the application");
+    // run_step.dependOn(&run_exe.step);
+
+    // if (b.args) |args| {
+    //     run_exe.addArgs(args);
+    // } else {
+    //     run_exe.addArgs(&[_][]const u8{
+    //         "-i",
+    //         "GGX_E.exr",
+    //         "-t",
+    //         "-1",
+    //         "-f",
+    //         "txt",
+    //     });
+    // }
+
     // // if (b.args) |args| {
     // //     run_cmd.addArgs(args);
     // // } else {
@@ -165,6 +183,4 @@ pub fn build(b: *std.Build) void {
     // //     });
     // // }
 
-    // const run_step = b.step("run", "Run the app");
-    // run_step.dependOn(&run_cmd.step);
 }

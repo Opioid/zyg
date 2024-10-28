@@ -8,6 +8,7 @@ pub const Options = struct {
         EXR,
         PNG,
         RGBE,
+        TXT,
     };
 
     inputs: std.ArrayListUnmanaged([]u8) = .empty,
@@ -92,6 +93,8 @@ pub const Options = struct {
                 self.format = .PNG;
             } else if (std.mem.eql(u8, "rgbe", parameter) or std.mem.eql(u8, "hdr", parameter)) {
                 self.format = .RGBE;
+            } else if (std.mem.eql(u8, "txt", parameter)) {
+                self.format = .TXT;
             }
         } else if (std.mem.eql(u8, "over", command)) {
             self.operator = .Over;
