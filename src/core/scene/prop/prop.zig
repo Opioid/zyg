@@ -102,8 +102,8 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, scene: *const Scene) bool {
-        if (!self.visible(probe.depth.surface)) {
+    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool, scene: *const Scene) bool {
+        if (!override_visibility and !self.visible(probe.depth.surface)) {
             return false;
         }
 
