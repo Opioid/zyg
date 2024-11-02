@@ -344,7 +344,7 @@ pub const Sample = struct {
 
         const gg = ggx.Aniso.reflection(result.wi, wo, micro.h, micro.n_dot_wi, n_dot_wo, micro.h_dot_wi, alpha, schlick, frame);
 
-        const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, n_dot_wo, alpha[1]);
+        const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, frame.clampNdot(wo), alpha[1]);
 
         result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + gg.reflection + mms);
         result.pdf = diffuse_weight * result.pdf + (1.0 - diffuse_weight) * gg.pdf;
@@ -383,7 +383,7 @@ pub const Sample = struct {
 
             const micro = ggx.Aniso.reflect(wo, n_dot_wo, alpha, xi, schlick, frame, result);
 
-            const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, n_dot_wo, alpha[1]);
+            const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, frame.clampNdot(wo), alpha[1]);
 
             var d: bxdf.Result = bxdf.Result.empty();
 

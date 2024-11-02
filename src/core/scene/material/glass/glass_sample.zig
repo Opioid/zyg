@@ -350,7 +350,7 @@ pub const Sample = struct {
             }
 
             {
-                const n_dot_wi = self.roughtRefract(
+                const n_dot_wi = self.roughRefract(
                     Thin,
                     same_side,
                     frame,
@@ -396,7 +396,7 @@ pub const Sample = struct {
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
                 result.pdf *= f;
             } else {
-                const n_dot_wi = self.roughtRefract(
+                const n_dot_wi = self.roughRefract(
                     Thin,
                     same_side,
                     frame,
@@ -439,7 +439,7 @@ pub const Sample = struct {
         };
     }
 
-    fn roughtRefract(
+    fn roughRefract(
         self: *const Sample,
         comptime Thin: bool,
         same_side: bool,
