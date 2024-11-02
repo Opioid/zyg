@@ -41,46 +41,36 @@ const E_avg_tex = math.InterpolatedFunction2D_N(
 
 pub const Micro = struct {
     pub fn estimateContribution(n_dot_wo: f32, alpha: f32, f0: f32, albedo: f32) f32 {
+        //     const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
+        //     const e_avg = E_avg_tex.eval(alpha, f0);
+
+        //     const a = e_wo; // * e_avg;
+        //    // const b: f32 = ((1.0 - e_wo) / std.math.pi * (1.0 - e_avg)) * albedo;
+        //       const b: f32 = (1.0 / std.math.pi * (1.0 - e_avg)) * albedo;
+        //     return b / (a + b);
+
+        // Good candidate A
         // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
-        // const e_wi = E_tex.eval(1.0, alpha, f0);
         // const e_avg = E_avg_tex.eval(alpha, f0);
 
-        // //return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * math.max(albedo, 0.5);
-        // //   return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * math.min(8.0 * albedo, 1.0);
+        // const a = e_wo;
+        // const b: f32 = 1.0 / (std.math.pi * (1.0 - e_avg)) * albedo;
+        // return b / (a + b);
 
-        // return math.min(((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg), math.max(albedo, 0.5));
+        // Good candidate B
+        _ = n_dot_wo;
+        const e_avg = E_avg_tex.eval(alpha, f0);
 
-        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
-        // const e_wi = E_tex.eval(1.0, alpha, f0);
-        // const e_avg = E_avg_tex.eval(alpha, f0);
-
-        // return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg) * albedo;
-
-        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
-        // const e_wi = E_tex.eval(1.0, alpha, f0);
-        // const e_avg = E_avg_tex.eval(alpha, f0);
-        // _ = albedo;
-
-        // return ((1.0 - e_wo) * (1.0 - e_wi)) / (1.0 - e_avg);
-
-        // const e_wo = E_tex.eval(n_dot_wo, alpha, f0);
-        // const e_wi = E_tex.eval(1.0, alpha, f0);
-        // // _ = albedo;
-
-        // return (1.0 - e_wo) * (1.0 - e_wi) * math.max(albedo, 0.5);
+        const a = e_avg;
+        const b: f32 = 1.0 / (std.math.pi * (1.0 - e_avg)) * albedo;
+        return b / (a + b);
 
         // _ = n_dot_wo;
+        // _ = alpha;
+        // _ = f0;
         // _ = albedo;
-        // const e_avg = E_avg_tex.eval(alpha, f0);
 
-        // return 1.0 - e_avg;
-
-        _ = n_dot_wo;
-        _ = alpha;
-        _ = f0;
-        _ = albedo;
-
-        return 0.5;
+        // return 0.5;
     }
 
     pub fn reflection(color: Vec4f, f0: f32, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) bxdf.Result {

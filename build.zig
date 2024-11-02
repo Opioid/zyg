@@ -104,15 +104,15 @@ pub fn build(b: *std.Build) void {
     } else {
         run_exe.addArgs(&[_][]const u8{
             "-i",
-            "takes/bistro_day.take",
+            //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
-            "takes/furnace_test.take",
+            //"takes/furnace_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
             //"takes/whirligig.take",
