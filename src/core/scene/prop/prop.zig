@@ -94,7 +94,7 @@ pub const Prop = struct {
             }
         }
 
-        self.properties.volume = shape_inst.finite() and mono and 1.0 == scene.material(materials[0]).ior();
+        self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
@@ -102,8 +102,8 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, scene: *const Scene) bool {
-        if (!self.visible(probe.depth.surface)) {
+    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool, scene: *const Scene) bool {
+        if (!override_visibility and !self.visible(probe.depth.surface)) {
             return false;
         }
 

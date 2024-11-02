@@ -45,22 +45,14 @@ pub const Coating = struct {
 
         const schlick = fresnel.Schlick.init(@splat(self.f0));
 
-        const gg = ggx.Iso.reflectionF(
-            h,
-            n,
-            n_dot_wi,
-            n_dot_wo,
-            wo_dot_h,
-            self.alpha,
-            schlick,
-        );
+        const gg = ggx.Iso.reflectionF(h, n, n_dot_wi, n_dot_wo, wo_dot_h, self.alpha, schlick);
 
         const ep = ggx.ilmEpDielectric(n_dot_wo, self.alpha, self.f0);
         return .{
             .reflection = @as(Vec4f, @splat(ep * self.weight * n_dot_wi)) * gg.r.reflection,
             .attenuation = att,
             .f = gg.f[0],
-            .pdf = gg.r.pdf(),
+            .pdf = gg.r.pdf,
         };
     }
 

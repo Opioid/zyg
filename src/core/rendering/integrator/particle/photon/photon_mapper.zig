@@ -137,7 +137,7 @@ pub const Mapper = struct {
 
                         const material_ior = frag.material(worker.scene).ior();
                         if (frag.subsurface() and material_ior > 1.0) {
-                            const ior_t = vertex.mediums.surroundingIor(worker.scene);
+                            const ior_t = vertex.mediums.surroundingIor();
                             const eta = material_ior / ior_t;
                             radiance *= @as(Vec4f, @splat(eta * eta));
                         }

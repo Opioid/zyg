@@ -75,11 +75,11 @@ pub const Operator = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const iy = @as(i32, @intCast(y));
+                const iy: i32 = @intCast(y);
 
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const ix = @as(i32, @intCast(x));
+                    const ix: i32 = @intCast(x);
 
                     const color_a = texture_a.get2D_4(ix, iy, self.scene);
                     const color_b = texture_b.get2D_4(ix, iy, self.scene);
@@ -100,11 +100,11 @@ pub const Operator = struct {
 
             var y = begin;
             while (y < end) : (y += 1) {
-                const iy = @as(i32, @intCast(y));
+                const iy: i32 = @intCast(y);
 
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    const ix = @as(i32, @intCast(x));
+                    const ix: i32 = @intCast(x);
 
                     const source = texture.get2D_4(ix, iy, self.scene);
 

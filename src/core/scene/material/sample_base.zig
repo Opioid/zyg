@@ -15,6 +15,7 @@ pub const Base = struct {
         volumetric: bool = false,
         flakes: bool = false,
         exit_sss: bool = false,
+        lower_priority: bool = false,
     };
 
     frame: Frame,
@@ -32,7 +33,7 @@ pub const Base = struct {
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32) Self {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, priority: i8) Self {
         return .{
             .frame = undefined,
             .geo_n = rs.geo_n,
@@ -41,11 +42,15 @@ pub const Base = struct {
             .albedo = albedo,
             .alpha = alpha,
             .thickness = thickness,
-            .properties = .{ .can_evaluate = true, .avoid_caustics = .Full != rs.caustics },
+            .properties = .{
+                .can_evaluate = true,
+                .avoid_caustics = .Full != rs.caustics,
+                .lower_priority = priority < rs.highest_priority,
+            },
         };
     }
 
-    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, can_evaluate: bool) Self {
+    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, priority: i8, can_evaluate: bool) Self {
         return .{
             .frame = .{ .x = rs.t, .y = rs.b, .z = rs.n },
             .geo_n = rs.geo_n,
@@ -54,7 +59,11 @@ pub const Base = struct {
             .albedo = albedo,
             .alpha = alpha,
             .thickness = thickness,
-            .properties = .{ .can_evaluate = can_evaluate, .avoid_caustics = .Full != rs.caustics },
+            .properties = .{
+                .can_evaluate = can_evaluate,
+                .avoid_caustics = .Full != rs.caustics,
+                .lower_priority = priority < rs.highest_priority,
+            },
         };
     }
 

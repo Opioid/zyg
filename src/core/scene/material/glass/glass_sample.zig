@@ -37,10 +37,11 @@ pub const Sample = struct {
         thickness: f32,
         abbe: f32,
         wavelength: f32,
+        priority: i8,
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
 
-        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness);
+        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness, priority);
 
         const rough = reg_alpha[0] > 0.0;
 
@@ -62,7 +63,7 @@ pub const Sample = struct {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
-        if (self.ior == self.ior_outside or !rough or
+        if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
             (self.super.avoidCaustics() and alpha <= ggx.Min_alpha))
         {
             return bxdf.Result.empty();
@@ -115,7 +116,7 @@ pub const Sample = struct {
 
             return bxdf.Result.init(
                 @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * self.super.albedo * gg.r.reflection,
-                split_pdf * gg.r.pdf(),
+                split_pdf * gg.r.pdf,
             );
         } else if (self.super.sameHemisphere(wi)) {
             // Only evaluate "front" with light from the same side
@@ -134,7 +135,7 @@ pub const Sample = struct {
             const comp = ggx.ilmEpDielectric(n_dot_wo, alpha, self.f0);
 
             const split_pdf = if (split) 1.0 else gg.f[0];
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf());
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * comp)) * gg.r.reflection, split_pdf * gg.r.pdf);
         }
 
         return bxdf.Result.empty();
@@ -201,7 +202,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        if (eta_i == eta_t) {
+        if (eta_i == eta_t or self.super.properties.lower_priority) {
             buffer[0] = .{
                 .reflection = weight,
                 .wi = -wo,
@@ -282,7 +283,7 @@ pub const Sample = struct {
 
         const wo = self.super.wo;
 
-        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7)) {
+        if (math.eq(quo_ior.eta_i, quo_ior.eta_t, 2.e-7) or self.super.properties.lower_priority) {
             buffer[0] = .{
                 .reflection = weight,
                 .wi = -wo,
@@ -349,7 +350,7 @@ pub const Sample = struct {
             }
 
             {
-                const n_dot_wi = self.roughtRefract(
+                const n_dot_wi = self.roughRefract(
                     Thin,
                     same_side,
                     frame,
@@ -395,7 +396,7 @@ pub const Sample = struct {
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
                 result.pdf *= f;
             } else {
-                const n_dot_wi = self.roughtRefract(
+                const n_dot_wi = self.roughRefract(
                     Thin,
                     same_side,
                     frame,
@@ -438,7 +439,7 @@ pub const Sample = struct {
         };
     }
 
-    fn roughtRefract(
+    fn roughRefract(
         self: *const Sample,
         comptime Thin: bool,
         same_side: bool,

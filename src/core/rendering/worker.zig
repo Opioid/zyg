@@ -279,7 +279,7 @@ pub const Worker = struct {
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
-            self.lighttracer.li(frame, self, &camera.interface_stack);
+            self.lighttracer.li(frame, self, &camera.mediums);
 
             self.samplers[0].incrementSample();
         }
@@ -379,8 +379,8 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, frag: *Fragment) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
+    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool) bool {
+        if (self.scene.prop(entity).intersect(entity, probe, frag, override_visibility, self.scene)) {
             frag.prop = entity;
             return true;
         }

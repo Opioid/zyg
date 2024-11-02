@@ -29,9 +29,9 @@ pub fn main() !void {
 
     // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     // defer {
-    //     const leaked = gpa.deinit();
-    //     if (leaked) {
-    //         log.warning("Memory leak {}", .{leaked});
+    //     const check = gpa.deinit();
+    //     if (.leak == check) {
+    //         log.warning("Memory leak {}", .{check});
     //     }
     // }
 

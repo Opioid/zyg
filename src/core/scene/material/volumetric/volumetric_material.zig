@@ -46,7 +46,7 @@ pub const Material = struct {
     pub fn init() Material {
         return .{ .super = .{
             .sampler_key = .{ .filter = ts.Default_filter, .address = .{ .u = .Clamp, .v = .Clamp } },
-            .ior = 1.0,
+            .ior = 0.0,
         } };
     }
 

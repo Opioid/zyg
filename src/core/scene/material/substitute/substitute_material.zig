@@ -193,6 +193,7 @@ pub const Material = struct {
             rs.ior,
             metallic,
             attenuation_distance > 0.0,
+            self.super.priority,
         );
 
         if (self.normal_map.valid()) {

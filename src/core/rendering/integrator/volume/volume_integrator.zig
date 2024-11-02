@@ -302,7 +302,7 @@ pub const Integrator = struct {
 
             vertex.probe.ray.setMaxT(free_path);
 
-            if (!worker.propIntersect(prop, &vertex.probe, frag)) {
+            if (!worker.propIntersect(prop, &vertex.probe, frag, true)) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);

@@ -16,7 +16,7 @@ pub const Sample = struct {
     anisotropy: f32,
 
     pub fn init(wo: Vec4f, rs: Renderstate, anisotropy: f32) Sample {
-        var super = Base.initTBN(rs, wo, @splat(0.0), @splat(1.0), 0.0, true);
+        var super = Base.initTBN(rs, wo, @splat(0.0), @splat(1.0), 0.0, 0, true);
 
         super.properties.translucent = true;
 

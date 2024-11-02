@@ -81,7 +81,7 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    if (props[p].intersect(p, probe, frag, scene)) {
+                    if (props[p].intersect(p, probe, frag, false, scene)) {
                         prop = p;
                     }
                 }
@@ -113,7 +113,7 @@ pub const Tree = struct {
 
         if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, probe, frag, scene)) {
+                if (props[p].intersect(p, probe, frag, false, scene)) {
                     prop = p;
                 }
             }

@@ -33,23 +33,23 @@ pub fn testSize() void {
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 208);
     testType(Fragment, "Fragment", 208);
-    testType(Vertex, "Vertex", 400);
+    testType(Vertex, "Vertex", 352);
     testType(smpl.To, "SampleTo", 128);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
-    testType(mdm.Medium, "Medium", 8);
-    testType(mdm.Stack, "MediumStack", 256);
-    testType(mt.Material, "Material", 368);
-    testType(mt.Substitute, "SubstituteMaterial", 352);
-    testType(mt.Hair, "HairMaterial", 224);
+    testType(mdm.Medium, "Medium", 16);
+    testType(mdm.Stack, "MediumStack", 208);
+    testType(mt.Material, "Material", 384);
+    testType(mt.Substitute, "SubstituteMaterial", 368);
+    testType(mt.Hair, "HairMaterial", 240);
     testType(mt.Sample, "MaterialSample", 272);
     testType(mtsmpl.Substitute, "SubstituteSample", 224);
     testType(mtsmpl.Hair, "HairSample", 256);
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 272);
+    testType(Worker, "Worker", 256);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {
