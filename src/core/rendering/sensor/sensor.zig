@@ -1,4 +1,4 @@
-const Buffer = @import("buffer.zig").Buffer;
+pub const Buffer = @import("buffer.zig").Buffer;
 const AovBuffer = @import("aov/aov_buffer.zig").Buffer;
 const aovns = @import("aov/aov_value.zig");
 const AovValue = aovns.Value;
@@ -73,9 +73,9 @@ pub const Sensor = struct {
 
     const Self = @This();
 
-    pub fn init(buffer: Buffer, clamp_max: f32, radius: f32, f: anytype) Self {
+    pub fn init(class: Buffer.Class, clamp_max: f32, radius: f32, f: anytype) Self {
         var result = Self{
-            .buffer = buffer,
+            .buffer = Buffer.init(class),
             .clamp_max = clamp_max,
             .filter_radius_int = @intFromFloat(@ceil(radius)),
             .filter = Func.init(0.0, radius, f),

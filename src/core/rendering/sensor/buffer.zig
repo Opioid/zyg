@@ -11,11 +11,23 @@ const Pack4f = math.Pack4f;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Buffer = union(enum) {
+pub const Buffer = union(Class) {
+    pub const Class = enum {
+        Opaque,
+        Transparent,
+    };
+
     Opaque: Opaque,
     Transparent: Transparent,
 
     const Self = @This();
+
+    pub fn init(class: Class) Self {
+        return switch (class) {
+            .Opaque => .{ .Opaque = .{} },
+            .Transparent => .{ .Transparent = .{} },
+        };
+    }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         switch (self.*) {

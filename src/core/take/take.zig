@@ -59,7 +59,7 @@ pub const View = struct {
     } },
 
     sensor: Sensor = Sensor.init(
-        .{ .Opaque = .{} },
+        .Opaque,
         std.math.floatMax(f32),
         2.0,
         snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
