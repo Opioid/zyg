@@ -33,11 +33,11 @@ pub const ImageSequence = struct {
         frame: u32,
         threads: *Threads,
     ) !void {
-        var buf: [42]u8 = undefined;
+        var buf: [32]u8 = undefined;
         const filename = try std.fmt.bufPrint(
             &buf,
             "image_{d:0>2}_{d:0>6}{s}{s}.{s}",
-            .{ camera_id, frame, aovExtension(aov), camera.layerExtension(layer_id), self.writer.fileExtension() },
+            .{ camera_id, frame, camera.layerExtension(layer_id), aovExtension(aov), self.writer.fileExtension() },
         );
 
         var file = try std.fs.cwd().createFile(filename, .{});

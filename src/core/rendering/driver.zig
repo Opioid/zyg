@@ -266,8 +266,8 @@ pub const Driver = struct {
                     max = math.max(max, w);
                 }
 
-                var buf: [24]u8 = undefined;
-                const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}_sc{s}.png", .{ camera_id, frame, camera.layerExtension(layer_id) });
+                var buf: [32]u8 = undefined;
+                const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}{s}_sc.png", .{ camera_id, frame, camera.layerExtension(layer_id) });
 
                 try PngWriter.writeHeatmap(alloc, d[0], d[1], weights, min, max, filename);
 
@@ -287,8 +287,8 @@ pub const Driver = struct {
                     max = math.max(max, w);
                 }
 
-                var buf: [27]u8 = undefined;
-                const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}_noise{s}.png", .{ camera_id, frame, camera.layerExtension(layer_id) });
+                var buf: [32]u8 = undefined;
+                const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}{s}_noise.png", .{ camera_id, frame, camera.layerExtension(layer_id) });
 
                 try PngWriter.writeHeatmap(alloc, d[0], d[1], self.view.sensor.layers[layer_id].aov_noise_buffer, min, max, filename);
 
