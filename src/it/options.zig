@@ -75,10 +75,10 @@ pub const Options = struct {
     fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "add", command)) {
             self.operator = .Add;
+        } else if (std.mem.eql(u8, "anaglyph", command)) {
+            self.operator = .Anaglyph;
         } else if (std.mem.eql(u8, "avg", command)) {
             self.operator = .Average;
-        } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
-            help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);
@@ -96,6 +96,8 @@ pub const Options = struct {
             } else if (std.mem.eql(u8, "txt", parameter)) {
                 self.format = .TXT;
             }
+        } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
+            help();
         } else if (std.mem.eql(u8, "over", command)) {
             self.operator = .Over;
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
@@ -137,7 +139,7 @@ pub const Options = struct {
             \\
             \\  -i, --input    file  Specifies an input file.
             \\
-            \\  -t, --threads  int   Specifies number of threads used by sprout.
+            \\  -t, --threads  int   Specifies number of threads used by it.
             \\                       0 creates one thread for each logical CPU.
             \\                       -x creates as many threads as number of
             \\                       logical CPUs minus x. Default is 0.

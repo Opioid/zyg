@@ -146,41 +146,36 @@ pub fn build(b: *std.Build) void {
     // const run_step = b.step("run", "Run the application");
     // run_step.dependOn(&run_exe.step);
 
+    // // if (b.args) |args| {
+    // //     run_exe.addArgs(args);
+    // // } else {
+    // //     run_exe.addArgs(&[_][]const u8{
+    // //         "-i",
+    // //         "GGX_E.exr",
+    // //         "-t",
+    // //         "-1",
+    // //         "-f",
+    // //         "txt",
+    // //     });
+    // // }
+
     // if (b.args) |args| {
     //     run_exe.addArgs(args);
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
+    //         //"-d",
     //         "-i",
-    //         "GGX_E.exr",
+    //         "image_00_000000_l.png",
+    //         "image_00_000000_r.png",
     //         "-t",
     //         "-1",
-    //         "-f",
-    //         "txt",
+    //         "--anaglyph",
+    //         //"--tone",
+    //         //"agx",
+    //         //   "-e",
+    //         //   "-1.0",
+    //         //   "-f",
+    //         //   "png",
     //     });
     // }
-
-    // // if (b.args) |args| {
-    // //     run_cmd.addArgs(args);
-    // // } else {
-    // //     run_cmd.addArgs(&[_][]const u8{
-    // //         //"-d",
-    // //         "-i",
-    // //         //"image_00000000.exr",
-    // //         //"image_00000001.exr",
-    // //         //"image_00000064.exr",
-    // //         //"san_miguel.exr",
-    // //         "intel_sponza_day.exr",
-    // //         //"Round.IES",
-    // //         //"ScatterLight.IES",
-    // //         "-t",
-    // //         "-4",
-    // //         "--tone",
-    // //         "agx",
-    // //         "-e",
-    // //         "-1.0",
-    // //         "-f",
-    // //         "png",
-    // //     });
-    // // }
-
 }
