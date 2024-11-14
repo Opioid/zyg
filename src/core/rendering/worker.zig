@@ -68,6 +68,8 @@ pub const Worker = struct {
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
+    layer: u32 = undefined,
+
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
     }
@@ -130,6 +132,7 @@ pub const Worker = struct {
         qm_threshold: f32,
     ) void {
         const camera = self.camera;
+        const layer = self.layer;
         const sensor = self.sensor;
         const scene = self.scene;
         const r = camera.resolution;
@@ -196,12 +199,12 @@ pub const Worker = struct {
                             self.aov.clear();
 
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
-                            const vertex = camera.generateVertex(sample, frame, scene);
+                            const vertex = camera.generateVertex(sample, layer, frame, scene);
 
                             const ivalue = self.surface_integrator.li(&vertex, self);
 
                             // The weightd value is what was added to the pixel
-                            const weighted = sensor.addSample(sample, ivalue, self.aov);
+                            const weighted = sensor.addSample(layer, sample, ivalue, self.aov);
 
                             // This clipped value is what we use for the noise estimate
                             const value = math.min4(@abs(ef * weighted), @splat(wp));
@@ -254,7 +257,7 @@ pub const Worker = struct {
                 }
 
                 if (terminates) {
-                    sensor.writeTileNoise(tile, tile_qm);
+                    sensor.writeTileNoise(layer, tile, tile_qm);
                 }
             }
 
@@ -416,7 +419,7 @@ pub const Worker = struct {
     }
 
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
-        const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene);
+        const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
         const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
 

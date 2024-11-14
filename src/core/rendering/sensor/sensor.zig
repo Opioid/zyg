@@ -1,4 +1,4 @@
-const Buffer = @import("buffer.zig").Buffer;
+pub const Buffer = @import("buffer.zig").Buffer;
 const AovBuffer = @import("aov/aov_buffer.zig").Buffer;
 const aovns = @import("aov/aov_value.zig");
 const AovValue = aovns.Value;
@@ -59,13 +59,38 @@ pub const Sensor = struct {
     const N = 30;
     const Func = math.InterpolatedFunction1D_N(N);
 
-    buffer: Buffer,
+    const Layer = struct {
+        buffer: Buffer,
+        aov: AovBuffer,
+        aov_noise_buffer: []f32 = &.{},
 
-    aov: AovBuffer = .{},
+        fn deinit(self: *Layer, alloc: Allocator) void {
+            self.buffer.deinit(alloc);
+            self.aov.deinit(alloc);
+            alloc.free(self.aov_noise_buffer);
+        }
 
-    aov_noise_buffer: []f32 = &.{},
+        fn resize(self: *Layer, alloc: Allocator, len: usize, factory: AovFactory, aov_noise: bool) !void {
+            try self.buffer.resize(alloc, len);
+            try self.aov.resize(alloc, len, factory);
 
-    dimensions: Vec2i = @splat(0),
+            if (aov_noise and len > self.aov_noise_buffer.len) {
+                self.aov_noise_buffer = try alloc.realloc(self.aov_noise_buffer, len);
+            }
+        }
+
+        pub fn clearNoiseAov(self: *Layer) void {
+            for (self.aov_noise_buffer) |*n| {
+                n.* = 0.0;
+            }
+        }
+    };
+
+    class: Buffer.Class,
+
+    layers: []Layer,
+
+    dimensions: Vec2i,
 
     clamp_max: f32,
 
@@ -80,11 +105,13 @@ pub const Sensor = struct {
 
     const Self = @This();
 
-    pub fn init(buffer: Buffer, clamp_max: f32, radius: f32, f: anytype) Self {
+    pub fn init(class: Buffer.Class, clamp_max: f32, radius: f32, f: anytype) Self {
         @setEvalBranchQuota(7600);
 
         var result = Self{
-            .buffer = buffer,
+            .class = class,
+            .layers = &.{},
+            .dimensions = @splat(0),
             .clamp_max = clamp_max,
             .filter_radius = radius,
             .filter_radius_int = @intFromFloat(@ceil(radius)),
@@ -117,27 +144,26 @@ pub const Sensor = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        self.buffer.deinit(alloc);
-        self.aov.deinit(alloc);
-        alloc.free(self.aov_noise_buffer);
-    }
-
-    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, factory: AovFactory, aov_noise: bool) !void {
-        self.dimensions = dimensions;
-
-        const len: usize = @intCast(dimensions[0] * dimensions[1]);
-
-        try self.buffer.resize(alloc, len);
-        try self.aov.resize(alloc, len, factory);
-
-        if (aov_noise and len > self.aov_noise_buffer.len) {
-            self.aov_noise_buffer = try alloc.realloc(self.aov_noise_buffer, len);
+        for (self.layers) |*l| {
+            l.deinit(alloc);
         }
     }
 
-    pub fn clearNoiseAov(self: *Self) void {
-        for (self.aov_noise_buffer) |*n| {
-            n.* = 0.0;
+    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, num_layers: u32, factory: AovFactory, aov_noise: bool) !void {
+        self.dimensions = dimensions;
+
+        if (self.layers.len < num_layers) {
+            for (self.layers) |*l| {
+                l.deinit(alloc);
+            }
+
+            self.layers = try alloc.realloc(self.layers, num_layers);
+        }
+
+        const len: usize = @intCast(dimensions[0] * dimensions[1]);
+
+        for (self.layers[0..num_layers]) |*l| {
+            try l.resize(alloc, len, factory, aov_noise);
         }
     }
 
@@ -160,7 +186,7 @@ pub const Sensor = struct {
         };
     }
 
-    pub fn addSample(self: *Sensor, sample: Sample, value: IValue, aov: AovValue) Vec4f {
+    pub fn addSample(self: *Sensor, layer_id: u32, sample: Sample, value: IValue, aov: AovValue) Vec4f {
         const w = self.eval(sample.filter_uv[0]) * self.eval(sample.filter_uv[1]);
         const weight: f32 = if (w < 0.0) -1.0 else 1.0;
 
@@ -168,6 +194,8 @@ pub const Sensor = struct {
 
         const d = self.dimensions;
         const id: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
+
+        var layer = &self.layers[layer_id];
 
         if (aov.active()) {
             const len = AovValue.Num_classes;
@@ -178,22 +206,22 @@ pub const Sensor = struct {
                     const avalue = aov.values[i];
 
                     if (.Depth == class) {
-                        self.aov.lessPixel(id, i, avalue[0]);
+                        layer.aov.lessPixel(id, i, avalue[0]);
                     } else if (.MaterialId == class) {
-                        self.aov.overwritePixel(id, i, avalue[0], weight);
+                        layer.aov.overwritePixel(id, i, avalue[0], weight);
                     } else if (.ShadingNormal == class) {
-                        self.aov.addPixel(id, i, avalue, 1.0);
+                        layer.aov.addPixel(id, i, avalue, 1.0);
                     } else {
-                        self.aov.addPixel(id, i, avalue, weight);
+                        layer.aov.addPixel(id, i, avalue, weight);
                     }
                 }
             }
         }
 
-        return self.buffer.addPixel(id, self.clamp(value.reflection) + value.emission, weight);
+        return layer.buffer.addPixel(id, self.clamp(value.reflection) + value.emission, weight);
     }
 
-    pub fn splatSample(self: *Self, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
+    pub fn splatSample(self: *Self, layer: u32, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
         const clamped = self.clamp(color);
 
         const pixel = sample.pixel;
@@ -208,7 +236,7 @@ pub const Sensor = struct {
             const d = self.dimensions;
             const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
-            self.buffer.splatPixelAtomic(i, clamped, 1.0);
+            self.layers[layer].buffer.splatPixelAtomic(i, clamped, 1.0);
         } else if (1 == self.filter_radius_int) {
             const wx0 = self.eval(ox + 1.0);
             const wx1 = self.eval(ox);
@@ -219,19 +247,19 @@ pub const Sensor = struct {
             const wy2 = self.eval(oy - 1.0);
 
             // 1. row
-            self.splat(.{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
-            self.splat(.{ x, y - 1 }, wx1 * wy0, clamped, bounds);
-            self.splat(.{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
+            self.splat(layer, .{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds);
+            self.splat(layer, .{ x, y - 1 }, wx1 * wy0, clamped, bounds);
+            self.splat(layer, .{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds);
 
             // 2. row
-            self.splat(.{ x - 1, y }, wx0 * wy1, clamped, bounds);
-            self.splat(.{ x, y }, wx1 * wy1, clamped, bounds);
-            self.splat(.{ x + 1, y }, wx2 * wy1, clamped, bounds);
+            self.splat(layer, .{ x - 1, y }, wx0 * wy1, clamped, bounds);
+            self.splat(layer, .{ x, y }, wx1 * wy1, clamped, bounds);
+            self.splat(layer, .{ x + 1, y }, wx2 * wy1, clamped, bounds);
 
             // 3. row
-            self.splat(.{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
-            self.splat(.{ x, y + 1 }, wx1 * wy2, clamped, bounds);
-            self.splat(.{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
+            self.splat(layer, .{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds);
+            self.splat(layer, .{ x, y + 1 }, wx1 * wy2, clamped, bounds);
+            self.splat(layer, .{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds);
         } else if (2 == self.filter_radius_int) {
             const wx0 = self.eval(ox + 2.0);
             const wx1 = self.eval(ox + 1.0);
@@ -246,44 +274,46 @@ pub const Sensor = struct {
             const wy4 = self.eval(oy - 2.0);
 
             // 1. row
-            self.splat(.{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
-            self.splat(.{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
-            self.splat(.{ x, y - 2 }, wx2 * wy0, clamped, bounds);
-            self.splat(.{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
-            self.splat(.{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
+            self.splat(layer, .{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds);
+            self.splat(layer, .{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds);
+            self.splat(layer, .{ x, y - 2 }, wx2 * wy0, clamped, bounds);
+            self.splat(layer, .{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds);
+            self.splat(layer, .{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds);
 
             // 2. row
-            self.splat(.{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
-            self.splat(.{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
-            self.splat(.{ x, y - 1 }, wx2 * wy1, clamped, bounds);
-            self.splat(.{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
-            self.splat(.{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
+            self.splat(layer, .{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds);
+            self.splat(layer, .{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds);
+            self.splat(layer, .{ x, y - 1 }, wx2 * wy1, clamped, bounds);
+            self.splat(layer, .{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds);
+            self.splat(layer, .{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds);
 
             // 3. row
-            self.splat(.{ x - 2, y }, wx0 * wy2, clamped, bounds);
-            self.splat(.{ x - 1, y }, wx1 * wy2, clamped, bounds);
-            self.splat(.{ x, y }, wx2 * wy2, clamped, bounds);
-            self.splat(.{ x + 1, y }, wx3 * wy2, clamped, bounds);
-            self.splat(.{ x + 2, y }, wx4 * wy2, clamped, bounds);
+            self.splat(layer, .{ x - 2, y }, wx0 * wy2, clamped, bounds);
+            self.splat(layer, .{ x - 1, y }, wx1 * wy2, clamped, bounds);
+            self.splat(layer, .{ x, y }, wx2 * wy2, clamped, bounds);
+            self.splat(layer, .{ x + 1, y }, wx3 * wy2, clamped, bounds);
+            self.splat(layer, .{ x + 2, y }, wx4 * wy2, clamped, bounds);
 
             // 4. row
-            self.splat(.{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
-            self.splat(.{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
-            self.splat(.{ x, y + 1 }, wx2 * wy3, clamped, bounds);
-            self.splat(.{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
-            self.splat(.{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
+            self.splat(layer, .{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds);
+            self.splat(layer, .{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds);
+            self.splat(layer, .{ x, y + 1 }, wx2 * wy3, clamped, bounds);
+            self.splat(layer, .{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds);
+            self.splat(layer, .{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds);
 
             // 5. row
-            self.splat(.{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
-            self.splat(.{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
-            self.splat(.{ x, y + 2 }, wx2 * wy4, clamped, bounds);
-            self.splat(.{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
-            self.splat(.{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
+            self.splat(layer, .{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds);
+            self.splat(layer, .{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds);
+            self.splat(layer, .{ x, y + 2 }, wx2 * wy4, clamped, bounds);
+            self.splat(layer, .{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
+            self.splat(layer, .{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
         }
     }
 
-    pub fn writeTileNoise(self: *Sensor, tile: Vec4i, noise: f32) void {
-        if (0 == self.aov_noise_buffer.len) {
+    pub fn writeTileNoise(self: *Sensor, layer_id: u32, tile: Vec4i, noise: f32) void {
+        const layer = &self.layers[layer_id];
+
+        if (0 == layer.aov_noise_buffer.len) {
             return;
         }
 
@@ -295,34 +325,35 @@ pub const Sensor = struct {
             var x: i32 = tile[0];
             while (x <= tile[2]) : (x += 1) {
                 const id: u32 = @intCast(d[0] * y + x);
-                self.aov_noise_buffer[id] = noise;
+                layer.aov_noise_buffer[id] = noise;
             }
         }
     }
 
-    pub fn resolve(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+    pub fn resolve(self: *const Sensor, layer: u32, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        var context = ResolveContext{ .sensor = self, .target = target, .layer = layer, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolve, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+    pub fn resolveTonemap(self: *const Sensor, layer: u32, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        var context = ResolveContext{ .sensor = self, .target = target, .layer = layer, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAccumulateTonemap(self: *const Sensor, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        var context = ResolveContext{ .sensor = self, .target = target, .aov = .Albedo };
+    pub fn resolveAccumulateTonemap(self: *const Sensor, layer: u32, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        var context = ResolveContext{ .sensor = self, .target = target, .layer = layer, .aov = .Albedo };
         _ = threads.runRange(&context, ResolveContext.resolveAccumulateTonemap, 0, num_pixels, @sizeOf(Vec4f));
     }
 
-    pub fn resolveAov(self: *const Sensor, class: AovValue.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
-        var context = ResolveContext{ .sensor = self, .target = target, .aov = class };
+    pub fn resolveAov(self: *const Sensor, layer: u32, class: AovValue.Class, target: [*]Pack4f, num_pixels: u32, threads: *Threads) void {
+        var context = ResolveContext{ .sensor = self, .target = target, .layer = layer, .aov = class };
         _ = threads.runRange(&context, ResolveContext.resolveAov, 0, num_pixels, @sizeOf(Vec4f));
     }
 
     const ResolveContext = struct {
         sensor: *const Sensor,
         target: [*]Pack4f,
+        layer: u32,
         aov: AovValue.Class,
 
         pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -330,8 +361,9 @@ pub const Sensor = struct {
 
             const self = @as(*const ResolveContext, @ptrCast(context));
             const target = self.target;
+            const layer = self.layer;
 
-            self.sensor.buffer.resolve(target, begin, end);
+            self.sensor.layers[layer].buffer.resolve(target, begin, end);
         }
 
         pub fn resolveTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -339,8 +371,9 @@ pub const Sensor = struct {
 
             const self = @as(*const ResolveContext, @ptrCast(context));
             const target = self.target;
+            const layer = self.layer;
 
-            self.sensor.buffer.resolveTonemap(self.sensor.tonemapper, target, begin, end);
+            self.sensor.layers[layer].buffer.resolveTonemap(self.sensor.tonemapper, target, begin, end);
         }
 
         pub fn resolveAccumulateTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -348,8 +381,9 @@ pub const Sensor = struct {
 
             const self = @as(*const ResolveContext, @ptrCast(context));
             const target = self.target;
+            const layer = self.layer;
 
-            self.sensor.buffer.resolveAccumulateTonemap(self.sensor.tonemapper, target, begin, end);
+            self.sensor.layers[layer].buffer.resolveAccumulateTonemap(self.sensor.tonemapper, target, begin, end);
         }
 
         pub fn resolveAov(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -358,8 +392,9 @@ pub const Sensor = struct {
             const self = @as(*const ResolveContext, @ptrCast(context));
             const target = self.target;
             const class = self.aov;
+            const layer = self.layer;
 
-            self.sensor.aov.resolve(class, target, begin, end);
+            self.sensor.layers[layer].aov.resolve(class, target, begin, end);
         }
     };
 
@@ -368,17 +403,17 @@ pub const Sensor = struct {
         return tile + Vec4i{ r, r, -r, -r };
     }
 
-    fn splat(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i) void {
+    fn splat(self: *Self, layer: u32, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i) void {
         if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
             const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
-            self.buffer.splatPixelAtomic(i, color, weight);
+            self.layers[layer].buffer.splatPixelAtomic(i, color, weight);
         }
     }
 
-    fn add(self: *Self, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
+    fn add(self: *Self, layer: u32, pixel: Vec2i, weight: f32, color: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
         if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
@@ -388,14 +423,14 @@ pub const Sensor = struct {
             if (@as(u32, @bitCast(pixel[0] - isolated[0])) <= @as(u32, @bitCast(isolated[2])) and
                 @as(u32, @bitCast(pixel[1] - isolated[1])) <= @as(u32, @bitCast(isolated[3])))
             {
-                self.buffer.addPixel(i, color, weight);
+                self.layers[layer].buffer.addPixel(i, color, weight);
             } else {
-                self.buffer.addPixelAtomic(i, color, weight);
+                self.layers[layer].buffer.addPixelAtomic(i, color, weight);
             }
         }
     }
 
-    fn addAov(self: *Self, pixel: Vec2i, slot: u32, weight: f32, value: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
+    fn addAov(self: *Self, layer: u32, pixel: Vec2i, slot: u32, weight: f32, value: Vec4f, bounds: Vec4i, isolated: Vec4i) void {
         if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
@@ -405,32 +440,32 @@ pub const Sensor = struct {
             if (@as(u32, @bitCast(pixel[0] - isolated[0])) <= @as(u32, @bitCast(isolated[2])) and
                 @as(u32, @bitCast(pixel[1] - isolated[1])) <= @as(u32, @bitCast(isolated[3])))
             {
-                self.aov.addPixel(i, slot, value, weight);
+                self.layers[layer].aov.addPixel(i, slot, value, weight);
             } else {
-                self.aov.addPixelAtomic(i, slot, value, weight);
+                self.layers[layer].aov.addPixelAtomic(i, slot, value, weight);
             }
         }
     }
 
-    fn lessAov(self: *Self, pixel: Vec2i, slot: u32, value: f32, bounds: Vec4i) void {
+    fn lessAov(self: *Self, layer: u32, pixel: Vec2i, slot: u32, value: f32, bounds: Vec4i) void {
         if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
             const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
-            self.aov.lessPixel(i, slot, value);
+            self.layers[layer].aov.lessPixel(i, slot, value);
         }
     }
 
-    fn overwriteAov(self: *Self, pixel: Vec2i, slot: u32, weight: f32, value: f32, bounds: Vec4i) void {
+    fn overwriteAov(self: *Self, layer: u32, pixel: Vec2i, slot: u32, weight: f32, value: f32, bounds: Vec4i) void {
         if (@as(u32, @bitCast(pixel[0] - bounds[0])) <= @as(u32, @bitCast(bounds[2])) and
             @as(u32, @bitCast(pixel[1] - bounds[1])) <= @as(u32, @bitCast(bounds[3])))
         {
             const d = self.dimensions;
             const i: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
-            self.aov.overwritePixel(i, slot, value, weight);
+            self.layers[layer].aov.overwritePixel(i, slot, value, weight);
         }
     }
 

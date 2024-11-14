@@ -5,6 +5,7 @@ const cam = core.camera;
 const View = core.tk.View;
 const Prop = core.scn.Prop;
 const snsr = core.rendering.snsr;
+const Buffer = snsr.Buffer;
 const Sensor = snsr.Sensor;
 const Tonemapper = snsr.Tonemapper;
 const ReadStream = core.file.ReadStream;
@@ -173,6 +174,8 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         }
     }
 
+    const class: Buffer.Class = if (alpha_transparency) .Transparent else .Opaque;
+
     if (filter_value_ptr) |filter_value| {
         const radius: f32 = 2.0;
 
@@ -181,30 +184,18 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
             if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
                 const filter = snsr.Blackman{ .r = radius };
 
-                if (alpha_transparency) {
-                    return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, radius, filter);
-                } else {
-                    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, radius, filter);
-                }
+                return snsr.Sensor.init(class, clamp_max, radius, filter);
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
                 const filter = snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
-                if (alpha_transparency) {
-                    return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, radius, filter);
-                } else {
-                    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, radius, filter);
-                }
+                return snsr.Sensor.init(class, clamp_max, radius, filter);
             }
         }
     }
 
     const filter = snsr.Blackman{ .r = 0.0 };
 
-    if (alpha_transparency) {
-        return snsr.Sensor.init(.{ .Transparent = .{} }, clamp_max, 0.0, filter);
-    }
-
-    return snsr.Sensor.init(.{ .Opaque = .{} }, clamp_max, 0.0, filter);
+    return snsr.Sensor.init(class, clamp_max, 0.0, filter);
 }
 
 fn loadSampler(value: std.json.Value, view: *View) void {

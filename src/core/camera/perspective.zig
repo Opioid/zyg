@@ -37,6 +37,8 @@ pub const Perspective = struct {
         use_point: bool = false,
     };
 
+    const Stereo = struct { ipd: f32 = 0.0 };
+
     const Default_frame_time = Scene.Units_per_second / 60;
 
     entity: u32 = Prop.Null,
@@ -50,12 +52,15 @@ pub const Perspective = struct {
     d_x: Vec4f = @splat(0.0),
     d_y: Vec4f = @splat(0.0),
 
+    eye_offsets: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
+
     fov: f32 = 0.0,
     aperture: Aperture = .{},
     focus_distance: f32 = 0.0,
     a: f32 = undefined,
 
     focus: Focus = .{},
+    stereo: Stereo = .{},
 
     mediums: MediumStack = undefined,
 
@@ -66,6 +71,18 @@ pub const Perspective = struct {
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.aperture.deinit(alloc);
+    }
+
+    pub fn numLayers(self: Self) u32 {
+        return if (self.stereo.ipd > 0.0) 2 else 1;
+    }
+
+    pub fn layerExtension(self: Self, layer: u32) []const u8 {
+        if (self.stereo.ipd > 0.0) {
+            return if (0 == layer) "_l" else "_r";
+        }
+
+        return "";
     }
 
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
@@ -103,7 +120,7 @@ pub const Perspective = struct {
         self.updateFocus(time, scene);
     }
 
-    pub fn generateVertex(self: *const Self, sample: Sample, frame: u32, scene: *const Scene) Vertex {
+    pub fn generateVertex(self: *const Self, sample: Sample, layer: u32, frame: u32, scene: *const Scene) Vertex {
         const center = @as(Vec2f, @floatFromInt(sample.pixel)) + @as(Vec2f, @splat(0.5));
         const coordinates = center + sample.filter_uv;
 
@@ -119,7 +136,7 @@ pub const Perspective = struct {
             const focus = t * direction;
             direction = focus - origin;
         } else {
-            origin = @splat(0.0);
+            origin = self.eye_offsets[layer];
         }
 
         const time = self.absoluteTime(frame, sample.time);
@@ -133,6 +150,7 @@ pub const Perspective = struct {
 
     pub fn sampleTo(
         self: *const Self,
+        layer: u32,
         bounds: Vec4i,
         time: u64,
         p: Vec4f,
@@ -141,7 +159,7 @@ pub const Perspective = struct {
     ) ?SampleTo {
         const trafo = scene.propTransformationAt(self.entity, time);
 
-        const po = trafo.worldToObjectPoint(p);
+        const po = trafo.worldToObjectPoint(p) - self.eye_offsets[layer];
 
         var t: f32 = undefined;
         var dir: Vec4f = undefined;
@@ -199,10 +217,15 @@ pub const Perspective = struct {
         };
     }
 
-    pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
+    pub fn calculateRayDifferential(self: *const Self, layer: u32, p: Vec4f, time: u64, scene: *const Scene) RayDif {
         const trafo = scene.propTransformationAt(self.entity, time);
 
-        const p_w = trafo.position;
+        var p_w: Vec4f = undefined;
+        if (self.stereo.ipd > 0.0) {
+            p_w = trafo.objectToWorldPoint(self.eye_offsets[layer]);
+        } else {
+            p_w = trafo.position;
+        }
 
         const dir_w = math.normalize3(p - p_w);
 
@@ -284,6 +307,13 @@ pub const Perspective = struct {
                         try self.aperture.setShape(alloc, texture, scene);
                     }
                 }
+            } else if (std.mem.eql(u8, "stereo", entry.key_ptr.*)) {
+                const ipd = json.readFloatMember(entry.value_ptr.*, "ipd", 0.062);
+
+                self.stereo.ipd = ipd;
+
+                self.eye_offsets[0] = .{ -0.5 * ipd, 0.0, 0.0, 0.0 };
+                self.eye_offsets[1] = .{ 0.5 * ipd, 0.0, 0.0, 0.0 };
             }
         }
 

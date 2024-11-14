@@ -59,7 +59,7 @@ pub const View = struct {
     } },
 
     sensor: Sensor = Sensor.init(
-        .{ .Opaque = .{} },
+        .Opaque,
         std.math.floatMax(f32),
         2.0,
         snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
@@ -350,7 +350,7 @@ pub const Take = struct {
             if (std.mem.eql(u8, "Image", entry.key_ptr.*)) {
                 const format = json.readStringMember(entry.value_ptr.*, "format", "PNG");
 
-                const alpha = self.view.sensor.buffer.alphaTransparency();
+                const alpha = self.view.sensor.class.alphaTransparency();
 
                 if (std.mem.eql(u8, "EXR", format)) {
                     const bitdepth = json.readUIntMember(entry.value_ptr.*, "bitdepth", 16);

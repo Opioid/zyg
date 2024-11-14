@@ -11,11 +11,30 @@ const Pack4f = math.Pack4f;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Buffer = union(enum) {
+pub const Buffer = union(Class) {
+    pub const Class = enum {
+        Opaque,
+        Transparent,
+
+        pub fn alphaTransparency(self: Class) bool {
+            return switch (self) {
+                .Transparent => true,
+                else => false,
+            };
+        }
+    };
+
     Opaque: Opaque,
     Transparent: Transparent,
 
     const Self = @This();
+
+    pub fn init(class: Class) Self {
+        return switch (class) {
+            .Opaque => .{ .Opaque = .{} },
+            .Transparent => .{ .Transparent = .{} },
+        };
+    }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         switch (self.*) {
@@ -75,13 +94,6 @@ pub const Buffer = union(enum) {
         switch (self.*) {
             inline else => |*s| s.resolveAccumulateTonemap(tonemapper, target, begin, end),
         }
-    }
-
-    pub fn alphaTransparency(self: *const Self) bool {
-        return switch (self.*) {
-            .Transparent => true,
-            else => false,
-        };
     }
 
     pub fn copyWeights(self: *const Self, weights: []f32) void {
