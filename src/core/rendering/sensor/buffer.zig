@@ -15,6 +15,13 @@ pub const Buffer = union(Class) {
     pub const Class = enum {
         Opaque,
         Transparent,
+
+        pub fn alphaTransparency(self: Class) bool {
+            return switch (self) {
+                .Transparent => true,
+                else => false,
+            };
+        }
     };
 
     Opaque: Opaque,
@@ -87,12 +94,5 @@ pub const Buffer = union(Class) {
         switch (self.*) {
             inline else => |*s| s.resolveAccumulateTonemap(tonemapper, target, begin, end),
         }
-    }
-
-    pub fn alphaTransparency(self: *const Self) bool {
-        return switch (self.*) {
-            .Transparent => true,
-            else => false,
-        };
     }
 };

@@ -14,11 +14,11 @@ pub fn Vec4(comptime T: type) type {
         v: [4]T = undefined,
 
         pub fn init1(s: T) Vec4(T) {
-            return .{ .v = [4]T{ s, s, s, s } };
+            return .{ .v = .{ s, s, s, s } };
         }
 
         pub fn init4(x: T, y: T, z: T, w: T) Vec4(T) {
-            return .{ .v = [4]T{ x, y, z, w } };
+            return .{ .v = .{ x, y, z, w } };
         }
     };
 }
