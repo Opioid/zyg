@@ -194,47 +194,50 @@ pub const Lighttracer = struct {
         material_split: bool,
         sampler: *Sampler,
         worker: *Worker,
-    ) bool {
+    ) void {
         if (!frag.visibleInCamera(worker.scene)) {
-            return false;
+            return;
         }
 
         const fr = sensor.filter_radius_int;
 
         var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
-
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
-
-        const camera_sample = camera.sampleTo(
-            filter_crop,
-            vertex.probe.time,
-            frag.p,
-            sampler,
-            worker.scene,
-        ) orelse return false;
-
-        const wi = -camera_sample.dir;
-        const p = frag.offsetP(wi);
-        var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
-
-        const tr = worker.visibility(&tprobe, sampler) orelse return false;
-
-        const bxdf_result = mat_sample.evaluate(wi, material_split);
-
-        const wo = mat_sample.super().wo;
-        const n = mat_sample.super().interpolatedNormal();
-        const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
-
-        const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
-        const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
 
         var crop = camera.crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
 
-        sensor.splatSample(camera_sample, result, crop);
+        const wo = mat_sample.super().wo;
+        const n = mat_sample.super().interpolatedNormal();
 
-        return true;
+        for (0..camera.numLayers()) |l| {
+            const layer: u32 = @truncate(l);
+
+            const camera_sample = camera.sampleTo(
+                layer,
+                filter_crop,
+                vertex.probe.time,
+                frag.p,
+                sampler,
+                worker.scene,
+            ) orelse continue;
+
+            const wi = -camera_sample.dir;
+            const p = frag.offsetP(wi);
+            var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
+
+            const tr = worker.visibility(&tprobe, sampler) orelse continue;
+
+            const bxdf_result = mat_sample.evaluate(wi, material_split);
+
+            const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
+
+            const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
+            const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
+
+            sensor.splatSample(layer, camera_sample, result, crop);
+        }
     }
 };

@@ -50,6 +50,7 @@ pub const Driver = struct {
     photon_map: PhotonMap = .{},
 
     camera_id: u32 = undefined,
+    layer_id: u32 = undefined,
     frame: u32 = undefined,
     frame_iteration: u32 = undefined,
     frame_iteration_samples: u32 = undefined,
@@ -127,7 +128,7 @@ pub const Driver = struct {
 
         const view = self.view;
 
-        try view.sensor.resize(alloc, dim, view.aovs);
+        try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs);
 
         self.tiles.configure(camera.crop, 32, view.sensor.filter_radius_int);
 
@@ -145,8 +146,8 @@ pub const Driver = struct {
 
         self.bakePhotons(alloc);
 
-        self.renderFrameBackward();
-        self.renderFrameForward();
+        self.renderFrameBackward(camera_id);
+        self.renderFrameForward(camera_id);
 
         log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
     }
@@ -173,7 +174,9 @@ pub const Driver = struct {
         }
 
         if (progressive) {
-            self.view.sensor.buffer.clear(0.0);
+            for (0..camera.numLayers()) |l| {
+                self.view.sensor.layers[l].buffer.clear(0.0);
+            }
         }
     }
 
@@ -184,67 +187,73 @@ pub const Driver = struct {
         self.renderFrameIterationForward();
     }
 
-    pub fn resolveToBuffer(self: *Driver, camera_id: u32, target: [*]Pack4f, num_pixels: u32) void {
+    pub fn resolveToBuffer(self: *Driver, camera_id: u32, layer_id: u32, target: [*]Pack4f, num_pixels: u32) void {
         const camera = &self.view.cameras.items[camera_id];
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
-            self.view.sensor.buffer.fixZeroWeights();
+            self.view.sensor.layers[layer_id].buffer.fixZeroWeights();
         }
 
         if (self.ranges.size() > 0 and self.view.num_samples_per_pixel > 0) {
-            self.view.sensor.resolveAccumulateTonemap(target, num_pixels, self.threads);
+            self.view.sensor.resolveAccumulateTonemap(layer_id, target, num_pixels, self.threads);
         } else {
-            self.view.sensor.resolveTonemap(target, num_pixels, self.threads);
+            self.view.sensor.resolveTonemap(layer_id, target, num_pixels, self.threads);
         }
     }
 
-    pub fn resolve(self: *Driver, camera_id: u32) void {
-        const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
-        self.resolveToBuffer(camera_id, self.target.pixels.ptr, num_pixels);
+    pub fn resolve(self: *Driver, camera_id: u32, layer_id: u32) void {
+        const num_pixels: u32 = @intCast(self.target.description.numPixels());
+        self.resolveToBuffer(camera_id, layer_id, self.target.pixels.ptr, num_pixels);
     }
 
-    pub fn resolveAovToBuffer(self: *Driver, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
+    pub fn resolveAovToBuffer(self: *Driver, layer_id: u32, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
         if (!self.view.aovs.activeClass(class)) {
             return false;
         }
 
-        self.view.sensor.resolveAov(class, target, num_pixels, self.threads);
+        self.view.sensor.resolveAov(layer_id, class, target, num_pixels, self.threads);
 
         return true;
     }
 
-    pub fn resolveAov(self: *Driver, class: View.AovValue.Class) bool {
+    pub fn resolveAov(self: *Driver, layer_id: u32, class: View.AovValue.Class) bool {
         const num_pixels: u32 = @intCast(self.target.description.numPixels());
-        return self.resolveAovToBuffer(class, self.target.pixels.ptr, num_pixels);
+        return self.resolveAovToBuffer(layer_id, class, self.target.pixels.ptr, num_pixels);
     }
 
     pub fn exportFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, exporters: []Sink) !void {
         const start = std.time.milliTimestamp();
 
-        self.resolve(camera_id);
+        const camera = &self.view.cameras.items[camera_id];
 
-        const crop = self.view.cameras.items[camera_id].crop;
+        const crop = camera.crop;
 
-        for (exporters) |*e| {
-            try e.write(alloc, self.target, crop, null, camera_id, frame, self.threads);
-        }
+        for (0..camera.numLayers()) |l| {
+            const layer_id: u32 = @truncate(l);
 
-        for (0..View.AovValue.Num_classes) |i| {
-            const class: View.AovValue.Class = @enumFromInt(i);
-            if (!self.resolveAov(class)) {
-                continue;
-            }
+            self.resolve(camera_id, layer_id);
 
             for (exporters) |*e| {
-                try e.write(alloc, self.target, crop, class, camera_id, frame, self.threads);
+                try e.write(alloc, self.target, crop, null, camera, camera_id, layer_id, frame, self.threads);
+            }
+
+            for (0..View.AovValue.Num_classes) |i| {
+                const class: View.AovValue.Class = @enumFromInt(i);
+                if (!self.resolveAov(layer_id, class)) {
+                    continue;
+                }
+
+                for (exporters) |*e| {
+                    try e.write(alloc, self.target, crop, class, camera, camera_id, layer_id, frame, self.threads);
+                }
             }
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
     }
 
-    fn renderFrameBackward(self: *Driver) void {
+    fn renderFrameBackward(self: *Driver, camera_id: u32) void {
         if (0 == self.ranges.size()) {
             return;
         }
@@ -253,9 +262,16 @@ pub const Driver = struct {
 
         const start = std.time.milliTimestamp();
 
+        const camera = &self.view.cameras.items[camera_id];
         var sensor = &self.view.sensor;
 
-        sensor.buffer.clear(@as(f32, @floatFromInt(self.view.num_particles_per_pixel)));
+        const num_layers = camera.numLayers();
+
+        const ppp: f32 = @floatFromInt(self.view.num_particles_per_pixel);
+
+        for (0..num_layers) |l| {
+            sensor.layers[l].buffer.clear(ppp);
+        }
 
         self.progressor.start(self.ranges.size());
 
@@ -265,8 +281,11 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            const num_pixels = @as(u32, @intCast(self.target.description.numPixels()));
-            sensor.resolve(self.target.pixels.ptr, num_pixels, self.threads);
+            const num_pixels: u32 = @intCast(self.target.description.numPixels());
+
+            for (0..num_layers) |l| {
+                sensor.resolve(@truncate(l), self.target.pixels.ptr, num_pixels, self.threads);
+            }
         }
 
         log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
@@ -279,6 +298,8 @@ pub const Driver = struct {
         const num_samples = self.frame_iteration_samples;
         const num_expected_samples = self.view.num_samples_per_pixel;
 
+        self.workers[id].layer = self.layer_id;
+
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples);
 
@@ -286,7 +307,7 @@ pub const Driver = struct {
         }
     }
 
-    fn renderFrameForward(self: *Driver) void {
+    fn renderFrameForward(self: *Driver, camera_id: u32) void {
         if (0 == self.view.num_samples_per_pixel) {
             return;
         }
@@ -294,16 +315,23 @@ pub const Driver = struct {
         log.info("Tracing camera rays...", .{});
         const start = std.time.milliTimestamp();
 
+        const camera = &self.view.cameras.items[camera_id];
         var sensor = &self.view.sensor;
 
-        sensor.buffer.clear(0.0);
-        sensor.aov.clear();
+        const num_layers = camera.numLayers();
 
-        self.progressor.start(self.tiles.size());
+        self.progressor.start(self.tiles.size() * num_layers);
 
-        self.tiles.restart();
+        for (0..num_layers) |l| {
+            self.layer_id = @truncate(l);
 
-        self.threads.runParallel(self, renderTiles, 0);
+            sensor.layers[l].buffer.clear(0.0);
+            sensor.layers[l].aov.clear();
+
+            self.tiles.restart();
+
+            self.threads.runParallel(self, renderTiles, 0);
+        }
 
         log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
     }
@@ -322,6 +350,10 @@ pub const Driver = struct {
 
     fn renderRanges(context: Threads.Context, id: u32) void {
         const self = @as(*Driver, @ptrCast(@alignCast(context)));
+
+        // Just pick one layer for now
+        // It should just be used for differential estimation...
+        self.workers[id].layer = 0;
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);

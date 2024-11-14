@@ -59,6 +59,8 @@ pub const Worker = struct {
     photon_mapper: PhotonMapper = .{},
     photon_map: *PhotonMap = undefined,
 
+    layer: u32 = undefined,
+
     pub fn deinit(self: *Worker, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
     }
@@ -106,6 +108,7 @@ pub const Worker = struct {
         num_expected_samples: u32,
     ) void {
         const camera = self.camera;
+        const layer = self.layer;
         const sensor = self.sensor;
         const scene = self.scene;
         var rng = &self.rng;
@@ -127,7 +130,7 @@ pub const Worker = struct {
         const y_back = tile[3];
         var y: i32 = tile[1];
         while (y <= y_back) : (y += 1) {
-            const pixel_n = @as(u32, @intCast((y + fr) * r[0]));
+            const pixel_n: u32 = @intCast((y + fr) * r[0]);
 
             const x_back = tile[2];
             var x: i32 = tile[0];
@@ -137,7 +140,7 @@ pub const Worker = struct {
                 rng.start(0, @as(u64, pixel_id) + o);
 
                 const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration);
-                const tsi = @as(u32, @truncate(sample_index));
+                const tsi: u32 = @truncate(sample_index);
                 const seed = @as(u32, @truncate(sample_index >> 32)) + so;
 
                 self.samplers[0].startPixel(tsi, seed);
@@ -149,11 +152,11 @@ pub const Worker = struct {
                     self.aov.clear();
 
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
-                    const vertex = camera.generateVertex(sample, frame, scene);
+                    const vertex = camera.generateVertex(sample, layer, frame, scene);
 
                     const ivalue = self.surface_integrator.li(&vertex, self);
 
-                    sensor.addSample(sample, ivalue, self.aov, crop, isolated_bounds);
+                    sensor.addSample(layer, sample, ivalue, self.aov, crop, isolated_bounds);
 
                     self.samplers[0].incrementSample();
                 }
@@ -309,7 +312,7 @@ pub const Worker = struct {
     }
 
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
-        const rd = self.camera.calculateRayDifferential(rs.p, rs.time, self.scene);
+        const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
         const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
 

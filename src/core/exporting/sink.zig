@@ -3,6 +3,7 @@ const ImageSequence = @import("image_sequence.zig").ImageSequence;
 const img = @import("../image/image.zig");
 const Float4 = img.Float4;
 const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
+const Camera = @import("../camera/perspective.zig").Perspective;
 
 const base = @import("base");
 const Vec4i = base.math.Vec4i;
@@ -30,13 +31,15 @@ pub const Sink = union(enum) {
         image: Float4,
         crop: Vec4i,
         aov: ?AovClass,
-        camera: u32,
+        camera: *const Camera,
+        camera_id: u32,
+        layer_id: u32,
         frame: u32,
         threads: *Threads,
     ) !void {
         switch (self.*) {
-            .FFMPEG => |*s| try s.write(alloc, image, camera, threads),
-            .ImageSequence => |*s| try s.write(alloc, image, crop, aov, camera, frame, threads),
+            .FFMPEG => |*s| try s.write(alloc, image, camera_id, threads),
+            .ImageSequence => |*s| try s.write(alloc, image, crop, aov, camera, camera_id, layer_id, frame, threads),
         }
     }
 };

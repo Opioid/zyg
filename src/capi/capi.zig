@@ -603,11 +603,11 @@ export fn su_render_iterations(num_steps: u32) i32 {
 export fn su_resolve_frame(aov: u32) i32 {
     if (engine) |*e| {
         if (aov >= core.tk.View.AovValue.Num_classes) {
-            e.driver.resolve(0);
+            e.driver.resolve(0, 0);
             return 0;
         }
 
-        return if (e.driver.resolveAov(@enumFromInt(aov))) 0 else -2;
+        return if (e.driver.resolveAov(0, @enumFromInt(aov))) 0 else -2;
     }
 
     return -1;
@@ -620,11 +620,11 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
         const target = @as([*]Pack4f, @ptrCast(buffer));
 
         if (aov >= core.tk.View.AovValue.Num_classes) {
-            e.driver.resolveToBuffer(0, target, num_pixels);
+            e.driver.resolveToBuffer(0, 0, target, num_pixels);
             return 0;
         }
 
-        return if (e.driver.resolveAovToBuffer(@enumFromInt(aov), target, num_pixels)) 0 else -2;
+        return if (e.driver.resolveAovToBuffer(0, @enumFromInt(aov), target, num_pixels)) 0 else -2;
     }
 
     return -1;
