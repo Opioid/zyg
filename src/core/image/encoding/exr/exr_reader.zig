@@ -184,6 +184,11 @@ pub const Reader = struct {
 
         errdefer image.deinit(alloc);
 
+        const r_o = file_num_channels - 1;
+        const g_o = file_num_channels - 2;
+        const b_o = file_num_channels - 3;
+        const a_o: u32 = 0;
+
         var i: u32 = 0;
         while (i < row_blocks) : (i += 1) {
             var row: u32 = undefined;
@@ -220,9 +225,9 @@ pub const Reader = struct {
                         var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const r = halfs[o + 2 * width + x];
-                            const g = halfs[o + 1 * width + x];
-                            const b = halfs[o + 0 * width + x];
+                            const r = halfs[o + r_o * width + x];
+                            const g = halfs[o + g_o * width + x];
+                            const b = halfs[o + b_o * width + x];
 
                             if (color) {
                                 const rgbf = math.vec3hTo4f(Pack3h.init3(r, g, b));
@@ -245,9 +250,9 @@ pub const Reader = struct {
                         var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const r = floats[o + 2 * width + x];
-                            const g = floats[o + 1 * width + x];
-                            const b = floats[o + 0 * width + x];
+                            const r = floats[o + r_o * width + x];
+                            const g = floats[o + g_o * width + x];
+                            const b = floats[o + b_o * width + x];
 
                             if (color) {
                                 float3.pixels[p] = math.vec4fTo3f(spectrum.sRGBtoAP1(.{ r, g, b, 0.0 }));
@@ -269,10 +274,10 @@ pub const Reader = struct {
                         var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const r = halfs[o + 3 * width + x];
-                            const g = halfs[o + 2 * width + x];
-                            const b = halfs[o + 1 * width + x];
-                            const a = halfs[o + 0 * width + x];
+                            const r = halfs[o + r_o * width + x];
+                            const g = halfs[o + g_o * width + x];
+                            const b = halfs[o + b_o * width + x];
+                            const a = halfs[o + a_o * width + x];
 
                             if (color) {
                                 const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
@@ -297,10 +302,10 @@ pub const Reader = struct {
                         var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const a = floats[o + 3 * width + x];
-                            const r = floats[o + 2 * width + x];
-                            const g = floats[o + 1 * width + x];
-                            const b = floats[o + 0 * width + x];
+                            const a = floats[o + r_o * width + x];
+                            const r = floats[o + g_o * width + x];
+                            const g = floats[o + b_o * width + x];
+                            const b = floats[o + a_o * width + x];
 
                             if (color) {
                                 const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });

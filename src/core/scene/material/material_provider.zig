@@ -20,6 +20,7 @@ const Vec4f = math.Vec4f;
 const Vec2f = math.Vec2f;
 const json = base.json;
 const spectrum = base.spectrum;
+const string = base.string;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -64,12 +65,17 @@ pub const Provider = struct {
     ) !Result(Material) {
         _ = options;
 
-        var stream = try resources.fs.readStream(alloc, name);
+        const fs = &resources.fs;
+
+        var stream = try fs.readStream(alloc, name);
 
         const buffer = try stream.readAll(alloc);
         defer alloc.free(buffer);
 
         stream.deinit();
+
+        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
+        defer fs.popMount(alloc);
 
         var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
         defer parsed.deinit();
