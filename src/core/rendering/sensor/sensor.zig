@@ -122,6 +122,10 @@ pub const Sensor = struct {
             }
 
             self.layers = try alloc.realloc(self.layers, num_layers);
+            for (self.layers[0..num_layers]) |*l| {
+                l.buffer = Buffer.init(self.class);
+                l.aov = .{};
+            }
         }
 
         for (self.layers[0..num_layers]) |*l| {
