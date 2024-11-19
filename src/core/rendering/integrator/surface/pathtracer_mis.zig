@@ -76,16 +76,16 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex, &frag, &mat_sample);
                 }
 
-                const split_threshold = vertex.throughput * split_weight;
+                const split_throughput = vertex.throughput * split_weight;
 
                 const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
                 if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
-                    result.reflection += split_threshold * worker.photonLi(&frag, &mat_sample, sampler);
+                    result.reflection += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
                 }
 
                 const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 1);
 
-                result.reflection += split_threshold * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
+                result.reflection += split_throughput * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
@@ -157,6 +157,10 @@ pub const PathtracerMIS = struct {
         worker: *Worker,
     ) Vec4f {
         var result: Vec4f = @splat(0.0);
+
+        if (!mat_sample.canEvaluate()) {
+            return result;
+        }
 
         const p = frag.p;
         const n = mat_sample.super().geometricNormal();
