@@ -275,7 +275,7 @@ const SkyContext = struct {
 
         const self = @as(*SkyContext, @ptrCast(@alignCast(context)));
 
-        var rng = RNG{};
+        var rng: RNG = undefined;
 
         const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(Sky.Bake_dimensions));
 

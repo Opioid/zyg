@@ -8,7 +8,7 @@ const Ray = @import("ray.zig").Ray;
 const std = @import("std");
 
 pub const AABB = struct {
-    bounds: [2]Vec4f = undefined,
+    bounds: [2]Vec4f,
 
     pub fn init(min: Vec4f, max: Vec4f) AABB {
         return .{ .bounds = .{ min, max } };

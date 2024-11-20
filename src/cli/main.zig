@@ -78,7 +78,7 @@ pub fn main() !void {
     var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
     defer scene_loader.deinit(alloc);
 
-    var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = .{} });
+    var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = undefined });
     defer driver.deinit(alloc);
 
     while (true) {

@@ -38,7 +38,7 @@ pub const Light align(16) = struct {
     two_sided: bool,
     prop: u32,
     part: u32,
-    variant: u32 = undefined,
+    variant: u32,
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;

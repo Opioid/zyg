@@ -693,16 +693,16 @@ pub const Scene = struct {
 
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
         try self.props.append(alloc, .{});
-        try self.prop_world_transformations.append(alloc, .{});
+        try self.prop_world_transformations.append(alloc, undefined);
         try self.prop_parts.append(alloc, 0);
         try self.prop_frames.append(alloc, Null);
-        try self.prop_aabbs.append(alloc, .{});
+        try self.prop_aabbs.append(alloc, undefined);
 
         return @intCast(self.props.items.len - 1);
     }
 
     fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
-        try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part });
+        try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part, .variant = undefined });
         try self.light_aabbs.append(alloc, AABB.init(@splat(0.0), @splat(0.0)));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }

@@ -22,18 +22,18 @@ pub const GzipReadStream = struct {
 
     const Buffer_size = 8192;
 
-    stream: ReadStream = undefined,
+    stream: ReadStream,
 
     // miniz
-    z_stream: mz.mz_stream = undefined,
+    z_stream: mz.mz_stream,
 
-    data_start: u64 = undefined,
+    data_start: u64,
 
-    buffer_head: u32 = undefined,
-    buffer_count: u32 = undefined,
+    buffer_head: u32,
+    buffer_count: u32,
 
-    buffer: [Buffer_size]u8 = undefined,
-    read_buffer: [Buffer_size]u8 = undefined,
+    buffer: [Buffer_size]u8,
+    read_buffer: [Buffer_size]u8,
 
     const Self = @This();
 

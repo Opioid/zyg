@@ -11,7 +11,7 @@ const builtin = @import("builtin");
 
 pub fn Vec4(comptime T: type) type {
     return extern struct {
-        v: [4]T = undefined,
+        v: [4]T,
 
         pub fn init1(s: T) Vec4(T) {
             return .{ .v = .{ s, s, s, s } };

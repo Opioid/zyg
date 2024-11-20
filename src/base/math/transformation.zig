@@ -5,9 +5,9 @@ const Quaternion = quaternion.Quaternion;
 const Mat4x4 = @import("matrix4x4.zig").Mat4x4;
 
 pub const Transformation = struct {
-    position: Vec4f = undefined,
-    scale: Vec4f = undefined,
-    rotation: Quaternion = undefined,
+    position: Vec4f,
+    scale: Vec4f,
+    rotation: Quaternion,
 
     pub fn toMat4x4(self: Transformation) Mat4x4 {
         return Mat4x4.compose(quaternion.toMat3x3(self.rotation), self.scale, self.position);

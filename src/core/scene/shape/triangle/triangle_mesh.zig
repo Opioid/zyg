@@ -292,8 +292,7 @@ pub const Part = struct {
 
                 var pow: f32 = undefined;
                 if (emission_map) {
-                    var rng = RNG{};
-                    rng.start(0, i);
+                    var rng = RNG.init(0, i);
 
                     var sampler = Sampler{ .Random = .{ .rng = &rng } };
 

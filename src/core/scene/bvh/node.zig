@@ -16,8 +16,8 @@ pub const Node = struct {
         }
     };
 
-    min: Vec = undefined,
-    max: Vec = undefined,
+    min: Vec,
+    max: Vec,
 
     pub fn initFrom(other: Node, o: u32) Node {
         return .{

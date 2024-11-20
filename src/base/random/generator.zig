@@ -1,9 +1,9 @@
 pub const Generator = struct {
-    state: u64 = undefined,
-    inc: u64 = undefined,
+    state: u64,
+    inc: u64,
 
     pub inline fn init(state: u64, sequence: u64) Generator {
-        var g = Generator{};
+        var g: Generator = undefined;
 
         g.start(state, sequence);
 
@@ -39,8 +39,8 @@ pub const Generator = struct {
         self.state = old *% 6364136223846793005 +% self.inc;
 
         // Calculate output function (XSH RR), uses old state for max ILP
-        const xrs = @as(u32, @truncate(((old >> 18) ^ old) >> 27));
-        const rot = @as(u5, @truncate(old >> 59));
+        const xrs: u32 = @truncate(((old >> 18) ^ old) >> 27);
+        const rot: u5 = @truncate(old >> 59);
 
         return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
     }

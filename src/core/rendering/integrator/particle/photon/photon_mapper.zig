@@ -44,15 +44,7 @@ pub const Mapper = struct {
         alloc.free(self.photons);
     }
 
-    pub fn bake(
-        self: *Self,
-        map: *Map,
-        begin: u32,
-        end: u32,
-        frame: u32,
-        iteration: u32,
-        worker: *Worker,
-    ) u32 {
+    pub fn bake(self: *Self, map: *Map, begin: u32, end: u32, frame: u32, iteration: u32, worker: *Worker) u32 {
         _ = iteration;
 
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
