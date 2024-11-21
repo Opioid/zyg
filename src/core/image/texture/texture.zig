@@ -23,6 +23,7 @@ pub const Texture = struct {
         Float1Sparse,
         Float2,
         Float3,
+        Byte4_sRGB,
         Float4,
     };
 
@@ -47,7 +48,7 @@ pub const Texture = struct {
             .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Half3, .Float3 => 3,
-            .Half4, .Float4 => 4,
+            .Byte4_sRGB, .Half4, .Float4 => 4,
         };
     }
 
@@ -57,7 +58,7 @@ pub const Texture = struct {
         }
 
         return switch (self.type) {
-            .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB => 1,
+            .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte4_sRGB => 1,
             .Half1, .Half3, .Half4 => 2,
             else => 4,
         };
@@ -139,6 +140,12 @@ pub const Texture = struct {
             .Float3 => {
                 const value = image.Float3.get2D(x, y);
                 return .{ value.v[0], value.v[1], value.v[2], 1.0 };
+            },
+            .Byte4_sRGB => {
+                const value = image.Byte4.get2D(x, y);
+                const srgb = enc.cachedSrgbToFloat4(value);
+                const ap = spectrum.sRGBtoAP1(.{ srgb[0], srgb[1], srgb[2], 0.0 });
+                return .{ ap[0], ap[1], ap[2], srgb[3] };
             },
             .Half4 => {
                 const value = image.Half4.get2D(x, y);

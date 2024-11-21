@@ -75,6 +75,7 @@ pub const Provider = struct {
                 .image = image_id,
                 .scale = scale,
             },
+            .Byte4 => Texture{ .type = .Byte4_sRGB, .image = image_id, .scale = scale },
             .Byte3 => Texture{ .type = .Byte3_sRGB, .image = image_id, .scale = scale },
             .Half1 => Texture{ .type = .Half1, .image = image_id, .scale = scale },
             .Half3 => Texture{ .type = .Half3, .image = image_id, .scale = scale },

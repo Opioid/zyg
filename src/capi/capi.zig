@@ -291,7 +291,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
     if (engine) |*e| {
         if (e.resources.images.get(id)) |image| {
             const bpc: u32 = switch (image.*) {
-                .Byte1, .Byte2, .Byte3 => 1,
+                .Byte1, .Byte2, .Byte3, .Byte4 => 1,
                 .Half1, .Half3, .Half4 => 2,
                 .Float1, .Float1Sparse, .Float2, .Float3, .Float4 => 4,
             };
@@ -300,7 +300,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                 .Byte1, .Half1, .Float1, .Float1Sparse => 1,
                 .Byte2, .Float2 => 2,
                 .Byte3, .Half3, .Float3 => 3,
-                .Half4, .Float4 => 4,
+                .Byte4, .Half4, .Float4 => 4,
             };
 
             const bpp = bpc * num_channels;
@@ -312,6 +312,7 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                     .Byte1 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Byte2 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Byte3 => |i| std.mem.sliceAsBytes(i.pixels),
+                    .Byte4 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Float1 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Float2 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Float3 => |i| std.mem.sliceAsBytes(i.pixels),
