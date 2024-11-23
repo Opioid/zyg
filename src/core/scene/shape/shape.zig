@@ -211,16 +211,17 @@ pub const Shape = union(enum) {
         entity: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         return switch (self.*) {
-            .Cube => Cube.visibility(ray, trafo, entity, sampler, scene),
-            .CurveMesh => |m| m.visibility(ray, trafo),
-            .Disk => Disk.visibility(ray, trafo, entity, sampler, scene),
-            .Plane => Plane.visibility(ray, trafo, entity, sampler, scene),
-            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene),
-            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene),
-            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene),
-            else => @as(Vec4f, @splat(1.0)),
+            .Cube => Cube.visibility(ray, trafo, entity, sampler, scene, tr),
+            .CurveMesh => |m| m.visibility(ray, trafo, tr),
+            .Disk => Disk.visibility(ray, trafo, entity, sampler, scene, tr),
+            .Plane => Plane.visibility(ray, trafo, entity, sampler, scene, tr),
+            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene, tr),
+            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene, tr),
+            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene, tr),
+            else => true,
         };
     }
 
@@ -232,12 +233,13 @@ pub const Shape = union(enum) {
         entity: u32,
         sampler: *Sampler,
         worker: *Worker,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         return switch (self.*) {
-            .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker),
-            .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker),
-            .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker),
-            else => @as(Vec4f, @splat(1.0)),
+            .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
+            .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
+            .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
+            else => true,
         };
     }
 

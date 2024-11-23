@@ -31,18 +31,20 @@ pub const Integrator = struct {
         depth: u32,
         sampler: *Sampler,
         worker: *Worker,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const d = ray.maxT();
 
         if (ro.offsetF(ray.minT()) >= d) {
-            return @as(Vec4f, @splat(1.0));
+            return true;
         }
 
         if (material.heterogeneousVolume()) {
-            return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker);
+            return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker, tr);
         }
 
-        return ccoef.attenuation3(cc.a + cc.s, d - ray.minT());
+        tr.* *= ccoef.attenuation3(cc.a + cc.s, d - ray.minT());
+        return true;
     }
 
     pub fn propScatter(

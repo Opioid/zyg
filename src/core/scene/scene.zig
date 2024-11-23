@@ -267,16 +267,12 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(probe, frag, self);
     }
 
-    pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(probe, sampler, worker);
+            return self.prop_bvh.visibility(probe, sampler, worker, tr);
         }
 
-        if (self.prop_bvh.intersectP(probe, self)) {
-            return null;
-        }
-
-        return @as(Vec4f, @splat(1.0));
+        return !self.prop_bvh.intersectP(probe, self);
     }
 
     pub fn scatter(

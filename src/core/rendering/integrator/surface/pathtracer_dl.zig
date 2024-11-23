@@ -155,7 +155,10 @@ pub const PathtracerDL = struct {
 
             var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-            const tr = worker.visibility(&shadow_probe, sampler) orelse continue;
+            var tr: Vec4f = @splat(1.0);
+            if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                return @splat(0.0);
+            }
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 

@@ -228,7 +228,10 @@ pub const Lighttracer = struct {
             const p = frag.offsetP(wi);
             var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
-            const tr = worker.visibility(&tprobe, sampler) orelse continue;
+            var tr: Vec4f = @splat(1.0);
+            if (!worker.visibility(&tprobe, sampler, &tr)) {
+                continue;
+            }
 
             const bxdf_result = mat_sample.evaluate(wi, material_split);
 

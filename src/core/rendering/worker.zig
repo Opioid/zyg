@@ -228,8 +228,8 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, probe: *Probe, sampler: *Sampler) ?Vec4f {
-        return self.scene.visibility(probe, sampler, self);
+    pub fn visibility(self: *Worker, probe: *Probe, sampler: *Sampler, tr: *Vec4f) bool {
+        return self.scene.visibility(probe, sampler, self, tr);
     }
 
     pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
@@ -257,9 +257,10 @@ pub const Worker = struct {
         entity: u32,
         depth: u32,
         sampler: *Sampler,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const cc = material.super().cc;
-        return VolumeIntegrator.propTransmittance(ray, material, cc, entity, depth, sampler, self);
+        return VolumeIntegrator.propTransmittance(ray, material, cc, entity, depth, sampler, self, tr);
     }
 
     pub fn propScatter(

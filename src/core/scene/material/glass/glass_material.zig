@@ -75,7 +75,7 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         const o = self.super.opacity(uv, sampler, scene);
 
         if (self.thickness > 0.0) {
@@ -88,10 +88,11 @@ pub const Material = struct {
 
             if (sint2 >= 1.0) {
                 if (o < 1.0) {
-                    return @as(Vec4f, @splat(1.0 - o));
+                    tr.* *= @splat(1.0 - o);
+                    return true;
                 }
 
-                return null;
+                return false;
             }
 
             const n_dot_t = @sqrt(1.0 - sint2);
@@ -104,13 +105,15 @@ pub const Material = struct {
 
             const ta = math.min4(@as(Vec4f, @splat(1.0 - o)) + attenuation, @splat(1.0));
 
-            return @as(Vec4f, @splat(1.0 - f)) * ta;
+            tr.* *= @as(Vec4f, @splat(1.0 - f)) * ta;
+            return true;
         }
 
         if (o < 1.0) {
-            return @as(Vec4f, @splat(1.0 - o));
+            tr.* *= @splat(1.0 - o);
+            return true;
         }
 
-        return null;
+        return false;
     }
 };

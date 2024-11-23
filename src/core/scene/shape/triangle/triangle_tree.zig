@@ -140,15 +140,13 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(self: *const Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
 
         const nodes = self.nodes;
-
-        var vis: Vec4f = @splat(1.0);
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -165,10 +163,12 @@ pub const Tree = struct {
                             const normal = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
-                            const tv = material.visibility(ray_dir, normal, uv, sampler, scene) orelse return null;
-
-                            vis *= tv;
-                        } else return null;
+                            if (!material.visibility(ray_dir, normal, uv, sampler, scene, tr)) {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
                     }
                 }
 
@@ -197,7 +197,7 @@ pub const Tree = struct {
             }
         }
 
-        return vis;
+        return true;
     }
 
     pub fn transmittance(
@@ -207,15 +207,14 @@ pub const Tree = struct {
         depth: u32,
         sampler: *Sampler,
         worker: *Worker,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const material = worker.scene.propMaterial(entity, 0);
         const data = self.data;
         const ray_max_t = ray.maxT();
 
         var tray = ray;
         tray.setMaxT(ro.Ray_max_t);
-
-        var tr: Vec4f = @splat(1.0);
 
         while (true) {
             const hit = self.intersect(tray);
@@ -228,7 +227,9 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.setMaxT(math.min(hit.t, ray_max_t));
 
-                tr *= worker.propTransmittance(tray, material, entity, depth, sampler) orelse return null;
+                if (!worker.propTransmittance(tray, material, entity, depth, sampler, tr)) {
+                    return false;
+                }
             }
 
             const ray_min_t = ro.offsetF(hit.t);
@@ -239,7 +240,7 @@ pub const Tree = struct {
             tray.setMinMaxT(ray_min_t, ro.Ray_max_t);
         }
 
-        return tr;
+        return true;
     }
 
     pub fn scatter(
