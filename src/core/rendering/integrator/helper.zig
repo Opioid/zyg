@@ -29,6 +29,22 @@ pub const LightSampling = struct {
     }
 };
 
+pub const LightingResult = struct {
+    emission: Vec4f,
+    occluded: Vec4f,
+    unoccluded: Vec4f,
+
+    pub fn empty() LightingResult {
+        return .{ .emission = @splat(0.0), .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
+    }
+
+    pub fn addAssign(self: *LightingResult, other: LightingResult) void {
+        self.emission += other.emission;
+        self.occluded += other.occluded;
+        self.unoccluded += other.unoccluded;
+    }
+};
+
 pub inline fn composeAlpha(throughput: Vec4f, transparent: bool) f32 {
     return if (transparent) math.max(1.0 - math.average3(throughput), 0.0) else 1.0;
 }

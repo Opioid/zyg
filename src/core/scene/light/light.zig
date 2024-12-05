@@ -36,6 +36,7 @@ pub const Light align(16) = struct {
 
     class: Class,
     two_sided: bool,
+    shadow_catcher_light: bool,
     prop: u32,
     part: u32,
     variant: u32,
@@ -53,6 +54,10 @@ pub const Light align(16) = struct {
             .Volume, .VolumeImage => true,
             else => false,
         };
+    }
+
+    pub fn shadowCatcherLight(self: Light) bool {
+        return self.shadow_catcher_light;
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {

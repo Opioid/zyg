@@ -365,6 +365,7 @@ pub const Scene = struct {
     pub fn createLight(self: *Scene, alloc: Allocator, entity: u32) !void {
         const shape_inst = self.propShape(entity);
         const num_parts = shape_inst.numParts();
+        const shadow_catcher_light = self.propIsShadowCatcherLight(entity);
 
         var i: u32 = 0;
         while (i < num_parts) : (i += 1) {
@@ -375,17 +376,17 @@ pub const Scene = struct {
 
             if (mat.scatteringVolume()) {
                 if (shape_inst.analytical() and mat.emissionMapped()) {
-                    try self.allocateLight(alloc, .VolumeImage, false, entity, i);
+                    try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i);
                 } else {
-                    try self.allocateLight(alloc, .Volume, false, entity, i);
+                    try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i);
                 }
             } else {
                 const two_sided = mat.twoSided();
 
                 if (shape_inst.analytical() and mat.emissionMapped()) {
-                    try self.allocateLight(alloc, .PropImage, two_sided, entity, i);
+                    try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i);
                 } else {
-                    try self.allocateLight(alloc, .Prop, two_sided, entity, i);
+                    try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i);
                 }
             }
         }
@@ -472,8 +473,19 @@ pub const Scene = struct {
         }
     }
 
-    pub fn propSetVisibility(self: *Scene, entity: u32, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
-        self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow);
+    pub fn propSetVisibility(
+        self: *Scene,
+        entity: u32,
+        in_camera: bool,
+        in_reflection: bool,
+        in_shadow: bool,
+        shadow_catcher_light: bool,
+    ) void {
+        self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow, shadow_catcher_light);
+    }
+
+    pub fn propSetShadowCatcher(self: *Scene, entity: u32) void {
+        self.props.items[entity].setShadowCatcher();
     }
 
     fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: usize, time: u64, threads: *Threads) void {
@@ -574,6 +586,14 @@ pub const Scene = struct {
 
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].shape];
+    }
+
+    pub fn propIsShadowCatcher(self: *const Scene, entity: u32) bool {
+        return self.props.items[entity].properties.shadow_catcher;
+    }
+
+    pub fn propIsShadowCatcherLight(self: *const Scene, entity: u32) bool {
+        return self.props.items[entity].properties.shadow_catcher_light;
     }
 
     pub fn propMaterialId(self: *const Scene, entity: u32, part: u32) u32 {
@@ -697,8 +717,23 @@ pub const Scene = struct {
         return @intCast(self.props.items.len - 1);
     }
 
-    fn allocateLight(self: *Scene, alloc: Allocator, class: Light.Class, two_sided: bool, entity: u32, part: u32) !void {
-        try self.lights.append(alloc, .{ .class = class, .two_sided = two_sided, .prop = entity, .part = part, .variant = undefined });
+    fn allocateLight(
+        self: *Scene,
+        alloc: Allocator,
+        class: Light.Class,
+        two_sided: bool,
+        shadow_catcher_light: bool,
+        entity: u32,
+        part: u32,
+    ) !void {
+        try self.lights.append(alloc, .{
+            .class = class,
+            .two_sided = two_sided,
+            .shadow_catcher_light = shadow_catcher_light,
+            .prop = entity,
+            .part = part,
+            .variant = undefined,
+        });
         try self.light_aabbs.append(alloc, AABB.init(@splat(0.0), @splat(0.0)));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
     }

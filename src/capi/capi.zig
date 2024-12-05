@@ -529,7 +529,7 @@ export fn su_prop_set_visibility(prop: u32, in_camera: u32, in_reflection: u32, 
             return -1;
         }
 
-        e.scene.propSetVisibility(prop, in_camera > 0, in_reflection > 0, in_shadow > 0);
+        e.scene.propSetVisibility(prop, in_camera > 0, in_reflection > 0, in_shadow > 0, false);
         return 0;
     }
 

@@ -127,6 +127,7 @@ pub fn build(b: *std.Build) void {
             //"takes/intel_sponza.take",
             //"takes/sss.take",
             //"scenes/island/shot_cam.take",
+            //"takes/shadow_catcher.take",
             "-t",
             "-1",
             //"--no-tex",

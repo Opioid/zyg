@@ -64,6 +64,7 @@ pub const Vertex = struct {
         forward: bool = true,
         is_translucent: bool = false,
         started_specular: bool = false,
+        shadow_catcher_path: bool = false,
     };
 
     probe: Probe,
@@ -75,6 +76,8 @@ pub const Vertex = struct {
     path_count: u32,
 
     throughput: Vec4f,
+    shadow_catcher_occluded: Vec4f,
+    shadow_catcher_unoccluded: Vec4f,
     origin: Vec4f,
     geo_n: Vec4f,
 
@@ -91,6 +94,8 @@ pub const Vertex = struct {
             .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
+            .shadow_catcher_occluded = undefined,
+            .shadow_catcher_unoccluded = undefined,
             .origin = ray.origin,
             .geo_n = @splat(0.0),
             .mediums = mediums.clone(),
@@ -210,7 +215,13 @@ pub const Pool = struct {
             const mask = @as(u32, 1) << @as(u5, @truncate(i));
             if (0 != (self.terminated & mask)) {
                 const v = &self.buffer[i];
-                if (v.state.transparent) {
+                if (v.state.shadow_catcher_path) {
+                    const occluded = v.shadow_catcher_occluded;
+                    const unoccluded = v.shadow_catcher_unoccluded;
+                    const ol = occluded < unoccluded;
+                    const shadow_ratio = @select(f32, ol, occluded / unoccluded, @as(Vec4f, @splat(1.0)));
+                    self.alpha += math.max((1.0 - math.average3(shadow_ratio)) * v.split_weight, 0.0);
+                } else if (v.state.transparent) {
                     self.alpha += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
                 } else {
                     self.alpha += v.split_weight;
