@@ -182,6 +182,16 @@ pub const Disk = struct {
         return null;
     }
 
+    pub fn uvWeight(uv: Vec2f) f32 {
+        const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
+        const l = math.squaredLength2(disk);
+        if (l > 1.0) {
+            return 0.0;
+        }
+
+        return 1.0;
+    }
+
     pub fn sampleFrom(
         trafo: Trafo,
         cos_a: f32,

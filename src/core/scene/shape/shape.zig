@@ -436,6 +436,7 @@ pub const Shape = union(enum) {
     pub fn uvWeight(self: *const Shape, uv: Vec2f) f32 {
         return switch (self.*) {
             .Canopy => Canopy.uvWeight(uv),
+            .Disk => Disk.uvWeight(uv),
             .InfiniteSphere => @sin(uv[1] * std.math.pi),
             else => 1.0,
         };
