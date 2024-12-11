@@ -317,7 +317,7 @@ pub const Part = struct {
                             self.part_id,
                             &sampler,
                             self.scene,
-                        );
+                        ).emission;
                     }
 
                     pow = if (math.hmax3(radiance) > 0.0) area else 0.0;

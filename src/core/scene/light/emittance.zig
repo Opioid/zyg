@@ -24,6 +24,7 @@ pub const Emittance = struct {
     profile: Texture = .{},
     cos_a: f32 = -1.0,
     quantity: Quantity = .Radiance,
+    num_samples: u32 = 1,
 
     // unit: lumen
     pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {

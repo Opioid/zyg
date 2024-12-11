@@ -196,17 +196,14 @@ pub const PathtracerMIS = struct {
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
-            const light = worker.scene.light(l.offset);
-
-            result.addAssign(evaluateLight(light, l.pdf, vertex, frag, mat_sample, material_split, shadow_catcher, sampler, worker));
+            result.addAssign(evaluateLight(l, vertex, frag, mat_sample, material_split, shadow_catcher, sampler, worker));
         }
 
         return result;
     }
 
     fn evaluateLight(
-        light: Light,
-        light_weight: f32,
+        light_pick: Scene.LightPick,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
@@ -216,41 +213,48 @@ pub const PathtracerMIS = struct {
         worker: *Worker,
     ) LightingResult {
         const p = frag.p;
+        const gn = mat_sample.super().geometricNormal();
+        const translucent = mat_sample.isTranslucent();
 
-        const light_sample = light.sampleTo(
-            p,
-            mat_sample.super().geometricNormal(),
-            vertex.probe.time,
-            mat_sample.isTranslucent(),
-            sampler,
-            worker.scene,
-        ) orelse return LightingResult.empty();
+        const light = worker.scene.light(light_pick.offset);
+        const num_samples = light.numSamples(worker.scene);
+        const light_sample_weight = light_pick.pdf * @as(f32, @floatFromInt(num_samples));
 
-        var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+        var unoccluded: Vec4f = @splat(0.0);
+        var occluded: Vec4f = @splat(0.0);
 
-        var tr: Vec4f = @splat(1.0);
-        if (!worker.visibility(&shadow_probe, sampler, &tr)) {
-            if (!shadow_catcher) {
-                return LightingResult.empty();
-            } else {
-                tr = @splat(0.0);
+        for (0..num_samples) |_| {
+            const light_sample = light.sampleTo(p, gn, vertex.probe.time, translucent, sampler, worker.scene) orelse continue;
+
+            var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+
+            var tr: Vec4f = @splat(1.0);
+            if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                if (!shadow_catcher) {
+                    continue;
+                } else {
+                    tr = @splat(0.0);
+                }
             }
+
+            const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
+
+            const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
+
+            const light_pdf = light_sample.pdf() * light_sample_weight;
+            const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
+
+            const unocc = weight * radiance * bxdf_result.reflection;
+
+            unoccluded += unocc;
+            occluded += tr * unocc;
         }
-
-        const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
-
-        const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
-
-        const light_pdf = light_sample.pdf() * light_weight;
-        const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
-
-        const unoccluded = weight * radiance * bxdf_result.reflection;
 
         if (shadow_catcher and light.shadowCatcherLight()) {
-            return .{ .emission = @splat(0.0), .occluded = tr * unoccluded, .unoccluded = unoccluded };
-        } else {
-            return .{ .emission = tr * unoccluded, .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
+            return .{ .emission = @splat(0.0), .occluded = occluded, .unoccluded = unoccluded };
         }
+
+        return .{ .emission = occluded, .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
     }
 
     fn connectLight(
@@ -266,7 +270,8 @@ pub const PathtracerMIS = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
+        const radiance = frag.evaluateRadiance(p, wo, sampler, scene);
+        const energy = if (radiance.num_samples > 0) radiance.emission else return @splat(0.0);
 
         const light_id = frag.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
@@ -278,7 +283,7 @@ pub const PathtracerMIS = struct {
 
         const select_pdf = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
         const light = scene.light(light_id);
-        const sample_pdf = light.pdf(vertex, frag, scene);
+        const sample_pdf = light.pdf(vertex, frag, scene) * @as(f32, @floatFromInt(radiance.num_samples));
         const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf));
 
         return weight * energy;

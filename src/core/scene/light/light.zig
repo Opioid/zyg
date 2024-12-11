@@ -60,6 +60,11 @@ pub const Light align(16) = struct {
         return self.shadow_catcher_light;
     }
 
+    pub fn numSamples(self: Light, scene: *const Scene) u32 {
+        const material = scene.propMaterial(self.prop, self.part);
+        return material.super().emittance.num_samples;
+    }
+
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
         const radiance = @as(Vec4f, @splat(extent)) * average_radiance;
 
@@ -104,7 +109,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        );
+        ).emission;
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, scene: *const Scene) Vec4f {
@@ -119,7 +124,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        );
+        ).emission;
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {

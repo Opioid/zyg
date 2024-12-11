@@ -4,6 +4,7 @@ const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const mat = @import("../material/material.zig");
+const RadianceResult = @import("../material/material_base.zig").Base.RadianceResult;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -105,15 +106,15 @@ pub const Fragment = struct {
         return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
     }
 
-    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) RadianceResult {
         const volume = self.event;
         if (.Absorb == volume) {
-            return self.vol_li;
+            return .{ .emission = self.vol_li, .num_samples = 1 };
         }
 
         const m = self.material(scene);
         if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Pass != volume) {
-            return null;
+            return .{ .emission = undefined, .num_samples = 0 };
         }
 
         return m.evaluateRadiance(

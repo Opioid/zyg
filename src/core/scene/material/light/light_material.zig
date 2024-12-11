@@ -123,13 +123,18 @@ pub const Material = struct {
         part: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) Vec4f {
+    ) Base.RadianceResult {
+        const num_samples = self.super.emittance.num_samples;
+
         const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
-            return rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
+            return .{
+                .emission = rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene),
+                .num_samples = num_samples,
+            };
         }
 
-        return rad;
+        return .{ .emission = rad, .num_samples = num_samples };
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
