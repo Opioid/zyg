@@ -13,6 +13,11 @@ const std = @import("std");
 pub const Sample = struct {
     pub const MaxP = 3;
 
+    const AP = struct {
+        reflection: [MaxP + 1]Vec4f,
+        pdf: [MaxP + 1]f32,
+    };
+
     super: Base,
 
     ior: f32,
@@ -29,7 +34,7 @@ pub const Sample = struct {
     sin2k_alpha: [3]f32,
     cos2k_alpha: [3]f32,
 
-    ap: [MaxP + 1]bxdf.Result,
+    ap: AP,
 
     pub fn init(
         rs: Renderstate,
@@ -143,19 +148,21 @@ pub const Sample = struct {
 
             const tmp = mp(cos_theta_i, cos_thetap_o, sin_theta_i, sin_thetap_o, v[@min(p, 2)]);
             const tnp = np(phi, @floatFromInt(p), s, gamma_o, gamma_t);
-            const ta = ap[p];
+            const ta_reflection = ap.reflection[p];
+            const ta_pdf = ap.pdf[p];
             const mnp = tmp * tnp;
 
-            fsum += @as(Vec4f, @splat(mnp)) * ta.reflection;
-            pdf_sum += mnp * ta.pdf;
+            fsum += @as(Vec4f, @splat(mnp)) * ta_reflection;
+            pdf_sum += mnp * ta_pdf;
         }
 
         // Compute contribution of remaining terms after _pMax_
         const tmp = mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[2]);
-        const ta = ap[MaxP];
+        const ta_reflection = ap.reflection[MaxP];
+        const ta_pdf = ap.pdf[MaxP];
 
-        fsum += @as(Vec4f, @splat(tmp)) * ta.reflection;
-        pdf_sum += tmp * ta.pdf;
+        fsum += @as(Vec4f, @splat(tmp)) * ta_reflection;
+        pdf_sum += tmp * ta_pdf;
 
         return bxdf.Result.init(fsum, pdf_sum);
     }
@@ -174,8 +181,8 @@ pub const Sample = struct {
 
         var p: u32 = MaxP;
         var cdf: f32 = 0.0;
-        for (self.ap, 0..) |ae, i| {
-            cdf += ae.pdf;
+        for (self.ap.pdf, 0..) |ae_pdf, i| {
+            cdf += ae_pdf;
             if (cdf >= r) {
                 p = @intCast(i);
                 break;
@@ -260,39 +267,39 @@ pub const Sample = struct {
         return trimmedLogistic(dphi, s, -std.math.pi, std.math.pi);
     }
 
-    fn apFunc(cos_theta_o: f32, eta: f32, h: f32, tr: Vec4f) [MaxP + 1]bxdf.Result {
-        var result: [MaxP + 1]bxdf.Result = undefined;
+    fn apFunc(cos_theta_o: f32, eta: f32, h: f32, tr: Vec4f) AP {
+        var result: AP = undefined;
 
         //  Compute $p=0$ attenuation at initial cylinder intersection
         const cos_gamma_o = @sqrt(1.0 - h * h);
         const cos_theta = cos_theta_o * cos_gamma_o;
         const f = fresnel(cos_theta, eta);
         const vf: Vec4f = @splat(f);
-        result[0] = bxdf.Result.init(vf, 1.0);
+        result.reflection[0] = vf;
         var asum = f;
 
         // Compute $p=1$ attenuation term
         const f1 = @as(Vec4f, @splat(math.pow2(1 - f))) * tr;
-        result[1] = bxdf.Result.init(f1, 1.0);
+        result.reflection[1] = f1;
         asum += math.average3(f1);
 
         const ftr = vf * tr;
 
         // Compute attenuation terms up to $p=_pMax_$
-        for (result[2..MaxP], 2..) |*r, p| {
-            const fx = result[p - 1].reflection * ftr;
-            r.* = bxdf.Result.init(fx, 1.0);
+        for (result.reflection[2..MaxP], 2..) |*r, p| {
+            const fx = result.reflection[p - 1] * ftr;
+            r.* = fx;
             asum += math.average3(fx);
         }
 
         // Compute attenuation term accounting for remaining orders of scattering
-        const fx = result[MaxP - 1].reflection * ftr / math.max4(@as(Vec4f, @splat(1.0)) - ftr, @splat(0.999));
-        result[MaxP] = bxdf.Result.init(fx, 1.0);
+        const fx = result.reflection[MaxP - 1] * ftr / math.max4(@as(Vec4f, @splat(1.0)) - ftr, @splat(0.999));
+        result.reflection[MaxP] = fx;
         asum += math.average3(fx);
 
         const norm = 1.0 / asum;
-        for (&result) |*r| {
-            r.pdf = math.average3(r.reflection) * norm;
+        for (result.reflection, &result.pdf) |ref, *p| {
+            p.* = math.average3(ref) * norm;
         }
 
         return result;
