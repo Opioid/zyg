@@ -138,7 +138,7 @@ pub const Reader = struct {
                 .X, .W => 1,
                 .XY, .YX, .YZ => 2,
                 .XYZ => 3,
-                .XYZW => 3,
+                .XYZW => 4,
             };
 
             self.swizzle = swizzle;
@@ -162,6 +162,11 @@ pub const Reader = struct {
             if (3 == num_channels) {
                 const image = try img.Byte3.init(alloc, img.Description.init2D(dimensions));
                 self.image = .{ .Byte3 = image };
+            }
+
+            if (4 == num_channels) {
+                const image = try img.Byte4.init(alloc, img.Description.init2D(dimensions));
+                self.image = .{ .Byte4 = image };
             }
 
             return self.image;
@@ -307,6 +312,11 @@ pub const Reader = struct {
 
                             image.pixels[i] = color;
                         }
+                    }
+                },
+                .Byte4 => |image| {
+                    if (byte_compatible) {
+                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     }
                 },
                 else => {},

@@ -87,7 +87,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             value: T,
         };
 
-        description: Description = .{},
+        description: Description,
 
         num_cells: Vec4i,
 

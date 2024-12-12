@@ -22,6 +22,8 @@ pub const Prop = struct {
         volume: bool = false,
         caustic: bool = false,
         static: bool = true,
+        shadow_catcher: bool = false,
+        shadow_catcher_light: bool = false,
     };
 
     shape: u32 = Null,
@@ -62,10 +64,24 @@ pub const Prop = struct {
         return self.properties.caustic;
     }
 
-    pub fn setVisibility(self: *Prop, in_camera: bool, in_reflection: bool, in_shadow: bool) void {
+    pub fn setVisibility(
+        self: *Prop,
+        in_camera: bool,
+        in_reflection: bool,
+        in_shadow: bool,
+        shadow_catcher_light: bool,
+    ) void {
         self.properties.visible_in_camera = in_camera;
         self.properties.visible_in_reflection = in_reflection;
         self.properties.visible_in_shadow = in_shadow;
+        self.properties.shadow_catcher_light = shadow_catcher_light;
+    }
+
+    pub fn setShadowCatcher(self: *Prop) void {
+        self.properties.shadow_catcher = true;
+        self.properties.visible_in_camera = true;
+        self.properties.visible_in_reflection = false;
+        self.properties.visible_in_shadow = false;
     }
 
     pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
@@ -146,24 +162,24 @@ pub const Prop = struct {
         return scene.shape(self.shape).intersectP(probe.ray, trafo);
     }
 
-    pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         const properties = self.properties;
         const scene = worker.scene;
 
         if (!properties.evaluate_visibility) {
             if (self.intersectP(entity, probe, scene)) {
-                return null;
+                return false;
             }
 
-            return @as(Vec4f, @splat(1.0));
+            return true;
         }
 
         if (!properties.visible_in_shadow) {
-            return @as(Vec4f, @splat(1.0));
+            return true;
         }
 
         if (!scene.propAabbIntersect(entity, probe.ray)) {
-            return @as(Vec4f, @splat(1.0));
+            return true;
         }
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
@@ -171,9 +187,9 @@ pub const Prop = struct {
         const shape = scene.shape(self.shape);
 
         if (properties.volume) {
-            return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker);
+            return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker, tr);
         } else {
-            return shape.visibility(probe.ray, trafo, entity, sampler, scene);
+            return shape.visibility(probe.ray, trafo, entity, sampler, scene, tr);
         }
     }
 

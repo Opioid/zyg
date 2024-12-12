@@ -5,6 +5,7 @@ const math = base.math;
 const Vec2b = math.Vec2b;
 const Vec2f = math.Vec2f;
 const Pack3b = math.Pack3b;
+const Pack4b = math.Pack4b;
 const Vec4f = math.Vec4f;
 
 const SRGB_FLOAT = calculateSrgbToFloat();
@@ -13,6 +14,10 @@ const SNORM_FLOAT = calculateSnormToFloat();
 
 pub fn cachedSrgbToFloat3(byte: Pack3b) Vec4f {
     return .{ SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]], 0.0 };
+}
+
+pub fn cachedSrgbToFloat4(byte: Pack4b) Vec4f {
+    return .{ SRGB_FLOAT[byte.v[0]], SRGB_FLOAT[byte.v[1]], SRGB_FLOAT[byte.v[2]], UNORM_FLOAT[byte.v[3]] };
 }
 
 pub fn cachedUnormToFloat(byte: u8) f32 {

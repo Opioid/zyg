@@ -86,6 +86,8 @@ pub fn main() !void {
         bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }
 
+    resources.commitAsync();
+
     if (0 == operator.textures.items.len) {
         log.err("No items to operate on", .{});
         return;
@@ -114,7 +116,7 @@ pub fn main() !void {
         operator.current = i;
         operator.run(&threads);
 
-        const name = options.inputs.items[operator.input_ids.items[i]];
+        const name = options.inputs.items[operator.baseItemOfIteration(i)];
         try write(alloc, name, operator.class, operator.target, &writer, encoding, format, &threads);
     }
 

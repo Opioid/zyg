@@ -63,7 +63,7 @@ pub const Material = struct {
 
         const d = self.emission_map.description(scene).dimensions;
 
-        const luminance = alloc.alloc(f32, @as(usize, @intCast(d[0] * d[1]))) catch return @splat(0.0);
+        const luminance = alloc.alloc(f32, @intCast(d[0] * d[1])) catch return @splat(0.0);
         defer alloc.free(luminance);
 
         var avg: Vec4f = @splat(0.0);
@@ -79,7 +79,7 @@ pub const Material = struct {
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @as(u32, @intCast(d[1])), 0);
+            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(d[1]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -94,13 +94,13 @@ pub const Material = struct {
             var context = DistributionContext{
                 .al = 0.6 * spectrum.luminance(average_emission),
                 .width = @as(u32, @intCast(d[0])),
-                .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[1]))) catch
+                .conditional = self.distribution.allocate(alloc, @intCast(d[1])) catch
                     return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @as(u32, @intCast(d[1])), 0);
+            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[1]), 0);
         }
 
         self.distribution.configure(alloc) catch
@@ -123,13 +123,18 @@ pub const Material = struct {
         part: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) Vec4f {
+    ) Base.RadianceResult {
+        const num_samples = self.super.emittance.num_samples;
+
         const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, sampler, scene);
         if (self.emission_map.valid()) {
-            return rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
+            return .{
+                .emission = rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene),
+                .num_samples = num_samples,
+            };
         }
 
-        return rad;
+        return .{ .emission = rad, .num_samples = num_samples };
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -158,7 +163,7 @@ const LuminanceContext = struct {
         const self = @as(*LuminanceContext, @ptrCast(context));
 
         const d = self.texture.description(self.scene).dimensions;
-        const width = @as(u32, @intCast(d[0]));
+        const width: u32 = @intCast(d[0]);
 
         const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
             @floatFromInt(d[0]),

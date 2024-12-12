@@ -292,8 +292,7 @@ pub const Part = struct {
 
                 var pow: f32 = undefined;
                 if (emission_map) {
-                    var rng = RNG{};
-                    rng.start(0, i);
+                    var rng = RNG.init(0, i);
 
                     var sampler = Sampler{ .Random = .{ .rng = &rng } };
 
@@ -318,7 +317,7 @@ pub const Part = struct {
                             self.part_id,
                             &sampler,
                             self.scene,
-                        );
+                        ).emission;
                     }
 
                     pow = if (math.hmax3(radiance) > 0.0) area else 0.0;
@@ -485,9 +484,10 @@ pub const Mesh = struct {
         entity: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, sampler, scene);
+        return self.tree.visibility(tray, entity, sampler, scene, tr);
     }
 
     pub fn transmittance(
@@ -498,9 +498,10 @@ pub const Mesh = struct {
         depth: u32,
         sampler: *Sampler,
         worker: *Worker,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.transmittance(tray, entity, depth, sampler, worker);
+        return self.tree.transmittance(tray, entity, depth, sampler, worker, tr);
     }
 
     pub fn scatter(

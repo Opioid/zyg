@@ -460,7 +460,7 @@ pub const Sample = struct {
             const thin_h = thin_frame.frameToWorld(tangent_h);
 
             const thin_n_dot_wo = tangent_h[2];
-            const thin_n_dot_h = tangent_h[2];
+            const thin_n_dot_h = math.saturate(tangent_h[2]);
             const thin_wo_dot_h = 1.0;
 
             const n_dot_wi = ggx.Iso.reflectNoFresnel(

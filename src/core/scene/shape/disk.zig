@@ -88,7 +88,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -112,11 +112,11 @@ pub const Disk = struct {
                     0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene);
+                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene, tr);
             }
         }
 
-        return @as(Vec4f, @splat(1.0));
+        return true;
     }
 
     pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
@@ -180,6 +180,16 @@ pub const Disk = struct {
         }
 
         return null;
+    }
+
+    pub fn uvWeight(uv: Vec2f) f32 {
+        const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
+        const l = math.squaredLength2(disk);
+        if (l > 1.0) {
+            return 0.0;
+        }
+
+        return 1.0;
     }
 
     pub fn sampleFrom(

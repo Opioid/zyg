@@ -20,6 +20,7 @@ const Vec4f = math.Vec4f;
 const Vec2f = math.Vec2f;
 const json = base.json;
 const spectrum = base.spectrum;
+const string = base.string;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -64,12 +65,17 @@ pub const Provider = struct {
     ) !Result(Material) {
         _ = options;
 
-        var stream = try resources.fs.readStream(alloc, name);
+        const fs = &resources.fs;
+
+        var stream = try fs.readStream(alloc, name);
 
         const buffer = try stream.readAll(alloc);
         defer alloc.free(buffer);
 
         stream.deinit();
+
+        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
+        defer fs.popMount(alloc);
 
         var parsed = try std.json.parseFromSlice(std.json.Value, alloc, buffer, .{});
         defer parsed.deinit();
@@ -456,22 +462,22 @@ pub const Provider = struct {
 };
 
 fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, resources: *Resources, emittance: *Emittance) void {
-    const quantity = json.readStringMember(jvalue, "quantity", "");
-
-    var color: Vec4f = @splat(1.0);
-    if (jvalue.object.get("spectrum")) |s| {
-        color = readColor(s);
-    }
-
-    const value = json.readFloatMember(jvalue, "value", 1.0);
-
     if (jvalue.object.get("profile")) |p| {
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
     const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
 
+    var color: Vec4f = @splat(1.0);
+    if (jvalue.object.get("spectrum")) |s| {
+        color = readColor(s);
+    }
+
     const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
+
+    const value = json.readFloatMember(jvalue, "value", 1.0);
+
+    const quantity = json.readStringMember(jvalue, "quantity", "");
 
     if (std.mem.eql(u8, "Flux", quantity)) {
         emittance.setLuminousFlux(color, value, cos_a);
@@ -485,6 +491,8 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     {
         emittance.setRadiance(@as(Vec4f, @splat(value)) * color, cos_a);
     }
+
+    emittance.num_samples = json.readUIntMember(jvalue, "num_samples", 1);
 }
 
 const TextureDescriptor = struct {

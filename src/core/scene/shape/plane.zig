@@ -54,7 +54,7 @@ pub const Plane = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -64,9 +64,9 @@ pub const Plane = struct {
             const k = p - trafo.position;
             const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };
 
-            return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr);
         }
 
-        return @as(Vec4f, @splat(1.0));
+        return true;
     }
 };

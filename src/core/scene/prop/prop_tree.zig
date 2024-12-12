@@ -184,10 +184,9 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker) ?Vec4f {
+    pub fn visibility(self: *const Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         var stack = NodeStack{};
 
-        var vis: Vec4f = @splat(1.0);
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
@@ -199,7 +198,9 @@ pub const Tree = struct {
 
             if (0 != node.numIndices()) {
                 for (finite_props[node.indicesStart()..node.indicesEnd()]) |p| {
-                    vis *= props[p].visibility(p, probe, sampler, worker) orelse return null;
+                    if (!props[p].visibility(p, probe, sampler, worker, tr)) {
+                        return false;
+                    }
                 }
 
                 n = stack.pop();
@@ -229,11 +230,13 @@ pub const Tree = struct {
 
         if (probe.ray.maxT() >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                vis *= props[p].visibility(p, probe, sampler, worker) orelse return null;
+                if (!props[p].visibility(p, probe, sampler, worker, tr)) {
+                    return false;
+                }
             }
         }
 
-        return vis;
+        return true;
     }
 
     pub fn scatter(self: *const Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) bool {

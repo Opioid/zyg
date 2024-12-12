@@ -25,6 +25,7 @@ const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
+const Mat3x3 = math.Mat3x3;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -33,7 +34,7 @@ const Allocator = std.mem.Allocator;
 pub const Perspective = struct {
     const Focus = struct {
         point: Vec4f = undefined,
-        distance: f32 = undefined,
+        distance: f32 = -1.0,
         use_point: bool = false,
     };
 
@@ -48,10 +49,9 @@ pub const Perspective = struct {
     resolution: Vec2i = Vec2i{ 0, 0 },
     crop: Vec4i = @splat(0),
 
-    left_top: Vec4f = @splat(0.0),
-    d_x: Vec4f = @splat(0.0),
-    d_y: Vec4f = @splat(0.0),
-
+    left_top: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
+    d_x: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
+    d_y: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
     eye_offsets: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
 
     fov: f32 = 0.0,
@@ -108,23 +108,46 @@ pub const Perspective = struct {
         const right_top = Vec4f{ 1.0, ratio, z, 0.0 };
         const left_bottom = Vec4f{ -1.0, -ratio, z, 0.0 };
 
-        self.left_top = left_top;
-        self.d_x = (right_top - left_top) / @as(Vec4f, @splat(fr[0]));
-        self.d_y = (left_bottom - left_top) / @as(Vec4f, @splat(fr[1]));
+        const d_x = (right_top - left_top) / @as(Vec4f, @splat(fr[0]));
+        const d_y = (left_bottom - left_top) / @as(Vec4f, @splat(fr[1]));
 
         const nlb = left_bottom / @as(Vec4f, @splat(z));
         const nrt = right_top / @as(Vec4f, @splat(z));
 
         self.a = @abs((nrt[0] - nlb[0]) * (nrt[1] - nlb[1]));
 
-        self.updateFocus(time, scene);
+        self.updateFocus(left_top, d_x, d_y, time, scene);
+
+        if (self.stereo.ipd > 0.0 and self.focus_distance > 0.0) {
+            const foccus_point = Vec4f{ 0.0, 0.0, self.focus_distance, 0.0 };
+            const axis_l = math.normalize3(foccus_point - self.eye_offsets[0]);
+            const angle = std.math.acos(axis_l[2]);
+
+            const rot_l = Mat3x3.initRotationY(-angle);
+            self.left_top[0] = rot_l.transformVector(left_top);
+            self.d_x[0] = rot_l.transformVector(d_x);
+            self.d_y[0] = rot_l.transformVector(d_y);
+
+            const rot_r = Mat3x3.initRotationY(angle);
+            self.left_top[1] = rot_r.transformVector(left_top);
+            self.d_x[1] = rot_r.transformVector(d_x);
+            self.d_y[1] = rot_r.transformVector(d_y);
+        } else {
+            self.left_top[0] = left_top;
+            self.d_x[0] = d_x;
+            self.d_y[0] = d_y;
+
+            self.left_top[1] = left_top;
+            self.d_x[1] = d_x;
+            self.d_y[1] = d_y;
+        }
     }
 
     pub fn generateVertex(self: *const Self, sample: Sample, layer: u32, frame: u32, scene: *const Scene) Vertex {
         const center = @as(Vec2f, @floatFromInt(sample.pixel)) + @as(Vec2f, @splat(0.5));
         const coordinates = center + sample.filter_uv;
 
-        var direction = self.left_top + self.d_x * @as(Vec4f, @splat(coordinates[0])) + self.d_y * @as(Vec4f, @splat(coordinates[1]));
+        var direction = self.left_top[layer] + self.d_x[layer] * @as(Vec4f, @splat(coordinates[0])) + self.d_y[layer] * @as(Vec4f, @splat(coordinates[1]));
         var origin: Vec4f = undefined;
 
         if (self.aperture.radius > 0.0) {
@@ -186,12 +209,14 @@ pub const Perspective = struct {
             return null;
         }
 
-        const pd = @as(Vec4f, @splat(self.left_top[2])) * (dir / @as(Vec4f, @splat(dir[2])));
+        const left_top = self.left_top[layer];
 
-        const offset = pd - self.left_top;
+        const pd = @as(Vec4f, @splat(left_top[2])) * (dir / @as(Vec4f, @splat(dir[2])));
 
-        const x = offset[0] / self.d_x[0];
-        const y = offset[1] / self.d_y[1];
+        const offset = pd - left_top;
+
+        const x = offset[0] / self.d_x[layer][0];
+        const y = offset[1] / self.d_y[layer][1];
 
         const fx = @floor(x);
         const fy = @floor(y);
@@ -229,13 +254,13 @@ pub const Perspective = struct {
 
         const dir_w = math.normalize3(p - p_w);
 
-        const d_x_w = trafo.objectToWorldVector(self.d_x);
-        const d_y_w = trafo.objectToWorldVector(self.d_y);
+        const d_x_w = trafo.objectToWorldVector(self.d_x[layer]);
+        const d_y_w = trafo.objectToWorldVector(self.d_y[layer]);
 
-        const ss = self.sample_spacing;
+        const ss: Vec4f = @splat(self.sample_spacing);
 
-        const x_dir_w = math.normalize3(dir_w + @as(Vec4f, @splat(ss)) * d_x_w);
-        const y_dir_w = math.normalize3(dir_w + @as(Vec4f, @splat(ss)) * d_y_w);
+        const x_dir_w = math.normalize3(dir_w + ss * d_x_w);
+        const y_dir_w = math.normalize3(dir_w + ss * d_y_w);
 
         return .{
             .x_origin = p_w,
@@ -327,10 +352,10 @@ pub const Perspective = struct {
         self.focus_distance = focus.distance;
     }
 
-    fn updateFocus(self: *Self, time: u64, scene: *const Scene) void {
-        if (self.focus.use_point and self.aperture.radius > 0.0) {
+    fn updateFocus(self: *Self, left_top: Vec4f, d_x: Vec4f, d_y: Vec4f, time: u64, scene: *const Scene) void {
+        if (self.focus.use_point and (self.aperture.radius > 0.0 or self.stereo.ipd > 0.0)) {
             const direction = math.normalize3(
-                self.left_top + self.d_x * @as(Vec4f, @splat(self.focus.point[0])) + self.d_y * @as(Vec4f, @splat(self.focus.point[1])),
+                left_top + d_x * @as(Vec4f, @splat(self.focus.point[0])) + d_y * @as(Vec4f, @splat(self.focus.point[1])),
             );
 
             const trafo = scene.propTransformationAt(self.entity, time);

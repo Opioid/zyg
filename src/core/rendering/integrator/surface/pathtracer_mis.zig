@@ -11,6 +11,7 @@ const ro = @import("../../../scene/ray_offset.zig");
 const Worker = @import("../../worker.zig").Worker;
 const hlp = @import("../helper.zig");
 const IValue = hlp.IValue;
+const LightingResult = hlp.LightingResult;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -23,6 +24,7 @@ pub const PathtracerMIS = struct {
     pub const Settings = struct {
         max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
+        regularize_roughness: bool,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
@@ -55,10 +57,21 @@ pub const PathtracerMIS = struct {
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 const weighted_energy = vertex.throughput * split_weight * energy;
 
-                if (vertex.state.treat_as_singular) {
-                    result.emission += weighted_energy;
+                const previous_shadow_catcher = 1 == total_depth and vertex.state.shadow_catcher_path;
+
+                if (previous_shadow_catcher and worker.scene.propIsShadowCatcherLight(frag.prop)) {
+                    vertex.shadow_catcher_occluded += weighted_energy;
+                    vertex.shadow_catcher_unoccluded += weighted_energy;
                 } else {
-                    result.reflection += weighted_energy;
+                    if (vertex.state.treat_as_singular) {
+                        result.emission += weighted_energy;
+                    } else {
+                        result.reflection += weighted_energy;
+                    }
+                }
+
+                if (previous_shadow_catcher) {
+                    self.connectOccludedShadowCatcherLights(vertex, &frag, sampler, worker.scene);
                 }
 
                 if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
@@ -76,16 +89,30 @@ pub const PathtracerMIS = struct {
                     worker.commonAOV(vertex, &frag, &mat_sample);
                 }
 
-                const split_threshold = vertex.throughput * split_weight;
+                if (self.settings.regularize_roughness) {
+                    vertex.min_alpha = math.max(vertex.min_alpha, mat_sample.super().averageAlpha());
+                }
+
+                const split_throughput = vertex.throughput * split_weight;
 
                 const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
                 if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
-                    result.reflection += split_threshold * worker.photonLi(&frag, &mat_sample, sampler);
+                    result.reflection += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
                 }
 
                 const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 1);
 
-                result.reflection += split_threshold * self.sampleLights(vertex, &frag, &mat_sample, split, sampler, worker);
+                const shadow_catcher = worker.scene.propIsShadowCatcher(frag.prop);
+
+                const lighting = self.sampleLights(vertex, &frag, &mat_sample, split, shadow_catcher, sampler, worker);
+
+                if (shadow_catcher) {
+                    vertex.shadow_catcher_occluded = lighting.occluded;
+                    vertex.shadow_catcher_unoccluded = lighting.unoccluded;
+                    vertex.state.shadow_catcher_path = true;
+                }
+
+                result.reflection += split_throughput * lighting.emission;
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
@@ -153,10 +180,15 @@ pub const PathtracerMIS = struct {
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
         material_split: bool,
+        shadow_catcher: bool,
         sampler: *Sampler,
         worker: *Worker,
-    ) Vec4f {
-        var result: Vec4f = @splat(0.0);
+    ) LightingResult {
+        var result = LightingResult.empty();
+
+        if (!mat_sample.canEvaluate()) {
+            return result;
+        }
 
         const p = frag.p;
         const n = mat_sample.super().geometricNormal();
@@ -169,47 +201,65 @@ pub const PathtracerMIS = struct {
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
-            const light = worker.scene.light(l.offset);
-
-            result += evaluateLight(light, l.pdf, vertex, frag, mat_sample, material_split, sampler, worker);
+            result.addAssign(evaluateLight(l, vertex, frag, mat_sample, material_split, shadow_catcher, sampler, worker));
         }
 
         return result;
     }
 
     fn evaluateLight(
-        light: Light,
-        light_weight: f32,
+        light_pick: Scene.LightPick,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
         split: bool,
+        shadow_catcher: bool,
         sampler: *Sampler,
         worker: *Worker,
-    ) Vec4f {
+    ) LightingResult {
         const p = frag.p;
+        const gn = mat_sample.super().geometricNormal();
+        const translucent = mat_sample.isTranslucent();
 
-        const light_sample = light.sampleTo(
-            p,
-            mat_sample.super().geometricNormal(),
-            vertex.probe.time,
-            mat_sample.isTranslucent(),
-            sampler,
-            worker.scene,
-        ) orelse return @splat(0.0);
+        const light = worker.scene.light(light_pick.offset);
+        const num_samples = light.numSamples(worker.scene);
+        const light_sample_weight = light_pick.pdf * @as(f32, @floatFromInt(num_samples));
 
-        var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+        var unoccluded: Vec4f = @splat(0.0);
+        var occluded: Vec4f = @splat(0.0);
 
-        const tr = worker.visibility(&shadow_probe, sampler) orelse return @splat(0.0);
+        for (0..num_samples) |_| {
+            const light_sample = light.sampleTo(p, gn, vertex.probe.time, translucent, sampler, worker.scene) orelse continue;
 
-        const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
+            var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-        const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
+            var tr: Vec4f = @splat(1.0);
+            if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                if (!shadow_catcher) {
+                    continue;
+                } else {
+                    tr = @splat(0.0);
+                }
+            }
 
-        const light_pdf = light_sample.pdf() * light_weight;
-        const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
+            const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
 
-        return weight * (tr * radiance * bxdf_result.reflection);
+            const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
+
+            const light_pdf = light_sample.pdf() * light_sample_weight;
+            const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
+
+            const unocc = weight * radiance * bxdf_result.reflection;
+
+            unoccluded += unocc;
+            occluded += tr * unocc;
+        }
+
+        if (shadow_catcher and light.shadowCatcherLight()) {
+            return .{ .emission = @splat(0.0), .occluded = occluded, .unoccluded = unoccluded };
+        }
+
+        return .{ .emission = occluded, .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
     }
 
     fn connectLight(
@@ -225,7 +275,8 @@ pub const PathtracerMIS = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
+        const radiance = frag.evaluateRadiance(p, wo, sampler, scene);
+        const energy = if (radiance.num_samples > 0) radiance.emission else return @splat(0.0);
 
         const light_id = frag.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
@@ -237,10 +288,35 @@ pub const PathtracerMIS = struct {
 
         const select_pdf = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
         const light = scene.light(light_id);
-        const sample_pdf = light.pdf(vertex, frag, scene);
+        const sample_pdf = light.pdf(vertex, frag, scene) * @as(f32, @floatFromInt(radiance.num_samples));
         const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf));
 
         return weight * energy;
+    }
+
+    fn connectOccludedShadowCatcherLights(
+        self: Self,
+        vertex: *Vertex,
+        frag: *const Fragment,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) void {
+        if (frag.isec.t < ro.Almost_ray_max_t) {
+            const ray_min_t = vertex.probe.ray.minT();
+            const ray_max_t = vertex.probe.ray.maxT();
+            vertex.probe.ray.setMinMaxT(ro.Almost_ray_max_t, ro.Ray_max_t);
+
+            var sfrag: Fragment = undefined;
+            sfrag.event = .Pass;
+
+            if (scene.intersect(&vertex.probe, &sfrag)) {
+                if (scene.propIsShadowCatcherLight(sfrag.prop)) {
+                    vertex.shadow_catcher_unoccluded += self.connectLight(vertex, &sfrag, sampler, scene);
+                }
+            }
+
+            vertex.probe.ray.setMinMaxT(ray_min_t, ray_max_t);
+        }
     }
 
     fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {

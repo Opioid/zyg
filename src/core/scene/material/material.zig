@@ -219,13 +219,13 @@ pub const Material = union(enum) {
         part: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) Vec4f {
+    ) Base.RadianceResult {
         return switch (self.*) {
             .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
-            else => @splat(0.0),
+            else => .{ .emission = undefined, .num_samples = 0 },
         };
     }
 
@@ -258,14 +258,19 @@ pub const Material = union(enum) {
         uv: Vec2f,
         sampler: *Sampler,
         scene: *const Scene,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         switch (self.*) {
             .Glass => |*m| {
-                return m.visibility(wi, n, uv, sampler, scene);
+                return m.visibility(wi, n, uv, sampler, scene, tr);
             },
             else => {
                 const o = self.opacity(uv, sampler, scene);
-                return if (o < 1.0) @as(Vec4f, @splat(1.0 - o)) else null;
+                if (o < 1.0) {
+                    tr.* *= @splat(1.0 - o);
+                    return true;
+                }
+                return false;
             },
         }
     }

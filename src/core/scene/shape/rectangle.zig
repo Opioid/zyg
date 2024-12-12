@@ -101,7 +101,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -115,21 +115,21 @@ pub const Rectangle = struct {
 
             const u = math.dot3(t, k / @as(Vec4f, @splat(trafo.scaleX())));
             if (u > 1.0 or u < -1.0) {
-                return @as(Vec4f, @splat(1.0));
+                return true;
             }
 
             const b = -trafo.rotation.r[1];
 
             const v = math.dot3(b, k / @as(Vec4f, @splat(trafo.scaleY())));
             if (v > 1.0 or v < -1.0) {
-                return @as(Vec4f, @splat(1.0));
+                return true;
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene, tr);
         }
 
-        return @as(Vec4f, @splat(1.0));
+        return true;
     }
 
     // C. Ureña & M. Fajardo & A. King / An Area-Preserving Parametrization for Spherical Rectangles

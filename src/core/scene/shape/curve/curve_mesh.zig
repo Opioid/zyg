@@ -56,7 +56,13 @@ pub const Mesh = struct {
         return self.tree.intersectP(local_ray);
     }
 
-    pub fn visibility(self: *const Mesh, ray: Ray, trafo: Trafo) ?Vec4f {
-        return if (self.intersectP(ray, trafo)) null else @as(Vec4f, @splat(1.0));
+    pub fn visibility(self: *const Mesh, ray: Ray, trafo: Trafo, tr: *Vec4f) bool {
+        _ = tr;
+
+        if (self.intersectP(ray, trafo)) {
+            return false;
+        }
+
+        return true;
     }
 };

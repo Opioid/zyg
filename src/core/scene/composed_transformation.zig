@@ -7,13 +7,13 @@ const Transformation = math.Transformation;
 const Ray = math.Ray;
 
 pub const ComposedTransformation = struct {
-    rotation: Mat3x3 = undefined,
-    position: Vec4f = undefined,
+    rotation: Mat3x3,
+    position: Vec4f,
 
     const Self = @This();
 
     pub fn init(t: Transformation) Self {
-        var self = Self{};
+        var self: Self = undefined;
 
         self.rotation = quaternion.toMat3x3(t.rotation);
 

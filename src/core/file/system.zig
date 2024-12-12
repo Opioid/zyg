@@ -14,8 +14,8 @@ pub const System = struct {
     resolved_name_len: u32 = 0,
     frame: u32 = 0,
 
-    stream: FileReadStream = .{},
-    gzip_stream: GzipReadStream = .{},
+    stream: FileReadStream = undefined,
+    gzip_stream: GzipReadStream = undefined,
 
     pub fn init(alloc: Allocator) !System {
         const buffer = try alloc.alloc(u8, 256);
@@ -89,7 +89,7 @@ pub const System = struct {
         }
 
         for (self.mounts.items) |m| {
-            const resolved_name_len = @as(u32, @intCast(m.len + modified_name.len));
+            const resolved_name_len: u32 = @intCast(m.len + modified_name.len);
 
             if (self.name_buffer.len < resolved_name_len) {
                 self.name_buffer = try alloc.realloc(self.name_buffer, resolved_name_len);
@@ -110,7 +110,7 @@ pub const System = struct {
         }
 
         @memcpy(self.name_buffer[0..modified_name.len], modified_name);
-        self.resolved_name_len = @as(u32, @intCast(modified_name.len));
+        self.resolved_name_len = @intCast(modified_name.len);
 
         self.stream.setFile(try std.fs.cwd().openFile(modified_name, .{}));
         return ReadStream.initFile(&self.stream);

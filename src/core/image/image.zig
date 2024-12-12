@@ -4,6 +4,7 @@ const Vec2f = math.Vec2f;
 const Pack3b = math.Pack3b;
 const Pack3h = math.Pack3h;
 const Pack3f = math.Pack3f;
+const Pack4b = math.Pack4b;
 const Pack4h = math.Pack4h;
 const Pack4f = math.Pack4f;
 const ti = @import("typed_image.zig");
@@ -11,6 +12,7 @@ pub const Description = ti.Description;
 pub const Byte1 = ti.TypedImage(u8);
 pub const Byte2 = ti.TypedImage(Vec2b);
 pub const Byte3 = ti.TypedImage(Pack3b);
+pub const Byte4 = ti.TypedImage(Pack4b);
 pub const Half1 = ti.TypedImage(f16);
 pub const Half3 = ti.TypedImage(Pack3h);
 pub const Half4 = ti.TypedImage(Pack4h);
@@ -37,6 +39,7 @@ pub const Type = enum {
     Byte1,
     Byte2,
     Byte3,
+    Byte4,
     Half1,
     Half3,
     Half4,
@@ -50,6 +53,7 @@ pub const Image = union(enum) {
     Byte1: Byte1,
     Byte2: Byte2,
     Byte3: Byte3,
+    Byte4: Byte4,
     Half1: Half1,
     Half3: Half3,
     Half4: Half4,

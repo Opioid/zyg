@@ -108,15 +108,13 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
         const radius = trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
-
-        var vis: Vec4f = @splat(1.0);
 
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
@@ -130,7 +128,9 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene) orelse return null;
+                if (!scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr)) {
+                    return false;
+                }
             }
 
             const t1 = b + dist;
@@ -142,11 +142,13 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                vis *= scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene) orelse return null;
+                if (!scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr)) {
+                    return false;
+                }
             }
         }
 
-        return vis;
+        return true;
     }
 
     pub fn transmittance(
@@ -156,7 +158,8 @@ pub const Sphere = struct {
         depth: u32,
         sampler: *Sampler,
         worker: *Worker,
-    ) ?Vec4f {
+        tr: *Vec4f,
+    ) bool {
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -179,10 +182,10 @@ pub const Sphere = struct {
                 start,
                 end,
             );
-            return worker.propTransmittance(tray, material, entity, depth, sampler);
+            return worker.propTransmittance(tray, material, entity, depth, sampler, tr);
         }
 
-        return @as(Vec4f, @splat(1.0));
+        return true;
     }
 
     pub fn scatter(

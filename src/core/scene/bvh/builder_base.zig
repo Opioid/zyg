@@ -114,8 +114,8 @@ const Kernel = struct {
 
                         node.setSplitNode(child0);
 
-                        try self.build_nodes.append(alloc, .{});
-                        try self.build_nodes.append(alloc, .{});
+                        try self.build_nodes.append(alloc, undefined);
+                        try self.build_nodes.append(alloc, undefined);
 
                         const next_depth = depth + 1;
 
@@ -272,7 +272,7 @@ const Kernel = struct {
         );
 
         self.build_nodes.clearRetainingCapacity();
-        try self.build_nodes.append(alloc, .{});
+        try self.build_nodes.append(alloc, undefined);
 
         try self.reference_ids.ensureTotalCapacity(alloc, (num_primitives * 12) / 10);
         self.reference_ids.clearRetainingCapacity();

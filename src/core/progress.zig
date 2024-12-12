@@ -25,9 +25,9 @@ pub const Progressor = union(enum) {
 };
 
 pub const StdOut = struct {
-    resolution: u32 = undefined,
-    progress: u32 = undefined,
-    threshold: f32 = undefined,
+    resolution: u32,
+    progress: u32,
+    threshold: f32,
 
     const step = 1.0;
 

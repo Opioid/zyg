@@ -155,7 +155,10 @@ pub const PathtracerDL = struct {
 
             var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
-            const tr = worker.visibility(&shadow_probe, sampler) orelse continue;
+            var tr: Vec4f = @splat(1.0);
+            if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                return @splat(0.0);
+            }
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 
@@ -182,7 +185,8 @@ pub const PathtracerDL = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
+        const radiance = frag.evaluateRadiance(p, wo, sampler, scene);
+        return if (radiance.num_samples > 0) radiance.emission else @splat(0.0);
     }
 
     fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {

@@ -4,8 +4,8 @@ pub const FileReadStream = struct {
     const Reader = std.io.BufferedReader(4096, std.fs.File.Reader);
     const Seeker = std.fs.File.SeekableStream;
 
-    reader: Reader = .{ .unbuffered_reader = undefined },
-    seeker: Seeker = undefined,
+    reader: Reader,
+    seeker: Seeker,
 
     const Self = @This();
 

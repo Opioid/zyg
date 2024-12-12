@@ -261,6 +261,7 @@ pub const Loader = struct {
             var animation_ptr: ?*std.json.Value = null;
             var children_ptr: ?*std.json.Value = null;
             var visibility_ptr: ?*std.json.Value = null;
+            var shadow_catcher_ptr: ?*std.json.Value = null;
 
             var iter = entity.object.iterator();
             while (iter.next()) |entry| {
@@ -272,6 +273,8 @@ pub const Loader = struct {
                     children_ptr = entry.value_ptr;
                 } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
                     visibility_ptr = entry.value_ptr;
+                } else if (std.mem.eql(u8, "shadow_catcher", entry.key_ptr.*)) {
+                    shadow_catcher_ptr = entry.value_ptr;
                 }
             }
 
@@ -318,6 +321,10 @@ pub const Loader = struct {
 
             if (visibility_ptr) |visibility| {
                 setVisibility(entity_id, visibility.*, scene);
+            }
+
+            if (shadow_catcher_ptr) |shadow_catcher| {
+                setShadowCatcher(entity_id, shadow_catcher.*, scene);
             }
 
             if (is_light and scene.prop(entity_id).visibleInReflection()) {
@@ -381,6 +388,7 @@ pub const Loader = struct {
         var in_camera = true;
         var in_reflection = true;
         var in_shadow = true;
+        var shadow_catcher_light = false;
 
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
@@ -390,10 +398,18 @@ pub const Loader = struct {
                 in_reflection = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "in_shadow", entry.key_ptr.*)) {
                 in_shadow = json.readBool(entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "shadow_catcher_light", entry.key_ptr.*)) {
+                shadow_catcher_light = json.readBool(entry.value_ptr.*);
             }
         }
 
-        scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow);
+        scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow, shadow_catcher_light);
+    }
+
+    fn setShadowCatcher(prop: u32, value: std.json.Value, scene: *Scene) void {
+        _ = value;
+
+        scene.propSetShadowCatcher(prop);
     }
 
     fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) !u32 {

@@ -36,9 +36,10 @@ pub const Light align(16) = struct {
 
     class: Class,
     two_sided: bool,
+    shadow_catcher_light: bool,
     prop: u32,
     part: u32,
-    variant: u32 = undefined,
+    variant: u32,
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;
@@ -53,6 +54,15 @@ pub const Light align(16) = struct {
             .Volume, .VolumeImage => true,
             else => false,
         };
+    }
+
+    pub fn shadowCatcherLight(self: Light) bool {
+        return self.shadow_catcher_light;
+    }
+
+    pub fn numSamples(self: Light, scene: *const Scene) u32 {
+        const material = scene.propMaterial(self.prop, self.part);
+        return material.super().emittance.num_samples;
     }
 
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
@@ -99,7 +109,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        );
+        ).emission;
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, scene: *const Scene) Vec4f {
@@ -114,7 +124,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        );
+        ).emission;
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {

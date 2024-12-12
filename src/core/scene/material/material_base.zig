@@ -30,6 +30,11 @@ pub const Base = struct {
         };
     }
 
+    pub const RadianceResult = struct {
+        emission: Vec4f,
+        num_samples: u32,
+    };
+
     pub const RadianceSample = struct {
         uvw: Vec4f,
 

@@ -29,7 +29,8 @@ pub fn transmittanceHetero(
     depth: u32,
     sampler: *Sampler,
     worker: *Worker,
-) ?Vec4f {
+    tr: *Vec4f,
+) bool {
     if (material.volumetricTree()) |tree| {
         const d = ray.maxT();
 
@@ -37,21 +38,20 @@ pub fn transmittanceHetero(
 
         const srs = material.super().similarityRelationScale(depth);
 
-        var w: Vec4f = @splat(1.0);
         while (local_ray.minT() < d) {
             if (tree.intersect(&local_ray)) |cm| {
-                if (!trackingTransmitted(&w, local_ray, cm, material, srs, sampler, worker)) {
-                    return null;
+                if (!trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
+                    return false;
                 }
             }
 
             local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
         }
 
-        return w;
+        return true;
     }
 
-    return null;
+    return false;
 }
 
 // Code for (residual ratio) hetereogeneous transmittance inspired by:

@@ -210,6 +210,7 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
+                const regularize_roughness = json.readBoolMember(entry.value_ptr.*, "regularize_roughness", false);
                 const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
                 const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*);
@@ -223,6 +224,7 @@ pub const View = struct {
                     .settings = .{
                         .max_depth = depth,
                         .light_sampling = light_sampling,
+                        .regularize_roughness = regularize_roughness,
                         .caustics_path = caustics_path,
                         .caustics_resolve = caustics_resolve,
                         .photons_not_only_through_specular = !lighttracer,

@@ -13,6 +13,7 @@ const Allocator = std.mem.Allocator;
 pub const Operator = struct {
     pub const Class = union(enum) {
         Add,
+        Anaglyph,
         Average,
         Diff,
         Over,
@@ -46,10 +47,20 @@ pub const Operator = struct {
     }
 
     pub fn iterations(self: Self) u32 {
+        const num_textures: u32 = @intCast(self.textures.items.len);
+
         return switch (self.class) {
-            .Diff => @intCast(self.textures.items.len - 1),
-            .Tonemap => @intCast(self.textures.items.len),
+            .Anaglyph => num_textures / 2,
+            .Diff => num_textures - 1,
+            .Tonemap => num_textures,
             else => 1,
+        };
+    }
+
+    pub fn baseItemOfIteration(self: Self, iteration: u32) u32 {
+        return switch (self.class) {
+            .Anaglyph => self.input_ids.items[iteration / 2],
+            else => self.input_ids.items[iteration],
         };
     }
 
@@ -66,7 +77,29 @@ pub const Operator = struct {
 
         const self = @as(*Self, @ptrCast(@alignCast(context)));
 
-        if (.Diff == self.class) {
+        if (.Anaglyph == self.class) {
+            const offset = self.current * 2;
+            const texture_a = self.textures.items[offset];
+            const texture_b = self.textures.items[offset + 1];
+
+            const dim = texture_a.description(self.scene).dimensions;
+            const width = dim[0];
+
+            var y = begin;
+            while (y < end) : (y += 1) {
+                const iy: i32 = @intCast(y);
+
+                var x: u32 = 0;
+                while (x < width) : (x += 1) {
+                    const ix: i32 = @intCast(x);
+
+                    const color_a = self.tonemapper.tonemap(texture_a.get2D_4(ix, iy, self.scene));
+                    const color_b = self.tonemapper.tonemap(texture_b.get2D_4(ix, iy, self.scene));
+
+                    self.target.set2D(ix, iy, Pack4f.init4(color_a[0], color_b[1], color_b[2], 0.5 * (color_a[3] + color_b[3])));
+                }
+            }
+        } else if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];
 
