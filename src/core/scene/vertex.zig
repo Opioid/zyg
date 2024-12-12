@@ -72,6 +72,7 @@ pub const Vertex = struct {
     state: State,
     depth: Probe.Depth,
     bxdf_pdf: f32,
+    min_alpha: f32,
     split_weight: f32,
     path_count: u32,
 
@@ -91,6 +92,7 @@ pub const Vertex = struct {
             .state = .{},
             .depth = .{},
             .bxdf_pdf = 0.0,
+            .min_alpha = 0.0,
             .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
@@ -169,6 +171,7 @@ pub const Vertex = struct {
         rs.uv = frag.uv();
         rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
+        rs.min_alpha = self.min_alpha;
         rs.time = self.probe.time;
         rs.prop = frag.prop;
         rs.part = frag.part;

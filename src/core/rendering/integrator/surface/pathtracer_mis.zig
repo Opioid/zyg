@@ -24,6 +24,7 @@ pub const PathtracerMIS = struct {
     pub const Settings = struct {
         max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
+        regularize_roughness: bool,
         caustics_path: bool,
         caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
@@ -86,6 +87,10 @@ pub const PathtracerMIS = struct {
 
                 if (worker.aov.active()) {
                     worker.commonAOV(vertex, &frag, &mat_sample);
+                }
+
+                if (self.settings.regularize_roughness) {
+                    vertex.min_alpha = math.max(vertex.min_alpha, mat_sample.super().averageAlpha());
                 }
 
                 const split_throughput = vertex.throughput * split_weight;
