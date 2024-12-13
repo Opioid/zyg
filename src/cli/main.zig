@@ -97,6 +97,11 @@ pub fn main() !void {
             &resources,
         )) {
             log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+
+            if (options.stats) {
+                printStats(&graph.scene);
+            }
+
             log.info("Rendering...", .{});
 
             const rendering_start = std.time.milliTimestamp();
@@ -213,4 +218,10 @@ fn reloadFrameDependant(
     };
 
     log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+}
+
+fn printStats(scene: *const scn.Scene) void {
+    std.debug.print("#props:     {}\n", .{scene.props.items.len});
+    std.debug.print("#lights:    {}\n", .{scene.lights.items.len});
+    std.debug.print("#materials: {}\n", .{scene.materials.items.len});
 }
