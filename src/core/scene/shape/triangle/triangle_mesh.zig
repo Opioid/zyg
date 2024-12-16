@@ -718,7 +718,6 @@ pub const Mesh = struct {
             wn,
             dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
-            trafo,
             s.pdf * sample_pdf,
         );
     }

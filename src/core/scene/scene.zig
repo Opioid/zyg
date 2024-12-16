@@ -35,6 +35,7 @@ const List = std.ArrayListUnmanaged;
 pub const Scene = struct {
     pub const Lights = LightTree.Lights;
     pub const LightPick = Distribution1D.Discrete;
+    pub const SamplesTo = Shape.SamplesTo;
     pub const Units_per_second: u64 = 705600000;
     pub const Tick_duration = Units_per_second / 60;
     const Num_steps = 4;

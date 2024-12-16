@@ -75,14 +75,21 @@ pub const Light align(16) = struct {
         return @as(Vec4f, @splat(math.squaredLength3(scene_bb.extent()))) * radiance;
     }
 
-    pub fn sampleTo(self: Light, p: Vec4f, n: Vec4f, time: u64, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {
-        const trafo = scene.propTransformationAt(self.prop, time);
-
+    pub fn sampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         return switch (self.class) {
-            .Prop => self.propSampleTo(p, n, trafo, total_sphere, sampler, scene),
-            .PropImage => self.propImageSampleTo(p, n, trafo, total_sphere, sampler, scene),
-            .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene),
-            .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene),
+            .Prop => self.propSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .PropImage => self.propImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
         };
     }
 
@@ -97,14 +104,14 @@ pub const Light align(16) = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, p: Vec4f, sample: SampleTo, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateTo(self: Light, p: Vec4f, trafo: Trafo, sample: SampleTo, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
         return material.evaluateRadiance(
             p,
             sample.wi,
             sample.n,
             sample.uvw,
-            sample.trafo,
+            trafo,
             self.prop,
             self.part,
             sampler,
@@ -159,7 +166,8 @@ pub const Light align(16) = struct {
         total_sphere: bool,
         sampler: *Sampler,
         scene: *const Scene,
-    ) ?SampleTo {
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const shape = scene.propShape(self.prop);
         const result = shape.sampleTo(
             self.part,
@@ -170,13 +178,14 @@ pub const Light align(16) = struct {
             self.two_sided,
             total_sphere,
             sampler,
-        ) orelse return null;
+        ) orelse return buffer[0..0];
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-            return result;
+            buffer[0] = result;
+            return buffer[0..1];
         }
 
-        return null;
+        return buffer[0..0];
     }
 
     fn propImageSampleTo(
@@ -187,13 +196,14 @@ pub const Light align(16) = struct {
         total_sphere: bool,
         sampler: *Sampler,
         scene: *const Scene,
-    ) ?SampleTo {
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const s2 = sampler.sample2D();
 
         const material = scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(.{ s2[0], s2[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
-            return null;
+            return buffer[0..0];
         }
 
         const shape = scene.propShape(self.prop);
@@ -205,15 +215,16 @@ pub const Light align(16) = struct {
             .{ rs.uvw[0], rs.uvw[1] },
             trafo,
             self.two_sided,
-        ) orelse return null;
+        ) orelse return buffer[0..0];
 
         result.mulAssignPdf(rs.pdf());
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-            return result;
+            buffer[0] = result;
+            return buffer[0..1];
         }
 
-        return null;
+        return buffer[0..0];
     }
 
     fn propSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
@@ -273,33 +284,53 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn volumeSampleTo(self: Light, p: Vec4f, n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {
+    fn volumeSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const shape = scene.propShape(self.prop);
-        const result = shape.sampleVolumeTo(self.part, p, trafo, sampler) orelse return null;
+        const result = shape.sampleVolumeTo(self.part, p, trafo, sampler) orelse return buffer[0..0];
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-            return result;
+            buffer[0] = result;
+            return buffer[0..1];
         }
 
-        return null;
+        return buffer[0..0];
     }
 
-    fn volumeImageSampleTo(self: Light, p: Vec4f, n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, scene: *const Scene) ?SampleTo {
+    fn volumeImageSampleTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const material = scene.propMaterial(self.prop, self.part);
         const rs = material.radianceSample(sampler.sample3D());
         if (0.0 == rs.pdf()) {
-            return null;
+            return buffer[0..0];
         }
 
         const shape = scene.propShape(self.prop);
-        var result = shape.sampleVolumeToUvw(self.part, p, rs.uvw, trafo) orelse return null;
+        var result = shape.sampleVolumeToUvw(self.part, p, rs.uvw, trafo) orelse return buffer[0..0];
 
         if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
             result.mulAssignPdf(rs.pdf());
-            return result;
+            buffer[0] = result;
+            return buffer[0..1];
         }
 
-        return null;
+        return buffer[0..0];
     }
 
     fn volumeImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, scene: *const Scene) ?SampleFrom {

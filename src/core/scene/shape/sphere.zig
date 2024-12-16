@@ -271,7 +271,6 @@ pub const Sphere = struct {
             n,
             dir,
             @splat(0.0),
-            trafo,
             math.smpl.conePdfUniform(one_minus_cos_theta_max),
         );
     }
@@ -308,7 +307,6 @@ pub const Sphere = struct {
             wn,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
             sl / (c * area * sin_theta),
         );
     }

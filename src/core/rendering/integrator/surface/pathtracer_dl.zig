@@ -144,14 +144,25 @@ pub const PathtracerDL = struct {
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
-            const light_sample = light.sampleTo(
-                p,
-                n,
-                vertex.probe.time,
-                translucent,
-                sampler,
-                worker.scene,
-            ) orelse continue;
+            // const light_sample = light.sampleTo(
+            //     p,
+            //     n,
+            //     vertex.probe.time,
+            //     translucent,
+            //     sampler,
+            //     worker.scene,
+            // ) orelse continue;
+
+            const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
+
+            var samples_buffer: Scene.SamplesTo = undefined;
+            const samples = light.sampleTo(p, n, trafo, translucent, sampler, worker.scene, &samples_buffer);
+
+            if (0 == samples.len) {
+                continue;
+            }
+
+            const light_sample = samples[0];
 
             var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
@@ -162,7 +173,7 @@ pub const PathtracerDL = struct {
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
 
-            const radiance = light.evaluateTo(p, light_sample, sampler, worker.scene);
+            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
 
             const weight = 1.0 / (l.pdf * light_sample.pdf());
 

@@ -262,7 +262,7 @@ pub const Rectangle = struct {
             return null;
         }
 
-        return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, squad.pdf(scale));
+        return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, squad.pdf(scale));
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
@@ -294,7 +294,6 @@ pub const Rectangle = struct {
             wn,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
             sl / (c * area),
         );
     }

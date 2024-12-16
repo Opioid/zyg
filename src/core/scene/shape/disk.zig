@@ -144,7 +144,7 @@ pub const Disk = struct {
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        return SampleTo.init(ws, wn, dir, @splat(0.0), trafo, sl / (c * area));
+        return SampleTo.init(ws, wn, dir, @splat(0.0), sl / (c * area));
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
@@ -176,7 +176,7 @@ pub const Disk = struct {
 
             const area = std.math.pi * (radius * radius);
 
-            return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area));
+            return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, sl / (c * area));
         }
 
         return null;

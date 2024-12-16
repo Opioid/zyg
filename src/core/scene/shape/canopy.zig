@@ -78,7 +78,6 @@ pub const Canopy = struct {
             -dir,
             dir,
             uvw,
-            trafo,
             1.0 / (2.0 * std.math.pi),
         );
     }
@@ -98,7 +97,6 @@ pub const Canopy = struct {
             -dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
             1.0 / (2.0 * std.math.pi),
         );
     }

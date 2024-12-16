@@ -9,15 +9,13 @@ pub const To = struct {
     n: Vec4f,
     wi: Vec4f,
     uvw: Vec4f,
-    trafo: Trafo,
 
-    pub fn init(p: Vec4f, n: Vec4f, wi: Vec4f, uvw: Vec4f, trafo: Trafo, pdf_: f32) To {
+    pub fn init(p: Vec4f, n: Vec4f, wi: Vec4f, uvw: Vec4f, pdf_: f32) To {
         return .{
             .p = .{ p[0], p[1], p[2], pdf_ },
             .n = n,
             .wi = wi,
             .uvw = uvw,
-            .trafo = trafo,
         };
     }
 

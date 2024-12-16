@@ -82,7 +82,6 @@ pub const InfiniteSphere = struct {
             -dir,
             dir,
             uvw,
-            trafo,
             pdf_,
         );
     }
@@ -105,7 +104,6 @@ pub const InfiniteSphere = struct {
             -dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
             1.0 / ((4.0 * std.math.pi) * sin_theta),
         );
     }

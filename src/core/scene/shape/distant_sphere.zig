@@ -98,7 +98,6 @@ pub const DistantSphere = struct {
             trafo.rotation.r[2],
             dir,
             @splat(0.0),
-            trafo,
             1.0 / solid_angle,
         );
     }
