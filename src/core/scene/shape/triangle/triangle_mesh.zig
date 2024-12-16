@@ -347,14 +347,22 @@ pub const Part = struct {
         }
     };
 
-    pub fn sampleSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, r: f32) Distribution1D.Discrete {
+    pub fn sampleSpatial(
+        self: *const Part,
+        variant: u32,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        r: f32,
+        buffer: *LightTree.Samples,
+    ) []Distribution1D.Discrete {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.sampleRandom(variant, r);
 
-        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant);
+        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant, buffer);
     }
 
     pub fn sampleRandom(self: *const Part, variant: u32, r: f32) Distribution1D.Discrete {
@@ -632,104 +640,108 @@ pub const Mesh = struct {
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const r = sampler.sample3D();
-
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
 
         const part = self.parts[part_id];
-        const s = part.sampleSpatial(variant, op, on, total_sphere, r[0]);
-        if (0.0 == s.pdf) {
-            return buffer[0..0];
+
+        var samples_buffer: LightTree.Samples = undefined;
+        const samples = part.sampleSpatial(variant, op, on, total_sphere, sampler.sample1D(), &samples_buffer);
+
+        var current_sample: u32 = 0;
+
+        for (samples) |s| {
+            const global = part.triangle_mapping[s.offset];
+
+            const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(global));
+
+            const a = puv.p[0];
+            const b = puv.p[1];
+            const c = puv.p[2];
+
+            const e1 = b - a;
+            const e2 = c - a;
+
+            const cross_axis = math.cross3(e1, e2);
+
+            const ca = (trafo.scale() * trafo.scale()) * cross_axis;
+            const lca = math.length3(ca);
+            const sn = ca / @as(Vec4f, @splat(lca));
+            var wn = trafo.objectToWorldNormal(sn);
+
+            const tri_area = 0.5 * lca;
+
+            const center = (a + b + c) / @as(Vec4f, @splat(3.0));
+
+            var dir: Vec4f = undefined;
+            var v: Vec4f = undefined;
+            var bary_uv: Vec2f = undefined;
+            var sample_pdf: f32 = undefined;
+            var n_dot_dir: f32 = undefined;
+
+            if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
+                const sample = sampleSpherical(op, a, b, c, sampler.sample2D()) orelse continue;
+
+                if (math.dot3(sample.dir, on) <= 0.0 and !total_sphere) {
+                    continue;
+                }
+
+                bary_uv = sample.uv;
+
+                dir = trafo.objectToWorldNormal(sample.dir);
+
+                const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
+                v = trafo.objectToWorldPoint(sv);
+                sample_pdf = sample.pdf;
+
+                if (two_sided and math.dot3(wn, dir) > 0.0) {
+                    wn = -wn;
+                }
+
+                n_dot_dir = -math.dot3(wn, dir);
+            } else {
+                bary_uv = math.smpl.triangleUniform(sampler.sample2D());
+
+                const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
+                v = trafo.objectToWorldPoint(sv);
+
+                const axis = v - p;
+
+                const sl = math.squaredLength3(axis);
+                const d = @sqrt(sl);
+                dir = axis / @as(Vec4f, @splat(d));
+
+                if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+                    continue;
+                }
+
+                if (two_sided and math.dot3(wn, dir) > 0.0) {
+                    wn = -wn;
+                }
+
+                n_dot_dir = -math.dot3(wn, dir);
+
+                sample_pdf = sl / (n_dot_dir * tri_area);
+            }
+
+            if (n_dot_dir < math.safe.Dot_min) {
+                continue;
+            }
+
+            const tc = tri.interpolate2(puv.uv[0], puv.uv[1], puv.uv[2], bary_uv[0], bary_uv[1]);
+
+            buffer[current_sample] = SampleTo.init(
+                v,
+                wn,
+                dir,
+                .{ tc[0], tc[1], 0.0, 0.0 },
+                s.pdf * sample_pdf,
+            );
+
+            current_sample += 1;
         }
 
-        const global = part.triangle_mapping[s.offset];
-
-        const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(global));
-
-        const a = puv.p[0];
-        const b = puv.p[1];
-        const c = puv.p[2];
-
-        const e1 = b - a;
-        const e2 = c - a;
-
-        const cross_axis = math.cross3(e1, e2);
-
-        const ca = (trafo.scale() * trafo.scale()) * cross_axis;
-        const lca = math.length3(ca);
-        const sn = ca / @as(Vec4f, @splat(lca));
-        var wn = trafo.objectToWorldNormal(sn);
-
-        const tri_area = 0.5 * lca;
-
-        const center = (a + b + c) / @as(Vec4f, @splat(3.0));
-
-        var dir: Vec4f = undefined;
-        var v: Vec4f = undefined;
-        var bary_uv: Vec2f = undefined;
-        var sample_pdf: f32 = undefined;
-        var n_dot_dir: f32 = undefined;
-
-        if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
-            const sample = sampleSpherical(op, a, b, c, .{ r[1], r[2] }) orelse return buffer[0..0];
-
-            if (math.dot3(sample.dir, on) <= 0.0 and !total_sphere) {
-                return buffer[0..0];
-            }
-
-            bary_uv = sample.uv;
-
-            dir = trafo.objectToWorldNormal(sample.dir);
-
-            const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
-            v = trafo.objectToWorldPoint(sv);
-            sample_pdf = sample.pdf;
-
-            if (two_sided and math.dot3(wn, dir) > 0.0) {
-                wn = -wn;
-            }
-
-            n_dot_dir = -math.dot3(wn, dir);
-        } else {
-            bary_uv = math.smpl.triangleUniform(.{ r[1], r[2] });
-
-            const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
-            v = trafo.objectToWorldPoint(sv);
-
-            const axis = v - p;
-
-            const sl = math.squaredLength3(axis);
-            const d = @sqrt(sl);
-            dir = axis / @as(Vec4f, @splat(d));
-
-            if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
-                return buffer[0..0];
-            }
-
-            if (two_sided and math.dot3(wn, dir) > 0.0) {
-                wn = -wn;
-            }
-
-            n_dot_dir = -math.dot3(wn, dir);
-
-            sample_pdf = sl / (n_dot_dir * tri_area);
-        }
-
-        if (n_dot_dir < math.safe.Dot_min) {
-            return buffer[0..0];
-        }
-
-        const tc = tri.interpolate2(puv.uv[0], puv.uv[1], puv.uv[2], bary_uv[0], bary_uv[1]);
-
-        buffer[0] = SampleTo.init(
-            v,
-            wn,
-            dir,
-            .{ tc[0], tc[1], 0.0, 0.0 },
-            s.pdf * sample_pdf,
-        );
-        return buffer[0..1];
+        return buffer[0..current_sample];
     }
 
     pub fn sampleFrom(

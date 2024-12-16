@@ -1,4 +1,5 @@
 const Scene = @import("../scene.zig").Scene;
+const Shape = @import("../shape/shape.zig").Shape;
 const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
 
 const base = @import("base");
@@ -245,6 +246,8 @@ pub const Tree = struct {
 
     pub const Lights = [Max_lights]Pick;
 
+    const TraversalStack = TraversalStackT(Max_split_depth);
+
     bounds: AABB = undefined,
 
     infinite_weight: f32 = undefined,
@@ -489,6 +492,10 @@ pub const Tree = struct {
 };
 
 pub const PrimitiveTree = struct {
+    pub const Samples = [Shape.MaxSamples]Pick;
+
+    const TraversalStack = TraversalStackT(1);
+
     bounds: AABB = math.aabb.Empty,
 
     num_lights: u32 = 0,
@@ -536,77 +543,133 @@ pub const PrimitiveTree = struct {
         p: Vec4f,
         n: Vec4f,
         total_sphere: bool,
-        randomp: f32,
+        random: f32,
         part: *const Part,
         variant: u32,
-    ) Pick {
-        var random = randomp;
-        var pd: f32 = 1.0;
+        buffer: *Samples,
+    ) []Pick {
+        var current_light: u32 = 0;
 
-        var nid: u32 = 0;
-        while (true) {
-            const node = self.nodes[nid];
+        const split_threshold = 1.0;
+        const split = split_threshold > 0.0;
+
+        const pd: f32 = 1.0;
+
+        const max_split_depth: u32 = 1; // = self.max_split_depth;
+
+        var stack: TraversalStack = .{};
+
+        var t: TraversalStack.Value = .{
+            .pdf = pd,
+            .random = random,
+            .node = 0,
+            .depth = if (split) 0 else max_split_depth,
+        };
+
+        stack.push(t);
+
+        while (!stack.empty()) {
+            const node = self.nodes[t.node];
 
             if (node.meta.has_children) {
+                const do_split = t.depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
-                var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
-                var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
-
-                const pt = p0 + p1;
-
-                if (0.0 == pt) {
-                    return .{ .offset = undefined, .pdf = 0.0 };
-                }
-
-                p0 /= pt;
-                p1 /= pt;
-
-                if (random < p0) {
-                    nid = c0;
-                    pd *= p0;
-                    random /= p0;
+                if (do_split) {
+                    t.depth += 1;
+                    t.node = c0;
+                    stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
-                    nid = c1;
-                    pd *= p1;
-                    random = math.min((random - p0) / p1, 1.0);
+                    t.depth = max_split_depth;
+
+                    var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                    var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
+
+                    const pt = p0 + p1;
+
+                    if (0.0 == pt) {
+                        t = stack.pop();
+                        continue;
+                    }
+
+                    p0 /= pt;
+                    p1 /= pt;
+
+                    if (t.random < p0) {
+                        t.node = c0;
+                        t.pdf *= p0;
+                        t.random /= p0;
+                    } else {
+                        t.node = c1;
+                        t.pdf *= p1;
+                        t.random = math.min((t.random - p0) / p1, 1.0);
+                    }
                 }
             } else {
-                const pick = node.randomLight(p, n, total_sphere, random, self.light_mapping, part, variant);
-                return .{ .offset = pick.offset, .pdf = pick.pdf * pd };
+                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, part, variant);
+                if (pick.pdf > 0.0) {
+                    buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
+                    current_light += 1;
+                }
+
+                t = stack.pop();
             }
         }
+
+        return buffer[0..current_light];
     }
 
     pub fn pdf(self: *const Self, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32, part: *const Part, variant: u32) f32 {
         const lo = self.light_orders[id];
 
+        const split_threshold = 1.0;
+        const split = split_threshold > 0.0;
+
+        const max_split_depth: u32 = 1; // = self.max_split_depth;
+
         var pd: f32 = 1.0;
 
         var nid: u32 = 0;
+        var depth: u32 = if (split) 0 else max_split_depth;
         while (true) {
             const node = self.nodes[nid];
-            const middle = self.node_middles[nid];
 
-            if (middle > 0) {
+            if (node.meta.has_children) {
+                const do_split = depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
 
-                const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
-                const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
-                const pt = p0 + p1;
+                const middle = self.node_middles[nid];
 
-                if (0.0 == pt) {
-                    return 0.0;
-                }
+                if (do_split) {
+                    depth += 1;
 
-                if (lo < middle) {
-                    nid = c0;
-                    pd *= p0 / pt;
+                    if (lo < middle) {
+                        nid = c0;
+                    } else {
+                        nid = c1;
+                    }
                 } else {
-                    nid = c1;
-                    pd *= p1 / pt;
+                    depth = max_split_depth;
+
+                    const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
+                    const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
+                    const pt = p0 + p1;
+
+                    if (0.0 == pt) {
+                        return 0.0;
+                    }
+
+                    if (lo < middle) {
+                        nid = c0;
+                        pd *= p0 / pt;
+                    } else {
+                        nid = c1;
+                        pd *= p1 / pt;
+                    }
                 }
             } else {
                 return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
@@ -615,32 +678,34 @@ pub const PrimitiveTree = struct {
     }
 };
 
-const TraversalStack = struct {
-    pub const Value = struct {
-        pdf: f32,
-        random: f32,
-        node: u32,
-        depth: u32,
+pub fn TraversalStackT(comptime MaxSplitDepth: comptime_int) type {
+    return struct {
+        pub const Value = struct {
+            pdf: f32,
+            random: f32,
+            node: u32,
+            depth: u32,
+        };
+
+        const StackSize = MaxSplitDepth + 1;
+
+        end: u32 = 0,
+        stack: [StackSize]Value = undefined,
+
+        const Self = @This();
+
+        pub fn empty(self: Self) bool {
+            return 0 == self.end;
+        }
+
+        pub fn push(self: *Self, value: Value) void {
+            self.stack[self.end] = value;
+            self.end += 1;
+        }
+
+        pub fn pop(self: *Self) Value {
+            self.end -= 1;
+            return self.stack[self.end];
+        }
     };
-
-    const Stack_size = Tree.Max_split_depth + 1;
-
-    end: u32 = 0,
-    stack: [Stack_size]Value = undefined,
-
-    const Self = @This();
-
-    pub fn empty(self: Self) bool {
-        return 0 == self.end;
-    }
-
-    pub fn push(self: *Self, value: Value) void {
-        self.stack[self.end] = value;
-        self.end += 1;
-    }
-
-    pub fn pop(self: *Self) Value {
-        self.end -= 1;
-        return self.stack[self.end];
-    }
-};
+}
