@@ -249,7 +249,7 @@ pub const PathtracerMIS = struct {
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
 
-            const light_pdf = light_sample.pdf(); // * light_sample_weight;
+            const light_pdf = light_sample.pdf() * light_pick.pdf;
             const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
 
             const unocc = weight * radiance * bxdf_result.reflection;
