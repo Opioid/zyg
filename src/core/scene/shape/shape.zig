@@ -35,7 +35,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
-    pub const MaxSamples = 2;
+    pub const MaxSamples = 8;
     pub const SamplesTo = [MaxSamples]SampleTo;
 
     Canopy: Canopy,
@@ -273,6 +273,7 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
         sampler: *Sampler,
         buffer: *SamplesTo,
     ) []SampleTo {
@@ -291,6 +292,7 @@ pub const Shape = union(enum) {
                 trafo,
                 two_sided,
                 total_sphere,
+                split_threshold,
                 sampler,
                 buffer,
             ),
@@ -406,6 +408,7 @@ pub const Shape = union(enum) {
         frag: *const Fragment,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
@@ -416,7 +419,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .Rectangle => Rectangle.pdf(p, frag.trafo),
             .Sphere => Sphere.pdf(p, frag.trafo),
-            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, two_sided, total_sphere),
+            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, two_sided, total_sphere, split_threshold),
         };
     }
 

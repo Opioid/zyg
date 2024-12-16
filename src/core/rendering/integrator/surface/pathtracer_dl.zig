@@ -156,7 +156,7 @@ pub const PathtracerDL = struct {
             const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
 
             var samples_buffer: Scene.SamplesTo = undefined;
-            const samples = light.sampleTo(p, n, trafo, translucent, sampler, worker.scene, &samples_buffer);
+            const samples = light.sampleTo(p, n, trafo, translucent, 0.0, sampler, worker.scene, &samples_buffer);
 
             if (0 == samples.len) {
                 continue;

@@ -201,7 +201,17 @@ pub const PathtracerMIS = struct {
         const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
-            result.addAssign(evaluateLight(l, vertex, frag, mat_sample, material_split, shadow_catcher, sampler, worker));
+            result.addAssign(evaluateLight(
+                l,
+                vertex,
+                frag,
+                mat_sample,
+                material_split,
+                shadow_catcher,
+                split_threshold,
+                sampler,
+                worker,
+            ));
         }
 
         return result;
@@ -214,6 +224,7 @@ pub const PathtracerMIS = struct {
         mat_sample: *const MaterialSample,
         split: bool,
         shadow_catcher: bool,
+        light_split_threshold: f32,
         sampler: *Sampler,
         worker: *Worker,
     ) LightingResult {
@@ -231,7 +242,7 @@ pub const PathtracerMIS = struct {
         var occluded: Vec4f = @splat(0.0);
 
         var samples_buffer: Scene.SamplesTo = undefined;
-        const samples = light.sampleTo(p, gn, trafo, translucent, sampler, worker.scene, &samples_buffer);
+        const samples = light.sampleTo(p, gn, trafo, translucent, light_split_threshold, sampler, worker.scene, &samples_buffer);
 
         for (samples) |light_sample| {
             var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
@@ -291,7 +302,7 @@ pub const PathtracerMIS = struct {
 
         const select_pdf = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
         const light = scene.light(light_id);
-        const sample_pdf = light.pdf(vertex, frag, scene) * @as(f32, @floatFromInt(radiance.num_samples));
+        const sample_pdf = light.pdf(vertex, frag, split_threshold, scene) * @as(f32, @floatFromInt(radiance.num_samples));
         const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf));
 
         return weight * energy;

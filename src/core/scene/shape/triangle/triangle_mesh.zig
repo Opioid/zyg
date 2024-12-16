@@ -354,6 +354,7 @@ pub const Part = struct {
         n: Vec4f,
         total_sphere: bool,
         r: f32,
+        split_threshold: f32,
         buffer: *LightTree.Samples,
     ) []Distribution1D.Discrete {
         // _ = p;
@@ -362,21 +363,21 @@ pub const Part = struct {
 
         // return self.sampleRandom(variant, r);
 
-        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, self, variant, buffer);
+        return self.variants.items[variant].light_tree.randomLight(p, n, total_sphere, r, split_threshold, self, variant, buffer);
     }
 
     pub fn sampleRandom(self: *const Part, variant: u32, r: f32) Distribution1D.Discrete {
         return self.variants.items[variant].distribution.sampleDiscrete(r);
     }
 
-    pub fn pdfSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, id: u32) f32 {
+    pub fn pdfSpatial(self: *const Part, variant: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32, id: u32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
 
         // return self.variants.items[variant].distribution.pdfI(id);
 
-        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, id, self, variant);
+        return self.variants.items[variant].light_tree.pdf(p, n, total_sphere, split_threshold, id, self, variant);
     }
 };
 
@@ -637,6 +638,7 @@ pub const Mesh = struct {
         trafo: Trafo,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
@@ -646,7 +648,7 @@ pub const Mesh = struct {
         const part = self.parts[part_id];
 
         var samples_buffer: LightTree.Samples = undefined;
-        const samples = part.sampleSpatial(variant, op, on, total_sphere, sampler.sample1D(), &samples_buffer);
+        const samples = part.sampleSpatial(variant, op, on, total_sphere, sampler.sample1D(), split_threshold, &samples_buffer);
 
         var current_sample: u32 = 0;
 
@@ -806,6 +808,7 @@ pub const Mesh = struct {
         frag: *const Fragment,
         two_sided: bool,
         total_sphere: bool,
+        splt_threshold: f32,
     ) f32 {
         var n_dot_dir = -math.dot3(frag.geo_n, dir);
 
@@ -819,7 +822,7 @@ pub const Mesh = struct {
         const pm = self.primitive_mapping[frag.isec.primitive];
 
         const part = self.parts[part_id];
-        const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, pm);
+        const tri_pdf = part.pdfSpatial(variant, op, on, total_sphere, splt_threshold, pm);
 
         const ps = self.tree.data.triangleP(self.tree.data.indexTriangle(frag.isec.primitive));
 

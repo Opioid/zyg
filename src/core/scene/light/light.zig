@@ -81,12 +81,13 @@ pub const Light align(16) = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
+        split_threshold: f32,
         sampler: *Sampler,
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         return switch (self.class) {
-            .Prop => self.propSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .Prop => self.propSampleTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
             .PropImage => self.propImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
@@ -134,7 +135,7 @@ pub const Light align(16) = struct {
         ).emission;
     }
 
-    pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
+    pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
         const total_sphere = vertex.state.is_translucent;
 
         return switch (self.class) {
@@ -147,6 +148,7 @@ pub const Light align(16) = struct {
                 frag,
                 self.two_sided,
                 total_sphere,
+                split_threshold,
             ),
             .PropImage => self.propImagePdf(vertex, frag, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
@@ -164,6 +166,7 @@ pub const Light align(16) = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
+        split_threshold: f32,
         sampler: *Sampler,
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
@@ -177,16 +180,10 @@ pub const Light align(16) = struct {
             trafo,
             self.two_sided,
             total_sphere,
+            split_threshold,
             sampler,
             buffer,
         );
-
-        // if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-        //     buffer[0] = result;
-        //     return buffer[0..1];
-        // }
-
-        // return buffer[0..0];
     }
 
     fn propImageSampleTo(
