@@ -119,7 +119,15 @@ pub const Disk = struct {
         return true;
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
+    pub fn sampleTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        two_sided: bool,
+        total_sphere: bool,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
@@ -137,14 +145,15 @@ pub const Disk = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min) {
-            return null;
+        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            return buffer[0..0];
         }
 
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        return SampleTo.init(ws, wn, dir, @splat(0.0), sl / (c * area));
+        buffer[0] = SampleTo.init(ws, wn, dir, @splat(0.0), sl / (c * area));
+        return buffer[0..1];
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {

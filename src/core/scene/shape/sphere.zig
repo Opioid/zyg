@@ -226,13 +226,20 @@ pub const Sphere = struct {
         return Volume.initPass(@splat(1.0));
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) ?SampleTo {
+    pub fn sampleTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const v = trafo.position - p;
         const l = math.length3(v);
         const r = trafo.scaleX();
 
         if (l <= (r + 0.0000001)) {
-            return null;
+            return buffer[0..0];
         }
 
         const sin_theta_max = r / l;
@@ -260,19 +267,24 @@ pub const Sphere = struct {
         const frame = Frame.init(z);
 
         const w = math.smpl.sphereDirection(sin_alpha, cos_alpha, phi);
-        const n = frame.frameToWorld(-w);
+        const wn = frame.frameToWorld(-w);
 
-        const lp = trafo.position + @as(Vec4f, @splat(r)) * n;
+        const lp = trafo.position + @as(Vec4f, @splat(r)) * wn;
 
         const dir = math.normalize3(lp - p);
 
-        return SampleTo.init(
+        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+            return buffer[0..0];
+        }
+
+        buffer[0] = SampleTo.init(
             lp,
-            n,
+            wn,
             dir,
             @splat(0.0),
             math.smpl.conePdfUniform(one_minus_cos_theta_max),
         );
+        return buffer[0..1];
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo) ?SampleTo {

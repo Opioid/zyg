@@ -239,7 +239,15 @@ pub const Rectangle = struct {
         }
     };
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
+    pub fn sampleTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        two_sided: bool,
+        total_sphere: bool,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const lp = trafo.worldToFramePoint(p);
 
         const scale = trafo.scale();
@@ -258,11 +266,14 @@ pub const Rectangle = struct {
             wn = -wn;
         }
 
-        if (-math.dot3(wn, dir) < math.safe.Dot_min or 0.0 == squad.S) {
-            return null;
+        if (-math.dot3(wn, dir) < math.safe.Dot_min or 0.0 == squad.S or
+            (math.dot3(dir, n) <= 0.0 and !total_sphere))
+        {
+            return buffer[0..0];
         }
 
-        return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, squad.pdf(scale));
+        buffer[0] = SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, squad.pdf(scale));
+        return buffer[0..1];
     }
 
     pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {

@@ -6,6 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -57,13 +58,18 @@ pub const Canopy = struct {
         frag.part = 0;
     }
 
-    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
         const uv = sampler.sample2D();
 
         const frame: Frame = .{ .x = trafo.rotation.r[0], .y = trafo.rotation.r[1], .z = trafo.rotation.r[2] };
 
         const dir_l = math.smpl.hemisphereUniform(uv);
         const dir = frame.frameToWorld(dir_l);
+
+        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+            return buffer[0..0];
+        }
+
         const disk = hemisphereToDiskEquidistant(dir_l);
 
         const uvw = Vec4f{
@@ -73,13 +79,15 @@ pub const Canopy = struct {
             0.0,
         };
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
             -dir,
             dir,
             uvw,
             1.0 / (2.0 * std.math.pi),
         );
+
+        return buffer[0..1];
     }
 
     pub fn sampleToUv(uv: Vec2f, trafo: Trafo) ?SampleTo {

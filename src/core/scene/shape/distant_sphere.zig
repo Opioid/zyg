@@ -6,6 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -82,7 +83,7 @@ pub const DistantSphere = struct {
         return det >= 0.0;
     }
 
-    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
@@ -91,15 +92,21 @@ pub const DistantSphere = struct {
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(ws - trafo.rotation.r[2]);
+
+        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+            return buffer[0..0];
+        }
+
         const solid_angle = solidAngle(radius);
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             @as(Vec4f, @splat(ro.Almost_ray_max_t)) * dir,
             trafo.rotation.r[2],
             dir,
             @splat(0.0),
             1.0 / solid_angle,
         );
+        return buffer[0..1];
     }
 
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {

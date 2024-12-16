@@ -169,7 +169,7 @@ pub const Light align(16) = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const shape = scene.propShape(self.prop);
-        const result = shape.sampleTo(
+        return shape.sampleTo(
             self.part,
             self.variant,
             p,
@@ -178,14 +178,15 @@ pub const Light align(16) = struct {
             self.two_sided,
             total_sphere,
             sampler,
-        ) orelse return buffer[0..0];
+            buffer,
+        );
 
-        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-            buffer[0] = result;
-            return buffer[0..1];
-        }
+        // if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
+        //     buffer[0] = result;
+        //     return buffer[0..1];
+        // }
 
-        return buffer[0..0];
+        // return buffer[0..0];
     }
 
     fn propImageSampleTo(

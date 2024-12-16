@@ -630,7 +630,8 @@ pub const Mesh = struct {
         two_sided: bool,
         total_sphere: bool,
         sampler: *Sampler,
-    ) ?SampleTo {
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const r = sampler.sample3D();
 
         const op = trafo.worldToObjectPoint(p);
@@ -639,7 +640,7 @@ pub const Mesh = struct {
         const part = self.parts[part_id];
         const s = part.sampleSpatial(variant, op, on, total_sphere, r[0]);
         if (0.0 == s.pdf) {
-            return null;
+            return buffer[0..0];
         }
 
         const global = part.triangle_mapping[s.offset];
@@ -671,7 +672,11 @@ pub const Mesh = struct {
         var n_dot_dir: f32 = undefined;
 
         if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
-            const sample = sampleSpherical(op, a, b, c, .{ r[1], r[2] }) orelse return null;
+            const sample = sampleSpherical(op, a, b, c, .{ r[1], r[2] }) orelse return buffer[0..0];
+
+            if (math.dot3(sample.dir, on) <= 0.0 and !total_sphere) {
+                return buffer[0..0];
+            }
 
             bary_uv = sample.uv;
 
@@ -698,6 +703,10 @@ pub const Mesh = struct {
             const d = @sqrt(sl);
             dir = axis / @as(Vec4f, @splat(d));
 
+            if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+                return buffer[0..0];
+            }
+
             if (two_sided and math.dot3(wn, dir) > 0.0) {
                 wn = -wn;
             }
@@ -708,18 +717,19 @@ pub const Mesh = struct {
         }
 
         if (n_dot_dir < math.safe.Dot_min) {
-            return null;
+            return buffer[0..0];
         }
 
         const tc = tri.interpolate2(puv.uv[0], puv.uv[1], puv.uv[2], bary_uv[0], bary_uv[1]);
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             v,
             wn,
             dir,
             .{ tc[0], tc[1], 0.0, 0.0 },
             s.pdf * sample_pdf,
         );
+        return buffer[0..1];
     }
 
     pub fn sampleFrom(
