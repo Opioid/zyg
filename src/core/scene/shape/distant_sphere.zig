@@ -82,12 +82,17 @@ pub const DistantSphere = struct {
         return det >= 0.0;
     }
 
-    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(trafo: Trafo, sampler: *Sampler) ?SampleTo {
+        const radius = trafo.scaleX();
+        if (radius <= 0.0) {
+            return null;
+        }
+
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const radius = trafo.scaleX();
+
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(ws - trafo.rotation.r[2]);
@@ -103,11 +108,15 @@ pub const DistantSphere = struct {
         );
     }
 
-    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) ?SampleFrom {
+        const radius = trafo.scaleX();
+        if (radius <= 0.0) {
+            return null;
+        }
+
         const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const radius = trafo.scaleX();
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(trafo.rotation.r[2] - ws);
@@ -134,7 +143,9 @@ pub const DistantSphere = struct {
     }
 
     pub fn pdf(trafo: Trafo) f32 {
-        return 1.0 / solidAngle(trafo.scaleX());
+        const radius = trafo.scaleX();
+
+        return if (radius > 0.0) 1.0 / solidAngle(trafo.scaleX()) else 0.0;
     }
 
     pub fn solidAngle(radius: f32) f32 {
