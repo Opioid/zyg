@@ -494,7 +494,7 @@ pub const Tree = struct {
 pub const PrimitiveTree = struct {
     pub const Samples = [Shape.MaxSamples]Pick;
 
-    const TraversalStack = TraversalStackT(2);
+    const TraversalStack = TraversalStackT(4);
 
     bounds: AABB = math.aabb.Empty,
 
@@ -553,7 +553,7 @@ pub const PrimitiveTree = struct {
 
         const split = split_threshold > 0.0;
 
-        const max_split_depth: u32 = 3; // = self.max_split_depth;
+        const max_split_depth: u32 = 4; // = self.max_split_depth;
 
         var stack: TraversalStack = .{};
 
@@ -619,12 +619,21 @@ pub const PrimitiveTree = struct {
         return buffer[0..current_light];
     }
 
-    pub fn pdf(self: *const Self, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32, id: u32, part: *const Part, variant: u32) f32 {
+    pub fn pdf(
+        self: *const Self,
+        p: Vec4f,
+        n: Vec4f,
+        total_sphere: bool,
+        split_threshold: f32,
+        id: u32,
+        part: *const Part,
+        variant: u32,
+    ) f32 {
         const lo = self.light_orders[id];
 
         const split = split_threshold > 0.0;
 
-        const max_split_depth: u32 = 3; // = self.max_split_depth;
+        const max_split_depth: u32 = 4; // = self.max_split_depth;
 
         var pd: f32 = 1.0;
 
