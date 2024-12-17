@@ -22,14 +22,15 @@ pub const DistantSphere = struct {
     pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
         var hpoint = Intersection{};
 
+        const radius = trafo.scaleX();
+
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < ro.Ray_max_t) {
+        if (b > 0.0 or ray.maxT() < ro.Ray_max_t or radius <= 0.0) {
             return hpoint;
         }
 
-        const radius = trafo.scaleX();
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
 
         if (det >= 0.0) {
@@ -70,25 +71,31 @@ pub const DistantSphere = struct {
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
+        const radius = trafo.scaleX();
+
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < ro.Ray_max_t) {
+        if (b > 0.0 or ray.maxT() < ro.Ray_max_t or radius <= 0.0) {
             return false;
         }
 
-        const radius = trafo.scaleX();
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
 
         return det >= 0.0;
     }
 
     pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
+        const radius = trafo.scaleX();
+        if (radius <= 0.0) {
+            return buffer[0..0];
+        }
+
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const radius = trafo.scaleX();
+
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(ws - trafo.rotation.r[2]);
@@ -109,11 +116,15 @@ pub const DistantSphere = struct {
         return buffer[0..1];
     }
 
-    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB) ?SampleFrom {
+        const radius = trafo.scaleX();
+        if (radius <= 0.0) {
+            return null;
+        }
+
         const xy = math.smpl.diskConcentric(uv);
 
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const radius = trafo.scaleX();
         const ws = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
 
         const dir = math.normalize3(trafo.rotation.r[2] - ws);
