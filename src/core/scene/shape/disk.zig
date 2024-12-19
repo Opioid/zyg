@@ -6,8 +6,10 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
+const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -119,7 +121,15 @@ pub const Disk = struct {
         return true;
     }
 
-    pub fn sampleTo(p: Vec4f, trafo: Trafo, two_sided: bool, sampler: *Sampler) ?SampleTo {
+    pub fn sampleTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        two_sided: bool,
+        total_sphere: bool,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
         const r2 = sampler.sample2D();
         const xy = math.smpl.diskConcentric(r2);
 
@@ -137,26 +147,55 @@ pub const Disk = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min) {
-            return null;
+        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            return buffer[0..0];
         }
 
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        return SampleTo.init(ws, wn, dir, @splat(0.0), trafo, sl / (c * area));
+        buffer[0] = SampleTo.init(ws, wn, dir, @splat(0.0), sl / (c * area));
+        return buffer[0..1];
     }
 
-    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
-        const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
-        const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+    pub fn sampleMaterialTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        two_sided: bool,
+        total_sphere: bool,
+        split_threshold: f32,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+
+        const nsf: f32 = @floatFromInt(num_samples);
 
         const radius = trafo.scaleX();
-        const k = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
+        const area = std.math.pi * (radius * radius);
 
-        const l = math.dot3(k, k);
+        var current_sample: u32 = 0;
 
-        if (l <= radius * radius) {
+        for (0..num_samples) |_| {
+            const r2 = sampler.sample2D();
+            const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            if (0.0 == rs.pdf()) {
+                continue;
+            }
+
+            const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
+
+            const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
+            const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+
+            const k = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
+            const l = math.dot3(k, k);
+            if (l > radius * radius) {
+                continue;
+            }
+
             const ws = trafo.position + k;
             var wn = trafo.rotation.r[2];
 
@@ -170,16 +209,21 @@ pub const Disk = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < math.safe.Dot_min) {
-                return null;
+            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                continue;
             }
 
-            const area = std.math.pi * (radius * radius);
-
-            return SampleTo.init(ws, wn, dir, .{ uv[0], uv[1], 0.0, 0.0 }, trafo, sl / (c * area));
+            buffer[current_sample] = SampleTo.init(
+                ws,
+                wn,
+                dir,
+                .{ uv[0], uv[1], 0.0, 0.0 },
+                (nsf * rs.pdf() * sl) / (c * area),
+            );
+            current_sample += 1;
         }
 
-        return null;
+        return buffer[0..current_sample];
     }
 
     pub fn uvWeight(uv: Vec2f) f32 {
@@ -244,5 +288,30 @@ pub const Disk = struct {
 
         const sl = math.squaredDistance3(p, frag.p);
         return sl / (c * area);
+    }
+
+    pub fn materialPdf(
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        two_sided: bool,
+        split_threshold: f32,
+        material: *const Material,
+    ) f32 {
+        var c = -math.dot3(frag.trafo.rotation.r[2], dir);
+
+        if (two_sided) {
+            c = @abs(c);
+        }
+
+        const radius = frag.trafo.scaleX();
+        const area = std.math.pi * (radius * radius);
+
+        const sl = math.squaredDistance3(p, frag.p);
+
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
+
+        return (material_pdf * sl) / (c * area);
     }
 };

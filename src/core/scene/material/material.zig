@@ -219,13 +219,13 @@ pub const Material = union(enum) {
         part: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) Base.RadianceResult {
+    ) Vec4f {
         return switch (self.*) {
             .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
-            else => .{ .emission = undefined, .num_samples = 0 },
+            else => @splat(0.0),
         };
     }
 

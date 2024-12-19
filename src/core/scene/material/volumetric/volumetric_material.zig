@@ -164,11 +164,9 @@ pub const Material = struct {
         return Sample.init(wo, rs, gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Base.RadianceResult {
-        const num_samples = self.super.emittance.num_samples;
-
+    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
         if (!self.density_map.valid()) {
-            return .{ .emission = self.average_emission, .num_samples = num_samples };
+            return self.average_emission;
         }
 
         const key = self.super.sampler_key;
@@ -182,10 +180,10 @@ pub const Material = struct {
 
         if (2 == self.density_map.numChannels()) {
             const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
-            return .{ .emission = @as(Vec4f, @splat(d[0] * d[1])) * norm_emission, .num_samples = num_samples };
+            return @as(Vec4f, @splat(d[0] * d[1])) * norm_emission;
         } else {
             const d = ts.sample3D_1(key, self.density_map, uvw, sampler, scene);
-            return .{ .emission = @as(Vec4f, @splat(d)) * norm_emission, .num_samples = num_samples };
+            return @as(Vec4f, @splat(d)) * norm_emission;
         }
     }
 

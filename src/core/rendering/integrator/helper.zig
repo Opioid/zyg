@@ -14,18 +14,17 @@ pub const Depth = struct {
 };
 
 pub const LightSampling = struct {
+    // 0.01^4 = 0.00000001
+    pub const LowThreshold = 0.00000001;
+
     split_threshold: f32,
 
     pub fn splitThreshold(self: LightSampling, depth: Probe.Depth) f32 {
         const total_depth = depth.surface + depth.volume;
 
-        // 0.01^4 = 0.00000001
-
         const threshold = self.split_threshold;
 
-        const low_threshold: f32 = 0.00000001;
-
-        return math.min(if (total_depth < 4) threshold else low_threshold, threshold);
+        return math.min(if (total_depth < 4) threshold else LowThreshold, threshold);
     }
 };
 

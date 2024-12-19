@@ -6,7 +6,10 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
+const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
+const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -53,7 +56,7 @@ pub const InfiniteSphere = struct {
         frag.part = 0;
     }
 
-    pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler) SampleTo {
+    pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
         const uv = sampler.sample2D();
 
         var dir: Vec4f = undefined;
@@ -66,6 +69,11 @@ pub const InfiniteSphere = struct {
             const dir_l = math.smpl.hemisphereUniform(uv);
             const frame = Frame.init(n);
             dir = frame.frameToWorld(dir_l);
+
+            if (math.dot3(dir, n) <= 0.0) {
+                return buffer[0..0];
+            }
+
             pdf_ = 1.0 / (2.0 * std.math.pi);
         }
 
@@ -77,37 +85,68 @@ pub const InfiniteSphere = struct {
             0.0,
         };
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
             -dir,
             dir,
             uvw,
-            trafo,
             pdf_,
         );
+        return buffer[0..1];
     }
 
-    pub fn sampleToUv(uv: Vec2f, trafo: Trafo) SampleTo {
-        const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
-        const theta = uv[1] * std.math.pi;
+    pub fn sampleMaterialTo(
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        split_threshold: f32,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
 
-        const sin_phi = @sin(phi);
-        const cos_phi = @cos(phi);
+        const nsf: f32 = @floatFromInt(num_samples);
 
-        const sin_theta = @sin(theta);
-        const cos_theta = @cos(theta);
+        var current_sample: u32 = 0;
 
-        const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
-        const dir = trafo.rotation.transformVector(ldir);
+        for (0..num_samples) |_| {
+            const r2 = sampler.sample2D();
+            const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            if (0.0 == rs.pdf()) {
+                continue;
+            }
 
-        return SampleTo.init(
-            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
-            -dir,
-            dir,
-            .{ uv[0], uv[1], 0.0, 0.0 },
-            trafo,
-            1.0 / ((4.0 * std.math.pi) * sin_theta),
-        );
+            const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
+
+            const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
+            const theta = uv[1] * std.math.pi;
+
+            const sin_phi = @sin(phi);
+            const cos_phi = @cos(phi);
+
+            const sin_theta = @sin(theta);
+            const cos_theta = @cos(theta);
+
+            const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+            const dir = trafo.rotation.transformVector(ldir);
+
+            if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+                continue;
+            }
+
+            buffer[current_sample] = SampleTo.init(
+                @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+                -dir,
+                dir,
+                .{ uv[0], uv[1], 0.0, 0.0 },
+                (nsf * rs.pdf()) / ((4.0 * std.math.pi) * sin_theta),
+            );
+
+            current_sample += 1;
+        }
+
+        return buffer[0..current_sample];
     }
 
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB, from_image: bool) ?SampleFrom {
@@ -158,7 +197,7 @@ pub const InfiniteSphere = struct {
         return 1.0 / (2.0 * std.math.pi);
     }
 
-    pub fn pdfUv(frag: *const Fragment) f32 {
+    pub fn materialPdf(frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
         // sin_theta because of the uv weight
         const sin_theta = @sin(frag.uvw[1] * std.math.pi);
 
@@ -166,6 +205,9 @@ pub const InfiniteSphere = struct {
             return 0.0;
         }
 
-        return 1.0 / ((4.0 * std.math.pi) * sin_theta);
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
+
+        return material_pdf / ((4.0 * std.math.pi) * sin_theta);
     }
 };
