@@ -35,7 +35,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Shape = union(enum) {
-    pub const MaxSamples = 16;
+    pub const MaxSamples = 64;
     pub const SamplesTo = [MaxSamples]SampleTo;
 
     Canopy: Canopy,

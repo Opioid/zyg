@@ -241,12 +241,12 @@ fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype,
 }
 
 pub const Tree = struct {
-    pub const Max_split_depth = 10;
-    pub const Max_lights = 64;
+    pub const MaxSplitDepth = 10;
+    pub const MaxLights = 64;
 
-    pub const Lights = [Max_lights]Pick;
+    pub const Lights = [MaxLights]Pick;
 
-    const TraversalStack = TraversalStackT(Max_split_depth);
+    const TraversalStack = TraversalStackT(MaxSplitDepth);
 
     bounds: AABB = undefined,
 
@@ -333,7 +333,7 @@ pub const Tree = struct {
         const num_infinite_lights = self.num_infinite_lights;
         const split = split_threshold > 0.0;
 
-        if (split and num_infinite_lights < Max_lights - 1) {
+        if (split and num_infinite_lights < MaxLights - 1) {
             for (self.light_mapping[0..num_infinite_lights]) |lm| {
                 buffer[current_light] = .{ .offset = lm, .pdf = 1.0 };
                 current_light += 1;
@@ -425,7 +425,7 @@ pub const Tree = struct {
         const num_infinite_lights = self.num_infinite_lights;
         const split = split_threshold > 0.0;
 
-        const split_infinite = split and num_infinite_lights < Max_lights - 1;
+        const split_infinite = split and num_infinite_lights < MaxLights - 1;
 
         if (lo < self.infinite_end) {
             if (split_infinite) {
@@ -494,7 +494,9 @@ pub const Tree = struct {
 pub const PrimitiveTree = struct {
     pub const Samples = [Shape.MaxSamples]Pick;
 
-    const TraversalStack = TraversalStackT(4);
+    const MaxSplitDepth = 6;
+
+    const TraversalStack = TraversalStackT(MaxSplitDepth);
 
     bounds: AABB = math.aabb.Empty,
 
@@ -553,15 +555,13 @@ pub const PrimitiveTree = struct {
 
         const split = split_threshold > 0.0;
 
-        const max_split_depth: u32 = 4; // = self.max_split_depth;
-
         var stack: TraversalStack = .{};
 
         var t: TraversalStack.Value = .{
             .pdf = 1.0,
             .random = random,
             .node = 0,
-            .depth = if (split) 0 else max_split_depth,
+            .depth = if (split) 0 else MaxSplitDepth,
         };
 
         stack.push(t);
@@ -570,7 +570,7 @@ pub const PrimitiveTree = struct {
             const node = self.nodes[t.node];
 
             if (node.meta.has_children) {
-                const do_split = t.depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+                const do_split = t.depth < MaxSplitDepth and node.split(p, self.bounds, split_threshold);
 
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
@@ -580,7 +580,7 @@ pub const PrimitiveTree = struct {
                     t.node = c0;
                     stack.push(.{ .pdf = t.pdf, .random = t.random, .node = c1, .depth = t.depth });
                 } else {
-                    t.depth = max_split_depth;
+                    t.depth = MaxSplitDepth;
 
                     var p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                     var p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
@@ -633,17 +633,15 @@ pub const PrimitiveTree = struct {
 
         const split = split_threshold > 0.0;
 
-        const max_split_depth: u32 = 4; // = self.max_split_depth;
-
         var pd: f32 = 1.0;
 
         var nid: u32 = 0;
-        var depth: u32 = if (split) 0 else max_split_depth;
+        var depth: u32 = if (split) 0 else MaxSplitDepth;
         while (true) {
             const node = self.nodes[nid];
 
             if (node.meta.has_children) {
-                const do_split = depth < max_split_depth and node.split(p, self.bounds, split_threshold);
+                const do_split = depth < MaxSplitDepth and node.split(p, self.bounds, split_threshold);
 
                 const c0 = node.meta.children_or_light;
                 const c1 = c0 + 1;
@@ -659,7 +657,7 @@ pub const PrimitiveTree = struct {
                         nid = c1;
                     }
                 } else {
-                    depth = max_split_depth;
+                    depth = MaxSplitDepth;
 
                     const p0 = self.nodes[c0].weight(p, n, self.bounds, total_sphere);
                     const p1 = self.nodes[c1].weight(p, n, self.bounds, total_sphere);
