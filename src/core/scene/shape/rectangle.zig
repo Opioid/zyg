@@ -6,6 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -276,7 +277,23 @@ pub const Rectangle = struct {
         return buffer[0..1];
     }
 
-    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo, two_sided: bool) ?SampleTo {
+    pub fn sampleMaterialTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        two_sided: bool,
+        total_sphere: bool,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const r2 = sampler.sample2D();
+        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return buffer[0..0];
+        }
+
+        const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
         const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
@@ -293,20 +310,21 @@ pub const Rectangle = struct {
         const dir = axis / @as(Vec4f, @splat(t));
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min) {
-            return null;
+        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            return buffer[0..0];
         }
 
         const scale = trafo.scale();
         const area = 4.0 * scale[0] * scale[1];
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             ws,
             wn,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            sl / (c * area),
+            (rs.pdf() * sl) / (c * area),
         );
+        return buffer[0..1];
     }
 
     pub fn sampleFrom(trafo: Trafo, two_sided: bool, sampler: *Sampler, uv: Vec2f, importance_uv: Vec2f) SampleFrom {
@@ -349,7 +367,7 @@ pub const Rectangle = struct {
         return squad.pdf(scale);
     }
 
-    pub fn pdfUv(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool) f32 {
+    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool, material: *const Material) f32 {
         var c = -math.dot3(frag.trafo.rotation.r[2], dir);
 
         if (two_sided) {
@@ -357,9 +375,12 @@ pub const Rectangle = struct {
         }
 
         const scale = frag.trafo.scale();
-        const area = 4.0 * scale[0] * scale[1];
+        const area = 4.0 * (scale[0] * scale[1]);
 
         const sl = math.squaredDistance3(p, frag.p);
-        return sl / (c * area);
+
+        const material_pdf = material.emissionPdf(frag.uvw);
+
+        return (material_pdf * sl) / (c * area);
     }
 };

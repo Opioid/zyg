@@ -6,6 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -93,7 +94,22 @@ pub const InfiniteSphere = struct {
         return buffer[0..1];
     }
 
-    pub fn sampleToUv(uv: Vec2f, trafo: Trafo) SampleTo {
+    pub fn sampleMaterialTo(
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const r2 = sampler.sample2D();
+        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return buffer[0..0];
+        }
+
+        const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
+
         const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -106,13 +122,18 @@ pub const InfiniteSphere = struct {
         const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
         const dir = trafo.rotation.transformVector(ldir);
 
-        return SampleTo.init(
+        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+            return buffer[0..0];
+        }
+
+        buffer[0] = SampleTo.init(
             @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
             -dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            1.0 / ((4.0 * std.math.pi) * sin_theta),
+            rs.pdf() / ((4.0 * std.math.pi) * sin_theta),
         );
+        return buffer[0..1];
     }
 
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, bounds: AABB, from_image: bool) ?SampleFrom {
@@ -163,7 +184,7 @@ pub const InfiniteSphere = struct {
         return 1.0 / (2.0 * std.math.pi);
     }
 
-    pub fn pdfUv(frag: *const Fragment) f32 {
+    pub fn materialPdf(frag: *const Fragment, material: *const Material) f32 {
         // sin_theta because of the uv weight
         const sin_theta = @sin(frag.uvw[1] * std.math.pi);
 
@@ -171,6 +192,8 @@ pub const InfiniteSphere = struct {
             return 0.0;
         }
 
-        return 1.0 / ((4.0 * std.math.pi) * sin_theta);
+        const material_pdf = material.emissionPdf(frag.uvw);
+
+        return material_pdf / ((4.0 * std.math.pi) * sin_theta);
     }
 };

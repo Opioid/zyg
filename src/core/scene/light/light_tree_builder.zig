@@ -337,7 +337,7 @@ pub const Builder = struct {
             for (split_lights, 0..) |s, i| {
                 num_split_lights += s[0];
 
-                if ((num_split_lights + s[1]) >= (Tree.MaxLights - num_infinite_lights) or 0 == s[1]) {
+                if ((num_split_lights + s[1]) > (Tree.MaxLights - num_infinite_lights) or 0 == s[1]) {
                     max_split_depth = @intCast(i);
                     break;
                 }

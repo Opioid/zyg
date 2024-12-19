@@ -9,6 +9,7 @@ pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const ro = @import("../ray_offset.zig");
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("intersection.zig");
@@ -309,23 +310,27 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleToUv(
+    pub fn sampleMaterialTo(
         self: *const Shape,
         part: u32,
         p: Vec4f,
-        uv: Vec2f,
+        n: Vec4f,
         trafo: Trafo,
         two_sided: bool,
-    ) ?SampleTo {
+        total_sphere: bool,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *SamplesTo,
+    ) []SampleTo {
         _ = part;
 
         return switch (self.*) {
-            .Canopy => Canopy.sampleToUv(uv, trafo),
-            .Disk => Disk.sampleToUv(p, uv, trafo, two_sided),
-            .InfiniteSphere => InfiniteSphere.sampleToUv(uv, trafo),
-            .Rectangle => Rectangle.sampleToUv(p, uv, trafo, two_sided),
-            .Sphere => Sphere.sampleToUv(p, uv, trafo),
-            else => null,
+            .Canopy => Canopy.sampleMaterialTo(n, trafo, total_sphere, material, sampler, buffer),
+            .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, material, sampler, buffer),
+            .InfiniteSphere => InfiniteSphere.sampleMaterialTo(n, trafo, total_sphere, material, sampler, buffer),
+            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, material, sampler, buffer),
+            .Sphere => Sphere.sampleMaterialTo(p, n, trafo, total_sphere, material, sampler, buffer),
+            else => buffer[0..0],
         };
     }
 
@@ -423,13 +428,20 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn pdfUv(self: *const Shape, dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool) f32 {
+    pub fn materialPdf(
+        self: *const Shape,
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        two_sided: bool,
+        material: *const Material,
+    ) f32 {
         return switch (self.*) {
-            .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Disk.pdf(dir, p, frag, two_sided),
-            .InfiniteSphere => InfiniteSphere.pdfUv(frag),
-            .Rectangle => Rectangle.pdfUv(dir, p, frag, two_sided),
-            .Sphere => Sphere.pdfUv(dir, p, frag),
+            .Canopy => material.emissionPdf(frag.uvw) / (2.0 * std.math.pi),
+            .Disk => Disk.materialPdf(dir, p, frag, two_sided, material),
+            .InfiniteSphere => InfiniteSphere.materialPdf(frag, material),
+            .Rectangle => Rectangle.materialPdf(dir, p, frag, two_sided, material),
+            .Sphere => Sphere.materialPdf(dir, p, frag, material),
             else => 0.0,
         };
     }

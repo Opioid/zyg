@@ -144,40 +144,28 @@ pub const PathtracerDL = struct {
 
         for (lights) |l| {
             const light = worker.scene.light(l.offset);
-            // const light_sample = light.sampleTo(
-            //     p,
-            //     n,
-            //     vertex.probe.time,
-            //     translucent,
-            //     sampler,
-            //     worker.scene,
-            // ) orelse continue;
 
             const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
 
             var samples_buffer: Scene.SamplesTo = undefined;
             const samples = light.sampleTo(p, n, trafo, translucent, 0.0, sampler, worker.scene, &samples_buffer);
 
-            if (0 == samples.len) {
-                continue;
+            for (samples) |light_sample| {
+                var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+
+                var tr: Vec4f = @splat(1.0);
+                if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                    continue;
+                }
+
+                const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
+
+                const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
+
+                const weight = 1.0 / (l.pdf * light_sample.pdf());
+
+                result += @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
             }
-
-            const light_sample = samples[0];
-
-            var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
-
-            var tr: Vec4f = @splat(1.0);
-            if (!worker.visibility(&shadow_probe, sampler, &tr)) {
-                return @splat(0.0);
-            }
-
-            const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
-
-            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
-
-            const weight = 1.0 / (l.pdf * light_sample.pdf());
-
-            result += @as(Vec4f, @splat(weight)) * (tr * radiance * bxdf_result.reflection);
         }
 
         return result;
@@ -196,8 +184,7 @@ pub const PathtracerDL = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        const radiance = frag.evaluateRadiance(p, wo, sampler, scene);
-        return if (radiance.num_samples > 0) radiance.emission else @splat(0.0);
+        return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
     }
 
     fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {

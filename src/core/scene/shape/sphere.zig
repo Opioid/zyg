@@ -7,6 +7,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
@@ -287,7 +288,22 @@ pub const Sphere = struct {
         return buffer[0..1];
     }
 
-    pub fn sampleToUv(p: Vec4f, uv: Vec2f, trafo: Trafo) ?SampleTo {
+    pub fn sampleMaterialTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const r2 = sampler.sample2D();
+        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return buffer[0..0];
+        }
+
+        const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
         const phi = (uv[0] + 0.75) * (2.0 * std.math.pi);
         const theta = uv[1] * std.math.pi;
 
@@ -307,20 +323,21 @@ pub const Sphere = struct {
         const wn = math.normalize3(ws - trafo.position);
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min) {
-            return null;
+        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            return buffer[0..0];
         }
 
         const r = trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
-        return SampleTo.init(
+        buffer[0] = SampleTo.init(
             ws,
             wn,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            sl / (c * area * sin_theta),
+            (rs.pdf() * sl) / (c * area * sin_theta),
         );
+        return buffer[0..1];
     }
 
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
@@ -361,7 +378,7 @@ pub const Sphere = struct {
         return math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
-    pub fn pdfUv(dir: Vec4f, p: Vec4f, frag: *const Fragment) f32 {
+    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, material: *const Material) f32 {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(frag.uvw[1] * std.math.pi), 0.00001);
 
@@ -371,6 +388,8 @@ pub const Sphere = struct {
         const r = frag.trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
-        return sl / (c * area * sin_theta);
+        const material_pdf = material.emissionPdf(frag.uvw);
+
+        return (material_pdf * sl) / (c * area * sin_theta);
     }
 };

@@ -106,15 +106,15 @@ pub const Fragment = struct {
         return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
     }
 
-    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) RadianceResult {
+    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
         const volume = self.event;
         if (.Absorb == volume) {
-            return .{ .emission = self.vol_li, .num_samples = 1 };
+            return self.vol_li;
         }
 
         const m = self.material(scene);
         if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Pass != volume) {
-            return .{ .emission = undefined, .num_samples = 0 };
+            return null;
         }
 
         return m.evaluateRadiance(

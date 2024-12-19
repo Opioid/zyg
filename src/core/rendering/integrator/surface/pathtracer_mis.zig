@@ -289,8 +289,7 @@ pub const PathtracerMIS = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        const radiance = frag.evaluateRadiance(p, wo, sampler, scene);
-        const energy = if (radiance.num_samples > 0) radiance.emission else return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
 
         const light_id = frag.lightId(scene);
         if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
@@ -302,7 +301,7 @@ pub const PathtracerMIS = struct {
 
         const select_pdf = scene.lightPdfSpatial(light_id, p, vertex.geo_n, translucent, split_threshold);
         const light = scene.light(light_id);
-        const sample_pdf = light.pdf(vertex, frag, split_threshold, scene) * @as(f32, @floatFromInt(radiance.num_samples));
+        const sample_pdf = light.pdf(vertex, frag, split_threshold, scene);
         const weight: Vec4f = @splat(hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf));
 
         return weight * energy;

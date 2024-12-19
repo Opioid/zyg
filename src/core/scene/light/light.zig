@@ -60,11 +60,6 @@ pub const Light align(16) = struct {
         return self.shadow_catcher_light;
     }
 
-    pub fn numSamples(self: Light, scene: *const Scene) u32 {
-        const material = scene.propMaterial(self.prop, self.part);
-        return material.super().emittance.num_samples;
-    }
-
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
         const radiance = @as(Vec4f, @splat(extent)) * average_radiance;
 
@@ -88,7 +83,7 @@ pub const Light align(16) = struct {
     ) []SampleTo {
         return switch (self.class) {
             .Prop => self.propSampleTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
-            .PropImage => self.propImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
         };
@@ -117,7 +112,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        ).emission;
+        );
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, scene: *const Scene) Vec4f {
@@ -132,7 +127,7 @@ pub const Light align(16) = struct {
             self.part,
             sampler,
             scene,
-        ).emission;
+        );
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
@@ -150,7 +145,7 @@ pub const Light align(16) = struct {
                 total_sphere,
                 split_threshold,
             ),
-            .PropImage => self.propImagePdf(vertex, frag, scene),
+            .PropImage => self.propMaterialPdf(vertex, frag, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.probe.ray.direction, frag, scene),
         };
@@ -186,7 +181,7 @@ pub const Light align(16) = struct {
         );
     }
 
-    fn propImageSampleTo(
+    fn propSampleMaterialTo(
         self: Light,
         p: Vec4f,
         n: Vec4f,
@@ -196,33 +191,19 @@ pub const Light align(16) = struct {
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const s2 = sampler.sample2D();
-
         const material = scene.propMaterial(self.prop, self.part);
-        const rs = material.radianceSample(.{ s2[0], s2[1], 0.0, 0.0 });
-        if (0.0 == rs.pdf()) {
-            return buffer[0..0];
-        }
-
         const shape = scene.propShape(self.prop);
-
-        // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        var result = shape.sampleToUv(
+        return shape.sampleMaterialTo(
             self.part,
             p,
-            .{ rs.uvw[0], rs.uvw[1] },
+            n,
             trafo,
             self.two_sided,
-        ) orelse return buffer[0..0];
-
-        result.mulAssignPdf(rs.pdf());
-
-        if (math.dot3(result.wi, n) > 0.0 or total_sphere) {
-            buffer[0] = result;
-            return buffer[0..1];
-        }
-
-        return buffer[0..0];
+            total_sphere,
+            material,
+            sampler,
+            buffer,
+        );
     }
 
     fn propSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
@@ -348,13 +329,10 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn propImagePdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
-        const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
+    fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
+        const material = frag.material(scene);
 
-        // this pdf includes the uv weight which adjusts for texture distortion by the shape
-        const shape_pdf = scene.propShape(self.prop).pdfUv(vertex.probe.ray.direction, vertex.origin, frag, self.two_sided);
-
-        return material_pdf * shape_pdf;
+        return scene.propShape(self.prop).materialPdf(vertex.probe.ray.direction, vertex.origin, frag, self.two_sided, material);
     }
 
     fn volumeImagePdf(self: Light, p: Vec4f, frag: *const Fragment, scene: *const Scene) f32 {

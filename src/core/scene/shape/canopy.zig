@@ -6,6 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -90,23 +91,43 @@ pub const Canopy = struct {
         return buffer[0..1];
     }
 
-    pub fn sampleToUv(uv: Vec2f, trafo: Trafo) ?SampleTo {
+    pub fn sampleMaterialTo(
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        material: *const Material,
+        sampler: *Sampler,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const r2 = sampler.sample2D();
+        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        if (0.0 == rs.pdf()) {
+            return buffer[0..0];
+        }
+
+        const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
+
         const disk = Vec2f{ 2.0 * uv[0] - 1.0, 2.0 * uv[1] - 1.0 };
         const z = math.dot2(disk, disk);
         if (z > 1.0) {
-            return null;
+            return buffer[0..0];
         }
 
         const dir_l = diskToHemisphereEquidistant(disk);
         const dir = trafo.rotation.transformVector(dir_l);
 
-        return SampleTo.init(
+        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+            return buffer[0..0];
+        }
+
+        buffer[0] = SampleTo.init(
             @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
             -dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },
-            1.0 / (2.0 * std.math.pi),
+            rs.pdf() / (2.0 * std.math.pi),
         );
+        return buffer[0..1];
     }
 
     pub fn uvWeight(uv: Vec2f) f32 {

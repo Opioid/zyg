@@ -335,9 +335,7 @@ pub const Material = struct {
         part: u32,
         sampler: *Sampler,
         scene: *const Scene,
-    ) Base.RadianceResult {
-        const num_samples = self.super.emittance.num_samples;
-
+    ) Vec4f {
         const key = self.super.sampler_key;
 
         var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, sampler, scene);
@@ -361,10 +359,10 @@ pub const Material = struct {
                 n_dot_wi,
             );
 
-            return .{ .emission = att * rad, .num_samples = num_samples };
+            return att * rad;
         }
 
-        return .{ .emission = rad, .num_samples = num_samples };
+        return rad;
     }
 
     fn anisotropicAlpha(r: f32, anisotropy: f32) Vec2f {
