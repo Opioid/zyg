@@ -318,6 +318,7 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
         material: *const Material,
         sampler: *Sampler,
         buffer: *SamplesTo,
@@ -326,9 +327,9 @@ pub const Shape = union(enum) {
 
         return switch (self.*) {
             .Canopy => Canopy.sampleMaterialTo(n, trafo, total_sphere, material, sampler, buffer),
-            .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, material, sampler, buffer),
-            .InfiniteSphere => InfiniteSphere.sampleMaterialTo(n, trafo, total_sphere, material, sampler, buffer),
-            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, material, sampler, buffer),
+            .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
+            .InfiniteSphere => InfiniteSphere.sampleMaterialTo(n, trafo, total_sphere, split_threshold, material, sampler, buffer),
+            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .Sphere => Sphere.sampleMaterialTo(p, n, trafo, total_sphere, material, sampler, buffer),
             else => buffer[0..0],
         };
@@ -434,13 +435,14 @@ pub const Shape = union(enum) {
         p: Vec4f,
         frag: *const Fragment,
         two_sided: bool,
+        split_threshold: f32,
         material: *const Material,
     ) f32 {
         return switch (self.*) {
             .Canopy => material.emissionPdf(frag.uvw) / (2.0 * std.math.pi),
-            .Disk => Disk.materialPdf(dir, p, frag, two_sided, material),
-            .InfiniteSphere => InfiniteSphere.materialPdf(frag, material),
-            .Rectangle => Rectangle.materialPdf(dir, p, frag, two_sided, material),
+            .Disk => Disk.materialPdf(dir, p, frag, two_sided, split_threshold, material),
+            .InfiniteSphere => InfiniteSphere.materialPdf(frag, split_threshold, material),
+            .Rectangle => Rectangle.materialPdf(dir, p, frag, two_sided, split_threshold, material),
             .Sphere => Sphere.materialPdf(dir, p, frag, material),
             else => 0.0,
         };

@@ -9,6 +9,7 @@ const SampleFrom = smpl.From;
 const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
+const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -163,11 +164,12 @@ pub const Disk = struct {
         trafo: Trafo,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
         material: *const Material,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = material.super().emittance.num_samples;
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
 
         const nsf: f32 = @floatFromInt(num_samples);
 
@@ -288,7 +290,14 @@ pub const Disk = struct {
         return sl / (c * area);
     }
 
-    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool, material: *const Material) f32 {
+    pub fn materialPdf(
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        two_sided: bool,
+        split_threshold: f32,
+        material: *const Material,
+    ) f32 {
         var c = -math.dot3(frag.trafo.rotation.r[2], dir);
 
         if (two_sided) {
@@ -300,7 +309,8 @@ pub const Disk = struct {
 
         const sl = math.squaredDistance3(p, frag.p);
 
-        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(material.super().emittance.num_samples));
+        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return (material_pdf * sl) / (c * area);
     }

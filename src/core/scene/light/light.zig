@@ -83,7 +83,7 @@ pub const Light align(16) = struct {
     ) []SampleTo {
         return switch (self.class) {
             .Prop => self.propSampleTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
-            .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, sampler, scene, buffer),
+            .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
         };
@@ -145,7 +145,7 @@ pub const Light align(16) = struct {
                 total_sphere,
                 split_threshold,
             ),
-            .PropImage => self.propMaterialPdf(vertex, frag, scene),
+            .PropImage => self.propMaterialPdf(vertex, frag, split_threshold, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.probe.ray.direction, frag, scene),
         };
@@ -187,6 +187,7 @@ pub const Light align(16) = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
+        split_threshold: f32,
         sampler: *Sampler,
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
@@ -200,6 +201,7 @@ pub const Light align(16) = struct {
             trafo,
             self.two_sided,
             total_sphere,
+            split_threshold,
             material,
             sampler,
             buffer,
@@ -329,16 +331,21 @@ pub const Light align(16) = struct {
         return result;
     }
 
-    fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
+    fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
         const material = frag.material(scene);
-
-        return scene.propShape(self.prop).materialPdf(vertex.probe.ray.direction, vertex.origin, frag, self.two_sided, material);
+        return scene.propShape(self.prop).materialPdf(
+            vertex.probe.ray.direction,
+            vertex.origin,
+            frag,
+            self.two_sided,
+            split_threshold,
+            material,
+        );
     }
 
     fn volumeImagePdf(self: Light, p: Vec4f, frag: *const Fragment, scene: *const Scene) f32 {
         const material_pdf = frag.material(scene).emissionPdf(frag.uvw);
         const shape_pdf = scene.propShape(self.prop).volumePdf(p, frag);
-
         return material_pdf * shape_pdf;
     }
 };
