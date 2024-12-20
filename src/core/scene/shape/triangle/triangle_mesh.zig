@@ -739,7 +739,6 @@ pub const Mesh = struct {
                 .{ tc[0], tc[1], 0.0, 0.0 },
                 s.pdf * sample_pdf,
             );
-
             current_sample += 1;
         }
 
@@ -843,7 +842,8 @@ pub const Mesh = struct {
         if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
-            const sl = math.squaredDistance3(p, frag.p);
+            const hack_bias: f32 = if (tri_area < 0.00001) 0.004 else 0.0;
+            const sl = math.max(math.squaredDistance3(p, frag.p), hack_bias);
             return (sl * tri_pdf) / (n_dot_dir * tri_area);
         }
     }
