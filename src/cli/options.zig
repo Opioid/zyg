@@ -16,6 +16,7 @@ pub const Options = struct {
     no_tex: bool = false,
     no_tex_dwim: bool = false,
     debug_material: bool = false,
+    stats: bool = false,
     iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
@@ -99,6 +100,8 @@ pub const Options = struct {
             self.no_tex_dwim = true;
         } else if (std.mem.eql(u8, "debug-mat", command)) {
             self.debug_material = true;
+        } else if (std.mem.eql(u8, "stats", command)) {
+            self.stats = true;
         } else if (std.mem.eql(u8, "iter", command)) {
             self.iter = true;
         }

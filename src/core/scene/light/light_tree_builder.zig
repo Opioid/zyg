@@ -304,7 +304,7 @@ pub const Builder = struct {
 
         const num_finite_lights = num_lights - num_infinite_lights;
 
-        var max_split_depth: u32 = Tree.Max_split_depth;
+        var max_split_depth: u32 = Tree.MaxSplitDepth;
 
         if (num_finite_lights > 0) {
             try self.allocate(alloc, num_finite_lights, Scene_sweep_threshold);
@@ -330,14 +330,14 @@ pub const Builder = struct {
             self.serialize(tree.nodes, tree.node_middles, self.build_nodes[0].bounds);
             tree.bounds = self.build_nodes[0].bounds;
 
-            var split_lights = [_]Vec2u{.{ 0, 0 }} ** Tree.Max_split_depth;
-            self.build_nodes[0].countPotentialLights(self.build_nodes, 0, &split_lights, Tree.Max_split_depth);
+            var split_lights = [_]Vec2u{.{ 0, 0 }} ** Tree.MaxSplitDepth;
+            self.build_nodes[0].countPotentialLights(self.build_nodes, 0, &split_lights, Tree.MaxSplitDepth);
 
             var num_split_lights: u32 = 0;
             for (split_lights, 0..) |s, i| {
                 num_split_lights += s[0];
 
-                if ((num_split_lights + s[1]) >= (Tree.Max_lights - num_infinite_lights) or 0 == s[1]) {
+                if ((num_split_lights + s[1]) > (Tree.MaxLights - num_infinite_lights) or 0 == s[1]) {
                     max_split_depth = @intCast(i);
                     break;
                 }
@@ -523,7 +523,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = 0.0; //variance(lights, part, variant);
+        node.variance = variance(Part, lights, part, variant);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -568,7 +568,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = 0.0; //variance(lights, part, variant);
+        node.variance = variance(Part, lights, part, variant);
         node.middle = 0;
         node.children_or_light = begin;
         node.num_lights = len;

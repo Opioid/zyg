@@ -39,7 +39,7 @@ pub const Sky = struct {
 
     sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
-    pub const Radius = @tan(@as(f32, @floatCast(Model.Angular_radius)));
+    pub const Radius = @tan(@as(f32, @floatCast(Model.AngularRadius)));
 
     pub const Bake_dimensions = Vec2i{ 512, 512 };
     pub const Bake_dimensions_sun: u32 = 1024;
@@ -109,7 +109,10 @@ pub const Sky = struct {
         const e = scene.prop(self.sun);
         scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow(), false);
 
-        const scale = Vec4f{ Radius, Radius, Radius, 1.0 };
+        // HACK: artificially set sun radius to zero if under horizon to get an early out during light sampling...
+        const under_horizon = self.sun_rotation.r[2][1] > Model.AngularRadius;
+
+        const scale: Vec4f = if (under_horizon) @splat(0.0) else Vec4f{ Radius, Radius, Radius, 1.0 };
 
         if (scene.propHasAnimatedFrames(self.sun)) {
             self.sun_rotation = scene.propTransformationAt(self.sun, time).rotation;
@@ -117,7 +120,7 @@ pub const Sky = struct {
         } else {
             const trafo = Transformation{
                 .position = @splat(0.0),
-                .scale = .{ Radius, Radius, Radius, 1.0 },
+                .scale = scale,
                 .rotation = math.quaternion.initFromMat3x3(self.sun_rotation),
             };
 

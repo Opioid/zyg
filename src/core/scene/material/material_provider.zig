@@ -4,6 +4,7 @@ const Material = mat.Material;
 const MappedValue = mat.Base.MappedValue;
 const metal = @import("metal_presets.zig");
 const fresnel = @import("fresnel.zig");
+const Shape = @import("../shape/shape.zig").Shape;
 const Emittance = @import("../light/emittance.zig").Emittance;
 const img = @import("../../image/image.zig");
 const tx = @import("../../image/texture/texture_provider.zig");
@@ -492,7 +493,7 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         emittance.setRadiance(@as(Vec4f, @splat(value)) * color, cos_a);
     }
 
-    emittance.num_samples = json.readUIntMember(jvalue, "num_samples", 1);
+    emittance.num_samples = @min(json.readUIntMember(jvalue, "num_samples", 1), Shape.MaxSamples);
 }
 
 const TextureDescriptor = struct {

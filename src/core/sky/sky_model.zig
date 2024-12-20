@@ -26,7 +26,7 @@ pub const Model = struct {
     sun_direction: Vec4f,
     shadow_direction: Vec4f,
 
-    pub const Angular_radius = c.PSMG_SUN_RADIUS;
+    pub const AngularRadius = c.PSMG_SUN_RADIUS;
 
     const Self = @This();
 

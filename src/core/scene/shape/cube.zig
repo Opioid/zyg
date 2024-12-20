@@ -144,7 +144,6 @@ pub const Cube = struct {
             @splat(0.0),
             axis / @as(Vec4f, @splat(t)),
             r3,
-            trafo,
             sl / volume,
         );
     }
@@ -165,7 +164,6 @@ pub const Cube = struct {
             @splat(0.0),
             axis / @as(Vec4f, @splat(t)),
             uvw,
-            trafo,
             sl / volume,
         );
     }

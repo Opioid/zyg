@@ -26,7 +26,7 @@ pub const Distribution1D = struct {
     pub fn configure(self: *Self, alloc: Allocator, data: []const f32, lut_bucket_size: u32) !void {
         try self.precomputePdfCdf(alloc, data);
 
-        var lut_size = @as(u32, @intCast(if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size));
+        var lut_size: u32 = @intCast(if (0 == lut_bucket_size) data.len / 16 else data.len / lut_bucket_size);
         lut_size = @min(@max(lut_size, 1), self.size);
 
         try self.initLut(alloc, lut_size);
