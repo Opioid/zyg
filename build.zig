@@ -147,18 +147,18 @@ pub fn build(b: *std.Build) void {
     // const run_step = b.step("run", "Run the application");
     // run_step.dependOn(&run_exe.step);
 
-    // // if (b.args) |args| {
-    // //     run_exe.addArgs(args);
-    // // } else {
-    // //     run_exe.addArgs(&[_][]const u8{
-    // //         "-i",
-    // //         "GGX_E.exr",
-    // //         "-t",
-    // //         "-1",
-    // //         "-f",
-    // //         "txt",
-    // //     });
-    // // }
+    // if (b.args) |args| {
+    //     run_exe.addArgs(args);
+    // } else {
+    //     run_exe.addArgs(&[_][]const u8{
+    //         "-i",
+    //         "curtain_fabric_Roughnesscurtain_fabric_Metalness.png",
+    //         "-t",
+    //         "-1",
+    //         "--max-value",
+    //         "0.0 0.1 0.0 0.0",
+    //     });
+    // }
 
     // if (b.args) |args| {
     //     run_exe.addArgs(args);

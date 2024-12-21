@@ -16,6 +16,7 @@ pub const Operator = struct {
         Anaglyph,
         Average,
         Diff,
+        MaxValue: Vec4f,
         Over,
         Tonemap: core.Tonemapper.Class,
     };
@@ -152,6 +153,7 @@ pub const Operator = struct {
 
                             break :blk color;
                         },
+                        .MaxValue => |max_value| math.max4(source, max_value),
                         .Over => blk: {
                             var color = source;
 
