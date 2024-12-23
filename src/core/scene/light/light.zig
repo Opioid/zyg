@@ -1,6 +1,7 @@
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Prop = @import("../prop/prop.zig").Prop;
+const Shape = @import("../shape/shape.zig").Shape;
 const Vertex = @import("../vertex.zig").Vertex;
 const Fragment = @import("../shape/intersection.zig").Fragment;
 const shp = @import("../shape/sample.zig");
@@ -68,6 +69,17 @@ pub const Light align(16) = struct {
         }
 
         return @as(Vec4f, @splat(math.squaredLength3(scene_bb.extent()))) * radiance;
+    }
+
+    pub fn potentialMaxSamples(self: Light, scene: *const Scene) u32 {
+        return switch (self.class) {
+            .Prop => switch (scene.propShape(self.prop).*) {
+                .TriangleMesh => Shape.MaxSamples,
+                else => 1,
+            },
+            .PropImage => scene.propMaterial(self.prop, self.part).super().emittance.num_samples,
+            .Volume, .VolumeImage => 1,
+        };
     }
 
     pub fn sampleTo(

@@ -3,6 +3,7 @@ const Probe = Vertex.Probe;
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../scene/ray_offset.zig");
 const Scene = @import("../../../scene/scene.zig").Scene;
+const Shape = @import("../../../scene/shape/shape.zig").Shape;
 const Worker = @import("../../worker.zig").Worker;
 const hlp = @import("../helper.zig");
 const IValue = hlp.IValue;
@@ -145,13 +146,29 @@ pub const AOV = struct {
         const n = mat_sample.super().geometricNormal();
         const p = frag.p;
 
+        const translucent = mat_sample.isTranslucent();
+
         const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
         const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);
 
-        const max_lights = worker.scene.light_tree.potentialMaxLights();
-        const r = @as(f32, @floatFromInt(lights.len)) / @as(f32, @floatFromInt(max_lights));
+        const max_light_samples = worker.scene.light_tree.potentialMaxLights(worker.scene); // * Shape.MaxSamples;
+
+        var nun_samples: u32 = 0;
+
+        for (lights) |l| {
+            const light = worker.scene.light(l.offset);
+
+            const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
+
+            var samples_buffer: Scene.SamplesTo = undefined;
+            const samples = light.sampleTo(p, n, trafo, translucent, split_threshold, sampler, worker.scene, &samples_buffer);
+
+            nun_samples += @intCast(samples.len);
+        }
+
+        const r = @as(f32, @floatFromInt(nun_samples)) / @as(f32, @floatFromInt(max_light_samples));
 
         return .{ r, r, r, 1.0 };
     }
