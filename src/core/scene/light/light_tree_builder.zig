@@ -63,7 +63,8 @@ const SplitCandidate = struct {
     powers: [2]f32,
     cost: f32,
     axis: u32,
-    two_sideds: [2]bool,
+    left_partition: u32,
+    two_sided: [2]bool,
     exhausted: bool,
 
     const Self = @This();
@@ -78,13 +79,22 @@ const SplitCandidate = struct {
         self.axis = 3;
     }
 
-    pub fn behind(self: *const Self, point: Vec4f, n: Vec4f) bool {
+    pub fn configurePartition(self: *Self, left: u32) void {
+        self.left_partition = left;
+        self.axis = 4;
+    }
+
+    pub fn leftSide(self: *const Self, comptime T: type, l: u32, set: *const T) bool {
         const axis = self.axis;
         if (axis < 3) {
             const d = self.normal[0];
-            return point[self.axis] < d;
-        } else {
+            const box = set.lightAabb(l);
+            return box.bounds[1][self.axis] < d;
+        } else if (3 == axis) {
+            const n = set.lightCone(l);
             return math.dot3(self.normal, n) < 0.0;
+        } else {
+            return self.left_partition == l;
         }
     }
 
@@ -105,7 +115,7 @@ const SplitCandidate = struct {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ math.aabb.Empty, math.aabb.Empty };
         var cones: [2]Vec4f = .{ @splat(1.0), @splat(1.0) };
-        var two_sideds: [2]bool = .{ false, false };
+        var two_sided: [2]bool = .{ false, false };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
@@ -118,12 +128,13 @@ const SplitCandidate = struct {
             const lcone = scene.lightCone(l);
             const ltwo_sided = scene.lightTwoSided(0, l);
 
-            const side: u32 = if (self.behind(box.bounds[1], lcone)) 0 else 1;
+            //    const side: u32 = if (self.behind(box.bounds[1], lcone)) 0 else 1;
+            const side: u32 = if (self.leftSide(Scene, l, scene)) 0 else 1;
 
             num_sides[side] += 1;
             boxs[side].mergeAssign(box);
             cones[side] = math.cone.merge(cones[side], lcone);
-            two_sideds[side] = two_sideds[side] or ltwo_sided;
+            two_sided[side] = two_sided[side] or ltwo_sided;
             powers[side] += power;
         }
 
@@ -133,7 +144,7 @@ const SplitCandidate = struct {
         self.aabbs = boxs;
         self.cones = cones;
         self.powers = powers;
-        self.two_sideds = two_sideds;
+        self.two_sided = two_sided;
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
@@ -143,8 +154,8 @@ const SplitCandidate = struct {
         } else {
             const reg = self.regularized(extent);
 
-            const cone_weight_a = coneCost(cones[0][3], two_sideds[0]);
-            const cone_weight_b = coneCost(cones[1][3], two_sideds[1]);
+            const cone_weight_a = coneCost(cones[0][3], two_sided[0]);
+            const cone_weight_b = coneCost(cones[1][3], two_sided[1]);
 
             const surface_area_a = boxs[0].surfaceArea();
             const surface_area_b = boxs[1].surfaceArea();
@@ -172,7 +183,8 @@ const SplitCandidate = struct {
             const box = part.lightAabb(l);
             const n = part.lightCone(l);
 
-            const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
+            //    const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
+            const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
 
             num_sides[side] += 1;
             boxs[side].mergeAssign(box);
@@ -191,10 +203,12 @@ const SplitCandidate = struct {
                 continue;
             }
 
-            const box = part.lightAabb(l);
+            //   const box = part.lightAabb(l);
             const n = part.lightCone(l);
 
-            const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
+            //    const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
+            const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
+
             const c = math.clamp(math.dot3(dominant_axis[side], n), -1.0, 1.0);
             angles[side] = math.max(angles[side], std.math.acos(c));
         }
@@ -212,7 +226,7 @@ const SplitCandidate = struct {
         self.aabbs = boxs;
         self.cones = cones;
         self.powers = powers;
-        self.two_sideds = .{ two_sided, two_sided };
+        self.two_sided = .{ two_sided, two_sided };
 
         const empty_side = 0 == num_sides[0] or 0 == num_sides[1];
         if (empty_side) {
@@ -323,7 +337,7 @@ pub const Builder = struct {
                 total_power += scene.lightPower(0, l);
             }
 
-            _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, scene, threads);
+            _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, 0, scene, threads);
 
             try tree.allocateNodes(alloc, self.current_node);
             self.build_nodes[0].bounds.cacheRadius();
@@ -429,6 +443,7 @@ pub const Builder = struct {
         cone: Vec4f,
         two_sided: bool,
         total_power: f32,
+        depth: u32,
         scene: *const Scene,
         threads: *Threads,
     ) u32 {
@@ -437,7 +452,9 @@ pub const Builder = struct {
 
         var node = &self.build_nodes[node_id];
 
-        if (len <= 2) {
+        if (1 == len or
+            (2 == len and (depth > Tree.MaxSplitDepth or !scene.lightAabb(lights[0]).overlaps(scene.lightAabb(lights[1])))))
+        {
             var node_two_sided = false;
 
             for (lights) |l| {
@@ -466,8 +483,8 @@ pub const Builder = struct {
         const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
 
         self.current_node += 2;
-        const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sideds[0], sc.powers[0], scene, threads);
-        const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sideds[1], sc.powers[1], scene, threads);
+        const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sided[0], sc.powers[0], depth + 1, scene, threads);
+        const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sided[1], sc.powers[1], depth + 1, scene, threads);
 
         node.bounds = bounds;
         node.cone = cone;
@@ -540,7 +557,7 @@ pub const Builder = struct {
             const Self = @This();
 
             pub fn f(self: Self, l: u32) bool {
-                return self.sc.behind(self.set.lightAabb(l).bounds[1], self.set.lightCone(l));
+                return self.sc.leftSide(T, l, self.set);
             }
         };
     }
@@ -639,50 +656,55 @@ pub const Builder = struct {
 
         var num_candidates: u32 = 0;
 
-        if (lights.len < sweep_threshold) {
-            for (lights) |l| {
-                const max = set.lightAabb(l).bounds[1];
-
-                candidates[num_candidates].configure(max, X);
-                num_candidates += 1;
-                candidates[num_candidates].configure(max, Y);
-                num_candidates += 1;
-                candidates[num_candidates].configure(max, Z);
-                num_candidates += 1;
-            }
+        if (2 == lights.len) {
+            candidates[num_candidates].configurePartition(lights[0]);
+            num_candidates += 1;
         } else {
-            const position = bounds.position();
-            const extent = bounds.extent();
-            const min = bounds.bounds[0];
+            if (lights.len < sweep_threshold) {
+                for (lights) |l| {
+                    const max = set.lightAabb(l).bounds[1];
 
-            const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @as(f32, @floatFromInt(Num_slices));
-
-            var a: u32 = 0;
-            while (a < 3) : (a += 1) {
-                const extent_a = extent[a];
-                const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
-                const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
-
-                var i: u32 = 1;
-                while (i < num_steps) : (i += 1) {
-                    const fi: f32 = @floatFromInt(i);
-
-                    var slice = position;
-                    slice[a] = min[a] + fi * step_a;
-
-                    candidates[num_candidates].configure(slice, a);
+                    candidates[num_candidates].configure(max, X);
+                    num_candidates += 1;
+                    candidates[num_candidates].configure(max, Y);
+                    num_candidates += 1;
+                    candidates[num_candidates].configure(max, Z);
                     num_candidates += 1;
                 }
+            } else {
+                const position = bounds.position();
+                const extent = bounds.extent();
+                const min = bounds.bounds[0];
+
+                const la = math.indexMaxComponent3(extent);
+                const step = extent[la] / @as(f32, @floatFromInt(Num_slices));
+
+                var a: u32 = 0;
+                while (a < 3) : (a += 1) {
+                    const extent_a = extent[a];
+                    const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
+                    const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
+
+                    var i: u32 = 1;
+                    while (i < num_steps) : (i += 1) {
+                        const fi: f32 = @floatFromInt(i);
+
+                        var slice = position;
+                        slice[a] = min[a] + fi * step_a;
+
+                        candidates[num_candidates].configure(slice, a);
+                        num_candidates += 1;
+                    }
+                }
             }
+
+            const tb = math.orthonormalBasis3(cone);
+
+            candidates[num_candidates].configureAngle(tb[0]);
+            candidates[num_candidates].configureAngle(tb[1]);
+            candidates[num_candidates].configureAngle(cone);
+            num_candidates += 1;
         }
-
-        const tb = math.orthonormalBasis3(cone);
-
-        candidates[num_candidates].configureAngle(tb[0]);
-        candidates[num_candidates].configureAngle(tb[1]);
-        candidates[num_candidates].configureAngle(cone);
-        num_candidates += 1;
 
         const cone_weight = coneCost(cone[3], two_sided);
 

@@ -382,6 +382,9 @@ pub const Part = struct {
 };
 
 pub const Mesh = struct {
+    const HackArea = 0.00001;
+    const HackDistance = 0.004;
+
     tree: Tree = .{},
 
     num_parts: u32 = 0,
@@ -694,7 +697,7 @@ pub const Mesh = struct {
 
                 const sv = tri.interpolate3(a, b, c, bary_uv[0], bary_uv[1]);
                 v = trafo.objectToWorldPoint(sv);
-                sample_pdf = sample.pdf;
+                sample_pdf = s.pdf * sample.pdf;
 
                 if (two_sided and math.dot3(wn, dir) > 0.0) {
                     wn = -wn;
@@ -723,7 +726,10 @@ pub const Mesh = struct {
 
                 n_dot_dir = -math.dot3(wn, dir);
 
-                sample_pdf = sl / (n_dot_dir * tri_area);
+                const hack_bias: f32 = if (tri_area < HackArea) HackDistance else 0.0;
+                const biased_sl = math.max(sl, hack_bias);
+
+                sample_pdf = (s.pdf * biased_sl) / (n_dot_dir * tri_area);
             }
 
             if (n_dot_dir < math.safe.Dot_min) {
@@ -737,7 +743,7 @@ pub const Mesh = struct {
                 wn,
                 dir,
                 .{ tc[0], tc[1], 0.0, 0.0 },
-                s.pdf * sample_pdf,
+                sample_pdf,
             );
             current_sample += 1;
         }
@@ -842,9 +848,12 @@ pub const Mesh = struct {
         if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
-            const hack_bias: f32 = if (tri_area < 0.00001) 0.004 else 0.0;
-            const sl = math.max(math.squaredDistance3(p, frag.p), hack_bias);
-            return (sl * tri_pdf) / (n_dot_dir * tri_area);
+            const sl = math.squaredDistance3(p, frag.p);
+
+            const hack_bias: f32 = if (tri_area < HackArea) HackDistance else 0.0;
+            const biased_sl = math.max(sl, hack_bias);
+
+            return (biased_sl * tri_pdf) / (n_dot_dir * tri_area);
         }
     }
 

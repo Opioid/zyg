@@ -1,5 +1,9 @@
 const Operator = @import("operator.zig").Operator.Class;
 
+const base = @import("base");
+const math = base.math;
+const Vec4f = math.Vec4f;
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -98,6 +102,21 @@ pub const Options = struct {
             }
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             help();
+        } else if (std.mem.eql(u8, "max-value", command)) {
+            var value: Vec4f = @splat(0.0);
+
+            var ci: u32 = 0;
+            var si = std.mem.splitAny(u8, parameter, " ");
+            while (si.next()) |cv| {
+                value[ci] = std.fmt.parseFloat(f32, cv) catch 0.0;
+                ci += 1;
+
+                if (4 == ci) {
+                    break;
+                }
+            }
+
+            self.operator = .{ .MaxValue = value };
         } else if (std.mem.eql(u8, "over", command)) {
             self.operator = .Over;
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {

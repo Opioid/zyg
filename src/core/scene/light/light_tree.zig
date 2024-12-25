@@ -312,9 +312,16 @@ pub const Tree = struct {
         }
     }
 
-    pub fn potentialMaxLights(self: *const Tree) u32 {
-        const num_finite: u32 = @intFromFloat(std.math.pow(f32, 2.0, @floatFromInt(self.max_split_depth)));
-        return num_finite + self.num_infinite_lights;
+    pub fn potentialMaxLights(self: *const Tree, scene: *const Scene) u32 {
+        // const num_finite: u32 = @intFromFloat(std.math.pow(f32, 2.0, @floatFromInt(self.max_split_depth)));
+        // return num_finite + self.num_infinite_lights;
+
+        var num: u32 = 0;
+        for (self.light_mapping[0..self.num_lights]) |lm| {
+            num += scene.light(lm).potentialMaxSamples(scene);
+        }
+
+        return num;
     }
 
     pub fn randomLight(
