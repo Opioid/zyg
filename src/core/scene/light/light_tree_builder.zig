@@ -57,50 +57,67 @@ const BuildNode = struct {
 };
 
 const SplitCandidate = struct {
+    const Axis = struct {
+        d: f32,
+        axis: u32,
+    };
+
+    const Partition = struct {
+        num: u32,
+        left: [2]u32,
+    };
+
+    const Condition = union(enum) {
+        Axis: Axis,
+        Angle: Vec4f,
+        Partition: Partition,
+    };
+
     aabbs: [2]AABB,
     cones: [2]Vec4f,
-    normal: Vec4f,
     powers: [2]f32,
+    condition: Condition,
     cost: f32,
-    axis: u32,
-    left_partition: u32,
     two_sided: [2]bool,
     exhausted: bool,
 
     const Self = @This();
 
     pub fn configure(self: *Self, p: Vec4f, axis: u32) void {
-        self.normal[0] = p[axis];
-        self.axis = axis;
+        self.condition = .{ .Axis = .{ .d = p[axis], .axis = axis } };
     }
 
     pub fn configureAngle(self: *Self, n: Vec4f) void {
-        self.normal = n;
-        self.axis = 3;
+        self.condition = .{ .Angle = n };
     }
 
-    pub fn configurePartition(self: *Self, left: u32) void {
-        self.left_partition = left;
-        self.axis = 4;
+    pub fn configurePartition(self: *Self, left: []const u32) void {
+        self.condition = .{ .Partition = .{ .num = @intCast(left.len), .left = undefined } };
+        std.mem.copyForwards(u32, &self.condition.Partition.left, left);
     }
 
     pub fn leftSide(self: *const Self, comptime T: type, l: u32, set: *const T) bool {
-        const axis = self.axis;
-        if (axis < 3) {
-            const d = self.normal[0];
-            const box = set.lightAabb(l);
-            return box.bounds[1][self.axis] < d;
-        } else if (3 == axis) {
-            const n = set.lightCone(l);
-            return math.dot3(self.normal, n) < 0.0;
-        } else {
-            return self.left_partition == l;
-        }
+        return switch (self.condition) {
+            .Axis => |axis| set.lightAabb(l).bounds[1][axis.axis] < axis.d,
+            .Angle => |n| math.dot3(n, set.lightCone(l)) < 0.0,
+            .Partition => |part| {
+                for (0..part.num) |i| {
+                    if (l == part.left[i]) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+        };
     }
 
     pub fn regularized(self: *const Self, extent: Vec4f) f32 {
         const maxe = math.hmax3(extent);
-        return if (self.axis < 3) maxe / extent[self.axis] else maxe / math.hmin3(extent);
+
+        return switch (self.condition) {
+            .Axis => |axis| maxe / extent[axis.axis],
+            else => maxe / math.hmin3(extent),
+        };
     }
 
     pub fn evaluate(self: *Self, comptime T: type, lights: []u32, bounds: AABB, cone_weight: f32, set: *const T, variant: u32) void {
@@ -128,7 +145,6 @@ const SplitCandidate = struct {
             const lcone = scene.lightCone(l);
             const ltwo_sided = scene.lightTwoSided(0, l);
 
-            //    const side: u32 = if (self.behind(box.bounds[1], lcone)) 0 else 1;
             const side: u32 = if (self.leftSide(Scene, l, scene)) 0 else 1;
 
             num_sides[side] += 1;
@@ -183,7 +199,6 @@ const SplitCandidate = struct {
             const box = part.lightAabb(l);
             const n = part.lightCone(l);
 
-            //    const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
             const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
 
             num_sides[side] += 1;
@@ -203,10 +218,8 @@ const SplitCandidate = struct {
                 continue;
             }
 
-            //   const box = part.lightAabb(l);
             const n = part.lightCone(l);
 
-            //    const side: u32 = if (self.behind(box.bounds[1], n)) 0 else 1;
             const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
 
             const c = math.clamp(math.dot3(dominant_axis[side], n), -1.0, 1.0);
@@ -361,6 +374,8 @@ pub const Builder = struct {
         }
 
         tree.max_split_depth = max_split_depth;
+
+        std.debug.print("max split depth {}\n", .{max_split_depth});
 
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
@@ -657,10 +672,40 @@ pub const Builder = struct {
         var num_candidates: u32 = 0;
 
         if (2 == lights.len) {
-            candidates[num_candidates].configurePartition(lights[0]);
+            candidates[num_candidates].configurePartition(&.{lights[0]});
+            num_candidates += 1;
+        } else if (3 == lights.len) {
+            candidates[num_candidates].configurePartition(&.{lights[0]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{lights[1]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{lights[2]});
+            num_candidates += 1;
+        } else if (4 == lights.len) {
+            candidates[num_candidates].configurePartition(&.{lights[0]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{lights[1]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{lights[2]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{lights[3]});
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{ lights[0], lights[1] });
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{ lights[0], lights[2] });
+            num_candidates += 1;
+
+            candidates[num_candidates].configurePartition(&.{ lights[0], lights[3] });
             num_candidates += 1;
         } else {
-            if (lights.len < sweep_threshold) {
+            if (lights.len <= sweep_threshold) {
                 for (lights) |l| {
                     const max = set.lightAabb(l).bounds[1];
 
