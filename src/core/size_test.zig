@@ -32,7 +32,7 @@ pub fn testSize() void {
     testType(Renderstate, "Renderstate", 208);
     testType(Fragment, "Fragment", 208);
     testType(Vertex, "Vertex", 384);
-    testType(smpl.To, "SampleTo", 128);
+    testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);

@@ -11,7 +11,7 @@ pub const Fragment = struct {
     v: f32,
 };
 
-pub const IndexTriangle align(16) = struct {
+pub const IndexTriangle = struct {
     i: [3]u32,
     part: u32,
 };

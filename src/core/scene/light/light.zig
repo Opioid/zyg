@@ -27,7 +27,7 @@ pub const Properties = struct {
     two_sided: bool,
 };
 
-pub const Light align(16) = struct {
+pub const Light = struct {
     pub const Class = enum(u8) {
         Prop,
         PropImage,

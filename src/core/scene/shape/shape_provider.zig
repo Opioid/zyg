@@ -237,7 +237,7 @@ pub const Provider = struct {
     }
 
     fn buildAsync(context: ThreadContext) void {
-        const self = @as(*Provider, @ptrCast(context));
+        const self = @as(*Provider, @ptrCast(@alignCast(context)));
 
         const handler = self.handler;
 
@@ -612,7 +612,7 @@ pub const Provider = struct {
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
-        const self = @as(*Provider, @ptrCast(context));
+        const self = @as(*Provider, @ptrCast(@alignCast(context)));
 
         const num_triangles = self.num_indices / 3;
         const triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;
@@ -640,7 +640,7 @@ pub const Provider = struct {
     }
 
     fn buildDescAsync(context: ThreadContext) void {
-        const self = @as(*Provider, @ptrCast(context));
+        const self = @as(*Provider, @ptrCast(@alignCast(context)));
 
         const num_triangles = self.desc.num_primitives;
         var triangles = self.alloc.alloc(IndexTriangle, num_triangles) catch unreachable;

@@ -7,8 +7,8 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Node = struct {
-    const Vec align(16) = struct {
-        v: [3]f32,
+    const Vec = struct {
+        v: [3]f32 align(16),
         data: u32,
 
         pub fn vec4f(self: Vec) Vec4f {
