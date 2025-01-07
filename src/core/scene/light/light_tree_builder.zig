@@ -375,8 +375,6 @@ pub const Builder = struct {
 
         tree.max_split_depth = max_split_depth;
 
-        std.debug.print("max split depth {}\n", .{max_split_depth});
-
         const p0 = infinite_total_power;
         const p1 = if (0 == num_finite_lights) 0.0 else self.build_nodes[0].power;
         const pt = p0 + p1;

@@ -232,7 +232,7 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
                 const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
-                MaterialBase.setSimilarityRelationRange(@as(u32, @intCast(sr_range[0])), @as(u32, @intCast(sr_range[1])));
+                MaterialBase.setSimilarityRelationRange(@intCast(sr_range[0]), @intCast(sr_range[1]));
             }
         }
     }

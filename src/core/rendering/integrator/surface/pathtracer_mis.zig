@@ -233,8 +233,6 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const light = worker.scene.light(light_pick.offset);
-        // const num_samples = light.numSamples(worker.scene);
-        // const light_sample_weight = light_pick.pdf * @as(f32, @floatFromInt(num_samples));
 
         const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
 

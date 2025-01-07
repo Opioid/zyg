@@ -88,7 +88,7 @@ pub const Material = struct {
 
     pub fn setSunRadianceZero(self: *Material) void {
         for (self.sun_radiance.samples) |*s| {
-            s.* = @as(Vec4f, @splat(0.0));
+            s.* = @splat(0.0);
         }
 
         self.average_emission = @splat(0.0);

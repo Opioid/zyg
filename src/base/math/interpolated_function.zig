@@ -154,7 +154,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
         pub fn eval(self: Self, x: f32) f32 {
             const cx = math.min(x, self.range_end);
             const o = cx * self.inverse_interval;
-            const offset = @as(u32, @intFromFloat(o));
+            const offset: u32 = @intFromFloat(o);
             const t = o - @as(f32, @floatFromInt(offset));
 
             return math.lerp(
