@@ -47,7 +47,7 @@ pub const Tree = struct {
                 const e = node.indicesEnd();
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
-                        tray.setMaxT(hit.t);
+                        tray.max_t = hit.t;
                         hpoint.t = hit.t;
                         hpoint.u = hit.u;
                         hpoint.primitive = i;

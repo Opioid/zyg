@@ -45,7 +45,7 @@ pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Fragment {
 
     const uv = u + v;
 
-    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.min_t and ray.max_t >= hit_t) {
         return Fragment{ .t = hit_t, .u = u, .v = v };
     }
 
@@ -73,7 +73,7 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
 
     const uv = u + v;
 
-    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.min_t and ray.max_t >= hit_t) {
         return true;
     }
 

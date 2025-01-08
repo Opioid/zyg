@@ -32,20 +32,20 @@ pub fn transmittanceHetero(
     tr: *Vec4f,
 ) bool {
     if (material.volumetricTree()) |tree| {
-        const d = ray.maxT();
+        const d = ray.max_t;
 
         var local_ray = objectToTextureRay(ray, prop, worker);
 
         const srs = material.super().similarityRelationScale(depth);
 
-        while (local_ray.minT() < d) {
+        while (local_ray.min_t < d) {
             if (tree.intersect(&local_ray)) |cm| {
                 if (!trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
                     return false;
                 }
             }
 
-            local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
+            local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
         }
 
         return true;
@@ -71,7 +71,7 @@ fn trackingTransmitted(
 
     if (minorant_mu_t > 0.0) {
         // Transmittance of the control medium
-        transmitted.* *= @splat(ccoef.attenuation1(ray.maxT() - ray.minT(), minorant_mu_t));
+        transmitted.* *= @splat(ccoef.attenuation1(ray.max_t - ray.min_t, minorant_mu_t));
 
         if (math.allLess4(transmitted.*, Abort_epsilon4)) {
             return false;
@@ -87,8 +87,8 @@ fn trackingTransmitted(
     var rng = &worker.rng;
 
     // Transmittance of the residual medium
-    const d = ray.maxT();
-    var t = ray.minT();
+    const d = ray.max_t;
+    var t = ray.min_t;
     while (true) {
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
@@ -118,8 +118,8 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Volume {
 
     var w: Vec4f = @splat(1.0);
 
-    const d = ray.maxT();
-    var t = ray.minT();
+    const d = ray.max_t;
+    var t = ray.min_t;
     while (true) {
         const r = sampler.sample2D();
         t -= @log(1.0 - r[0]) / mt;
@@ -162,8 +162,8 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
 
     var w: Vec4f = @splat(1.0);
 
-    const d = ray.maxT();
-    var t = ray.minT();
+    const d = ray.max_t;
+    var t = ray.min_t;
     while (true) {
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
@@ -230,8 +230,8 @@ pub fn trackingHetero(
 
     var lw = w;
 
-    const d = ray.maxT();
-    var t = ray.minT();
+    const d = ray.max_t;
+    var t = ray.min_t;
     while (true) {
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
@@ -289,8 +289,8 @@ pub fn trackingHeteroEmission(
 
     var lw = w;
 
-    const d = ray.maxT();
-    var t = ray.minT();
+    const d = ray.max_t;
+    var t = ray.min_t;
     while (true) {
         const r0 = rng.randomFloat();
         t -= @log(1.0 - r0) / mt;
@@ -349,5 +349,5 @@ pub fn objectToTextureRay(ray: Ray, entity: u32, worker: *const Worker) Ray {
     const origin = (ray.origin - aabb.bounds[0]) * iextent;
     const dir = ray.direction * iextent;
 
-    return Ray.init(origin, dir, ray.minT(), ray.maxT());
+    return Ray.init(origin, dir, ray.min_t, ray.max_t);
 }

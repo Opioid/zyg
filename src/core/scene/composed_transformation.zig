@@ -135,8 +135,8 @@ pub const ComposedTransformation = struct {
         return Ray.init(
             self.worldToObjectPoint(ray.origin),
             self.worldToObjectVector(ray.direction),
-            ray.minT(),
-            ray.maxT(),
+            ray.min_t,
+            ray.max_t,
         );
     }
 };

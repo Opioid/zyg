@@ -111,7 +111,7 @@ pub const Tree = struct {
             }
         }
 
-        if (probe.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.max_t >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
                 if (props[p].intersect(p, probe, frag, false, scene)) {
                     prop = p;
@@ -173,7 +173,7 @@ pub const Tree = struct {
             }
         }
 
-        if (probe.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.max_t >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
                 if (props[p].intersectP(p, probe, scene)) {
                     return true;
@@ -228,7 +228,7 @@ pub const Tree = struct {
             }
         }
 
-        if (probe.ray.maxT() >= self.infinite_t_max) {
+        if (probe.ray.max_t >= self.infinite_t_max) {
             for (self.infinite_props[0..self.num_infinite_props]) |p| {
                 if (!props[p].visibility(p, probe, sampler, worker, tr)) {
                     return false;
@@ -258,7 +258,7 @@ pub const Tree = struct {
                     const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
-                        probe.ray.setMaxT(lr.t);
+                        probe.ray.max_t = lr.t;
                         result = lr;
                         prop = p;
                     } else if (.Pass == result.event) {

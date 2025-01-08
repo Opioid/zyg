@@ -81,8 +81,8 @@ pub const Node = struct {
         const t0 = math.min4(lower, upper);
         const t1 = math.max4(lower, upper);
 
-        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
         const tboxmin = math.hmax4(tmins);
         const tboxmax = math.hmin4(tmaxs);

@@ -18,7 +18,7 @@ pub const Plane = struct {
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             hpoint.t = hit_t;
             hpoint.primitive = 0;
         }
@@ -27,7 +27,7 @@ pub const Plane = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const p = ray.point(ray.maxT());
+        const p = ray.point(ray.max_t);
         const k = p - frag.trafo.position;
         const n = frag.trafo.rotation.r[2];
         const t = -frag.trafo.rotation.r[0];
@@ -47,7 +47,7 @@ pub const Plane = struct {
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             return true;
         }
 
@@ -59,7 +59,7 @@ pub const Plane = struct {
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const uv = Vec2f{ -math.dot3(trafo.rotation.r[0], k), -math.dot3(trafo.rotation.r[1], k) };

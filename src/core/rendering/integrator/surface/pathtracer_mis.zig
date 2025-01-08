@@ -313,8 +313,8 @@ pub const PathtracerMIS = struct {
         scene: *const Scene,
     ) void {
         if (frag.isec.t < ro.Almost_ray_max_t) {
-            const ray_min_t = vertex.probe.ray.minT();
-            const ray_max_t = vertex.probe.ray.maxT();
+            const ray_min_t = vertex.probe.ray.min_t;
+            const ray_max_t = vertex.probe.ray.max_t;
             vertex.probe.ray.setMinMaxT(ro.Almost_ray_max_t, ro.Ray_max_t);
 
             var sfrag: Fragment = undefined;

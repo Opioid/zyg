@@ -27,7 +27,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < ro.Ray_max_t or radius <= 0.0) {
+        if (b > 0.0 or ray.max_t < ro.Ray_max_t or radius <= 0.0) {
             return hpoint;
         }
 
@@ -76,7 +76,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.maxT() < ro.Ray_max_t or radius <= 0.0) {
+        if (b > 0.0 or ray.max_t < ro.Ray_max_t or radius <= 0.0) {
             return false;
         }
 

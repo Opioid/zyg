@@ -183,7 +183,7 @@ pub const IndexedData = struct {
         depth: u32,
     ) ?Fragment {
         const curve_bounds = segmentBounds(cp, width, u_range);
-        const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
+        const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.max_t, 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
             return null;
         }
@@ -201,7 +201,7 @@ pub const IndexedData = struct {
 
         const hit0 = recursiveIntersectSegment(tray, segments[0..4].*, width, .{ u_range[0], u_middle }, next_depth);
         if (hit0) |hit| {
-            tray.setMaxT(hit.t);
+            tray.max_t = hit.t;
         }
 
         if (recursiveIntersectSegment(tray, segments[3..7].*, width, .{ u_middle, u_range[1] }, next_depth)) |hit| {
@@ -238,12 +238,12 @@ pub const IndexedData = struct {
         }
 
         const ray_length = math.length3(ray.direction);
-        if (pc[2] < 0.0 or pc[2] > ray_length * ray.maxT()) {
+        if (pc[2] < 0.0 or pc[2] > ray_length * ray.max_t) {
             return null;
         }
 
         const hit_t = pc[2] / ray_length;
-        if (hit_t > ray.maxT()) {
+        if (hit_t > ray.max_t) {
             return null;
         }
 
@@ -252,7 +252,7 @@ pub const IndexedData = struct {
 
     fn recursiveIntersectSegmentP(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f, depth: u32) bool {
         const curve_bounds = segmentBounds(cp, width, u_range);
-        const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.maxT(), 0.0 });
+        const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.max_t, 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
             return false;
         }
@@ -300,12 +300,12 @@ pub const IndexedData = struct {
         }
 
         const ray_length = math.length3(ray.direction);
-        if (pc[2] < 0 or pc[2] > ray_length * ray.maxT()) {
+        if (pc[2] < 0 or pc[2] > ray_length * ray.max_t) {
             return false;
         }
 
         const hit_t = pc[2] / ray_length;
-        if (hit_t > ray.maxT()) {
+        if (hit_t > ray.max_t) {
             return false;
         }
 
