@@ -302,8 +302,7 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D();
-        const xi = Vec2f{ s3[1], s3[2] };
+        const xi = sampler.sample2D();
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
@@ -329,16 +328,7 @@ pub const Sample = struct {
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
             {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    wo_dot_h,
-                    alpha[0],
-                    frame,
-                    &buffer[0],
-                );
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, &buffer[0]);
 
                 buffer[0].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight;
                 buffer[0].split_weight = f;
@@ -380,18 +370,9 @@ pub const Sample = struct {
 
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
-            const p = s3[0];
+            const p = sampler.sample1D();
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    wo_dot_h,
-                    alpha[0],
-                    frame,
-                    result,
-                );
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
 
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep)) * weight;
                 result.pdf *= f;

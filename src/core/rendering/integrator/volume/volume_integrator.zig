@@ -140,8 +140,7 @@ pub const Integrator = struct {
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            // Override the sampler choice with "low quality" in case of SSS
-            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
+            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, sampler, worker);
         }
 
         const ray_max_t = vertex.probe.ray.max_t;
@@ -277,8 +276,7 @@ pub const Integrator = struct {
 
             channel_weights /= @splat(sum_weights);
 
-            const r3 = sampler.sample3D();
-            const rc = r3[0];
+            const rc = sampler.sample1D();
 
             var channel_id: u32 = 2;
             if (rc < channel_weights[0]) {
@@ -287,7 +285,7 @@ pub const Integrator = struct {
                 channel_id = 1;
             }
 
-            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
+            const free_path = -@log(math.max(1.0 - sampler.sample1D(), 1e-10)) / mu_t[channel_id];
 
             // Calculate the visibility of the sample point for each channel
             const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);
@@ -298,7 +296,7 @@ pub const Integrator = struct {
 
             local_weight *= pdf;
 
-            if (hlp.russianRoulette(&local_weight, r3[2])) {
+            if (hlp.russianRoulette(&local_weight, sampler.sample1D())) {
                 return false;
             }
 
