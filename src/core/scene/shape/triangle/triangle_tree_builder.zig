@@ -118,7 +118,7 @@ pub const Builder = struct {
             tree.nodes[dest_node] = n;
 
             const begin = node.children();
-            const end = node.indicesEnd();
+            const end = begin + node.numIndices();
 
             for (begin..end) |p| {
                 const t = triangles[self.super.kernel.reference_ids.items[p]];

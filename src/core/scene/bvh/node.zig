@@ -45,10 +45,6 @@ pub const Node = struct {
         return self.min.data;
     }
 
-    pub fn indicesEnd(self: Node) u32 {
-        return self.min.data + self.max.data;
-    }
-
     pub fn setAABB(self: *Node, box: AABB) void {
         self.min.v[0] = box.bounds[0][0];
         self.min.v[1] = box.bounds[0][1];

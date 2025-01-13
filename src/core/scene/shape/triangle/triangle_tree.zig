@@ -53,9 +53,10 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.max_t = hit.t;
@@ -103,9 +104,10 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersectP(ray, i)) {
                         return true;
@@ -151,9 +153,10 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
                         const itri = self.data.indexTriangle(i);
