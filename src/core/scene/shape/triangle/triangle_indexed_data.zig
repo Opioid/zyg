@@ -27,7 +27,7 @@ pub const IndexedData = struct {
     num_triangles: u32 = 0,
     num_vertices: u32 = 0,
 
-    triangles: [*]Triangle align(16) = undefined,
+    triangles: [*]Triangle = undefined,
     positions: [*]f32 = undefined,
     frames: [*]Vec4f = undefined,
     uvs: [*]Vec2f = undefined,

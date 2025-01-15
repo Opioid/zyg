@@ -22,7 +22,7 @@ const Meta = packed struct {
 };
 
 pub const Node = struct {
-    center: Vec4us,
+    center: Vec4us align(32),
     cone: Vec4us,
 
     power: f32,

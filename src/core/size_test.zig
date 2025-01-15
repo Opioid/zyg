@@ -26,12 +26,13 @@ pub fn testSize() void {
     testType(math.Pack3f, "Pack3f", 12);
     testType(math.Vec4f, "Vec4f", 16);
     testType(math.Pack4f, "Pack4f", 16);
+    testType(math.Ray, "Ray", 64);
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 208);
     testType(Fragment, "Fragment", 208);
-    testType(Vertex, "Vertex", 384);
+    testType(Vertex, "Vertex", 400);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
@@ -47,7 +48,7 @@ pub fn testSize() void {
     testType(Texture, "Texture", 16);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 272);
+    testType(Worker, "Worker", 320);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

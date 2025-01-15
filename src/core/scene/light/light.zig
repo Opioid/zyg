@@ -35,12 +35,12 @@ pub const Light = struct {
         VolumeImage,
     };
 
+    prop: u32 align(16),
+    part: u32,
+    variant: u32,
     class: Class,
     two_sided: bool,
     shadow_catcher_light: bool,
-    prop: u32,
-    part: u32,
-    variant: u32,
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;

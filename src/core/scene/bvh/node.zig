@@ -16,7 +16,7 @@ pub const Node = struct {
         }
     };
 
-    min: Vec,
+    min: Vec align(32),
     max: Vec,
 
     pub fn initFrom(other: Node, o: u32) Node {
