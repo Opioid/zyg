@@ -34,7 +34,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var result: IValue = .{};

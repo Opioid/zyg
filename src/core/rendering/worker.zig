@@ -154,7 +154,7 @@ pub const Worker = struct {
                     const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                     const vertex = camera.generateVertex(sample, layer, frame, scene);
 
-                    const ivalue = self.surface_integrator.li(&vertex, self);
+                    const ivalue = self.surface_integrator.li(vertex, self);
 
                     sensor.addSample(layer, sample, ivalue, self.aov, crop, isolated_bounds);
 
