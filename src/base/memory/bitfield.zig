@@ -27,7 +27,7 @@ pub const Bitfield = struct {
     }
 
     pub fn get(self: Bitfield, index: u64) bool {
-        const mask = @as(u32, @intCast(Mask >> @as(u5, @intCast(index % Bits))));
+        const mask: u32 = @intCast(Mask >> @as(u5, @intCast(index % Bits)));
 
         return (self.buffer[index >> Log2Bits] & mask) != 0;
     }

@@ -134,7 +134,7 @@ pub const Base = struct {
     pub fn spectrumAtWavelength(lambda: f32, value: f32) Vec4f {
         const start = Rainbow.Wavelength_start;
         const end = Rainbow.Wavelength_end;
-        const nb = @as(f32, @floatFromInt(Rainbow.Num_bands));
+        const nb: f32 = @floatFromInt(Rainbow.Num_bands);
 
         const u = ((lambda - start) / (end - start)) * nb;
         const id = @as(u32, @intFromFloat(u));

@@ -207,7 +207,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         }
 
         pub fn getLast(self: *const Self) ?*T {
-            return self.get(@as(u32, @intCast(self.resources.items.len - 1)));
+            return self.get(@intCast(self.resources.items.len - 1));
         }
 
         pub fn getByName(self: *const Self, name: []const u8, options: Variants) ?u32 {

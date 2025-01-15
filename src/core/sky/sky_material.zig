@@ -111,7 +111,7 @@ pub const Material = struct {
 
         {
             const d = self.emission_map.description(scene).dimensions;
-            const height = @as(u32, @intCast(d[1]));
+            const height: u32 = @intCast(d[1]);
 
             var context = Context{
                 .shape = shape,

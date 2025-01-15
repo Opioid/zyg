@@ -137,7 +137,7 @@ pub const Material = struct {
             var context = DistributionContext{
                 .al = 0.6 * math.hmax3(average_emission),
                 .d = d,
-                .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[2]))) catch
+                .conditional = self.distribution.allocate(alloc, @intCast(d[2])) catch
                     return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
