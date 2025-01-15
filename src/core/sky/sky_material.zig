@@ -220,7 +220,7 @@ const Context = struct {
 
                 avg += Vec4f{ wli[0], wli[1], wli[2], uv_weight };
 
-                luminance[x] = spectrum.luminance(wli);
+                luminance[x] = math.hmax3(wli);
             }
 
             self.conditional[y].configure(self.alloc, luminance, 0) catch {};
