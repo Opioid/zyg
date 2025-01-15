@@ -11,7 +11,7 @@ pub const Node = struct {
         v: [3]f32 align(16),
         data: u32,
 
-        pub fn vec4f(self: Vec) Vec4f {
+        pub inline fn vec4f(self: Vec) Vec4f {
             return @as([*]align(16) const f32, @alignCast((&self.v).ptr))[0..4].*;
         }
     };
@@ -70,7 +70,7 @@ pub const Node = struct {
     }
 
     // Raytracing Gems 2 - chapter 2
-    pub fn intersect(self: Node, ray: Ray) f32 {
+    pub inline fn intersect(self: Node, ray: Ray) f32 {
         const lower = (self.min.vec4f() - ray.origin) * ray.inv_direction;
         const upper = (self.max.vec4f() - ray.origin) * ray.inv_direction;
 
