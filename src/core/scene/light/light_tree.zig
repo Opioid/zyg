@@ -200,7 +200,7 @@ fn importance(
     const cos_n = -math.dot3(n, na);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
-    const sb = math.max4(@as(Vec4f, @splat(1.0)) - sa * sa, @as(Vec4f, @splat(0.0)));
+    const sb = math.max4(@as(Vec4f, @splat(1.0)) - sa * sa, @splat(0.0));
     const sr = @sqrt(sb);
 
     const cos_cu = sr[0];

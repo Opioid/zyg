@@ -82,7 +82,8 @@ pub const Tree = struct {
             const num = node.numIndices();
             if (0 != num) {
                 const start = node.indicesStart();
-                for (finite_props[start..num]) |p| {
+                const end = start + num;
+                for (finite_props[start..end]) |p| {
                     if (props[p].intersect(p, probe, frag, false, scene)) {
                         prop = p;
                     }
@@ -146,7 +147,8 @@ pub const Tree = struct {
             const num = node.numIndices();
             if (0 != num) {
                 const start = node.indicesStart();
-                for (finite_props[start..num]) |p| {
+                const end = start + num;
+                for (finite_props[start..end]) |p| {
                     if (props[p].intersectP(p, probe, scene)) {
                         return true;
                     }
@@ -203,7 +205,8 @@ pub const Tree = struct {
             const num = node.numIndices();
             if (0 != num) {
                 const start = node.indicesStart();
-                for (finite_props[start..num]) |p| {
+                const end = start + num;
+                for (finite_props[start..end]) |p| {
                     if (!props[p].visibility(p, probe, sampler, worker, tr)) {
                         return false;
                     }
@@ -262,7 +265,8 @@ pub const Tree = struct {
             const num = node.numIndices();
             if (0 != num) {
                 const start = node.indicesStart();
-                for (finite_props[start..num]) |p| {
+                const end = start + num;
+                for (finite_props[start..end]) |p| {
                     const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
