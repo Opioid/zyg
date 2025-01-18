@@ -59,10 +59,10 @@ pub const Lighttracer = struct {
             vertex.mediums.pushVolumeLight(light);
         }
 
-        self.integrate(&vertex, worker, light, light_sample);
+        self.integrate(vertex, worker, light, light_sample);
     }
 
-    fn integrate(self: Self, input: *const Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
+    fn integrate(self: Self, input: Vertex, worker: *Worker, light: Light, light_sample: SampleFrom) void {
         const camera = worker.camera;
         const sensor = worker.sensor;
 

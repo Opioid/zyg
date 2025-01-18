@@ -42,7 +42,7 @@ pub const Scene = struct {
     const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Units_per_second)) * dtime)));
+        return @intFromFloat(@round(@as(f64, @floatFromInt(Units_per_second)) * dtime));
     }
 
     pub const Num_reserved_props = 32;
@@ -437,7 +437,7 @@ pub const Scene = struct {
     }
 
     pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-        const current_len = @as(u32, @intCast(self.keyframes.items.len));
+        const current_len: u32 = @intCast(self.keyframes.items.len);
         self.prop_frames.items[entity] = current_len;
 
         const num_frames = self.num_interpolation_frames;

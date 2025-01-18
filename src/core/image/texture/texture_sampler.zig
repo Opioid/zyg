@@ -22,6 +22,10 @@ const Address = struct {
     pub fn address3(self: Address, uvw: Vec4f) Vec4f {
         return self.u.f3(uvw);
     }
+
+    pub fn coord2(self: Address, c: Vec2i, end: Vec2i) Vec2i {
+        return .{ self.u.coord(c[0], end[0]), self.v.coord(c[1], end[1]) };
+    }
 };
 
 pub const Filter = enum {
@@ -126,7 +130,7 @@ const LinearStochastic2D = struct {
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address, sampler: *Sampler) Vec2i {
         const df: Vec2f = @floatFromInt(d);
-        const muv = Vec2f{ adr.u.f(uv[0]), adr.v.f(uv[1]) } * df - @as(Vec2f, @splat(0.5));
+        const muv = adr.address2(uv) * df - @as(Vec2f, @splat(0.5));
         const fuv = @floor(muv);
         const w = muv - fuv;
         const omw = @as(Vec2f, @splat(1.0)) - w;
@@ -149,18 +153,7 @@ const LinearStochastic2D = struct {
         xy[0] += index & 1;
         xy[1] += (index & 2) >> 1;
 
-        return .{ adr.u.coord(xy[0], d[0]), adr.v.coord(xy[1], d[1]) };
-
-        // if (r < w[0]) {
-        //     xy[0] += 1;
-        //     r /= w[0];
-        // } else {
-        //     r = (r - w[0]) / (1.0 - w[0]);
-        // }
-
-        // if (r < w[1]) {
-        //     xy[1] += 1;
-        // }
+        return adr.coord2(xy, d);
     }
 };
 

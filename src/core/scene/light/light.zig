@@ -27,7 +27,7 @@ pub const Properties = struct {
     two_sided: bool,
 };
 
-pub const Light align(16) = struct {
+pub const Light = struct {
     pub const Class = enum(u8) {
         Prop,
         PropImage,
@@ -35,12 +35,12 @@ pub const Light align(16) = struct {
         VolumeImage,
     };
 
+    prop: u32 align(16),
+    part: u32,
+    variant: u32,
     class: Class,
     two_sided: bool,
     shadow_catcher_light: bool,
-    prop: u32,
-    part: u32,
-    variant: u32,
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;

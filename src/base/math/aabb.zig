@@ -48,8 +48,8 @@ pub const AABB = struct {
         const t0 = math.min4(lower, upper);
         const t1 = math.max4(lower, upper);
 
-        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
         const tboxmin = math.hmax4(tmins);
         const tboxmax = math.hmin4(tmaxs);
@@ -64,8 +64,8 @@ pub const AABB = struct {
         const t0 = math.min4(lower, upper);
         const t1 = math.max4(lower, upper);
 
-        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
         const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
         const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
@@ -74,7 +74,7 @@ pub const AABB = struct {
         const tboxmax = mima.min(imax, tmaxs[3]);
 
         if (tboxmin <= tboxmax) {
-            return if (imin < ray.minT()) imax else imin;
+            return if (imin < ray.min_t) imax else imin;
         }
 
         return null;
@@ -87,8 +87,8 @@ pub const AABB = struct {
         const t0 = math.min4(lower, upper);
         const t1 = math.max4(lower, upper);
 
-        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
         const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
         const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
@@ -232,8 +232,8 @@ pub const AABB = struct {
         return Ray.init(
             (ray.origin - self.position()) / s,
             ray.direction / s,
-            ray.minT(),
-            ray.maxT(),
+            ray.min_t,
+            ray.max_t,
         );
     }
 };

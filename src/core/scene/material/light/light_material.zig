@@ -16,7 +16,6 @@ const Vec4f = math.Vec4f;
 const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Threads = base.thread.Pool;
-const spectrum = base.spectrum;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -92,8 +91,8 @@ pub const Material = struct {
 
         {
             var context = DistributionContext{
-                .al = 0.6 * spectrum.luminance(average_emission),
-                .width = @as(u32, @intCast(d[0])),
+                .al = 0.6 * math.hmax3(average_emission),
+                .width = @intCast(d[0]),
                 .conditional = self.distribution.allocate(alloc, @intCast(d[1])) catch
                     return @splat(0.0),
                 .luminance = luminance.ptr,
@@ -183,7 +182,8 @@ const LuminanceContext = struct {
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
 
-                self.luminance[row + x] = spectrum.luminance(wr);
+                //   self.luminance[row + x] = spectrum.luminance(wr);
+                self.luminance[row + x] = math.hmax3(wr); // spectrum.luminance(wr);
             }
         }
 

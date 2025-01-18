@@ -34,7 +34,7 @@ pub const PathtracerMIS = struct {
 
     const Self = @This();
 
-    pub fn li(self: Self, input: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Self, input: Vertex, worker: *Worker) IValue {
         const max_depth = self.settings.max_depth;
 
         var result: IValue = .{};
@@ -233,8 +233,6 @@ pub const PathtracerMIS = struct {
         const translucent = mat_sample.isTranslucent();
 
         const light = worker.scene.light(light_pick.offset);
-        // const num_samples = light.numSamples(worker.scene);
-        // const light_sample_weight = light_pick.pdf * @as(f32, @floatFromInt(num_samples));
 
         const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
 
@@ -315,8 +313,8 @@ pub const PathtracerMIS = struct {
         scene: *const Scene,
     ) void {
         if (frag.isec.t < ro.Almost_ray_max_t) {
-            const ray_min_t = vertex.probe.ray.minT();
-            const ray_max_t = vertex.probe.ray.maxT();
+            const ray_min_t = vertex.probe.ray.min_t;
+            const ray_max_t = vertex.probe.ray.max_t;
             vertex.probe.ray.setMinMaxT(ro.Almost_ray_max_t, ro.Ray_max_t);
 
             var sfrag: Fragment = undefined;

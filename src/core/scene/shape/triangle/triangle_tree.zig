@@ -32,15 +32,15 @@ pub const Tree = struct {
         alloc.free(self.nodes);
     }
 
-    pub fn numTriangles(self: *const Tree) u32 {
+    pub fn numTriangles(self: Tree) u32 {
         return self.data.num_triangles;
     }
 
-    pub fn aabb(self: *const Tree) AABB {
+    pub fn aabb(self: Tree) AABB {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: *const Tree, ray: Ray) Intersection {
+    pub fn intersect(self: Tree, ray: Ray) Intersection {
         var tray = ray;
 
         var stack = NodeStack{};
@@ -53,12 +53,13 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
-                        tray.setMaxT(hit.t);
+                        tray.max_t = hit.t;
                         hpoint.t = hit.t;
                         hpoint.u = hit.u;
                         hpoint.v = hit.v;
@@ -94,7 +95,7 @@ pub const Tree = struct {
         return hpoint;
     }
 
-    pub fn intersectP(self: *const Tree, ray: Ray) bool {
+    pub fn intersectP(self: Tree, ray: Ray) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -103,9 +104,10 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersectP(ray, i)) {
                         return true;
@@ -140,7 +142,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -151,9 +153,10 @@ pub const Tree = struct {
         while (NodeStack.End != n) {
             const node = nodes[n];
 
-            if (0 != node.numIndices()) {
+            const num = node.numIndices();
+            if (0 != num) {
                 var i = node.indicesStart();
-                const e = node.indicesEnd();
+                const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
                         const itri = self.data.indexTriangle(i);
@@ -201,7 +204,7 @@ pub const Tree = struct {
     }
 
     pub fn transmittance(
-        self: *const Tree,
+        self: Tree,
         ray: Ray,
         entity: u32,
         depth: u32,
@@ -211,10 +214,10 @@ pub const Tree = struct {
     ) bool {
         const material = worker.scene.propMaterial(entity, 0);
         const data = self.data;
-        const ray_max_t = ray.maxT();
+        const ray_max_t = ray.max_t;
 
         var tray = ray;
-        tray.setMaxT(ro.Ray_max_t);
+        tray.max_t = ro.Ray_max_t;
 
         while (true) {
             const hit = self.intersect(tray);
@@ -225,7 +228,7 @@ pub const Tree = struct {
             const n = data.normal(data.indexTriangle(hit.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.setMaxT(math.min(hit.t, ray_max_t));
+                tray.max_t = math.min(hit.t, ray_max_t);
 
                 if (!worker.propTransmittance(tray, material, entity, depth, sampler, tr)) {
                     return false;
@@ -244,7 +247,7 @@ pub const Tree = struct {
     }
 
     pub fn scatter(
-        self: *const Tree,
+        self: Tree,
         ray: Ray,
         throughput: Vec4f,
         entity: u32,
@@ -254,10 +257,10 @@ pub const Tree = struct {
     ) Volume {
         const material = worker.scene.propMaterial(entity, 0);
         const data = self.data;
-        const ray_max_t = ray.maxT();
+        const ray_max_t = ray.max_t;
 
         var tray = ray;
-        tray.setMaxT(ro.Ray_max_t);
+        tray.max_t = ro.Ray_max_t;
 
         var tr: Vec4f = @splat(1.0);
 
@@ -270,7 +273,7 @@ pub const Tree = struct {
             const n = data.normal(data.indexTriangle(hit.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.setMaxT(math.min(hit.t, ray_max_t));
+                tray.max_t = math.min(hit.t, ray_max_t);
 
                 var result = worker.propScatter(tray, throughput, material, entity, depth, sampler);
 

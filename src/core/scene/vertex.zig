@@ -200,8 +200,8 @@ pub const Pool = struct {
 
     alpha: f32,
 
-    pub fn start(self: *Pool, vertex: *const Vertex) void {
-        self.buffer[0] = vertex.*;
+    pub fn start(self: *Pool, vertex: Vertex) void {
+        self.buffer[0] = vertex;
         self.terminated = 0;
         self.current_id = Num_vertices;
         self.current_start = Num_vertices;

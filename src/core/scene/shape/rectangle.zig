@@ -30,7 +30,7 @@ pub const Rectangle = struct {
 
         var hpoint = Intersection{};
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -64,7 +64,7 @@ pub const Rectangle = struct {
         const t = -frag.trafo.rotation.r[0];
         const b = -frag.trafo.rotation.r[1];
 
-        frag.p = ray.point(ray.maxT());
+        frag.p = ray.point(ray.max_t);
         frag.t = t;
         frag.b = b;
         frag.n = n;
@@ -80,7 +80,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
@@ -110,7 +110,7 @@ pub const Rectangle = struct {
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        if (hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];

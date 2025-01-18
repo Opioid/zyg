@@ -88,7 +88,7 @@ pub const Material = struct {
 
     pub fn setSunRadianceZero(self: *Material) void {
         for (self.sun_radiance.samples) |*s| {
-            s.* = @as(Vec4f, @splat(0.0));
+            s.* = @splat(0.0);
         }
 
         self.average_emission = @splat(0.0);
@@ -111,7 +111,7 @@ pub const Material = struct {
 
         {
             const d = self.emission_map.description(scene).dimensions;
-            const height = @as(u32, @intCast(d[1]));
+            const height: u32 = @intCast(d[1]);
 
             var context = Context{
                 .shape = shape,
@@ -220,7 +220,7 @@ const Context = struct {
 
                 avg += Vec4f{ wli[0], wli[1], wli[2], uv_weight };
 
-                luminance[x] = spectrum.luminance(wli);
+                luminance[x] = math.hmax3(wli);
             }
 
             self.conditional[y].configure(self.alloc, luminance, 0) catch {};

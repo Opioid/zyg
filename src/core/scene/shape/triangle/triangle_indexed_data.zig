@@ -47,7 +47,7 @@ pub const IndexedData = struct {
         self.num_triangles = num_triangles;
         self.num_vertices = num_vertices;
 
-        self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
+        self.triangles = (try alloc.alignedAlloc(Triangle, 16, num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
@@ -80,11 +80,11 @@ pub const IndexedData = struct {
         };
     }
 
-    inline fn position(self: *const Self, index: u32) Vec4f {
+    inline fn position(self: Self, index: u32) Vec4f {
         return self.positions[index * 3 ..][0..4].*;
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, index: u32) ?triangle.Fragment {
+    pub fn intersect(self: Self, ray: Ray, index: u32) ?triangle.Fragment {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);
@@ -94,7 +94,7 @@ pub const IndexedData = struct {
         return triangle.intersect(ray, a, b, c);
     }
 
-    pub fn intersectP(self: *const Self, ray: Ray, index: u32) bool {
+    pub fn intersectP(self: Self, ray: Ray, index: u32) bool {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);
@@ -104,11 +104,11 @@ pub const IndexedData = struct {
         return triangle.intersectP(ray, a, b, c);
     }
 
-    pub fn indexTriangle(self: *const Self, index: u32) Triangle {
+    pub fn indexTriangle(self: Self, index: u32) Triangle {
         return self.triangles[index];
     }
 
-    pub fn interpolateP(self: *const Self, tri: Triangle, u: f32, v: f32) Vec4f {
+    pub fn interpolateP(self: Self, tri: Triangle, u: f32, v: f32) Vec4f {
         const a = self.position(tri.a);
         const b = self.position(tri.b);
         const c = self.position(tri.c);
@@ -116,7 +116,7 @@ pub const IndexedData = struct {
         return triangle.interpolate3(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: *const Self, tri: Triangle, u: f32, v: f32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
+    pub fn interpolateData(self: Self, tri: Triangle, u: f32, v: f32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
         const tna = quaternion.toTN(self.frames[tri.a]);
         const uva = self.uvs[tri.a];
 
@@ -143,7 +143,7 @@ pub const IndexedData = struct {
         uv.* = Vec2f{ tu[3], nv[3] };
     }
 
-    pub fn interpolateUv(self: *const Self, tri: Triangle, u: f32, v: f32) Vec2f {
+    pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {
         const a = self.uvs[tri.a];
         const b = self.uvs[tri.b];
         const c = self.uvs[tri.c];
@@ -151,7 +151,7 @@ pub const IndexedData = struct {
         return triangle.interpolate2(a, b, c, u, v);
     }
 
-    pub fn normal(self: *const Self, tri: Triangle) Vec4f {
+    pub fn normal(self: Self, tri: Triangle) Vec4f {
         const a = self.position(tri.a);
         const b = self.position(tri.b);
         const c = self.position(tri.c);
@@ -162,7 +162,7 @@ pub const IndexedData = struct {
         return math.normalize3(math.cross3(e1, e2));
     }
 
-    pub fn crossAxis(self: *const Self, tri: Triangle) Vec4f {
+    pub fn crossAxis(self: Self, tri: Triangle) Vec4f {
         const a = self.position(tri.a);
         const b = self.position(tri.b);
         const c = self.position(tri.c);
@@ -173,7 +173,7 @@ pub const IndexedData = struct {
         return math.cross3(e1, e2);
     }
 
-    pub fn triangleArea(self: *const Self, tri: Triangle) f32 {
+    pub fn triangleArea(self: Self, tri: Triangle) f32 {
         const a = self.position(tri.a);
         const b = self.position(tri.b);
         const c = self.position(tri.c);
@@ -181,7 +181,7 @@ pub const IndexedData = struct {
         return triangle.area(a, b, c);
     }
 
-    pub fn triangleP(self: *const Self, tri: Triangle) [3]Vec4f {
+    pub fn triangleP(self: Self, tri: Triangle) [3]Vec4f {
         return .{
             self.position(tri.a),
             self.position(tri.b),
@@ -194,7 +194,7 @@ pub const IndexedData = struct {
         uv: [3]Vec2f,
     };
 
-    pub fn trianglePuv(self: *const Self, tri: Triangle) Puv {
+    pub fn trianglePuv(self: Self, tri: Triangle) Puv {
         return .{
             .p = .{
                 self.position(tri.a),
@@ -205,7 +205,7 @@ pub const IndexedData = struct {
         };
     }
 
-    pub fn sample(self: *const Self, tri: Triangle, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
+    pub fn sample(self: Self, tri: Triangle, r2: Vec2f, p: *Vec4f, tc: *Vec2f) void {
         const uv = math.smpl.triangleUniform(r2);
 
         const pa = self.position(tri.a);

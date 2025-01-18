@@ -28,7 +28,7 @@ pub const Emittance = struct {
 
     // unit: lumen
     pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.luminance(color);
+        const luminance = spectrum.AP1toLuminance(color);
 
         self.value = @as(Vec4f, @splat(value / (std.math.pi * luminance))) * color;
         self.cos_a = cos_a;
@@ -37,7 +37,7 @@ pub const Emittance = struct {
 
     // unit: lumen per unit solid angle (lm / sr == candela (cd))
     pub fn setLuminousIntensity(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.luminance(color);
+        const luminance = spectrum.AP1toLuminance(color);
 
         self.value = @as(Vec4f, @splat(value / luminance)) * color;
         self.cos_a = cos_a;
@@ -46,7 +46,7 @@ pub const Emittance = struct {
 
     // unit: lumen per unit solid angle per unit projected area (lm / sr / m^2 == cd / m^2)
     pub fn setLuminance(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.luminance(color);
+        const luminance = spectrum.AP1toLuminance(color);
 
         self.value = @as(Vec4f, @splat(value / luminance)) * color;
         self.cos_a = cos_a;

@@ -42,7 +42,7 @@ pub const Mesh = struct {
 
         const offset = frag.trafo.scaleX() * 0.5 * data.width;
 
-        frag.p = ray.point(ray.maxT());
+        frag.p = ray.point(ray.max_t);
         frag.t = t;
         frag.b = b;
         frag.n = n;

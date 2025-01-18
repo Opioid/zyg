@@ -44,7 +44,7 @@ pub const Pool = struct {
     running_async: bool = false,
 
     pub fn availableCores(request: i32) u32 {
-        const available = @as(u32, @intCast(std.Thread.getCpuCount() catch 1));
+        const available: u32 = @intCast(std.Thread.getCpuCount() catch 1);
 
         if (request <= 0) {
             const num_threads = @as(i32, @intCast(available)) + request;

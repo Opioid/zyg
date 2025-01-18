@@ -133,7 +133,7 @@ pub const Prop = struct {
 
         const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
         if (Intersection.Null != hit.primitive) {
-            probe.ray.setMaxT(hit.t);
+            probe.ray.max_t = hit.t;
             frag.isec = hit;
             frag.trafo = trafo;
             return true;

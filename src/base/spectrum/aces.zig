@@ -7,28 +7,30 @@ const Vec4f = @import("../math/vector4.zig").Vec4f;
 
 // sRGB => XYZ => D65_2_D60 => AP1
 pub fn sRGBtoAP1(srgb: Vec4f) Vec4f {
-    return .{
-        0.61309732 * srgb[0] + 0.33952285 * srgb[1] + 0.04737928 * srgb[2],
-        0.07019422 * srgb[0] + 0.91635557 * srgb[1] + 0.01345259 * srgb[2],
-        0.02061560 * srgb[0] + 0.10956983 * srgb[1] + 0.86981512 * srgb[2],
-        0.0,
-    };
+    const r: Vec4f = @splat(srgb[0]);
+    const g: Vec4f = @splat(srgb[1]);
+    const b: Vec4f = @splat(srgb[2]);
+
+    return Vec4f{ 0.61309732, 0.07019422, 0.02061560, 0.0 } * r +
+        Vec4f{ 0.33952285, 0.91635557, 0.10956983, 0.0 } * g +
+        Vec4f{ 0.04737928, 0.01345259, 0.86981512, 0.0 } * b;
 }
 
-pub fn AP1tosRGB(srgb: Vec4f) Vec4f {
-    return .{
-        1.70505155 * srgb[0] - 0.62179068 * srgb[1] - 0.08325840 * srgb[2],
-        -0.13025714 * srgb[0] + 1.14080289 * srgb[1] - 0.01054853 * srgb[2],
-        -0.02400328 * srgb[0] - 0.12896877 * srgb[1] + 1.15297171 * srgb[2],
-        0.0,
-    };
+pub fn AP1tosRGB(ap1: Vec4f) Vec4f {
+    const r: Vec4f = @splat(ap1[0]);
+    const g: Vec4f = @splat(ap1[1]);
+    const b: Vec4f = @splat(ap1[2]);
+
+    return Vec4f{ 1.70505155, -0.13025714, -0.02400328, 0.0 } * r +
+        Vec4f{ -0.62179068, 1.14080289, -0.12896877, 0.0 } * g +
+        Vec4f{ -0.08325840, -0.01054853, 1.15297171, 0.0 } * b;
 }
 
-pub fn AP1toRRT_SAT(acescg: Vec4f) Vec4f {
+pub fn AP1toRRT_SAT(ap1: Vec4f) Vec4f {
     return .{
-        0.970889 * acescg[0] + 0.026963 * acescg[1] + 0.002148 * acescg[2],
-        0.010889 * acescg[0] + 0.986963 * acescg[1] + 0.002148 * acescg[2],
-        0.010889 * acescg[0] + 0.026963 * acescg[1] + 0.962148 * acescg[2],
+        0.970889 * ap1[0] + 0.026963 * ap1[1] + 0.002148 * ap1[2],
+        0.010889 * ap1[0] + 0.986963 * ap1[1] + 0.002148 * ap1[2],
+        0.010889 * ap1[0] + 0.026963 * ap1[1] + 0.962148 * ap1[2],
         0.0,
     };
 }
@@ -62,10 +64,15 @@ pub fn RRTandODT(x: Vec4f) Vec4f {
 
 // XYZ => D65_2_D60 => AP1
 pub fn XYZtoAP1(xyz: Vec4f) Vec4f {
-    return .{
-        1.66058533 * xyz[0] - 0.31529556 * xyz[1] - 0.24150933 * xyz[2],
-        -0.65992606 * xyz[0] + 1.60839147 * xyz[1] + 0.01729859 * xyz[2],
-        0.00900257 * xyz[0] - 0.00356688 * xyz[1] + 0.91364331 * xyz[2],
-        0.0,
-    };
+    const x: Vec4f = @splat(xyz[0]);
+    const y: Vec4f = @splat(xyz[1]);
+    const z: Vec4f = @splat(xyz[2]);
+
+    return Vec4f{ 1.66058533, -0.65992606, 0.00900257, 0.0 } * x +
+        Vec4f{ -0.31529556, 1.60839147, -0.00356688, 0.0 } * y +
+        Vec4f{ -0.24150933, 0.01729859, 0.91364331, 0.0 } * z;
+}
+
+pub fn AP1toLuminance(ap1: Vec4f) f32 {
+    return 0.27222872 * ap1[0] + 0.67408177 * ap1[1] + 0.05368952 * ap1[2];
 }

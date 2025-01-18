@@ -135,9 +135,9 @@ pub const Material = struct {
 
         {
             var context = DistributionContext{
-                .al = 0.6 * spectrum.luminance(average_emission),
+                .al = 0.6 * math.hmax3(average_emission),
                 .d = d,
-                .conditional = self.distribution.allocate(alloc, @as(u32, @intCast(d[2]))) catch
+                .conditional = self.distribution.allocate(alloc, @intCast(d[2])) catch
                     return @splat(0.0),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
@@ -275,7 +275,7 @@ const LuminanceContext = struct {
                         const c = mat.blackbody.eval(t);
                         const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
-                        self.luminance[slice + row + x] = spectrum.luminance(radiance);
+                        self.luminance[slice + row + x] = math.hmax3(radiance);
 
                         avg += radiance;
                     }

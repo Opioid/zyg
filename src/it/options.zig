@@ -122,10 +122,14 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
             self.threads = std.fmt.parseInt(i32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "tone", command)) {
-            if (std.mem.eql(u8, "agx", parameter)) {
-                self.operator = .{ .Tonemap = .{ .AgX = .Substitute } };
-            } else {
+            if (std.mem.eql(u8, "aces", parameter)) {
                 self.operator = .{ .Tonemap = .ACES };
+            } else if (std.mem.eql(u8, "agx", parameter)) {
+                self.operator = .{ .Tonemap = .{ .AgX = .Substitute } };
+            } else if (std.mem.eql(u8, "pbr", parameter)) {
+                self.operator = .{ .Tonemap = .PbrNeutral };
+            } else {
+                self.operator = .{ .Tonemap = .Linear };
             }
         }
     }

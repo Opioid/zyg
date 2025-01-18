@@ -27,7 +27,7 @@ pub const InfiniteSphere = struct {
     pub fn intersect(ray: Ray) Intersection {
         var hpoint = Intersection{};
 
-        if (ray.maxT() >= ro.Ray_max_t) {
+        if (ray.max_t >= ro.Ray_max_t) {
             hpoint.t = ro.Ray_max_t;
             hpoint.primitive = 0;
         }

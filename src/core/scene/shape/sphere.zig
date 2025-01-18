@@ -36,14 +36,14 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
 
             const t0 = b - dist;
-            if (t0 >= ray.minT() and ray.maxT() >= t0) {
+            if (t0 >= ray.min_t and ray.max_t >= t0) {
                 hpoint.t = t0;
                 hpoint.primitive = 0;
                 return hpoint;
             }
 
             const t1 = b + dist;
-            if (t1 >= ray.minT() and ray.maxT() >= t1) {
+            if (t1 >= ray.min_t and ray.max_t >= t1) {
                 hpoint.t = t1;
                 hpoint.primitive = 0;
                 return hpoint;
@@ -54,7 +54,7 @@ pub const Sphere = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const p = ray.point(ray.maxT());
+        const p = ray.point(ray.max_t);
         const n = math.normalize3(p - frag.trafo.position);
 
         frag.p = p;
@@ -95,13 +95,13 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
 
-            if (t0 >= ray.minT() and ray.maxT() >= t0) {
+            if (t0 >= ray.min_t and ray.max_t >= t0) {
                 return true;
             }
 
             const t1 = b + dist;
 
-            if (t1 >= ray.minT() and ray.maxT() >= t1) {
+            if (t1 >= ray.min_t and ray.max_t >= t1) {
                 return true;
             }
         }
@@ -121,7 +121,7 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
 
             const t0 = b - dist;
-            if (t0 >= ray.minT() and ray.maxT() >= t0) {
+            if (t0 >= ray.min_t and ray.max_t >= t0) {
                 const p = ray.point(t0);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
@@ -135,7 +135,7 @@ pub const Sphere = struct {
             }
 
             const t1 = b + dist;
-            if (t1 >= ray.minT() and ray.maxT() >= t1) {
+            if (t1 >= ray.min_t and ray.max_t >= t1) {
                 const p = ray.point(t1);
                 const n = math.normalize3(p - trafo.position);
                 const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
@@ -172,8 +172,8 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
             const t1 = b + dist;
-            const start = math.max(t0, ray.minT());
-            const end = math.min(t1, ray.maxT());
+            const start = math.max(t0, ray.min_t);
+            const end = math.min(t1, ray.max_t);
 
             const material = worker.scene.propMaterial(entity, 0);
 
@@ -209,8 +209,8 @@ pub const Sphere = struct {
             const dist = @sqrt(discriminant);
             const t0 = b - dist;
             const t1 = b + dist;
-            const start = math.max(t0, ray.minT());
-            const end = math.min(t1, ray.maxT());
+            const start = math.max(t0, ray.min_t);
+            const end = math.min(t1, ray.max_t);
 
             const material = worker.scene.propMaterial(entity, 0);
 

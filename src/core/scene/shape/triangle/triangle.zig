@@ -3,15 +3,13 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
-const std = @import("std");
-
 pub const Fragment = struct {
     t: f32,
     u: f32,
     v: f32,
 };
 
-pub const IndexTriangle align(16) = struct {
+pub const IndexTriangle = struct {
     i: [3]u32,
     part: u32,
 };
@@ -45,7 +43,7 @@ pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Fragment {
 
     const uv = u + v;
 
-    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.min_t and ray.max_t >= hit_t) {
         return Fragment{ .t = hit_t, .u = u, .v = v };
     }
 
@@ -73,7 +71,7 @@ pub fn intersectP(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) bool {
 
     const uv = u + v;
 
-    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.minT() and ray.maxT() >= hit_t) {
+    if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.min_t and ray.max_t >= hit_t) {
         return true;
     }
 

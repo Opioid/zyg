@@ -73,7 +73,7 @@ pub const Sample = struct {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
 
-            var reflection = @as(Vec4f, @splat(pdf));
+            var reflection: Vec4f = @splat(pdf);
 
             const coated = self.coating.thickness > 0.0;
             if (coated) {
@@ -141,7 +141,7 @@ pub const Sample = struct {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
 
-            var reflection = @as(Vec4f, @splat(pdf));
+            var reflection: Vec4f = @splat(pdf);
 
             const coated = self.coating.thickness > 0.0;
             if (coated) {
@@ -172,8 +172,7 @@ pub const Sample = struct {
             const op = self.opacity;
             const tr = 1.0 - op;
 
-            const s3 = sampler.sample3D();
-            const p = s3[0];
+            const p = sampler.sample1D();
             if (p < tr) {
                 const frame = self.super.frame;
                 const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
@@ -188,7 +187,7 @@ pub const Sample = struct {
                 result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f))) * attenuation;
                 result.pdf *= tr;
             } else {
-                const xi = Vec2f{ s3[1], s3[2] };
+                const xi = sampler.sample2D();
 
                 if (p < tr + 0.5 * op) {
                     _ = self.diffuseSample(0.5, xi, result);
@@ -280,13 +279,12 @@ pub const Sample = struct {
 
             const n_dot_wo = frame.clampAbsNdot(wo);
             const f0m = math.hmax3(self.f0);
-            const albedo = math.hmax3(self.super.albedo);
-            dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, albedo);
+            const am = math.hmax3(self.super.albedo);
+            dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
-        const s3 = sampler.sample3D();
-        const p = s3[0];
-        const xi = Vec2f{ s3[1], s3[2] };
+        const p = sampler.sample1D();
+        const xi = sampler.sample2D();
         if (p < dw) {
             _ = self.diffuseSample(dw, xi, result);
         } else {
@@ -299,8 +297,7 @@ pub const Sample = struct {
         const micro = self.coating.sample(self.super.wo, sampler.sample2D(), &n_dot_h);
         const f = micro.n_dot_wi;
 
-        const s3 = sampler.sample3D();
-        const p = s3[0];
+        const p = sampler.sample1D();
         if (p <= f) {
             self.coatingReflect(micro.h, f, n_dot_h, micro.h_dot_wi, result);
         } else {
@@ -312,13 +309,12 @@ pub const Sample = struct {
                 const alpha = self.super.alpha;
 
                 const n_dot_wo = frame.clampAbsNdot(wo);
-
                 const f0m = math.hmax3(self.f0);
-                const albedo = math.hmax3(self.super.albedo);
-                dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, albedo);
+                const am = math.hmax3(self.super.albedo);
+                dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
             }
 
-            const xi = Vec2f{ s3[1], s3[2] };
+            const xi = sampler.sample2D();
 
             const p1 = (p - f) / (1.0 - f);
             if (p1 < dw) {
@@ -531,8 +527,7 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D();
-        const xi = Vec2f{ s3[1], s3[2] };
+        const xi = sampler.sample2D();
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
@@ -567,18 +562,7 @@ pub const Sample = struct {
 
             {
                 const r_wo_dot_h = -wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    -wi_dot_h,
-                    r_wo_dot_h,
-                    alpha[0],
-                    ior,
-                    frame,
-                    &buffer[1],
-                );
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, &buffer[1]);
 
                 const omf = 1.0 - f;
                 buffer[1].reflection *= @splat(n_dot_wi);
@@ -593,7 +577,7 @@ pub const Sample = struct {
             result.split_weight = 1.0;
             result.wavelength = 0.0;
 
-            const p = s3[0];
+            const p = sampler.sample1D();
 
             const ep = if (same_side) 1.0 else ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
@@ -637,9 +621,8 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const s3 = sampler.sample3D();
-        const xi = Vec2f{ s3[1], s3[2] };
-        var p = s3[0];
+        const xi = sampler.sample2D();
+        var p = sampler.sample1D();
 
         if (same_side) {
             var coat_n_dot_h: f32 = undefined;
@@ -683,18 +666,7 @@ pub const Sample = struct {
                     result.pdf = (1.0 - cf) * (f * result.pdf) + cf * coating.pdf;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
-                    const n_dot_wi = ggx.Iso.refractNoFresnel(
-                        wo,
-                        h,
-                        n_dot_wo,
-                        n_dot_h,
-                        -wi_dot_h,
-                        r_wo_dot_h,
-                        alpha[1],
-                        ior,
-                        frame,
-                        result,
-                    );
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
 
                     const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                     const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
@@ -733,18 +705,7 @@ pub const Sample = struct {
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(
-                    wo,
-                    h,
-                    n_dot_wo,
-                    n_dot_h,
-                    -wi_dot_h,
-                    r_wo_dot_h,
-                    alpha[1],
-                    ior,
-                    frame,
-                    result,
-                );
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
 
                 const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);

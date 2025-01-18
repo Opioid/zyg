@@ -36,8 +36,3 @@ pub fn gammaToLinear_sRGB(c: f32) f32 {
 
     return 1.0;
 }
-
-pub fn luminance(c: Vec4f) f32 {
-    // https://github.com/ampas/aces-dev/blob/master/transforms/ctl/README-MATRIX.md
-    return 0.2722287168 * c[0] + 0.6740817658 * c[1] + 0.0536895174 * c[2];
-}

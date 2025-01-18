@@ -33,9 +33,9 @@ pub const Integrator = struct {
         worker: *Worker,
         tr: *Vec4f,
     ) bool {
-        const d = ray.maxT();
+        const d = ray.max_t;
 
-        if (ro.offsetF(ray.minT()) >= d) {
+        if (ro.offsetF(ray.min_t) >= d) {
             return true;
         }
 
@@ -43,7 +43,7 @@ pub const Integrator = struct {
             return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker, tr);
         }
 
-        tr.* *= ccoef.attenuation3(cc.a + cc.s, d - ray.minT());
+        tr.* *= ccoef.attenuation3(cc.a + cc.s, d - ray.min_t);
         return true;
     }
 
@@ -57,11 +57,11 @@ pub const Integrator = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
-        const d = ray.maxT();
+        const d = ray.max_t;
 
         if (!material.scatteringVolume()) {
             // Basically the "glass" case
-            return Volume.initPass(ccoef.attenuation3(cc.a, d - ray.minT()));
+            return Volume.initPass(ccoef.attenuation3(cc.a, d - ray.min_t));
         }
 
         if (math.allLess4(throughput, tracking.Abort_epsilon4)) {
@@ -76,7 +76,7 @@ pub const Integrator = struct {
             var result = Volume.initPass(@splat(1.0));
 
             if (material.emissive()) {
-                while (local_ray.minT() < d) {
+                while (local_ray.min_t < d) {
                     if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHeteroEmission(
                             local_ray,
@@ -99,10 +99,10 @@ pub const Integrator = struct {
                         }
                     }
 
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
                 }
             } else {
-                while (local_ray.minT() < d) {
+                while (local_ray.min_t < d) {
                     if (tree.intersect(&local_ray)) |cm| {
                         result = tracking.trackingHetero(
                             local_ray,
@@ -120,7 +120,7 @@ pub const Integrator = struct {
                         }
                     }
 
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.maxT()), d);
+                    local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
                 }
             }
 
@@ -140,13 +140,12 @@ pub const Integrator = struct {
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            // Override the sampler choice with "low quality" in case of SSS
-            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, worker.pickSampler(0xFFFFFFFF), worker);
+            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, sampler, worker);
         }
 
-        const ray_max_t = vertex.probe.ray.maxT();
+        const ray_max_t = vertex.probe.ray.max_t;
         const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
-        vertex.probe.ray.setMaxT(math.min(ro.offsetF(limit), ray_max_t));
+        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return false;
         }
@@ -277,8 +276,7 @@ pub const Integrator = struct {
 
             channel_weights /= @splat(sum_weights);
 
-            const r3 = sampler.sample3D();
-            const rc = r3[0];
+            const rc = sampler.sample1D();
 
             var channel_id: u32 = 2;
             if (rc < channel_weights[0]) {
@@ -287,7 +285,7 @@ pub const Integrator = struct {
                 channel_id = 1;
             }
 
-            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
+            const free_path = -@log(math.max(1.0 - sampler.sample1D(), 1e-10)) / mu_t[channel_id];
 
             // Calculate the visibility of the sample point for each channel
             const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);
@@ -298,11 +296,11 @@ pub const Integrator = struct {
 
             local_weight *= pdf;
 
-            if (hlp.russianRoulette(&local_weight, r3[2])) {
+            if (hlp.russianRoulette(&local_weight, sampler.sample1D())) {
                 return false;
             }
 
-            vertex.probe.ray.setMaxT(free_path);
+            vertex.probe.ray.max_t = free_path;
 
             if (!worker.propIntersect(prop, &vertex.probe, frag, true)) {
                 const wil = sampleHg(g, sampler);

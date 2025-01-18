@@ -79,7 +79,7 @@ pub const Factory = union(enum) {
     pub fn create(self: Factory, rng: *RNG) Sampler {
         return switch (self) {
             .Random => Sampler{ .Random = .{ .rng = rng } },
-            .Sobol => Sampler{ .Sobol = .{} },
+            .Sobol => Sampler{ .Sobol = undefined },
         };
     }
 };

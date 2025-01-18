@@ -37,7 +37,7 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
 
     const b = math.dot3(ng, n);
 
-    const epsilon = @as(f32, 1e-4);
+    const epsilon = 1e-4;
 
     var tangent: Vec4f = undefined;
     if (b > epsilon) {

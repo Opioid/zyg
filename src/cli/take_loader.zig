@@ -243,6 +243,10 @@ fn loadTonemapper(value: std.json.Value) Tonemapper {
         if (std.mem.eql(u8, "Linear", entry.key_ptr.*)) {
             return Tonemapper.init(.Linear, exposure);
         }
+
+        if (std.mem.eql(u8, "PbrNeutral", entry.key_ptr.*)) {
+            return Tonemapper.init(.PbrNeutral, exposure);
+        }
     }
 
     return Tonemapper.init(.Linear, 0.0);

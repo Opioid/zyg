@@ -289,7 +289,7 @@ pub const Writer = struct {
             scanline_offset += 4 + 4 + context.cb[y].size;
         }
 
-        const y_offset = @as(u32, @intCast(crop[1]));
+        const y_offset: u32 = @intCast(crop[1]);
 
         y = 0;
         while (y < row_blocks) : (y += 1) {
@@ -532,7 +532,7 @@ pub const Writer = struct {
 
             // Predictor
             {
-                var p = @as(u32, @intCast(destination[0]));
+                var p: u32 = @intCast(destination[0]);
 
                 var t: usize = 1;
                 while (t < len) : (t += 1) {
@@ -540,7 +540,7 @@ pub const Writer = struct {
                     const d = @as(u32, @intCast(b)) -% p +% (128 + 256);
 
                     p = b;
-                    destination[t] = @as(u8, @truncate(d));
+                    destination[t] = @truncate(d);
                 }
             }
         }

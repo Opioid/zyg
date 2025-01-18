@@ -30,7 +30,7 @@ pub const Integrator = union(enum) {
     PTDL: PathtracerDL,
     PTMIS: PathtracerMIS,
 
-    pub fn li(self: Integrator, vertex: *const Vertex, worker: *Worker) IValue {
+    pub fn li(self: Integrator, vertex: Vertex, worker: *Worker) IValue {
         return switch (self) {
             inline else => |i| i.li(vertex, worker),
         };

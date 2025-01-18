@@ -192,7 +192,7 @@ const Kernel = struct {
                 const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
 
                 for (1..num_steps) |i| {
-                    const fi = @as(f32, @floatFromInt(i));
+                    const fi: f32 = @floatFromInt(i);
 
                     var slice = position;
                     slice[a] = min[a] + fi * step_a;

@@ -201,7 +201,7 @@ pub const Worker = struct {
                             const sample = sensor.cameraSample(pixel, &self.samplers[0]);
                             const vertex = camera.generateVertex(sample, layer, frame, scene);
 
-                            const ivalue = self.surface_integrator.li(&vertex, self);
+                            const ivalue = self.surface_integrator.li(vertex, self);
 
                             // The weightd value is what was added to the pixel
                             const weighted = sensor.addSample(layer, sample, ivalue, self.aov);
@@ -324,7 +324,7 @@ pub const Worker = struct {
         }
 
         if (self.aov.activeClass(.Depth)) {
-            self.aov.insert1(.Depth, vertex.probe.ray.maxT());
+            self.aov.insert1(.Depth, vertex.probe.ray.max_t);
         }
 
         if (self.aov.activeClass(.MaterialId)) {
@@ -350,7 +350,7 @@ pub const Worker = struct {
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
-        vertex.probe.ray.setMaxT(dif_t + vertex.probe.ray.maxT());
+        vertex.probe.ray.max_t += dif_t;
 
         const volume_hit = self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
 
@@ -409,7 +409,7 @@ pub const Worker = struct {
 
             // Offset ray until opaque surface is found
             probe.ray.origin = frag.offsetP(probe.ray.direction);
-            probe.ray.setMaxT(ro.Ray_max_t);
+            probe.ray.max_t = ro.Ray_max_t;
         }
 
         return true;

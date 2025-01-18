@@ -27,7 +27,7 @@ pub const Canopy = struct {
     pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
         var hpoint = Intersection{};
 
-        if (ray.maxT() < ro.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
+        if (ray.max_t < ro.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
             return hpoint;
         }
 

@@ -119,7 +119,7 @@ pub const Graph = struct {
     pub fn createEntity(self: *Self, alloc: Allocator, render_id: u32) !u32 {
         try self.prop_props.append(alloc, render_id);
         try self.prop_properties.append(alloc, .{});
-        try self.prop_frames.append(alloc, @as(u32, @intCast(self.keyframes.items.len)));
+        try self.prop_frames.append(alloc, @intCast(self.keyframes.items.len));
         try self.prop_topology.append(alloc, .{});
 
         return @as(u32, @intCast(self.prop_props.items.len - 1));

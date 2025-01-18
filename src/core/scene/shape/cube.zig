@@ -28,7 +28,7 @@ pub const Cube = struct {
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
         const hit_t = aabb.intersectP(local_ray) orelse return hpoint;
-        if (hit_t < ray.maxT()) {
+        if (hit_t < ray.max_t) {
             hpoint.t = hit_t;
             hpoint.primitive = 0;
         }
@@ -37,7 +37,7 @@ pub const Cube = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const hit_t = ray.maxT();
+        const hit_t = ray.max_t;
 
         frag.p = ray.point(hit_t);
 
@@ -95,8 +95,8 @@ pub const Cube = struct {
             return true;
         };
 
-        const start = math.max(hit_t[0], ray.minT());
-        const end = math.min(hit_t[1], ray.maxT());
+        const start = math.max(hit_t[0], ray.min_t);
+        const end = math.min(hit_t[1], ray.max_t);
         local_ray.setMinMaxT(start, end);
 
         const material = worker.scene.propMaterial(entity, 0);
@@ -114,13 +114,13 @@ pub const Cube = struct {
     ) Volume {
         const local_origin = trafo.worldToObjectPoint(ray.origin);
         const local_dir = trafo.worldToObjectVector(ray.direction);
-        const local_ray = Ray.init(local_origin, local_dir, ray.minT(), ray.maxT());
+        const local_ray = Ray.init(local_origin, local_dir, ray.min_t, ray.max_t);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
         const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(1.0));
 
-        const start = math.max(hit_t[0], ray.minT());
-        const end = math.min(hit_t[1], ray.maxT());
+        const start = math.max(hit_t[0], ray.min_t);
+        const end = math.min(hit_t[1], ray.max_t);
 
         const material = worker.scene.propMaterial(entity, 0);
         const tray = Ray.init(local_origin, local_dir, start, end);

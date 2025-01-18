@@ -7,16 +7,16 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Node = struct {
-    const Vec align(16) = struct {
-        v: [3]f32,
+    const Vec = struct {
+        v: [3]f32 align(16),
         data: u32,
 
-        pub fn vec4f(self: Vec) Vec4f {
+        pub inline fn vec4f(self: Vec) Vec4f {
             return @as([*]align(16) const f32, @alignCast((&self.v).ptr))[0..4].*;
         }
     };
 
-    min: Vec,
+    min: Vec align(32),
     max: Vec,
 
     pub fn initFrom(other: Node, o: u32) Node {
@@ -45,10 +45,6 @@ pub const Node = struct {
         return self.min.data;
     }
 
-    pub fn indicesEnd(self: Node) u32 {
-        return self.min.data + self.max.data;
-    }
-
     pub fn setAABB(self: *Node, box: AABB) void {
         self.min.v[0] = box.bounds[0][0];
         self.min.v[1] = box.bounds[0][1];
@@ -74,15 +70,15 @@ pub const Node = struct {
     }
 
     // Raytracing Gems 2 - chapter 2
-    pub fn intersect(self: Node, ray: Ray) f32 {
+    pub inline fn intersect(self: Node, ray: Ray) f32 {
         const lower = (self.min.vec4f() - ray.origin) * ray.inv_direction;
         const upper = (self.max.vec4f() - ray.origin) * ray.inv_direction;
 
         const t0 = math.min4(lower, upper);
         const t1 = math.max4(lower, upper);
 
-        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.minT() };
-        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.maxT() };
+        const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
+        const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
         const tboxmin = math.hmax4(tmins);
         const tboxmax = math.hmin4(tmaxs);
