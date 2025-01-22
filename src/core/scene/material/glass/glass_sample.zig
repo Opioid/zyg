@@ -59,7 +59,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
@@ -70,6 +70,8 @@ pub const Sample = struct {
         }
 
         const frame = self.super.frame;
+
+        const split = max_splits > 1;
 
         const wo = self.super.wo;
         if (!self.super.sameHemisphere(wo)) {
@@ -154,7 +156,9 @@ pub const Sample = struct {
         return @splat(1.0);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, max_splits: u32, buffer: *bxdf.Samples) []bxdf.Sample {
+        const split = max_splits > 1;
+
         if (self.super.thickness > 0.0) {
             if (self.super.alpha[0] > 0.0) {
                 return self.roughSample(true, @splat(1.0), self.ior, 0.0, sampler, split, buffer);

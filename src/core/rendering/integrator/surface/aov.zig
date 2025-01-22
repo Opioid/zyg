@@ -203,7 +203,7 @@ pub const AOV = struct {
                 result += vertex.throughput * worker.photonLi(frag, &mat_sample, sampler);
             }
 
-            const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
+            const sample_results = mat_sample.sample(sampler, 1, &bxdf_samples);
             if (0 == sample_results.len) {
                 break;
             }

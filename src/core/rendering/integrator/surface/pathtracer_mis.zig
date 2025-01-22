@@ -100,11 +100,11 @@ pub const PathtracerMIS = struct {
                     result.reflection += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
                 }
 
-                const split = vertex.path_count <= 2 and (vertex.state.primary_ray or total_depth < 1);
+                const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
                 const shadow_catcher = worker.scene.propIsShadowCatcher(frag.prop);
 
-                const lighting = self.sampleLights(vertex, &frag, &mat_sample, split, shadow_catcher, sampler, worker);
+                const lighting = self.sampleLights(vertex, &frag, &mat_sample, max_splits, shadow_catcher, sampler, worker);
 
                 if (shadow_catcher) {
                     vertex.shadow_catcher_occluded = lighting.occluded;
@@ -115,7 +115,7 @@ pub const PathtracerMIS = struct {
                 result.reflection += split_throughput * lighting.emission;
 
                 var bxdf_samples: bxdf.Samples = undefined;
-                const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
+                const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
 
                 if (0 == path_count) {
@@ -179,7 +179,7 @@ pub const PathtracerMIS = struct {
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
-        material_split: bool,
+        max_material_splits: u32,
         shadow_catcher: bool,
         sampler: *Sampler,
         worker: *Worker,
@@ -206,7 +206,7 @@ pub const PathtracerMIS = struct {
                 vertex,
                 frag,
                 mat_sample,
-                material_split,
+                max_material_splits,
                 shadow_catcher,
                 split_threshold,
                 sampler,
@@ -222,7 +222,7 @@ pub const PathtracerMIS = struct {
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
-        split: bool,
+        max_material_splits: u32,
         shadow_catcher: bool,
         light_split_threshold: f32,
         sampler: *Sampler,
@@ -256,7 +256,7 @@ pub const PathtracerMIS = struct {
 
             const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
 
-            const bxdf_result = mat_sample.evaluate(light_sample.wi, split);
+            const bxdf_result = mat_sample.evaluate(light_sample.wi, max_material_splits);
 
             const light_pdf = light_sample.pdf() * light_pick.pdf;
             const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));

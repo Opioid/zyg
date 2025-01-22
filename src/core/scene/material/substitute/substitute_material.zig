@@ -268,6 +268,7 @@ pub const Material = struct {
         }
 
         result.super.properties.exit_sss = rs.exitSSS();
+        result.super.properties.dense_sss_optimization = self.super.properties.dense_sss_optimization;
 
         return Sample{ .Substitute = result };
     }

@@ -98,10 +98,10 @@ pub const Lighttracer = struct {
 
                 const mat_sample = vertex.sample(&frag, sampler, .Full, worker);
 
-                const split = vertex.path_count <= 2 and vertex.state.primary_ray;
+                const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
-                    _ = directCamera(camera, sensor, vertex, &frag, &mat_sample, split, sampler, worker);
+                    _ = directCamera(camera, sensor, vertex, &frag, &mat_sample, max_splits, sampler, worker);
 
                     if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
                         continue;
@@ -109,7 +109,7 @@ pub const Lighttracer = struct {
                 }
 
                 var bxdf_samples: bxdf.Samples = undefined;
-                const sample_results = mat_sample.sample(sampler, split, &bxdf_samples);
+                const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
@@ -191,7 +191,7 @@ pub const Lighttracer = struct {
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
-        material_split: bool,
+        max_material_splits: u32,
         sampler: *Sampler,
         worker: *Worker,
     ) void {
@@ -233,7 +233,7 @@ pub const Lighttracer = struct {
                 continue;
             }
 
-            const bxdf_result = mat_sample.evaluate(wi, material_split);
+            const bxdf_result = mat_sample.evaluate(wi, max_material_splits);
 
             const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 

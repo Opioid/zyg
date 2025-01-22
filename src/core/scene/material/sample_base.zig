@@ -13,6 +13,7 @@ pub const Base = struct {
         can_evaluate: bool = false,
         avoid_caustics: bool = false,
         volumetric: bool = false,
+        dense_sss_optimization: bool = false,
         flakes: bool = false,
         exit_sss: bool = false,
         lower_priority: bool = false,

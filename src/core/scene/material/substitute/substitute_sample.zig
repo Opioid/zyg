@@ -68,7 +68,7 @@ pub const Sample = struct {
         self.opacity = 1.0 - transparency;
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
         if (self.super.properties.exit_sss) {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
@@ -86,7 +86,7 @@ pub const Sample = struct {
         }
 
         if (self.super.properties.volumetric) {
-            return self.volumetricEvaluate(wi, split);
+            return self.volumetricEvaluate(wi, max_splits);
         }
 
         const wo = self.super.wo;
@@ -131,7 +131,7 @@ pub const Sample = struct {
         return base_result;
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, max_splits: u32, buffer: *bxdf.Samples) []bxdf.Sample {
         if (self.super.properties.exit_sss) {
             const s2d = sampler.sample2D();
 
@@ -201,7 +201,7 @@ pub const Sample = struct {
             return buffer[0..1];
         } else {
             if (self.super.properties.volumetric) {
-                return self.volumetricSample(sampler, split, buffer);
+                return self.volumetricSample(sampler, max_splits, buffer);
             }
 
             if (!self.super.sameHemisphere(self.super.wo)) {
@@ -423,11 +423,13 @@ pub const Sample = struct {
         return fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), f0);
     }
 
-    fn volumetricEvaluate(self: *const Sample, wi: Vec4f, split: bool) bxdf.Result {
+    fn volumetricEvaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return bxdf.Result.empty();
         }
+
+        const split = max_splits > 1;
 
         const wo = self.super.wo;
         const alpha = self.super.alpha;
@@ -502,7 +504,7 @@ pub const Sample = struct {
         return bxdf.Result.init(base_reflection, base_pdf);
     }
 
-    fn volumetricSample(self: Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+    fn volumetricSample(self: Sample, sampler: *Sampler, max_splits: u32, buffer: *bxdf.Samples) []bxdf.Sample {
         if (self.coating.thickness > 0.0) {
             self.coatedVolumetricSample(sampler, &buffer[0]);
             return buffer[0..1];
@@ -548,7 +550,7 @@ pub const Sample = struct {
             f = fresnel.schlick1(cos_x, self.f0[0]);
         }
 
-        if (split and same_side) {
+        if (max_splits > 1 and same_side) {
             {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, &buffer[0]);
 
@@ -566,11 +568,21 @@ pub const Sample = struct {
 
                 const omf = 1.0 - f;
                 buffer[1].reflection *= @splat(n_dot_wi);
-                buffer[1].split_weight = omf;
+                buffer[1].split_weight = omf / @as(f32, @floatFromInt(max_splits - 1));
                 buffer[1].wavelength = 0.0;
             }
 
-            return buffer[0..2];
+            // This looks odd, but works quite well for SSS.
+            // Although all samples go in exactly the same direction there will be variation in free path sampling due to the SSS.
+            // Theoretically the split could probably be delayed until we are in the SSS integrator,
+            // but this would require much more changes, and I doubt it would be significantly faster.
+            const num_splits = if (self.super.properties.dense_sss_optimization) max_splits else 2;
+
+            for (2..num_splits) |i| {
+                buffer[i] = buffer[1];
+            }
+
+            return buffer[0..num_splits];
         } else {
             var result = &buffer[0];
 
