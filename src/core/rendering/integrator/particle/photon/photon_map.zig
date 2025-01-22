@@ -87,10 +87,6 @@ pub const Map = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        if (0 == self.num_paths) {
-            return @splat(0.0);
-        }
-
         return self.grid.li2(frag, sample, sampler, scene);
     }
 

@@ -33,4 +33,4 @@ pub const Sample = struct {
     class: Class,
 };
 
-pub const Samples = [2]Sample;
+pub const Samples = [4]Sample;

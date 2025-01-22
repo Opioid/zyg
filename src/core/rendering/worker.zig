@@ -66,7 +66,7 @@ pub const Worker = struct {
     aov: aov.Value = undefined,
 
     photon_mapper: PhotonMapper = .{},
-    photon_map: *PhotonMap = undefined,
+    photon_map: ?*PhotonMap = null,
 
     layer: u32 = undefined,
 
@@ -84,7 +84,7 @@ pub const Worker = struct {
         samplers: smpl.Factory,
         aovs: aov.Factory,
         photon_settings: PhotonSettings,
-        photon_map: *PhotonMap,
+        photon_map: ?*PhotonMap,
     ) !void {
         self.sensor = sensor;
         self.scene = scene;
@@ -289,11 +289,19 @@ pub const Worker = struct {
     }
 
     pub fn bakePhotons(self: *Worker, begin: u32, end: u32, frame: u32, iteration: u32) u32 {
-        return self.photon_mapper.bake(self.photon_map, begin, end, frame, iteration, self);
+        if (self.photon_map) |pm| {
+            return self.photon_mapper.bake(pm, begin, end, frame, iteration, self);
+        }
+
+        return 0;
     }
 
     pub fn photonLi(self: *const Worker, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
-        return self.photon_map.li(frag, sample, sampler, self.scene);
+        if (self.photon_map) |pm| {
+            return pm.li(frag, sample, sampler, self.scene);
+        }
+
+        return @splat(0.0);
     }
 
     pub inline fn pickSampler(self: *Worker, bounce: u32) *Sampler {

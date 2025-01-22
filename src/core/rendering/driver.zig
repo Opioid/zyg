@@ -109,7 +109,7 @@ pub const Driver = struct {
                 view.samplers,
                 view.aovs,
                 view.photon_settings,
-                &self.photon_map,
+                if (self.photon_map.num_paths > 0) &self.photon_map else null,
             );
         }
     }

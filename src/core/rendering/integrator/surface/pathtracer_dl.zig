@@ -75,7 +75,7 @@ pub const PathtracerDL = struct {
             result.reflection += vertex.throughput * self.directLight(&vertex, &frag, &mat_sample, sampler, worker);
 
             var bxdf_samples: bxdf.Samples = undefined;
-            const sample_results = mat_sample.sample(sampler, false, &bxdf_samples);
+            const sample_results = mat_sample.sample(sampler, 1, &bxdf_samples);
             if (0 == sample_results.len) {
                 vertex.throughput = @splat(0.0);
                 break;
@@ -158,7 +158,7 @@ pub const PathtracerDL = struct {
                     continue;
                 }
 
-                const bxdf_result = mat_sample.evaluate(light_sample.wi, false);
+                const bxdf_result = mat_sample.evaluate(light_sample.wi, 1);
 
                 const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
 

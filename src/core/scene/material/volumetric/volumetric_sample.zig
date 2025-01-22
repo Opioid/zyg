@@ -35,15 +35,14 @@ pub const Sample = struct {
         return bxdf.Result.init(@splat(phase), phase);
     }
 
-    pub fn sample(self: *const Sample, sampler: *Sampler, split: bool, buffer: *bxdf.Samples) []bxdf.Sample {
+    pub fn sample(self: *const Sample, sampler: *Sampler, max_splits: u32, buffer: *bxdf.Samples) []bxdf.Sample {
         const g = self.anisotropy;
 
-        const num_samples: u32 = if (split) @truncate(buffer.len) else 1;
-        const split_weight = 1.0 / @as(f32, @floatFromInt(num_samples));
+        const split_weight = 1.0 / @as(f32, @floatFromInt(max_splits));
 
         const frame = Frame.init(-self.super.wo);
 
-        for (0..num_samples) |i| {
+        for (0..max_splits) |i| {
             const r2 = sampler.sample2D();
 
             var cos_theta: f32 = undefined;
@@ -73,7 +72,7 @@ pub const Sample = struct {
             };
         }
 
-        return buffer[0..num_samples];
+        return buffer[0..max_splits];
     }
 
     fn phaseHg(cos_theta: f32, g: f32) f32 {

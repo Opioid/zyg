@@ -187,9 +187,9 @@ pub const Vertex = struct {
 };
 
 pub const Pool = struct {
-    const Num_vertices = 4;
+    pub const NumVertices = 4;
 
-    buffer: [2 * Num_vertices]Vertex,
+    buffer: [2 * NumVertices]Vertex,
     terminated: u32,
 
     current_id: u32,
@@ -203,9 +203,9 @@ pub const Pool = struct {
     pub fn start(self: *Pool, vertex: Vertex) void {
         self.buffer[0] = vertex;
         self.terminated = 0;
-        self.current_id = Num_vertices;
-        self.current_start = Num_vertices;
-        self.current_end = Num_vertices;
+        self.current_id = NumVertices;
+        self.current_start = NumVertices;
+        self.current_end = NumVertices;
         self.next_start = 0;
         self.next_end = 1;
         self.alpha = 0.0;
@@ -239,7 +239,7 @@ pub const Pool = struct {
         self.current_start = current_start;
         self.current_end = current_end;
 
-        const next_start: u32 = if (Num_vertices == current_start) 0 else Num_vertices;
+        const next_start: u32 = if (NumVertices == current_start) 0 else NumVertices;
         self.next_start = next_start;
         self.next_end = next_start;
 
@@ -268,6 +268,11 @@ pub const Pool = struct {
         self.next_end += 1;
 
         return &self.buffer[end];
+    }
+
+    pub inline fn maxSplits(v: *const Vertex, depth: u32) u32 {
+        const m = NumVertices / v.path_count;
+        return m - (if (v.state.primary_ray) 0 else @min(depth, m - 1));
     }
 };
 

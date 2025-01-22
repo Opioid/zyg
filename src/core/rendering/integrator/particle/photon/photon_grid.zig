@@ -628,7 +628,7 @@ pub const Grid = struct {
                 for (buffer.entries[0..used_entries]) |entry| {
                     const p = self.photons[entry.id];
 
-                    const bxdf = sample.evaluate(p.wi, false);
+                    const bxdf = sample.evaluate(p.wi, 1);
 
                     result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                 }
@@ -649,7 +649,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi, false);
+                        const bxdf = sample.evaluate(p.wi, 1);
 
                         result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
@@ -657,7 +657,7 @@ pub const Grid = struct {
 
                         const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
 
-                        const bxdf = sample.evaluate(p.wi, false);
+                        const bxdf = sample.evaluate(p.wi, 1);
 
                         result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                     }
