@@ -54,7 +54,7 @@ pub const Buffer = struct {
         const encoding = class.encoding();
         if (.Color == encoding or .Normal == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
-                const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @as(Vec4f, @splat(p.v[3]));
+                const color = @abs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 }) / @as(Vec4f, @splat(p.v[3]));
                 const srgb = spectrum.AP1tosRGB(color);
                 target[i + begin].v = Vec4f{ srgb[0], srgb[1], srgb[2], 1.0 };
             }
