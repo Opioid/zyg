@@ -1,3 +1,5 @@
+const Blur = @import("blur.zig").Blur;
+
 const core = @import("core");
 const scn = core.scn;
 
@@ -15,6 +17,7 @@ pub const Operator = struct {
         Add,
         Anaglyph,
         Average,
+        Blur: Blur,
         Diff,
         MaxValue: Vec4f,
         Over,
@@ -45,6 +48,11 @@ pub const Operator = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.input_ids.deinit(alloc);
         self.textures.deinit(alloc);
+
+        switch (self.class) {
+            .Blur => |*b| b.deinit(alloc),
+            else => {},
+        }
     }
 
     pub fn iterations(self: Self) u32 {
@@ -100,6 +108,8 @@ pub const Operator = struct {
                     self.target.set2D(ix, iy, Pack4f.init4(color_a[0], color_b[1], color_b[2], 0.5 * (color_a[3] + color_b[3])));
                 }
             }
+        } else if (.Blur == self.class) {
+            self.class.Blur.process(&self.target, self.textures.items[self.current], self.scene, begin, end);
         } else if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];

@@ -152,11 +152,11 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "curtain_fabric_Roughnesscurtain_fabric_Metalness.png",
+    //         "image_00_000000_indirect.png",
     //         "-t",
     //         "-1",
-    //         "--max-value",
-    //         "0.0 0.1 0.0 0.0",
+    //         "--blur",
+    //         "2.0",
     //     });
     // }
 

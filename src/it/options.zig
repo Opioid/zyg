@@ -1,4 +1,5 @@
 const Operator = @import("operator.zig").Operator.Class;
+const Blur = @import("blur.zig").Blur;
 
 const base = @import("base");
 const math = base.math;
@@ -83,6 +84,9 @@ pub const Options = struct {
             self.operator = .Anaglyph;
         } else if (std.mem.eql(u8, "avg", command)) {
             self.operator = .Average;
+        } else if (std.mem.eql(u8, "blur", command)) {
+            const sigma = std.fmt.parseFloat(f32, parameter) catch 1.0;
+            self.operator = .{ .Blur = try Blur.init(alloc, sigma) };
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);
