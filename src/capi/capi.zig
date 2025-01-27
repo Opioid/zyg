@@ -603,7 +603,7 @@ export fn su_render_iterations(num_steps: u32) i32 {
 
 export fn su_resolve_frame(aov: u32) i32 {
     if (engine) |*e| {
-        if (aov >= core.tk.View.AovValue.Num_classes) {
+        if (aov >= core.tk.View.AovValue.NumClasses) {
             e.driver.resolve(0, 0);
             return 0;
         }
@@ -620,7 +620,7 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
 
         const target = @as([*]Pack4f, @ptrCast(buffer));
 
-        if (aov >= core.tk.View.AovValue.Num_classes) {
+        if (aov >= core.tk.View.AovValue.NumClasses) {
             e.driver.resolveToBuffer(0, 0, target, num_pixels);
             return 0;
         }

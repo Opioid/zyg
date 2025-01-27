@@ -46,11 +46,7 @@ pub const Pathtracer = struct {
             const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
             const weighted_energy = vertex.throughput * energy;
 
-            if (vertex.state.treat_as_singular) {
-                result.emission += weighted_energy;
-            } else {
-                result.reflection += weighted_energy;
-            }
+            result.add(weighted_energy, total_depth, 0, vertex.state.treat_as_singular);
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                 break;
@@ -106,7 +102,7 @@ pub const Pathtracer = struct {
             sampler.incrementPadding();
         }
 
-        result.reflection[3] = hlp.composeAlpha(vertex.throughput, vertex.state.transparent);
+        result.direct[3] = hlp.composeAlpha(vertex.throughput, vertex.state.transparent);
         return result;
     }
 

@@ -158,7 +158,9 @@ pub const Sensor = struct {
         bounds: Vec4i,
         isolated: Vec4i,
     ) void {
-        const clamped = self.clamp(value.reflection) + value.emission;
+        const indirect = self.clamp(value.indirect);
+        const summed = indirect + value.direct;
+        const composed = Vec4f{ summed[0], summed[1], summed[2], value.direct[3] };
 
         const pixel = sample.pixel;
         const x = pixel[0];
@@ -172,22 +174,26 @@ pub const Sensor = struct {
             const d = self.dimensions;
             const id: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
-            self.layers[layer].buffer.addPixel(id, clamped, 1.0);
+            self.layers[layer].buffer.addPixel(id, composed, 1.0);
 
             if (aov.active()) {
-                const len = AovValue.Num_classes;
+                const len = AovValue.NumClasses;
                 var i: u32 = 0;
                 while (i < len) : (i += 1) {
-                    const class = @as(AovValue.Class, @enumFromInt(i));
+                    const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
-                        const avalue = aov.values[i];
+                        const avalue = switch (class) {
+                            .Direct => value.direct,
+                            .Indirect => indirect,
+                            else => aov.values[i],
+                        };
 
                         if (.Depth == class) {
-                            self.lessAov(layer, pixel, i, avalue[0], bounds);
+                            self.layers[layer].aov.lessPixel(id, i, avalue[0]);
                         } else if (.MaterialId == class) {
-                            self.overwriteAov(layer, pixel, i, 1.0, avalue[0], bounds);
+                            self.layers[layer].aov.overwritePixel(id, i, avalue[0], 1.0);
                         } else {
-                            self.addAov(layer, pixel, i, 1.0, avalue, bounds, isolated);
+                            self.layers[layer].aov.addPixel(id, i, avalue, 1.0);
                         }
                     }
                 }
@@ -202,27 +208,31 @@ pub const Sensor = struct {
             const wy2 = self.eval(oy - 1.0);
 
             // 1. row
-            self.add(layer, .{ x - 1, y - 1 }, wx0 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x, y - 1 }, wx1 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y - 1 }, wx2 * wy0, clamped, bounds, isolated);
+            self.add(layer, .{ x - 1, y - 1 }, wx0 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x, y - 1 }, wx1 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y - 1 }, wx2 * wy0, composed, bounds, isolated);
 
             // 2. row
-            self.add(layer, .{ x - 1, y }, wx0 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x, y }, wx1 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y }, wx2 * wy1, clamped, bounds, isolated);
+            self.add(layer, .{ x - 1, y }, wx0 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x, y }, wx1 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y }, wx2 * wy1, composed, bounds, isolated);
 
             // 3. row
-            self.add(layer, .{ x - 1, y + 1 }, wx0 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x, y + 1 }, wx1 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y + 1 }, wx2 * wy2, clamped, bounds, isolated);
+            self.add(layer, .{ x - 1, y + 1 }, wx0 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x, y + 1 }, wx1 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y + 1 }, wx2 * wy2, composed, bounds, isolated);
 
             if (aov.active()) {
-                const len = AovValue.Num_classes;
+                const len = AovValue.NumClasses;
                 var i: u32 = 0;
                 while (i < len) : (i += 1) {
-                    const class = @as(AovValue.Class, @enumFromInt(i));
+                    const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
-                        const avalue = aov.values[i];
+                        const avalue = switch (class) {
+                            .Direct => value.direct,
+                            .Indirect => indirect,
+                            else => aov.values[i],
+                        };
 
                         if (.Depth == class) {
                             self.lessAov(layer, .{ x, y }, i, avalue[0], bounds);
@@ -261,47 +271,51 @@ pub const Sensor = struct {
             const wy4 = self.eval(oy - 2.0);
 
             // 1. row
-            self.add(layer, .{ x - 2, y - 2 }, wx0 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x - 1, y - 2 }, wx1 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x, y - 2 }, wx2 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y - 2 }, wx3 * wy0, clamped, bounds, isolated);
-            self.add(layer, .{ x + 2, y - 2 }, wx4 * wy0, clamped, bounds, isolated);
+            self.add(layer, .{ x - 2, y - 2 }, wx0 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x - 1, y - 2 }, wx1 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x, y - 2 }, wx2 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y - 2 }, wx3 * wy0, composed, bounds, isolated);
+            self.add(layer, .{ x + 2, y - 2 }, wx4 * wy0, composed, bounds, isolated);
 
             // 2. row
-            self.add(layer, .{ x - 2, y - 1 }, wx0 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x - 1, y - 1 }, wx1 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x, y - 1 }, wx2 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y - 1 }, wx3 * wy1, clamped, bounds, isolated);
-            self.add(layer, .{ x + 2, y - 1 }, wx4 * wy1, clamped, bounds, isolated);
+            self.add(layer, .{ x - 2, y - 1 }, wx0 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x - 1, y - 1 }, wx1 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x, y - 1 }, wx2 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y - 1 }, wx3 * wy1, composed, bounds, isolated);
+            self.add(layer, .{ x + 2, y - 1 }, wx4 * wy1, composed, bounds, isolated);
 
             // 3. row
-            self.add(layer, .{ x - 2, y }, wx0 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x - 1, y }, wx1 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x, y }, wx2 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y }, wx3 * wy2, clamped, bounds, isolated);
-            self.add(layer, .{ x + 2, y }, wx4 * wy2, clamped, bounds, isolated);
+            self.add(layer, .{ x - 2, y }, wx0 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x - 1, y }, wx1 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x, y }, wx2 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y }, wx3 * wy2, composed, bounds, isolated);
+            self.add(layer, .{ x + 2, y }, wx4 * wy2, composed, bounds, isolated);
 
             // 4. row
-            self.add(layer, .{ x - 2, y + 1 }, wx0 * wy3, clamped, bounds, isolated);
-            self.add(layer, .{ x - 1, y + 1 }, wx1 * wy3, clamped, bounds, isolated);
-            self.add(layer, .{ x, y + 1 }, wx2 * wy3, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y + 1 }, wx3 * wy3, clamped, bounds, isolated);
-            self.add(layer, .{ x + 2, y + 1 }, wx4 * wy3, clamped, bounds, isolated);
+            self.add(layer, .{ x - 2, y + 1 }, wx0 * wy3, composed, bounds, isolated);
+            self.add(layer, .{ x - 1, y + 1 }, wx1 * wy3, composed, bounds, isolated);
+            self.add(layer, .{ x, y + 1 }, wx2 * wy3, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y + 1 }, wx3 * wy3, composed, bounds, isolated);
+            self.add(layer, .{ x + 2, y + 1 }, wx4 * wy3, composed, bounds, isolated);
 
             // 5. row
-            self.add(layer, .{ x - 2, y + 2 }, wx0 * wy4, clamped, bounds, isolated);
-            self.add(layer, .{ x - 1, y + 2 }, wx1 * wy4, clamped, bounds, isolated);
-            self.add(layer, .{ x, y + 2 }, wx2 * wy4, clamped, bounds, isolated);
-            self.add(layer, .{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds, isolated);
-            self.add(layer, .{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds, isolated);
+            self.add(layer, .{ x - 2, y + 2 }, wx0 * wy4, composed, bounds, isolated);
+            self.add(layer, .{ x - 1, y + 2 }, wx1 * wy4, composed, bounds, isolated);
+            self.add(layer, .{ x, y + 2 }, wx2 * wy4, composed, bounds, isolated);
+            self.add(layer, .{ x + 1, y + 2 }, wx3 * wy4, composed, bounds, isolated);
+            self.add(layer, .{ x + 2, y + 2 }, wx4 * wy4, composed, bounds, isolated);
 
             if (aov.active()) {
-                const len = AovValue.Num_classes;
+                const len = AovValue.NumClasses;
                 var i: u32 = 0;
                 while (i < len) : (i += 1) {
-                    const class = @as(AovValue.Class, @enumFromInt(i));
+                    const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
-                        const avalue = aov.values[i];
+                        const avalue = switch (class) {
+                            .Direct => value.direct,
+                            .Indirect => indirect,
+                            else => aov.values[i],
+                        };
 
                         if (.Depth == class) {
                             self.lessAov(layer, .{ x, y }, i, avalue[0], bounds);
@@ -583,8 +597,7 @@ pub const Sensor = struct {
 
         if (mc > max) {
             const r = max / mc;
-            const s = @as(Vec4f, @splat(r)) * color;
-            return .{ s[0], s[1], s[2], color[3] };
+            return @as(Vec4f, @splat(r)) * color;
         }
 
         return color;

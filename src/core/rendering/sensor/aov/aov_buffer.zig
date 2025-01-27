@@ -12,7 +12,7 @@ const Allocator = @import("std").mem.Allocator;
 pub const Buffer = struct {
     slots: u32 = 0,
 
-    buffers: [aov.Value.Num_classes][]Pack4f = .{&.{}} ** aov.Value.Num_classes,
+    buffers: [aov.Value.NumClasses][]Pack4f = .{&.{}} ** aov.Value.NumClasses,
 
     const Self = @This();
 

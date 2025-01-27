@@ -64,7 +64,7 @@ pub const AOV = struct {
             .Photons => self.photons(&vertex, &frag, worker),
         };
 
-        return .{ .reflection = @splat(0.0), .emission = vertex.throughput * result };
+        return .{ .direct = vertex.throughput * result, .indirect = @splat(0.0) };
     }
 
     fn ao(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
