@@ -228,8 +228,6 @@ pub const Sensor = struct {
                             self.lessAov(layer, .{ x, y }, i, avalue[0], bounds);
                         } else if (.MaterialId == class) {
                             self.overwriteAov(layer, .{ x, y }, i, wx2 * wy2, avalue[0], bounds);
-                        } else if (.ShadingNormal == class) {
-                            self.addAov(layer, .{ x, y }, i, 1.0, avalue, bounds, isolated);
                         } else {
                             // 1. row
                             self.addAov(layer, .{ x - 1, y - 1 }, i, wx0 * wy0, avalue, bounds, isolated);
@@ -309,8 +307,6 @@ pub const Sensor = struct {
                             self.lessAov(layer, .{ x, y }, i, avalue[0], bounds);
                         } else if (.MaterialId == class) {
                             self.overwriteAov(layer, .{ x, y }, i, wx2 * wy2, avalue[0], bounds);
-                        } else if (.ShadingNormal == class) {
-                            self.addAov(layer, .{ x, y }, i, 1.0, avalue, bounds, isolated);
                         } else {
                             // 1. row
                             self.addAov(layer, .{ x - 2, y - 2 }, i, wx0 * wy0, avalue, bounds, isolated);

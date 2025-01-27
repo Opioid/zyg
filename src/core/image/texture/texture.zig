@@ -16,6 +16,7 @@ pub const Texture = struct {
         Byte2_unorm,
         Byte2_snorm,
         Byte3_sRGB,
+        Byte3_snorm,
         Half1,
         Half3,
         Half4,
@@ -35,6 +36,20 @@ pub const Texture = struct {
         return self.type == other.type and self.image == other.image and self.image == other.image;
     }
 
+    const Error = error{
+        IncompatibleCast,
+    };
+
+    pub fn cast(self: Texture, target: Type) !Texture {
+        const other = Texture{ .type = target, .image = self.image, .scale = self.scale };
+
+        if (self.numChannels() != other.numChannels() or self.bytesPerChannel() != other.bytesPerChannel()) {
+            return Error.IncompatibleCast;
+        }
+
+        return other;
+    }
+
     pub fn valid(self: Texture) bool {
         return self.image != Null;
     }
@@ -47,7 +62,7 @@ pub const Texture = struct {
         return switch (self.type) {
             .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
-            .Byte3_sRGB, .Half3, .Float3 => 3,
+            .Byte3_sRGB, .Byte3_snorm, .Half3, .Float3 => 3,
             .Byte4_sRGB, .Half4, .Float4 => 4,
         };
     }
@@ -58,7 +73,7 @@ pub const Texture = struct {
         }
 
         return switch (self.type) {
-            .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte4_sRGB => 1,
+            .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte3_snorm, .Byte4_sRGB => 1,
             .Half1, .Half3, .Half4 => 2,
             else => 4,
         };
@@ -97,6 +112,10 @@ pub const Texture = struct {
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
                 return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+            },
+            .Byte3_snorm => {
+                const value = image.Byte3.get2D(x, y);
+                return enc.cachedSnormToFloat3(value);
             },
             .Half3 => {
                 const value = image.Half3.get2D(x, y);

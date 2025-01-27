@@ -32,6 +32,10 @@ pub fn cachedSnormToFloat2(byte: Vec2b) Vec2f {
     return .{ SNORM_FLOAT[byte[0]], SNORM_FLOAT[byte[1]] };
 }
 
+pub fn cachedSnormToFloat3(byte: Pack3b) Vec4f {
+    return .{ SNORM_FLOAT[byte.v[0]], SNORM_FLOAT[byte.v[1]], SNORM_FLOAT[byte.v[2]], 0.0 };
+}
+
 const Num_samples = 256;
 
 fn calculateSrgbToFloat() [Num_samples]f32 {

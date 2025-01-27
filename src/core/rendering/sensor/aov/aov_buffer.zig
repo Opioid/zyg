@@ -52,7 +52,7 @@ pub const Buffer = struct {
         const pixels = self.buffers[@intFromEnum(class)];
 
         const encoding = class.encoding();
-        if (.Color == encoding or .Normal == encoding) {
+        if (.Color == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
                 const color = @abs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 }) / @as(Vec4f, @splat(p.v[3]));
                 const srgb = spectrum.AP1tosRGB(color);

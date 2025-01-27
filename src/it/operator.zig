@@ -1,4 +1,5 @@
 const Blur = @import("blur.zig").Blur;
+const Denoise = @import("denoise.zig").Denoise;
 
 const core = @import("core");
 const scn = core.scn;
@@ -18,6 +19,7 @@ pub const Operator = struct {
         Anaglyph,
         Average,
         Blur: Blur,
+        Denoise: Denoise,
         Diff,
         MaxValue: Vec4f,
         Over,
@@ -61,7 +63,7 @@ pub const Operator = struct {
         return switch (self.class) {
             .Anaglyph => num_textures / 2,
             .Diff => num_textures - 1,
-            .Tonemap => num_textures,
+            .Tonemap, .Blur => num_textures,
             else => 1,
         };
     }
@@ -110,6 +112,20 @@ pub const Operator = struct {
             }
         } else if (.Blur == self.class) {
             self.class.Blur.process(&self.target, self.textures.items[self.current], self.scene, begin, end);
+        } else if (.Denoise == self.class) {
+            const offset = self.current * 2;
+            const color = self.textures.items[offset];
+            const source_normal = self.textures.items[offset + 1];
+            const albedo = self.textures.items[offset + 2];
+            const depth = self.textures.items[offset + 3];
+
+            // TODO: Float3 textures have already been converted to AP1. So what do we do?!?
+            // Either figure out a way to pass the encoding to this specific texture on loading time
+            // or bite the bullet and be more consistent by just loading the floats and handle color space conversion
+            // at access time, like for bytes...
+            const normal = if (1 == source_normal.bytesPerChannel()) source_normal.cast(.Byte3_snorm) catch source_normal else source_normal;
+
+            self.class.Denoise.process(&self.target, color, normal, albedo, depth, self.scene, begin, end);
         } else if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];

@@ -152,31 +152,14 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "image_00_000000_indirect.png",
+    //         "image_00_indirect.png",
+    //         "image_00_ns.png",
+    //         "image_00_albedo.png",
+    //         "image_00_depth.png",
     //         "-t",
     //         "-1",
-    //         "--blur",
+    //         "--denoise",
     //         "2.0",
-    //     });
-    // }
-
-    // if (b.args) |args| {
-    //     run_exe.addArgs(args);
-    // } else {
-    //     run_exe.addArgs(&[_][]const u8{
-    //         //"-d",
-    //         "-i",
-    //         "image_00_000000_l.png",
-    //         "image_00_000000_r.png",
-    //         "-t",
-    //         "-1",
-    //         "--anaglyph",
-    //         //"--tone",
-    //         //"agx",
-    //         //   "-e",
-    //         //   "-1.0",
-    //         //   "-f",
-    //         //   "png",
     //     });
     // }
 }
