@@ -343,13 +343,13 @@ pub const Writer = struct {
             const zw = Vec2i{ crop[2], crop[3] };
             const dim = zw - xy;
 
-            const width = @as(u32, @intCast(dim[0]));
-            const height = @as(u32, @intCast(dim[1]));
+            const width: u32 = @intCast(dim[0]);
+            const height: u32 = @intCast(dim[1]);
             const bpb = self.bytes_per_block;
             const offset = id * bpb;
 
-            const x_start = @as(u32, @intCast(crop[0]));
-            const y_start = @as(u32, @intCast(crop[1]));
+            const x_start: u32 = @intCast(crop[0]);
+            const y_start: u32 = @intCast(crop[1]);
 
             var tmp_buffer = self.tmp_buffer[offset .. offset + bpb];
             var block_buffer = self.block_buffer[offset .. offset + bpb];
@@ -406,7 +406,7 @@ pub const Writer = struct {
         }
 
         fn blockHalf(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
+            const data_width: u32 = @intCast(image.description.dimensions[0]);
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
 
@@ -422,18 +422,18 @@ pub const Writer = struct {
 
                     if (4 == num_channels) {
                         if (Float4 == T) {
-                            halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[3]));
+                            halfs[o + num_x * 0 + x] = @floatCast(c.v[3]);
                         }
 
-                        halfs[o + num_x * 1 + x] = @as(f16, @floatCast(c.v[2]));
-                        halfs[o + num_x * 2 + x] = @as(f16, @floatCast(c.v[1]));
-                        halfs[o + num_x * 3 + x] = @as(f16, @floatCast(c.v[0]));
+                        halfs[o + num_x * 1 + x] = @floatCast(c.v[2]);
+                        halfs[o + num_x * 2 + x] = @floatCast(c.v[1]);
+                        halfs[o + num_x * 3 + x] = @floatCast(c.v[0]);
                     } else if (3 == num_channels) {
-                        halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[2]));
-                        halfs[o + num_x * 1 + x] = @as(f16, @floatCast(c.v[1]));
-                        halfs[o + num_x * 2 + x] = @as(f16, @floatCast(c.v[0]));
+                        halfs[o + num_x * 0 + x] = @floatCast(c.v[2]);
+                        halfs[o + num_x * 1 + x] = @floatCast(c.v[1]);
+                        halfs[o + num_x * 2 + x] = @floatCast(c.v[0]);
                     } else {
-                        halfs[o + num_x * 0 + x] = @as(f16, @floatCast(c.v[0]));
+                        halfs[o + num_x * 0 + x] = @floatCast(c.v[0]);
                     }
 
                     current += 1;
@@ -456,7 +456,7 @@ pub const Writer = struct {
                 while (x < num_x) : (x += 1) {
                     const c = image.pixels[current];
 
-                    uints[o + num_x * 0 + x] = @as(u32, @intFromFloat(c.v[0]));
+                    uints[o + num_x * 0 + x] = @intFromFloat(c.v[0]);
 
                     current += 1;
                 }
@@ -464,7 +464,7 @@ pub const Writer = struct {
         }
 
         fn blockFloat(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
+            const data_width: u32 = @intCast(image.description.dimensions[0]);
 
             var floats = std.mem.bytesAsSlice(f32, destination);
 

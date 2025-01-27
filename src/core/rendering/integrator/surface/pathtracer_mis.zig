@@ -63,11 +63,7 @@ pub const PathtracerMIS = struct {
                     vertex.shadow_catcher_occluded += weighted_energy;
                     vertex.shadow_catcher_unoccluded += weighted_energy;
                 } else {
-                    if (vertex.state.treat_as_singular) {
-                        result.emission += weighted_energy;
-                    } else {
-                        result.reflection += weighted_energy;
-                    }
+                    result.add(weighted_energy, total_depth, 2, vertex.state.treat_as_singular);
                 }
 
                 if (previous_shadow_catcher) {
@@ -97,7 +93,7 @@ pub const PathtracerMIS = struct {
 
                 const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
                 if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
-                    result.reflection += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
+                    result.direct += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
                 }
 
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
@@ -112,7 +108,7 @@ pub const PathtracerMIS = struct {
                     vertex.state.shadow_catcher_path = true;
                 }
 
-                result.reflection += split_throughput * lighting.emission;
+                result.add(split_throughput * lighting.emission, total_depth, 1, false);
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
@@ -170,7 +166,7 @@ pub const PathtracerMIS = struct {
             }
         }
 
-        result.reflection[3] = vertices.alpha;
+        result.direct[3] = vertices.alpha;
         return result;
     }
 

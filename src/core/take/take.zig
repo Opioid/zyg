@@ -121,6 +121,10 @@ pub const View = struct {
                 self.aovs.set(.GeometricNormal, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Shading_normal", entry.key_ptr.*)) {
                 self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Direct", entry.key_ptr.*)) {
+                self.aovs.set(.Direct, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Indirect", entry.key_ptr.*)) {
+                self.aovs.set(.Indirect, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Sample_count", entry.key_ptr.*)) {
                 self.aov_sample_count = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "Noise", entry.key_ptr.*)) {

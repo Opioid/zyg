@@ -1,16 +1,18 @@
 const aov = @import("aov_value.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const math = base.math;
 const Vec2i = math.Vec2i;
 const Pack4f = math.Pack4f;
 const Vec4f = math.Vec4f;
+const spectrum = base.spectrum;
 
 const Allocator = @import("std").mem.Allocator;
 
 pub const Buffer = struct {
     slots: u32 = 0,
 
-    buffers: [aov.Value.Num_classes][]Pack4f = .{&.{}} ** aov.Value.Num_classes,
+    buffers: [aov.Value.NumClasses][]Pack4f = .{&.{}} ** aov.Value.NumClasses,
 
     const Self = @This();
 
@@ -50,7 +52,13 @@ pub const Buffer = struct {
         const pixels = self.buffers[@intFromEnum(class)];
 
         const encoding = class.encoding();
-        if (.Color == encoding or .Normal == encoding) {
+        if (.Color == encoding) {
+            for (pixels[begin..end], 0..) |p, i| {
+                const color = @abs(Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 }) / @as(Vec4f, @splat(p.v[3]));
+                const srgb = spectrum.AP1tosRGB(color);
+                target[i + begin].v = Vec4f{ srgb[0], srgb[1], srgb[2], 1.0 };
+            }
+        } else if (.Normal == encoding) {
             for (pixels[begin..end], 0..) |p, i| {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @as(Vec4f, @splat(p.v[3]));
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };

@@ -199,22 +199,26 @@ pub const Sensor = struct {
         const d = self.dimensions;
         const id: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
+        const indirect = self.clamp(value.indirect);
+
         var layer = &self.layers[layer_id];
 
         if (aov.active()) {
-            const len = AovValue.Num_classes;
+            const len = AovValue.NumClasses;
             var i: u32 = 0;
             while (i < len) : (i += 1) {
-                const class = @as(AovValue.Class, @enumFromInt(i));
+                const class: AovValue.Class = @enumFromInt(i);
                 if (aov.activeClass(class)) {
-                    const avalue = aov.values[i];
+                    const avalue = switch (class) {
+                        .Direct => value.direct,
+                        .Indirect => indirect,
+                        else => aov.values[i],
+                    };
 
                     if (.Depth == class) {
                         layer.aov.lessPixel(id, i, avalue[0]);
                     } else if (.MaterialId == class) {
                         layer.aov.overwritePixel(id, i, avalue[0], weight);
-                    } else if (.ShadingNormal == class) {
-                        layer.aov.addPixel(id, i, avalue, 1.0);
                     } else {
                         layer.aov.addPixel(id, i, avalue, weight);
                     }
@@ -222,7 +226,10 @@ pub const Sensor = struct {
             }
         }
 
-        return layer.buffer.addPixel(id, self.clamp(value.reflection) + value.emission, weight);
+        const summed = indirect + value.direct;
+        const composed = Vec4f{ summed[0], summed[1], summed[2], value.direct[3] };
+
+        return layer.buffer.addPixel(id, composed, weight);
     }
 
     pub fn splatSample(self: *Self, layer: u32, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
@@ -479,8 +486,7 @@ pub const Sensor = struct {
 
         if (mc > max) {
             const r = max / mc;
-            const s = @as(Vec4f, @splat(r)) * color;
-            return .{ s[0], s[1], s[2], color[3] };
+            return @as(Vec4f, @splat(r)) * color;
         }
 
         return color;

@@ -50,11 +50,7 @@ pub const PathtracerDL = struct {
                 const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
                 const weighted_energy = vertex.throughput * energy;
 
-                if (vertex.state.treat_as_singular) {
-                    result.emission += weighted_energy;
-                } else {
-                    result.reflection += weighted_energy;
-                }
+                result.add(weighted_energy, total_depth, 1, vertex.state.treat_as_singular);
             }
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
@@ -72,7 +68,9 @@ pub const PathtracerDL = struct {
                 worker.commonAOV(&vertex, &frag, &mat_sample);
             }
 
-            result.reflection += vertex.throughput * self.directLight(&vertex, &frag, &mat_sample, sampler, worker);
+            const lighting = self.directLight(&vertex, &frag, &mat_sample, sampler, worker);
+
+            result.add(vertex.throughput * lighting, total_depth, 1, false);
 
             var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, 1, &bxdf_samples);
@@ -113,7 +111,7 @@ pub const PathtracerDL = struct {
             sampler.incrementPadding();
         }
 
-        result.reflection[3] = hlp.composeAlpha(vertex.throughput, vertex.state.transparent);
+        result.direct[3] = hlp.composeAlpha(vertex.throughput, vertex.state.transparent);
         return result;
     }
 

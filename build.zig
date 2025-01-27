@@ -127,6 +127,7 @@ pub fn build(b: *std.Build) void {
             //"takes/volume.take",
             //"takes/nested_dielectrics.take",
             //"takes/intel_sponza.take",
+            //"takes/intel_sponza_night.take",
             //"takes/sss.take",
             //"scenes/island/shot_cam.take",
             //"takes/shadow_catcher.take",
@@ -154,31 +155,14 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "curtain_fabric_Roughnesscurtain_fabric_Metalness.png",
+    //         "image_00_indirect.png",
+    //         "image_00_ns.png",
+    //         "image_00_albedo.png",
+    //         "image_00_depth.png",
     //         "-t",
     //         "-1",
-    //         "--max-value",
-    //         "0.0 0.1 0.0 0.0",
-    //     });
-    // }
-
-    // if (b.args) |args| {
-    //     run_exe.addArgs(args);
-    // } else {
-    //     run_exe.addArgs(&[_][]const u8{
-    //         //"-d",
-    //         "-i",
-    //         "image_00_000000_l.png",
-    //         "image_00_000000_r.png",
-    //         "-t",
-    //         "-1",
-    //         "--anaglyph",
-    //         //"--tone",
-    //         //"agx",
-    //         //   "-e",
-    //         //   "-1.0",
-    //         //   "-f",
-    //         //   "png",
+    //         "--denoise",
+    //         "2.0",
     //     });
     // }
 }

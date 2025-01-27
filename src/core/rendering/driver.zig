@@ -238,7 +238,7 @@ pub const Driver = struct {
                 try e.write(alloc, self.target, crop, null, camera, camera_id, layer_id, frame, self.threads);
             }
 
-            for (0..View.AovValue.Num_classes) |i| {
+            for (0..View.AovValue.NumClasses) |i| {
                 const class: View.AovValue.Class = @enumFromInt(i);
                 if (!self.resolveAov(layer_id, class)) {
                     continue;

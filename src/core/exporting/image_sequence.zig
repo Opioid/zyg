@@ -63,6 +63,8 @@ pub const ImageSequence = struct {
                 .MaterialId => "_mat",
                 .GeometricNormal => "_ng",
                 .ShadingNormal => "_ns",
+                .Direct => "_direct",
+                .Indirect => "_indirect",
             };
         }
 

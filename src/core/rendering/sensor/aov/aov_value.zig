@@ -13,6 +13,8 @@ pub const Value = struct {
         MaterialId,
         GeometricNormal,
         ShadingNormal,
+        Direct,
+        Indirect,
 
         pub fn default(class: Class) Vec4f {
             return switch (class) {
@@ -28,7 +30,7 @@ pub const Value = struct {
 
         pub fn encoding(class: Class) Encoding {
             return switch (class) {
-                .Albedo => .Color,
+                .Albedo, .Direct, .Indirect => .Color,
                 .Depth => .Depth,
                 .MaterialId => .Id,
                 .GeometricNormal, .ShadingNormal => .Normal,
@@ -36,11 +38,11 @@ pub const Value = struct {
         }
     };
 
-    pub const Num_classes = @typeInfo(Class).@"enum".fields.len;
+    pub const NumClasses = @typeInfo(Class).@"enum".fields.len;
 
     slots: u32,
 
-    values: [Num_classes]Vec4f = undefined,
+    values: [NumClasses]Vec4f = undefined,
 
     pub fn active(self: Value) bool {
         return 0 != self.slots;
@@ -56,8 +58,8 @@ pub const Value = struct {
         }
 
         var i: u4 = 0;
-        while (i < Num_classes) : (i += 1) {
-            const class = @as(Class, @enumFromInt(i));
+        while (i < NumClasses) : (i += 1) {
+            const class: Class = @enumFromInt(i);
             if (self.activeClass(class)) {
                 self.values[i] = class.default();
             }

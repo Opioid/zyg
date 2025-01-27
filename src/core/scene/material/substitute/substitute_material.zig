@@ -70,6 +70,15 @@ pub const Material = struct {
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
+
+        // This doesn't make a difference for shading, but is intended for the Albedo AOV...
+        if (properties.dense_sss_optimization) {
+            const cc = self.super.cc;
+
+            const mu_t = cc.a + cc.s;
+            const albedo = cc.s / mu_t;
+            self.color = albedo;
+        }
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
