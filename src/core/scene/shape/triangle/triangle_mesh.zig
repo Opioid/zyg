@@ -383,7 +383,7 @@ pub const Part = struct {
 
 pub const Mesh = struct {
     const HackArea = 0.00001;
-    const HackDistance = 0.004;
+    const HackDistance = 0.0005;
 
     tree: Tree = .{},
 
