@@ -216,7 +216,10 @@ pub const Sensor = struct {
                     };
 
                     if (.Depth == class) {
-                        layer.aov.lessPixel(id, i, avalue[0]);
+                        const auv = @abs(sample.filter_uv);
+                        if (auv[0] <= 0.5 and auv[1] <= 0.5) {
+                            layer.aov.lessPixel(id, i, avalue[0]);
+                        }
                     } else if (.MaterialId == class) {
                         layer.aov.overwritePixel(id, i, avalue[0], weight);
                     } else {
