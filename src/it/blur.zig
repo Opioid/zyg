@@ -18,7 +18,7 @@ pub const Blur = struct {
     weights: []f32,
 
     pub fn init(alloc: Allocator, sigma: f32) !Blur {
-        const radius: i32 = @intFromFloat(@ceil(2.0 * sigma));
+        const radius: i32 = @intFromFloat(@ceil(3.0 * sigma));
 
         const width = 2 * radius + 1;
         const area = width * width;
