@@ -135,16 +135,12 @@ pub const Denoise = struct {
             while (x <= end) : (x += 1) {
                 const fx: f32 = @floatFromInt(@abs(x));
 
-                const sx = px + x;
-                const sy = py + y;
+                const sx = std.math.clamp(px + x, 0, dim[0] - 1);
+                const sy = std.math.clamp(py + y, 0, dim[1] - 1);
 
                 const weigth: Vec4f = @splat(self.weights[w]);
 
                 w += 1;
-
-                if (sx < 0 or sx >= dim[0] or sy < 0 or sy >= dim[1]) {
-                    continue;
-                }
 
                 const f_depth = depth.get2D_1(sx, sy, scene);
 
