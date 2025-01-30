@@ -90,7 +90,7 @@ pub const Options = struct {
             self.operator = .{ .Blur = try Blur.init(alloc, sigma) };
         } else if (std.mem.eql(u8, "denoise", command)) {
             const sigma = std.fmt.parseFloat(f32, parameter) catch 1.0;
-            self.operator = .{ .Denoise = try Denoise.init(alloc, sigma) };
+            self.operator = .{ .Denoise = try Denoise.init(alloc, sigma, 0.4) };
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);

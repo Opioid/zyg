@@ -18,7 +18,7 @@ pub const Blur = struct {
     weights: []f32,
 
     pub fn init(alloc: Allocator, sigma: f32) !Blur {
-        const radius: i32 = @intFromFloat(@ceil(2.0 * sigma));
+        const radius: i32 = @intFromFloat(@ceil(3.0 * sigma));
 
         const width = 2 * radius + 1;
         const area = width * width;
@@ -98,16 +98,12 @@ pub const Blur = struct {
         while (y <= end) : (y += 1) {
             var x = begin;
             while (x <= end) : (x += 1) {
-                const sx = px + x;
-                const sy = py + y;
+                const sx = std.math.clamp(px + x, 0, dim[0] - 1);
+                const sy = std.math.clamp(py + y, 0, dim[1] - 1);
 
                 const weigth: Vec4f = @splat(self.weights[w]);
 
                 w += 1;
-
-                if (sx < 0 or sx >= dim[0] or sy < 0 or sy >= dim[1]) {
-                    continue;
-                }
 
                 const color = source.get2D_4(sx, sy, scene);
 
