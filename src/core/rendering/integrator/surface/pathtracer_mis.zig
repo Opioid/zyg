@@ -53,6 +53,8 @@ pub const PathtracerMIS = struct {
                     continue;
                 }
 
+                const light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
+
                 const energy = self.connectLight(vertex, &frag, sampler, worker.scene);
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 const weighted_energy = vertex.throughput * split_weight * energy;
@@ -63,7 +65,7 @@ pub const PathtracerMIS = struct {
                     vertex.shadow_catcher_occluded += weighted_energy;
                     vertex.shadow_catcher_unoccluded += weighted_energy;
                 } else {
-                    result.add(weighted_energy, total_depth, 2, vertex.state.treat_as_singular);
+                    result.add(weighted_energy, light_depth, 2, vertex.state.treat_as_singular);
                 }
 
                 if (previous_shadow_catcher) {
@@ -108,7 +110,7 @@ pub const PathtracerMIS = struct {
                     vertex.state.shadow_catcher_path = true;
                 }
 
-                result.add(split_throughput * lighting.emission, total_depth, 1, false);
+                result.add(split_throughput * lighting.emission, light_depth, 1, false);
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);

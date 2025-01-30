@@ -43,10 +43,12 @@ pub const Pathtracer = struct {
                 break;
             }
 
+            const light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
+
             const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
             const weighted_energy = vertex.throughput * energy;
 
-            result.add(weighted_energy, total_depth, 0, vertex.state.treat_as_singular);
+            result.add(weighted_energy, light_depth, 0, vertex.state.treat_as_singular);
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                 break;
