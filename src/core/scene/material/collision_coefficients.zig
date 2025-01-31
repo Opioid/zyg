@@ -4,6 +4,18 @@ const Vec4f = math.Vec4f;
 pub const CC = struct {
     a: Vec4f,
     s: Vec4f,
+
+    pub fn anisotropy(self: CC) f32 {
+        return self.a[3];
+    }
+
+    pub fn scaled(self: CC, x: f32) CC {
+        const xx: Vec4f = @splat(x);
+        const a = self.a;
+        const ax = a * xx;
+        const sx = self.s * xx;
+        return .{ .a = .{ ax[0], ax[1], ax[2], a[3] }, .s = sx };
+    }
 };
 
 pub const CCE = struct {
@@ -65,7 +77,7 @@ pub fn scattering(mu_t: Vec4f, ssc: Vec4f, g: f32) CC {
     const mu_a = mu_t * (@as(Vec4f, @splat(1.0)) - pss);
     const mu_s = mu_t - mu_a;
 
-    return .{ .a = .{ mu_a[0], mu_a[1], mu_a[2], 1.0 }, .s = .{ mu_s[0], mu_s[1], mu_s[2], 1.0 } };
+    return .{ .a = .{ mu_a[0], mu_a[1], mu_a[2], g }, .s = .{ mu_s[0], mu_s[1], mu_s[2], 1.0 } };
 }
 
 pub inline fn attenuation1(c: f32, distance: f32) f32 {

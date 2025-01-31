@@ -104,13 +104,6 @@ pub const Material = union(enum) {
         return self.super().properties.emission_map;
     }
 
-    pub fn pureEmissive(self: *const Material) bool {
-        return switch (self.*) {
-            .Light, .Sky => true,
-            else => false,
-        };
-    }
-
     pub fn scatteringVolume(self: *const Material) bool {
         return self.super().properties.scattering_volume;
     }
@@ -161,15 +154,10 @@ pub const Material = union(enum) {
         const sup = self.super();
         const cc = sup.cc;
 
-        switch (self.*) {
-            .Volumetric => |*m| {
-                const d: Vec4f = @splat(m.density(uvw, sampler, scene));
-                return .{ .a = d * cc.a, .s = d * cc.s };
-            },
-            else => {
-                return cc;
-            },
-        }
+        return switch (self.*) {
+            .Volumetric => |*m| cc.scaled(m.density(uvw, sampler, scene)),
+            else => return cc,
+        };
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
