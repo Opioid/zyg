@@ -231,7 +231,7 @@ pub const Material = struct {
             } else {
                 const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
                 return .{
-                    .cc = .{ .a = d * cc.a, .s = d * cc.s },
+                    .cc = cc.scaled(d),
                     .e = d * e,
                 };
             }
@@ -239,7 +239,7 @@ pub const Material = struct {
 
         const d: Vec4f = @splat(self.density(uvw, sampler, scene));
         return .{
-            .cc = .{ .a = d * cc.a, .s = d * cc.s },
+            .cc = cc.scaled(d),
             .e = self.super.emittance.value,
         };
     }

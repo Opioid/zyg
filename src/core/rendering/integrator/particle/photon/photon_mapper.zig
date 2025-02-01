@@ -190,7 +190,7 @@ pub const Mapper = struct {
                 }
 
                 if (class.transmission) {
-                    const ior = vertex.interfaceChangeIor(&frag, sample_result.wi, &self.sampler, worker.scene);
+                    const ior = vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, worker.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     vertex.throughput *= @as(Vec4f, @splat(eta * eta));
                 }

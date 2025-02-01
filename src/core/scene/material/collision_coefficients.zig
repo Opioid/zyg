@@ -9,12 +9,10 @@ pub const CC = struct {
         return self.a[3];
     }
 
-    pub fn scaled(self: CC, x: f32) CC {
-        const xx: Vec4f = @splat(x);
+    pub fn scaled(self: CC, x: Vec4f) CC {
         const a = self.a;
-        const ax = a * xx;
-        const sx = self.s * xx;
-        return .{ .a = .{ ax[0], ax[1], ax[2], a[3] }, .s = sx };
+        const ax = a * x;
+        return .{ .a = .{ ax[0], ax[1], ax[2], a[3] }, .s = self.s * x };
     }
 };
 

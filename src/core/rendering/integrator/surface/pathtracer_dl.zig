@@ -105,7 +105,7 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);

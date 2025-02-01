@@ -130,24 +130,17 @@ pub const Material = union(enum) {
         return self.super().ior;
     }
 
-    pub fn collisionCoefficients2D(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) CC {
+    pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {
         const sup = self.super();
         const cc = sup.cc;
 
-        switch (self.*) {
-            .Volumetric => {
-                return cc;
-            },
-            else => {
-                const color_map = sup.color_map;
-                if (color_map.valid()) {
-                    const color = ts.sample2D_3(sup.sampler_key, color_map, uv, sampler, scene);
-                    return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
-                }
-
-                return cc;
-            },
+        const color_map = sup.color_map;
+        if (color_map.valid()) {
+            const color = mat_sample.super().albedo;
+            return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
         }
+
+        return cc;
     }
 
     pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CC {
@@ -155,7 +148,7 @@ pub const Material = union(enum) {
         const cc = sup.cc;
 
         return switch (self.*) {
-            .Volumetric => |*m| cc.scaled(m.density(uvw, sampler, scene)),
+            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
             else => return cc,
         };
     }
@@ -166,6 +159,7 @@ pub const Material = union(enum) {
                 return m.collisionCoefficientsEmission(uvw, sampler, scene);
             },
             else => {
+                // This seems questionable. Is there such a material?
                 const sup = self.super();
                 const cc = sup.cc;
                 const e = sup.emittance.value;

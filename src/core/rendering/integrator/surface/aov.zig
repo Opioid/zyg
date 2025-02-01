@@ -244,7 +244,7 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(frag, sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(sample_result.wi, frag, &mat_sample, worker.scene);
             }
 
             if (!worker.nextEvent(vertex, frag, sampler)) {

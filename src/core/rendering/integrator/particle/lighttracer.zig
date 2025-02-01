@@ -151,7 +151,7 @@ pub const Lighttracer = struct {
                     }
 
                     if (class.transmission) {
-                        const ior = next_vertex.interfaceChangeIor(&frag, sample_result.wi, sampler, worker.scene);
+                        const ior = next_vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, worker.scene);
                         const eta = ior.eta_i / ior.eta_t;
                         next_vertex.throughput *= @as(Vec4f, @splat(eta * eta));
                     }

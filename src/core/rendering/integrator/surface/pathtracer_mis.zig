@@ -158,7 +158,7 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (class.transmission) {
-                        next_vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
+                        next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
                     }
 
                     next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);
