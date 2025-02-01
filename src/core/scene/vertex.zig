@@ -66,6 +66,7 @@ pub const Vertex = struct {
         is_translucent: bool = false,
         started_specular: bool = false,
         shadow_catcher_path: bool = false,
+        exit_sss: bool = false,
     };
 
     probe: Probe,
