@@ -232,6 +232,8 @@ pub const Sphere = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
+        split_threshold: f32,
+        material: *const Material,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
@@ -243,49 +245,57 @@ pub const Sphere = struct {
             return buffer[0..0];
         }
 
-        const sin_theta_max = r / l;
-        const sin2_theta_max = sin_theta_max * sin_theta_max;
-        const cos_theta_max = @sqrt(1.0 - sin2_theta_max);
-        var one_minus_cos_theta_max = 1.0 - cos_theta_max;
-
-        const s2 = sampler.sample2D();
-
-        var cos_theta = (cos_theta_max - 1.0) * s2[0] + 1.0;
-        var sin2_theta = 1.0 - (cos_theta * cos_theta);
-
-        if (sin2_theta_max < 0.00068523) {
-            sin2_theta = sin2_theta_max * s2[0];
-            cos_theta = @sqrt(1.0 - sin2_theta);
-            one_minus_cos_theta_max = 0.5 * sin2_theta_max;
-        }
-
-        const cos_alpha = sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0));
-        const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
-
-        const phi = s2[1] * (2.0 * std.math.pi);
-
         const z = @as(Vec4f, @splat(1.0 / l)) * v;
         const frame = Frame.init(z);
 
-        const w = math.smpl.sphereDirection(sin_alpha, cos_alpha, phi);
-        const wn = frame.frameToWorld(-w);
+        const num_samples = material.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
 
-        const lp = trafo.position + @as(Vec4f, @splat(r)) * wn;
+        var current_sample: u32 = 0;
+        for (0..num_samples) |_| {
+            const sin_theta_max = r / l;
+            const sin2_theta_max = sin_theta_max * sin_theta_max;
+            const cos_theta_max = @sqrt(1.0 - sin2_theta_max);
+            var one_minus_cos_theta_max = 1.0 - cos_theta_max;
 
-        const dir = math.normalize3(lp - p);
+            const s2 = sampler.sample2D();
 
-        if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
-            return buffer[0..0];
+            var cos_theta = (cos_theta_max - 1.0) * s2[0] + 1.0;
+            var sin2_theta = 1.0 - (cos_theta * cos_theta);
+
+            if (sin2_theta_max < 0.00068523) {
+                sin2_theta = sin2_theta_max * s2[0];
+                cos_theta = @sqrt(1.0 - sin2_theta);
+                one_minus_cos_theta_max = 0.5 * sin2_theta_max;
+            }
+
+            const cos_alpha = sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0));
+            const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
+
+            const phi = s2[1] * (2.0 * std.math.pi);
+
+            const w = math.smpl.sphereDirection(sin_alpha, cos_alpha, phi);
+            const wn = frame.frameToWorld(-w);
+
+            const lp = trafo.position + @as(Vec4f, @splat(r)) * wn;
+
+            const dir = math.normalize3(lp - p);
+
+            if (math.dot3(dir, n) <= 0.0 and !total_sphere) {
+                continue;
+            }
+
+            buffer[current_sample] = SampleTo.init(
+                lp,
+                wn,
+                dir,
+                @splat(0.0),
+                nsf * math.smpl.conePdfUniform(one_minus_cos_theta_max),
+            );
+            current_sample += 1;
         }
 
-        buffer[0] = SampleTo.init(
-            lp,
-            wn,
-            dir,
-            @splat(0.0),
-            math.smpl.conePdfUniform(one_minus_cos_theta_max),
-        );
-        return buffer[0..1];
+        return buffer[0..current_sample];
     }
 
     pub fn sampleMaterialTo(
@@ -363,7 +373,7 @@ pub const Sphere = struct {
         );
     }
 
-    pub fn pdf(p: Vec4f, trafo: Trafo) f32 {
+    pub fn pdf(p: Vec4f, trafo: Trafo, split_threshold: f32, material: *const Material) f32 {
         const v = trafo.position - p;
         const l2 = math.squaredLength3(v);
         const r = trafo.scaleX();
@@ -375,7 +385,10 @@ pub const Sphere = struct {
         else
             1.0 - @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
-        return math.smpl.conePdfUniform(one_minus_cos_theta_max);
+        const num_samples = material.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
+
+        return nsf * math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
     pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, material: *const Material) f32 {

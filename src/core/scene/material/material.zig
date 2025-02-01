@@ -20,6 +20,7 @@ const image = @import("../../image/image.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -128,6 +129,10 @@ pub const Material = union(enum) {
 
     pub fn ior(self: *const Material) f32 {
         return self.super().ior;
+    }
+
+    pub fn numSamples(self: *const Material, split_threshold: f32) u32 {
+        return if (split_threshold <= LowThreshold) 1 else self.super().emittance.num_samples;
     }
 
     pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {

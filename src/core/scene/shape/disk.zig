@@ -9,7 +9,6 @@ const SampleFrom = smpl.From;
 const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
-const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -127,35 +126,45 @@ pub const Disk = struct {
         trafo: Trafo,
         two_sided: bool,
         total_sphere: bool,
+        split_threshold: f32,
+        material: *const Material,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const r2 = sampler.sample2D();
-        const xy = math.smpl.diskConcentric(r2);
-
-        const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
-        var wn = trafo.rotation.r[2];
-
-        if (two_sided and math.dot3(wn, ws - p) > 0.0) {
-            wn = -wn;
-        }
-
-        const axis = ws - p;
-        const sl = math.squaredLength3(axis);
-        const t = @sqrt(sl);
-        const dir = axis / @as(Vec4f, @splat(t));
-        const c = -math.dot3(wn, dir);
-
-        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
-            return buffer[0..0];
-        }
+        const num_samples = material.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
 
         const radius = trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
-        buffer[0] = SampleTo.init(ws, wn, dir, @splat(0.0), sl / (c * area));
-        return buffer[0..1];
+        var current_sample: u32 = 0;
+        for (0..num_samples) |_| {
+            const r2 = sampler.sample2D();
+            const xy = math.smpl.diskConcentric(r2);
+
+            const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+            const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
+            var wn = trafo.rotation.r[2];
+
+            if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+                wn = -wn;
+            }
+
+            const axis = ws - p;
+            const sl = math.squaredLength3(axis);
+            const t = @sqrt(sl);
+            const dir = axis / @as(Vec4f, @splat(t));
+            const c = -math.dot3(wn, dir);
+
+            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                continue;
+            }
+
+            buffer[current_sample] = SampleTo.init(ws, wn, dir, @splat(0.0), (nsf * sl) / (c * area));
+            current_sample += 1;
+        }
+
+        return buffer[0..current_sample];
     }
 
     pub fn sampleMaterialTo(
@@ -169,8 +178,7 @@ pub const Disk = struct {
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
-
+        const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const radius = trafo.scaleX();
@@ -276,9 +284,8 @@ pub const Disk = struct {
         return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf_);
     }
 
-    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool) f32 {
+    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, two_sided: bool, split_threshold: f32, material: *const Material) f32 {
         var c = -math.dot3(frag.trafo.rotation.r[2], dir);
-
         if (two_sided) {
             c = @abs(c);
         }
@@ -287,7 +294,9 @@ pub const Disk = struct {
         const area = std.math.pi * (radius * radius);
 
         const sl = math.squaredDistance3(p, frag.p);
-        return sl / (c * area);
+
+        const num_samples = material.numSamples(split_threshold);
+        return (@as(f32, @floatFromInt(num_samples)) * sl) / (c * area);
     }
 
     pub fn materialPdf(
@@ -299,7 +308,6 @@ pub const Disk = struct {
         material: *const Material,
     ) f32 {
         var c = -math.dot3(frag.trafo.rotation.r[2], dir);
-
         if (two_sided) {
             c = @abs(c);
         }
@@ -309,7 +317,7 @@ pub const Disk = struct {
 
         const sl = math.squaredDistance3(p, frag.p);
 
-        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+        const num_samples = material.numSamples(split_threshold);
         const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return (material_pdf * sl) / (c * area);

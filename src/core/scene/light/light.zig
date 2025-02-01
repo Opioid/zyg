@@ -143,20 +143,8 @@ pub const Light = struct {
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
-        const total_sphere = vertex.state.is_translucent;
-
         return switch (self.class) {
-            .Prop => scene.propShape(self.prop).pdf(
-                self.part,
-                self.variant,
-                vertex.probe.ray.direction,
-                vertex.origin,
-                vertex.geo_n,
-                frag,
-                self.two_sided,
-                total_sphere,
-                split_threshold,
-            ),
+            .Prop => self.propPdf(vertex, frag, split_threshold, scene),
             .PropImage => self.propMaterialPdf(vertex, frag, split_threshold, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.probe.ray.direction, frag, scene),
@@ -178,6 +166,7 @@ pub const Light = struct {
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
+        const material = scene.propMaterial(self.prop, self.part);
         const shape = scene.propShape(self.prop);
         return shape.sampleTo(
             self.part,
@@ -188,6 +177,7 @@ pub const Light = struct {
             self.two_sided,
             total_sphere,
             split_threshold,
+            material,
             sampler,
             buffer,
         );
@@ -341,6 +331,24 @@ pub const Light = struct {
         result.mulAssignPdf(rs.pdf());
 
         return result;
+    }
+
+    fn propPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
+        const total_sphere = vertex.state.is_translucent;
+        const material = frag.material(scene);
+
+        return scene.propShape(self.prop).pdf(
+            self.part,
+            self.variant,
+            vertex.probe.ray.direction,
+            vertex.origin,
+            vertex.geo_n,
+            frag,
+            self.two_sided,
+            total_sphere,
+            split_threshold,
+            material,
+        );
     }
 
     fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {

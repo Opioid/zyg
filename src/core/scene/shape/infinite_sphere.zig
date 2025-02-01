@@ -9,7 +9,6 @@ const SampleFrom = smpl.From;
 const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
-const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -104,8 +103,7 @@ pub const InfiniteSphere = struct {
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
-
+        const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         var current_sample: u32 = 0;
@@ -205,7 +203,7 @@ pub const InfiniteSphere = struct {
             return 0.0;
         }
 
-        const num_samples = if (split_threshold <= LowThreshold) 1 else material.super().emittance.num_samples;
+        const num_samples = material.numSamples(split_threshold);
         const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return material_pdf / ((4.0 * std.math.pi) * sin_theta);
