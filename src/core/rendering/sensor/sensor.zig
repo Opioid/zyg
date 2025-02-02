@@ -62,27 +62,15 @@ pub const Sensor = struct {
     const Layer = struct {
         buffer: Buffer,
         aov: AovBuffer,
-        aov_noise_buffer: []f32 = &.{},
 
         fn deinit(self: *Layer, alloc: Allocator) void {
             self.buffer.deinit(alloc);
             self.aov.deinit(alloc);
-            alloc.free(self.aov_noise_buffer);
         }
 
-        fn resize(self: *Layer, alloc: Allocator, len: usize, factory: AovFactory, aov_noise: bool) !void {
+        fn resize(self: *Layer, alloc: Allocator, len: usize, factory: AovFactory) !void {
             try self.buffer.resize(alloc, len);
             try self.aov.resize(alloc, len, factory);
-
-            if (aov_noise and len > self.aov_noise_buffer.len) {
-                self.aov_noise_buffer = try alloc.realloc(self.aov_noise_buffer, len);
-            }
-        }
-
-        pub fn clearNoiseAov(self: *Layer) void {
-            for (self.aov_noise_buffer) |*n| {
-                n.* = 0.0;
-            }
         }
     };
 
@@ -149,7 +137,7 @@ pub const Sensor = struct {
         }
     }
 
-    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, num_layers: u32, factory: AovFactory, aov_noise: bool) !void {
+    pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, num_layers: u32, factory: AovFactory) !void {
         self.dimensions = dimensions;
 
         if (self.layers.len < num_layers) {
@@ -167,7 +155,7 @@ pub const Sensor = struct {
         const len: usize = @intCast(dimensions[0] * dimensions[1]);
 
         for (self.layers[0..num_layers]) |*l| {
-            try l.resize(alloc, len, factory, aov_noise);
+            try l.resize(alloc, len, factory);
         }
     }
 
@@ -321,26 +309,6 @@ pub const Sensor = struct {
             self.splat(layer, .{ x, y + 2 }, wx2 * wy4, clamped, bounds);
             self.splat(layer, .{ x + 1, y + 2 }, wx3 * wy4, clamped, bounds);
             self.splat(layer, .{ x + 2, y + 2 }, wx4 * wy4, clamped, bounds);
-        }
-    }
-
-    pub fn writeTileNoise(self: *Sensor, layer_id: u32, tile: Vec4i, noise: f32) void {
-        const layer = &self.layers[layer_id];
-
-        if (0 == layer.aov_noise_buffer.len) {
-            return;
-        }
-
-        const d = self.dimensions;
-
-        var y: i32 = tile[1];
-
-        while (y <= tile[3]) : (y += 1) {
-            var x: i32 = tile[0];
-            while (x <= tile[2]) : (x += 1) {
-                const id: u32 = @intCast(d[0] * y + x);
-                layer.aov_noise_buffer[id] = noise;
-            }
         }
     }
 

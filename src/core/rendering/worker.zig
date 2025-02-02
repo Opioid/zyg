@@ -236,8 +236,6 @@ pub const Worker = struct {
                     yy += 1;
                 }
 
-                var terminates = true;
-
                 const target_samples: u32 = @intFromFloat(@ceil(tile_qm / qm_threshold_squared));
 
                 if (target_samples > s_end or (tile_qm > 0.0 and s_end < 64)) {
@@ -252,12 +250,6 @@ pub const Worker = struct {
                     } else {
                         stack_b.push(tile, offset);
                     }
-
-                    terminates = s_end == num_samples;
-                }
-
-                if (terminates) {
-                    sensor.writeTileNoise(layer, tile, tile_qm);
                 }
             }
 

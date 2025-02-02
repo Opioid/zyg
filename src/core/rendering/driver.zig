@@ -129,7 +129,7 @@ pub const Driver = struct {
 
         const view = self.view;
 
-        try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs, view.aov_noise);
+        try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs);
 
         self.tiles.configure(camera.resolution, camera.crop, Worker.Tile_dimensions);
 
@@ -273,27 +273,6 @@ pub const Driver = struct {
 
                 log.info("Sample count [{}, {}]", .{ @as(u32, @intFromFloat(@ceil(min))), @as(u32, @intFromFloat(@ceil(max))) });
             }
-
-            if (self.view.aov_noise) {
-                const d = camera.resolution;
-
-                var min: f32 = std.math.floatMax(f32);
-                var max: f32 = 0.0;
-
-                for (self.view.sensor.layers[layer_id].aov_noise_buffer) |w| {
-                    if (w > 0.0) {
-                        min = math.min(min, w);
-                    }
-                    max = math.max(max, w);
-                }
-
-                var buf: [32]u8 = undefined;
-                const filename = try std.fmt.bufPrint(&buf, "image_{d:0>2}_{d:0>6}{s}_noise.png", .{ camera_id, frame, camera.layerExtension(layer_id) });
-
-                try PngWriter.writeHeatmap(alloc, d[0], d[1], self.view.sensor.layers[layer_id].aov_noise_buffer, min, max, filename);
-
-                log.info("Noise [{}, {}]", .{ min, max });
-            }
         }
 
         log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
@@ -374,7 +353,6 @@ pub const Driver = struct {
 
             sensor.layers[l].buffer.clear(0.0);
             sensor.layers[l].aov.clear();
-            sensor.layers[l].clearNoiseAov();
 
             self.tiles.restart();
 
