@@ -797,7 +797,7 @@ pub const Builder = struct {
             pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
                 _ = id;
 
-                const self = @as(*Self, @ptrCast(@alignCast(context)));
+                const self: *Self = @ptrCast(@alignCast(context));
 
                 for (self.candidates[begin..end]) |*c| {
                     c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);

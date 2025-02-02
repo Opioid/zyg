@@ -618,7 +618,7 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
     if (engine) |*e| {
         const num_pixels = @min(width * height, @as(u32, @intCast(e.driver.target.description.numPixels())));
 
-        const target = @as([*]Pack4f, @ptrCast(buffer));
+        const target: [*]Pack4f = @ptrCast(buffer);
 
         if (aov >= core.tk.View.AovValue.NumClasses) {
             e.driver.resolveToBuffer(0, 0, target, num_pixels);

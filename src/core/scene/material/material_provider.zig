@@ -98,7 +98,7 @@ pub const Provider = struct {
     ) !Material {
         _ = options;
 
-        const value = @as(*const std.json.Value, @ptrCast(data));
+        const value: *const std.json.Value = @ptrCast(data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
         try material.commit(alloc, resources.scene, resources.threads);
