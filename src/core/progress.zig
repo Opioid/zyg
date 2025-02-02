@@ -29,12 +29,12 @@ pub const StdOut = struct {
     progress: u32,
     threshold: f32,
 
-    const step = 1.0;
+    const Step = 1.0;
 
     pub fn start(self: *StdOut, resolution: u32) void {
         self.resolution = resolution;
         self.progress = 0;
-        self.threshold = step;
+        self.threshold = Step;
     }
 
     pub fn tick(self: *StdOut) void {
@@ -46,7 +46,7 @@ pub const StdOut = struct {
 
         const p = @as(f32, @floatFromInt(self.progress)) / @as(f32, @floatFromInt(self.resolution)) * 100.0;
         if (p >= self.threshold) {
-            self.threshold += step;
+            self.threshold += Step;
 
             const stdout = std.io.getStdOut().writer();
             stdout.print("{}%\r", .{@as(u32, @intFromFloat(p))}) catch return;

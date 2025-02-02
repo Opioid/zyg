@@ -98,7 +98,7 @@ pub const Provider = struct {
     ) !Material {
         _ = options;
 
-        const value = @as(*const std.json.Value, @ptrCast(data));
+        const value: *const std.json.Value = @ptrCast(data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
         try material.commit(alloc, resources.scene, resources.threads);
@@ -565,7 +565,7 @@ fn readSamplerKey(value: std.json.Value) ts.Key {
                     if (std.mem.eql(u8, "Nearest", filter)) {
                         key.filter = .Nearest;
                     } else if (std.mem.eql(u8, "Linear", filter)) {
-                        key.filter = .Linear_stochastic;
+                        key.filter = .LinearStochastic;
                     }
                 } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
                     switch (entry.value_ptr.*) {

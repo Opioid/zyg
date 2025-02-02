@@ -279,7 +279,7 @@ pub const Part = struct {
         };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @as(*Context, @ptrCast(context));
+            const self: *Context = @ptrCast(context);
 
             const emission_map = self.m.emissionMapped();
 

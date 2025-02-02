@@ -276,7 +276,7 @@ const SkyContext = struct {
     pub fn bakeSky(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @as(*SkyContext, @ptrCast(@alignCast(context)));
+        const self: *SkyContext = @ptrCast(@alignCast(context));
 
         var rng: RNG = undefined;
 

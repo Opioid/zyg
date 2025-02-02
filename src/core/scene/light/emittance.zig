@@ -80,7 +80,7 @@ pub const Emittance = struct {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
             const key = ts.Key{
-                .filter = ts.Default_filter,
+                .filter = ts.DefaultFilter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 

@@ -273,7 +273,7 @@ const Context = struct {
     current_task: i32 = 0,
 
     fn distribute(context: Threads.Context, id: u32) void {
-        const self = @as(*Context, @ptrCast(@alignCast(context)));
+        const self: *Context = @ptrCast(@alignCast(context));
 
         var splitter = &self.splitters[id];
         splitter.num_nodes = 0;
