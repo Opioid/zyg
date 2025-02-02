@@ -811,15 +811,10 @@ pub const Mesh = struct {
         p: Vec4f,
         n: Vec4f,
         frag: *const Fragment,
-        two_sided: bool,
         total_sphere: bool,
         splt_threshold: f32,
     ) f32 {
-        var n_dot_dir = -math.dot3(frag.geo_n, dir);
-
-        if (two_sided) {
-            n_dot_dir = @abs(n_dot_dir);
-        }
+        const n_dot_dir = @abs(math.dot3(frag.geo_n, dir));
 
         const op = frag.trafo.worldToObjectPoint(p);
         const on = frag.trafo.worldToObjectNormal(n);

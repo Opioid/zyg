@@ -344,7 +344,6 @@ pub const Light = struct {
             vertex.origin,
             vertex.geo_n,
             frag,
-            self.two_sided,
             total_sphere,
             split_threshold,
             material,
@@ -357,7 +356,6 @@ pub const Light = struct {
             vertex.probe.ray.direction,
             vertex.origin,
             frag,
-            self.two_sided,
             split_threshold,
             material,
         );

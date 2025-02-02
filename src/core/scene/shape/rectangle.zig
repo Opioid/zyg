@@ -392,19 +392,8 @@ pub const Rectangle = struct {
         return @as(f32, @floatFromInt(num_samples)) * squad.pdf(scale);
     }
 
-    pub fn materialPdf(
-        dir: Vec4f,
-        p: Vec4f,
-        frag: *const Fragment,
-        two_sided: bool,
-        split_threshold: f32,
-        material: *const Material,
-    ) f32 {
-        var c = -math.dot3(frag.trafo.rotation.r[2], dir);
-
-        if (two_sided) {
-            c = @abs(c);
-        }
+    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
+        const c = @abs(math.dot3(frag.trafo.rotation.r[2], dir));
 
         const scale = frag.trafo.scale();
         const area = 4.0 * (scale[0] * scale[1]);
