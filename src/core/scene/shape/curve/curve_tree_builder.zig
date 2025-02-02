@@ -164,7 +164,7 @@ pub const Builder = struct {
         alloc: Allocator,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @as(*ReferencesContext, @ptrCast(@alignCast(context)));
+            const self: *ReferencesContext = @ptrCast(@alignCast(context));
 
             var private = &self.privates[id];
 

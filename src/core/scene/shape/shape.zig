@@ -275,16 +275,17 @@ pub const Shape = union(enum) {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
+        material: *const Material,
         sampler: *Sampler,
         buffer: *SamplesTo,
     ) []SampleTo {
         return switch (self.*) {
             .Canopy => Canopy.sampleTo(n, trafo, total_sphere, sampler, buffer),
-            .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, sampler, buffer),
+            .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .DistantSphere => DistantSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
-            .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, sampler, buffer),
-            .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, sampler, buffer),
+            .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
+            .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, material, sampler, buffer),
             .TriangleMesh => |m| m.sampleTo(
                 part,
                 variant,
@@ -412,20 +413,20 @@ pub const Shape = union(enum) {
         p: Vec4f,
         n: Vec4f,
         frag: *const Fragment,
-        two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
+        material: *const Material,
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Cube, .Plane => 0.0,
             .CurveMesh => 0.0,
-            .Disk => Disk.pdf(dir, p, frag, two_sided),
+            .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
             .DistantSphere => DistantSphere.pdf(frag.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(p, frag.trafo),
-            .Sphere => Sphere.pdf(p, frag.trafo),
-            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, two_sided, total_sphere, split_threshold),
+            .Rectangle => Rectangle.pdf(p, frag.trafo, split_threshold, material),
+            .Sphere => Sphere.pdf(p, frag.trafo, split_threshold, material),
+            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
         };
     }
 
@@ -434,15 +435,14 @@ pub const Shape = union(enum) {
         dir: Vec4f,
         p: Vec4f,
         frag: *const Fragment,
-        two_sided: bool,
         split_threshold: f32,
         material: *const Material,
     ) f32 {
         return switch (self.*) {
             .Canopy => material.emissionPdf(frag.uvw) / (2.0 * std.math.pi),
-            .Disk => Disk.materialPdf(dir, p, frag, two_sided, split_threshold, material),
+            .Disk => Disk.materialPdf(dir, p, frag, split_threshold, material),
             .InfiniteSphere => InfiniteSphere.materialPdf(frag, split_threshold, material),
-            .Rectangle => Rectangle.materialPdf(dir, p, frag, two_sided, split_threshold, material),
+            .Rectangle => Rectangle.materialPdf(dir, p, frag, split_threshold, material),
             .Sphere => Sphere.materialPdf(dir, p, frag, material),
             else => 0.0,
         };

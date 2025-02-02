@@ -52,7 +52,7 @@ pub const Operator = struct {
         self.textures.deinit(alloc);
 
         switch (self.class) {
-            .Blur => |*b| b.deinit(alloc),
+            inline .Blur, .Denoise => |*op| op.deinit(alloc),
             else => {},
         }
     }
@@ -86,7 +86,7 @@ pub const Operator = struct {
     fn runRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @as(*Self, @ptrCast(@alignCast(context)));
+        const self: *Self = @ptrCast(@alignCast(context));
 
         if (.Anaglyph == self.class) {
             const offset = self.current * 2;

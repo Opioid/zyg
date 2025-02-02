@@ -438,7 +438,7 @@ pub const Reader = struct {
     }
 
     fn createImageAsync(context: ThreadContext) void {
-        const info = @as(*Info, @ptrCast(@alignCast(context)));
+        const info: *Info = @ptrCast(@alignCast(context));
 
         info.process() catch {};
     }

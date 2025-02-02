@@ -231,7 +231,7 @@ pub const Material = struct {
             } else {
                 const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, scene));
                 return .{
-                    .cc = .{ .a = d * cc.a, .s = d * cc.s },
+                    .cc = cc.scaled(d),
                     .e = d * e,
                 };
             }
@@ -239,7 +239,7 @@ pub const Material = struct {
 
         const d: Vec4f = @splat(self.density(uvw, sampler, scene));
         return .{
-            .cc = .{ .a = d * cc.a, .s = d * cc.s },
+            .cc = cc.scaled(d),
             .e = self.super.emittance.value,
         };
     }
@@ -252,7 +252,7 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @as(*LuminanceContext, @ptrCast(context));
+        const self: *LuminanceContext = @ptrCast(context);
         const mat = self.material;
 
         const d = self.material.density_map.description(self.scene).dimensions;
@@ -296,7 +296,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @as(*DistributionContext, @ptrCast(@alignCast(context)));
+        const self: *DistributionContext = @ptrCast(@alignCast(context));
         const d = self.d;
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);

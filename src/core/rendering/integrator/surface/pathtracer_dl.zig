@@ -46,13 +46,12 @@ pub const PathtracerDL = struct {
                 break;
             }
 
-            const light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
-
             if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
                 const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
                 const weighted_energy = vertex.throughput * energy;
 
-                result.add(weighted_energy, light_depth, 1, vertex.state.treat_as_singular);
+                const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
+                result.add(weighted_energy, indirect_light_depth, 1, vertex.state.treat_as_singular);
             }
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
@@ -72,7 +71,10 @@ pub const PathtracerDL = struct {
 
             const lighting = self.directLight(&vertex, &frag, &mat_sample, sampler, worker);
 
-            result.add(vertex.throughput * lighting, light_depth, 1, false);
+            const direct_light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
+            result.add(vertex.throughput * lighting, direct_light_depth, 1, false);
+
+            vertex.state.exit_sss = .ExitSSS == frag.event;
 
             var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, 1, &bxdf_samples);
@@ -105,7 +107,7 @@ pub const PathtracerDL = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);

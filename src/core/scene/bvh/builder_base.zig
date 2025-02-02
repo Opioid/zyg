@@ -243,7 +243,7 @@ const Kernel = struct {
     fn evaluateRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
 
-        const self = @as(*Kernel, @ptrCast(context));
+        const self: *Kernel = @ptrCast(context);
 
         const aabb_surface_area = self.aabb_surface_area;
         const references = self.references;
@@ -388,7 +388,7 @@ pub const Base = struct {
     fn workOnTasksParallel(context: Threads.Context, id: u32) void {
         _ = id;
 
-        const self = @as(*Base, @ptrCast(context));
+        const self: *Base = @ptrCast(context);
 
         const num_tasks: u32 = @intCast(self.tasks.items.len);
 

@@ -154,7 +154,7 @@ const LuminanceContext = struct {
     averages: []Vec4f,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @as(*LuminanceContext, @ptrCast(context));
+        const self: *LuminanceContext = @ptrCast(context);
 
         const d = self.texture.description(self.scene).dimensions;
         const width: u32 = @intCast(d[0]);
@@ -200,7 +200,7 @@ const DistributionContext = struct {
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @as(*DistributionContext, @ptrCast(context));
+        const self: *DistributionContext = @ptrCast(context);
 
         var y = begin;
         while (y < end) : (y += 1) {

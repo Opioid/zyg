@@ -53,8 +53,6 @@ pub const PathtracerMIS = struct {
                     continue;
                 }
 
-                const light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
-
                 const energy = self.connectLight(vertex, &frag, sampler, worker.scene);
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 const weighted_energy = vertex.throughput * split_weight * energy;
@@ -65,7 +63,8 @@ pub const PathtracerMIS = struct {
                     vertex.shadow_catcher_occluded += weighted_energy;
                     vertex.shadow_catcher_unoccluded += weighted_energy;
                 } else {
-                    result.add(weighted_energy, light_depth, 2, vertex.state.treat_as_singular);
+                    const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
+                    result.add(weighted_energy, indirect_light_depth, 2, vertex.state.treat_as_singular);
                 }
 
                 if (previous_shadow_catcher) {
@@ -110,7 +109,10 @@ pub const PathtracerMIS = struct {
                     vertex.state.shadow_catcher_path = true;
                 }
 
-                result.add(split_throughput * lighting.emission, light_depth, 1, false);
+                const direct_light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
+                result.add(split_throughput * lighting.emission, direct_light_depth, 1, false);
+
+                vertex.state.exit_sss = .ExitSSS == frag.event;
 
                 var bxdf_samples: bxdf.Samples = undefined;
                 const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
@@ -158,7 +160,7 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (class.transmission) {
-                        next_vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
+                        next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
                     }
 
                     next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);

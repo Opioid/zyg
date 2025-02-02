@@ -326,7 +326,7 @@ pub const Writer = struct {
         crop: Vec4i,
 
         fn compress(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self = @as(*Context, @ptrCast(@alignCast(context)));
+            const self: *Context = @ptrCast(@alignCast(context));
 
             var zip: mz.mz_stream = undefined;
             zip.zalloc = null;

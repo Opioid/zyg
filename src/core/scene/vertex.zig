@@ -1,5 +1,6 @@
 const Fragment = @import("shape/intersection.zig").Fragment;
 const Scene = @import("scene.zig").Scene;
+const MaterialSample = @import("material/material_sample.zig").Sample;
 const MediumStack = @import("prop/medium.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const rst = @import("renderstate.zig");
@@ -65,6 +66,7 @@ pub const Vertex = struct {
         is_translucent: bool = false,
         started_specular: bool = false,
         shadow_catcher_path: bool = false,
+        exit_sss: bool = false,
     };
 
     probe: Probe,
@@ -112,18 +114,30 @@ pub const Vertex = struct {
         return self.mediums.peekIor(frag);
     }
 
-    pub fn interfaceChange(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) void {
+    pub fn interfaceChange(
+        self: *Self,
+        dir: Vec4f,
+        frag: *const Fragment,
+        mat_sample: *const MaterialSample,
+        scene: *const Scene,
+    ) void {
         const leave = frag.sameHemisphere(dir);
         if (leave) {
             self.mediums.remove(frag);
         } else {
             const material = frag.material(scene);
-            const cc = material.collisionCoefficients2D(frag.uv(), sampler, scene);
+            const cc = material.collisionCoefficients2D(mat_sample);
             self.mediums.push(frag, cc, material.super().ior, material.super().priority);
         }
     }
 
-    pub fn interfaceChangeIor(self: *Self, frag: *const Fragment, dir: Vec4f, sampler: *Sampler, scene: *const Scene) IoR {
+    pub fn interfaceChangeIor(
+        self: *Self,
+        dir: Vec4f,
+        frag: *const Fragment,
+        mat_sample: *const MaterialSample,
+        scene: *const Scene,
+    ) IoR {
         const inter_ior = frag.material(scene).ior();
 
         const leave = frag.sameHemisphere(dir);
@@ -136,7 +150,7 @@ pub const Vertex = struct {
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.mediums.topIor() };
 
         const material = frag.material(scene);
-        const cc = material.collisionCoefficients2D(frag.uv(), sampler, scene);
+        const cc = material.collisionCoefficients2D(mat_sample);
         self.mediums.push(frag, cc, material.super().ior, material.super().priority);
 
         return ior;

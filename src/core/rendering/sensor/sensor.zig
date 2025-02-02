@@ -373,7 +373,7 @@ pub const Sensor = struct {
         pub fn resolve(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @as(*const ResolveContext, @ptrCast(context));
+            const self: *const ResolveContext = @ptrCast(context);
             const target = self.target;
             const layer = self.layer;
 
@@ -383,7 +383,7 @@ pub const Sensor = struct {
         pub fn resolveTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @as(*const ResolveContext, @ptrCast(context));
+            const self: *const ResolveContext = @ptrCast(context);
             const target = self.target;
             const layer = self.layer;
 
@@ -393,7 +393,7 @@ pub const Sensor = struct {
         pub fn resolveAccumulateTonemap(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @as(*const ResolveContext, @ptrCast(context));
+            const self: *const ResolveContext = @ptrCast(context);
             const target = self.target;
             const layer = self.layer;
 
@@ -403,7 +403,7 @@ pub const Sensor = struct {
         pub fn resolveAov(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             _ = id;
 
-            const self = @as(*const ResolveContext, @ptrCast(context));
+            const self: *const ResolveContext = @ptrCast(context);
             const target = self.target;
             const class = self.aov;
             const layer = self.layer;

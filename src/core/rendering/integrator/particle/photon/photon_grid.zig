@@ -634,7 +634,7 @@ pub const Grid = struct {
                 }
 
                 const normalization: f32 = @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3))));
-                const mu_s = scatteringCoefficient(frag, sampler, scene);
+                const mu_s = scatteringCoefficient(frag, sample, sampler, scene);
 
                 result /= @as(Vec4f, @splat(normalization)) * mu_s;
             } else {
@@ -677,7 +677,7 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(frag: *const Fragment, sampler: *Sampler, scene: *const Scene) Vec4f {
+    fn scatteringCoefficient(frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = frag.material(scene);
 
         if (material.heterogeneousVolume()) {
@@ -690,7 +690,7 @@ pub const Grid = struct {
             return material.collisionCoefficients3D(uvw, sampler, scene).s;
         }
 
-        return material.collisionCoefficients2D(frag.uv(), sampler, scene).s;
+        return material.collisionCoefficients2D(sample).s;
     }
 };
 

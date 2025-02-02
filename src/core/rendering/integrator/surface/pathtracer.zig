@@ -43,12 +43,11 @@ pub const Pathtracer = struct {
                 break;
             }
 
-            const light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
-
             const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
             const weighted_energy = vertex.throughput * energy;
 
-            result.add(weighted_energy, light_depth, 0, vertex.state.treat_as_singular);
+            const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
+            result.add(weighted_energy, indirect_light_depth, 1, vertex.state.treat_as_singular);
 
             if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
                 break;
@@ -64,6 +63,8 @@ pub const Pathtracer = struct {
             if (worker.aov.active()) {
                 worker.commonAOV(&vertex, &frag, &mat_sample);
             }
+
+            vertex.state.exit_sss = .ExitSSS == frag.event;
 
             var bxdf_samples: bxdf.Samples = undefined;
             const sample_results = mat_sample.sample(sampler, 1, &bxdf_samples);
@@ -96,7 +97,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(&frag, sample_result.wi, sampler, worker.scene);
+                vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);

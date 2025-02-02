@@ -216,7 +216,7 @@ pub const Reader = struct {
 
             switch (image) {
                 .Half3 => |half3| {
-                    const halfs = @as([*]const f16, @ptrCast(buffer.ptr));
+                    const halfs: [*]const f16 = @ptrCast(buffer.ptr);
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
@@ -241,7 +241,7 @@ pub const Reader = struct {
                     }
                 },
                 .Float3 => |float3| {
-                    const floats = @as([*]const f32, @ptrCast(buffer.ptr));
+                    const floats: [*]const f32 = @ptrCast(buffer.ptr);
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
@@ -265,7 +265,7 @@ pub const Reader = struct {
                     }
                 },
                 .Half4 => |half4| {
-                    const halfs = @as([*]const f16, @ptrCast(buffer.ptr));
+                    const halfs: [*]const f16 = @ptrCast(buffer.ptr);
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {
@@ -293,7 +293,7 @@ pub const Reader = struct {
                     }
                 },
                 .Float4 => |float4| {
-                    const floats = @as([*]const f32, @ptrCast(buffer.ptr));
+                    const floats: [*]const f32 = @ptrCast(buffer.ptr);
 
                     var y: u32 = 0;
                     while (y < num_rows_here) : (y += 1) {

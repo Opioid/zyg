@@ -338,7 +338,7 @@ pub const Driver = struct {
     }
 
     fn renderTiles(context: Threads.Context, id: u32) void {
-        const self = @as(*Driver, @ptrCast(@alignCast(context)));
+        const self: *Driver = @ptrCast(@alignCast(context));
 
         const iteration = self.frame_iteration;
         const num_samples = self.frame_iteration_samples;
@@ -397,7 +397,7 @@ pub const Driver = struct {
     }
 
     fn renderRanges(context: Threads.Context, id: u32) void {
-        const self = @as(*Driver, @ptrCast(@alignCast(context)));
+        const self: *Driver = @ptrCast(@alignCast(context));
 
         // Just pick one layer for now
         // It should just be used for differential estimation...
@@ -471,7 +471,7 @@ pub const Driver = struct {
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self = @as(*Driver, @ptrCast(@alignCast(context)));
+        const self: *Driver = @ptrCast(@alignCast(context));
 
         self.photon_infos[id].num_paths = self.workers[id].bakePhotons(
             begin,

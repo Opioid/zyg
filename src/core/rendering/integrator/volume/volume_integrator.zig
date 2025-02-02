@@ -140,7 +140,7 @@ pub const Integrator = struct {
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            return integrateHomogeneousSSS(medium.prop, material, vertex, frag, sampler, worker);
+            return integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
         }
 
         const ray_max_t = vertex.probe.ray.max_t;
@@ -257,9 +257,9 @@ pub const Integrator = struct {
         return false;
     }
 
-    fn integrateHomogeneousSSS(prop: u32, material: *const Material, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
         const cc = vertex.mediums.topCC();
-        const g = material.super().volumetric_anisotropy;
+        const g = cc.anisotropy();
 
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;
