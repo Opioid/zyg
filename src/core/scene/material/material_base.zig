@@ -56,6 +56,7 @@ pub const Base = struct {
         evaluate_visibility: bool = false,
         caustic: bool = false,
         emissive: bool = false,
+        color_map: bool = false,
         emission_map: bool = false,
         scattering_volume: bool = false,
         dense_sss_optimization: bool = false,
@@ -66,7 +67,6 @@ pub const Base = struct {
     sampler_key: ts.Key = .{},
 
     mask: Texture = .{},
-    color_map: Texture = .{},
 
     cc: CC = undefined,
 

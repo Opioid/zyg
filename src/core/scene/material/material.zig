@@ -139,8 +139,7 @@ pub const Material = union(enum) {
         const sup = self.super();
         const cc = sup.cc;
 
-        const color_map = sup.color_map;
-        if (color_map.valid()) {
+        if (sup.properties.color_map) {
             const color = mat_sample.super().albedo;
             return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
         }
@@ -154,33 +153,16 @@ pub const Material = union(enum) {
 
         return switch (self.*) {
             .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
-            else => return cc,
+            else => cc,
         };
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
-        switch (self.*) {
-            .Volumetric => |*m| {
-                return m.collisionCoefficientsEmission(uvw, sampler, scene);
-            },
-            else => {
-                // This seems questionable. Is there such a material?
-                const sup = self.super();
-                const cc = sup.cc;
-                const e = sup.emittance.value;
+        return switch (self.*) {
+            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, sampler, scene),
 
-                const color_map = sup.color_map;
-                if (color_map.valid()) {
-                    const color = ts.sample2D_3(sup.sampler_key, color_map, .{ uvw[0], uvw[1] }, sampler, scene);
-                    return .{
-                        .cc = ccoef.scattering(cc.a, color, sup.volumetric_anisotropy),
-                        .e = e,
-                    };
-                }
-
-                return .{ .cc = cc, .e = e };
-            },
-        }
+            else => .{ .cc = self.super().cc, .e = @splat(0.0) },
+        };
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
@@ -263,31 +245,14 @@ pub const Material = union(enum) {
     }
 
     pub fn usefulTexture(self: *const Material) ?Texture {
-        switch (self.*) {
-            .Light => |*m| {
-                if (m.emission_map.valid()) {
-                    return m.emission_map;
-                }
-            },
-            .Sky => |*m| {
-                if (m.emission_map.valid()) {
-                    return m.emission_map;
-                }
-            },
-            .Substitute => |*m| {
-                if (m.emission_map.valid()) {
-                    return m.emission_map;
-                }
-            },
-            .Volumetric => |*m| {
-                if (m.density_map.valid()) {
-                    return m.density_map;
-                }
-            },
-            else => {},
-        }
+        const texture = switch (self.*) {
+            .Light => |*m| m.super.emittance.emission_map,
+            .Sky => |*m| m.super.emittance.emission_map,
+            .Substitute => |*m| m.super.emittance.emission_map,
+            .Volumetric => |*m| m.density_map,
+            inline else => |*m| m.super.mask,
+        };
 
-        const color_map = self.super().color_map;
-        return if (color_map.valid()) color_map else null;
+        return if (texture.valid()) texture else null;
     }
 };
