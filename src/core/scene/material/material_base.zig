@@ -2,7 +2,6 @@ const Rainbow = @import("rainbow_integral.zig");
 const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
-const Emittance = @import("../light/emittance.zig").Emittance;
 const Scene = @import("../scene.zig").Scene;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
@@ -69,8 +68,6 @@ pub const Base = struct {
     mask: Texture = .{},
 
     cc: CC = undefined,
-
-    emittance: Emittance = .{},
 
     priority: i8 = 0,
     ior: f32 = 1.5,

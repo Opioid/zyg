@@ -267,7 +267,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (finite_props[start..end]) |p| {
-                    const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
+                    const lr = props[p].scatter(p, probe, frag, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;

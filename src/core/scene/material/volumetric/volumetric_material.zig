@@ -6,6 +6,7 @@ const ccoef = @import("../collision_coefficients.zig");
 const CC = ccoef.CC;
 const CCE = ccoef.CCE;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
+const Emittance = @import("../../light/emittance.zig").Emittance;
 const Scene = @import("../../scene.zig").Scene;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
@@ -30,8 +31,9 @@ const Allocator = std.mem.Allocator;
 pub const Material = struct {
     super: Base,
 
+    emittance: Emittance = .{},
+
     density_map: Texture = .{},
-    temperature_map: Texture = .{},
 
     blackbody: math.InterpolatedFunction1D(Vec4f) = .{},
 
@@ -60,8 +62,8 @@ pub const Material = struct {
         self.average_emission = @splat(-1.0);
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
-            math.anyGreaterZero3(self.super.emittance.value);
-        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
+            math.anyGreaterZero3(self.emittance.value);
+        self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
         self.super.properties.evaluate_visibility = true;
 
@@ -76,7 +78,7 @@ pub const Material = struct {
             );
         }
 
-        if (self.temperature_map.valid() and 0 == self.blackbody.samples.len) {
+        if (self.emittance.emission_map.valid() and 0 == self.blackbody.samples.len) {
             const Num_samples = 16;
 
             const Start = 2000.0;
@@ -89,7 +91,7 @@ pub const Material = struct {
 
                 const c = spectrum.blackbody(t);
 
-                self.blackbody.samples[i] = self.super.emittance.value * c;
+                self.blackbody.samples[i] = self.emittance.value * c;
             }
         }
     }
@@ -102,7 +104,7 @@ pub const Material = struct {
         }
 
         if (!self.density_map.valid()) {
-            self.average_emission = self.super.cc.a * self.super.emittance.value;
+            self.average_emission = self.super.cc.a * self.emittance.value;
             return self.average_emission;
         }
 
@@ -171,10 +173,10 @@ pub const Material = struct {
 
         const key = self.super.sampler_key;
 
-        const emission = if (self.temperature_map.valid())
-            self.blackbody.eval(ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene))
+        const emission = if (self.emittance.emission_map.valid())
+            self.blackbody.eval(ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, scene))
         else
-            self.super.emittance.value;
+            self.emittance.value;
 
         const norm_emission = self.a_norm * emission;
 
@@ -215,17 +217,16 @@ pub const Material = struct {
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
         const cc = self.super.cc;
 
-        if (self.density_map.valid() and self.temperature_map.valid()) {
+        if (self.density_map.valid() and self.emittance.emission_map.valid()) {
             const key = self.super.sampler_key;
 
-            const t = ts.sample3D_1(key, self.temperature_map, uvw, sampler, scene);
+            const t = ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, scene);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
                 const d = ts.sample3D_2(key, self.density_map, uvw, sampler, scene);
-                const d0: Vec4f = @splat(d[0]);
                 return .{
-                    .cc = .{ .a = d0 * cc.a, .s = d0 * cc.s },
+                    .cc = cc.scaled(@splat(d[0])),
                     .e = @as(Vec4f, @splat(d[1])) * e,
                 };
             } else {
@@ -237,10 +238,10 @@ pub const Material = struct {
             }
         }
 
-        const d: Vec4f = @splat(self.density(uvw, sampler, scene));
+        const d = self.density(uvw, sampler, scene);
         return .{
-            .cc = cc.scaled(d),
-            .e = self.super.emittance.value,
+            .cc = cc.scaled(@splat(d)),
+            .e = self.emittance.value,
         };
     }
 };
@@ -262,22 +263,42 @@ const LuminanceContext = struct {
         var avg: Vec4f = @splat(0.0);
 
         if (2 == mat.density_map.numChannels()) {
-            var z = begin;
-            while (z < end) : (z += 1) {
-                const slice = z * (width * height);
-                var y: u32 = 0;
-                while (y < height) : (y += 1) {
-                    const row = y * width;
-                    var x: u32 = 0;
-                    while (x < width) : (x += 1) {
-                        const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
-                        const t = mat.temperature_map.get3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
-                        const c = mat.blackbody.eval(t);
-                        const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
+            if (mat.emittance.emission_map.valid()) {
+                var z = begin;
+                while (z < end) : (z += 1) {
+                    const slice = z * (width * height);
+                    var y: u32 = 0;
+                    while (y < height) : (y += 1) {
+                        const row = y * width;
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const t = mat.emittance.emission_map.get3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const c = mat.blackbody.eval(t);
+                            const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
-                        self.luminance[slice + row + x] = math.hmax3(radiance);
+                            self.luminance[slice + row + x] = math.hmax3(radiance);
 
-                        avg += radiance;
+                            avg += radiance;
+                        }
+                    }
+                }
+            } else {
+                var z = begin;
+                while (z < end) : (z += 1) {
+                    const slice = z * (width * height);
+                    var y: u32 = 0;
+                    while (y < height) : (y += 1) {
+                        const row = y * width;
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const radiance: Vec4f = @splat(density[0] * density[1]);
+
+                            self.luminance[slice + row + x] = math.hmax3(radiance);
+
+                            avg += radiance;
+                        }
                     }
                 }
             }

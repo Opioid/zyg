@@ -373,7 +373,7 @@ pub const Grid = struct {
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         _ = id;
-        const self = @as(*Self, @ptrCast(@alignCast(context)));
+        const self: *Self = @ptrCast(@alignCast(context));
 
         const merge_radius: f32 = 0.0001; //self.search_radius / 10.0;
         const merge_grid_cell_factor = (self.search_radius * self.grid_cell_factor) / merge_radius;

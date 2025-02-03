@@ -132,7 +132,21 @@ pub const Material = union(enum) {
     }
 
     pub fn numSamples(self: *const Material, split_threshold: f32) u32 {
-        return if (split_threshold <= LowThreshold) 1 else self.super().emittance.num_samples;
+        if (split_threshold <= LowThreshold) {
+            return 1;
+        }
+
+        return switch (self.*) {
+            inline .Light, .Substitute => |*m| m.emittance.num_samples,
+            else => 1,
+        };
+    }
+
+    pub fn emissionAngle(self: *const Material) f32 {
+        return switch (self.*) {
+            inline .Light, .Substitute => |*m| m.emittance.cos_a,
+            else => -1.0,
+        };
     }
 
     pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {
@@ -246,9 +260,9 @@ pub const Material = union(enum) {
 
     pub fn usefulTexture(self: *const Material) ?Texture {
         const texture = switch (self.*) {
-            .Light => |*m| m.super.emittance.emission_map,
-            .Sky => |*m| m.super.emittance.emission_map,
-            .Substitute => |*m| m.super.emittance.emission_map,
+            .Light => |*m| m.emittance.emission_map,
+            .Sky => |*m| m.emission_map,
+            .Substitute => |*m| m.emittance.emission_map,
             .Volumetric => |*m| m.density_map,
             inline else => |*m| m.super.mask,
         };

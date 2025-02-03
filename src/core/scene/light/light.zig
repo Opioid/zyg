@@ -77,7 +77,7 @@ pub const Light = struct {
                 .TriangleMesh => Shape.MaxSamples,
                 else => 1,
             },
-            .PropImage => scene.propMaterial(self.prop, self.part).super().emittance.num_samples,
+            .PropImage => scene.propMaterial(self.prop, self.part).numSamples(std.math.floatMax(f32)),
             .Volume, .VolumeImage => 1,
         };
     }
@@ -216,7 +216,7 @@ pub const Light = struct {
         const uv = Vec2f{ s4[0], s4[1] };
         const importance_uv = Vec2f{ s4[2], s4[3] };
 
-        const cos_a = scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
+        const cos_a = scene.propMaterial(self.prop, self.part).emissionAngle();
 
         const shape = scene.propShape(self.prop);
         return shape.sampleFrom(
@@ -244,7 +244,7 @@ pub const Light = struct {
 
         const importance_uv = Vec2f{ s4[2], s4[3] };
 
-        const cos_a = scene.propMaterial(self.prop, self.part).super().emittance.cos_a;
+        const cos_a = scene.propMaterial(self.prop, self.part).emissionAngle();
 
         const shape = scene.propShape(self.prop);
 

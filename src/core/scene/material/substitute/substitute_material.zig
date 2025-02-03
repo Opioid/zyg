@@ -7,6 +7,7 @@ const Sample = @import("../material_sample.zig").Sample;
 const Surface = @import("substitute_sample.zig").Sample;
 const Volumetric = @import("../volumetric/volumetric_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
+const Emittance = @import("../../light/emittance.zig").Emittance;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
@@ -28,6 +29,8 @@ const Coating = struct {};
 
 pub const Material = struct {
     super: Base = .{},
+
+    emittance: Emittance = .{},
 
     color_map: Texture = .{},
     normal_map: Texture = .{},
@@ -59,9 +62,9 @@ pub const Material = struct {
         const properties = &self.super.properties;
 
         properties.evaluate_visibility = self.super.mask.valid();
-        properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
+        properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = self.color_map.valid() or self.checkers[3] > 0.0;
-        properties.emission_map = self.super.emittance.emission_map.valid();
+        properties.emission_map = self.emittance.emission_map.valid();
         properties.caustic = self.roughness <= ggx.Min_roughness;
 
         const thickness = self.thickness;
@@ -83,9 +86,9 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
-        const rad = self.super.emittance.averageRadiance(area);
-        if (self.super.emittance.emission_map.valid()) {
-            return rad * self.super.emittance.emission_map.average_3(scene);
+        const rad = self.emittance.averageRadiance(area);
+        if (self.emittance.emission_map.valid()) {
+            return rad * self.emittance.emission_map.average_3(scene);
         }
 
         return rad;
@@ -349,7 +352,7 @@ pub const Material = struct {
     ) Vec4f {
         const key = self.super.sampler_key;
 
-        const rad = self.super.emittance.radiance(p, wi, uv, trafo, prop, part, key, sampler, scene);
+        const rad = self.emittance.radiance(p, wi, uv, trafo, prop, part, key, sampler, scene);
 
         var coating_thickness: f32 = undefined;
         if (self.coating_thickness_map.valid()) {

@@ -197,6 +197,7 @@ pub const Prop = struct {
         self: Prop,
         entity: u32,
         probe: *const Probe,
+        frag: *Fragment,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
@@ -210,6 +211,11 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        return scene.shape(self.shape).scatter(probe.ray, probe.depth.volume, trafo, throughput, entity, sampler, worker);
+        const result = scene.shape(self.shape).scatter(probe.ray, probe.depth.volume, trafo, throughput, entity, sampler, worker);
+        if (.Absorb == result.event) {
+            frag.trafo = trafo;
+        }
+
+        return result;
     }
 };
