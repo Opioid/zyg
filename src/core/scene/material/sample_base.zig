@@ -28,13 +28,11 @@ pub const Base = struct {
 
     alpha: Vec2f,
 
-    thickness: f32,
-
     properties: Properties,
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, priority: i8) Self {
+    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, priority: i8) Self {
         return .{
             .frame = undefined,
             .geo_n = rs.geo_n,
@@ -42,7 +40,6 @@ pub const Base = struct {
             .wo = wo,
             .albedo = albedo,
             .alpha = alpha,
-            .thickness = thickness,
             .properties = .{
                 .can_evaluate = true,
                 .avoid_caustics = .Full != rs.caustics,
@@ -51,7 +48,7 @@ pub const Base = struct {
         };
     }
 
-    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, thickness: f32, priority: i8, can_evaluate: bool) Self {
+    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, priority: i8, can_evaluate: bool) Self {
         return .{
             .frame = .{ .x = rs.t, .y = rs.b, .z = rs.n },
             .geo_n = rs.geo_n,
@@ -59,7 +56,6 @@ pub const Base = struct {
             .wo = wo,
             .albedo = albedo,
             .alpha = alpha,
-            .thickness = thickness,
             .properties = .{
                 .can_evaluate = can_evaluate,
                 .avoid_caustics = .Full != rs.caustics,

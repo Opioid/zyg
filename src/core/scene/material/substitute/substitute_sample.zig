@@ -30,6 +30,7 @@ pub const Sample = struct {
 
     metallic: f32,
     opacity: f32 = 1.0,
+    thickness: f32,
 
     pub fn init(
         rs: Renderstate,
@@ -46,7 +47,7 @@ pub const Sample = struct {
         const color = @as(Vec4f, @splat(1.0 - metallic)) * albedo;
         const reg_alpha = rs.regularizeAlpha(alpha);
 
-        var super = Base.init(rs, wo, color, reg_alpha, 0.0, priority);
+        var super = Base.init(rs, wo, color, reg_alpha, priority);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.volumetric = volumetric;
 
@@ -57,13 +58,14 @@ pub const Sample = struct {
             .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
+            .thickness = 0.0,
         };
     }
 
     pub fn setTranslucency(self: *Sample, color: Vec4f, thickness: f32, attenuation_distance: f32, transparency: f32) void {
         self.super.properties.translucent = true;
         self.super.properties.volumetric = false;
-        self.super.thickness = thickness;
+        self.thickness = thickness;
         self.absorption_coef = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.opacity = 1.0 - transparency;
     }
@@ -92,7 +94,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
 
         const op = self.opacity;
-        const th = self.super.thickness;
+        const th = self.thickness;
         const translucent = th > 0.0;
 
         if (translucent) {
@@ -162,7 +164,7 @@ pub const Sample = struct {
             return buffer[0..1];
         }
 
-        const th = self.super.thickness;
+        const th = self.thickness;
         if (th > 0.0) {
             var result = &buffer[0];
 

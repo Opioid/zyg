@@ -44,7 +44,7 @@ pub fn testSize() void {
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 160);
     testType(mt.Sample, "MaterialSample", 288);
-    testType(mtsmpl.Substitute, "SubstituteSample", 224);
+    testType(mtsmpl.Substitute, "SubstituteSample", 240);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
     testType(SamplerKey, "SamplerKey", 3);
