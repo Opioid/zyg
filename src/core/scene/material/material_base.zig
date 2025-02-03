@@ -72,7 +72,6 @@ pub const Base = struct {
     priority: i8 = 0,
     ior: f32 = 1.5,
     attenuation_distance: f32 = 0.0,
-    volumetric_anisotropy: f32 = 0.0,
 
     pub fn setTwoSided(self: *Base, two_sided: bool) void {
         self.properties.two_sided = two_sided;
@@ -90,7 +89,6 @@ pub const Base = struct {
 
         self.cc = cc;
         self.attenuation_distance = distance;
-        self.volumetric_anisotropy = aniso;
         self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
@@ -105,17 +103,19 @@ pub const Base = struct {
 
     pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {
         const gs = self.vanDeHulstAnisotropy(depth);
-        return vanDeHulst(self.volumetric_anisotropy, gs);
+        return vanDeHulst(self.cc.anisotropy(), gs);
     }
 
     pub fn vanDeHulstAnisotropy(self: *const Base, depth: u32) f32 {
+        const aniso = self.cc.anisotropy();
+
         if (depth < SR_low) {
-            return self.volumetric_anisotropy;
+            return aniso;
         }
 
         if (depth < SR_high) {
             const towards_zero = SR_inv_range * @as(f32, @floatFromInt(depth - SR_low));
-            return math.lerp(self.volumetric_anisotropy, 0.0, towards_zero);
+            return math.lerp(aniso, 0.0, towards_zero);
         }
 
         return 0.0;
@@ -134,7 +134,7 @@ pub const Base = struct {
         const nb: f32 = @floatFromInt(Rainbow.Num_bands);
 
         const u = ((lambda - start) / (end - start)) * nb;
-        const id = @as(u32, @intFromFloat(u));
+        const id: u32 = @intFromFloat(u);
         const frac = u - @as(f32, @floatFromInt(id));
 
         if (id >= Rainbow.Num_bands - 1) {

@@ -270,6 +270,9 @@ pub const Provider = struct {
         var attenuation_color: Vec4f = @splat(0.0);
         var subsurface_color: Vec4f = @splat(0.0);
 
+        var attenuation_distance: f32 = 0.0;
+        var volumetric_anisotropy: f32 = 0.0;
+
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
@@ -322,9 +325,9 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 material.thickness = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
-                material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "volumetric_anisotropy", entry.key_ptr.*)) {
-                material.super.volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
+                volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
                 material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "coating", entry.key_ptr.*)) {
@@ -381,15 +384,15 @@ pub const Provider = struct {
             }
         }
 
-        if (material.super.attenuation_distance > 0.0 and math.allLessEqualZero3(attenuation_color)) {
+        if (attenuation_distance > 0.0 and math.allLessEqualZero3(attenuation_color)) {
             attenuation_color = material.color;
         }
 
         material.super.setVolumetric(
             attenuation_color,
             subsurface_color,
-            material.super.attenuation_distance,
-            material.super.volumetric_anisotropy,
+            attenuation_distance,
+            volumetric_anisotropy,
         );
     }
 
@@ -416,6 +419,9 @@ pub const Provider = struct {
         var use_attenuation_color = false;
         var use_subsurface_color = false;
 
+        var attenuation_distance: f32 = 0.0;
+        var volumetric_anisotropy: f32 = 0.0;
+
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
@@ -433,9 +439,9 @@ pub const Provider = struct {
                 subsurface_color = readColor(entry.value_ptr.*);
                 use_subsurface_color = true;
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
-                material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+                attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
-                material.super.volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
+                volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
             }
         }
 
@@ -450,8 +456,8 @@ pub const Provider = struct {
         material.super.setVolumetric(
             attenuation_color,
             subsurface_color,
-            material.super.attenuation_distance,
-            material.super.volumetric_anisotropy,
+            attenuation_distance,
+            volumetric_anisotropy,
         );
     }
 };

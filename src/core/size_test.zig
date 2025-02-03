@@ -40,9 +40,9 @@ pub fn testSize() void {
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 16);
     testType(mdm.Stack, "MediumStack", 208);
-    testType(mt.Material, "Material", 384);
-    testType(mt.Substitute, "SubstituteMaterial", 368);
-    testType(mt.Hair, "HairMaterial", 176);
+    testType(mt.Material, "Material", 368);
+    testType(mt.Substitute, "SubstituteMaterial", 352);
+    testType(mt.Hair, "HairMaterial", 160);
     testType(mt.Sample, "MaterialSample", 288);
     testType(mtsmpl.Substitute, "SubstituteSample", 224);
     testType(mtsmpl.Hair, "HairSample", 272);

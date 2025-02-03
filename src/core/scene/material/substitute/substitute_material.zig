@@ -142,7 +142,7 @@ pub const Material = struct {
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.volumeScatter()) {
-            const g = self.super.volumetric_anisotropy;
+            const g = self.super.cc.anisotropy();
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 

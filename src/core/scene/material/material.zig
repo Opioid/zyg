@@ -155,7 +155,7 @@ pub const Material = union(enum) {
 
         if (sup.properties.color_map) {
             const color = mat_sample.super().albedo;
-            return ccoef.scattering(cc.a, color, sup.volumetric_anisotropy);
+            return ccoef.scattering(cc.a, color, cc.anisotropy());
         }
 
         return cc;
