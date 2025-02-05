@@ -166,7 +166,7 @@ pub const Material = struct {
 
     fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
         const k = wi - rotation.r[2];
-        const c = math.dot3(rotation.r[1], k) / Sky.Radius;
+        const c = -math.dot3(rotation.r[1], k) / Sky.Radius;
         return math.max((c + 1.0) * 0.5, 0.0);
     }
 
