@@ -325,8 +325,8 @@ pub const Worker = struct {
 
         const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
 
-        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
-        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
+        const dpdu_w = rs.trafo.objectToWorldNormal(ds.dpdu);
+        const dpdv_w = rs.trafo.objectToWorldNormal(ds.dpdv);
 
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
     }
