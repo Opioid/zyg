@@ -55,7 +55,6 @@ pub const Scene = struct {
         Disk,
         DistantSphere,
         InfiniteSphere,
-        Plane,
         Rectangle,
         Sphere,
     };
@@ -113,7 +112,6 @@ pub const Scene = struct {
         try shapes.append(alloc, .{ .Disk = .{} });
         try shapes.append(alloc, .{ .DistantSphere = .{} });
         try shapes.append(alloc, .{ .InfiniteSphere = .{} });
-        try shapes.append(alloc, .{ .Plane = .{} });
         try shapes.append(alloc, .{ .Rectangle = .{} });
         try shapes.append(alloc, .{ .Sphere = .{} });
 
@@ -307,7 +305,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@intFromEnum(ShapeID.Plane), &.{}, self);
+        self.props.items[p].configure(@intFromEnum(ShapeID.DistantSphere), &.{}, self);
 
         return p;
     }

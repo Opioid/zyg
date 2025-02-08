@@ -16,8 +16,8 @@ pub fn offsetRay(p: Vec4f, n: Vec4f) Vec4f {
     const of_i: Vec4i = @intFromFloat(@as(Vec4f, @splat(int_scale)) * n);
 
     const p_ii: Vec4i = @bitCast(p);
-    const p_in: Vec4f = @bitCast(p_ii - of_i);
-    const p_ip: Vec4f = @bitCast(p_ii + of_i);
+    const p_in: Vec4f = @bitCast(p_ii -% of_i);
+    const p_ip: Vec4f = @bitCast(p_ii +% of_i);
     const p_i = @select(f32, p < @as(Vec4f, @splat(0.0)), p_in, p_ip);
 
     const mad = @mulAdd(Vec4f, @splat(float_scale), n, p);

@@ -89,9 +89,11 @@ pub const Prop = struct {
 
         const shape_inst = scene.shape(shape);
 
-        var mono = true;
+        var mono = false;
 
         if (materials.len > 0) {
+            mono = true;
+
             const mid0 = materials[0];
 
             for (materials) |mid| {

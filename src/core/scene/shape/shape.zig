@@ -4,7 +4,6 @@ pub const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 pub const Disk = @import("disk.zig").Disk;
 pub const DistantSphere = @import("distant_sphere.zig").DistantSphere;
 pub const InfiniteSphere = @import("infinite_sphere.zig").InfiniteSphere;
-pub const Plane = @import("plane.zig").Plane;
 pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
@@ -45,7 +44,6 @@ pub const Shape = union(enum) {
     Disk: Disk,
     DistantSphere: DistantSphere,
     InfiniteSphere: InfiniteSphere,
-    Plane: Plane,
     Rectangle: Rectangle,
     Sphere: Sphere,
     TriangleMesh: TriangleMesh,
@@ -80,7 +78,7 @@ pub const Shape = union(enum) {
 
     pub fn finite(self: *const Shape) bool {
         return switch (self.*) {
-            .Canopy, .DistantSphere, .InfiniteSphere, .Plane => false,
+            .Canopy, .DistantSphere, .InfiniteSphere => false,
             else => true,
         };
     }
@@ -109,7 +107,7 @@ pub const Shape = union(enum) {
 
     pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
-            .Canopy, .DistantSphere, .InfiniteSphere, .Plane => math.aabb.Empty,
+            .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, 0.0, 0.0 }, .{ 1.0, 1.0, 0.0, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
             inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
@@ -133,7 +131,6 @@ pub const Shape = union(enum) {
 
     pub fn area(self: *const Shape, part: u32, scale: Vec4f) f32 {
         return switch (self.*) {
-            .Plane => 0.0,
             .Canopy => 2.0 * std.math.pi,
             .Cube => {
                 const d = @as(Vec4f, @splat(2.0)) * scale;
@@ -172,7 +169,6 @@ pub const Shape = union(enum) {
             .Disk => Disk.intersect(ray, trafo),
             .DistantSphere => DistantSphere.intersect(ray, trafo),
             .InfiniteSphere => InfiniteSphere.intersect(ray),
-            .Plane => Plane.intersect(ray, trafo),
             .Rectangle => Rectangle.intersect(ray, trafo),
             .Sphere => Sphere.intersect(ray, trafo),
             .TriangleMesh => |m| m.intersect(ray, trafo),
@@ -187,7 +183,6 @@ pub const Shape = union(enum) {
             .Disk => Disk.fragment(ray, frag),
             .DistantSphere => DistantSphere.fragment(ray, frag),
             .InfiniteSphere => InfiniteSphere.fragment(ray, frag),
-            .Plane => Plane.fragment(ray, frag),
             .Rectangle => Rectangle.fragment(ray, frag),
             .Sphere => Sphere.fragment(ray, frag),
             .TriangleMesh => |m| m.fragment(frag),
@@ -201,7 +196,6 @@ pub const Shape = union(enum) {
             .CurveMesh => |m| m.intersectP(ray, trafo),
             .Disk => Disk.intersectP(ray, trafo),
             .DistantSphere => DistantSphere.intersectP(ray, trafo),
-            .Plane => Plane.intersectP(ray, trafo),
             .Rectangle => Rectangle.intersectP(ray, trafo),
             .Sphere => Sphere.intersectP(ray, trafo),
             .TriangleMesh => |m| m.intersectP(ray, trafo),
@@ -221,7 +215,6 @@ pub const Shape = union(enum) {
             .Cube => Cube.visibility(ray, trafo, entity, sampler, scene, tr),
             .CurveMesh => |m| m.visibility(ray, trafo, tr),
             .Disk => Disk.visibility(ray, trafo, entity, sampler, scene, tr),
-            .Plane => Plane.visibility(ray, trafo, entity, sampler, scene, tr),
             .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene, tr),
             .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene, tr),
             .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene, tr),
@@ -419,8 +412,7 @@ pub const Shape = union(enum) {
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Cube, .Plane => 0.0,
-            .CurveMesh => 0.0,
+            .Cube, .CurveMesh => 0.0,
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
             .DistantSphere => DistantSphere.pdf(frag.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),

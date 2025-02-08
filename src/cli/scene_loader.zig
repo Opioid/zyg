@@ -437,8 +437,6 @@ pub const Loader = struct {
             return @intFromEnum(Scene.ShapeID.DistantSphere);
         } else if (std.mem.eql(u8, "Infinite_sphere", type_name)) {
             return @intFromEnum(Scene.ShapeID.InfiniteSphere);
-        } else if (std.mem.eql(u8, "Plane", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Plane);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
             return @intFromEnum(Scene.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
