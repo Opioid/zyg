@@ -308,7 +308,8 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D();
+        const s3 = sampler.sample3D();
+        const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
@@ -376,7 +377,7 @@ pub const Sample = struct {
 
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
-            const p = sampler.sample1D();
+            const p = s3[0];
             if (p <= f) {
                 const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
 

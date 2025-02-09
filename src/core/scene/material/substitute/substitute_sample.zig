@@ -174,7 +174,8 @@ pub const Sample = struct {
             const op = self.opacity;
             const tr = 1.0 - op;
 
-            const p = sampler.sample1D();
+            const s3 = sampler.sample3D();
+            const p = s3[0];
             if (p < tr) {
                 const frame = self.super.frame;
                 const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
@@ -189,7 +190,7 @@ pub const Sample = struct {
                 result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f))) * attenuation;
                 result.pdf *= tr;
             } else {
-                const xi = sampler.sample2D();
+                const xi = Vec2f{ s3[1], s3[2] };
 
                 if (p < tr + 0.5 * op) {
                     _ = self.diffuseSample(0.5, xi, result);
@@ -285,8 +286,9 @@ pub const Sample = struct {
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
-        const p = sampler.sample1D();
-        const xi = sampler.sample2D();
+        const s3 = sampler.sample3D();
+        const p = s3[0];
+        const xi = Vec2f{ s3[1], s3[2] };
         if (p < dw) {
             _ = self.diffuseSample(dw, xi, result);
         } else {
@@ -299,7 +301,8 @@ pub const Sample = struct {
         const micro = self.coating.sample(self.super.wo, sampler.sample2D(), &n_dot_h);
         const f = micro.n_dot_wi;
 
-        const p = sampler.sample1D();
+        const s3 = sampler.sample3D();
+        const p = s3[0];
         if (p <= f) {
             self.coatingReflect(micro.h, f, n_dot_h, micro.h_dot_wi, result);
         } else {
@@ -316,7 +319,7 @@ pub const Sample = struct {
                 dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
             }
 
-            const xi = sampler.sample2D();
+            const xi = Vec2f{ s3[1], s3[2] };
 
             const p1 = (p - f) / (1.0 - f);
             if (p1 < dw) {
@@ -531,7 +534,8 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D();
+        const s3 = sampler.sample3D();
+        const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
@@ -591,7 +595,7 @@ pub const Sample = struct {
             result.split_weight = 1.0;
             result.wavelength = 0.0;
 
-            const p = sampler.sample1D();
+            const p = s3[0];
 
             const ep = if (same_side) 1.0 else ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
@@ -635,8 +639,9 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D();
-        var p = sampler.sample1D();
+        const s3 = sampler.sample3D();
+        const xi = Vec2f{ s3[1], s3[2] };
+        var p = s3[0];
 
         if (same_side) {
             var coat_n_dot_h: f32 = undefined;

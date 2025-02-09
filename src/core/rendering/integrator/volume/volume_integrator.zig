@@ -276,7 +276,8 @@ pub const Integrator = struct {
 
             channel_weights /= @splat(sum_weights);
 
-            const rc = sampler.sample1D();
+            const r3 = sampler.sample3D();
+            const rc = r3[0];
 
             var channel_id: u32 = 2;
             if (rc < channel_weights[0]) {
@@ -285,7 +286,7 @@ pub const Integrator = struct {
                 channel_id = 1;
             }
 
-            const free_path = -@log(math.max(1.0 - sampler.sample1D(), 1e-10)) / mu_t[channel_id];
+            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
 
             // Calculate the visibility of the sample point for each channel
             const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);
@@ -296,7 +297,7 @@ pub const Integrator = struct {
 
             local_weight *= pdf;
 
-            if (hlp.russianRoulette(&local_weight, sampler.sample1D())) {
+            if (hlp.russianRoulette(&local_weight, r3[2])) {
                 return false;
             }
 
