@@ -178,7 +178,7 @@ pub const Mapper = struct {
                 }
 
                 vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
                 vertex.probe.depth.increment(&frag);
 
                 if (!sample_result.class.straight) {
@@ -227,6 +227,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t), time, &.{});
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time, &.{});
     }
 };

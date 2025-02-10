@@ -232,11 +232,11 @@ pub const Scene = struct {
 
         // rebuild prop BVH_builder
         try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
-        self.prop_bvh.setProps(self.infinite_props.items, self.props.items, self);
+        self.prop_bvh.setProps(self.props.items);
 
         // rebuild volume BVH
         try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
-        self.volume_bvh.setProps(&.{}, self.props.items, self);
+        self.volume_bvh.setProps(self.props.items);
 
         const num_lights = self.lights.items.len;
         if (num_lights > self.light_temp_powers.len) {

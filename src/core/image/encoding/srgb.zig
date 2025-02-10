@@ -60,7 +60,7 @@ pub const Srgb = struct {
 
                         mind = math.min(mind, depth);
 
-                        if (depth < ro.Almost_ray_max_t) {
+                        if (depth < ro.RayMaxT) {
                             maxd = math.max(maxd, depth);
                         }
 

@@ -284,7 +284,7 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *Worker, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool) bool {
+    pub fn propIntersect(self: *const Worker, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool) bool {
         if (self.scene.prop(entity).intersect(entity, probe, frag, override_visibility, self.scene)) {
             frag.prop = entity;
             return true;
@@ -293,7 +293,7 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
+    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
         self.scene.prop(entity).fragment(probe, frag, self.scene);
     }
 
@@ -310,7 +310,7 @@ pub const Worker = struct {
 
             // Offset ray until opaque surface is found
             probe.ray.origin = frag.offsetP(probe.ray.direction);
-            probe.ray.max_t = ro.Ray_max_t;
+            probe.ray.max_t = ro.RayMaxT;
         }
 
         return true;

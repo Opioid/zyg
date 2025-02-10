@@ -26,8 +26,8 @@ pub const InfiniteSphere = struct {
     pub fn intersect(ray: Ray) Intersection {
         var hpoint = Intersection{};
 
-        if (ray.max_t >= ro.Ray_max_t) {
-            hpoint.t = ro.Ray_max_t;
+        if (ray.max_t >= ro.RayMaxT) {
+            hpoint.t = ro.RayMaxT;
             hpoint.primitive = 0;
         }
 
@@ -46,7 +46,7 @@ pub const InfiniteSphere = struct {
 
         // This is nonsense
         const dir = Vec4f{ ray.direction[0], ray.direction[1], ray.direction[2], 0.0 };
-        frag.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
+        frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * dir;
         const n = -dir;
         frag.geo_n = n;
         frag.t = frag.trafo.rotation.r[0];
@@ -85,7 +85,7 @@ pub const InfiniteSphere = struct {
         };
 
         buffer[0] = SampleTo.init(
-            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            @as(Vec4f, @splat(ro.RayMaxT)) * dir,
             -dir,
             dir,
             uvw,
@@ -134,7 +134,7 @@ pub const InfiniteSphere = struct {
             }
 
             buffer[current_sample] = SampleTo.init(
-                @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+                @as(Vec4f, @splat(ro.RayMaxT)) * dir,
                 -dir,
                 dir,
                 .{ uv[0], uv[1], 0.0, 0.0 },

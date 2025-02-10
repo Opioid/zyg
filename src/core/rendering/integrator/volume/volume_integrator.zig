@@ -143,9 +143,9 @@ pub const Integrator = struct {
             return integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
         }
 
-        const ray_max_t = vertex.probe.ray.max_t;
-        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
-        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
+        const RayMaxT = vertex.probe.ray.max_t;
+        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse RayMaxT;
+        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), RayMaxT);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return false;
         }
@@ -251,13 +251,15 @@ pub const Integrator = struct {
             const wi = frame.frameToWorld(wil);
 
             vertex.probe.ray.origin = vertex.probe.ray.point(result.t);
-            vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+            vertex.probe.ray.setDirection(wi, ro.RayMaxT);
         }
 
         return false;
     }
 
     fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+        frag.clear();
+
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
 
@@ -309,7 +311,7 @@ pub const Integrator = struct {
                 const wi = frame.frameToWorld(wil);
 
                 vertex.probe.ray.origin = vertex.probe.ray.point(free_path);
-                vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+                vertex.probe.ray.setDirection(wi, ro.RayMaxT);
 
                 local_weight *= albedo;
             } else {

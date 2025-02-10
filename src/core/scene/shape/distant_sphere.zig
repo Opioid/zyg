@@ -27,7 +27,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.max_t < ro.Ray_max_t or radius <= 0.0) {
+        if (b > 0.0 or ray.max_t < ro.RayMaxT or radius <= 0.0) {
             return hpoint;
         }
 
@@ -44,14 +44,14 @@ pub const DistantSphere = struct {
             hpoint.v = math.dot3(isec_b, sk);
 
             hpoint.primitive = 0;
-            hpoint.t = ro.Almost_ray_max_t;
+            hpoint.t = ro.RayMaxT;
         }
 
         return hpoint;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        frag.p = @as(Vec4f, @splat(ro.Almost_ray_max_t)) * ray.direction;
+        frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * ray.direction;
 
         const n = frag.trafo.rotation.r[2];
 
@@ -76,7 +76,7 @@ pub const DistantSphere = struct {
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
-        if (b > 0.0 or ray.max_t < ro.Ray_max_t or radius <= 0.0) {
+        if (b > 0.0 or ray.max_t < ro.RayMaxT or radius <= 0.0) {
             return false;
         }
 
@@ -107,7 +107,7 @@ pub const DistantSphere = struct {
         const solid_angle = solidAngle(radius);
 
         buffer[0] = SampleTo.init(
-            @as(Vec4f, @splat(ro.Almost_ray_max_t)) * dir,
+            @as(Vec4f, @splat(ro.RayMaxT)) * dir,
             trafo.rotation.r[2],
             dir,
             @splat(0.0),

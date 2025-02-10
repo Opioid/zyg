@@ -83,14 +83,6 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn infiniteTMax(self: *const Shape) f32 {
-        return switch (self.*) {
-            .Canopy, .InfiniteSphere => ro.Ray_max_t,
-            .DistantSphere => ro.Almost_ray_max_t,
-            else => 0.0,
-        };
-    }
-
     pub fn analytical(self: *const Shape) bool {
         return switch (self.*) {
             .CurveMesh, .TriangleMesh => false,
@@ -191,14 +183,13 @@ pub const Shape = union(enum) {
 
     pub fn intersectP(self: *const Shape, ray: Ray, trafo: Trafo) bool {
         return switch (self.*) {
-            .Canopy, .InfiniteSphere => false,
             .Cube => Cube.intersectP(ray, trafo),
             .CurveMesh => |m| m.intersectP(ray, trafo),
             .Disk => Disk.intersectP(ray, trafo),
-            .DistantSphere => DistantSphere.intersectP(ray, trafo),
             .Rectangle => Rectangle.intersectP(ray, trafo),
             .Sphere => Sphere.intersectP(ray, trafo),
             .TriangleMesh => |m| m.intersectP(ray, trafo),
+            else => false,
         };
     }
 
@@ -340,8 +331,7 @@ pub const Shape = union(enum) {
 
     pub fn shadowRay(self: *const Shape, origin: Vec4f, sample: SampleTo) Ray {
         return switch (self.*) {
-            .Canopy, .InfiniteSphere => Ray.init(origin, sample.wi, 0.0, ro.Ray_max_t),
-            .DistantSphere => Ray.init(origin, sample.wi, 0.0, ro.Almost_ray_max_t),
+            .Canopy, .DistantSphere, .InfiniteSphere => Ray.init(origin, sample.wi, 0.0, ro.RayMaxT),
             else => {
                 const light_pos = ro.offsetRay(sample.p, sample.n);
                 const shadow_axis = light_pos - origin;
