@@ -3,6 +3,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Worker = @import("../../worker.zig").Worker;
 const int = @import("../../../scene/shape/intersection.zig");
+const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
 const Medium = @import("../../../scene/prop/medium.zig").Medium;
@@ -263,6 +264,9 @@ pub const Integrator = struct {
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
 
+        const shape = worker.scene.propShape(prop);
+        const trafo = worker.scene.propTransformationAt(prop, vertex.probe.time);
+
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;
 
@@ -305,7 +309,8 @@ pub const Integrator = struct {
 
             vertex.probe.ray.max_t = free_path;
 
-            if (!worker.propIntersect(prop, &vertex.probe, frag, true)) {
+            const hit = shape.intersect(vertex.probe.ray, trafo);
+            if (Intersection.Null == hit.primitive) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
@@ -315,7 +320,12 @@ pub const Integrator = struct {
 
                 local_weight *= albedo;
             } else {
-                worker.propInterpolateFragment(prop, &vertex.probe, frag);
+                vertex.probe.ray.max_t = hit.t;
+                frag.isec = hit;
+                frag.trafo = trafo;
+                frag.prop = prop;
+
+                shape.fragment(vertex.probe.ray, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.mediums.pop();
