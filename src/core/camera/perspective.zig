@@ -168,7 +168,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.Ray_max_t), time, &self.mediums);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.mediums);
     }
 
     pub fn sampleTo(
@@ -361,7 +361,7 @@ pub const Perspective = struct {
             const trafo = scene.propTransformationAt(self.entity, time);
 
             var probe = Probe.init(
-                Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.Ray_max_t),
+                Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.RayMaxT),
                 time,
             );
 

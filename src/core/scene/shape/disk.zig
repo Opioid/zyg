@@ -36,12 +36,12 @@ pub const Disk = struct {
             const radius = trafo.scaleX();
 
             if (l <= radius * radius) {
-                const t = -trafo.rotation.r[0];
-                const b = -trafo.rotation.r[1];
+                const t = trafo.rotation.r[0];
+                const b = trafo.rotation.r[1];
 
                 const sk = k / @as(Vec4f, @splat(radius));
-                hpoint.u = math.dot3(t, sk);
-                hpoint.v = math.dot3(b, sk);
+                hpoint.u = -math.dot3(t, sk);
+                hpoint.v = -math.dot3(b, sk);
 
                 hpoint.t = hit_t;
                 hpoint.primitive = 0;

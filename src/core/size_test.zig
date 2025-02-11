@@ -12,6 +12,7 @@ const Vertex = @import("scene/vertex.zig").Vertex;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
 const Texture = @import("image/texture/texture.zig").Texture;
+const SamplerKey = @import("image/texture/texture_sampler.zig").Key;
 const Worker = @import("rendering/worker.zig").Worker;
 
 const base = @import("base");
@@ -41,13 +42,14 @@ pub fn testSize() void {
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 16);
     testType(mdm.Stack, "MediumStack", 208);
-    testType(mt.Material, "Material", 384);
-    testType(mt.Substitute, "SubstituteMaterial", 368);
-    testType(mt.Hair, "HairMaterial", 240);
+    testType(mt.Material, "Material", 368);
+    testType(mt.Substitute, "SubstituteMaterial", 352);
+    testType(mt.Hair, "HairMaterial", 160);
     testType(mt.Sample, "MaterialSample", 288);
-    testType(mtsmpl.Substitute, "SubstituteSample", 224);
+    testType(mtsmpl.Substitute, "SubstituteSample", 240);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
+    testType(SamplerKey, "SamplerKey", 3);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
     testType(Worker, "Worker", 352);

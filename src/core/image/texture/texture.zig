@@ -17,6 +17,7 @@ pub const Texture = struct {
         Byte2_snorm,
         Byte3_sRGB,
         Byte3_snorm,
+        Byte4_sRGB,
         Half1,
         Half3,
         Half4,
@@ -24,7 +25,6 @@ pub const Texture = struct {
         Float1Sparse,
         Float2,
         Float3,
-        Byte4_sRGB,
         Float4,
     };
 

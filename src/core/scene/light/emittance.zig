@@ -20,6 +20,7 @@ pub const Emittance = struct {
         Radiance,
     };
 
+    emission_map: Texture = .{},
     value: Vec4f = @splat(0.0),
     profile: Texture = .{},
     cos_a: f32 = -1.0,
@@ -71,16 +72,18 @@ pub const Emittance = struct {
         self: Emittance,
         shading_p: Vec4f,
         wi: Vec4f,
+        uv: Vec2f,
         trafo: Trafo,
         prop: u32,
         part: u32,
+        key: ts.Key,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.valid()) {
-            const key = ts.Key{
-                .filter = ts.Default_filter,
+            const profile_key = ts.Key{
+                .filter = ts.DefaultFilter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
@@ -88,19 +91,25 @@ pub const Emittance = struct {
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sample2D_1(key, self.profile, ouv, sampler, scene);
+            pf = ts.sample2D_1(profile_key, self.profile, ouv, sampler, scene);
         }
 
         if (-math.dot3(wi, trafo.rotation.r[2]) < self.cos_a) {
             return @splat(0.0);
         }
 
-        if (self.quantity == .Intensity) {
-            const area = scene.propShape(prop).area(part, trafo.scale());
-            return @as(Vec4f, @splat(pf / area)) * self.value;
+        var intensity = self.value;
+
+        if (self.emission_map.valid()) {
+            intensity *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
         }
 
-        return @as(Vec4f, @splat(pf)) * self.value;
+        if (self.quantity == .Intensity) {
+            const area = scene.propShape(prop).area(part, trafo.scale());
+            return @as(Vec4f, @splat(pf / area)) * intensity;
+        }
+
+        return @as(Vec4f, @splat(pf)) * intensity;
     }
 
     pub fn averageRadiance(self: Emittance, area: f32) Vec4f {

@@ -24,9 +24,10 @@ const Allocator = std.mem.Allocator;
 // https://twitter.com/VrKomarov/status/1297454856177954816
 
 pub const Material = struct {
-    super: Base = .{ .emittance = .{ .value = @splat(1.0) } },
+    super: Base = .{},
 
-    emission_map: Texture = .{},
+    emittance: Emittance = .{ .value = @splat(1.0) },
+
     distribution: Distribution2D = .{},
     average_emission: Vec4f = @splat(-1.0),
     total_weight: f32 = 0.0,
@@ -36,8 +37,8 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
-        self.super.properties.emission_map = self.emission_map.valid();
+        self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
+        self.super.properties.emission_map = self.emittance.emission_map.valid();
     }
 
     pub fn prepareSampling(
@@ -54,13 +55,13 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const rad = self.super.emittance.averageRadiance(area);
-        if (!self.emission_map.valid()) {
+        const rad = self.emittance.averageRadiance(area);
+        if (!self.emittance.emission_map.valid()) {
             self.average_emission = rad;
             return self.average_emission;
         }
 
-        const d = self.emission_map.description(scene).dimensions;
+        const d = self.emittance.emission_map.description(scene).dimensions;
 
         const luminance = alloc.alloc(f32, @intCast(d[0] * d[1])) catch return @splat(0.0);
         defer alloc.free(luminance);
@@ -71,7 +72,7 @@ pub const Material = struct {
             var context = LuminanceContext{
                 .scene = scene,
                 .shape = shape,
-                .texture = self.emission_map,
+                .texture = self.emittance.emission_map,
                 .luminance = luminance.ptr,
                 .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
                     return @splat(0.0),
@@ -123,12 +124,7 @@ pub const Material = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        const rad = self.super.emittance.radiance(shading_p, wi, trafo, prop, part, sampler, scene);
-        if (self.emission_map.valid()) {
-            return rad * ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
-        }
-
-        return rad;
+        return self.emittance.radiance(shading_p, wi, uv, trafo, prop, part, self.super.sampler_key, sampler, scene);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -138,7 +134,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (self.emission_map.valid()) {
+        if (self.emittance.emission_map.valid()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
 

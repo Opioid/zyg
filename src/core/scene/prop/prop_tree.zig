@@ -19,12 +19,9 @@ const Allocator = std.mem.Allocator;
 pub const Tree = struct {
     num_nodes: u32 = 0,
     num_indices: u32 = 0,
-    num_infinite_props: u32 = 0,
-    infinite_t_max: f32 = 0.0,
 
     nodes: [*]Node = undefined,
     indices: [*]u32 = undefined,
-    infinite_props: [*]const u32 = undefined,
     props: [*]const Prop = undefined,
 
     pub fn deinit(self: *Tree, alloc: Allocator) void {
@@ -46,16 +43,8 @@ pub const Tree = struct {
         }
     }
 
-    pub fn setProps(self: *Tree, infinite_props: []const u32, props: []const Prop, scene: *const Scene) void {
-        self.num_infinite_props = @intCast(infinite_props.len);
-        self.infinite_props = infinite_props.ptr;
+    pub fn setProps(self: *Tree, props: []const Prop) void {
         self.props = props.ptr;
-
-        var t_max: f32 = std.math.floatMax(f32);
-        for (infinite_props) |i| {
-            t_max = math.min(t_max, scene.propShape(i).infiniteTMax());
-        }
-        self.infinite_t_max = t_max;
     }
 
     pub fn aabb(self: Tree) AABB {
@@ -110,14 +99,6 @@ pub const Tree = struct {
                 n = a;
                 if (std.math.floatMax(f32) != distb) {
                     stack.push(b);
-                }
-            }
-        }
-
-        if (probe.ray.max_t >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersect(p, probe, frag, false, scene)) {
-                    prop = p;
                 }
             }
         }
@@ -179,14 +160,6 @@ pub const Tree = struct {
             }
         }
 
-        if (probe.ray.max_t >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (props[p].intersectP(p, probe, scene)) {
-                    return true;
-                }
-            }
-        }
-
         return false;
     }
 
@@ -237,14 +210,6 @@ pub const Tree = struct {
             }
         }
 
-        if (probe.ray.max_t >= self.infinite_t_max) {
-            for (self.infinite_props[0..self.num_infinite_props]) |p| {
-                if (!props[p].visibility(p, probe, sampler, worker, tr)) {
-                    return false;
-                }
-            }
-        }
-
         return true;
     }
 
@@ -267,7 +232,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (finite_props[start..end]) |p| {
-                    const lr = props[p].scatter(p, probe, throughput.*, sampler, worker);
+                    const lr = props[p].scatter(p, probe, frag, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;

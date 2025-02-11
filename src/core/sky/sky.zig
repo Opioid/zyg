@@ -41,7 +41,7 @@ pub const Sky = struct {
 
     pub const Radius = @tan(@as(f32, @floatCast(Model.AngularRadius)));
 
-    pub const Bake_dimensions = Vec2i{ 512, 512 };
+    pub const Bake_dimensions = Vec2i{ 1024, 1024 };
     pub const Bake_dimensions_sun: u32 = 1024;
 
     const Self = @This();
@@ -211,7 +211,7 @@ pub const Sky = struct {
             var wi = sunWi(self.sun_rotation, v);
             wi[1] = math.max(wi[1], 0.0);
 
-            s.* = math.vec4fTo3f(model.evaluateSkyAndSun(wi, &rng));
+            s.* = math.vec4fTo3f(model.evaluateSun(wi, &rng));
         }
 
         scene.propMaterial(self.sun, 0).Sky.setSunRadiance(self.sun_rotation, sun_image);
@@ -296,7 +296,7 @@ const SkyContext = struct {
 
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv = Vec2f{ u, v };
-                if (clippedCanopyMapping(self.trafo, uv, 1.5 * idf[0])) |wi| {
+                if (clippedCanopyMapping(self.trafo, uv, 3.5 * idf[0])) |wi| {
                     const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
                     self.image.set2D(@intCast(x), @intCast(y), math.vec4fTo3f(li));

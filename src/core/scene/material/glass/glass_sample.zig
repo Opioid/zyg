@@ -26,6 +26,7 @@ pub const Sample = struct {
     f0: f32,
     abbe: f32,
     wavelength: f32,
+    thickness: f32,
 
     pub fn init(
         rs: Renderstate,
@@ -41,7 +42,7 @@ pub const Sample = struct {
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
 
-        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, thickness, priority);
+        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, priority);
 
         const rough = reg_alpha[0] > 0.0;
 
@@ -56,6 +57,7 @@ pub const Sample = struct {
             .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .abbe = abbe,
             .wavelength = wavelength,
+            .thickness = thickness,
         };
     }
 
@@ -159,7 +161,7 @@ pub const Sample = struct {
     pub fn sample(self: *const Sample, sampler: *Sampler, max_splits: u32, buffer: *bxdf.Samples) []bxdf.Sample {
         const split = max_splits > 1;
 
-        if (self.super.thickness > 0.0) {
+        if (self.thickness > 0.0) {
             if (self.super.alpha[0] > 0.0) {
                 return self.roughSample(true, @splat(1.0), self.ior, 0.0, sampler, split, buffer);
             } else {
@@ -306,7 +308,8 @@ pub const Sample = struct {
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
 
-        const xi = sampler.sample2D();
+        const s3 = sampler.sample3D();
+        const xi = Vec2f{ s3[1], s3[2] };
 
         var n_dot_h: f32 = undefined;
         const h = ggx.Aniso.sample(wo, alpha, xi, frame, &n_dot_h);
@@ -374,7 +377,7 @@ pub const Sample = struct {
 
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
-            const p = sampler.sample1D();
+            const p = s3[0];
             if (p <= f) {
                 const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
 
@@ -463,7 +466,7 @@ pub const Sample = struct {
                 return -1.0;
             }
 
-            const approx_dist = self.super.thickness / n_dot_wo;
+            const approx_dist = self.thickness / n_dot_wo;
             const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
             result.reflection *= attenuation;
@@ -488,7 +491,7 @@ pub const Sample = struct {
     }
 
     fn thinSpecularRefract(self: *const Sample, wo: Vec4f, n_dot_wo: f32, split_weight: f32) bxdf.Sample {
-        const approx_dist = self.super.thickness / math.safe.clamp(n_dot_wo);
+        const approx_dist = self.thickness / math.safe.clamp(n_dot_wo);
         const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
         return .{

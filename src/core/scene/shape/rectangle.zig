@@ -21,11 +21,9 @@ const std = @import("std");
 
 pub const Rectangle = struct {
     pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
-        const normal = trafo.rotation.r[2];
-        const d = math.dot3(normal, trafo.position);
-        const denom = -math.dot3(normal, ray.direction);
-        const numer = math.dot3(normal, ray.origin) - d;
-        const hit_t = numer / denom;
+        const n = trafo.rotation.r[2];
+        const d = math.dot3(n, trafo.position);
+        const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
         var hpoint = Intersection{};
 
@@ -34,14 +32,14 @@ pub const Rectangle = struct {
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k / @as(Vec4f, @splat(trafo.scaleX())));
+            const u = math.dot3(t, k) / trafo.scaleX();
             if (u > 1.0 or u < -1.0) {
                 return hpoint;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k / @as(Vec4f, @splat(trafo.scaleY())));
+            const v = math.dot3(b, k) / trafo.scaleY();
             if (v > 1.0 or v < -1.0) {
                 return hpoint;
             }
@@ -56,42 +54,45 @@ pub const Rectangle = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const u = frag.isec.u;
-        const v = frag.isec.v;
-
+        const p = ray.point(ray.max_t);
         const n = frag.trafo.rotation.r[2];
         const t = -frag.trafo.rotation.r[0];
         const b = -frag.trafo.rotation.r[1];
 
-        frag.p = ray.point(ray.max_t);
+        frag.p = p;
         frag.t = t;
         frag.b = b;
         frag.n = n;
         frag.geo_n = n;
-        frag.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
+        if (frag.trafo.scaleZ() < 0.0) {
+            const k = p - frag.trafo.position;
+            frag.uvw = .{ math.dot3(t, k), math.dot3(b, k), 0.0, 0.0 };
+        } else {
+            const u = frag.isec.u;
+            const v = frag.isec.v;
+            frag.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
+        }
         frag.part = 0;
     }
 
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
-        const normal = trafo.rotation.r[2];
-        const d = math.dot3(normal, trafo.position);
-        const denom = -math.dot3(normal, ray.direction);
-        const numer = math.dot3(normal, ray.origin) - d;
-        const hit_t = numer / denom;
+        const n = trafo.rotation.r[2];
+        const d = math.dot3(n, trafo.position);
+        const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
         if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k / @as(Vec4f, @splat(trafo.scaleX())));
+            const u = math.dot3(t, k) / trafo.scaleX();
             if (u > 1.0 or u < -1.0) {
                 return false;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k / @as(Vec4f, @splat(trafo.scaleY())));
+            const v = math.dot3(b, k) / trafo.scaleY();
             if (v > 1.0 or v < -1.0) {
                 return false;
             }
@@ -103,31 +104,29 @@ pub const Rectangle = struct {
     }
 
     pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
-        const normal = trafo.rotation.r[2];
-        const d = math.dot3(normal, trafo.position);
-        const denom = -math.dot3(normal, ray.direction);
-        const numer = math.dot3(normal, ray.origin) - d;
-        const hit_t = numer / denom;
+        const n = trafo.rotation.r[2];
+        const d = math.dot3(n, trafo.position);
+        const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
 
         if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k / @as(Vec4f, @splat(trafo.scaleX())));
+            const u = math.dot3(t, k) / trafo.scaleX();
             if (u > 1.0 or u < -1.0) {
                 return true;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k / @as(Vec4f, @splat(trafo.scaleY())));
+            const v = math.dot3(b, k) / trafo.scaleY();
             if (v > 1.0 or v < -1.0) {
                 return true;
             }
 
             const uv = Vec2f{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) };
-            return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene, tr);
+            return scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr);
         }
 
         return true;

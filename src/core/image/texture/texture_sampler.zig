@@ -30,48 +30,48 @@ const Address = struct {
 
 pub const Filter = enum {
     Nearest,
-    Linear_stochastic,
+    LinearStochastic,
 };
 
-pub const Default_filter = Filter.Linear_stochastic;
+pub const DefaultFilter = Filter.LinearStochastic;
 
 pub const Key = struct {
-    filter: Filter = Default_filter,
+    filter: Filter = DefaultFilter,
     address: Address = .{ .u = .Repeat, .v = .Repeat },
 };
 
 pub fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),
-        .Linear_stochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, scene),
+        .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, scene),
     };
 }
 
 pub fn sample2D_2(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec2f {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_2(texture, uv, key.address, scene),
-        .Linear_stochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, scene),
+        .LinearStochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, scene),
     };
 }
 
 pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
-        .Linear_stochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, scene),
+        .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, scene),
     };
 }
 
 pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_1(texture, uvw, key.address, scene),
-        .Linear_stochastic => LinearStochastic3D.sample_1(texture, uvw, key.address, sampler, scene),
+        .LinearStochastic => LinearStochastic3D.sample_1(texture, uvw, key.address, sampler, scene),
     };
 }
 
 pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec2f {
     return switch (key.filter) {
         .Nearest => Nearest3D.sample_2(texture, uvw, key.address, scene),
-        .Linear_stochastic => LinearStochastic3D.sample_2(texture, uvw, key.address, sampler, scene),
+        .LinearStochastic => LinearStochastic3D.sample_2(texture, uvw, key.address, sampler, scene),
     };
 }
 

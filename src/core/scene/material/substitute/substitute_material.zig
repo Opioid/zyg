@@ -7,6 +7,7 @@ const Sample = @import("../material_sample.zig").Sample;
 const Surface = @import("substitute_sample.zig").Sample;
 const Volumetric = @import("../volumetric/volumetric_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
+const Emittance = @import("../../light/emittance.zig").Emittance;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Scene = @import("../../scene.zig").Scene;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
@@ -29,10 +30,12 @@ const Coating = struct {};
 pub const Material = struct {
     super: Base = .{},
 
+    emittance: Emittance = .{},
+
+    color_map: Texture = .{},
     normal_map: Texture = .{},
     surface_map: Texture = .{},
     rotation_map: Texture = .{},
-    emission_map: Texture = .{},
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
     coating_roughness_map: Texture = .{},
@@ -59,8 +62,9 @@ pub const Material = struct {
         const properties = &self.super.properties;
 
         properties.evaluate_visibility = self.super.mask.valid();
-        properties.emissive = math.anyGreaterZero3(self.super.emittance.value);
-        properties.emission_map = self.emission_map.valid();
+        properties.emissive = math.anyGreaterZero3(self.emittance.value);
+        properties.color_map = self.color_map.valid() or self.checkers[3] > 0.0;
+        properties.emission_map = self.emittance.emission_map.valid();
         properties.caustic = self.roughness <= ggx.Min_roughness;
 
         const thickness = self.thickness;
@@ -82,16 +86,16 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
-        const rad = self.super.emittance.averageRadiance(area);
-        if (self.emission_map.valid()) {
-            return rad * self.emission_map.average_3(scene);
+        const rad = self.emittance.averageRadiance(area);
+        if (self.emittance.emission_map.valid()) {
+            return rad * self.emittance.emission_map.average_3(scene);
         }
 
         return rad;
     }
 
     pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
-        self.super.color_map = color.texture;
+        self.color_map = color.texture;
         self.color = color.value;
     }
 
@@ -138,7 +142,7 @@ pub const Material = struct {
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.volumeScatter()) {
-            const g = self.super.volumetric_anisotropy;
+            const g = self.super.cc.anisotropy();
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
@@ -148,9 +152,9 @@ pub const Material = struct {
             rs,
             key,
             worker,
-        ) else if (self.super.color_map.valid()) ts.sample2D_3(
+        ) else if (self.color_map.valid()) ts.sample2D_3(
             key,
-            self.super.color_map,
+            self.color_map,
             rs.uv,
             sampler,
             worker.scene,
@@ -348,14 +352,11 @@ pub const Material = struct {
     ) Vec4f {
         const key = self.super.sampler_key;
 
-        var rad = self.super.emittance.radiance(p, wi, trafo, prop, part, sampler, scene);
-        if (self.emission_map.valid()) {
-            rad *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
-        }
+        const rad = self.emittance.radiance(p, wi, uv, trafo, prop, part, key, sampler, scene);
 
         var coating_thickness: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.super.color_map, uv, sampler, scene);
+            const relative_thickness = ts.sample2D_1(key, self.color_map, uv, sampler, scene);
             coating_thickness = self.coating_thickness * relative_thickness;
         } else {
             coating_thickness = self.coating_thickness;

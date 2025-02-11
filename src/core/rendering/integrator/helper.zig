@@ -36,16 +36,16 @@ pub const LightSampling = struct {
     }
 };
 
-pub const LightingResult = struct {
+pub const LightResult = struct {
     emission: Vec4f,
     occluded: Vec4f,
     unoccluded: Vec4f,
 
-    pub fn empty() LightingResult {
+    pub fn empty() LightResult {
         return .{ .emission = @splat(0.0), .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
     }
 
-    pub fn addAssign(self: *LightingResult, other: LightingResult) void {
+    pub fn addAssign(self: *LightResult, other: LightResult) void {
         self.emission += other.emission;
         self.occluded += other.occluded;
         self.unoccluded += other.unoccluded;

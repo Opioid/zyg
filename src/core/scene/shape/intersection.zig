@@ -72,6 +72,14 @@ pub const Fragment = struct {
         return self.uvw[3];
     }
 
+    pub inline fn hit(self: Self) bool {
+        return Scene.Null != self.prop;
+    }
+
+    pub inline fn clear(self: *Self) void {
+        self.prop = Scene.Null;
+    }
+
     pub fn material(self: Self, scene: *const Scene) *const mat.Material {
         return scene.propMaterial(self.prop, self.part);
     }

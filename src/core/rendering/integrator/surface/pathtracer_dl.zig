@@ -42,19 +42,19 @@ pub const PathtracerDL = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            if (!worker.nextEvent(&vertex, &frag, sampler)) {
-                break;
-            }
+            _ = worker.nextEvent(&vertex, &frag, sampler);
 
-            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
-                const energy = self.connectLight(&vertex, &frag, sampler, worker.scene);
-                const weighted_energy = vertex.throughput * energy;
+            const energy = self.connectLight(&vertex, &frag, sampler, worker);
+            const weighted_energy = vertex.throughput * energy;
 
-                const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-                result.add(weighted_energy, indirect_light_depth, 1, vertex.state.treat_as_singular);
-            }
+            const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
+            result.add(weighted_energy, indirect_light_depth, 1, vertex.state.treat_as_singular);
 
-            if (vertex.probe.depth.surface >= max_depth.surface or vertex.probe.depth.volume >= max_depth.volume or .Absorb == frag.event) {
+            if (!frag.hit() or
+                vertex.probe.depth.surface >= max_depth.surface or
+                vertex.probe.depth.volume >= max_depth.volume or
+                .Absorb == frag.event)
+            {
                 break;
             }
 
@@ -99,7 +99,7 @@ pub const PathtracerDL = struct {
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
             vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-            vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+            vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(&frag);
 
             if (0.0 == vertex.probe.wavelength) {
@@ -173,20 +173,40 @@ pub const PathtracerDL = struct {
         return result;
     }
 
-    fn connectLight(
-        self: Self,
-        vertex: *const Vertex,
-        frag: *const Fragment,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) Vec4f {
+    fn connectLight(self: Self, vertex: *Vertex, frag: *const Fragment, sampler: *Sampler, worker: *const Worker) Vec4f {
         if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
             return @splat(0.0);
         }
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-        return frag.evaluateRadiance(p, wo, sampler, scene) orelse @splat(0.0);
+
+        if (frag.hit()) {
+            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
+                return frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse @splat(0.0);
+            }
+
+            return @splat(0.0);
+        }
+
+        var energy: Vec4f = @splat(0.0);
+
+        var inf_frag: Fragment = undefined;
+        inf_frag.event = .Pass;
+
+        for (worker.scene.infinite_props.items) |prop| {
+            if (!worker.propIntersect(prop, &vertex.probe, &inf_frag, false)) {
+                continue;
+            }
+
+            if (vertex.state.treat_as_singular or !Light.isLight(inf_frag.lightId(worker.scene))) {
+                worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
+
+                energy += inf_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse @splat(0.0);
+            }
+        }
+
+        return energy;
     }
 
     fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {

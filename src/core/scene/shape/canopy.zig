@@ -27,12 +27,12 @@ pub const Canopy = struct {
     pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
         var hpoint = Intersection{};
 
-        if (ray.max_t < ro.Ray_max_t or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
+        if (ray.max_t < ro.RayMaxT or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
             return hpoint;
         }
 
         hpoint.primitive = 0;
-        hpoint.t = ro.Ray_max_t;
+        hpoint.t = ro.RayMaxT;
 
         return hpoint;
     }
@@ -50,7 +50,7 @@ pub const Canopy = struct {
 
         // This is nonsense
         const dir = Vec4f{ ray.direction[0], ray.direction[1], ray.direction[2], 0.0 };
-        frag.p = @as(Vec4f, @splat(ro.Ray_max_t)) * dir;
+        frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * dir;
         const n = -dir;
         frag.geo_n = n;
         frag.t = frag.trafo.rotation.r[0];
@@ -81,7 +81,7 @@ pub const Canopy = struct {
         };
 
         buffer[0] = SampleTo.init(
-            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            @as(Vec4f, @splat(ro.RayMaxT)) * dir,
             -dir,
             dir,
             uvw,
@@ -121,7 +121,7 @@ pub const Canopy = struct {
         }
 
         buffer[0] = SampleTo.init(
-            @as(Vec4f, @splat(ro.Ray_max_t)) * dir,
+            @as(Vec4f, @splat(ro.RayMaxT)) * dir,
             -dir,
             dir,
             .{ uv[0], uv[1], 0.0, 0.0 },

@@ -3,6 +3,7 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Worker = @import("../../worker.zig").Worker;
 const int = @import("../../../scene/shape/intersection.zig");
+const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
 const Medium = @import("../../../scene/prop/medium.zig").Medium;
@@ -143,9 +144,9 @@ pub const Integrator = struct {
             return integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
         }
 
-        const ray_max_t = vertex.probe.ray.max_t;
-        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
-        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
+        const RayMaxT = vertex.probe.ray.max_t;
+        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse RayMaxT;
+        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), RayMaxT);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return false;
         }
@@ -251,15 +252,20 @@ pub const Integrator = struct {
             const wi = frame.frameToWorld(wil);
 
             vertex.probe.ray.origin = vertex.probe.ray.point(result.t);
-            vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+            vertex.probe.ray.setDirection(wi, ro.RayMaxT);
         }
 
         return false;
     }
 
     fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+        frag.clear();
+
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
+
+        const shape = worker.scene.propShape(prop);
+        const trafo = worker.scene.propTransformationAt(prop, vertex.probe.time);
 
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;
@@ -276,7 +282,8 @@ pub const Integrator = struct {
 
             channel_weights /= @splat(sum_weights);
 
-            const rc = sampler.sample1D();
+            const r3 = sampler.sample3D();
+            const rc = r3[0];
 
             var channel_id: u32 = 2;
             if (rc < channel_weights[0]) {
@@ -285,7 +292,7 @@ pub const Integrator = struct {
                 channel_id = 1;
             }
 
-            const free_path = -@log(math.max(1.0 - sampler.sample1D(), 1e-10)) / mu_t[channel_id];
+            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
 
             // Calculate the visibility of the sample point for each channel
             const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);
@@ -296,23 +303,29 @@ pub const Integrator = struct {
 
             local_weight *= pdf;
 
-            if (hlp.russianRoulette(&local_weight, sampler.sample1D())) {
+            if (hlp.russianRoulette(&local_weight, r3[2])) {
                 return false;
             }
 
             vertex.probe.ray.max_t = free_path;
 
-            if (!worker.propIntersect(prop, &vertex.probe, frag, true)) {
+            const hit = shape.intersect(vertex.probe.ray, trafo);
+            if (Intersection.Null == hit.primitive) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
 
                 vertex.probe.ray.origin = vertex.probe.ray.point(free_path);
-                vertex.probe.ray.setDirection(wi, ro.Ray_max_t);
+                vertex.probe.ray.setDirection(wi, ro.RayMaxT);
 
                 local_weight *= albedo;
             } else {
-                worker.propInterpolateFragment(prop, &vertex.probe, frag);
+                vertex.probe.ray.max_t = hit.t;
+                frag.isec = hit;
+                frag.trafo = trafo;
+                frag.prop = prop;
+
+                shape.fragment(vertex.probe.ray, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.mediums.pop();

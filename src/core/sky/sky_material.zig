@@ -2,7 +2,6 @@ const Sky = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/light_sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
-const Emittance = @import("../scene/light/emittance.zig").Emittance;
 const Scene = @import("../scene/scene.zig").Scene;
 const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
@@ -167,7 +166,7 @@ pub const Material = struct {
 
     fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
         const k = wi - rotation.r[2];
-        const c = math.dot3(rotation.r[1], k) / Sky.Radius;
+        const c = -math.dot3(rotation.r[1], k) / Sky.Radius;
         return math.max((c + 1.0) * 0.5, 0.0);
     }
 

@@ -139,7 +139,7 @@ pub const Lighttracer = struct {
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                     next_vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.Ray_max_t);
+                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
 
                     if (!class.straight) {
@@ -182,7 +182,7 @@ pub const Lighttracer = struct {
 
         sampler.incrementPadding();
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.Ray_max_t), time, &.{});
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time, &.{});
     }
 
     fn directCamera(

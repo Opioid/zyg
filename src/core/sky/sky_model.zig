@@ -6,7 +6,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
-const Spectrum = spectrum.DiscreteSpectralPowerDistribution(10, 380.0, 740.0);
+const Spectrum = spectrum.DiscreteSpectralPowerDistribution(12, 380.0, 740.0);
 const RNG = base.rnd.Generator;
 
 const std = @import("std");
@@ -86,7 +86,8 @@ pub const Model = struct {
         const cos_shadow = math.clamp(math.dot3(wi, self.shadow_direction), -1.0, 1.0);
         const shadow = std.math.acos(cos_shadow);
 
-        var samples: [16]f32 = undefined;
+        var samples: [24]f32 = undefined;
+        const num_samples: f32 = @floatFromInt(samples.len);
 
         var radiance: Spectrum = undefined;
 
@@ -102,7 +103,7 @@ pub const Model = struct {
                     gamma,
                     shadow,
                     Spectrum.randomWavelength(i, s),
-                ))) / @as(f32, @floatFromInt(samples.len));
+                ))) / num_samples;
             }
 
             bin.* = rwl;
@@ -111,11 +112,12 @@ pub const Model = struct {
         return spectrum.XYZtoAP1(radiance.XYZ());
     }
 
-    pub fn evaluateSkyAndSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
+    pub fn evaluateSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
         const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
         const theta = std.math.acos(wi_dot_z);
 
-        var samples: [16]f32 = undefined;
+        var samples: [24]f32 = undefined;
+        const num_samples: f32 = @floatFromInt(samples.len);
 
         var radiance: Spectrum = undefined;
 
@@ -129,7 +131,7 @@ pub const Model = struct {
                     self.state,
                     theta,
                     Spectrum.randomWavelength(i, s),
-                ))) / @as(f32, @floatFromInt(samples.len));
+                ))) / num_samples;
             }
 
             bin.* = rwl;
