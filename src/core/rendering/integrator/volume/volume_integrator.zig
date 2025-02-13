@@ -193,6 +193,8 @@ pub const Integrator = struct {
                 vertex.probe.ray.setMaxT(limit);
             }
 
+            vertex.probe.ray.max_t = hit.t;
+
             const tray = if (material.heterogeneousVolume())
                 worker.scene.propTransformationAt(prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
             else

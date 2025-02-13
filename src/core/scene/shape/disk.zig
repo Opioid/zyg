@@ -59,7 +59,7 @@ pub const Disk = struct {
         const t = -frag.trafo.rotation.r[0];
         const b = -frag.trafo.rotation.r[1];
 
-        frag.p = ray.point(ray.max_t);
+        frag.p = ray.point(frag.isec.t);
         frag.t = t;
         frag.b = b;
         frag.n = n;

@@ -74,6 +74,7 @@ pub const Tree = struct {
                 const end = start + num;
                 for (finite_props[start..end]) |p| {
                     if (props[p].intersect(p, probe, frag, false, scene)) {
+                        probe.ray.max_t = frag.isec.t;
                         prop = p;
                     }
                 }

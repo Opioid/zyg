@@ -54,7 +54,7 @@ pub const Rectangle = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const p = ray.point(ray.max_t);
+        const p = ray.point(frag.isec.t);
         const n = frag.trafo.rotation.r[2];
         const t = -frag.trafo.rotation.r[0];
         const b = -frag.trafo.rotation.r[1];

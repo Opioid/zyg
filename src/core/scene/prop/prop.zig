@@ -120,7 +120,7 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool, scene: *const Scene) bool {
+    pub fn intersect(self: Prop, entity: u32, probe: *const Probe, frag: *Fragment, override_visibility: bool, scene: *const Scene) bool {
         if (!override_visibility and !self.visible(probe.depth.surface)) {
             return false;
         }
@@ -135,7 +135,6 @@ pub const Prop = struct {
 
         const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
         if (Intersection.Null != hit.primitive) {
-            probe.ray.max_t = hit.t;
             frag.isec = hit;
             frag.trafo = trafo;
             return true;

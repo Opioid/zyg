@@ -54,7 +54,7 @@ pub const Sphere = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const p = ray.point(ray.max_t);
+        const p = ray.point(frag.isec.t);
         const n = math.normalize3(p - frag.trafo.position);
 
         frag.p = p;
