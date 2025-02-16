@@ -73,7 +73,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (finite_props[start..end]) |p| {
-                    if (props[p].intersect(p, probe, frag, false, scene)) {
+                    if (props[p].intersect(p, probe, frag, scene)) {
                         probe.ray.max_t = frag.isec.t;
                         prop = p;
                     }
@@ -112,56 +112,6 @@ pub const Tree = struct {
 
         frag.prop = prop;
         return hit;
-    }
-
-    pub fn intersectP(self: Tree, probe: *const Probe, scene: *const Scene) bool {
-        var stack = NodeStack{};
-
-        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
-
-        const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
-
-        while (NodeStack.End != n) {
-            const node = nodes[n];
-
-            const num = node.numIndices();
-            if (0 != num) {
-                const start = node.indicesStart();
-                const end = start + num;
-                for (finite_props[start..end]) |p| {
-                    if (props[p].intersectP(p, probe, scene)) {
-                        return true;
-                    }
-                }
-
-                n = stack.pop();
-                continue;
-            }
-
-            var a = node.children();
-            var b = a + 1;
-
-            var dista = nodes[a].intersect(probe.ray);
-            var distb = nodes[b].intersect(probe.ray);
-
-            if (dista > distb) {
-                std.mem.swap(u32, &a, &b);
-                std.mem.swap(f32, &dista, &distb);
-            }
-
-            if (std.math.floatMax(f32) == dista) {
-                n = stack.pop();
-            } else {
-                n = a;
-                if (std.math.floatMax(f32) != distb) {
-                    stack.push(b);
-                }
-            }
-        }
-
-        return false;
     }
 
     pub fn visibility(self: Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {

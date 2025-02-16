@@ -302,7 +302,7 @@ pub const PathtracerMIS = struct {
             inf_frag.event = .Pass;
 
             for (worker.scene.infinite_props.items) |prop| {
-                if (!worker.propIntersect(prop, &vertex.probe, &inf_frag, false)) {
+                if (!worker.propIntersect(prop, &vertex.probe, &inf_frag)) {
                     continue;
                 }
 

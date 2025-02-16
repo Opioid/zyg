@@ -102,9 +102,6 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
-    evaluate_visibility: bool = undefined,
-    has_volumes: bool = undefined,
-
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
         try shapes.append(alloc, .{ .Canopy = .{} });
@@ -214,20 +211,6 @@ pub const Scene = struct {
 
         self.calculateWorldBounds(camera_pos);
 
-        self.has_volumes = self.volumes.items.len > 0;
-
-        if (self.has_volumes) {
-            self.evaluate_visibility = true;
-        } else {
-            self.evaluate_visibility = false;
-            for (self.material_ids.items) |i| {
-                if (self.materials.items[i].evaluateVisibility()) {
-                    self.evaluate_visibility = true;
-                    break;
-                }
-            }
-        }
-
         try self.sky.compile(alloc, time, self, threads, fs);
 
         // rebuild prop BVH_builder
@@ -267,11 +250,11 @@ pub const Scene = struct {
     }
 
     pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
-        if (self.evaluate_visibility) {
-            return self.prop_bvh.visibility(probe, sampler, worker, tr);
+        if (self.prop_bvh.visibility(probe, sampler, worker, tr)) {
+            return self.volume_bvh.visibility(probe, sampler, worker, tr);
         }
 
-        return !self.prop_bvh.intersectP(probe, self);
+        return false;
     }
 
     pub fn scatter(
@@ -282,7 +265,7 @@ pub const Scene = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) bool {
-        if (!self.has_volumes) {
+        if (0 == self.volume_bvh.num_nodes) {
             frag.event = .Pass;
             frag.vol_li = @splat(0.0);
             return false;
@@ -327,15 +310,7 @@ pub const Scene = struct {
             try self.light_ids.append(alloc, Null);
         }
 
-        if (shape_inst.finite()) {
-            try self.finite_props.append(alloc, p);
-        } else {
-            try self.infinite_props.append(alloc, p);
-        }
-
-        if (self.props.items[p].volume()) {
-            try self.volumes.append(alloc, p);
-        }
+        try self.classifyProp(alloc, p, shape_inst);
 
         return p;
     }
@@ -348,17 +323,21 @@ pub const Scene = struct {
 
         const shape_inst = self.propShape(p);
 
-        if (shape_inst.finite()) {
-            try self.finite_props.append(alloc, p);
-        } else {
-            try self.infinite_props.append(alloc, p);
-        }
-
-        if (self.props.items[p].volume()) {
-            try self.volumes.append(alloc, p);
-        }
+        try self.classifyProp(alloc, p, shape_inst);
 
         return p;
+    }
+
+    fn classifyProp(self: *Scene, alloc: Allocator, p: u32, shape_inst: *const Shape) !void {
+        if (self.props.items[p].volume()) {
+            try self.volumes.append(alloc, p);
+        } else {
+            if (shape_inst.finite()) {
+                try self.finite_props.append(alloc, p);
+            } else {
+                try self.infinite_props.append(alloc, p);
+            }
+        }
     }
 
     pub fn createLight(self: *Scene, alloc: Allocator, entity: u32) !void {
@@ -477,10 +456,9 @@ pub const Scene = struct {
         entity: u32,
         in_camera: bool,
         in_reflection: bool,
-        in_shadow: bool,
         shadow_catcher_light: bool,
     ) void {
-        self.props.items[entity].setVisibility(in_camera, in_reflection, in_shadow, shadow_catcher_light);
+        self.props.items[entity].setVisibility(in_camera, in_reflection, shadow_catcher_light);
     }
 
     pub fn propSetShadowCatcher(self: *Scene, entity: u32) void {

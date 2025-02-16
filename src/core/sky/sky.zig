@@ -107,7 +107,7 @@ pub const Sky = struct {
         }
 
         const e = scene.prop(self.sun);
-        scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), e.visibleInShadow(), false);
+        scene.propSetVisibility(self.sky, e.visibleInCamera(), e.visibleInReflection(), false);
 
         // HACK: artificially set sun radius to zero if under horizon to get an early out during light sampling...
         const under_horizon = self.sun_rotation.r[2][1] > Model.AngularRadius;

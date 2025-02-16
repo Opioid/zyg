@@ -523,13 +523,13 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
     return -1;
 }
 
-export fn su_prop_set_visibility(prop: u32, in_camera: u32, in_reflection: u32, in_shadow: u32) i32 {
+export fn su_prop_set_visibility(prop: u32, in_camera: u32, in_reflection: u32) i32 {
     if (engine) |*e| {
         if (prop >= e.scene.props.items.len) {
             return -1;
         }
 
-        e.scene.propSetVisibility(prop, in_camera > 0, in_reflection > 0, in_shadow > 0, false);
+        e.scene.propSetVisibility(prop, in_camera > 0, in_reflection > 0, false);
         return 0;
     }
 

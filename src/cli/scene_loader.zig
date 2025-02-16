@@ -387,7 +387,6 @@ pub const Loader = struct {
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
         var in_camera = true;
         var in_reflection = true;
-        var in_shadow = true;
         var shadow_catcher_light = false;
 
         var iter = value.object.iterator();
@@ -396,14 +395,12 @@ pub const Loader = struct {
                 in_camera = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "in_reflection", entry.key_ptr.*)) {
                 in_reflection = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "in_shadow", entry.key_ptr.*)) {
-                in_shadow = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "shadow_catcher_light", entry.key_ptr.*)) {
                 shadow_catcher_light = json.readBool(entry.value_ptr.*);
             }
         }
 
-        scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow, shadow_catcher_light);
+        scene.propSetVisibility(prop, in_camera, in_reflection, shadow_catcher_light);
     }
 
     fn setShadowCatcher(prop: u32, value: std.json.Value, scene: *Scene) void {
