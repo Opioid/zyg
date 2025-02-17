@@ -50,6 +50,9 @@ pub const PathtracerMIS = struct {
 
                 var frag: Fragment = undefined;
                 _ = worker.nextEvent(vertex, &frag, sampler);
+                if (.Abort == frag.event) {
+                    continue;
+                }
 
                 const this_light = self.connectLight(vertex, &frag, sampler, worker);
                 const split_weight: Vec4f = @splat(vertex.split_weight);

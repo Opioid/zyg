@@ -264,14 +264,14 @@ pub const Scene = struct {
         throughput: *Vec4f,
         sampler: *Sampler,
         worker: *Worker,
-    ) bool {
+    ) void {
         if (0 == self.volume_bvh.num_nodes) {
             frag.event = .Pass;
             frag.vol_li = @splat(0.0);
-            return false;
+            return;
         }
 
-        return self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
+        self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

@@ -52,7 +52,8 @@ pub const AOV = struct {
         const sampler = worker.pickSampler(0);
 
         var frag: Fragment = undefined;
-        if (!worker.nextEvent(&vertex, &frag, sampler)) {
+        worker.nextEvent(&vertex, &frag, sampler);
+        if (.Abort == frag.event or !frag.hit()) {
             return .{};
         }
 
@@ -247,7 +248,8 @@ pub const AOV = struct {
                 vertex.interfaceChange(sample_result.wi, frag, &mat_sample, worker.scene);
             }
 
-            if (!worker.nextEvent(vertex, frag, sampler)) {
+            worker.nextEvent(vertex, frag, sampler);
+            if (.Abort == frag.event or !frag.hit()) {
                 break;
             }
 

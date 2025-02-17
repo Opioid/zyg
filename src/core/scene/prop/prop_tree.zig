@@ -164,7 +164,7 @@ pub const Tree = struct {
         return true;
     }
 
-    pub fn scatter(self: Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) bool {
+    pub fn scatter(self: Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) void {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -232,10 +232,6 @@ pub const Tree = struct {
             frag.geo_n = vn;
             frag.n = vn;
             frag.uvw = result.uvw;
-
-            return true;
         }
-
-        return false;
     }
 };

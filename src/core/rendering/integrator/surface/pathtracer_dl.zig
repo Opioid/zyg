@@ -43,6 +43,9 @@ pub const PathtracerDL = struct {
 
             var frag: Fragment = undefined;
             _ = worker.nextEvent(&vertex, &frag, sampler);
+            if (.Abort == frag.event) {
+                continue;
+            }
 
             const energy = self.connectLight(&vertex, &frag, sampler, worker);
             const weighted_energy = vertex.throughput * energy;

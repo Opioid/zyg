@@ -136,19 +136,20 @@ pub const Integrator = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
         const medium = vertex.mediums.top();
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            return integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
+            integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
+            return;
         }
 
         const RayMaxT = vertex.probe.ray.max_t;
         const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse RayMaxT;
         vertex.probe.ray.max_t = math.min(ro.offsetF(limit), RayMaxT);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
-            return false;
+            return;
         }
 
         const tray = if (material.heterogeneousVolume())
@@ -177,11 +178,10 @@ pub const Integrator = struct {
         frag.event = result.event;
         frag.vol_li = result.li;
         vertex.throughput *= result.tr;
-        return true;
     }
 
-    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        frag.clear();
+    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
+        frag.event = .Abort;
 
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
@@ -199,7 +199,7 @@ pub const Integrator = struct {
             const sum_weights = channel_weights[0] + channel_weights[1] + channel_weights[2];
 
             if (sum_weights < 1e-6) {
-                return false;
+                return;
             }
 
             channel_weights /= @splat(sum_weights);
@@ -226,7 +226,7 @@ pub const Integrator = struct {
             local_weight *= pdf;
 
             if (hlp.russianRoulette(&local_weight, r3[2])) {
-                return false;
+                return;
             }
 
             vertex.probe.ray.max_t = free_path;
@@ -260,11 +260,9 @@ pub const Integrator = struct {
 
                 vertex.throughput *= local_weight;
 
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 
     fn sampleHg(g: f32, sampler: *Sampler) Vec4f {

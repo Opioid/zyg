@@ -107,11 +107,8 @@ pub const Mapper = struct {
                 var sampler = &self.sampler;
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(&vertex, &frag, sampler)) {
-                    break;
-                }
-
-                if (.Absorb == frag.event) {
+                worker.nextEvent(&vertex, &frag, sampler);
+                if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
                     break;
                 }
 

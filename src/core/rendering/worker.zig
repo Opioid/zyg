@@ -240,22 +240,21 @@ pub const Worker = struct {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) void {
         if (!vertex.mediums.empty()) {
-            return VolumeIntegrator.integrate(vertex, frag, sampler, self);
+            VolumeIntegrator.integrate(vertex, frag, sampler, self);
+            return;
         }
 
         const origin = vertex.probe.ray.origin;
 
-        const hit = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
+        _ = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
         vertex.probe.ray.max_t += dif_t;
 
-        const volume_hit = self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
-
-        return hit or volume_hit;
+        self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
     }
 
     pub fn propTransmittance(

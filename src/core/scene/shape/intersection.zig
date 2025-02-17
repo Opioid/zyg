@@ -11,7 +11,13 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Volume = struct {
-    pub const Event = enum(u8) { Absorb, Scatter, ExitSSS, Pass };
+    pub const Event = enum(u8) {
+        Absorb,
+        Abort,
+        ExitSSS,
+        Pass,
+        Scatter,
+    };
 
     li: Vec4f,
     tr: Vec4f,
@@ -33,7 +39,7 @@ pub const Volume = struct {
             .li = @splat(0.0),
             .tr = @splat(0.0),
             .t = 0.0,
-            .event = .Absorb,
+            .event = .Abort,
         };
     }
 };
@@ -74,10 +80,6 @@ pub const Fragment = struct {
 
     pub inline fn hit(self: Self) bool {
         return Scene.Null != self.prop;
-    }
-
-    pub inline fn clear(self: *Self) void {
-        self.prop = Scene.Null;
     }
 
     pub fn material(self: Self, scene: *const Scene) *const mat.Material {
