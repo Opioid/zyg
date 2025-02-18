@@ -283,7 +283,7 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *const Worker, entity: u32, probe: *Probe, frag: *Fragment) bool {
+    pub fn propIntersect(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) bool {
         if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
             frag.prop = entity;
             return true;

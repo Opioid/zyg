@@ -62,7 +62,6 @@ pub const Vertex = struct {
         primary_ray: bool = true,
         transparent: bool = true,
         treat_as_singular: bool = true,
-        forward: bool = true,
         is_translucent: bool = false,
         started_specular: bool = false,
         shadow_catcher_path: bool = false,

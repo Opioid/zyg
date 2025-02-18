@@ -200,7 +200,7 @@ pub const AOV = struct {
             const mat_sample = vertex.sample(frag, sampler, .Off, worker);
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
-            if (mat_sample.canEvaluate() and vertex.state.forward and gather_photons) {
+            if (mat_sample.canEvaluate() and gather_photons) {
                 result += vertex.throughput * worker.photonLi(frag, &mat_sample, sampler);
             }
 
@@ -220,17 +220,13 @@ pub const AOV = struct {
             } else if (!sample_result.class.straight) {
                 vertex.state.treat_as_singular = false;
                 vertex.state.primary_ray = false;
-
-                if (!sample_result.class.transmission) {
-                    vertex.state.forward = false;
-                }
             }
 
             vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
             vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(frag);
 
-            if (vertex.probe.depth.surface >= self.settings.max_depth.surface or !vertex.state.forward) {
+            if (vertex.probe.depth.surface >= self.settings.max_depth.surface) {
                 break;
             }
 
