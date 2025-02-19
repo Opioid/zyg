@@ -20,13 +20,6 @@ pub const Ray = struct {
         };
     }
 
-    pub fn setDirection(self: *Ray, direction: Vec4f, max_t: f32) void {
-        const id = math.reciprocal3(.{ direction[0], direction[1], direction[2], 1.0 });
-        self.direction = direction;
-        self.inv_direction = id;
-        self.max_t = max_t;
-    }
-
     pub fn setMinMaxT(self: *Ray, min_t: f32, max_t: f32) void {
         self.min_t = min_t;
         self.max_t = max_t;

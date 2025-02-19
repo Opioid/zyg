@@ -101,8 +101,7 @@ pub const PathtracerDL = struct {
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-            vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(&frag);
 
             if (0.0 == vertex.probe.wavelength) {

@@ -174,8 +174,7 @@ pub const Mapper = struct {
                     vertex.state.primary_ray = false;
                 }
 
-                vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+                vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                 vertex.probe.depth.increment(&frag);
 
                 if (!sample_result.class.straight) {

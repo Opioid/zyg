@@ -145,9 +145,9 @@ pub const Integrator = struct {
             return;
         }
 
-        const RayMaxT = vertex.probe.ray.max_t;
-        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse RayMaxT;
-        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), RayMaxT);
+        const ray_max_t = vertex.probe.ray.max_t;
+        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
+        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return;
         }
@@ -237,8 +237,7 @@ pub const Integrator = struct {
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
 
-                vertex.probe.ray.origin = vertex.probe.ray.point(free_path);
-                vertex.probe.ray.setDirection(wi, ro.RayMaxT);
+                vertex.probe.ray = Ray.init(vertex.probe.ray.point(free_path), wi, 0.0, ro.RayMaxT);
 
                 local_weight *= albedo;
             } else {

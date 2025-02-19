@@ -148,8 +148,7 @@ pub const PathtracerMIS = struct {
 
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                    next_vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+                    next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
 
                     if (0.0 == next_vertex.probe.wavelength) {
@@ -293,11 +292,10 @@ pub const PathtracerMIS = struct {
             }
         }
 
-        const ray_min_t = vertex.probe.ray.min_t;
         const ray_max_t = vertex.probe.ray.max_t;
 
         if (previous_shadow_catcher) {
-            vertex.probe.ray.setMinMaxT(ro.RayMaxT, ro.RayMaxT);
+            vertex.probe.ray.max_t = ro.RayMaxT;
         }
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
@@ -331,7 +329,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            vertex.probe.ray.setMinMaxT(ray_min_t, ray_max_t);
+            vertex.probe.ray.max_t = ray_max_t;
         }
 
         return result;

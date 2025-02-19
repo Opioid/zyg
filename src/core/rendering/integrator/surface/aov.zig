@@ -12,6 +12,7 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
+const Ray = math.Ray;
 const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
@@ -93,8 +94,7 @@ pub const AOV = struct {
             const os = math.smpl.hemisphereCosine(sample);
             const ws = mat_sample.super().frame.frameToWorld(os);
 
-            occlusion_probe.ray.origin = origin;
-            occlusion_probe.ray.setDirection(ws, radius);
+            occlusion_probe.ray = Ray.init(origin, ws, 0.0, radius);
 
             var tr: Vec4f = @splat(1.0);
             if (worker.scene.visibility(&occlusion_probe, sampler, worker, &tr)) {
@@ -222,8 +222,7 @@ pub const AOV = struct {
                 vertex.state.primary_ray = false;
             }
 
-            vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-            vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(frag);
 
             if (vertex.probe.depth.surface >= self.settings.max_depth.surface) {
