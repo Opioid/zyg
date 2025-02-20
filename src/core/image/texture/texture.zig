@@ -10,6 +10,8 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
+const std = @import("std");
+
 pub const Texture = struct {
     pub const Type = enum {
         Byte1_unorm,
@@ -33,7 +35,7 @@ pub const Texture = struct {
     scale: Vec2f = undefined,
 
     pub fn equal(self: Texture, other: Texture) bool {
-        return self.type == other.type and self.image == other.image and self.image == other.image;
+        return std.mem.eql(u8, std.mem.asBytes(&self), std.mem.asBytes(&other));
     }
 
     const Error = error{

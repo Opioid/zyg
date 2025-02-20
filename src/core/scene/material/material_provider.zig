@@ -286,7 +286,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-                material.surface_map = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
+                log.warning("Surface maps are no longer supported. Please use separate roughness and metallic maps instead.", .{});
             } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
                 var checkers: [2]Vec4f = .{ @splat(0.0), @splat(0.0) };
                 var checkers_scale: f32 = 0.0;
@@ -315,7 +315,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                material.metallic = json.readFloat(f32, entry.value_ptr.*);
+                material.setMetallic(readValue(f32, alloc, entry.value_ptr.*, material.metallic, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
@@ -528,6 +528,10 @@ const TextureDescriptor = struct {
 
                         if (std.mem.eql(u8, "X", swizzle)) {
                             desc.swizzle = .X;
+                        } else if (std.mem.eql(u8, "Y", swizzle)) {
+                            desc.swizzle = .Y;
+                        } else if (std.mem.eql(u8, "Z", swizzle)) {
+                            desc.swizzle = .Z;
                         } else if (std.mem.eql(u8, "W", swizzle)) {
                             desc.swizzle = .W;
                         } else if (std.mem.eql(u8, "YX", swizzle)) {

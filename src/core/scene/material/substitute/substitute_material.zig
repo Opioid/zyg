@@ -34,7 +34,8 @@ pub const Material = struct {
 
     color_map: Texture = .{},
     normal_map: Texture = .{},
-    surface_map: Texture = .{},
+    roughness_map: Texture = .{},
+    metallic_map: Texture = .{},
     rotation_map: Texture = .{},
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
@@ -46,9 +47,9 @@ pub const Material = struct {
     flakes_color: Vec4f = @splat(0.8),
 
     roughness: f32 = 0.8,
+    metallic: f32 = 0.0,
     anisotropy: f32 = 0.0,
     rotation: f32 = 0.0,
-    metallic: f32 = 0.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
     coating_thickness: f32 = 0.0,
@@ -100,8 +101,13 @@ pub const Material = struct {
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.surface_map = roughness.texture;
+        self.roughness_map = roughness.texture;
         self.roughness = ggx.clampRoughness(roughness.value);
+    }
+
+    pub fn setMetallic(self: *Material, metallic: Base.MappedValue(f32)) void {
+        self.metallic_map = metallic.texture;
+        self.metallic = metallic.value;
     }
 
     pub fn setRotation(self: *Material, rotation: Base.MappedValue(f32)) void {
@@ -160,21 +166,8 @@ pub const Material = struct {
             worker.scene,
         ) else self.color;
 
-        var roughness: f32 = undefined;
-        var metallic: f32 = undefined;
-
-        const nc = self.surface_map.numChannels();
-        if (nc >= 2) {
-            const surface = ts.sample2D_2(key, self.surface_map, rs.uv, sampler, worker.scene);
-            roughness = ggx.clampRoughness(surface[0]);
-            metallic = surface[1];
-        } else if (1 == nc) {
-            roughness = ggx.clampRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene));
-            metallic = self.metallic;
-        } else {
-            roughness = self.roughness;
-            metallic = self.metallic;
-        }
+        const roughness = if (self.roughness_map.valid()) ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, worker.scene)) else self.roughness;
+        const metallic = if (self.metallic_map.valid()) ts.sample2D_1(key, self.metallic_map, rs.uv, sampler, worker.scene) else self.metallic;
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 

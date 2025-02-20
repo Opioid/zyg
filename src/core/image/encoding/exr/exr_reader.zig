@@ -129,12 +129,7 @@ pub const Reader = struct {
         swizzle: Swizzle,
         color: bool,
     ) !Image {
-        var num_channels: u32 = switch (swizzle) {
-            .X, .W => 1,
-            .XY, .YX, .YZ => 2,
-            .XYZ => 3,
-            .XYZW => 4,
-        };
+        var num_channels = swizzle.numChannels();
 
         const file_num_channels: u32 = @intCast(channels.channels.items.len);
         num_channels = @min(num_channels, file_num_channels);
