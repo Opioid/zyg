@@ -65,7 +65,7 @@ pub const Material = struct {
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = self.color_map.valid() or self.checkers[3] > 0.0;
         properties.emission_map = self.emittance.emission_map.valid();
-        properties.caustic = self.roughness <= ggx.Min_roughness;
+        properties.caustic = self.roughness <= ggx.MinRoughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
@@ -166,10 +166,10 @@ pub const Material = struct {
         const nc = self.surface_map.numChannels();
         if (nc >= 2) {
             const surface = ts.sample2D_2(key, self.surface_map, rs.uv, sampler, worker.scene);
-            roughness = ggx.mapRoughness(surface[0]);
+            roughness = ggx.clampRoughness(surface[0]);
             metallic = surface[1];
         } else if (1 == nc) {
-            roughness = ggx.mapRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene));
+            roughness = ggx.clampRoughness(ts.sample2D_1(key, self.surface_map, rs.uv, sampler, worker.scene));
             metallic = self.metallic;
         } else {
             roughness = self.roughness;
@@ -232,7 +232,7 @@ pub const Material = struct {
             }
 
             const r = if (self.coating_roughness_map.valid())
-                ggx.mapRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene))
+                ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene))
             else
                 self.coating_roughness;
 

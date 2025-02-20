@@ -39,7 +39,7 @@ pub const Coating = struct {
 
         const att = self.attenuation(n_dot_wi, n_dot_wo);
 
-        if (avoid_caustics and self.alpha <= ggx.Min_alpha) {
+        if (avoid_caustics and self.alpha <= ggx.MinAlpha) {
             return .{ .reflection = @splat(0.0), .attenuation = att, .f = 0.0, .pdf = 0.0 };
         }
 

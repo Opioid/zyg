@@ -31,7 +31,7 @@ pub const Material = struct {
         const thin = self.thickness > 0.0;
         self.super.properties.two_sided = thin;
         self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
-        self.super.properties.caustic = self.roughness <= ggx.Min_roughness;
+        self.super.properties.caustic = self.roughness <= ggx.MinRoughness;
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
@@ -43,12 +43,12 @@ pub const Material = struct {
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = self.super.sampler_key;
 
-        const fat = 0.0 == self.thickness;
+        const use_roughness = 0.0 == self.thickness or rs.primary;
 
-        const roughness = if (fat or rs.primary) self.roughness else 0.0;
+        const roughness = if (use_roughness) self.roughness else 0.0;
 
-        const r = if (self.roughness_map.valid() and rs.primary)
-            ggx.mapRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
+        const r = if (self.roughness_map.valid() and use_roughness)
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
         else
             roughness;
 
