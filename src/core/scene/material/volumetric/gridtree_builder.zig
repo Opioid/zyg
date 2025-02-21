@@ -143,7 +143,7 @@ const Splitter = struct {
             while (y < maxb[1]) : (y += 1) {
                 var x = minb[0];
                 while (x < maxb[0]) : (x += 1) {
-                    const density = texture.get3D_1(x, y, z, scene);
+                    const density = texture.image3D_1(x, y, z, scene);
 
                     min_density = math.min(density, min_density);
                     max_density = math.max(density, max_density);

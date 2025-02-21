@@ -57,7 +57,7 @@ pub const Sky = struct {
         const sun_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
 
         const sky_image = try scene.createImage(alloc, .{ .Float3 = .{} });
-        const emission_map = Texture{ .type = .Float3, .image = sky_image, .scale = .{ 1.0, 1.0 } };
+        const emission_map = Texture.initImage(.Float3, sky_image, .{ 1.0, 1.0 });
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
@@ -150,7 +150,7 @@ pub const Sky = struct {
 
             const cached_image = try ExrReader.read(alloc, stream, .XYZ, false);
 
-            var image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image);
+            var image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id);
             image.deinit(alloc);
             image.* = cached_image;
         }
@@ -178,7 +178,7 @@ pub const Sky = struct {
         sky_filename: []u8,
         sun_filename: []u8,
     ) !void {
-        var image = &scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.image).Float3;
+        var image = &scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id).Float3;
 
         try image.resize(alloc, img.Description.init2D(Bake_dimensions));
 

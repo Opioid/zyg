@@ -21,36 +21,30 @@ pub const Material = struct {
     super: Base = .{},
 
     normal_map: Texture = .{},
-    roughness_map: Texture = .{},
+    roughness_map: Texture = Texture.initUniform1(0.0),
 
     thickness: f32 = 0.0,
-    roughness: f32 = 0.0,
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         const thin = self.thickness > 0.0;
         self.super.properties.two_sided = thin;
         self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
-        self.super.properties.caustic = self.roughness <= ggx.MinRoughness;
+        self.super.properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.texture;
-        const r = roughness.value;
-        self.roughness = if (r > 0.0) ggx.clampRoughness(r) else 0.0;
+        self.roughness_map = roughness.flatten();
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = self.super.sampler_key;
 
-        const use_roughness = 0.0 == self.thickness or rs.primary;
-
-        const roughness = if (use_roughness) self.roughness else 0.0;
-
-        const r = if (self.roughness_map.valid() and use_roughness)
+        const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
+        const r = if (use_roughness)
             ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
         else
-            roughness;
+            0.0;
 
         var result = Sample.init(
             rs,

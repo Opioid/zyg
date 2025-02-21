@@ -20,7 +20,7 @@ pub const Emittance = struct {
         Radiance,
     };
 
-    emission_map: Texture = .{},
+    emission_map: Texture = Texture.initUniform1(1.0),
     value: Vec4f = @splat(0.0),
     profile: Texture = .{},
     cos_a: f32 = -1.0,
@@ -98,11 +98,7 @@ pub const Emittance = struct {
             return @splat(0.0);
         }
 
-        var intensity = self.value;
-
-        if (self.emission_map.valid()) {
-            intensity *= ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
-        }
+        const intensity = self.value * ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
 
         if (self.quantity == .Intensity) {
             const area = scene.propShape(prop).area(part, trafo.scale());
@@ -142,7 +138,7 @@ pub const Emittance = struct {
             while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
 
-                const s = self.profile.get2D_1(x, y, scene);
+                const s = self.profile.image2D_1(x, y, scene);
 
                 if (s > 0.0) {
                     const dir = math.smpl.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));

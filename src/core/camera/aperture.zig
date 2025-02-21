@@ -33,7 +33,7 @@ pub const Aperture = struct {
         while (y < height) : (y += 1) {
             var x: u32 = 0;
             while (x < width) : (x += 1) {
-                const weight = texture.get2D_1(@intCast(x), @intCast(y), scene);
+                const weight = texture.image2D_1(@intCast(x), @intCast(y), scene);
                 weights[x] = weight;
             }
 

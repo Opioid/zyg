@@ -32,29 +32,24 @@ pub const Material = struct {
 
     emittance: Emittance = .{},
 
-    color_map: Texture = .{},
+    color_map: Texture = Texture.initUniform3(@splat(0.5)),
     normal_map: Texture = .{},
-    roughness_map: Texture = .{},
-    metallic_map: Texture = .{},
-    rotation_map: Texture = .{},
+    roughness_map: Texture = Texture.initUniform1(0.8),
+    metallic_map: Texture = Texture.initUniform1(0.0),
+    rotation_map: Texture = Texture.initUniform1(0.0),
     coating_normal_map: Texture = .{},
     coating_thickness_map: Texture = .{},
-    coating_roughness_map: Texture = .{},
+    coating_roughness_map: Texture = Texture.initUniform1(0.2),
 
-    color: Vec4f = @splat(0.5),
     checkers: Vec4f = @splat(0.0),
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
 
-    roughness: f32 = 0.8,
-    metallic: f32 = 0.0,
     anisotropy: f32 = 0.0,
-    rotation: f32 = 0.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
-    coating_roughness: f32 = 0.2,
     flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
     flakes_res: f32 = 0.0,
@@ -66,7 +61,7 @@ pub const Material = struct {
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = self.color_map.valid() or self.checkers[3] > 0.0;
         properties.emission_map = self.emittance.emission_map.valid();
-        properties.caustic = self.roughness <= ggx.MinRoughness;
+        properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
@@ -77,12 +72,12 @@ pub const Material = struct {
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
 
         // This doesn't make a difference for shading, but is intended for the Albedo AOV...
-        if (properties.dense_sss_optimization) {
+        if (properties.dense_sss_optimization and !self.color_map.valid()) {
             const cc = self.super.cc;
 
             const mu_t = cc.a + cc.s;
             const albedo = cc.s / mu_t;
-            self.color = albedo;
+            self.color_map = Texture.initUniform3(albedo);
         }
     }
 
@@ -96,27 +91,23 @@ pub const Material = struct {
     }
 
     pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
-        self.color_map = color.texture;
-        self.color = color.value;
+        self.color_map = color.flatten();
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.texture;
-        self.roughness = ggx.clampRoughness(roughness.value);
+        self.roughness_map = roughness.flatten();
     }
 
     pub fn setMetallic(self: *Material, metallic: Base.MappedValue(f32)) void {
-        self.metallic_map = metallic.texture;
-        self.metallic = metallic.value;
+        self.metallic_map = metallic.flatten();
     }
 
     pub fn setRotation(self: *Material, rotation: Base.MappedValue(f32)) void {
-        self.rotation_map = rotation.texture;
-        self.rotation = rotation.value * (2.0 * std.math.pi);
+        self.rotation_map = rotation.flatten();
     }
 
     pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
-        self.color = color_a;
+        self.color_map = Texture.initUniform3(color_a);
         self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
     }
 
@@ -130,8 +121,7 @@ pub const Material = struct {
     }
 
     pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.coating_roughness_map = roughness.texture;
-        self.coating_roughness = ggx.clampRoughness(roughness.value);
+        self.coating_roughness_map = roughness.flatten();
     }
 
     pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
@@ -158,16 +148,10 @@ pub const Material = struct {
             rs,
             key,
             worker,
-        ) else if (self.color_map.valid()) ts.sample2D_3(
-            key,
-            self.color_map,
-            rs.uv,
-            sampler,
-            worker.scene,
-        ) else self.color;
+        ) else ts.sample2D_3(key, self.color_map, rs.uv, sampler, worker.scene);
 
-        const roughness = if (self.roughness_map.valid()) ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, worker.scene)) else self.roughness;
-        const metallic = if (self.metallic_map.valid()) ts.sample2D_1(key, self.metallic_map, rs.uv, sampler, worker.scene) else self.metallic;
+        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, worker.scene));
+        const metallic = ts.sample2D_1(key, self.metallic_map, rs.uv, sampler, worker.scene);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
@@ -224,10 +208,7 @@ pub const Material = struct {
                 result.coating.n = rs.n;
             }
 
-            const r = if (self.coating_roughness_map.valid())
-                ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene))
-            else
-                self.coating_roughness;
+            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene));
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
@@ -237,10 +218,7 @@ pub const Material = struct {
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
-        const rotation = if (self.rotation_map.valid())
-            ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi)
-        else
-            self.rotation;
+        const rotation = ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi);
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
@@ -391,7 +369,7 @@ pub const Material = struct {
             .{ dd[2], dd[3] },
         );
 
-        return math.lerp(self.color, self.checkers, @as(Vec4f, @splat(t)));
+        return math.lerp(self.color_map.uniform3(), self.checkers, @as(Vec4f, @splat(t)));
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {

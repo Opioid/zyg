@@ -173,7 +173,7 @@ const LuminanceContext = struct {
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const radiance = self.texture.get2D_3(@intCast(x), @intCast(y), self.scene);
+                const radiance = self.texture.image2D_3(@intCast(x), @intCast(y), self.scene);
                 const wr = @as(Vec4f, @splat(uv_weight)) * radiance;
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };

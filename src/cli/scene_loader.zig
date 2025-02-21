@@ -286,7 +286,7 @@ pub const Loader = struct {
                         const dimensions = t.description(scene).dimensions;
                         var offset: Vec4i = @splat(0);
 
-                        if (self.resources.images.meta(t.image)) |meta| {
+                        if (self.resources.images.meta(t.data.image.id)) |meta| {
                             offset = meta.queryOrDef("offset", offset);
 
                             // HACK, where do those values come from?!?!
