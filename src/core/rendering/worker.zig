@@ -257,6 +257,10 @@ pub const Worker = struct {
         self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
     }
 
+    pub fn emission(self: *const Worker, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
+        return self.scene.emission(vertex, frag, split_threshold, sampler);
+    }
+
     pub fn propTransmittance(
         self: *Worker,
         ray: Ray,

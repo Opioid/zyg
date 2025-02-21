@@ -1,4 +1,5 @@
-const Probe = @import("../vertex.zig").Vertex.Probe;
+const Vertex = @import("../vertex.zig").Vertex;
+const Probe = Vertex.Probe;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
@@ -18,6 +19,7 @@ pub const Prop = struct {
         visible_in_camera: bool = true,
         visible_in_reflection: bool = true,
         evaluate_visibility: bool = false,
+        unoccluding: bool = false,
         volume: bool = false,
         caustic: bool = false,
         static: bool = true,
@@ -45,6 +47,10 @@ pub const Prop = struct {
         return self.properties.visible_in_reflection;
     }
 
+    pub fn unoccluding(self: Prop) bool {
+        return self.properties.unoccluding;
+    }
+
     pub fn volume(self: Prop) bool {
         return self.properties.volume;
     }
@@ -70,12 +76,13 @@ pub const Prop = struct {
         self.properties.visible_in_reflection = false;
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
         self.shape = shape;
 
         const shape_inst = scene.shape(shape);
 
         var mono = false;
+        var pure_emissive = true;
 
         if (materials.len > 0) {
             mono = true;
@@ -92,12 +99,17 @@ pub const Prop = struct {
                     self.properties.caustic = true;
                 }
 
+                if (!m.pureEmissive()) {
+                    pure_emissive = false;
+                }
+
                 if (mid != mid0) {
                     mono = false;
                 }
             }
         }
 
+        self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
         self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
     }
 
@@ -156,6 +168,33 @@ pub const Prop = struct {
         } else {
             return !shape.intersectP(probe.ray, trafo);
         }
+    }
+
+    pub fn emission(
+        self: Prop,
+        entity: u32,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        const properties = self.properties;
+
+        if (!properties.visible(vertex.probe.depth.surface)) {
+            return @splat(0.0);
+        }
+
+        if (!scene.propAabbIntersect(entity, vertex.probe.ray)) {
+            return @splat(0.0);
+        }
+
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.probe.time, properties.static);
+
+        frag.trafo = trafo;
+        frag.prop = entity;
+
+        return scene.shape(self.shape).emission(vertex, frag, split_threshold, sampler, scene);
     }
 
     pub fn scatter(

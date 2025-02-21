@@ -1,4 +1,5 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Vertex = @import("../../vertex.zig").Vertex;
 const Scene = @import("../../scene.zig").Scene;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -514,6 +515,18 @@ pub const Mesh = struct {
     ) bool {
         const tray = trafo.worldToObjectRay(ray);
         return self.tree.transmittance(tray, entity, depth, sampler, worker, tr);
+    }
+
+    pub fn emission(
+        self: *const Mesh,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        const tray = frag.trafo.worldToObjectRay(vertex.probe.ray);
+        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, scene);
     }
 
     pub fn scatter(

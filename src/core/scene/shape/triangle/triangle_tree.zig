@@ -1,11 +1,13 @@
 pub const IndexedData = @import("triangle_indexed_data.zig").IndexedData;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Vertex = @import("../../vertex.zig").Vertex;
 const Scene = @import("../../scene.zig").Scene;
 const ro = @import("../../ray_offset.zig");
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../../shape/intersection.zig");
+const Fragment = int.Fragment;
 const Intersection = int.Intersection;
 const Volume = int.Volume;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -244,6 +246,88 @@ pub const Tree = struct {
         }
 
         return true;
+    }
+
+    pub fn emission(
+        self: Tree,
+        ray: Ray,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        var stack = NodeStack{};
+        var n: u32 = 0;
+
+        var energy: Vec4f = @splat(0.0);
+
+        const shading_p = vertex.origin;
+        const wo = -vertex.probe.ray.direction;
+
+        const nodes = self.nodes;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            const num = node.numIndices();
+            if (0 != num) {
+                var i = node.indicesStart();
+                const e = i + num;
+                while (i < e) : (i += 1) {
+                    if (self.data.intersect(ray, i)) |hit| {
+                        frag.isec.t = hit.t;
+                        frag.isec.u = hit.u;
+                        frag.isec.v = hit.v;
+                        frag.isec.primitive = i;
+
+                        const itri = self.data.indexTriangle(i);
+
+                        frag.part = itri.part;
+
+                        const p = self.data.interpolateP(itri, hit.u, hit.v);
+                        frag.p = frag.trafo.objectToWorldPoint(p);
+
+                        const geo_n = self.data.normal(itri);
+                        frag.geo_n = frag.trafo.objectToWorldNormal(geo_n);
+
+                        const uv = self.data.interpolateUv(itri, hit.u, hit.v);
+
+                        frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                        if (frag.evaluateRadiance(shading_p, wo, sampler, scene)) |local_energy| {
+                            const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+                            energy += weight * local_energy;
+                        }
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.floatMax(f32) == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.floatMax(f32) != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        return energy;
     }
 
     pub fn scatter(

@@ -437,7 +437,7 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
             matbuf.appendAssumeCapacity(fallback_mat);
         }
 
-        const prop = e.scene.createProp(e.alloc, shape, matbuf.items) catch return -1;
+        const prop = e.scene.createProp(e.alloc, shape, matbuf.items, false) catch return -1;
 
         return @as(i32, @intCast(prop));
     }

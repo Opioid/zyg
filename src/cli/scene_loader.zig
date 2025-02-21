@@ -244,10 +244,10 @@ pub const Loader = struct {
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, false) catch continue;
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, false, true) catch continue;
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, true) catch continue;
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, true, false) catch continue;
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = loadSky(alloc, entity, graph) catch continue;
             }
@@ -352,6 +352,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         graph: *Graph,
         instancing: bool,
+        unoccluding_default: bool,
     ) !u32 {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
@@ -376,11 +377,12 @@ pub const Loader = struct {
                 return try scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createProp(alloc, shape, graph.materials.items);
+            const entity = try scene.createProp(alloc, shape, graph.materials.items, false);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
-            return try scene.createProp(alloc, shape, graph.materials.items);
+            const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
+            return try scene.createProp(alloc, shape, graph.materials.items, unoccluding);
         }
     }
 

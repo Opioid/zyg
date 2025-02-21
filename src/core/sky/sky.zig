@@ -54,14 +54,14 @@ pub const Sky = struct {
         var sun_mat = try SkyMaterial.initSun(alloc);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id});
+        const sun_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id}, true);
 
         const sky_image = try scene.createImage(alloc, .{ .Float3 = .{} });
         const emission_map = Texture.initImage(.Float3, sky_image, .{ 1.0, 1.0 });
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id});
+        const sky_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id}, true);
 
         self.sky = sky_prop;
         self.sun = sun_prop;

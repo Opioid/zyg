@@ -70,21 +70,6 @@ pub const DistantSphere = struct {
         frag.part = 0;
     }
 
-    pub fn intersectP(ray: Ray, trafo: Trafo) bool {
-        const radius = trafo.scaleX();
-
-        const n = trafo.rotation.r[2];
-        const b = math.dot3(n, ray.direction);
-
-        if (b > 0.0 or ray.max_t < ro.RayMaxT or radius <= 0.0) {
-            return false;
-        }
-
-        const det = (b * b) - math.dot3(n, n) + (radius * radius);
-
-        return det >= 0.0;
-    }
-
     pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
         const radius = trafo.scaleX();
         if (radius <= 0.0) {

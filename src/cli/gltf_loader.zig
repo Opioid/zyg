@@ -442,7 +442,7 @@ pub const Loader = struct {
 
         self.resources.commitAsync();
 
-        return try graph.scene.createProp(alloc, shape_id, graph.materials.items);
+        return try graph.scene.createProp(alloc, shape_id, graph.materials.items, false);
     }
 
     fn loadIndices(self: *Self, alloc: Allocator, id: u32, buffer: []u32, cur_vertex: u32) !u32 {

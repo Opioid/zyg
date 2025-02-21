@@ -20,6 +20,7 @@ const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+const Vertex = @import("../vertex.zig").Vertex;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -246,6 +247,23 @@ pub const Shape = union(enum) {
             .Sphere => Sphere.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
             .TriangleMesh => |m| m.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
             else => Volume.initPass(@splat(1.0)),
+        };
+    }
+
+    pub fn emission(
+        self: *const Shape,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        return switch (self.*) {
+            .Disk => Disk.emission(vertex, frag, split_threshold, sampler, scene),
+            .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, scene),
+            .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, scene),
+            .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, scene),
+            else => @splat(0.0),
         };
     }
 

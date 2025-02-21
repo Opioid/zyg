@@ -69,6 +69,10 @@ pub const PathtracerMIS = struct {
                     vertex.probe.depth.volume >= max_depth.volume or
                     .Absorb == frag.event)
                 {
+                    if (vertex.state.transparent) {
+                        vertex.throughput *= @as(Vec4f, @splat(1.0)) - math.min4(this_light.emission, @splat(1.0));
+                    }
+
                     continue;
                 }
 
@@ -286,32 +290,33 @@ pub const PathtracerMIS = struct {
 
         if (frag.hit()) {
             if (frag.evaluateRadiance(p, wo, sampler, worker.scene)) |local_energy| {
-                const weight: Vec4f = @splat(lightPdf(vertex, frag, split_threshold, worker.scene));
+                const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
 
                 result.emission = weight * local_energy;
             }
         }
 
-        const ray_max_t = vertex.probe.ray.max_t;
+        var light_frag: Fragment = undefined;
+        light_frag.event = .Pass;
 
+        result.emission += worker.emission(vertex, &light_frag, split_threshold, sampler);
+
+        const ray_max_t = vertex.probe.ray.max_t;
         if (previous_shadow_catcher) {
             vertex.probe.ray.max_t = ro.RayMaxT;
         }
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
-            var inf_frag: Fragment = undefined;
-            inf_frag.event = .Pass;
-
             for (worker.scene.infinite_props.items) |prop| {
-                if (!worker.propIntersect(prop, &vertex.probe, &inf_frag)) {
+                if (!worker.propIntersect(prop, &vertex.probe, &light_frag)) {
                     continue;
                 }
 
-                worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
+                worker.propInterpolateFragment(prop, &vertex.probe, &light_frag);
 
-                var local_energy = inf_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse continue;
+                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse continue;
 
-                const weight: Vec4f = @splat(lightPdf(vertex, &inf_frag, split_threshold, worker.scene));
+                const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, &light_frag, split_threshold));
 
                 local_energy *= weight;
 
@@ -333,26 +338,6 @@ pub const PathtracerMIS = struct {
         }
 
         return result;
-    }
-
-    inline fn lightPdf(
-        vertex: *const Vertex,
-        frag: *const Fragment,
-        split_threshold: f32,
-        scene: *const Scene,
-    ) f32 {
-        const light_id = frag.lightId(scene);
-
-        if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
-            return 1.0;
-        }
-
-        const translucent = vertex.state.is_translucent;
-
-        const select_pdf = scene.lightPdfSpatial(light_id, vertex.origin, vertex.geo_n, translucent, split_threshold);
-        const light = scene.light(light_id);
-        const sample_pdf = light.pdf(vertex, frag, split_threshold, scene);
-        return hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf);
     }
 
     fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {

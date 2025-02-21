@@ -12,13 +12,15 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
-const Probe = @import("vertex.zig").Vertex.Probe;
+const Vertex = @import("vertex.zig").Vertex;
+const Probe = Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
 const Worker = @import("../rendering/worker.zig").Worker;
+const hlp = @import("../rendering/integrator/helper.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -71,6 +73,7 @@ pub const Scene = struct {
     light_tree_builder: LightTreeBuilder = .{},
 
     prop_bvh: PropBvh = .{},
+    unoccluding_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
 
     camera_pos: Vec4f = undefined,
@@ -97,7 +100,7 @@ pub const Scene = struct {
 
     finite_props: List(u32),
     infinite_props: List(u32),
-
+    unoccluding_props: List(u32),
     volumes: List(u32),
 
     sky: Sky = .{},
@@ -128,7 +131,8 @@ pub const Scene = struct {
             .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
             .light_temp_powers = try alloc.alloc(f32, Num_reserved_props),
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .infinite_props = try List(u32).initCapacity(alloc, 3),
+            .infinite_props = try List(u32).initCapacity(alloc, 2),
+            .unoccluding_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .volumes = try List(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
@@ -144,10 +148,12 @@ pub const Scene = struct {
     pub fn deinit(self: *Scene, alloc: Allocator) void {
         self.light_tree_builder.deinit(alloc);
         self.prop_bvh.deinit(alloc);
+        self.unoccluding_bvh.deinit(alloc);
         self.volume_bvh.deinit(alloc);
         self.bvh_builder.deinit(alloc);
 
         self.volumes.deinit(alloc);
+        self.unoccluding_props.deinit(alloc);
         self.infinite_props.deinit(alloc);
         self.finite_props.deinit(alloc);
 
@@ -176,6 +182,7 @@ pub const Scene = struct {
         self.num_interpolation_frames = 0;
 
         self.volumes.clearRetainingCapacity();
+        self.unoccluding_props.clearRetainingCapacity();
         self.infinite_props.clearRetainingCapacity();
         self.finite_props.clearRetainingCapacity();
         self.keyframes.clearRetainingCapacity();
@@ -213,11 +220,12 @@ pub const Scene = struct {
 
         try self.sky.compile(alloc, time, self, threads, fs);
 
-        // rebuild prop BVH_builder
         try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
         self.prop_bvh.setProps(self.props.items);
 
-        // rebuild volume BVH
+        try self.bvh_builder.build(alloc, &self.unoccluding_bvh, self.unoccluding_props.items, self.prop_aabbs.items, threads);
+        self.unoccluding_bvh.setProps(self.props.items);
+
         try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
         self.volume_bvh.setProps(self.props.items);
 
@@ -274,6 +282,10 @@ pub const Scene = struct {
         self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
     }
 
+    pub fn emission(self: *const Scene, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
+        return self.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
+    }
+
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
         for (self.materials.items) |*m| {
             try m.commit(alloc, self, threads);
@@ -288,15 +300,15 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@intFromEnum(ShapeID.DistantSphere), &.{}, self);
+        self.props.items[p].configure(@intFromEnum(ShapeID.DistantSphere), &.{}, false, self);
 
         return p;
     }
 
-    pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32) !u32 {
+    pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(shape_id, materials, self);
+        self.props.items[p].configure(shape_id, materials, unoccluding, self);
 
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
@@ -333,7 +345,11 @@ pub const Scene = struct {
             try self.volumes.append(alloc, p);
         } else {
             if (shape_inst.finite()) {
-                try self.finite_props.append(alloc, p);
+                if (self.props.items[p].unoccluding()) {
+                    try self.unoccluding_props.append(alloc, p);
+                } else {
+                    try self.finite_props.append(alloc, p);
+                }
             } else {
                 try self.infinite_props.append(alloc, p);
             }
@@ -640,7 +656,7 @@ pub const Scene = struct {
         return self.light_tree.randomLight(p, n, total_sphere, random, split_threshold, self, buffer);
     }
 
-    pub fn lightPdfSpatial(self: *const Scene, id: u32, p: Vec4f, n: Vec4f, total_sphere: bool, split_threshold: f32) f32 {
+    pub fn lightPdfSpatial(self: *const Scene, id: u32, vertex: *const Vertex, split_threshold: f32) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -649,7 +665,24 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        return self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
+        return self.light_tree.pdf(vertex.origin, vertex.geo_n, vertex.state.is_translucent, split_threshold, id, self);
+    }
+
+    pub fn lightPdf(
+        self: *const Scene,
+        vertex: *const Vertex,
+        frag: *const Fragment,
+        split_threshold: f32,
+    ) f32 {
+        const light_id = frag.lightId(self);
+
+        if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
+            return 1.0;
+        }
+
+        const select_pdf = self.lightPdfSpatial(light_id, vertex, split_threshold);
+        const sample_pdf = self.light(light_id).pdf(vertex, frag, split_threshold, self);
+        return hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf);
     }
 
     pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {
