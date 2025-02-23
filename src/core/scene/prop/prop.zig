@@ -18,6 +18,7 @@ pub const Prop = struct {
     const Properties = packed struct {
         visible_in_camera: bool = true,
         visible_in_reflection: bool = true,
+        visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
         unoccluding: bool = false,
         volume: bool = false,
@@ -72,8 +73,6 @@ pub const Prop = struct {
 
     pub fn setShadowCatcher(self: *Prop) void {
         self.properties.shadow_catcher = true;
-        self.properties.visible_in_camera = true;
-        self.properties.visible_in_reflection = false;
     }
 
     pub fn configure(self: *Prop, shape: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
@@ -111,6 +110,7 @@ pub const Prop = struct {
 
         self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
         self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
+        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else self.properties.visible_in_reflection;
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
@@ -149,7 +149,7 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (!properties.visible_in_reflection) {
+        if (!properties.visible_in_shadow) {
             return true;
         }
 

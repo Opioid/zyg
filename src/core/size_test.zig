@@ -33,7 +33,7 @@ pub fn testSize() void {
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 208);
     testType(Fragment, "Fragment", 208);
-    testType(Vertex, "Vertex", 400);
+    testType(Vertex, "Vertex", 416);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
