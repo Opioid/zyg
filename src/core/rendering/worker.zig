@@ -326,10 +326,10 @@ pub const Worker = struct {
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
-        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
+        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive, rs.trafo);
 
-        const dpdu_w = rs.trafo.objectToWorldNormal(ds.dpdu);
-        const dpdv_w = rs.trafo.objectToWorldNormal(ds.dpdv);
+        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
+        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
 
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
     }

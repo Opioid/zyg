@@ -7,6 +7,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const DifferentialSurface = smpl.DifferentialSurface;
 const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
@@ -67,7 +68,9 @@ pub const Rectangle = struct {
         frag.geo_n = n;
         if (frag.trafo.scaleZ() < 0.0) {
             const k = p - frag.trafo.position;
-            frag.uvw = .{ math.dot3(t, k), math.dot3(b, k), 0.0, 0.0 };
+            const u = math.dot3(t, k);
+            const v = math.dot3(b, k);
+            frag.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
         } else {
             const u = frag.isec.u;
             const v = frag.isec.v;
@@ -424,5 +427,13 @@ pub const Rectangle = struct {
         const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return (material_pdf * sl) / (c * area);
+    }
+
+    pub fn differentialSurface(trafo: Trafo) DifferentialSurface {
+        if (trafo.scaleZ() < 0.0) {
+            return .{ .dpdu = .{ -2.0 / trafo.scaleX(), 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0 / trafo.scaleY(), 0.0, 0.0 } };
+        } else {
+            return .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } };
+        }
     }
 };

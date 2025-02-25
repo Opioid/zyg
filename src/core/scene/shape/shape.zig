@@ -480,10 +480,11 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn differentialSurface(self: *const Shape, primitive: u32) DifferentialSurface {
+    pub fn differentialSurface(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
         return switch (self.*) {
+            .Rectangle => Rectangle.differentialSurface(trafo),
             .TriangleMesh => |*m| m.differentialSurface(primitive),
-            else => .{ .dpdu = .{ 1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } },
+            else => .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } },
         };
     }
 };
