@@ -55,7 +55,7 @@ pub const Builder = struct {
 
         var current_triangle: u32 = 0;
         self.super.newNode();
-        self.serialize(0, 0, tree, triangles, vertices, &current_triangle);
+        self.serialize(0, 0, tree, triangles, &current_triangle);
     }
 
     const ReferencesContext = struct {
@@ -94,7 +94,6 @@ pub const Builder = struct {
         dest_node: u32,
         tree: *Tree,
         triangles: []const IndexTriangle,
-        vertices: VertexBuffer,
         current_triangle: *u32,
     ) void {
         const node = self.super.kernel.build_nodes.items[source_node];
@@ -110,8 +109,8 @@ pub const Builder = struct {
 
             const source_child0 = node.children();
 
-            self.serialize(source_child0, child0, tree, triangles, vertices, current_triangle);
-            self.serialize(source_child0 + 1, child0 + 1, tree, triangles, vertices, current_triangle);
+            self.serialize(source_child0, child0, tree, triangles, current_triangle);
+            self.serialize(source_child0 + 1, child0 + 1, tree, triangles, current_triangle);
         } else {
             var i = current_triangle.*;
 
@@ -122,7 +121,7 @@ pub const Builder = struct {
 
             for (begin..end) |p| {
                 const t = triangles[self.super.kernel.reference_ids.items[p]];
-                tree.data.setTriangle(i, t.i[0], t.i[1], t.i[2], t.part, vertices);
+                tree.data.setTriangle(i, t.i[0], t.i[1], t.i[2], t.part);
 
                 i += 1;
             }
