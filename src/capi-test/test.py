@@ -44,6 +44,8 @@ def py_progress_tick():
         
 if platform.system() == "Windows":
     zyg = CDLL("./zyg.dll")
+elif platform.system() == "Darwin":
+    zyg = CDLL("./libzyg.dylib")
 else:
     zyg = CDLL("./libzyg.so")
 
@@ -76,7 +78,9 @@ zyg.su_sampler_create(64)
 
 integrators_desc = """{
 "surface": {
-"PTMIS": {}
+"PTMIS": {
+        "regularize_roughness": true
+    }
 }
 }"""
 
@@ -134,7 +138,7 @@ material_light_desc = """{
 
 material_light = c_uint(zyg.su_material_create(-1, c_char_p(material_light_desc.encode('utf-8'))));
 
-sphere_a = zyg.su_prop_create(7, 1, byref(material_a))
+sphere_a = zyg.su_prop_create(6, 1, byref(material_a))
 
 plane_a = zyg.su_prop_create(5, 1, byref(material_b))
 
@@ -213,9 +217,9 @@ transformation = Transformation(1.0, 0.0, 0.0, 0.0,
 
 zyg.su_prop_set_transformation(sphere_a, transformation)
 
-transformation = Transformation(1.0, 0.0, 0.0, 0.0,
-                                0.0, 0.0, -1.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0,
+transformation = Transformation(10.0, 0.0, 0.0, 0.0,
+                                0.0, 0.0, -10.0, 0.0,
+                                0.0, 10.0, 0.0, 0.0,
                                 0.0, 0.0, 0.0, 1.0)
 
 zyg.su_prop_set_transformation(plane_a, transformation)
