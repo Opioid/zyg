@@ -1,4 +1,5 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Vertex = @import("../../vertex.zig").Vertex;
 const Scene = @import("../../scene.zig").Scene;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -472,11 +473,12 @@ pub const Mesh = struct {
         var t: Vec4f = undefined;
         var n: Vec4f = undefined;
         var uv: Vec2f = undefined;
-        data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv);
+        var bit_sign: f32 = undefined;
+        data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv, &bit_sign);
 
         const t_w = frag.trafo.objectToWorldNormal(t);
         const n_w = frag.trafo.objectToWorldNormal(n);
-        const b_w = @as(Vec4f, @splat(itri.bitangentSign())) * math.cross3(n_w, t_w);
+        const b_w = @as(Vec4f, @splat(bit_sign)) * math.cross3(n_w, t_w);
 
         frag.t = t_w;
         frag.b = b_w;
@@ -514,6 +516,18 @@ pub const Mesh = struct {
     ) bool {
         const tray = trafo.worldToObjectRay(ray);
         return self.tree.transmittance(tray, entity, depth, sampler, worker, tr);
+    }
+
+    pub fn emission(
+        self: *const Mesh,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        const tray = frag.trafo.worldToObjectRay(vertex.probe.ray);
+        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, scene);
     }
 
     pub fn scatter(
@@ -906,27 +920,27 @@ pub const Mesh = struct {
         const duv12 = puv.uv[1] - puv.uv[2];
         const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
 
-        var dpdu: Vec4f = undefined;
-        var dpdv: Vec4f = undefined;
-
         const dp02 = puv.p[0] - puv.p[2];
         const dp12 = puv.p[1] - puv.p[2];
+
+        var dpdu: Vec4f = undefined;
+        var dpdv: Vec4f = undefined;
 
         if (0.0 == @abs(determinant)) {
             const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
 
             if (@abs(ng[0]) > @abs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
+                dpdu = Vec4f{ -ng[2], 0.0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
             } else {
-                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
+                dpdu = Vec4f{ 0.0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
             }
 
             dpdv = math.cross3(ng, dpdu);
         } else {
-            const invdet = 1.0 / determinant;
+            const invdet: Vec4f = @splat(1.0 / determinant);
 
-            dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
-            dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
+            dpdu = invdet * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
+            dpdv = invdet * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
         }
 
         return .{ .dpdu = dpdu, .dpdv = dpdv };

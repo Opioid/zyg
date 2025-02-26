@@ -7,11 +7,18 @@ const mat = @import("../material/material.zig");
 const RadianceResult = @import("../material/material_base.zig").Base.RadianceResult;
 
 const math = @import("base").math;
+const Ray = math.Ray;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Volume = struct {
-    pub const Event = enum(u8) { Absorb, Scatter, ExitSSS, Pass };
+    pub const Event = enum(u8) {
+        Absorb,
+        Abort,
+        ExitSSS,
+        Pass,
+        Scatter,
+    };
 
     li: Vec4f,
     tr: Vec4f,
@@ -33,7 +40,7 @@ pub const Volume = struct {
             .li = @splat(0.0),
             .tr = @splat(0.0),
             .t = 0.0,
-            .event = .Absorb,
+            .event = .Abort,
         };
     }
 };
@@ -76,10 +83,6 @@ pub const Fragment = struct {
         return Scene.Null != self.prop;
     }
 
-    pub inline fn clear(self: *Self) void {
-        self.prop = Scene.Null;
-    }
-
     pub fn material(self: Self, scene: *const Scene) *const mat.Material {
         return scene.propMaterial(self.prop, self.part);
     }
@@ -112,6 +115,10 @@ pub const Fragment = struct {
         const p = self.p;
         const n = if (self.sameHemisphere(v)) self.geo_n else -self.geo_n;
         return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
+    }
+
+    pub fn offsetRay(self: Self, dir: Vec4f, max_t: f32) Ray {
+        return Ray.init(self.offsetP(dir), dir, 0.0, max_t);
     }
 
     pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {

@@ -109,6 +109,13 @@ pub const Material = union(enum) {
         return self.super().properties.scattering_volume;
     }
 
+    pub fn pureEmissive(self: *const Material) bool {
+        return switch (self.*) {
+            .Light => true,
+            else => false,
+        };
+    }
+
     pub fn heterogeneousVolume(self: *const Material) bool {
         return switch (self.*) {
             .Volumetric => |*m| m.density_map.valid(),

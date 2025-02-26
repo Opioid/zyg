@@ -49,8 +49,9 @@ pub const System = struct {
     }
 
     pub fn popMount(self: *System, alloc: Allocator) void {
-        const mount = self.mounts.pop();
-        alloc.free(mount);
+        if (self.mounts.pop()) |mount| {
+            alloc.free(mount);
+        }
     }
 
     pub fn readStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {

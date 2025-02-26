@@ -272,8 +272,8 @@ const LuminanceContext = struct {
                         const row = y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
-                            const t = mat.emittance.emission_map.get3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const t = mat.emittance.emission_map.image3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
                             const c = mat.blackbody.eval(t);
                             const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
@@ -292,7 +292,7 @@ const LuminanceContext = struct {
                         const row = y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const density = mat.density_map.get3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
                             const radiance: Vec4f = @splat(density[0] * density[1]);
 
                             self.luminance[slice + row + x] = math.hmax3(radiance);

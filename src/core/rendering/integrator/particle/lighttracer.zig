@@ -82,12 +82,9 @@ pub const Lighttracer = struct {
                 const sampler = worker.pickSampler(total_depth);
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(vertex, &frag, sampler)) {
-                    continue;
-                }
-
-                if (.Absorb == frag.event) {
-                    continue;
+                worker.nextEvent(vertex, &frag, sampler);
+                if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
+                    break;
                 }
 
                 if (0 == vertex.probe.depth.surface) {
@@ -138,8 +135,7 @@ pub const Lighttracer = struct {
 
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                    next_vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                    next_vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+                    next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
 
                     if (!class.straight) {

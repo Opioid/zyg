@@ -184,17 +184,17 @@ pub const Denoise = struct {
         const begin = -self.radius_r;
         const end = self.radius_r;
 
-        const ref_color = source.get2D_3(px, py, scene);
-        const ref_n = normal.get2D_3(px, py, scene);
-        const ref_albedo = albedo.get2D_3(px, py, scene);
-        const ref_depth = depth.get2D_1(px, py, scene);
+        const ref_color = source.image2D_3(px, py, scene);
+        const ref_n = normal.image2D_3(px, py, scene);
+        const ref_albedo = albedo.image2D_3(px, py, scene);
+        const ref_depth = depth.image2D_1(px, py, scene);
 
         const noise_estimate = estimateNoise(source, dim, px, py, scene);
 
         // const ref_l = std.math.pow(f32, math.hmax3(ref_color), 1.0 / 2.2);
 
-        const depth_dx = math.max(1.0 / 512.0, math.min(@abs(depth.get2D_1(@min(px + 1, dim[0]), py, scene) - ref_depth), @abs(depth.get2D_1(@max(px - 1, 0), py, scene) - ref_depth)));
-        const depth_dy = math.max(1.0 / 512.0, math.min(@abs(depth.get2D_1(px, @min(py + 1, dim[1]), scene) - ref_depth), @abs(depth.get2D_1(px, @max(py - 1, 0), scene) - ref_depth)));
+        const depth_dx = math.max(1.0 / 512.0, math.min(@abs(depth.image2D_1(@min(px + 1, dim[0]), py, scene) - ref_depth), @abs(depth.image2D_1(@max(px - 1, 0), py, scene) - ref_depth)));
+        const depth_dy = math.max(1.0 / 512.0, math.min(@abs(depth.image2D_1(px, @min(py + 1, dim[1]), scene) - ref_depth), @abs(depth.image2D_1(px, @max(py - 1, 0), scene) - ref_depth)));
 
         var result: Vec4f = @splat(0.0);
 
@@ -216,15 +216,15 @@ pub const Denoise = struct {
 
                 w += 1;
 
-                const f_depth = depth.get2D_1(sx, sy, scene);
+                const f_depth = depth.image2D_1(sx, sy, scene);
 
                 const depth_dist = @abs(ref_depth - f_depth);
                 //  const expected_depth_dist = @sqrt(@abs(fx * depth_dx) + @abs(fy * depth_dy));
                 //   const expected_depth_dist = math.length2(.{ fx * depth_dx, fy * depth_dy });
                 const expected_depth_dist = fx * depth_dx + fy * depth_dy;
 
-                const f_n = normal.get2D_3(sx, sy, scene);
-                const f_albedo = albedo.get2D_3(sx, sy, scene);
+                const f_n = normal.image2D_3(sx, sy, scene);
+                const f_albedo = albedo.image2D_3(sx, sy, scene);
 
                 const dot_n = math.saturate(math.dot3(ref_n, f_n));
 
@@ -235,9 +235,9 @@ pub const Denoise = struct {
 
                 const strength = @as(Vec4f, @splat(dd * (dot_n * dot_n) * (1.0 - dist_albedo) * noise_estimate));
 
-                const color = math.lerp(ref_color, source.get2D_3(sx, sy, scene), strength);
+                const color = math.lerp(ref_color, source.image2D_3(sx, sy, scene), strength);
 
-                // const color = strength; //math.lerp(ref_color, source.get2D_3(sx, sy, scene), strength);
+                // const color = strength; //math.lerp(ref_color, source.image2D_3(sx, sy, scene), strength);
 
                 result += weigth * color;
             }
@@ -267,8 +267,8 @@ pub const Denoise = struct {
 
         _ = normal;
         _ = albedo;
-        // const ref_n = normal.get2D_3(px, py, scene);
-        // const ref_albedo = albedo.get2D_3(px, py, scene);
+        // const ref_n = normal.image2D_3(px, py, scene);
+        // const ref_albedo = albedo.image2D_3(px, py, scene);
 
         var result: Vec4f = @splat(0.0);
 
@@ -314,8 +314,8 @@ pub const Denoise = struct {
 
                 w += 1;
 
-                // const f_n = normal.get2D_3(sx, sy, scene);
-                // const f_albedo = albedo.get2D_3(sx, sy, scene);
+                // const f_n = normal.image2D_3(sx, sy, scene);
+                // const f_albedo = albedo.image2D_3(sx, sy, scene);
 
                 // const dot_n = math.max(math.dot3(ref_n, f_n), 0.0);
 
@@ -390,7 +390,7 @@ pub const Denoise = struct {
         const begin = -Radius;
         const end = Radius;
 
-        // const ref_color = source.get2D_3(px, py, scene);
+        // const ref_color = source.image2D_3(px, py, scene);
         // const ref_l = std.math.pow(f32, math.hmax3(ref_color), 1.0 / 2.2);
 
         var sum: f32 = 0.0;
@@ -403,7 +403,7 @@ pub const Denoise = struct {
                 const sx = std.math.clamp(px + x, 0, dim[0] - 1);
                 const sy = std.math.clamp(py + y, 0, dim[1] - 1);
 
-                const color = source.get2D_3(sx, sy, scene);
+                const color = source.image2D_3(sx, sy, scene);
                 const l = std.math.pow(f32, math.hmax3(color), 1.0 / 2.2);
 
                 sum += l;
@@ -425,7 +425,7 @@ pub const Denoise = struct {
                 const sx = std.math.clamp(px + x, 0, dim[0] - 1);
                 const sy = std.math.clamp(py + y, 0, dim[1] - 1);
 
-                const color = source.get2D_3(sx, sy, scene);
+                const color = source.image2D_3(sx, sy, scene);
                 const l = std.math.pow(f32, math.hmax3(color), 1.0 / 2.2);
 
                 const dif = (l - mean);

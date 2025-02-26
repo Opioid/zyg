@@ -107,11 +107,8 @@ pub const Mapper = struct {
                 var sampler = &self.sampler;
 
                 var frag: Fragment = undefined;
-                if (!worker.nextEvent(&vertex, &frag, sampler)) {
-                    break;
-                }
-
-                if (.Absorb == frag.event) {
+                worker.nextEvent(&vertex, &frag, sampler);
+                if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
                     break;
                 }
 
@@ -177,8 +174,7 @@ pub const Mapper = struct {
                     vertex.state.primary_ray = false;
                 }
 
-                vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-                vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+                vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                 vertex.probe.depth.increment(&frag);
 
                 if (!sample_result.class.straight) {

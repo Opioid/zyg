@@ -62,10 +62,10 @@ pub const Vertex = struct {
         primary_ray: bool = true,
         transparent: bool = true,
         treat_as_singular: bool = true,
-        forward: bool = true,
         is_translucent: bool = false,
         started_specular: bool = false,
-        shadow_catcher_path: bool = false,
+        from_shadow_catcher: bool = false,
+        shadow_catcher_in_camera: bool = false,
         exit_sss: bool = false,
     };
 
@@ -81,6 +81,7 @@ pub const Vertex = struct {
     throughput: Vec4f,
     shadow_catcher_occluded: Vec4f,
     shadow_catcher_unoccluded: Vec4f,
+    shadow_catcher_emission: Vec4f,
     origin: Vec4f,
     geo_n: Vec4f,
 
@@ -100,6 +101,7 @@ pub const Vertex = struct {
             .throughput = @splat(1.0),
             .shadow_catcher_occluded = undefined,
             .shadow_catcher_unoccluded = undefined,
+            .shadow_catcher_emission = @splat(0.0),
             .origin = ray.origin,
             .geo_n = @splat(0.0),
             .mediums = mediums.clone(),
@@ -203,6 +205,8 @@ pub const Vertex = struct {
 pub const Pool = struct {
     pub const NumVertices = 4;
 
+    transparency: Vec4f,
+
     buffer: [2 * NumVertices]Vertex,
     terminated: u32,
 
@@ -212,9 +216,8 @@ pub const Pool = struct {
     next_start: u32,
     next_end: u32,
 
-    alpha: f32,
-
     pub fn start(self: *Pool, vertex: Vertex) void {
+        self.transparency = @splat(0.0);
         self.buffer[0] = vertex;
         self.terminated = 0;
         self.current_id = NumVertices;
@@ -222,7 +225,6 @@ pub const Pool = struct {
         self.current_end = NumVertices;
         self.next_start = 0;
         self.next_end = 1;
-        self.alpha = 0.0;
     }
 
     pub fn iterate(self: *Pool) bool {
@@ -232,16 +234,20 @@ pub const Pool = struct {
             const mask = @as(u32, 1) << @as(u5, @truncate(i));
             if (0 != (self.terminated & mask)) {
                 const v = &self.buffer[i];
-                if (v.state.shadow_catcher_path) {
+                if (v.state.shadow_catcher_in_camera) {
                     const occluded = v.shadow_catcher_occluded;
                     const unoccluded = v.shadow_catcher_unoccluded;
                     const ol = occluded < unoccluded;
                     const shadow_ratio = @select(f32, ol, occluded / unoccluded, @as(Vec4f, @splat(1.0)));
-                    self.alpha += math.max((1.0 - math.average3(shadow_ratio)) * v.split_weight, 0.0);
+                    const alpha = self.transparency[3];
+                    self.transparency += shadow_ratio * v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
+                    self.transparency[3] = alpha + math.max((1.0 - math.average3(shadow_ratio)) * v.split_weight, 0.0);
                 } else if (v.state.transparent) {
-                    self.alpha += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
+                    self.transparency[3] += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
                 } else {
-                    self.alpha += v.split_weight;
+                    const alpha = self.transparency[3];
+                    self.transparency += v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
+                    self.transparency[3] = alpha + v.split_weight;
                 }
             }
         }

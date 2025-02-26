@@ -35,15 +35,15 @@ pub fn testSize() void {
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 208);
     testType(Fragment, "Fragment", 208);
-    testType(Vertex, "Vertex", 400);
+    testType(Vertex, "Vertex", 416);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 16);
     testType(mdm.Stack, "MediumStack", 208);
-    testType(mt.Material, "Material", 368);
-    testType(mt.Substitute, "SubstituteMaterial", 352);
+    testType(mt.Material, "Material", 352);
+    testType(mt.Substitute, "SubstituteMaterial", 336);
     testType(mt.Hair, "HairMaterial", 160);
     testType(mt.Sample, "MaterialSample", 288);
     testType(mtsmpl.Substitute, "SubstituteSample", 240);

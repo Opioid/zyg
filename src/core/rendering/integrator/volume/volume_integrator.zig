@@ -136,19 +136,20 @@ pub const Integrator = struct {
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
+    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
         const medium = vertex.mediums.top();
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            return integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
+            integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
+            return;
         }
 
-        const RayMaxT = vertex.probe.ray.max_t;
-        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse RayMaxT;
-        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), RayMaxT);
+        const ray_max_t = vertex.probe.ray.max_t;
+        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
+        vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
         if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
-            return false;
+            return;
         }
 
         const tray = if (material.heterogeneousVolume())
@@ -177,89 +178,10 @@ pub const Integrator = struct {
         frag.event = result.event;
         frag.vol_li = result.li;
         vertex.throughput *= result.tr;
-        return true;
     }
 
-    fn integrateSSS(prop: u32, material: *const Material, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        const cc = vertex.mediums.topCC();
-        const g = material.super().volumetric_anisotropy;
-
-        for (0..256) |_| {
-            const hit = worker.propIntersect(prop, &vertex.probe, frag);
-            if (!hit) {
-                // We don't immediately abort even if not hitting the prop.
-                // This way SSS looks less wrong in case of geometry that isn't "watertight".
-                const limit = worker.scene.propAabbIntersectP(prop, vertex.probe.ray) orelse return false;
-                vertex.probe.ray.setMaxT(limit);
-            }
-
-            const tray = if (material.heterogeneousVolume())
-                worker.scene.propTransformationAt(prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
-            else
-                vertex.probe.ray;
-
-            const result = propScatter(
-                tray,
-                vertex.throughput,
-                material,
-                cc,
-                prop,
-                vertex.probe.depth.volume,
-                sampler,
-                worker,
-            );
-
-            vertex.throughput *= result.tr;
-
-            if (hit and .Scatter != result.event) {
-                worker.propInterpolateFragment(prop, &vertex.probe, frag);
-
-                if (frag.sameHemisphere(vertex.probe.ray.direction)) {
-                    vertex.mediums.pop();
-                    frag.event = .ExitSSS;
-                } else {
-                    frag.event = .Pass;
-                }
-
-                frag.vol_li = @splat(0.0);
-
-                return true;
-            } else if (!hit and .Pass == result.event) {
-                return false;
-            }
-
-            if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
-                return false;
-            }
-
-            const frame = Frame.init(vertex.probe.ray.direction);
-
-            const r2 = sampler.sample2D();
-
-            var cos_theta: f32 = undefined;
-            if (@abs(g) < 0.001) {
-                cos_theta = 1.0 - 2.0 * r2[0];
-            } else {
-                const gg = g * g;
-                const sqr = (1.0 - gg) / (1.0 - g + 2.0 * g * r2[0]);
-                cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
-            }
-
-            const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
-            const phi = r2[1] * (2.0 * std.math.pi);
-
-            const wil = math.smpl.sphereDirection(sin_theta, cos_theta, phi);
-            const wi = frame.frameToWorld(wil);
-
-            vertex.probe.ray.origin = vertex.probe.ray.point(result.t);
-            vertex.probe.ray.setDirection(wi, ro.RayMaxT);
-        }
-
-        return false;
-    }
-
-    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) bool {
-        frag.clear();
+    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
+        frag.event = .Abort;
 
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
@@ -277,7 +199,7 @@ pub const Integrator = struct {
             const sum_weights = channel_weights[0] + channel_weights[1] + channel_weights[2];
 
             if (sum_weights < 1e-6) {
-                return false;
+                return;
             }
 
             channel_weights /= @splat(sum_weights);
@@ -304,7 +226,7 @@ pub const Integrator = struct {
             local_weight *= pdf;
 
             if (hlp.russianRoulette(&local_weight, r3[2])) {
-                return false;
+                return;
             }
 
             vertex.probe.ray.max_t = free_path;
@@ -315,8 +237,7 @@ pub const Integrator = struct {
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
 
-                vertex.probe.ray.origin = vertex.probe.ray.point(free_path);
-                vertex.probe.ray.setDirection(wi, ro.RayMaxT);
+                vertex.probe.ray = Ray.init(vertex.probe.ray.point(free_path), wi, 0.0, ro.RayMaxT);
 
                 local_weight *= albedo;
             } else {
@@ -338,11 +259,9 @@ pub const Integrator = struct {
 
                 vertex.throughput *= local_weight;
 
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 
     fn sampleHg(g: f32, sampler: *Sampler) Vec4f {

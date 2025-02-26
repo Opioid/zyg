@@ -41,6 +41,10 @@ pub const Key = struct {
 };
 
 pub fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
+    if (!texture.valid()) {
+        return texture.uniform1();
+    }
+
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),
         .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, scene),
@@ -55,6 +59,10 @@ pub fn sample2D_2(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scen
 }
 
 pub fn sample2D_3(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    if (!texture.valid()) {
+        return texture.uniform3();
+    }
+
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
         .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, scene),
@@ -78,20 +86,20 @@ pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, sce
 const Nearest2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_1(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr);
+        return texture.image2D_1(m[0], m[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_2(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr);
+        return texture.image2D_2(m[0], m[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, scene: *const Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr);
-        return texture.get2D_3(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr);
+        return texture.image2D_3(m[0], m[1], scene);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address) Vec2i {
@@ -112,20 +120,20 @@ const Nearest2D = struct {
 const LinearStochastic2D = struct {
     pub fn sample_1(texture: Texture, uv: Vec2f, adr: Address, sampler: *Sampler, scene: *const Scene) f32 {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
-        return texture.get2D_1(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr, sampler);
+        return texture.image2D_1(m[0], m[1], scene);
     }
 
     pub fn sample_2(texture: Texture, uv: Vec2f, adr: Address, sampler: *Sampler, scene: *const Scene) Vec2f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
-        return texture.get2D_2(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr, sampler);
+        return texture.image2D_2(m[0], m[1], scene);
     }
 
     pub fn sample_3(texture: Texture, uv: Vec2f, adr: Address, sampler: *Sampler, scene: *const Scene) Vec4f {
         const d = texture.description(scene).dimensions;
-        const m = map(.{ d[0], d[1] }, texture.scale * uv, adr, sampler);
-        return texture.get2D_3(m[0], m[1], scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * uv, adr, sampler);
+        return texture.image2D_3(m[0], m[1], scene);
     }
 
     fn map(d: Vec2i, uv: Vec2f, adr: Address, sampler: *Sampler) Vec2i {
@@ -161,13 +169,13 @@ const Nearest3D = struct {
     pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, scene: *const Scene) f32 {
         const d = texture.description(scene).dimensions;
         const m = map(d, uvw, adr);
-        return texture.get3D_1(m[0], m[1], m[2], scene);
+        return texture.image3D_1(m[0], m[1], m[2], scene);
     }
 
     pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, scene: *const Scene) Vec2f {
         const d = texture.description(scene).dimensions;
         const m = map(d, uvw, adr);
-        return texture.get3D_2(m[0], m[1], m[2], scene);
+        return texture.image3D_2(m[0], m[1], m[2], scene);
     }
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address) Vec4i {
@@ -181,13 +189,13 @@ const LinearStochastic3D = struct {
     pub fn sample_1(texture: Texture, uvw: Vec4f, adr: Address, sampler: *Sampler, scene: *const Scene) f32 {
         const d = texture.description(scene).dimensions;
         const m = map(d, uvw, adr, sampler);
-        return texture.get3D_1(m[0], m[1], m[2], scene);
+        return texture.image3D_1(m[0], m[1], m[2], scene);
     }
 
     pub fn sample_2(texture: Texture, uvw: Vec4f, adr: Address, sampler: *Sampler, scene: *const Scene) Vec2f {
         const d = texture.description(scene).dimensions;
         const m = map(d, uvw, adr, sampler);
-        return texture.get3D_2(m[0], m[1], m[2], scene);
+        return texture.image3D_2(m[0], m[1], m[2], scene);
     }
 
     fn map(d: Vec4i, uvw: Vec4f, adr: Address, sampler: *Sampler) Vec4i {

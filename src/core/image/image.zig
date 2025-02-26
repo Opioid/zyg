@@ -27,12 +27,23 @@ const Allocator = std.mem.Allocator;
 
 pub const Swizzle = enum {
     X,
+    Y,
+    Z,
     W,
     XY,
     YX,
     YZ,
     XYZ,
     XYZW,
+
+    pub fn numChannels(self: Swizzle) u32 {
+        return switch (self) {
+            .X, .Y, .Z, .W => 1,
+            .XY, .YX, .YZ => 2,
+            .XYZ => 3,
+            .XYZW => 4,
+        };
+    }
 };
 
 pub const Type = enum {

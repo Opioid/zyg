@@ -66,7 +66,7 @@ pub const Sample = struct {
         const rough = alpha > 0.0;
 
         if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
-            (self.super.avoidCaustics() and alpha <= ggx.Min_alpha))
+            (self.super.avoidCaustics() and alpha <= ggx.MinAlpha))
         {
             return bxdf.Result.empty();
         }

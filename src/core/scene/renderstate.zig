@@ -62,7 +62,7 @@ pub const Renderstate = struct {
 
         const mod_alpha = math.max2(alpha, @splat(self.min_alpha));
 
-        if (alpha[0] <= ggx.Min_alpha) {
+        if (alpha[0] <= ggx.MinAlpha) {
             if (.Rough == self.caustics) {
                 const l = math.length3(self.p - self.origin);
                 const m = math.min(0.1 * (1.0 + l), 1.0);

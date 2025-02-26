@@ -46,12 +46,6 @@ pub const Buffer = union(enum) {
             inline else => |v| v.copy(positions, frames, uvs, count),
         };
     }
-
-    pub fn bitangentSign(self: Buffer, i: u32) bool {
-        return switch (self) {
-            inline else => |v| v.bitangentSign(i),
-        };
-    }
 };
 
 pub const Separate = struct {
@@ -109,6 +103,10 @@ pub const Separate = struct {
                 const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
 
                 frames[i] = quaternion.initFromTN(t, n);
+
+                if (self.bts.len > i and self.bts[i] > 0) {
+                    frames[i][3] = -frames[i][3];
+                }
             }
         } else {
             for (0..count) |i| {
@@ -125,10 +123,6 @@ pub const Separate = struct {
         } else {
             @memset(uvs[0..count], .{ 0.0, 0.0 });
         }
-    }
-
-    pub fn bitangentSign(self: Self, i: u32) bool {
-        return if (self.bts.len > i) self.bts[i] > 0 else false;
     }
 };
 
@@ -158,14 +152,10 @@ pub const SeparateQuat = struct {
         @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
         for (self.ts[0..count], 0..count) |ts, i| {
-            frames[i] = .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
+            frames[i] = ts.v; // .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
         }
 
         @memcpy(uvs[0..count], self.uvs);
-    }
-
-    pub fn bitangentSign(self: Self, i: u32) bool {
-        return self.ts[i].v[3] < 0.0;
     }
 };
 
@@ -232,6 +222,10 @@ pub const CAPI = struct {
                 const t = Vec4f{ self.tangents[tid + 0], self.tangents[tid + 1], self.tangents[tid + 2], 0.0 };
 
                 frames[i] = quaternion.initFromTN(t, n);
+
+                if (self.tangents_stride > 3 and self.tangents[tid + 3] < 0.0) {
+                    frames[i][3] = -frames[i][3];
+                }
             }
         }
 
@@ -240,16 +234,5 @@ pub const CAPI = struct {
             const id = i * self.uvs_stride;
             uvs[i] = .{ self.uvs[id + 0], self.uvs[id + 1] };
         }
-    }
-
-    pub fn bitangentSign(self: Self, i: u32) bool {
-        const stride = self.tangents_stride;
-
-        if (stride <= 3) {
-            return false;
-        }
-
-        const sign = self.tangents[i * stride + 3];
-        return sign < 0.0;
     }
 };

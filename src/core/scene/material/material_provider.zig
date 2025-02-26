@@ -186,7 +186,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
@@ -278,15 +278,15 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, material.color, .Color, self.tex, resources));
+                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, material.color_map.uniform3(), .Color, self.tex, resources));
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 loadEmittance(alloc, entry.value_ptr.*, self.tex, resources, &material.emittance);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness, .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-                material.surface_map = readTexture(alloc, entry.value_ptr.*, .Surface, self.tex, resources);
+                log.warning("Surface maps are no longer supported. Please use separate roughness and metallic maps instead.", .{});
             } else if (std.mem.eql(u8, "checkers", entry.key_ptr.*)) {
                 var checkers: [2]Vec4f = .{ @splat(0.0), @splat(0.0) };
                 var checkers_scale: f32 = 0.0;
@@ -305,17 +305,17 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
                 const eta_k = metal.iorAndAbsorption(entry.value_ptr.string);
                 material.setColor(MappedValue(Vec4f).init(fresnel.conductor(eta_k[0], eta_k[1], 1.0)));
-                material.metallic = 1.0;
+                material.metallic_map = Texture.initUniform1(1.0);
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.setRotation(readValue(f32, alloc, entry.value_ptr.*, material.rotation, .Roughness, self.tex, resources));
+                material.setRotation(readValue(f32, alloc, entry.value_ptr.*, material.rotation_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                material.metallic = json.readFloat(f32, entry.value_ptr.*);
+                material.setMetallic(readValue(f32, alloc, entry.value_ptr.*, material.metallic_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.super.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
@@ -349,7 +349,7 @@ pub const Provider = struct {
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating_roughness,
+                            material.coating_roughness_map.uniform1(),
                             .Roughness,
                             self.tex,
                             resources,
@@ -382,10 +382,6 @@ pub const Provider = struct {
                     }
                 }
             }
-        }
-
-        if (attenuation_distance > 0.0 and math.allLessEqualZero3(attenuation_color)) {
-            attenuation_color = material.color;
         }
 
         material.super.setVolumetric(
@@ -528,6 +524,10 @@ const TextureDescriptor = struct {
 
                         if (std.mem.eql(u8, "X", swizzle)) {
                             desc.swizzle = .X;
+                        } else if (std.mem.eql(u8, "Y", swizzle)) {
+                            desc.swizzle = .Y;
+                        } else if (std.mem.eql(u8, "Z", swizzle)) {
+                            desc.swizzle = .Z;
                         } else if (std.mem.eql(u8, "W", swizzle)) {
                             desc.swizzle = .W;
                         } else if (std.mem.eql(u8, "YX", swizzle)) {

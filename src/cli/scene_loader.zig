@@ -244,10 +244,10 @@ pub const Loader = struct {
             var is_light = false;
 
             if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, false) catch continue;
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, false, true) catch continue;
                 is_light = true;
             } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, true) catch continue;
+                entity_id = self.loadProp(alloc, entity, local_materials, graph, true, false) catch continue;
             } else if (std.mem.eql(u8, "Sky", type_name)) {
                 entity_id = loadSky(alloc, entity, graph) catch continue;
             }
@@ -286,7 +286,7 @@ pub const Loader = struct {
                         const dimensions = t.description(scene).dimensions;
                         var offset: Vec4i = @splat(0);
 
-                        if (self.resources.images.meta(t.image)) |meta| {
+                        if (self.resources.images.meta(t.data.image.id)) |meta| {
                             offset = meta.queryOrDef("offset", offset);
 
                             // HACK, where do those values come from?!?!
@@ -352,6 +352,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         graph: *Graph,
         instancing: bool,
+        unoccluding_default: bool,
     ) !u32 {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
@@ -376,18 +377,18 @@ pub const Loader = struct {
                 return try scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createProp(alloc, shape, graph.materials.items);
+            const entity = try scene.createProp(alloc, shape, graph.materials.items, false);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
-            return try scene.createProp(alloc, shape, graph.materials.items);
+            const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
+            return try scene.createProp(alloc, shape, graph.materials.items, unoccluding);
         }
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
         var in_camera = true;
         var in_reflection = true;
-        var in_shadow = true;
         var shadow_catcher_light = false;
 
         var iter = value.object.iterator();
@@ -396,14 +397,12 @@ pub const Loader = struct {
                 in_camera = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "in_reflection", entry.key_ptr.*)) {
                 in_reflection = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "in_shadow", entry.key_ptr.*)) {
-                in_shadow = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "shadow_catcher_light", entry.key_ptr.*)) {
                 shadow_catcher_light = json.readBool(entry.value_ptr.*);
             }
         }
 
-        scene.propSetVisibility(prop, in_camera, in_reflection, in_shadow, shadow_catcher_light);
+        scene.propSetVisibility(prop, in_camera, in_reflection, shadow_catcher_light);
     }
 
     fn setShadowCatcher(prop: u32, value: std.json.Value, scene: *Scene) void {

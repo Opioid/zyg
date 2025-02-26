@@ -43,6 +43,9 @@ pub const PathtracerDL = struct {
 
             var frag: Fragment = undefined;
             _ = worker.nextEvent(&vertex, &frag, sampler);
+            if (.Abort == frag.event) {
+                continue;
+            }
 
             const energy = self.connectLight(&vertex, &frag, sampler, worker);
             const weighted_energy = vertex.throughput * energy;
@@ -98,8 +101,7 @@ pub const PathtracerDL = struct {
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.probe.ray.origin = frag.offsetP(sample_result.wi);
-            vertex.probe.ray.setDirection(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(&frag);
 
             if (0.0 == vertex.probe.wavelength) {
@@ -195,7 +197,7 @@ pub const PathtracerDL = struct {
         inf_frag.event = .Pass;
 
         for (worker.scene.infinite_props.items) |prop| {
-            if (!worker.propIntersect(prop, &vertex.probe, &inf_frag, false)) {
+            if (!worker.propIntersect(prop, &vertex.probe, &inf_frag)) {
                 continue;
             }
 

@@ -1,4 +1,5 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+const Vertex = @import("../vertex.zig").Vertex;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
@@ -54,7 +55,7 @@ pub const Sphere = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const p = ray.point(ray.max_t);
+        const p = ray.point(frag.isec.t);
         const n = math.normalize3(p - frag.trafo.position);
 
         frag.p = p;
@@ -187,6 +188,26 @@ pub const Sphere = struct {
         }
 
         return true;
+    }
+
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, scene: *const Scene) Vec4f {
+        const hit = intersect(vertex.probe.ray, frag.trafo);
+        if (Intersection.Null == hit.primitive) {
+            return @splat(0.0);
+        }
+
+        frag.isec = hit;
+
+        fragment(vertex.probe.ray, frag);
+
+        const p = vertex.origin;
+        const wo = -vertex.probe.ray.direction;
+
+        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
+
+        const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+
+        return energy * weight;
     }
 
     pub fn scatter(

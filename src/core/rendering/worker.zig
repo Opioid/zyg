@@ -339,22 +339,25 @@ pub const Worker = struct {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) bool {
+    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) void {
         if (!vertex.mediums.empty()) {
-            return VolumeIntegrator.integrate(vertex, frag, sampler, self);
+            VolumeIntegrator.integrate(vertex, frag, sampler, self);
+            return;
         }
 
         const origin = vertex.probe.ray.origin;
 
-        const hit = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
+        _ = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
         vertex.probe.ray.max_t += dif_t;
 
-        const volume_hit = self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
+        self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
+    }
 
-        return hit or volume_hit;
+    pub fn emission(self: *const Worker, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
+        return self.scene.emission(vertex, frag, split_threshold, sampler);
     }
 
     pub fn propTransmittance(
@@ -383,8 +386,8 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *const Worker, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, frag, override_visibility, self.scene)) {
+    pub fn propIntersect(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) bool {
+        if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
             frag.prop = entity;
             return true;
         }
@@ -422,10 +425,10 @@ pub const Worker = struct {
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
-        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive);
+        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive, rs.trafo);
 
-        const dpdu_w = rs.trafo.objectToWorldNormal(ds.dpdu);
-        const dpdv_w = rs.trafo.objectToWorldNormal(ds.dpdv);
+        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
+        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
 
         return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
     }

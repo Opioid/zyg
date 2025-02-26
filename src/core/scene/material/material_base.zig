@@ -26,6 +26,18 @@ pub const Base = struct {
             pub fn init(value: Value) Self {
                 return .{ .value = value };
             }
+
+            pub fn flatten(self: Self) Texture {
+                if (self.texture.valid()) {
+                    return self.texture;
+                }
+
+                if (Vec4f == Value) {
+                    return Texture.initUniform3(self.value);
+                }
+
+                return Texture.initUniform1(self.value);
+            }
         };
     }
 
@@ -65,7 +77,7 @@ pub const Base = struct {
 
     sampler_key: ts.Key = .{},
 
-    mask: Texture = .{},
+    mask: Texture = Texture.initUniform1(1.0),
 
     cc: CC = undefined,
 
@@ -93,12 +105,7 @@ pub const Base = struct {
     }
 
     pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-        const mask = self.mask;
-        if (mask.valid()) {
-            return ts.sample2D_1(self.sampler_key, mask, uv, sampler, scene);
-        }
-
-        return 1.0;
+        return ts.sample2D_1(self.sampler_key, self.mask, uv, sampler, scene);
     }
 
     pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {

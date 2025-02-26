@@ -7,11 +7,15 @@ const base = @import("base");
 const math = base.math;
 const spectrum = base.spectrum;
 const Vec2f = math.Vec2f;
+const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
+const std = @import("std");
+
 pub const Texture = struct {
     pub const Type = enum {
+        Uniform,
         Byte1_unorm,
         Byte2_unorm,
         Byte2_snorm,
@@ -28,12 +32,33 @@ pub const Texture = struct {
         Float4,
     };
 
-    type: Type = undefined,
-    image: u32 = Null,
-    scale: Vec2f = undefined,
+    const Image = extern struct {
+        id: u32,
+        scale: [2]f32,
+    };
+
+    const Data = extern union {
+        image: Image,
+        uniform: Pack3f,
+    };
+
+    type: Type = .Uniform,
+    data: Data = undefined,
+
+    pub fn initImage(class: Type, image_id: u32, scale: Vec2f) Texture {
+        return .{ .type = class, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
+    }
+
+    pub fn initUniform1(v: f32) Texture {
+        return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init1(v) } };
+    }
+
+    pub fn initUniform3(v: Vec4f) Texture {
+        return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
+    }
 
     pub fn equal(self: Texture, other: Texture) bool {
-        return self.type == other.type and self.image == other.image and self.image == other.image;
+        return std.mem.eql(u8, std.mem.asBytes(&self), std.mem.asBytes(&other));
     }
 
     const Error = error{
@@ -41,7 +66,11 @@ pub const Texture = struct {
     };
 
     pub fn cast(self: Texture, target: Type) !Texture {
-        const other = Texture{ .type = target, .image = self.image, .scale = self.scale };
+        if (.Uniform == self.type) {
+            return Error.IncompatibleCast;
+        }
+
+        const other = Texture.initImage(target, self.data.image.id, self.data.image.scale);
 
         if (self.numChannels() != other.numChannels() or self.bytesPerChannel() != other.bytesPerChannel()) {
             return Error.IncompatibleCast;
@@ -51,15 +80,12 @@ pub const Texture = struct {
     }
 
     pub fn valid(self: Texture) bool {
-        return self.image != Null;
+        return self.type != .Uniform;
     }
 
     pub fn numChannels(self: Texture) u32 {
-        if (Null == self.image) {
-            return 0;
-        }
-
         return switch (self.type) {
+            .Uniform => 0,
             .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Byte3_snorm, .Half3, .Float3 => 3,
@@ -68,19 +94,26 @@ pub const Texture = struct {
     }
 
     pub fn bytesPerChannel(self: Texture) u32 {
-        if (Null == self.image) {
-            return 0;
-        }
-
         return switch (self.type) {
+            .Uniform => 0,
             .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte3_snorm, .Byte4_sRGB => 1,
             .Half1, .Half3, .Half4 => 2,
             else => 4,
         };
     }
 
-    pub fn get2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
-        const image = scene.image(self.image);
+    pub fn uniform1(self: Texture) f32 {
+        const v = self.data.uniform;
+        return v.v[0];
+    }
+
+    pub fn uniform3(self: Texture) Vec4f {
+        const v = self.data.uniform;
+        return .{ v.v[0], v.v[1], v.v[2], 0.0 };
+    }
+
+    pub fn image2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
@@ -90,8 +123,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
-        const image = scene.image(self.image);
+    pub fn image2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
@@ -101,8 +134,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
-        const image = scene.image(self.image);
+    pub fn image2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -135,7 +168,7 @@ pub const Texture = struct {
     }
 
     pub fn get2D_4(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
-        const image = scene.image(self.image);
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -183,8 +216,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get3D_1(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) f32 {
-        const image = scene.image(self.image);
+    pub fn image3D_1(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) f32 {
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -198,8 +231,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get3D_2(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) Vec2f {
-        const image = scene.image(self.image);
+    pub fn image3D_2(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) Vec2f {
+        const image = scene.image(self.data.image.id);
 
         return switch (self.type) {
             .Float2 => image.Float2.get3D(x, y, z),
@@ -208,7 +241,7 @@ pub const Texture = struct {
     }
 
     pub fn description(self: Texture, scene: *const Scene) Description {
-        return scene.image(self.image).description();
+        return scene.image(self.data.image.id).description();
     }
 
     pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
@@ -219,7 +252,7 @@ pub const Texture = struct {
         while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
-                average += self.get2D_3(x, y, scene);
+                average += self.image2D_3(x, y, scene);
             }
         }
 

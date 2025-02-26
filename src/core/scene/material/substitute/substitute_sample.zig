@@ -249,7 +249,7 @@ pub const Sample = struct {
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
             return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, dw * d.pdf);
         }
 
@@ -485,7 +485,7 @@ pub const Sample = struct {
         const n_dot_wi = frame.clampNdot(wi);
         const n_dot_wo = frame.clampAbsNdot(wo);
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.Min_alpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
             return bxdf.Result.empty();
         }
 

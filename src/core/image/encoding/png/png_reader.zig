@@ -134,12 +134,7 @@ pub const Reader = struct {
         }
 
         pub fn allocateImage(self: *Info, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
-            var num_channels: u32 = switch (swizzle) {
-                .X, .W => 1,
-                .XY, .YX, .YZ => 2,
-                .XYZ => 3,
-                .XYZW => 4,
-            };
+            var num_channels = swizzle.numChannels();
 
             self.swizzle = swizzle;
             self.invert = invert;
@@ -247,6 +242,8 @@ pub const Reader = struct {
                         @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
                     } else {
                         var c: u32 = switch (swizzle) {
+                            .Y => 1,
+                            .Z => 2,
                             .W => 3,
                             else => 0,
                         };

@@ -98,12 +98,12 @@ pub fn barycentricCoords(dir: Vec4f, a: Vec4f, b: Vec4f, c: Vec4f) Vec2f {
     return .{ u, v };
 }
 
-pub fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
+pub inline fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
     return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
 }
 
-pub fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
+pub inline fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
     return a * @as(Vec4f, @splat(w)) + b * @as(Vec4f, @splat(u)) + c * @as(Vec4f, @splat(v));
 }

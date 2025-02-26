@@ -16,12 +16,7 @@ pub const IndexedData = struct {
         a: u32,
         b: u32,
         c: u32,
-        bts: u1,
-        part: u31,
-
-        pub fn bitangentSign(self: Triangle) f32 {
-            return if (0 == self.bts) 1.0 else -1.0;
-        }
+        part: u32,
     };
 
     num_triangles: u32 = 0,
@@ -56,28 +51,8 @@ pub const IndexedData = struct {
         self.positions[num_vertices * 3] = 0.0;
     }
 
-    pub fn setTriangle(
-        self: *Self,
-        triangle_id: u32,
-        a: u32,
-        b: u32,
-        c: u32,
-        p: u32,
-        vertices: VertexBuffer,
-    ) void {
-        const abts = vertices.bitangentSign(a);
-        const bbts = vertices.bitangentSign(b);
-        const cbts = vertices.bitangentSign(c);
-
-        const bitangent_sign = (abts and bbts) or (bbts and cbts) or (cbts and abts);
-
-        self.triangles[triangle_id] = .{
-            .a = a,
-            .b = b,
-            .c = c,
-            .bts = if (bitangent_sign) 1 else 0,
-            .part = @intCast(p),
-        };
+    pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, p: u32) void {
+        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c, .part = p };
     }
 
     inline fn position(self: Self, index: u32) Vec4f {
@@ -116,31 +91,24 @@ pub const IndexedData = struct {
         return triangle.interpolate3(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: Self, tri: Triangle, u: f32, v: f32, t: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
-        const tna = quaternion.toTN(self.frames[tri.a]);
+    pub fn interpolateData(self: Self, tri: Triangle, u: f32, v: f32, t: *Vec4f, n: *Vec4f, uv: *Vec2f, bit_sign: *f32) void {
+        const tna = quaternion.signedToTN(self.frames[tri.a]);
         const uva = self.uvs[tri.a];
 
-        const tua = @shuffle(f32, tna[0], @as(Vec4f, @splat(uva[0])), [_]i32{ 0, 1, 2, -1 });
-        const nva = @shuffle(f32, tna[1], @as(Vec4f, @splat(uva[1])), [_]i32{ 0, 1, 2, -1 });
-
-        const tnb = quaternion.toTN(self.frames[tri.b]);
+        const tnb = quaternion.signedToTN(self.frames[tri.b]);
         const uvb = self.uvs[tri.b];
 
-        const tub = @shuffle(f32, tnb[0], @as(Vec4f, @splat(uvb[0])), [_]i32{ 0, 1, 2, -1 });
-        const nvb = @shuffle(f32, tnb[1], @as(Vec4f, @splat(uvb[1])), [_]i32{ 0, 1, 2, -1 });
-
-        const tnc = quaternion.toTN(self.frames[tri.c]);
+        const tnc = quaternion.signedToTN(self.frames[tri.c]);
         const uvc = self.uvs[tri.c];
 
-        const tuc = @shuffle(f32, tnc[0], @as(Vec4f, @splat(uvc[0])), [_]i32{ 0, 1, 2, -1 });
-        const nvc = @shuffle(f32, tnc[1], @as(Vec4f, @splat(uvc[1])), [_]i32{ 0, 1, 2, -1 });
+        const ti = triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v);
+        const ni = triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v);
+        const uvi = triangle.interpolate2(uva, uvb, uvc, u, v);
 
-        const tu = triangle.interpolate3(tua, tub, tuc, u, v);
-        const nv = triangle.interpolate3(nva, nvb, nvc, u, v);
-
-        t.* = math.normalize3(tu);
-        n.* = math.normalize3(nv);
-        uv.* = Vec2f{ tu[3], nv[3] };
+        t.* = math.normalize3(ti);
+        n.* = math.normalize3(ni);
+        uv.* = uvi;
+        bit_sign.* = std.math.copysign(@as(f32, 1.0), tna[0][3] + tnb[0][3] + tnc[0][3]);
     }
 
     pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {

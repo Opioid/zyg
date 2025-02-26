@@ -1,4 +1,5 @@
-const Probe = @import("../vertex.zig").Vertex.Probe;
+const Vertex = @import("../vertex.zig").Vertex;
+const Probe = Vertex.Probe;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
@@ -19,30 +20,25 @@ pub const Prop = struct {
         visible_in_reflection: bool = true,
         visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
+        unoccluding: bool = false,
         volume: bool = false,
         caustic: bool = false,
         static: bool = true,
         shadow_catcher: bool = false,
         shadow_catcher_light: bool = false,
+
+        pub inline fn visible(self: Properties, depth: u32) bool {
+            if (0 == depth) {
+                return self.visible_in_camera;
+            }
+
+            return self.visible_in_reflection;
+        }
     };
 
     shape: u32 = Null,
 
     properties: Properties = .{},
-
-    fn visible(self: Prop, depth: u32) bool {
-        const properties = self.properties;
-
-        if (properties.volume) {
-            return false;
-        }
-
-        if (0 == depth) {
-            return properties.visible_in_camera;
-        }
-
-        return properties.visible_in_reflection;
-    }
 
     pub fn visibleInCamera(self: Prop) bool {
         return self.properties.visible_in_camera;
@@ -52,8 +48,8 @@ pub const Prop = struct {
         return self.properties.visible_in_reflection;
     }
 
-    pub fn visibleInShadow(self: Prop) bool {
-        return self.properties.visible_in_shadow;
+    pub fn unoccluding(self: Prop) bool {
+        return self.properties.unoccluding;
     }
 
     pub fn volume(self: Prop) bool {
@@ -68,28 +64,24 @@ pub const Prop = struct {
         self: *Prop,
         in_camera: bool,
         in_reflection: bool,
-        in_shadow: bool,
         shadow_catcher_light: bool,
     ) void {
         self.properties.visible_in_camera = in_camera;
         self.properties.visible_in_reflection = in_reflection;
-        self.properties.visible_in_shadow = in_shadow;
         self.properties.shadow_catcher_light = shadow_catcher_light;
     }
 
     pub fn setShadowCatcher(self: *Prop) void {
         self.properties.shadow_catcher = true;
-        self.properties.visible_in_camera = true;
-        self.properties.visible_in_reflection = false;
-        self.properties.visible_in_shadow = false;
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, scene: *const Scene) void {
+    pub fn configure(self: *Prop, shape: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
         self.shape = shape;
 
         const shape_inst = scene.shape(shape);
 
         var mono = false;
+        var pure_emissive = true;
 
         if (materials.len > 0) {
             mono = true;
@@ -106,13 +98,19 @@ pub const Prop = struct {
                     self.properties.caustic = true;
                 }
 
+                if (!m.pureEmissive()) {
+                    pure_emissive = false;
+                }
+
                 if (mid != mid0) {
                     mono = false;
                 }
             }
         }
 
+        self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
         self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
+        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else self.properties.visible_in_reflection;
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
@@ -120,12 +118,12 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *Probe, frag: *Fragment, override_visibility: bool, scene: *const Scene) bool {
-        if (!override_visibility and !self.visible(probe.depth.surface)) {
+    pub fn intersect(self: Prop, entity: u32, probe: *const Probe, frag: *Fragment, scene: *const Scene) bool {
+        const properties = self.properties;
+
+        if (!properties.visible(probe.depth.surface)) {
             return false;
         }
-
-        const properties = self.properties;
 
         if (!scene.propAabbIntersect(entity, probe.ray)) {
             return false;
@@ -135,7 +133,6 @@ pub const Prop = struct {
 
         const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
         if (Intersection.Null != hit.primitive) {
-            probe.ray.max_t = hit.t;
             frag.isec = hit;
             frag.trafo = trafo;
             return true;
@@ -148,33 +145,9 @@ pub const Prop = struct {
         scene.shape(self.shape).fragment(probe.ray, frag);
     }
 
-    pub fn intersectP(self: Prop, entity: u32, probe: *const Probe, scene: *const Scene) bool {
-        const properties = self.properties;
-
-        if (!properties.visible_in_shadow) {
-            return false;
-        }
-
-        if (!scene.propAabbIntersect(entity, probe.ray)) {
-            return false;
-        }
-
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
-
-        return scene.shape(self.shape).intersectP(probe.ray, trafo);
-    }
-
     pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         const properties = self.properties;
         const scene = worker.scene;
-
-        if (!properties.evaluate_visibility) {
-            if (self.intersectP(entity, probe, scene)) {
-                return false;
-            }
-
-            return true;
-        }
 
         if (!properties.visible_in_shadow) {
             return true;
@@ -190,9 +163,38 @@ pub const Prop = struct {
 
         if (properties.volume) {
             return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker, tr);
-        } else {
+        } else if (properties.evaluate_visibility) {
             return shape.visibility(probe.ray, trafo, entity, sampler, scene, tr);
+        } else {
+            return !shape.intersectP(probe.ray, trafo);
         }
+    }
+
+    pub fn emission(
+        self: Prop,
+        entity: u32,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
+        const properties = self.properties;
+
+        if (!properties.visible(vertex.probe.depth.surface)) {
+            return @splat(0.0);
+        }
+
+        if (!scene.propAabbIntersect(entity, vertex.probe.ray)) {
+            return @splat(0.0);
+        }
+
+        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.probe.time, properties.static);
+
+        frag.trafo = trafo;
+        frag.prop = entity;
+
+        return scene.shape(self.shape).emission(vertex, frag, split_threshold, sampler, scene);
     }
 
     pub fn scatter(

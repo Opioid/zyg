@@ -37,7 +37,7 @@ pub const Cube = struct {
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const hit_t = ray.max_t;
+        const hit_t = frag.isec.t;
 
         frag.p = ray.point(hit_t);
 

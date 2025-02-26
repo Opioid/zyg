@@ -143,6 +143,25 @@ pub inline fn toTN(q: Quaternion) [2]Vec4f {
     return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], 0.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
 }
 
+pub inline fn signedToTN(sq: Quaternion) [2]Vec4f {
+    const q = Vec4f{ sq[0], sq[1], sq[2], @abs(sq[3]) };
+
+    const tq = q + q;
+
+    const xy = tq[1] * q[0];
+    const xz = tq[2] * q[0];
+    const yz = tq[1] * q[2];
+
+    const w = tq * @as(Vec4f, @splat(q[3]));
+
+    // diagonal terms
+    const a = @shuffle(f32, q, q, [4]i32{ 3, 0, 3, 1 });
+    const b = @shuffle(f32, q, q, [4]i32{ 1, 2, 0, 2 });
+    const t = (a + b) * (a - b);
+
+    return .{ .{ t[0] + t[1], xy - w[2], xz + w[1], if (sq[3] < 0.0) -1.0 else 1.0 }, .{ xz - w[1], yz + w[0], t[2] - t[3], 0.0 } };
+}
+
 pub inline fn toNormal(q: Quaternion) Vec4f {
     //     void quat_to_mat33_ndr(mat33_t* m, quat_t* q)
     // {

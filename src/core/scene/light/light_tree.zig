@@ -39,7 +39,12 @@ pub const Node = struct {
     pub fn compressCenter(self: *Node, center: Vec4f, bounds: AABB) void {
         const d = center - bounds.bounds[0];
         const e = bounds.extent();
-        const div = Vec4f{ e[0], e[1], e[2], bounds.cachedRadius() };
+        const div = Vec4f{
+            if (0.0 == e[0]) 1.0 else e[0],
+            if (0.0 == e[1]) 1.0 else e[1],
+            if (0.0 == e[2]) 1.0 else e[2],
+            bounds.cachedRadius(),
+        };
 
         // assumes that bounds[0][3] == 0.0, therefore d[3] == center[3]
         const q = d / div;

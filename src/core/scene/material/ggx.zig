@@ -11,8 +11,8 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub const Min_roughness: f32 = 0.01314;
-pub const Min_alpha: f32 = Min_roughness * Min_roughness;
+pub const MinRoughness: f32 = 0.01314;
+pub const MinAlpha: f32 = MinRoughness * MinRoughness;
 
 const E_m_tex = math.InterpolatedFunction2D_N(
     integral.E_m_size,
@@ -46,11 +46,7 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 }
 
 pub fn clampRoughness(roughness: f32) f32 {
-    return math.max(roughness, Min_roughness);
-}
-
-pub fn mapRoughness(roughness: f32) f32 {
-    return roughness * (1.0 - Min_roughness) + Min_roughness;
+    return math.max(roughness, MinRoughness);
 }
 
 pub const Micro = struct {
@@ -122,7 +118,7 @@ pub const Iso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -182,7 +178,7 @@ pub const Iso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }
@@ -222,7 +218,7 @@ pub const Iso = struct {
         result.reflection = @splat((factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
-        result.class = if (alpha <= Min_alpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
+        result.class = if (alpha <= MinAlpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
 
         return n_dot_wi;
     }
@@ -342,7 +338,7 @@ pub const Aniso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -380,7 +376,7 @@ pub const Aniso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= Min_alpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
 
         return n_dot_wi;
     }
