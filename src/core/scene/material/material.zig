@@ -135,7 +135,11 @@ pub const Material = union(enum) {
     }
 
     pub fn ior(self: *const Material) f32 {
-        return self.super().ior;
+        return switch (self.*) {
+            inline .Glass, .Hair, .Substitute => |*m| m.ior,
+            .Volumetric => 0.0,
+            else => 1.0,
+        };
     }
 
     pub fn numSamples(self: *const Material, split_threshold: f32) u32 {
@@ -156,9 +160,16 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn collisionCoefficients(self: *const Material) CC {
+        return switch (self.*) {
+            inline .Glass, .Substitute, .Volumetric => |*m| m.cc,
+            else => undefined,
+        };
+    }
+
     pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {
         const sup = self.super();
-        const cc = sup.cc;
+        const cc = self.collisionCoefficients();
 
         if (sup.properties.color_map) {
             const color = mat_sample.super().albedo;
@@ -169,8 +180,7 @@ pub const Material = union(enum) {
     }
 
     pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CC {
-        const sup = self.super();
-        const cc = sup.cc;
+        const cc = self.collisionCoefficients();
 
         return switch (self.*) {
             .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
@@ -182,19 +192,26 @@ pub const Material = union(enum) {
         return switch (self.*) {
             .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, sampler, scene),
 
-            else => .{ .cc = self.super().cc, .e = @splat(0.0) },
+            else => undefined,
+        };
+    }
+
+    pub fn similarityRelationScale(self: *const Material, depth: u32) f32 {
+        return switch (self.*) {
+            .Volumetric => |*m| m.similarityRelationScale(depth),
+            else => 1.0,
         };
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
-            .Glass => |*g| .{ .Glass = g.sample(wo, rs, sampler, worker.scene) },
-            .Hair => |*h| .{ .Hair = h.sample(wo, rs, sampler) },
+            .Glass => |*m| .{ .Glass = m.sample(wo, rs, sampler, worker.scene) },
+            .Hair => |*m| .{ .Hair = m.sample(wo, rs, sampler) },
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
-            .Substitute => |*s| s.sample(wo, rs, sampler, worker),
-            .Volumetric => |*v| .{ .Volumetric = v.sample(wo, rs) },
+            .Substitute => |*m| m.sample(wo, rs, sampler, worker),
+            .Volumetric => |*m| .{ .Volumetric = m.sample(wo, rs) },
         };
     }
 
@@ -221,9 +238,7 @@ pub const Material = union(enum) {
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
         return switch (self.*) {
-            .Light => |*m| m.radianceSample(r3),
-            .Sky => |*m| m.radianceSample(r3),
-            .Volumetric => |*m| m.radianceSample(r3),
+            inline .Light, .Sky, .Volumetric => |*m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
         };
     }

@@ -36,7 +36,7 @@ pub fn transmittanceHetero(
 
         var local_ray = objectToTextureRay(ray, prop, worker);
 
-        const srs = material.super().similarityRelationScale(depth);
+        const srs = material.similarityRelationScale(depth);
 
         while (local_ray.min_t < d) {
             if (tree.intersect(&local_ray)) |cm| {

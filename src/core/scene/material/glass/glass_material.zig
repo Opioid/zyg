@@ -7,6 +7,7 @@ const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const fresnel = @import("../fresnel.zig");
 const ccoef = @import("../collision_coefficients.zig");
+const CC = ccoef.CC;
 const hlp = @import("../material_helper.zig");
 const ggx = @import("../ggx.zig");
 
@@ -23,6 +24,9 @@ pub const Material = struct {
     normal_map: Texture = .{},
     roughness_map: Texture = Texture.initUniform1(0.0),
 
+    cc: CC = undefined,
+    attenuation_distance: f32 = 1.0,
+    ior: f32 = 1.46,
     thickness: f32 = 0.0,
     abbe: f32 = 0.0,
 
@@ -31,6 +35,21 @@ pub const Material = struct {
         self.super.properties.two_sided = thin;
         self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
         self.super.properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+    }
+
+    pub fn setVolumetric(
+        self: *Material,
+        attenuation_color: Vec4f,
+        subsurface_color: Vec4f,
+        distance: f32,
+        anisotropy: f32,
+    ) void {
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
+
+        self.cc = cc;
+        self.attenuation_distance = distance;
+        self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
     pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
@@ -49,8 +68,8 @@ pub const Material = struct {
         var result = Sample.init(
             rs,
             wo,
-            self.super.cc.a,
-            self.super.ior,
+            self.cc.a,
+            self.ior,
             rs.ior,
             r * r,
             self.thickness,
@@ -74,7 +93,7 @@ pub const Material = struct {
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;
-            const eta_t = self.super.ior;
+            const eta_t = self.ior;
 
             const n_dot_wo = math.min(@abs(math.dot3(n, wi)), 1.0);
             const eta = eta_i / eta_t;
@@ -95,7 +114,7 @@ pub const Material = struct {
             const n_dot_wi = math.safe.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
-            const attenuation = ccoef.attenuation3(self.super.cc.a, approx_dist);
+            const attenuation = ccoef.attenuation3(self.cc.a, approx_dist);
 
             const ta = math.min4(@as(Vec4f, @splat(1.0 - o)) + attenuation, @splat(1.0));
 

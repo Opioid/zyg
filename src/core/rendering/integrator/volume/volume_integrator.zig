@@ -72,7 +72,7 @@ pub const Integrator = struct {
         if (material.volumetricTree()) |tree| {
             var local_ray = tracking.objectToTextureRay(ray, prop, worker);
 
-            const srs = material.super().similarityRelationScale(depth);
+            const srs = material.similarityRelationScale(depth);
 
             var result = Volume.initPass(@splat(1.0));
 

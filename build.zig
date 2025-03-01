@@ -73,7 +73,6 @@ pub fn build(b: *std.Build) void {
     cli.root_module.addImport("core", core);
 
     cli.linkLibC();
-    // cli.sanitize_thread = true;
     cli.root_module.strip = true;
     b.installArtifact(cli);
 
@@ -88,7 +87,6 @@ pub fn build(b: *std.Build) void {
     it.root_module.addImport("core", core);
 
     it.linkLibC();
-    // it.sanitize_thread = true;
     it.root_module.strip = true;
     b.installArtifact(it);
 

@@ -162,10 +162,7 @@ pub const Provider = struct {
     }
 
     fn loadGlass(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
-        var material = mat.Glass{ .super = .{
-            .ior = 1.46,
-            .attenuation_distance = 1.0,
-        } };
+        var material = mat.Glass{};
 
         self.updateGlass(alloc, &material, value, resources);
 
@@ -184,13 +181,13 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*) or std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
                 attenuation_color = readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
-                material.super.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
+                material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                material.super.ior = json.readFloat(f32, entry.value_ptr.*);
+                material.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "abbe", entry.key_ptr.*)) {
                 material.abbe = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
@@ -200,13 +197,11 @@ pub const Provider = struct {
             }
         }
 
-        material.super.setVolumetric(attenuation_color, @splat(0.0), material.super.attenuation_distance, 0.0);
+        material.setVolumetric(attenuation_color, @splat(0.0), material.attenuation_distance, 0.0);
     }
 
     fn loadHair(value: std.json.Value) Material {
-        var material = mat.Hair{ .super = .{
-            .ior = 1.55,
-        } };
+        var material = mat.Hair{};
 
         updateHair(&material, value);
 
@@ -259,7 +254,7 @@ pub const Provider = struct {
     }
 
     fn loadSubstitute(self: *Provider, alloc: Allocator, value: std.json.Value, resources: *Resources) Material {
-        var material = mat.Substitute{ .super = .{ .ior = 1.46 } };
+        var material = mat.Substitute{};
 
         self.updateSubstitute(alloc, &material, value, resources);
 
@@ -317,7 +312,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
                 material.setMetallic(readValue(f32, alloc, entry.value_ptr.*, material.metallic_map.uniform1(), .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
-                material.super.ior = json.readFloat(f32, entry.value_ptr.*);
+                material.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
@@ -384,7 +379,7 @@ pub const Provider = struct {
             }
         }
 
-        material.super.setVolumetric(
+        material.setVolumetric(
             attenuation_color,
             subsurface_color,
             attenuation_distance,
@@ -449,7 +444,7 @@ pub const Provider = struct {
             subsurface_color = color;
         }
 
-        material.super.setVolumetric(
+        material.setVolumetric(
             attenuation_color,
             subsurface_color,
             attenuation_distance,

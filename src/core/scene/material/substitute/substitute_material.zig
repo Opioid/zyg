@@ -15,6 +15,7 @@ const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
+const CC = ccoef.CC;
 
 const base = @import("base");
 const math = base.math;
@@ -45,6 +46,9 @@ pub const Material = struct {
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
 
+    cc: CC = undefined,
+    attenuation_distance: f32 = 0.0,
+    ior: f32 = 1.46,
     anisotropy: f32 = 0.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
@@ -65,7 +69,7 @@ pub const Material = struct {
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
-        const attenuation_distance = self.super.attenuation_distance;
+        const attenuation_distance = self.attenuation_distance;
         properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
@@ -73,12 +77,27 @@ pub const Material = struct {
 
         // This doesn't make a difference for shading, but is intended for the Albedo AOV...
         if (properties.dense_sss_optimization and !self.color_map.valid()) {
-            const cc = self.super.cc;
+            const cc = self.cc;
 
             const mu_t = cc.a + cc.s;
             const albedo = cc.s / mu_t;
             self.color_map = Texture.initUniform3(albedo);
         }
+    }
+
+    pub fn setVolumetric(
+        self: *Material,
+        attenuation_color: Vec4f,
+        subsurface_color: Vec4f,
+        distance: f32,
+        anisotropy: f32,
+    ) void {
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
+
+        self.cc = cc;
+        self.attenuation_distance = distance;
+        self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
@@ -138,7 +157,7 @@ pub const Material = struct {
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.volumeScatter()) {
-            const g = self.super.cc.anisotropy();
+            const g = self.cc.anisotropy();
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
@@ -169,9 +188,9 @@ pub const Material = struct {
             coating_ior = self.coating_ior;
         }
 
-        const ior = self.super.ior;
+        const ior = self.ior;
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
-        const attenuation_distance = self.super.attenuation_distance;
+        const attenuation_distance = self.attenuation_distance;
 
         var result = Surface.init(
             rs,

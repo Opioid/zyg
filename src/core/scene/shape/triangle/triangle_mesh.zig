@@ -414,11 +414,11 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn numParts(self: Mesh) u32 {
+    pub fn numParts(self: *const Mesh) u32 {
         return self.num_parts;
     }
 
-    pub fn numMaterials(self: Mesh) u32 {
+    pub fn numMaterials(self: *const Mesh) u32 {
         var id: u32 = 0;
 
         for (self.parts[0..self.num_parts]) |p| {

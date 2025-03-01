@@ -236,7 +236,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, probe: *Probe, sampler: *Sampler, tr: *Vec4f) bool {
+    pub fn visibility(self: *Worker, probe: *const Probe, sampler: *Sampler, tr: *Vec4f) bool {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
@@ -270,7 +270,7 @@ pub const Worker = struct {
         sampler: *Sampler,
         tr: *Vec4f,
     ) bool {
-        const cc = material.super().cc;
+        const cc = material.collisionCoefficients();
         return VolumeIntegrator.propTransmittance(ray, material, cc, entity, depth, sampler, self, tr);
     }
 
@@ -283,7 +283,7 @@ pub const Worker = struct {
         depth: u32,
         sampler: *Sampler,
     ) Volume {
-        const cc = material.super().cc;
+        const cc = material.collisionCoefficients();
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 

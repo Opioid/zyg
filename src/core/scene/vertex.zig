@@ -129,7 +129,7 @@ pub const Vertex = struct {
         } else {
             const material = frag.material(scene);
             const cc = material.collisionCoefficients2D(mat_sample);
-            self.mediums.push(frag, cc, material.super().ior, material.super().priority);
+            self.mediums.push(frag, cc, material.ior(), material.super().priority);
         }
     }
 
@@ -153,7 +153,7 @@ pub const Vertex = struct {
 
         const material = frag.material(scene);
         const cc = material.collisionCoefficients2D(mat_sample);
-        self.mediums.push(frag, cc, material.super().ior, material.super().priority);
+        self.mediums.push(frag, cc, material.ior(), material.super().priority);
 
         return ior;
     }

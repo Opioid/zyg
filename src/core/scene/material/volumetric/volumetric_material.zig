@@ -43,12 +43,15 @@ pub const Material = struct {
 
     average_emission: Vec4f = @splat(-1.0),
     a_norm: Vec4f = undefined,
+
+    cc: CC = undefined,
+    attenuation_distance: f32 = 0.0,
+
     pdf_factor: f32 = undefined,
 
     pub fn init() Material {
         return .{ .super = .{
             .sampler_key = .{ .filter = ts.DefaultFilter, .address = .{ .u = .Clamp, .v = .Clamp } },
-            .ior = 0.0,
         } };
     }
 
@@ -61,7 +64,7 @@ pub const Material = struct {
     pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
         self.average_emission = @splat(-1.0);
 
-        self.super.properties.scattering_volume = math.anyGreaterZero3(self.super.cc.s) or
+        self.super.properties.scattering_volume = math.anyGreaterZero3(self.cc.s) or
             math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
@@ -72,7 +75,7 @@ pub const Material = struct {
                 alloc,
                 &self.tree,
                 self.density_map,
-                self.super.cc,
+                self.cc,
                 scene,
                 threads,
             );
@@ -96,6 +99,21 @@ pub const Material = struct {
         }
     }
 
+    pub fn setVolumetric(
+        self: *Material,
+        attenuation_color: Vec4f,
+        subsurface_color: Vec4f,
+        distance: f32,
+        anisotropy: f32,
+    ) void {
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
+
+        self.cc = cc;
+        self.attenuation_distance = distance;
+        self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
+    }
+
     pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) Vec4f {
         if (self.average_emission[0] >= 0.0) {
             // Hacky way to check whether prepare_sampling has been called before
@@ -104,7 +122,7 @@ pub const Material = struct {
         }
 
         if (!self.density_map.valid()) {
-            self.average_emission = self.super.cc.a * self.emittance.value;
+            self.average_emission = self.cc.a * self.emittance.value;
             return self.average_emission;
         }
 
@@ -153,7 +171,7 @@ pub const Material = struct {
 
         self.average_emission = average_emission;
 
-        const cca = self.super.cc.a;
+        const cca = self.cc.a;
         const majorant_a = math.hmax3(cca);
         self.a_norm = @as(Vec4f, @splat(majorant_a)) / cca;
         self.pdf_factor = num_pixels / majorant_a;
@@ -162,8 +180,42 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
-        const gs = self.super.vanDeHulstAnisotropy(rs.volume_depth);
+        const gs = self.vanDeHulstAnisotropy(rs.volume_depth);
         return Sample.init(wo, rs, gs);
+    }
+
+    pub fn similarityRelationScale(self: *const Material, depth: u32) f32 {
+        const gs = self.vanDeHulstAnisotropy(depth);
+        return vanDeHulst(self.cc.anisotropy(), gs);
+    }
+
+    var SR_low: u32 = 16;
+    var SR_high: u32 = 64;
+    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(64 - 16));
+
+    pub fn setSimilarityRelationRange(low: u32, high: u32) void {
+        SR_low = low;
+        SR_high = high;
+        SR_inv_range = 1.0 / @as(f32, @floatFromInt(high - low));
+    }
+
+    fn vanDeHulstAnisotropy(self: *const Material, depth: u32) f32 {
+        const aniso = self.cc.anisotropy();
+
+        if (depth < SR_low) {
+            return aniso;
+        }
+
+        if (depth < SR_high) {
+            const towards_zero = SR_inv_range * @as(f32, @floatFromInt(depth - SR_low));
+            return math.lerp(aniso, 0.0, towards_zero);
+        }
+
+        return 0.0;
+    }
+
+    fn vanDeHulst(g: f32, gs: f32) f32 {
+        return (1.0 - g) / (1.0 - gs);
     }
 
     pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
@@ -215,7 +267,7 @@ pub const Material = struct {
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
-        const cc = self.super.cc;
+        const cc = self.cc;
 
         if (self.density_map.valid() and self.emittance.emission_map.valid()) {
             const key = self.super.sampler_key;
