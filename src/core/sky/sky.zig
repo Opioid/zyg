@@ -35,7 +35,7 @@ pub const Sky = struct {
     sky: u32 = Prop.Null,
 
     visibility: f32 = 100.0,
-    albedo: f32 = 0.2,
+    albedo: f32 = 0.25,
 
     sun_rotation: Mat3x3 = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0),
 
