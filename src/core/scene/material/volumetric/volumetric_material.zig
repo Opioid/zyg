@@ -190,8 +190,8 @@ pub const Material = struct {
     }
 
     var SR_low: u32 = 16;
-    var SR_high: u32 = 64;
-    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(64 - 16));
+    var SR_high: u32 = 48;
+    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(48 - 16));
 
     pub fn setSimilarityRelationRange(low: u32, high: u32) void {
         SR_low = low;
