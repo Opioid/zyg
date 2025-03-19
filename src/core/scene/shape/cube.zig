@@ -27,7 +27,7 @@ pub const Cube = struct {
         const local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP(local_ray) orelse return hpoint;
+        const hit_t = aabb.intersectP(local_ray);
         if (hit_t < ray.max_t) {
             hpoint.t = hit_t;
             hpoint.primitive = 0;
@@ -91,13 +91,12 @@ pub const Cube = struct {
         var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP2(local_ray) orelse {
+        const hit_t = aabb.intersectP2(local_ray);
+        if (std.math.floatMax(f32) == hit_t[0]) {
             return true;
-        };
+        }
 
-        const start = math.max(hit_t[0], ray.min_t);
-        const end = math.min(hit_t[1], ray.max_t);
-        local_ray.setMinMaxT(start, end);
+        local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
         return worker.propTransmittance(local_ray, material, entity, depth, sampler, tr);
@@ -112,19 +111,18 @@ pub const Cube = struct {
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
-        const local_origin = trafo.worldToObjectPoint(ray.origin);
-        const local_dir = trafo.worldToObjectVector(ray.direction);
-        const local_ray = Ray.init(local_origin, local_dir, ray.min_t, ray.max_t);
+        var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP2(local_ray) orelse return Volume.initPass(@splat(1.0));
+        const hit_t = aabb.intersectP2(local_ray);
+        if (std.math.floatMax(f32) == hit_t[0]) {
+            return Volume.initPass(@splat(1.0));
+        }
 
-        const start = math.max(hit_t[0], ray.min_t);
-        const end = math.min(hit_t[1], ray.max_t);
+        local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
-        const tray = Ray.init(local_origin, local_dir, start, end);
-        return worker.propScatter(tray, throughput, material, entity, depth, sampler);
+        return worker.propScatter(local_ray, throughput, material, entity, depth, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

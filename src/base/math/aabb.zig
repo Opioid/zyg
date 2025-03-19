@@ -57,7 +57,7 @@ pub const AABB = struct {
         return tboxmin <= tboxmax;
     }
 
-    pub fn intersectP(self: AABB, ray: Ray) ?f32 {
+    pub fn intersectP(self: AABB, ray: Ray) f32 {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
@@ -67,8 +67,8 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
-        const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
-        const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
+        const imin = mima.max(mima.max(tmins[0], tmins[1]), tmins[2]);
+        const imax = mima.min(mima.min(tmaxs[0], tmaxs[1]), tmaxs[2]);
 
         const tboxmin = mima.max(imin, tmins[3]);
         const tboxmax = mima.min(imax, tmaxs[3]);
@@ -77,10 +77,10 @@ pub const AABB = struct {
             return if (imin < ray.min_t) imax else imin;
         }
 
-        return null;
+        return std.math.floatMax(f32);
     }
 
-    pub fn intersectP2(self: AABB, ray: Ray) ?[2]f32 {
+    pub fn intersectP2(self: AABB, ray: Ray) [2]f32 {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
@@ -90,17 +90,14 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
-        const imin = mima.max(tmins[0], mima.max(tmins[1], tmins[2]));
-        const imax = mima.min(tmaxs[0], mima.min(tmaxs[1], tmaxs[2]));
-
-        const tboxmin = mima.max(imin, tmins[3]);
-        const tboxmax = mima.min(imax, tmaxs[3]);
+        const tboxmin = math.hmax4(tmins);
+        const tboxmax = math.hmin4(tmaxs);
 
         if (tboxmin <= tboxmax) {
-            return .{ imin, imax };
+            return .{ tboxmin, tboxmax };
         }
 
-        return null;
+        return .{ std.math.floatMax(f32), std.math.floatMax(f32) };
     }
 
     pub fn pointInside(self: AABB, p: Vec4f) bool {
