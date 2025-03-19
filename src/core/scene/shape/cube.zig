@@ -91,7 +91,7 @@ pub const Cube = struct {
         var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP2(local_ray);
+        const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return true;
         }
@@ -114,7 +114,7 @@ pub const Cube = struct {
         var local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-1.0), @splat(1.0));
-        const hit_t = aabb.intersectP2(local_ray);
+        const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return Volume.initPass(@splat(1.0));
         }

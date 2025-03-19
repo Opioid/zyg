@@ -135,9 +135,9 @@ pub const Gridtree = struct {
             @as(Vec4f, @floatFromInt(box.bounds[1])) * self.inv_dimensions,
         );
 
-        const hit_t = boxf.intersectP(ray.*);
-        if (std.math.floatMax(f32) != hit_t) {
-            ray.max_t = math.min(ray.max_t, hit_t);
+        const hit_t = boxf.intersectInterval(ray.*);
+        if (std.math.floatMax(f32) != hit_t[0]) {
+            ray.setMinMaxT(hit_t[0], hit_t[1]);
         } else {
             ray.max_t = ray.min_t;
             return null;

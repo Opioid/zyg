@@ -80,7 +80,7 @@ pub const AABB = struct {
         return std.math.floatMax(f32);
     }
 
-    pub fn intersectP2(self: AABB, ray: Ray) [2]f32 {
+    pub fn intersectInterval(self: AABB, ray: Ray) [2]f32 {
         const lower = (self.bounds[0] - ray.origin) * ray.inv_direction;
         const upper = (self.bounds[1] - ray.origin) * ray.inv_direction;
 
