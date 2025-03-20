@@ -12,7 +12,6 @@ const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
-const VolumetricMaterial = @import("../scene/material/volumetric/volumetric_material.zig").Material;
 const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
@@ -137,8 +136,6 @@ pub const View = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 self.loadSurfaceIntegrator(entry.value_ptr.*, lighttracer);
-            } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
-                loadVolumeIntegrator(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
                 self.photon_settings = loadPhotonSettings(entry.value_ptr.*, lighttracer);
             }
@@ -229,16 +226,6 @@ pub const View = struct {
                         .photons_not_only_through_specular = !lighttracer,
                     },
                 } };
-            }
-        }
-    }
-
-    fn loadVolumeIntegrator(value: std.json.Value) void {
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
-                const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 48 });
-                VolumetricMaterial.setSimilarityRelationRange(@intCast(sr_range[0]), @intCast(sr_range[1]));
             }
         }
     }

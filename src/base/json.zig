@@ -66,6 +66,13 @@ pub fn readVec2f(value: Value) Vec2f {
     };
 }
 
+pub fn readVec2i(value: Value) Vec2i {
+    return .{
+        @intCast(value.array.items[0].integer),
+        @intCast(value.array.items[1].integer),
+    };
+}
+
 pub fn readVec2fMember(value: Value, name: []const u8, default: Vec2f) Vec2f {
     const member = value.object.get(name) orelse return default;
 

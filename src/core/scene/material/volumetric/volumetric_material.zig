@@ -49,6 +49,10 @@ pub const Material = struct {
 
     pdf_factor: f32 = undefined,
 
+    sr_low: u32 = 16,
+    sr_high: u32 = 48,
+    sr_inv_range: f32 = undefined,
+
     pub fn init() Material {
         return .{ .super = .{
             .sampler_key = .{ .filter = ts.DefaultFilter, .address = .{ .u = .Clamp, .v = .Clamp } },
@@ -69,6 +73,8 @@ pub const Material = struct {
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emission_map = self.density_map.valid();
         self.super.properties.evaluate_visibility = true;
+
+        self.sr_inv_range = 1.0 / @as(f32, @floatFromInt(self.sr_high - self.sr_low));
 
         if (self.density_map.valid()) {
             try Builder.build(
@@ -112,6 +118,11 @@ pub const Material = struct {
         self.cc = cc;
         self.attenuation_distance = distance;
         self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
+    }
+
+    pub fn setSimilarityRelationRange(self: *Material, low: u32, high: u32) void {
+        self.sr_low = low;
+        self.sr_high = high;
     }
 
     pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) Vec4f {
@@ -189,25 +200,17 @@ pub const Material = struct {
         return vanDeHulst(self.cc.anisotropy(), gs);
     }
 
-    var SR_low: u32 = 16;
-    var SR_high: u32 = 48;
-    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(48 - 16));
-
-    pub fn setSimilarityRelationRange(low: u32, high: u32) void {
-        SR_low = low;
-        SR_high = high;
-        SR_inv_range = 1.0 / @as(f32, @floatFromInt(high - low));
-    }
-
     fn vanDeHulstAnisotropy(self: *const Material, depth: u32) f32 {
         const aniso = self.cc.anisotropy();
 
-        if (depth < SR_low) {
+        const low = self.sr_low;
+
+        if (depth < low) {
             return aniso;
         }
 
-        if (depth < SR_high) {
-            const towards_zero = SR_inv_range * @as(f32, @floatFromInt(depth - SR_low));
+        if (depth < self.sr_high) {
+            const towards_zero = self.sr_inv_range * @as(f32, @floatFromInt(depth - low));
             return math.lerp(aniso, 0.0, towards_zero);
         }
 

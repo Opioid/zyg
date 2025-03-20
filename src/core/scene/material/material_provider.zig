@@ -433,6 +433,9 @@ pub const Provider = struct {
                 attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 volumetric_anisotropy = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "similarity_relation_range", entry.key_ptr.*)) {
+                const sr_range = json.readVec2i(entry.value_ptr.*);
+                material.setSimilarityRelationRange(@bitCast(sr_range[0]), @bitCast(sr_range[1]));
             }
         }
 
