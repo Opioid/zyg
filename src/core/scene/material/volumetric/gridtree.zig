@@ -123,9 +123,12 @@ pub const Gridtree = struct {
 
         const srs = material.similarityRelationScale(depth);
 
+        var cc = material.collisionCoefficients();
+        cc.s *= @splat(srs);
+
         while (local_ray.min_t < d) {
             if (self.intersect(&local_ray)) |cm| {
-                if (!tracking.trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
+                if (!tracking.trackingTransmitted(tr, local_ray, cm, cc, material, srs, sampler, worker)) {
                     return false;
                 }
             }
@@ -152,6 +155,9 @@ pub const Gridtree = struct {
 
         const srs = material.similarityRelationScale(depth);
 
+        var cc = material.collisionCoefficients();
+        cc.s *= @splat(srs);
+
         var result = Volume.initPass(@splat(1.0));
 
         if (material.emissive()) {
@@ -160,6 +166,7 @@ pub const Gridtree = struct {
                     result = tracking.trackingHeteroEmission(
                         local_ray,
                         cm,
+                        cc,
                         material,
                         srs,
                         result.tr,
@@ -186,6 +193,7 @@ pub const Gridtree = struct {
                     result = tracking.trackingHetero(
                         local_ray,
                         cm,
+                        cc,
                         material,
                         srs,
                         result.tr,

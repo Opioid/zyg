@@ -179,19 +179,16 @@ pub const Material = union(enum) {
         return cc;
     }
 
-    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CC {
-        const cc = self.collisionCoefficients();
-
+    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CC {
         return switch (self.*) {
             .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
             else => cc,
         };
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CCE {
         return switch (self.*) {
-            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, sampler, scene),
-
+            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, cc, sampler, scene),
             else => undefined,
         };
     }

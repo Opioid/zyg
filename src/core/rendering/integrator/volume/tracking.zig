@@ -29,6 +29,7 @@ pub fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
     cm: CM,
+    cc: CC,
     material: *const Material,
     srs: f32,
     sampler: *Sampler,
@@ -65,8 +66,7 @@ pub fn trackingTransmitted(
         }
 
         const uvw = ray.point(t);
-        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
-        mu.s *= @splat(srs);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker.scene);
 
         const mu_t = (mu.a + mu.s) - @as(Vec4f, @splat(minorant_mu_t));
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -182,6 +182,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
 pub fn trackingHetero(
     ray: Ray,
     cm: CM,
+    cc: CC,
     material: *const Material,
     srs: f32,
     w: Vec4f,
@@ -208,8 +209,7 @@ pub fn trackingHetero(
         }
 
         const uvw = ray.point(t);
-        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
-        mu.s *= @splat(srs);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker.scene);
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -241,6 +241,7 @@ pub fn trackingHetero(
 pub fn trackingHeteroEmission(
     ray: Ray,
     cm: CM,
+    cc: CC,
     material: *const Material,
     srs: f32,
     w: Vec4f,
@@ -267,9 +268,8 @@ pub fn trackingHeteroEmission(
         }
 
         const uvw = ray.point(t);
-        const cce = material.collisionCoefficientsEmission(uvw, sampler, worker.scene);
-        var mu = cce.cc;
-        mu.s *= @splat(srs);
+        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, worker.scene);
+        const mu = cce.cc;
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;

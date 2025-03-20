@@ -269,9 +269,7 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
-        const cc = self.cc;
-
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CCE {
         if (self.density_map.valid() and self.emittance.emission_map.valid()) {
             const key = self.super.sampler_key;
 
