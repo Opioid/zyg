@@ -22,42 +22,10 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.floatMax(f32) };
 
-pub fn transmittanceHetero(
-    ray: Ray,
-    material: *const Material,
-    prop: u32,
-    depth: u32,
-    sampler: *Sampler,
-    worker: *Worker,
-    tr: *Vec4f,
-) bool {
-    if (material.volumetricTree()) |tree| {
-        const d = ray.max_t;
-
-        var local_ray = objectToTextureRay(ray, prop, worker);
-
-        const srs = material.similarityRelationScale(depth);
-
-        while (local_ray.min_t < d) {
-            if (tree.intersect(&local_ray)) |cm| {
-                if (!trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
-                    return false;
-                }
-            }
-
-            local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 // Code for (residual ratio) hetereogeneous transmittance inspired by:
 // https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
 
-fn trackingTransmitted(
+pub fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
     cm: CM,

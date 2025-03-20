@@ -1,5 +1,12 @@
 const CM = @import("../collision_coefficients.zig").CM;
 
+const tracking = @import("../../../rendering/integrator/volume/tracking.zig");
+const Worker = @import("../../../rendering/worker.zig").Worker;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const Material = @import("../../../scene/material/material.zig").Material;
+const Volume = @import("../../../scene/shape/intersection.zig").Volume;
+const ro = @import("../../../scene/ray_offset.zig");
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
@@ -100,7 +107,106 @@ pub const Gridtree = struct {
         return self.data;
     }
 
-    pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
+    pub fn transmittance(
+        self: *const Gridtree,
+        ray: Ray,
+        material: *const Material,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+        tr: *Vec4f,
+    ) bool {
+        const d = ray.max_t;
+
+        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+
+        const srs = material.similarityRelationScale(depth);
+
+        while (local_ray.min_t < d) {
+            if (self.intersect(&local_ray)) |cm| {
+                if (!tracking.trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
+                    return false;
+                }
+            }
+
+            local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+        }
+
+        return true;
+    }
+
+    pub fn scatter(
+        self: *const Gridtree,
+        ray: Ray,
+        throughput: Vec4f,
+        material: *const Material,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const d = ray.max_t;
+
+        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+
+        const srs = material.similarityRelationScale(depth);
+
+        var result = Volume.initPass(@splat(1.0));
+
+        if (material.emissive()) {
+            while (local_ray.min_t < d) {
+                if (self.intersect(&local_ray)) |cm| {
+                    result = tracking.trackingHeteroEmission(
+                        local_ray,
+                        cm,
+                        material,
+                        srs,
+                        result.tr,
+                        throughput,
+                        sampler,
+                        worker,
+                    );
+
+                    if (.Scatter == result.event) {
+                        break;
+                    }
+
+                    if (.Absorb == result.event) {
+                        result.uvw = local_ray.point(result.t);
+                        return result;
+                    }
+                }
+
+                local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+            }
+        } else {
+            while (local_ray.min_t < d) {
+                if (self.intersect(&local_ray)) |cm| {
+                    result = tracking.trackingHetero(
+                        local_ray,
+                        cm,
+                        material,
+                        srs,
+                        result.tr,
+                        throughput,
+                        sampler,
+                        worker,
+                    );
+
+                    if (.Scatter == result.event) {
+                        break;
+                    }
+                }
+
+                local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+            }
+        }
+
+        return result;
+    }
+
+    fn intersect(self: Gridtree, ray: *Ray) ?CM {
         const p = ray.point(ray.min_t);
         const c: Vec4i = @intFromFloat(self.dimensions * p);
         const v = c >> Log2_cell_dim4;
