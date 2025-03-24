@@ -13,6 +13,7 @@ const CM = ccoef.CM;
 const base = @import("base");
 const math = base.math;
 const Ray = math.Ray;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
@@ -28,15 +29,14 @@ pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, s
 pub fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
     cc: CC,
     material: *const Material,
-    srs: f32,
     sampler: *Sampler,
     worker: *Worker,
 ) bool {
-    const minorant_mu_t = cm.minorant_mu_t(srs);
-    const majorant_mu_t = cm.majorant_mu_t(srs);
+    const minorant_mu_t = cm[0];
+    const majorant_mu_t = cm[1];
 
     if (minorant_mu_t > 0.0) {
         // Transmittance of the control medium
@@ -181,16 +181,15 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
 
 pub fn trackingHetero(
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
     cc: CC,
     material: *const Material,
-    srs: f32,
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
-    const mt = cm.majorant_mu_t(srs);
+    const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }
@@ -240,16 +239,15 @@ pub fn trackingHetero(
 
 pub fn trackingHeteroEmission(
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
     cc: CC,
     material: *const Material,
-    srs: f32,
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
-    const mt = cm.majorant_mu_t(srs);
+    const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }

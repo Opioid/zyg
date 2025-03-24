@@ -1,4 +1,5 @@
 const math = @import("base").math;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const CC = struct {
@@ -14,39 +15,16 @@ pub const CC = struct {
         const ax = a * x;
         return .{ .a = .{ ax[0], ax[1], ax[2], a[3] }, .s = self.s * x };
     }
+
+    pub fn minorantMajorantT(self: CC) Vec2f {
+        const mu_t = self.a + self.s;
+        return .{ math.hmin3(mu_t), math.hmax3(mu_t) };
+    }
 };
 
 pub const CCE = struct {
     cc: CC,
     e: Vec4f,
-};
-
-pub const CM = struct {
-    minorant_mu_a: f32,
-    minorant_mu_s: f32,
-    majorant_mu_a: f32,
-    majorant_mu_s: f32,
-
-    pub fn initCC(cc: CC) CM {
-        return .{
-            .minorant_mu_a = math.hmin3(cc.a),
-            .minorant_mu_s = math.hmin3(cc.s),
-            .majorant_mu_a = math.hmax3(cc.a),
-            .majorant_mu_s = math.hmax3(cc.s),
-        };
-    }
-
-    pub fn minorant_mu_t(self: CM, srs: f32) f32 {
-        return self.minorant_mu_a + srs * self.minorant_mu_s;
-    }
-
-    pub fn majorant_mu_t(self: CM, srs: f32) f32 {
-        return self.majorant_mu_a + srs * self.majorant_mu_s;
-    }
-
-    pub fn isEmpty(self: CM) bool {
-        return 0.0 == self.majorant_mu_a and 0.0 == self.majorant_mu_s;
-    }
 };
 
 pub fn attenuation(ac: Vec4f, ssc: Vec4f, distance: f32, g: f32) CC {

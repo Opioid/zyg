@@ -11,6 +11,7 @@ const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Ray = math.Ray;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4u = math.Vec4u;
 const Vec4f = math.Vec4f;
@@ -60,7 +61,7 @@ pub const Gridtree = struct {
     inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
-    data: [*]CM = undefined,
+    data: [*]Vec2f = undefined,
 
     num_nodes: u32 = 0,
     num_data: u32 = 0,
@@ -96,13 +97,13 @@ pub const Gridtree = struct {
         return self.nodes;
     }
 
-    pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]CM {
+    pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]Vec2f {
         if (num_data != self.num_data) {
             alloc.free(self.data[0..self.num_data]);
         }
 
         self.num_data = num_data;
-        self.data = (try alloc.alloc(CM, num_data)).ptr;
+        self.data = (try alloc.alloc(Vec2f, num_data)).ptr;
 
         return self.data;
     }
@@ -126,11 +127,12 @@ pub const Gridtree = struct {
         var cc = material.collisionCoefficients();
         cc.s *= @splat(srs);
 
+        const cm = cc.minorantMajorantT();
+
         while (local_ray.min_t < d) {
-            if (self.intersect(&local_ray)) |cm| {
-                if (!tracking.trackingTransmitted(tr, local_ray, cm, cc, material, srs, sampler, worker)) {
-                    return false;
-                }
+            const dr = self.intersect(&local_ray);
+            if (!tracking.trackingTransmitted(tr, local_ray, cm * dr, cc, material, sampler, worker)) {
+                return false;
             }
 
             local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
@@ -158,53 +160,51 @@ pub const Gridtree = struct {
         var cc = material.collisionCoefficients();
         cc.s *= @splat(srs);
 
+        const cm = cc.minorantMajorantT();
+
         var result = Volume.initPass(@splat(1.0));
 
         if (material.emissive()) {
             while (local_ray.min_t < d) {
-                if (self.intersect(&local_ray)) |cm| {
-                    result = tracking.trackingHeteroEmission(
-                        local_ray,
-                        cm,
-                        cc,
-                        material,
-                        srs,
-                        result.tr,
-                        throughput,
-                        sampler,
-                        worker,
-                    );
+                const dr = self.intersect(&local_ray);
+                result = tracking.trackingHeteroEmission(
+                    local_ray,
+                    cm * dr,
+                    cc,
+                    material,
+                    result.tr,
+                    throughput,
+                    sampler,
+                    worker,
+                );
 
-                    if (.Scatter == result.event) {
-                        break;
-                    }
+                if (.Scatter == result.event) {
+                    break;
+                }
 
-                    if (.Absorb == result.event) {
-                        result.uvw = local_ray.point(result.t);
-                        return result;
-                    }
+                if (.Absorb == result.event) {
+                    result.uvw = local_ray.point(result.t);
+                    return result;
                 }
 
                 local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
             }
         } else {
             while (local_ray.min_t < d) {
-                if (self.intersect(&local_ray)) |cm| {
-                    result = tracking.trackingHetero(
-                        local_ray,
-                        cm,
-                        cc,
-                        material,
-                        srs,
-                        result.tr,
-                        throughput,
-                        sampler,
-                        worker,
-                    );
+                const dr = self.intersect(&local_ray);
+                result = tracking.trackingHetero(
+                    local_ray,
+                    cm * dr,
+                    cc,
+                    material,
+                    result.tr,
+                    throughput,
+                    sampler,
+                    worker,
+                );
 
-                    if (.Scatter == result.event) {
-                        break;
-                    }
+                if (.Scatter == result.event) {
+                    break;
                 }
 
                 local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
@@ -214,14 +214,14 @@ pub const Gridtree = struct {
         return result;
     }
 
-    fn intersect(self: Gridtree, ray: *Ray) ?CM {
+    fn intersect(self: Gridtree, ray: *Ray) Vec2f {
         const p = ray.point(ray.min_t);
         const c: Vec4i = @intFromFloat(self.dimensions * p);
         const v = c >> Log2_cell_dim4;
         const uv: Vec4u = @bitCast(v);
 
         if (math.anyGreaterEqual4u(uv, self.num_cells)) {
-            return null;
+            return @splat(0.0);
         }
 
         const b0 = v << Log2_cell_dim4;
@@ -254,11 +254,11 @@ pub const Gridtree = struct {
             ray.setMinMaxT(hit_t[0], hit_t[1]);
         } else {
             ray.max_t = ray.min_t;
-            return null;
+            return @splat(0.0);
         }
 
         if (node.isEmpty()) {
-            return null;
+            return @splat(0.0);
         }
 
         return self.data[node.index()];
