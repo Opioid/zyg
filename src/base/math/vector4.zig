@@ -195,6 +195,10 @@ pub inline fn allLess4(a: Vec4f, b: Vec4f) bool {
     return @reduce(.And, a < b);
 }
 
+pub inline fn allLessEqual4i(a: Vec4i, b: Vec4i) bool {
+    return @reduce(.And, a <= b);
+}
+
 pub inline fn anyLess4i(a: Vec4i, b: Vec4i) bool {
     return @reduce(.Or, a < b);
 }

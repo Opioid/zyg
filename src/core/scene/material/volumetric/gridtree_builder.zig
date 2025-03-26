@@ -117,7 +117,8 @@ const Splitter = struct {
     num_nodes: u32,
     num_data: u32,
 
-    const W: i32 = (Gridtree.Cell_dim >> (Gridtree.Log2_cell_dim - 3)) + 1;
+    // Plus 2 bececause of the filtering border mentioned below
+    const W = 8 + 2;
 
     fn split(
         self: *Splitter,
@@ -162,7 +163,7 @@ const Splitter = struct {
 
         const diff = max_density - min_density;
 
-        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or math.anyLess4i((maxb - minb), .{ W, W, W, std.math.minInt(i32) })) {
+        if (math.allLessEqual4i((maxb - minb), .{ W, W, W, std.math.maxInt(i32) }) or diff < 0.1) {
             node.children = &.{};
             node.data = .{ min_density, max_density };
 
