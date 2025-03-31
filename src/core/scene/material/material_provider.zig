@@ -504,9 +504,8 @@ const TextureDescriptor = struct {
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
                         desc.procedural = 0;
-                        const data = try Checker.createData(alloc, entry.value_ptr.*);
-                        desc.procedural_data = @truncate(resources.scene.checker_data.items.len);
-                        try resources.scene.checker_data.append(alloc, data);
+                        desc.procedural_data = @truncate(resources.scene.checkers.items.len);
+                        try resources.scene.checkers.append(alloc, Checker.init(entry.value_ptr.*));
                         break;
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);

@@ -12,36 +12,34 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Checker = struct {
-    pub const Data = struct {
-        color_a: Pack3f,
-        color_b: Pack3f,
-        scale: f32,
-    };
+    color_a: Pack3f,
+    color_b: Pack3f,
+    scale: f32,
 
-    pub fn createData(alloc: Allocator, value: std.json.Value) !*Data {
-        const data = try alloc.create(Data);
-
-        data.color_a = Pack3f.init1(0.0);
-        data.color_b = Pack3f.init1(0.0);
-        data.scale = 1.0;
+    pub fn init(value: std.json.Value) Checker {
+        var checker = Checker{
+            .color_a = Pack3f.init1(0.0),
+            .color_b = Pack3f.init1(0.0),
+            .scale = 1.0,
+        };
 
         var citer = value.object.iterator();
         while (citer.next()) |cn| {
             if (std.mem.eql(u8, "scale", cn.key_ptr.*)) {
-                data.scale = json.readFloat(f32, cn.value_ptr.*);
+                checker.scale = json.readFloat(f32, cn.value_ptr.*);
             } else if (std.mem.eql(u8, "colors", cn.key_ptr.*)) {
-                data.color_a = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[0]));
-                data.color_b = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[1]));
+                checker.color_a = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[0]));
+                checker.color_b = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[1]));
             }
         }
 
-        return data;
+        return checker;
     }
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    pub fn evaluate(rs: Renderstate, address: TextureAddress, data: Data) Vec4f {
-        const scale: Vec2f = @splat(data.scale);
+    pub fn evaluate(self: Checker, rs: Renderstate, address: TextureAddress) Vec4f {
+        const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
             scale * address.address2(rs.uv()),
@@ -49,7 +47,7 @@ pub const Checker = struct {
             scale * rs.ddy,
         );
 
-        return math.lerp(math.vec3fTo4f(data.color_a), math.vec3fTo4f(data.color_b), @as(Vec4f, @splat(t)));
+        return math.lerp(math.vec3fTo4f(self.color_a), math.vec3fTo4f(self.color_b), @as(Vec4f, @splat(t)));
     }
 
     fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {

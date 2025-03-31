@@ -110,7 +110,7 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
-    checker_data: List(*ProceduralChecker.Data) = .empty,
+    checkers: List(ProceduralChecker) = .empty,
 
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
@@ -184,9 +184,7 @@ pub const Scene = struct {
         deinitResources(Material, alloc, &self.materials);
         deinitResources(Image, alloc, &self.images);
 
-        for (self.checker_data.items) |data| {
-            alloc.destroy(data);
-        }
+        self.checkers.deinit(alloc);
     }
 
     pub fn clear(self: *Scene) void {
@@ -624,7 +622,7 @@ pub const Scene = struct {
     }
 
     pub fn evaluateProceduralTexture(self: *const Scene, texture: Texture, rs: Renderstate, address: TextureAddress) Vec4f {
-        return ProceduralChecker.evaluate(rs, address, self.checker_data.items[texture.data.procedural.data].*);
+        return self.checkers.items[texture.data.procedural.data].evaluate(rs, address);
     }
 
     pub fn material(self: *const Scene, material_id: u32) *Material {
