@@ -58,7 +58,6 @@ pub const Node = packed struct {
 pub const Gridtree = struct {
     dimensions: Vec4f = undefined,
     num_cells: Vec4u = undefined,
-    inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
     data: [*]Vec2f = undefined,
@@ -82,9 +81,6 @@ pub const Gridtree = struct {
 
         const nc: Vec4u = @bitCast(num_cells);
         self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
-
-        const id = @as(Vec4f, @splat(1.0)) / df;
-        self.inv_dimensions = .{ id[0], id[1], id[2], 0.0 };
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
@@ -215,8 +211,9 @@ pub const Gridtree = struct {
     }
 
     fn intersect(self: Gridtree, ray: *Ray) Vec2f {
+        const dim = self.dimensions;
         const p = ray.point(ray.min_t);
-        const c: Vec4i = @intFromFloat(self.dimensions * p);
+        const c: Vec4i = @intFromFloat(dim * p);
         const v = c >> Log2_cell_dim4;
         const uv: Vec4u = @bitCast(v);
 
@@ -244,9 +241,11 @@ pub const Gridtree = struct {
             node = self.nodes[node.index() + o];
         }
 
+        const idim = @as(Vec4f, @splat(1.0)) / dim;
+
         const boxf = AABB.init(
-            @as(Vec4f, @floatFromInt(box.bounds[0])) * self.inv_dimensions,
-            @as(Vec4f, @floatFromInt(box.bounds[1])) * self.inv_dimensions,
+            @as(Vec4f, @floatFromInt(box.bounds[0])) * idim,
+            @as(Vec4f, @floatFromInt(box.bounds[1])) * idim,
         );
 
         const hit_t = boxf.intersectInterval(ray.*);

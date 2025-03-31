@@ -100,7 +100,7 @@ pub fn readVec4i3Member(value: Value, name: []const u8, default: Vec4i) Vec4i {
         @intCast(member.array.items[0].integer),
         @intCast(member.array.items[1].integer),
         @intCast(member.array.items[2].integer),
-        0,
+        1,
     };
 }
 

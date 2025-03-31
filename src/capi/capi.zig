@@ -243,7 +243,7 @@ export fn su_image_create(
             .UInt32, .Float32 => 4,
         };
 
-        const desc = img.Description.init3D(.{ @as(i32, @intCast(width)), @as(i32, @intCast(height)), @as(i32, @intCast(depth)), 0 });
+        const desc = img.Description.init3D(.{ @intCast(width), @intCast(height), @intCast(depth), 1 });
 
         const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
             return -1;
