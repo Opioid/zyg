@@ -115,16 +115,12 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
-        shading_p: Vec4f,
         wi: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
+        rs: Renderstate,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        return self.emittance.radiance(shading_p, wi, uv, trafo, prop, part, self.super.sampler_key, sampler, scene);
+        return self.emittance.radiance(wi, rs, self.super.sampler_key, sampler, scene);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {

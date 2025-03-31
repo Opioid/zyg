@@ -167,10 +167,10 @@ pub const Material = struct {
             rs,
             key,
             worker,
-        ) else ts.sample2D_3(key, self.color_map, rs.uv, sampler, worker.scene);
+        ) else ts.sample2D_3(key, self.color_map, rs.uv(), sampler, worker.scene);
 
-        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, worker.scene));
-        const metallic = ts.sample2D_1(key, self.metallic_map, rs.uv, sampler, worker.scene);
+        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv(), sampler, worker.scene));
+        const metallic = ts.sample2D_1(key, self.metallic_map, rs.uv(), sampler, worker.scene);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
@@ -178,7 +178,7 @@ pub const Material = struct {
         var coating_weight: f32 = undefined;
         var coating_ior: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs.uv, sampler, worker.scene);
+            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs.uv(), sampler, worker.scene);
             coating_thickness = self.coating_thickness * relative_thickness;
             coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
             coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
@@ -227,7 +227,7 @@ pub const Material = struct {
                 result.coating.n = rs.n;
             }
 
-            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene));
+            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv(), sampler, worker.scene));
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
@@ -237,7 +237,7 @@ pub const Material = struct {
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
-        const rotation = ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi);
+        const rotation = ts.sample2D_1(key, self.rotation_map, rs.uv(), sampler, worker.scene) * (2.0 * std.math.pi);
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
@@ -330,30 +330,25 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
-        p: Vec4f,
         wi: Vec4f,
-        n: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
+        rs: Renderstate,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         const key = self.super.sampler_key;
 
-        const rad = self.emittance.radiance(p, wi, uv, trafo, prop, part, key, sampler, scene);
+        const rad = self.emittance.radiance(wi, rs, key, sampler, scene);
 
         var coating_thickness: f32 = undefined;
         if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.color_map, uv, sampler, scene);
+            const relative_thickness = ts.sample2D_1(key, self.color_map, rs.uv(), sampler, scene);
             coating_thickness = self.coating_thickness * relative_thickness;
         } else {
             coating_thickness = self.coating_thickness;
         }
 
         if (coating_thickness > 0.0) {
-            const n_dot_wi = math.safe.clampAbsDot(wi, n);
+            const n_dot_wi = math.safe.clampAbsDot(wi, rs.geo_n);
             const att = SampleCoating.singleAttenuationStatic(
                 self.coating_absorption_coef,
                 coating_thickness,
@@ -383,7 +378,7 @@ pub const Material = struct {
         const dd = @as(Vec4f, @splat(checkers_scale)) * worker.screenspaceDifferential(rs);
 
         const t = checkersGrad(
-            @as(Vec2f, @splat(checkers_scale)) * sampler_key.address.address2(rs.uv),
+            @as(Vec2f, @splat(checkers_scale)) * sampler_key.address.address2(rs.uv()),
             .{ dd[0], dd[1] },
             .{ dd[2], dd[3] },
         );

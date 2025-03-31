@@ -22,7 +22,7 @@ pub const Renderstate = struct {
     n: Vec4f,
     origin: Vec4f,
 
-    uv: Vec2f,
+    uvw: Vec4f,
 
     ior: f32,
     wavelength: f32,
@@ -39,6 +39,11 @@ pub const Renderstate = struct {
     highest_priority: i8,
     event: Event,
     caustics: CausticsResolve,
+
+    pub fn uv(self: Renderstate) Vec2f {
+        const uvw = self.uvw;
+        return .{ uvw[0], uvw[1] };
+    }
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
         return .{

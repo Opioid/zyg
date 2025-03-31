@@ -221,12 +221,19 @@ pub const Material = struct {
         return (1.0 - g) / (1.0 - gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(
+        self: *const Material,
+        rs: Renderstate,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) Vec4f {
         if (!self.density_map.valid()) {
             return self.average_emission;
         }
 
         const key = self.super.sampler_key;
+
+        const uvw = rs.p;
 
         const emission = if (self.emittance.emission_map.valid())
             self.blackbody.eval(ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, scene))

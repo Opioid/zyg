@@ -61,7 +61,7 @@ pub const Material = struct {
 
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv(), sampler, scene))
         else
             0.0;
 

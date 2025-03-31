@@ -2,6 +2,7 @@ const Shape = @import("shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const mat = @import("../material/material.zig");
 const RadianceResult = @import("../material/material_base.zig").Base.RadianceResult;
@@ -132,16 +133,14 @@ pub const Fragment = struct {
             return null;
         }
 
-        return m.evaluateRadiance(
-            shading_p,
-            wo,
-            self.geo_n,
-            self.uvw,
-            self.trafo,
-            self.prop,
-            self.part,
-            sampler,
-            scene,
-        );
+        var rs: Renderstate = undefined;
+        rs.trafo = self.trafo;
+        rs.origin = shading_p;
+        rs.geo_n = self.geo_n;
+        rs.uvw = self.uvw;
+        rs.prop = self.prop;
+        rs.part = self.part;
+
+        return m.evaluateRadiance(wo, rs, sampler, scene);
     }
 };

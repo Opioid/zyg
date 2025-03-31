@@ -1,3 +1,4 @@
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Prop = @import("../prop/prop.zig").Prop;
@@ -114,32 +115,30 @@ pub const Light = struct {
 
     pub fn evaluateTo(self: Light, p: Vec4f, trafo: Trafo, sample: SampleTo, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(
-            p,
-            sample.wi,
-            sample.n,
-            sample.uvw,
-            trafo,
-            self.prop,
-            self.part,
-            sampler,
-            scene,
-        );
+
+        var rs: Renderstate = undefined;
+        rs.trafo = trafo;
+        rs.origin = p;
+        rs.geo_n = sample.n;
+        rs.uvw = sample.uvw;
+        rs.prop = self.prop;
+        rs.part = self.part;
+
+        return material.evaluateRadiance(sample.wi, rs, sampler, scene);
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, scene: *const Scene) Vec4f {
         const material = scene.propMaterial(self.prop, self.part);
-        return material.evaluateRadiance(
-            p,
-            -sample.dir,
-            sample.n,
-            sample.uvw,
-            sample.trafo,
-            self.prop,
-            self.part,
-            sampler,
-            scene,
-        );
+
+        var rs: Renderstate = undefined;
+        rs.trafo = sample.trafo;
+        rs.origin = p;
+        rs.geo_n = sample.n;
+        rs.uvw = sample.uvw;
+        rs.prop = self.prop;
+        rs.part = self.part;
+
+        return material.evaluateRadiance(-sample.dir, rs, sampler, scene);
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
@@ -147,7 +146,7 @@ pub const Light = struct {
             .Prop => self.propPdf(vertex, frag, split_threshold, scene),
             .PropImage => self.propMaterialPdf(vertex, frag, split_threshold, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
-            .VolumeImage => self.volumeImagePdf(vertex.probe.ray.direction, frag, scene),
+            .VolumeImage => self.volumeImagePdf(vertex.origin, frag, scene),
         };
     }
 

@@ -184,7 +184,7 @@ pub const Vertex = struct {
         }
 
         rs.origin = self.origin;
-        rs.uv = frag.uv();
+        rs.uvw = frag.uvw;
         rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
         rs.min_alpha = self.min_alpha;

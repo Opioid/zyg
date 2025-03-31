@@ -1,6 +1,7 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../../vertex.zig").Vertex;
 const Scene = @import("../../scene.zig").Scene;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
@@ -308,17 +309,13 @@ pub const Part = struct {
                         const xi = math.hammersley(j, num_samples, 0);
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(itri, s2[0], s2[1]);
-                        radiance += self.m.evaluateRadiance(
-                            Pos,
-                            Dir,
-                            Dir,
-                            .{ uv[0], uv[1], 0.0, 0.0 },
-                            IdTrafo,
-                            self.prop_id,
-                            self.part_id,
-                            &sampler,
-                            self.scene,
-                        );
+                        var rs: Renderstate = undefined;
+                        rs.origin = Pos;
+                        rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+                        rs.prop = self.prop_id;
+                        rs.part = self.part_id;
+                        rs.trafo = IdTrafo;
+                        radiance += self.m.evaluateRadiance(Dir, rs, &sampler, self.scene);
                     }
 
                     pow = if (math.hmax3(radiance) > 0.0) area else 0.0;

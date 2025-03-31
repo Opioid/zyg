@@ -152,16 +152,15 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: *const Material,
         wi: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
+        rs: Renderstate,
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
         if (self.emission_map.valid()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
+            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs.uv(), sampler, scene);
         }
 
-        return self.sun_radiance.eval(sunV(trafo.rotation, wi));
+        return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));
     }
 
     fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
