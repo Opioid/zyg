@@ -21,8 +21,10 @@ pub const Renderstate = struct {
     b: Vec4f,
     n: Vec4f,
     origin: Vec4f,
-
     uvw: Vec4f,
+
+    ddx: Vec2f,
+    ddy: Vec2f,
 
     ior: f32,
     wavelength: f32,

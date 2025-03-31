@@ -31,10 +31,12 @@ pub const Material = struct {
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
+        const properties = &self.super.properties;
+
         const thin = self.thickness > 0.0;
-        self.super.properties.two_sided = thin;
-        self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
-        self.super.properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.two_sided = thin;
+        properties.evaluate_visibility = thin or !self.super.mask.uniform();
+        properties.caustic = self.roughness_map.uniform() and self.roughness_map.uniform1() <= ggx.MinRoughness;
     }
 
     pub fn setVolumetric(
@@ -78,7 +80,7 @@ pub const Material = struct {
             self.super.priority,
         );
 
-        if (self.normal_map.valid()) {
+        if (!self.normal_map.uniform()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, scene);
             result.super.frame = Frame.init(n);
         } else {

@@ -42,9 +42,7 @@ pub const Material = union(enum) {
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
         switch (self.*) {
-            .Light => |*m| m.deinit(alloc),
-            .Sky => |*m| m.deinit(alloc),
-            .Volumetric => |*m| m.deinit(alloc),
+            inline .Light, .Sky, .Volumetric => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -118,7 +116,7 @@ pub const Material = union(enum) {
 
     pub fn heterogeneousVolume(self: *const Material) bool {
         return switch (self.*) {
-            .Volumetric => |*m| m.density_map.valid(),
+            .Volumetric => |*m| !m.density_map.uniform(),
             else => false,
         };
     }
@@ -129,7 +127,7 @@ pub const Material = union(enum) {
 
     pub fn volumetricTree(self: *const Material) ?Gridtree {
         return switch (self.*) {
-            .Volumetric => |*m| if (m.density_map.valid()) m.tree else null,
+            .Volumetric => |*m| if (!m.density_map.uniform()) m.tree else null,
             else => null,
         };
     }
@@ -275,6 +273,6 @@ pub const Material = union(enum) {
             inline else => |*m| m.super.mask,
         };
 
-        return if (texture.valid()) texture else null;
+        return if (!texture.uniform()) texture else null;
     }
 };

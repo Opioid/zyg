@@ -9,6 +9,8 @@ const Transformation = math.Transformation;
 const Quaternion = math.Quaternion;
 const quaternion = math.quaternion;
 
+const spectrum = @import("spectrum/spectrum.zig");
+
 const std = @import("std");
 const Value = std.json.Value;
 
@@ -230,4 +232,39 @@ pub fn readTransformation(value: Value, trafo: *Transformation) void {
         },
         else => return,
     }
+}
+
+fn mapColor(color: Vec4f) Vec4f {
+    return spectrum.sRGBtoAP1(color);
+}
+
+pub fn readColor(value: std.json.Value) Vec4f {
+    return switch (value) {
+        .array => mapColor(readVec4f3(value)),
+        .integer => |i| mapColor(@splat(@floatFromInt(i))),
+        .float => |f| mapColor(@splat(@floatCast(f))),
+        .object => |o| {
+            var rgb: Vec4f = @splat(0.0);
+            var linear = true;
+
+            var iter = o.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "sRGB", entry.key_ptr.*)) {
+                    rgb = readColor(entry.value_ptr.*);
+                } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
+                    const temperature = readFloat(f32, entry.value_ptr.*);
+                    rgb = spectrum.blackbody(math.max(800.0, temperature));
+                } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
+                    linear = readBool(entry.value_ptr.*);
+                }
+            }
+
+            if (!linear) {
+                rgb = spectrum.linearToGamma_sRGB3(rgb);
+            }
+
+            return mapColor(rgb);
+        },
+        else => @splat(0.0),
+    };
 }

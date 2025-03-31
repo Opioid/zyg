@@ -21,15 +21,10 @@ const Allocator = std.mem.Allocator;
 pub fn main() !void {
     log.info("Welcome to it!", .{});
 
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer {
-    //     const leaked = gpa.deinit();
-    //     if (leaked) {
-    //         log.warning("Memory leak {}", .{leaked});
-    //     }
-    // }
+    // var da: std.heap.DebugAllocator(.{}) = .init;
+    // defer _ = da.deinit();
 
-    // const alloc = gpa.allocator();
+    // const alloc = da.allocator();
     const alloc = std.heap.c_allocator;
 
     var args = try std.process.argsWithAllocator(alloc);

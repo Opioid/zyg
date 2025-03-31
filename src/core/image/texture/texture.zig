@@ -12,10 +12,12 @@ const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
     pub const Type = enum {
         Uniform,
+        Procedural,
         Byte1_unorm,
         Byte2_unorm,
         Byte2_snorm,
@@ -37,9 +39,15 @@ pub const Texture = struct {
         scale: [2]f32,
     };
 
+    const Procedural = extern struct {
+        id: u32,
+        data: u32,
+    };
+
     const Data = extern union {
-        image: Image,
         uniform: Pack3f,
+        procedural: Procedural,
+        image: Image,
     };
 
     type: Type = .Uniform,
@@ -55,6 +63,17 @@ pub const Texture = struct {
 
     pub fn initUniform3(v: Vec4f) Texture {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
+    }
+
+    pub fn initProcedural(id: u32, data: u32) Texture {
+        return .{ .type = .Procedural, .data = .{ .procedural = .{ .id = id, .data = data } } };
+    }
+
+    pub fn deinit(self: Texture, alloc: Allocator) void {
+        switch (self.type) {
+            .Procedural => Scene.destroyProceduralTexture(alloc, self),
+            else => {},
+        }
     }
 
     pub fn equal(self: Texture, other: Texture) bool {
@@ -79,13 +98,17 @@ pub const Texture = struct {
         return other;
     }
 
-    pub fn valid(self: Texture) bool {
-        return self.type != .Uniform;
+    pub fn uniform(self: Texture) bool {
+        return .Uniform == self.type;
+    }
+
+    pub fn procedural(self: Texture) bool {
+        return .Procedural == self.type;
     }
 
     pub fn numChannels(self: Texture) u32 {
         return switch (self.type) {
-            .Uniform => 0,
+            .Uniform, .Procedural => 0,
             .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Byte3_snorm, .Half3, .Float3 => 3,
@@ -95,7 +118,7 @@ pub const Texture = struct {
 
     pub fn bytesPerChannel(self: Texture) u32 {
         return switch (self.type) {
-            .Uniform => 0,
+            .Uniform, .Procedural => 0,
             .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte3_snorm, .Byte4_sRGB => 1,
             .Half1, .Half3, .Half4 => 2,
             else => 4,

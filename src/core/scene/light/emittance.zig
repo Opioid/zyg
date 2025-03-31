@@ -78,7 +78,7 @@ pub const Emittance = struct {
         scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
-        if (self.profile.valid()) {
+        if (!self.profile.uniform()) {
             const profile_key = ts.Key{
                 .filter = ts.DefaultFilter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
@@ -95,7 +95,7 @@ pub const Emittance = struct {
             return @splat(0.0);
         }
 
-        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs.uv(), sampler, scene);
+        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs, sampler, scene);
 
         if (self.quantity == .Intensity) {
             const area = scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
@@ -114,7 +114,7 @@ pub const Emittance = struct {
     }
 
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
-        if (!self.profile.valid()) {
+        if (self.profile.uniform()) {
             return std.math.pi;
         }
 

@@ -57,7 +57,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = true;
-        self.super.properties.emission_map = self.emission_map.valid();
+        self.super.properties.emission_map = !self.emission_map.uniform();
     }
 
     pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
@@ -156,8 +156,8 @@ pub const Material = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        if (self.emission_map.valid()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs.uv(), sampler, scene);
+        if (!self.emission_map.uniform()) {
+            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, scene);
         }
 
         return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));
@@ -176,7 +176,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (self.emission_map.valid()) {
+        if (!self.emission_map.uniform()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
 

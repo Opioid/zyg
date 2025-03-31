@@ -26,7 +26,7 @@ pub const Base = struct {
             }
 
             pub fn flatten(self: Self) Texture {
-                if (self.texture.valid()) {
+                if (!self.texture.uniform()) {
                     return self.texture;
                 }
 
@@ -63,6 +63,7 @@ pub const Base = struct {
     pub const Properties = packed struct {
         two_sided: bool = false,
         evaluate_visibility: bool = false,
+        needs_differentials: bool = false,
         caustic: bool = false,
         emissive: bool = false,
         color_map: bool = false,

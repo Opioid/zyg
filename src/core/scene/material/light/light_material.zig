@@ -38,7 +38,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_map = self.emittance.emission_map.valid();
+        self.super.properties.emission_map = !self.emittance.emission_map.uniform();
     }
 
     pub fn prepareSampling(
@@ -56,7 +56,7 @@ pub const Material = struct {
         }
 
         const rad = self.emittance.averageRadiance(area);
-        if (!self.emittance.emission_map.valid()) {
+        if (self.emittance.emission_map.uniform()) {
             self.average_emission = rad;
             return self.average_emission;
         }
@@ -130,7 +130,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (self.emittance.emission_map.valid()) {
+        if (!self.emittance.emission_map.uniform()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
 

@@ -12,9 +12,13 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
+const Renderstate = @import("renderstate.zig").Renderstate;
 const Vertex = @import("vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
+const Texture = @import("../image/texture/texture.zig").Texture;
+const TextureAddress = @import("../image/texture/texture_sampler.zig").Address;
+const ProceduralChecker = @import("../image/texture/procedural_checker.zig").Checker;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
@@ -25,6 +29,7 @@ const hlp = @import("../rendering/integrator/helper.zig");
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Mat4x4 = math.Mat4x4;
 const Distribution1D = math.Distribution1D;
@@ -105,6 +110,8 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
+    checker_data: List(*ProceduralChecker.Data) = .empty,
+
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
         try shapes.append(alloc, .{ .Canopy = .{} });
@@ -176,6 +183,10 @@ pub const Scene = struct {
         deinitResources(Shape, alloc, &self.shapes);
         deinitResources(Material, alloc, &self.materials);
         deinitResources(Image, alloc, &self.images);
+
+        for (self.checker_data.items) |data| {
+            alloc.destroy(data);
+        }
     }
 
     pub fn clear(self: *Scene) void {
@@ -610,6 +621,10 @@ pub const Scene = struct {
 
     pub fn imagePtr(self: *const Scene, image_id: u32) *Image {
         return &self.images.items[image_id];
+    }
+
+    pub fn evaluateProceduralTexture(self: *const Scene, texture: Texture, rs: Renderstate, address: TextureAddress) Vec4f {
+        return ProceduralChecker.evaluate(rs, address, self.checker_data.items[texture.data.procedural.data].*);
     }
 
     pub fn material(self: *const Scene, material_id: u32) *Material {
