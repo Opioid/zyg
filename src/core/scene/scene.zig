@@ -19,8 +19,6 @@ const Image = @import("../image/image.zig").Image;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
 const Procedural = @import("../image/texture/procedural.zig").Procedural;
-const ProceduralChecker = @import("../image/texture/procedural_checker.zig").Checker;
-const ProceduralMix = @import("../image/texture/procedural_mix.zig").Mix;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
@@ -112,8 +110,7 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
-    checkers: List(ProceduralChecker) = .empty,
-    mixes: List(ProceduralMix) = .empty,
+    procedural: Procedural = .{},
 
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
@@ -183,11 +180,11 @@ pub const Scene = struct {
         self.prop_world_transformations.deinit(alloc);
         self.props.deinit(alloc);
 
+        self.procedural.deinit(alloc);
+
         deinitResources(Shape, alloc, &self.shapes);
         deinitResources(Material, alloc, &self.materials);
         deinitResources(Image, alloc, &self.images);
-
-        self.checkers.deinit(alloc);
     }
 
     pub fn clear(self: *Scene) void {
@@ -629,7 +626,7 @@ pub const Scene = struct {
             return false;
         }
 
-        const proc: Procedural = @enumFromInt(texture.data.procedural.id);
+        const proc: Procedural.Type = @enumFromInt(texture.data.procedural.id);
 
         return switch (proc) {
             .Checker => true,
@@ -638,39 +635,15 @@ pub const Scene = struct {
     }
 
     pub fn sampleProcedural2D_1(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
-        const proc: Procedural = @enumFromInt(texture.data.procedural.id);
-
-        const data = texture.data.procedural.data;
-
-        return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key)[0],
-            .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, self),
-        };
+        return self.procedural.sample2D_1(key, texture, rs, sampler, self);
     }
 
     pub fn sampleProcedural2D_2(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
-        const proc: Procedural = @enumFromInt(texture.data.procedural.id);
-
-        const data = texture.data.procedural.data;
-
-        return switch (proc) {
-            .Checker => {
-                const color = self.checkers.items[data].evaluate(rs, key);
-                return .{ color[0], color[1] };
-            },
-            .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, self),
-        };
+        return self.procedural.sample2D_2(key, texture, rs, sampler, self);
     }
 
     pub fn sampleProcedural2D_3(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
-        const proc: Procedural = @enumFromInt(texture.data.procedural.id);
-
-        const data = texture.data.procedural.data;
-
-        return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key),
-            .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, self),
-        };
+        return self.procedural.sample2D_3(key, texture, rs, sampler, self);
     }
 
     pub fn material(self: *const Scene, material_id: u32) *Material {

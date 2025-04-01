@@ -16,6 +16,7 @@ const Resources = rsc.Manager;
 const Result = @import("../../resource/result.zig").Result;
 const Procedural = @import("../../image/texture/procedural.zig").Procedural;
 const ProceduralChecker = @import("../../image/texture/procedural_checker.zig").Checker;
+const ProceduralDetailNormal = @import("../../image/texture/procedural_detail_normal.zig").DetailNormal;
 const ProceduralMix = @import("../../image/texture/procedural_mix.zig").Mix;
 
 const base = @import("base");
@@ -511,13 +512,33 @@ const TextureDescriptor = struct {
                 var iter = o.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Checker);
-                        desc.procedural_data = @truncate(resources.scene.checkers.items.len);
-                        try resources.scene.checkers.append(alloc, ProceduralChecker.init(entry.value_ptr.*));
+                        desc.procedural = @intFromEnum(Procedural.Type.Checker);
+                        desc.procedural_data = @truncate(resources.scene.procedural.checkers.items.len);
+                        try resources.scene.procedural.checkers.append(alloc, ProceduralChecker.init(entry.value_ptr.*));
+                        break;
+                    } else if (std.mem.eql(u8, "DetailNormal", entry.key_ptr.*)) {
+                        desc.procedural = @intFromEnum(Procedural.Type.DetailNormal);
+                        desc.procedural_data = @truncate(resources.scene.procedural.detail_normals.items.len);
+
+                        var detail: ProceduralDetailNormal = .{
+                            .base = Texture.initUniform1(0.0),
+                            .detail = Texture.initUniform1(0.0),
+                        };
+
+                        var citer = entry.value_ptr.object.iterator();
+                        while (citer.next()) |cn| {
+                            if (std.mem.eql(u8, "base", cn.key_ptr.*)) {
+                                detail.base = readTexture(alloc, cn.value_ptr.*, usage, tex, resources);
+                            } else if (std.mem.eql(u8, "detail", cn.key_ptr.*)) {
+                                detail.detail = readTexture(alloc, cn.value_ptr.*, usage, tex, resources);
+                            }
+                        }
+
+                        try resources.scene.procedural.detail_normals.append(alloc, detail);
                         break;
                     } else if (std.mem.eql(u8, "Mix", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Mix);
-                        desc.procedural_data = @truncate(resources.scene.mixes.items.len);
+                        desc.procedural = @intFromEnum(Procedural.Type.Mix);
+                        desc.procedural_data = @truncate(resources.scene.procedural.mixes.items.len);
 
                         var mix: ProceduralMix = .{
                             .a = Texture.initUniform1(0.0),
@@ -548,7 +569,7 @@ const TextureDescriptor = struct {
                             }
                         }
 
-                        try resources.scene.mixes.append(alloc, mix);
+                        try resources.scene.procedural.mixes.append(alloc, mix);
                         break;
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
