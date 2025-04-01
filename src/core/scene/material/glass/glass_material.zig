@@ -35,8 +35,8 @@ pub const Material = struct {
 
         const thin = self.thickness > 0.0;
         properties.two_sided = thin;
-        properties.evaluate_visibility = thin or !self.super.mask.uniform();
-        properties.caustic = self.roughness_map.uniform() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.evaluate_visibility = thin or !self.super.mask.isUniform();
+        properties.caustic = self.roughness_map.isUniform() and self.roughness_map.uniform1() <= ggx.MinRoughness;
     }
 
     pub fn setVolumetric(
@@ -63,7 +63,7 @@ pub const Material = struct {
 
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv(), sampler, scene))
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs, sampler, scene))
         else
             0.0;
 
@@ -80,7 +80,7 @@ pub const Material = struct {
             self.super.priority,
         );
 
-        if (!self.normal_map.uniform()) {
+        if (!self.normal_map.isUniform()) {
             const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, scene);
             result.super.frame = Frame.init(n);
         } else {
@@ -90,14 +90,14 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
-        const o = self.super.opacity(uv, sampler, scene);
+    pub fn visibility(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+        const o = self.super.opacity(rs, sampler, scene);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;
             const eta_t = self.ior;
 
-            const n_dot_wo = math.min(@abs(math.dot3(n, wi)), 1.0);
+            const n_dot_wo = math.min(@abs(math.dot3(rs.geo_n, wi)), 1.0);
             const eta = eta_i / eta_t;
             const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 

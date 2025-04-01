@@ -61,19 +61,16 @@ pub const Texture = struct {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init1(v) } };
     }
 
+    pub fn initUniform2(v: Vec2f) Texture {
+        return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], 0.0) } };
+    }
+
     pub fn initUniform3(v: Vec4f) Texture {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
     }
 
     pub fn initProcedural(id: u32, data: u32) Texture {
         return .{ .type = .Procedural, .data = .{ .procedural = .{ .id = id, .data = data } } };
-    }
-
-    pub fn deinit(self: Texture, alloc: Allocator) void {
-        switch (self.type) {
-            .Procedural => Scene.destroyProceduralTexture(alloc, self),
-            else => {},
-        }
     }
 
     pub fn equal(self: Texture, other: Texture) bool {
@@ -98,12 +95,19 @@ pub const Texture = struct {
         return other;
     }
 
-    pub fn uniform(self: Texture) bool {
+    pub fn isUniform(self: Texture) bool {
         return .Uniform == self.type;
     }
 
-    pub fn procedural(self: Texture) bool {
+    pub fn isProcedural(self: Texture) bool {
         return .Procedural == self.type;
+    }
+
+    pub fn isImage(self: Texture) bool {
+        return switch (self.type) {
+            .Uniform, .Procedural => false,
+            else => true,
+        };
     }
 
     pub fn numChannels(self: Texture) u32 {
@@ -128,6 +132,11 @@ pub const Texture = struct {
     pub fn uniform1(self: Texture) f32 {
         const v = self.data.uniform;
         return v.v[0];
+    }
+
+    pub fn uniform2(self: Texture) Vec2f {
+        const v = self.data.uniform;
+        return .{ v.v[0], v.v[1] };
     }
 
     pub fn uniform3(self: Texture) Vec4f {

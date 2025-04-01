@@ -6,6 +6,7 @@ const ro = @import("../../ray_offset.zig");
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
 const int = @import("../../shape/intersection.zig");
 const Fragment = int.Fragment;
 const Intersection = int.Intersection;
@@ -152,6 +153,8 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
 
+        var rs: Renderstate = undefined;
+
         while (NodeStack.End != n) {
             const node = nodes[n];
 
@@ -165,10 +168,11 @@ pub const Tree = struct {
                         const material = scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
-                            const normal = self.data.normal(itri);
+                            rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
+                            rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                            if (!material.visibility(ray_dir, normal, uv, sampler, scene, tr)) {
+                            if (!material.visibility(ray_dir, rs, sampler, scene, tr)) {
                                 return false;
                             }
                         } else {

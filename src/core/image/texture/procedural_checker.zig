@@ -1,4 +1,4 @@
-const TextureAddress = @import("texture_sampler.zig").Address;
+const ts = @import("texture_sampler.zig");
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 
 const base = @import("base");
@@ -9,7 +9,6 @@ const Vec4f = math.Vec4f;
 const json = base.json;
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const Checker = struct {
     color_a: Pack3f,
@@ -38,11 +37,11 @@ pub const Checker = struct {
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    pub fn evaluate(self: Checker, rs: Renderstate, address: TextureAddress) Vec4f {
+    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key) Vec4f {
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
-            scale * address.address2(rs.uv()),
+            scale * key.address.address2(rs.uv()),
             scale * rs.ddx,
             scale * rs.ddy,
         );

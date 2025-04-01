@@ -12,7 +12,7 @@ const std = @import("std");
 
 pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
     // Reconstruct normal from normal texture
-    const nm = ts.sample2D_2(key, map, rs.uv(), sampler, scene);
+    const nm = ts.sample2D_2(key, map, rs, sampler, scene);
     const nmz = @sqrt(math.max(1.0 - math.dot2(nm, nm), 0.01));
     const n = math.normalize3(rs.tangentToWorld(.{ nm[0], nm[1], nmz, 0.0 }));
 

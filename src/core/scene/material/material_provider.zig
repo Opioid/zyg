@@ -14,8 +14,9 @@ const ts = @import("../../image/texture/texture_sampler.zig");
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
 const Result = @import("../../resource/result.zig").Result;
-
-const Checker = @import("../../image/texture/procedural_checker.zig").Checker;
+const Procedural = @import("../../image/texture/procedural.zig").Procedural;
+const ProceduralChecker = @import("../../image/texture/procedural_checker.zig").Checker;
+const ProceduralMix = @import("../../image/texture/procedural_mix.zig").Mix;
 
 const base = @import("base");
 const math = base.math;
@@ -185,7 +186,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness_map.uniform1(), .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, 1.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
@@ -275,13 +276,13 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, material.color_map.uniform3(), .Color, self.tex, resources));
+                material.setColor(readValue(Vec4f, alloc, entry.value_ptr.*, @splat(0.0), .Color, self.tex, resources));
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 loadEmittance(alloc, entry.value_ptr.*, self.tex, resources, &material.emittance);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, material.roughness_map.uniform1(), .Roughness, self.tex, resources));
+                material.setRoughness(readValue(f32, alloc, entry.value_ptr.*, 1.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 log.warning("Surface maps are no longer supported. Please use separate roughness and metallic maps instead.", .{});
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
@@ -293,11 +294,11 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = json.readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.setRotation(readValue(f32, alloc, entry.value_ptr.*, material.rotation_map.uniform1(), .Roughness, self.tex, resources));
+                material.setRotation(readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                material.setMetallic(readValue(f32, alloc, entry.value_ptr.*, material.metallic_map.uniform1(), .Roughness, self.tex, resources));
+                material.setMetallic(readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
@@ -331,7 +332,7 @@ pub const Provider = struct {
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating_roughness_map.uniform1(),
+                            1.0,
                             .Roughness,
                             self.tex,
                             resources,
@@ -341,7 +342,7 @@ pub const Provider = struct {
                             f32,
                             alloc,
                             c.value_ptr.*,
-                            material.coating_thickness,
+                            0.01,
                             .Roughness,
                             self.tex,
                             resources,
@@ -495,7 +496,13 @@ const TextureDescriptor = struct {
 
     invert: bool = false,
 
-    pub fn init(alloc: Allocator, value: std.json.Value, resources: *Resources) !TextureDescriptor {
+    pub fn init(
+        alloc: Allocator,
+        value: std.json.Value,
+        usage: TexUsage,
+        tex: Provider.Tex,
+        resources: *Resources,
+    ) !TextureDescriptor {
         var desc = TextureDescriptor{};
 
         switch (value) {
@@ -503,9 +510,44 @@ const TextureDescriptor = struct {
                 var iter = o.iterator();
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
-                        desc.procedural = 0;
+                        desc.procedural = @intFromEnum(Procedural.Checker);
                         desc.procedural_data = @truncate(resources.scene.checkers.items.len);
-                        try resources.scene.checkers.append(alloc, Checker.init(entry.value_ptr.*));
+                        try resources.scene.checkers.append(alloc, ProceduralChecker.init(entry.value_ptr.*));
+                        break;
+                    } else if (std.mem.eql(u8, "Mix", entry.key_ptr.*)) {
+                        desc.procedural = @intFromEnum(Procedural.Mix);
+                        desc.procedural_data = @truncate(resources.scene.mixes.items.len);
+
+                        var mix: ProceduralMix = .{
+                            .a = Texture.initUniform1(0.0),
+                            .b = Texture.initUniform1(0.0),
+                            .t = Texture.initUniform1(0.0),
+                        };
+
+                        var citer = entry.value_ptr.object.iterator();
+                        while (citer.next()) |cn| {
+                            if (std.mem.eql(u8, "first", cn.key_ptr.*)) {
+                                if (.Color == usage) {
+                                    mix.a = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources).flatten();
+                                } else if (.Normal == usage) {
+                                    mix.a = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources).flatten();
+                                } else {
+                                    mix.a = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources).flatten();
+                                }
+                            } else if (std.mem.eql(u8, "second", cn.key_ptr.*)) {
+                                if (.Color == usage) {
+                                    mix.b = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources).flatten();
+                                } else if (.Normal == usage) {
+                                    mix.b = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources).flatten();
+                                } else {
+                                    mix.b = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources).flatten();
+                                }
+                            } else if (std.mem.eql(u8, "weight", cn.key_ptr.*)) {
+                                mix.t = readValue(f32, alloc, cn.value_ptr.*, 0.0, .Opacity, tex, resources).flatten();
+                            }
+                        }
+
+                        try resources.scene.mixes.append(alloc, mix);
                         break;
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
@@ -603,7 +645,7 @@ fn readTexture(
     tex: Provider.Tex,
     resources: *Resources,
 ) Texture {
-    var desc = TextureDescriptor.init(alloc, value, resources) catch return .{};
+    var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return .{};
     defer desc.deinit(alloc);
 
     return createTexture(alloc, desc, usage, tex, resources);
@@ -653,7 +695,7 @@ fn readValue(
     comptime Value: type,
     alloc: Allocator,
     value: std.json.Value,
-    default: Value,
+    comptime default: Value,
     usage: TexUsage,
     tex: Provider.Tex,
     resources: *Resources,
@@ -663,7 +705,7 @@ fn readValue(
     if (Vec4f == Value) {
         switch (value) {
             .object => {
-                var desc = TextureDescriptor.init(alloc, value, resources) catch return result;
+                var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return result;
                 defer desc.deinit(alloc);
 
                 result.texture = createTexture(alloc, desc, usage, tex, resources);
@@ -676,10 +718,21 @@ fn readValue(
         }
 
         return result;
+    } else if (Vec2f == Value) {
+        switch (value) {
+            .object => {
+                var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return result;
+                defer desc.deinit(alloc);
+
+                result.texture = createTexture(alloc, desc, usage, tex, resources);
+                result.value = json.readVec2fMember(value, "value", result.value);
+            },
+            else => result.value = json.readVec2f(value),
+        }
     } else {
         switch (value) {
             .object => {
-                var desc = TextureDescriptor.init(alloc, value, resources) catch return result;
+                var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return result;
                 defer desc.deinit(alloc);
 
                 result.texture = createTexture(alloc, desc, usage, tex, resources);

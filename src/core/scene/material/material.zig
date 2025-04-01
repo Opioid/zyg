@@ -116,7 +116,7 @@ pub const Material = union(enum) {
 
     pub fn heterogeneousVolume(self: *const Material) bool {
         return switch (self.*) {
-            .Volumetric => |*m| !m.density_map.uniform(),
+            .Volumetric => |*m| !m.density_map.isUniform(),
             else => false,
         };
     }
@@ -127,7 +127,7 @@ pub const Material = union(enum) {
 
     pub fn volumetricTree(self: *const Material) ?Gridtree {
         return switch (self.*) {
-            .Volumetric => |*m| if (!m.density_map.uniform()) m.tree else null,
+            .Volumetric => |*m| if (!m.density_map.isUniform()) m.tree else null,
             else => null,
         };
     }
@@ -236,25 +236,20 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn opacity(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-        return self.super().opacity(uv, sampler, scene);
-    }
-
     pub fn visibility(
         self: *const Material,
         wi: Vec4f,
-        n: Vec4f,
-        uv: Vec2f,
+        rs: Renderstate,
         sampler: *Sampler,
         scene: *const Scene,
         tr: *Vec4f,
     ) bool {
         switch (self.*) {
             .Glass => |*m| {
-                return m.visibility(wi, n, uv, sampler, scene, tr);
+                return m.visibility(wi, rs, sampler, scene, tr);
             },
             else => {
-                const o = self.opacity(uv, sampler, scene);
+                const o = self.super().opacity(rs, sampler, scene);
                 if (o < 1.0) {
                     tr.* *= @splat(1.0 - o);
                     return true;
@@ -273,6 +268,6 @@ pub const Material = union(enum) {
             inline else => |*m| m.super.mask,
         };
 
-        return if (!texture.uniform()) texture else null;
+        return if (!texture.isUniform()) texture else null;
     }
 };

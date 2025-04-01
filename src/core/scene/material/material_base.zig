@@ -1,5 +1,6 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
@@ -26,15 +27,17 @@ pub const Base = struct {
             }
 
             pub fn flatten(self: Self) Texture {
-                if (!self.texture.uniform()) {
+                if (!self.texture.isUniform()) {
                     return self.texture;
                 }
 
                 if (Vec4f == Value) {
                     return Texture.initUniform3(self.value);
+                } else if (Vec2f == Value) {
+                    return Texture.initUniform2(self.value);
+                } else {
+                    return Texture.initUniform1(self.value);
                 }
-
-                return Texture.initUniform1(self.value);
             }
         };
     }
@@ -84,8 +87,8 @@ pub const Base = struct {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-        return ts.sample2D_1(self.sampler_key, self.mask, uv, sampler, scene);
+    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, scene: *const Scene) f32 {
+        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, scene);
     }
 
     pub const Start_wavelength = Rainbow.Wavelength_start;

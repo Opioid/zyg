@@ -71,12 +71,12 @@ pub const Material = struct {
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.cc.s) or
             math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_map = !self.density_map.uniform();
+        self.super.properties.emission_map = !self.density_map.isUniform();
         self.super.properties.evaluate_visibility = true;
 
         self.sr_inv_range = 1.0 / @as(f32, @floatFromInt(self.sr_high - self.sr_low));
 
-        if (!self.density_map.uniform()) {
+        if (!self.density_map.isUniform()) {
             try Builder.build(
                 alloc,
                 &self.tree,
@@ -87,7 +87,7 @@ pub const Material = struct {
             );
         }
 
-        if (!self.emittance.emission_map.uniform() and 0 == self.blackbody.samples.len) {
+        if (!self.emittance.emission_map.isUniform() and 0 == self.blackbody.samples.len) {
             const Num_samples = 16;
 
             const Start = 2000.0;
@@ -132,7 +132,7 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        if (self.density_map.uniform()) {
+        if (self.density_map.isUniform()) {
             self.average_emission = self.cc.a * self.emittance.value;
             return self.average_emission;
         }
@@ -227,7 +227,7 @@ pub const Material = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) Vec4f {
-        if (self.density_map.uniform()) {
+        if (self.density_map.isUniform()) {
             return self.average_emission;
         }
 
@@ -235,7 +235,7 @@ pub const Material = struct {
 
         const uvw = rs.p;
 
-        const emission = if (!self.emittance.emission_map.uniform())
+        const emission = if (!self.emittance.emission_map.isUniform())
             self.blackbody.eval(ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, scene))
         else
             self.emittance.value;
@@ -252,7 +252,7 @@ pub const Material = struct {
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
-        if (!self.density_map.uniform()) {
+        if (!self.density_map.isUniform()) {
             const result = self.distribution.sampleContinuous(r3);
             return Base.RadianceSample.init3(result, result[3] * self.pdf_factor);
         }
@@ -261,7 +261,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uvw: Vec4f) f32 {
-        if (!self.density_map.uniform()) {
+        if (!self.density_map.isUniform()) {
             return self.distribution.pdf(self.super.sampler_key.address.address3(uvw)) * self.pdf_factor;
         }
 
@@ -269,7 +269,7 @@ pub const Material = struct {
     }
 
     pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) f32 {
-        if (!self.density_map.uniform()) {
+        if (!self.density_map.isUniform()) {
             return ts.sample3D_1(self.super.sampler_key, self.density_map, uvw, sampler, scene);
         }
 
@@ -277,7 +277,7 @@ pub const Material = struct {
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CCE {
-        if (!self.density_map.uniform() and !self.emittance.emission_map.uniform()) {
+        if (!self.density_map.isUniform() and !self.emittance.emission_map.isUniform()) {
             const key = self.super.sampler_key;
 
             const t = ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, scene);
@@ -323,7 +323,7 @@ const LuminanceContext = struct {
         var avg: Vec4f = @splat(0.0);
 
         if (2 == mat.density_map.numChannels()) {
-            if (!mat.emittance.emission_map.uniform()) {
+            if (!mat.emittance.emission_map.isUniform()) {
                 var z = begin;
                 while (z < end) : (z += 1) {
                     const slice = z * (width * height);

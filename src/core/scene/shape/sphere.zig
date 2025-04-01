@@ -1,5 +1,6 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
@@ -121,6 +122,8 @@ pub const Sphere = struct {
         if (discriminant > 0.0) {
             const dist = @sqrt(discriminant);
 
+            var rs: Renderstate = undefined;
+
             const t0 = b - dist;
             if (t0 >= ray.min_t and ray.max_t >= t0) {
                 const p = ray.point(t0);
@@ -130,7 +133,10 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                if (!scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr)) {
+                rs.geo_n = n;
+                rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                if (!scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, scene, tr)) {
                     return false;
                 }
             }
@@ -144,7 +150,10 @@ pub const Sphere = struct {
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
 
-                if (!scene.propMaterial(entity, 0).visibility(ray.direction, n, uv, sampler, scene, tr)) {
+                rs.geo_n = n;
+                rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                if (!scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, scene, tr)) {
                     return false;
                 }
             }

@@ -101,7 +101,9 @@ pub const Fragment = struct {
     }
 
     pub fn opacity(self: Self, sampler: *Sampler, scene: *const Scene) f32 {
-        return self.material(scene).opacity(self.uv(), sampler, scene);
+        var rs: Renderstate = undefined;
+        rs.uvw = self.uvw;
+        return self.material(scene).super().opacity(rs, sampler, scene);
     }
 
     pub inline fn subsurface(self: Self) bool {

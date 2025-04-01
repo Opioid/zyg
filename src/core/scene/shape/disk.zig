@@ -1,5 +1,6 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
@@ -114,7 +115,11 @@ pub const Disk = struct {
                     0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene, tr);
+                var rs: Renderstate = undefined;
+                rs.geo_n = normal;
+                rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                return scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, scene, tr);
             }
         }
 

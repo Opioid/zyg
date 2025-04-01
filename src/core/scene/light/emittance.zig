@@ -78,7 +78,7 @@ pub const Emittance = struct {
         scene: *const Scene,
     ) Vec4f {
         var pf: f32 = 1.0;
-        if (!self.profile.uniform()) {
+        if (self.profile.isImage()) {
             const profile_key = ts.Key{
                 .filter = ts.DefaultFilter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
@@ -88,7 +88,7 @@ pub const Emittance = struct {
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sample2D_1(profile_key, self.profile, ouv, sampler, scene);
+            pf = ts.sampleImage2D_1(profile_key, self.profile, ouv, sampler, scene);
         }
 
         if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
@@ -114,7 +114,7 @@ pub const Emittance = struct {
     }
 
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
-        if (self.profile.uniform()) {
+        if (!self.profile.isImage()) {
             return std.math.pi;
         }
 

@@ -41,28 +41,43 @@ pub const Key = struct {
     address: Address = .{ .u = .Repeat, .v = .Repeat },
 };
 
-pub fn sample2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-    if (texture.uniform()) {
-        return texture.uniform1();
-    }
-
+pub fn sampleImage2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
     return switch (key.filter) {
         .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),
         .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, scene),
     };
 }
 
-pub fn sample2D_2(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec2f {
-    return switch (key.filter) {
-        .Nearest => Nearest2D.sample_2(texture, uv, key.address, scene),
-        .LinearStochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, scene),
-    };
+pub fn sample2D_1(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) f32 {
+    switch (texture.type) {
+        .Uniform => return texture.uniform1(),
+        .Procedural => return scene.sampleProcedural2D_1(key, texture, rs, sampler),
+        else => {
+            return switch (key.filter) {
+                .Nearest => Nearest2D.sample_1(texture, rs.uv(), key.address, scene),
+                .LinearStochastic => LinearStochastic2D.sample_1(texture, rs.uv(), key.address, sampler, scene),
+            };
+        },
+    }
+}
+
+pub fn sample2D_2(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Vec2f {
+    switch (texture.type) {
+        .Uniform => return texture.uniform2(),
+        .Procedural => return scene.sampleProcedural2D_2(key, texture, rs, sampler),
+        else => {
+            return switch (key.filter) {
+                .Nearest => Nearest2D.sample_2(texture, rs.uv(), key.address, scene),
+                .LinearStochastic => LinearStochastic2D.sample_2(texture, rs.uv(), key.address, sampler, scene),
+            };
+        },
+    }
 }
 
 pub fn sample2D_3(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Vec4f {
     switch (texture.type) {
         .Uniform => return texture.uniform3(),
-        .Procedural => return scene.evaluateProceduralTexture(texture, rs, key.address),
+        .Procedural => return scene.sampleProcedural2D_3(key, texture, rs, sampler),
         else => {
             return switch (key.filter) {
                 .Nearest => Nearest2D.sample_3(texture, rs.uv(), key.address, scene),
