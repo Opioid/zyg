@@ -200,7 +200,7 @@ pub const Provider = struct {
             }
         }
 
-        material.setVolumetric(attenuation_color, @splat(0.0), material.attenuation_distance, 0.0);
+        material.setVolumetric(attenuation_color, material.attenuation_distance);
     }
 
     fn loadHair(value: std.json.Value) Material {

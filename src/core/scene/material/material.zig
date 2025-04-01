@@ -160,7 +160,8 @@ pub const Material = union(enum) {
 
     pub fn collisionCoefficients(self: *const Material) CC {
         return switch (self.*) {
-            inline .Glass, .Substitute, .Volumetric => |*m| m.cc,
+            .Glass => |*m| .{ .a = m.absorption, .s = @splat(0.0) },
+            inline .Substitute, .Volumetric => |*m| m.cc,
             else => undefined,
         };
     }
