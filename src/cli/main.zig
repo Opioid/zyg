@@ -25,11 +25,11 @@ pub fn main() !void {
 
     log.info("Welcome to zyg!", .{});
 
-    var da: std.heap.DebugAllocator(.{}) = .init;
-    defer _ = da.deinit();
+    // var da: std.heap.DebugAllocator(.{}) = .init;
+    // defer _ = da.deinit();
 
-    const alloc = da.allocator();
-    // const alloc = std.heap.c_allocator;
+    // const alloc = da.allocator();
+    const alloc = std.heap.c_allocator;
 
     var args = try std.process.argsWithAllocator(alloc);
     var options = try Options.parse(alloc, args);

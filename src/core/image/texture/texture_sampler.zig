@@ -53,9 +53,11 @@ pub fn sample2D_1(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler
         .Uniform => return texture.uniform1(),
         .Procedural => return scene.sampleProcedural2D_1(key, texture, rs, sampler),
         else => {
+            const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
+
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_1(texture, rs.uv(), key.address, scene),
-                .LinearStochastic => LinearStochastic2D.sample_1(texture, rs.uv(), key.address, sampler, scene),
+                .Nearest => Nearest2D.sample_1(texture, uv, key.address, scene),
+                .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, scene),
             };
         },
     }
@@ -66,9 +68,11 @@ pub fn sample2D_2(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler
         .Uniform => return texture.uniform2(),
         .Procedural => return scene.sampleProcedural2D_2(key, texture, rs, sampler),
         else => {
+            const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
+
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_2(texture, rs.uv(), key.address, scene),
-                .LinearStochastic => LinearStochastic2D.sample_2(texture, rs.uv(), key.address, sampler, scene),
+                .Nearest => Nearest2D.sample_2(texture, uv, key.address, scene),
+                .LinearStochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, scene),
             };
         },
     }
@@ -79,9 +83,11 @@ pub fn sample2D_3(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler
         .Uniform => return texture.uniform3(),
         .Procedural => return scene.sampleProcedural2D_3(key, texture, rs, sampler),
         else => {
+            const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
+
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_3(texture, rs.uv(), key.address, scene),
-                .LinearStochastic => LinearStochastic2D.sample_3(texture, rs.uv(), key.address, sampler, scene),
+                .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
+                .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, scene),
             };
         },
     }

@@ -15,6 +15,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
+    pub const UvSet = enum {
+        UV0,
+        Triplanar,
+    };
+
     pub const Type = enum {
         Uniform,
         Procedural,
@@ -51,10 +56,11 @@ pub const Texture = struct {
     };
 
     type: Type = .Uniform,
+    uv_set: UvSet = undefined,
     data: Data = undefined,
 
-    pub fn initImage(class: Type, image_id: u32, scale: Vec2f) Texture {
-        return .{ .type = class, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
+    pub fn initImage(class: Type, image_id: u32, uv_set: UvSet, scale: Vec2f) Texture {
+        return .{ .type = class, .uv_set = uv_set, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
     }
 
     pub fn initUniform1(v: f32) Texture {
@@ -69,8 +75,8 @@ pub const Texture = struct {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
     }
 
-    pub fn initProcedural(id: u32, data: u32) Texture {
-        return .{ .type = .Procedural, .data = .{ .procedural = .{ .id = id, .data = data } } };
+    pub fn initProcedural(id: u32, data: u32, uv_set: UvSet) Texture {
+        return .{ .type = .Procedural, .uv_set = uv_set, .data = .{ .procedural = .{ .id = id, .data = data } } };
     }
 
     pub fn equal(self: Texture, other: Texture) bool {
@@ -86,7 +92,7 @@ pub const Texture = struct {
             return Error.IncompatibleCast;
         }
 
-        const other = Texture.initImage(target, self.data.image.id, self.data.image.scale);
+        const other = Texture.initImage(target, self.data.image.id, self.uv_set, self.data.image.scale);
 
         if (self.numChannels() != other.numChannels() or self.bytesPerChannel() != other.bytesPerChannel()) {
             return Error.IncompatibleCast;

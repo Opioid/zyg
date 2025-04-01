@@ -492,6 +492,7 @@ const TextureDescriptor = struct {
 
     swizzle: ?img.Swizzle = null,
 
+    sampler: Texture.UvSet = .UV0,
     scale: Vec2f = .{ 1.0, 1.0 },
 
     invert: bool = false,
@@ -551,6 +552,8 @@ const TextureDescriptor = struct {
                         break;
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
+                    } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
+                        desc.sampler = readTextureSampler(entry.value_ptr.*);
                     } else if (std.mem.eql(u8, "id", entry.key_ptr.*)) {
                         desc.id = json.readUInt(entry.value_ptr.*);
                     } else if (std.mem.eql(u8, "swizzle", entry.key_ptr.*)) {
@@ -638,6 +641,30 @@ fn readAddress(value: std.json.Value) ts.AddressMode {
     return .Repeat;
 }
 
+fn readTextureSampler(value: std.json.Value) Texture.UvSet {
+    var sampler: Texture.UvSet = .UV0;
+
+    switch (value) {
+        .object => |o| {
+            var iter = o.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "uv", entry.key_ptr.*)) {
+                    const set = json.readString(entry.value_ptr.*);
+
+                    if (std.mem.eql(u8, "UV0", set)) {
+                        sampler = .UV0;
+                    } else if (std.mem.eql(u8, "Triplanar", set)) {
+                        sampler = .Triplanar;
+                    }
+                }
+            }
+        },
+        else => {},
+    }
+
+    return sampler;
+}
+
 fn readTexture(
     alloc: Allocator,
     value: std.json.Value,
@@ -663,7 +690,7 @@ fn createTexture(
     }
 
     if (rsc.Null != desc.procedural) {
-        return Texture.initProcedural(desc.procedural, desc.procedural_data);
+        return Texture.initProcedural(desc.procedural, desc.procedural_data, desc.sampler);
     } else if (desc.filename) |filename| {
         var options: Variants = .{};
         defer options.deinit(alloc);
@@ -677,12 +704,12 @@ fn createTexture(
             options.set(alloc, "swizzle", swizzle) catch {};
         }
 
-        return tx.Provider.loadFile(alloc, filename, options, desc.scale, resources) catch |e| {
+        return tx.Provider.loadFile(alloc, filename, options, desc.sampler, desc.scale, resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ filename, e });
             return .{};
         };
     } else if (rsc.Null != desc.id) {
-        return tx.Provider.createTexture(desc.id, usage, desc.scale, resources) catch |e| {
+        return tx.Provider.createTexture(desc.id, usage, desc.sampler, desc.scale, resources) catch |e| {
             log.err("Could not create texture \"{}\": {}", .{ desc.id, e });
             return .{};
         };
