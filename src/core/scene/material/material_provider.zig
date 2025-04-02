@@ -329,25 +329,11 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
                         material.coating_normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
-                        material.setCoatingRoughness(readValue(
-                            f32,
-                            alloc,
-                            c.value_ptr.*,
-                            1.0,
-                            .Roughness,
-                            self.tex,
-                            resources,
-                        ));
+                        material.setCoatingRoughness(readValue(f32, alloc, c.value_ptr.*, 1.0, .Roughness, self.tex, resources));
+                    } else if (std.mem.eql(u8, "scale", c.key_ptr.*)) {
+                        material.setCoatingScale(readValue(f32, alloc, c.value_ptr.*, 0.0, .Roughness, self.tex, resources));
                     } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
-                        material.setCoatingThickness(readValue(
-                            f32,
-                            alloc,
-                            c.value_ptr.*,
-                            0.01,
-                            .Roughness,
-                            self.tex,
-                            resources,
-                        ));
+                        material.coating_thickness = json.readFloat(f32, c.value_ptr.*);
                     }
                 }
 

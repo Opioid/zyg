@@ -39,7 +39,7 @@ pub const Material = struct {
     metallic_map: Texture = Texture.initUniform1(0.0),
     rotation_map: Texture = Texture.initUniform1(0.0),
     coating_normal_map: Texture = .{},
-    coating_thickness_map: Texture = .{},
+    coating_scale_map: Texture = Texture.initUniform1(1.0),
     coating_roughness_map: Texture = Texture.initUniform1(0.2),
 
     coating_absorption_coef: Vec4f = @splat(0.0),
@@ -129,9 +129,8 @@ pub const Material = struct {
         self.coating_absorption_coef = ccoef.attenuationCoefficient(color, distance);
     }
 
-    pub fn setCoatingThickness(self: *Material, thickness: Base.MappedValue(f32)) void {
-        self.coating_thickness_map = thickness.texture;
-        self.coating_thickness = thickness.value;
+    pub fn setCoatingScale(self: *Material, scale: Base.MappedValue(f32)) void {
+        self.coating_scale_map = scale.flatten();
     }
 
     pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
@@ -165,19 +164,10 @@ pub const Material = struct {
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
-        var coating_thickness: f32 = undefined;
-        var coating_weight: f32 = undefined;
-        var coating_ior: f32 = undefined;
-        if (!self.coating_thickness_map.isUniform()) {
-            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs, sampler, worker.scene);
-            coating_thickness = self.coating_thickness * relative_thickness;
-            coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
-            coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
-        } else {
-            coating_thickness = self.coating_thickness;
-            coating_weight = 1.0;
-            coating_ior = self.coating_ior;
-        }
+        const coating_scale = ts.sample2D_1(key, self.coating_scale_map, rs, sampler, worker.scene);
+        const coating_thickness = coating_scale * self.coating_thickness;
+        const coating_weight = if (coating_scale > 0.1) 1.0 else coating_scale;
+        const coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
 
         const ior = self.ior;
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
@@ -319,32 +309,17 @@ pub const Material = struct {
         return (@as(u64, @as(u32, @bitCast(a))) << 32) | @as(u64, @as(u32, @bitCast(b)));
     }
 
-    pub fn evaluateRadiance(
-        self: *const Material,
-        wi: Vec4f,
-        rs: Renderstate,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Vec4f {
         const key = self.super.sampler_key;
 
         const rad = self.emittance.radiance(wi, rs, key, sampler, scene);
 
-        var coating_thickness: f32 = undefined;
-        if (!self.coating_thickness_map.isUniform()) {
-            const relative_thickness = ts.sampleImage2D_1(key, self.color_map, rs.uv(), sampler, scene);
-            coating_thickness = self.coating_thickness * relative_thickness;
-        } else {
-            coating_thickness = self.coating_thickness;
-        }
+        const coating_scale = ts.sample2D_1(key, self.coating_scale_map, rs, sampler, scene);
+        const coating_thickness = coating_scale * self.coating_thickness;
 
         if (coating_thickness > 0.0) {
             const n_dot_wi = math.safe.clampAbsDot(wi, rs.geo_n);
-            const att = SampleCoating.singleAttenuationStatic(
-                self.coating_absorption_coef,
-                coating_thickness,
-                n_dot_wi,
-            );
+            const att = SampleCoating.singleAttenuationStatic(self.coating_absorption_coef, coating_thickness, n_dot_wi);
 
             return att * rad;
         }
