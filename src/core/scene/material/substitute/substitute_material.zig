@@ -33,14 +33,14 @@ pub const Material = struct {
 
     emittance: Emittance = .{},
 
-    color_map: Texture = Texture.initUniform3(@splat(0.5)),
+    color: Texture = Texture.initUniform3(@splat(0.5)),
     normal_map: Texture = .{},
-    roughness_map: Texture = Texture.initUniform1(0.8),
-    metallic_map: Texture = Texture.initUniform1(0.0),
-    rotation_map: Texture = Texture.initUniform1(0.0),
+    roughness: Texture = Texture.initUniform1(0.8),
+    metallic: Texture = Texture.initUniform1(0.0),
+    rotation: Texture = Texture.initUniform1(0.0),
     coating_normal_map: Texture = .{},
-    coating_scale_map: Texture = Texture.initUniform1(1.0),
-    coating_roughness_map: Texture = Texture.initUniform1(0.2),
+    coating_scale: Texture = Texture.initUniform1(1.0),
+    coating_roughness: Texture = Texture.initUniform1(0.2),
 
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
@@ -61,11 +61,11 @@ pub const Material = struct {
         const properties = &self.super.properties;
 
         properties.evaluate_visibility = !self.super.mask.isUniform();
-        properties.needs_differentials = Scene.needsDifferential(self.color_map);
+        properties.needs_differentials = Scene.needsDifferential(self.color);
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        properties.color_map = !self.color_map.isUniform();
+        properties.color_map = !self.color.isUniform();
         properties.emission_map = !self.emittance.emission_map.isUniform();
-        properties.caustic = self.roughness_map.isUniform() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
@@ -76,12 +76,12 @@ pub const Material = struct {
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
 
         // This doesn't make a difference for shading, but is intended for the Albedo AOV...
-        if (properties.dense_sss_optimization and self.color_map.isUniform()) {
+        if (properties.dense_sss_optimization and self.color.isUniform()) {
             const cc = self.cc;
 
             const mu_t = cc.a + cc.s;
             const albedo = cc.s / mu_t;
-            self.color_map = Texture.initUniform3(albedo);
+            self.color = Texture.initUniform3(albedo);
         }
     }
 
@@ -109,32 +109,8 @@ pub const Material = struct {
         return rad;
     }
 
-    pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
-        self.color_map = color.flatten();
-    }
-
-    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.flatten();
-    }
-
-    pub fn setMetallic(self: *Material, metallic: Base.MappedValue(f32)) void {
-        self.metallic_map = metallic.flatten();
-    }
-
-    pub fn setRotation(self: *Material, rotation: Base.MappedValue(f32)) void {
-        self.rotation_map = rotation.flatten();
-    }
-
     pub fn setCoatingAttenuation(self: *Material, color: Vec4f, distance: f32) void {
         self.coating_absorption_coef = ccoef.attenuationCoefficient(color, distance);
-    }
-
-    pub fn setCoatingScale(self: *Material, scale: Base.MappedValue(f32)) void {
-        self.coating_scale_map = scale.flatten();
-    }
-
-    pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.coating_roughness_map = roughness.flatten();
     }
 
     pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
@@ -157,14 +133,14 @@ pub const Material = struct {
 
         const key = self.super.sampler_key;
 
-        const color = ts.sample2D_3(key, self.color_map, rs, sampler, worker.scene);
+        const color = ts.sample2D_3(key, self.color, rs, sampler, worker.scene);
 
-        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs, sampler, worker.scene));
-        const metallic = ts.sample2D_1(key, self.metallic_map, rs, sampler, worker.scene);
+        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, worker.scene));
+        const metallic = ts.sample2D_1(key, self.metallic, rs, sampler, worker.scene);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
-        const coating_scale = ts.sample2D_1(key, self.coating_scale_map, rs, sampler, worker.scene);
+        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, worker.scene);
         const coating_thickness = coating_scale * self.coating_thickness;
         const coating_weight = if (coating_scale > 0.1) 1.0 else coating_scale;
         const coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
@@ -208,7 +184,7 @@ pub const Material = struct {
                 result.coating.n = rs.n;
             }
 
-            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs, sampler, worker.scene));
+            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness, rs, sampler, worker.scene));
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
@@ -218,7 +194,7 @@ pub const Material = struct {
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
-        const rotation = ts.sample2D_1(key, self.rotation_map, rs, sampler, worker.scene) * (2.0 * std.math.pi);
+        const rotation = ts.sample2D_1(key, self.rotation, rs, sampler, worker.scene) * (2.0 * std.math.pi);
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
@@ -314,7 +290,7 @@ pub const Material = struct {
 
         const rad = self.emittance.radiance(wi, rs, key, sampler, scene);
 
-        const coating_scale = ts.sample2D_1(key, self.coating_scale_map, rs, sampler, scene);
+        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, scene);
         const coating_thickness = coating_scale * self.coating_thickness;
 
         if (coating_thickness > 0.0) {

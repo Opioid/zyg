@@ -1,6 +1,6 @@
-const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
-const Checker = @import("procedural_checker.zig").Checker;
-const Mix = @import("procedural_mix.zig").Mix;
+pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
+pub const Checker = @import("procedural_checker.zig").Checker;
+pub const Mix = @import("procedural_mix.zig").Mix;
 const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;

@@ -11,37 +11,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 pub const Base = struct {
-    pub fn MappedValue(comptime Value: type) type {
-        return struct {
-            texture: Texture = .{},
-
-            value: Value,
-
-            const Self = @This();
-
-            pub fn init(value: Value) Self {
-                return .{ .value = value };
-            }
-
-            pub fn flatten(self: Self) Texture {
-                if (!self.texture.isUniform()) {
-                    return self.texture;
-                }
-
-                if (Vec4f == Value) {
-                    return Texture.initUniform3(self.value);
-                } else if (Vec2f == Value) {
-                    return Texture.initUniform2(self.value);
-                } else {
-                    return Texture.initUniform1(self.value);
-                }
-            }
-        };
-    }
-
     pub const RadianceResult = struct {
         emission: Vec4f,
         num_samples: u32,

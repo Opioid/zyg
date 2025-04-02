@@ -19,7 +19,7 @@ pub const Material = struct {
     super: Base = .{},
 
     normal_map: Texture = .{},
-    roughness_map: Texture = Texture.initUniform1(0.0),
+    roughness: Texture = Texture.initUniform1(0.0),
 
     absorption: Vec4f = undefined,
     attenuation_distance: f32 = 1.0,
@@ -33,7 +33,7 @@ pub const Material = struct {
         const thin = self.thickness > 0.0;
         properties.two_sided = thin;
         properties.evaluate_visibility = thin or !self.super.mask.isUniform();
-        properties.caustic = self.roughness_map.isUniform() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
     }
 
     pub fn setVolumetric(self: *Material, attenuation_color: Vec4f, distance: f32) void {
@@ -41,16 +41,12 @@ pub const Material = struct {
         self.attenuation_distance = distance;
     }
 
-    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.flatten();
-    }
-
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
         const key = self.super.sampler_key;
 
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs, sampler, scene))
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, scene))
         else
             0.0;
 
