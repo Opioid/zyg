@@ -19,6 +19,10 @@ const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
 
 pub const Procedural = struct {
+    const Error = error{
+        UnsupportedType,
+    };
+
     pub const Type = enum {
         Checker,
         DetailNormal,
@@ -39,6 +43,30 @@ pub const Procedural = struct {
         self.maxes.deinit(alloc);
         self.mixes.deinit(alloc);
         self.muls.deinit(alloc);
+    }
+
+    pub fn append(self: *Procedural, alloc: Allocator, procedural: anytype) !u32 {
+        const ptype = @TypeOf(procedural);
+
+        if (Checker == ptype) {
+            return appendItem(ptype, alloc, &self.checkers, procedural);
+        } else if (DetailNormal == ptype) {
+            return appendItem(ptype, alloc, &self.detail_normals, procedural);
+        } else if (Max == ptype) {
+            return appendItem(ptype, alloc, &self.maxes, procedural);
+        } else if (Mix == ptype) {
+            return appendItem(ptype, alloc, &self.mixes, procedural);
+        } else if (Mul == ptype) {
+            return appendItem(ptype, alloc, &self.muls, procedural);
+        }
+
+        return Error.UnsupportedType;
+    }
+
+    fn appendItem(comptime Value: type, alloc: Allocator, list: *List(Value), item: Value) !u32 {
+        const id: u32 = @truncate(list.items.len);
+        try list.append(alloc, item);
+        return id;
     }
 
     pub fn sample2D_1(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) f32 {

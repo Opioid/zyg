@@ -184,7 +184,7 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.roughness = readValue(f32, alloc, entry.value_ptr.*, 1.0, .Roughness, self.tex, resources);
+                material.roughness = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
@@ -274,13 +274,13 @@ pub const Provider = struct {
             if (std.mem.eql(u8, "mask", entry.key_ptr.*)) {
                 material.super.mask = readTexture(alloc, entry.value_ptr.*, .Opacity, self.tex, resources);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
-                material.color = readValue(Vec4f, alloc, entry.value_ptr.*, @splat(0.0), .Color, self.tex, resources);
+                material.color = readValue(alloc, entry.value_ptr.*, .Color, self.tex, resources);
             } else if (std.mem.eql(u8, "normal", entry.key_ptr.*)) {
                 material.normal_map = readTexture(alloc, entry.value_ptr.*, .Normal, self.tex, resources);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
                 loadEmittance(alloc, entry.value_ptr.*, self.tex, resources, &material.emittance);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
-                material.roughness = readValue(f32, alloc, entry.value_ptr.*, 1.0, .Roughness, self.tex, resources);
+                material.roughness = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
                 log.warning("Surface maps are no longer supported. Please use separate roughness and metallic maps instead.", .{});
             } else if (std.mem.eql(u8, "metal_preset", entry.key_ptr.*)) {
@@ -292,11 +292,11 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "subsurface_color", entry.key_ptr.*)) {
                 subsurface_color = json.readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
-                material.rotation = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources);
+                material.rotation = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {
                 material.anisotropy = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "metallic", entry.key_ptr.*)) {
-                material.metallic = readValue(f32, alloc, entry.value_ptr.*, 0.0, .Roughness, self.tex, resources);
+                material.metallic = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
                 material.ior = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
@@ -326,9 +326,9 @@ pub const Provider = struct {
                     } else if (std.mem.eql(u8, "normal", c.key_ptr.*)) {
                         material.coating_normal_map = readTexture(alloc, c.value_ptr.*, .Normal, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
-                        material.coating_roughness = readValue(f32, alloc, c.value_ptr.*, 1.0, .Roughness, self.tex, resources);
+                        material.coating_roughness = readValue(alloc, c.value_ptr.*, .Roughness, self.tex, resources);
                     } else if (std.mem.eql(u8, "scale", c.key_ptr.*)) {
-                        material.coating_scale = readValue(f32, alloc, c.value_ptr.*, 0.0, .Roughness, self.tex, resources);
+                        material.coating_scale = readValue(alloc, c.value_ptr.*, .Roughness, self.tex, resources);
                     } else if (std.mem.eql(u8, "thickness", c.key_ptr.*)) {
                         material.coating_thickness = json.readFloat(f32, c.value_ptr.*);
                     }
@@ -341,7 +341,7 @@ pub const Provider = struct {
                     if (std.mem.eql(u8, "color", c.key_ptr.*)) {
                         material.flakes_color = json.readColor(c.value_ptr.*);
                     } else if (std.mem.eql(u8, "coverage", c.key_ptr.*)) {
-                        material.flakes_coverage = readValue(f32, alloc, c.value_ptr.*, 0.0, .Roughness, self.tex, resources);
+                        material.flakes_coverage = readValue(alloc, c.value_ptr.*, .Roughness, self.tex, resources);
                     } else if (std.mem.eql(u8, "roughness", c.key_ptr.*)) {
                         material.setFlakesRoughness(json.readFloat(f32, c.value_ptr.*));
                     } else if (std.mem.eql(u8, "size", c.key_ptr.*)) {
@@ -496,13 +496,9 @@ const TextureDescriptor = struct {
                 while (iter.next()) |entry| {
                     if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
                         desc.procedural = @intFromEnum(Procedural.Type.Checker);
-                        desc.procedural_data = @truncate(resources.scene.procedural.checkers.items.len);
-                        try resources.scene.procedural.checkers.append(alloc, prcd.Checker.init(entry.value_ptr.*));
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, prcd.Checker.init(entry.value_ptr.*));
                         break;
                     } else if (std.mem.eql(u8, "DetailNormal", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Type.DetailNormal);
-                        desc.procedural_data = @truncate(resources.scene.procedural.detail_normals.items.len);
-
                         var detail: prcd.DetailNormal = .{
                             .base = Texture.initUniform1(0.0),
                             .detail = Texture.initUniform1(0.0),
@@ -511,18 +507,16 @@ const TextureDescriptor = struct {
                         var citer = entry.value_ptr.object.iterator();
                         while (citer.next()) |cn| {
                             if (std.mem.eql(u8, "base", cn.key_ptr.*)) {
-                                detail.base = readTexture(alloc, cn.value_ptr.*, usage, tex, resources);
+                                detail.base = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             } else if (std.mem.eql(u8, "detail", cn.key_ptr.*)) {
-                                detail.detail = readTexture(alloc, cn.value_ptr.*, usage, tex, resources);
+                                detail.detail = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             }
                         }
 
-                        try resources.scene.procedural.detail_normals.append(alloc, detail);
+                        desc.procedural = @intFromEnum(Procedural.Type.DetailNormal);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, detail);
                         break;
                     } else if (std.mem.eql(u8, "Max", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Type.Max);
-                        desc.procedural_data = @truncate(resources.scene.procedural.maxes.items.len);
-
                         var max: prcd.Max = .{
                             .a = Texture.initUniform1(0.0),
                             .b = Texture.initUniform1(0.0),
@@ -531,30 +525,16 @@ const TextureDescriptor = struct {
                         var citer = entry.value_ptr.object.iterator();
                         while (citer.next()) |cn| {
                             if (std.mem.eql(u8, "a", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    max.a = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    max.a = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    max.a = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                max.a = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             } else if (std.mem.eql(u8, "b", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    max.b = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    max.b = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    max.b = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                max.b = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             }
                         }
 
-                        try resources.scene.procedural.maxes.append(alloc, max);
+                        desc.procedural = @intFromEnum(Procedural.Type.Max);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, max);
                         break;
                     } else if (std.mem.eql(u8, "Mix", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Type.Mix);
-                        desc.procedural_data = @truncate(resources.scene.procedural.mixes.items.len);
-
                         var mix: prcd.Mix = .{
                             .a = Texture.initUniform1(0.0),
                             .b = Texture.initUniform1(0.0),
@@ -564,32 +544,17 @@ const TextureDescriptor = struct {
                         var citer = entry.value_ptr.object.iterator();
                         while (citer.next()) |cn| {
                             if (std.mem.eql(u8, "a", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    mix.a = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    mix.a = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    mix.a = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                mix.a = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             } else if (std.mem.eql(u8, "b", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    mix.b = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    mix.b = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    mix.b = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                mix.b = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             } else if (std.mem.eql(u8, "weight", cn.key_ptr.*)) {
-                                mix.t = readValue(f32, alloc, cn.value_ptr.*, 0.0, .Opacity, tex, resources);
+                                mix.t = readValue(alloc, cn.value_ptr.*, .Opacity, tex, resources);
                             }
                         }
-
-                        try resources.scene.procedural.mixes.append(alloc, mix);
+                        desc.procedural = @intFromEnum(Procedural.Type.Mix);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, mix);
                         break;
                     } else if (std.mem.eql(u8, "Mul", entry.key_ptr.*)) {
-                        desc.procedural = @intFromEnum(Procedural.Type.Mul);
-                        desc.procedural_data = @truncate(resources.scene.procedural.muls.items.len);
-
                         var mul: prcd.Mul = .{
                             .a = Texture.initUniform1(0.0),
                             .b = Texture.initUniform1(0.0),
@@ -598,25 +563,14 @@ const TextureDescriptor = struct {
                         var citer = entry.value_ptr.object.iterator();
                         while (citer.next()) |cn| {
                             if (std.mem.eql(u8, "a", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    mul.a = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    mul.a = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    mul.a = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                mul.a = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             } else if (std.mem.eql(u8, "b", cn.key_ptr.*)) {
-                                if (.Color == usage) {
-                                    mul.b = readValue(Vec4f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else if (.Normal == usage) {
-                                    mul.b = readValue(Vec2f, alloc, cn.value_ptr.*, @splat(0.0), usage, tex, resources);
-                                } else {
-                                    mul.b = readValue(f32, alloc, cn.value_ptr.*, 0.0, usage, tex, resources);
-                                }
+                                mul.b = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
                             }
                         }
 
-                        try resources.scene.procedural.muls.append(alloc, mul);
+                        desc.procedural = @intFromEnum(Procedural.Type.Mul);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, mul);
                         break;
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
@@ -786,7 +740,15 @@ fn createTexture(
     return .{};
 }
 
-fn readValue(
+fn readValue(alloc: Allocator, value: std.json.Value, usage: TexUsage, tex: Provider.Tex, resources: *Resources) Texture {
+    return switch (usage) {
+        .Color, .ColorAndOpacity => readTypedValue(Vec4f, alloc, value, @splat(0.0), usage, tex, resources),
+        .Normal => readTypedValue(Vec2f, alloc, value, @splat(0.0), usage, tex, resources),
+        else => readTypedValue(f32, alloc, value, 0.0, usage, tex, resources),
+    };
+}
+
+fn readTypedValue(
     comptime Value: type,
     alloc: Allocator,
     value: std.json.Value,
