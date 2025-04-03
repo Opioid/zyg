@@ -41,6 +41,7 @@ pub const Material = struct {
     coating_normal_map: Texture = .{},
     coating_scale: Texture = Texture.initUniform1(1.0),
     coating_roughness: Texture = Texture.initUniform1(0.2),
+    flakes_coverage: Texture = Texture.initUniform1(0.0),
 
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
@@ -53,7 +54,6 @@ pub const Material = struct {
     transparency: f32 = 0.0,
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
-    flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
     flakes_res: f32 = 0.0,
 
@@ -200,7 +200,7 @@ pub const Material = struct {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
-        const flakes_coverage = self.flakes_coverage;
+        const flakes_coverage = ts.sample2D_1(key, self.flakes_coverage, rs, sampler, worker.scene);
         if (flakes_coverage > 0.0) {
             const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.z);

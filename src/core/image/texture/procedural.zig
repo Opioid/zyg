@@ -1,6 +1,8 @@
 pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Checker = @import("procedural_checker.zig").Checker;
+pub const Max = @import("procedural_max.zig").Max;
 pub const Mix = @import("procedural_mix.zig").Mix;
+pub const Mul = @import("procedural_mul.zig").Mul;
 const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
@@ -20,17 +22,23 @@ pub const Procedural = struct {
     pub const Type = enum {
         Checker,
         DetailNormal,
+        Max,
         Mix,
+        Mul,
     };
 
     checkers: List(Checker) = .empty,
     detail_normals: List(DetailNormal) = .empty,
+    maxes: List(Max) = .empty,
     mixes: List(Mix) = .empty,
+    muls: List(Mul) = .empty,
 
     pub fn deinit(self: *Procedural, alloc: Allocator) void {
         self.checkers.deinit(alloc);
         self.detail_normals.deinit(alloc);
+        self.maxes.deinit(alloc);
         self.mixes.deinit(alloc);
+        self.muls.deinit(alloc);
     }
 
     pub fn sample2D_1(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) f32 {
@@ -41,7 +49,9 @@ pub const Procedural = struct {
         return switch (proc) {
             .Checker => self.checkers.items[data].evaluate(rs, key)[0],
             .DetailNormal => 0.0,
+            .Max => self.maxes.items[data].evaluate1(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, scene),
+            .Mul => self.muls.items[data].evaluate1(rs, key, sampler, scene),
         };
     }
 
@@ -56,7 +66,9 @@ pub const Procedural = struct {
                 return .{ color[0], color[1] };
             },
             .DetailNormal => self.detail_normals.items[data].evaluate(rs, key, sampler, scene),
+            .Max => self.maxes.items[data].evaluate2(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, scene),
+            .Mul => self.muls.items[data].evaluate2(rs, key, sampler, scene),
         };
     }
 
@@ -68,7 +80,9 @@ pub const Procedural = struct {
         return switch (proc) {
             .Checker => self.checkers.items[data].evaluate(rs, key),
             .DetailNormal => @splat(0.0),
+            .Max => self.maxes.items[data].evaluate3(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, scene),
+            .Mul => self.muls.items[data].evaluate3(rs, key, sampler, scene),
         };
     }
 };
