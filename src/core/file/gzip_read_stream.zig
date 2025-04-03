@@ -17,6 +17,7 @@ pub const GzipReadStream = struct {
 
     const SeekError = error{
         Unseekable,
+        PermissionDenied,
         ResetMZStreamFailed,
     } || Error;
 
