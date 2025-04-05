@@ -3,6 +3,7 @@ pub const Checker = @import("procedural_checker.zig").Checker;
 pub const Max = @import("procedural_max.zig").Max;
 pub const Mix = @import("procedural_mix.zig").Mix;
 pub const Mul = @import("procedural_mul.zig").Mul;
+pub const Noise = @import("procedural_noise.zig").Noise;
 const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
@@ -29,6 +30,7 @@ pub const Procedural = struct {
         Max,
         Mix,
         Mul,
+        Noise,
     };
 
     checkers: List(Checker) = .empty,
@@ -36,6 +38,7 @@ pub const Procedural = struct {
     maxes: List(Max) = .empty,
     mixes: List(Mix) = .empty,
     muls: List(Mul) = .empty,
+    noises: List(Noise) = .empty,
 
     pub fn deinit(self: *Procedural, alloc: Allocator) void {
         self.checkers.deinit(alloc);
@@ -43,6 +46,7 @@ pub const Procedural = struct {
         self.maxes.deinit(alloc);
         self.mixes.deinit(alloc);
         self.muls.deinit(alloc);
+        self.noises.deinit(alloc);
     }
 
     pub fn append(self: *Procedural, alloc: Allocator, procedural: anytype) !u32 {
@@ -58,6 +62,8 @@ pub const Procedural = struct {
             return appendItem(ptype, alloc, &self.mixes, procedural);
         } else if (Mul == ptype) {
             return appendItem(ptype, alloc, &self.muls, procedural);
+        } else if (Noise == ptype) {
+            return appendItem(ptype, alloc, &self.noises, procedural);
         }
 
         return Error.UnsupportedType;
@@ -80,6 +86,7 @@ pub const Procedural = struct {
             .Max => self.maxes.items[data].evaluate1(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, scene),
             .Mul => self.muls.items[data].evaluate1(rs, key, sampler, scene),
+            .Noise => self.noises.items[data].evaluate1(rs, texture.uv_set),
         };
     }
 
@@ -97,6 +104,10 @@ pub const Procedural = struct {
             .Max => self.maxes.items[data].evaluate2(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, scene),
             .Mul => self.muls.items[data].evaluate2(rs, key, sampler, scene),
+            .Noise => {
+                const color = self.noises.items[data].evaluate3(rs, texture.uv_set);
+                return .{ color[0], color[1] };
+            },
         };
     }
 
@@ -111,6 +122,7 @@ pub const Procedural = struct {
             .Max => self.maxes.items[data].evaluate3(rs, key, sampler, scene),
             .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, scene),
             .Mul => self.muls.items[data].evaluate3(rs, key, sampler, scene),
+            .Noise => self.noises.items[data].evaluate3(rs, texture.uv_set),
         };
     }
 };

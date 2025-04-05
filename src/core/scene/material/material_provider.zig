@@ -567,7 +567,17 @@ const TextureDescriptor = struct {
 
                         desc.procedural = @intFromEnum(Procedural.Type.Mul);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, mul);
-                        break;
+                    } else if (std.mem.eql(u8, "Noise", entry.key_ptr.*)) {
+                        var noise: prcd.Noise = undefined;
+
+                        noise.class = .Perlin;
+                        noise.levels = json.readUIntMember(entry.value_ptr.*, "levels", 1);
+                        noise.attenuation = json.readFloatMember(entry.value_ptr.*, "attenuation", 0.0);
+                        noise.contrast = json.readFloatMember(entry.value_ptr.*, "contrast", 1.0);
+                        noise.scale = json.readVec4f3Member(entry.value_ptr.*, "scale", @splat(1.0));
+
+                        desc.procedural = @intFromEnum(Procedural.Type.Noise);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, noise);
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
                     } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
