@@ -49,7 +49,7 @@ pub const Renderstate = struct {
     }
 
     pub fn triplanarUv(self: Renderstate) Vec2f {
-        const op = self.trafo.worldToObjectNormal(self.p - self.trafo.position);
+        const op = self.trafo.worldToObjectPoint(self.p);
         const on = self.trafo.worldToObjectNormal(self.geo_n);
 
         return hlp.triplanarMapping(op, on);

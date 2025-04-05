@@ -116,23 +116,21 @@ pub fn readVec4iMember(value: Value, name: []const u8, default: Vec4i) Vec4i {
 }
 
 pub fn readVec4f3(value: Value) Vec4f {
-    return .{
-        readFloat(f32, value.array.items[0]),
-        readFloat(f32, value.array.items[1]),
-        readFloat(f32, value.array.items[2]),
-        0.0,
+    return switch (value) {
+        .array => |a| .{
+            readFloat(f32, a.items[0]),
+            readFloat(f32, a.items[1]),
+            readFloat(f32, a.items[2]),
+            0.0,
+        },
+        else => @splat(readFloat(f32, value)),
     };
 }
 
 pub fn readVec4f3Member(value: Value, name: []const u8, default: Vec4f) Vec4f {
     const member = value.object.get(name) orelse return default;
 
-    return .{
-        readFloat(f32, member.array.items[0]),
-        readFloat(f32, member.array.items[1]),
-        readFloat(f32, member.array.items[2]),
-        0.0,
-    };
+    return readVec4f3(member);
 }
 
 pub fn readVec4fMember(value: Value, name: []const u8, default: Vec4f) Vec4f {

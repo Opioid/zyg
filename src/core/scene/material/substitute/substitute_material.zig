@@ -205,7 +205,7 @@ pub const Material = struct {
             const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.z);
 
-            const uv = hlp.triplanarMapping(op, on);
+            const uv = math.frac(hlp.triplanarMapping(op, on));
 
             const flake = sampleFlake(uv, self.flakes_res, flakes_coverage);
 

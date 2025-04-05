@@ -497,7 +497,6 @@ const TextureDescriptor = struct {
                     if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
                         desc.procedural = @intFromEnum(Procedural.Type.Checker);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, prcd.Checker.init(entry.value_ptr.*));
-                        break;
                     } else if (std.mem.eql(u8, "DetailNormal", entry.key_ptr.*)) {
                         var detail: prcd.DetailNormal = .{
                             .base = Texture.initUniform1(0.0),
@@ -515,7 +514,6 @@ const TextureDescriptor = struct {
 
                         desc.procedural = @intFromEnum(Procedural.Type.DetailNormal);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, detail);
-                        break;
                     } else if (std.mem.eql(u8, "Max", entry.key_ptr.*)) {
                         var max: prcd.Max = .{
                             .a = Texture.initUniform1(0.0),
@@ -533,7 +531,6 @@ const TextureDescriptor = struct {
 
                         desc.procedural = @intFromEnum(Procedural.Type.Max);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, max);
-                        break;
                     } else if (std.mem.eql(u8, "Mix", entry.key_ptr.*)) {
                         var mix: prcd.Mix = .{
                             .a = Texture.initUniform1(0.0),
@@ -553,7 +550,6 @@ const TextureDescriptor = struct {
                         }
                         desc.procedural = @intFromEnum(Procedural.Type.Mix);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, mix);
-                        break;
                     } else if (std.mem.eql(u8, "Mul", entry.key_ptr.*)) {
                         var mul: prcd.Mul = .{
                             .a = Texture.initUniform1(0.0),
