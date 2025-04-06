@@ -378,7 +378,7 @@ pub const Scene = struct {
             }
 
             if (mat.scatteringVolume()) {
-                if (shape_inst.analytical() and mat.emissionMapped()) {
+                if (shape_inst.analytical() and mat.emissionImageMapped()) {
                     try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i);
@@ -386,7 +386,7 @@ pub const Scene = struct {
             } else {
                 const two_sided = mat.twoSided();
 
-                if (shape_inst.analytical() and mat.emissionMapped()) {
+                if (shape_inst.analytical() and mat.emissionImageMapped()) {
                     try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i);
@@ -505,7 +505,7 @@ pub const Scene = struct {
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
 
-        const variant = shape_inst.prepareSampling(alloc, entity, part, m, &self.light_tree_builder, self, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
         l.variant = variant;
 
         const trafo = self.propTransformationAt(entity, time);

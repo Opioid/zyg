@@ -57,7 +57,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = true;
-        self.super.properties.emission_map = !self.emission_map.isUniform();
+        self.super.properties.emission_image_map = self.emission_map.isImage();
     }
 
     pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {

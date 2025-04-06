@@ -113,6 +113,10 @@ pub const Emittance = struct {
         return self.value;
     }
 
+    pub fn imageRadiance(self: Emittance, uv: Vec2f, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
+        return self.value * ts.sampleImage2D_3(key, self.emission_map, uv, sampler, scene);
+    }
+
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
         if (!self.profile.isImage()) {
             return std.math.pi;

@@ -40,7 +40,7 @@ pub const Base = struct {
         caustic: bool = false,
         emissive: bool = false,
         color_map: bool = false,
-        emission_map: bool = false,
+        emission_image_map: bool = false,
         scattering_volume: bool = false,
         dense_sss_optimization: bool = false,
     };

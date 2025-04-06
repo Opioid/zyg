@@ -64,7 +64,7 @@ pub const Material = struct {
         properties.needs_differentials = Scene.needsDifferential(self.color);
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = !self.color.isUniform();
-        properties.emission_map = !self.emittance.emission_map.isUniform();
+        properties.emission_image_map = self.emittance.emission_map.isImage();
         properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
 
         const thickness = self.thickness;

@@ -71,7 +71,7 @@ pub const Material = struct {
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.cc.s) or
             math.anyGreaterZero3(self.emittance.value);
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_map = !self.density_map.isUniform();
+        self.super.properties.emission_image_map = self.density_map.isImage();
         self.super.properties.evaluate_visibility = true;
 
         self.sr_inv_range = 1.0 / @as(f32, @floatFromInt(self.sr_high - self.sr_low));

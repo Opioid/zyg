@@ -38,7 +38,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_map = !self.emittance.emission_map.isUniform();
+        self.super.properties.emission_image_map = self.emittance.emission_map.isImage();
     }
 
     pub fn prepareSampling(

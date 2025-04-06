@@ -467,7 +467,6 @@ pub const Shape = union(enum) {
     pub fn prepareSampling(
         self: *Shape,
         alloc: Allocator,
-        prop: u32,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
@@ -475,7 +474,7 @@ pub const Shape = union(enum) {
         threads: *Threads,
     ) !u32 {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, prop, part, material, builder, scene, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
             else => 0,
         };
     }

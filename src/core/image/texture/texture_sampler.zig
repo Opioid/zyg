@@ -78,6 +78,13 @@ pub fn sample2D_2(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler
     }
 }
 
+pub fn sampleImage2D_3(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    return switch (key.filter) {
+        .Nearest => Nearest2D.sample_3(texture, uv, key.address, scene),
+        .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, scene),
+    };
+}
+
 pub fn sample2D_3(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Vec4f {
     switch (texture.type) {
         .Uniform => return texture.uniform3(),

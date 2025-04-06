@@ -99,8 +99,8 @@ pub const Material = union(enum) {
         return self.super().properties.emissive;
     }
 
-    pub fn emissionMapped(self: *const Material) bool {
-        return self.super().properties.emission_map;
+    pub fn emissionImageMapped(self: *const Material) bool {
+        return self.super().properties.emission_image_map;
     }
 
     pub fn scatteringVolume(self: *const Material) bool {
@@ -217,6 +217,13 @@ pub const Material = union(enum) {
             .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, scene),
             .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, scene),
             .Volumetric => |*m| m.evaluateRadiance(rs, sampler, scene),
+            else => @splat(0.0),
+        };
+    }
+
+    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+        return switch (self.*) {
+            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, m.super.sampler_key, sampler, scene),
             else => @splat(0.0),
         };
     }
