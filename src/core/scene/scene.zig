@@ -16,8 +16,6 @@ const Renderstate = @import("renderstate.zig").Renderstate;
 const Vertex = @import("vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
-const Texture = @import("../image/texture/texture.zig").Texture;
-const ts = @import("../image/texture/texture_sampler.zig");
 const Procedural = @import("../image/texture/procedural.zig").Procedural;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
@@ -289,10 +287,6 @@ pub const Scene = struct {
         }
 
         self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
-    }
-
-    pub fn emission(self: *const Scene, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
-        return self.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
@@ -619,31 +613,6 @@ pub const Scene = struct {
 
     pub fn imagePtr(self: *const Scene, image_id: u32) *Image {
         return &self.images.items[image_id];
-    }
-
-    pub fn needsDifferential(texture: Texture) bool {
-        if (!texture.isProcedural()) {
-            return false;
-        }
-
-        const proc: Procedural.Type = @enumFromInt(texture.data.procedural.id);
-
-        return switch (proc) {
-            .Checker => true,
-            else => false,
-        };
-    }
-
-    pub fn sampleProcedural2D_1(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
-        return self.procedural.sample2D_1(key, texture, rs, sampler, self);
-    }
-
-    pub fn sampleProcedural2D_2(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
-        return self.procedural.sample2D_2(key, texture, rs, sampler, self);
-    }
-
-    pub fn sampleProcedural2D_3(self: *const Scene, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
-        return self.procedural.sample2D_3(key, texture, rs, sampler, self);
     }
 
     pub fn material(self: *const Scene, material_id: u32) *Material {

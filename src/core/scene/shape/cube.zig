@@ -66,10 +66,10 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
         _ = entity;
         _ = sampler;
-        _ = scene;
+        _ = worker;
         _ = tr;
 
         if (intersectP(ray, trafo)) {

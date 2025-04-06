@@ -24,9 +24,6 @@ pub const Renderstate = struct {
     origin: Vec4f,
     uvw: Vec4f,
 
-    ddx: Vec2f,
-    ddy: Vec2f,
-
     ior: f32,
     wavelength: f32,
     min_alpha: f32,

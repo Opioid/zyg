@@ -178,16 +178,16 @@ pub const Material = union(enum) {
         return cc;
     }
 
-    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CC {
+    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, worker: *const Worker) CC {
         return switch (self.*) {
-            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
+            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, worker))),
             else => cc,
         };
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, worker: *const Worker) CCE {
         return switch (self.*) {
-            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, cc, sampler, scene),
+            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, cc, sampler, worker),
             else => undefined,
         };
     }
@@ -202,7 +202,7 @@ pub const Material = union(enum) {
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
-            .Glass => |*m| .{ .Glass = m.sample(wo, rs, sampler, worker.scene) },
+            .Glass => |*m| .{ .Glass = m.sample(wo, rs, sampler, worker) },
             .Hair => |*m| .{ .Hair = m.sample(wo, rs, sampler) },
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
@@ -211,12 +211,12 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(wi, rs, sampler, scene),
-            .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, scene),
-            .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, scene),
-            .Volumetric => |*m| m.evaluateRadiance(rs, sampler, scene),
+            .Light => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Volumetric => |*m| m.evaluateRadiance(rs, sampler, worker),
             else => @splat(0.0),
         };
     }
@@ -249,15 +249,15 @@ pub const Material = union(enum) {
         wi: Vec4f,
         rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         switch (self.*) {
             .Glass => |*m| {
-                return m.visibility(wi, rs, sampler, scene, tr);
+                return m.visibility(wi, rs, sampler, worker, tr);
             },
             else => {
-                const o = self.super().opacity(rs, sampler, scene);
+                const o = self.super().opacity(rs, sampler, worker);
                 if (o < 1.0) {
                     tr.* *= @splat(1.0 - o);
                     return true;

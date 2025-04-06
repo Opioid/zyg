@@ -476,11 +476,11 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, sampler, scene, tr);
+        return self.tree.visibility(tray, entity, sampler, worker, tr);
     }
 
     pub fn transmittance(
@@ -503,10 +503,10 @@ pub const Mesh = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         const tray = frag.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, scene);
+        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, worker);
     }
 
     pub fn scatter(

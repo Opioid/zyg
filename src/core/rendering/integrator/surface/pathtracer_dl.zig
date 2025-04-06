@@ -164,7 +164,7 @@ pub const PathtracerDL = struct {
 
                 const bxdf_result = mat_sample.evaluate(light_sample.wi, 1);
 
-                const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
+                const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker);
 
                 const weight = 1.0 / (l.pdf * light_sample.pdf());
 
@@ -185,7 +185,7 @@ pub const PathtracerDL = struct {
 
         if (frag.hit()) {
             if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
-                return frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse @splat(0.0);
+                return frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
             }
 
             return @splat(0.0);
@@ -204,7 +204,7 @@ pub const PathtracerDL = struct {
             if (vertex.state.treat_as_singular or !Light.isLight(inf_frag.lightId(worker.scene))) {
                 worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
 
-                energy += inf_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse @splat(0.0);
+                energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
             }
         }
 

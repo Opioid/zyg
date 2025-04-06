@@ -145,7 +145,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -165,14 +165,14 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
                         const itri = self.data.indexTriangle(i);
-                        const material = scene.propMaterial(entity, itri.part);
+                        const material = worker.scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
                             rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                            if (!material.visibility(ray_dir, rs, sampler, scene, tr)) {
+                            if (!material.visibility(ray_dir, rs, sampler, worker, tr)) {
                                 return false;
                             }
                         } else {
@@ -259,7 +259,7 @@ pub const Tree = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -299,8 +299,8 @@ pub const Tree = struct {
 
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        if (frag.evaluateRadiance(shading_p, wo, sampler, scene)) |local_energy| {
-                            const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+                        if (frag.evaluateRadiance(shading_p, wo, sampler, worker)) |local_energy| {
+                            const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
                             energy += weight * local_energy;
                         }
                     }

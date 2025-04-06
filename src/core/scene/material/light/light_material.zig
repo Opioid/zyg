@@ -8,6 +8,7 @@ const Trafo = @import("../../composed_transformation.zig").ComposedTransformatio
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -118,9 +119,9 @@ pub const Material = struct {
         wi: Vec4f,
         rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
-        return self.emittance.radiance(wi, rs, self.super.sampler_key, sampler, scene);
+        return self.emittance.radiance(wi, rs, self.super.sampler_key, sampler, worker);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {

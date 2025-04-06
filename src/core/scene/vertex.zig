@@ -198,12 +198,6 @@ pub const Vertex = struct {
         rs.caustics = caustics;
         rs.highest_priority = self.mediums.highestPriority();
 
-        if (m.super().properties.needs_differentials) {
-            const dd = worker.screenspaceDifferential(rs);
-            rs.ddx = .{ dd[0], dd[1] };
-            rs.ddy = .{ dd[2], dd[3] };
-        }
-
         return m.sample(wo, rs, sampler, worker);
     }
 };

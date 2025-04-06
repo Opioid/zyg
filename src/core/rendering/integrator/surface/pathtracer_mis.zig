@@ -265,7 +265,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker.scene);
+            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker);
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, max_material_splits);
 
@@ -307,7 +307,7 @@ pub const PathtracerMIS = struct {
         const previous_shadow_catcher = vertex.state.from_shadow_catcher;
 
         if (frag.hit()) {
-            if (frag.evaluateRadiance(p, wo, sampler, worker.scene)) |local_energy| {
+            if (frag.evaluateRadiance(p, wo, sampler, worker)) |local_energy| {
                 const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
 
                 result.emission = weight * local_energy;
@@ -333,7 +333,7 @@ pub const PathtracerMIS = struct {
 
                 worker.propInterpolateFragment(prop, &vertex.probe, &light_frag);
 
-                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse continue;
+                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
 
                 const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, &light_frag, split_threshold));
 

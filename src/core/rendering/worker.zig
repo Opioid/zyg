@@ -15,6 +15,8 @@ const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const shp = @import("../scene/shape/intersection.zig");
+const Texture = @import("../image/texture/texture.zig").Texture;
+const ts = @import("../image/texture/texture_sampler.zig");
 const Fragment = shp.Fragment;
 const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
@@ -191,7 +193,7 @@ pub const Worker = struct {
 
     pub fn photonLi(self: *const Worker, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
         if (self.photon_map) |pm| {
-            return pm.li(frag, sample, sampler, self.scene);
+            return pm.li(frag, sample, sampler, self);
         }
 
         return @splat(0.0);
@@ -258,7 +260,7 @@ pub const Worker = struct {
     }
 
     pub fn emission(self: *const Worker, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
-        return self.scene.emission(vertex, frag, split_threshold, sampler);
+        return self.scene.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
     }
 
     pub fn propTransmittance(
@@ -306,7 +308,7 @@ pub const Worker = struct {
                 return false;
             }
 
-            const o = frag.opacity(sampler, self.scene);
+            const o = frag.opacity(sampler, self);
             if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
                 break;
             }
@@ -317,6 +319,18 @@ pub const Worker = struct {
         }
 
         return true;
+    }
+
+    pub fn sampleProcedural2D_1(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
+        return self.scene.procedural.sample2D_1(key, texture, rs, sampler, self);
+    }
+
+    pub fn sampleProcedural2D_2(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
+        return self.scene.procedural.sample2D_2(key, texture, rs, sampler, self);
+    }
+
+    pub fn sampleProcedural2D_3(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
+        return self.scene.procedural.sample2D_3(key, texture, rs, sampler, self);
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {

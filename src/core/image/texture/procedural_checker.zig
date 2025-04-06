@@ -1,5 +1,6 @@
 const ts = @import("texture_sampler.zig");
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -37,13 +38,17 @@ pub const Checker = struct {
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key) Vec4f {
+    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, worker: *const Worker) Vec4f {
+        const dd = worker.screenspaceDifferential(rs);
+        const ddx: Vec2f = .{ dd[0], dd[1] };
+        const ddy: Vec2f = .{ dd[2], dd[3] };
+
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
             scale * key.address.address2(rs.uv()),
-            scale * rs.ddx,
-            scale * rs.ddy,
+            scale * ddx,
+            scale * ddy,
         );
 
         return math.lerp(math.vec3fTo4f(self.color_a), math.vec3fTo4f(self.color_b), @as(Vec4f, @splat(t)));

@@ -66,7 +66,7 @@ pub fn trackingTransmitted(
         }
 
         const uvw = ray.point(t);
-        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker.scene);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
 
         const mu_t = (mu.a + mu.s) - @as(Vec4f, @splat(minorant_mu_t));
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -208,7 +208,7 @@ pub fn trackingHetero(
         }
 
         const uvw = ray.point(t);
-        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker.scene);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -266,7 +266,7 @@ pub fn trackingHeteroEmission(
         }
 
         const uvw = ray.point(t);
-        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, worker.scene);
+        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, worker);
         const mu = cce.cc;
 
         const mu_t = mu.a + mu.s;

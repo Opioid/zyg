@@ -31,7 +31,7 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(Renderstate, "Renderstate", 240);
+    testType(Renderstate, "Renderstate", 224);
     testType(Fragment, "Fragment", 208);
     testType(Vertex, "Vertex", 416);
     testType(smpl.To, "SampleTo", 64);

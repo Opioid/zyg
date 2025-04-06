@@ -3,6 +3,7 @@ const Scene = @import("../../../../scene/scene.zig").Scene;
 const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const MaterialSample = @import("../../../../scene/material/material_sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -586,7 +587,7 @@ pub const Grid = struct {
         return result * @as(Vec4f, @splat(self.surface_normalization));
     }
 
-    pub fn li2(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn li2(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, worker: *const Worker) Vec4f {
         var result: Vec4f = @splat(0.0);
 
         const position = frag.p;
@@ -634,11 +635,11 @@ pub const Grid = struct {
                 }
 
                 const normalization: f32 = @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3))));
-                const mu_s = scatteringCoefficient(frag, sample, sampler, scene);
+                const mu_s = scatteringCoefficient(frag, sample, sampler, worker);
 
                 result /= @as(Vec4f, @splat(normalization)) * mu_s;
             } else {
-                const two_sided = frag.material(scene).twoSided();
+                const two_sided = frag.material(worker.scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
                 for (buffer.entries[0..used_entries]) |entry| {
@@ -677,18 +678,18 @@ pub const Grid = struct {
         return s * s;
     }
 
-    fn scatteringCoefficient(frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, scene: *const Scene) Vec4f {
-        const material = frag.material(scene);
+    fn scatteringCoefficient(frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, worker: *const Worker) Vec4f {
+        const material = frag.material(worker.scene);
 
         if (material.heterogeneousVolume()) {
             const trafo = frag.trafo;
             const local_position = trafo.worldToObjectPoint(frag.p);
 
-            const aabb = scene.propShape(frag.prop).aabb();
+            const aabb = worker.scene.propShape(frag.prop).aabb();
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
             const cc = material.collisionCoefficients();
-            return material.collisionCoefficients3D(uvw, cc, sampler, scene).s;
+            return material.collisionCoefficients3D(uvw, cc, sampler, worker).s;
         }
 
         return material.collisionCoefficients2D(sample).s;

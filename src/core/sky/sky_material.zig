@@ -3,9 +3,10 @@ const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/light_sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Scene = @import("../scene/scene.zig").Scene;
-const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Resources = @import("../resource/manager.zig").Manager;
+const Worker = @import("../rendering/worker.zig").Worker;
 const ts = @import("../image/texture/texture_sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -154,10 +155,10 @@ pub const Material = struct {
         wi: Vec4f,
         rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         if (!self.emission_map.isUniform()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, scene);
+            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, worker);
         }
 
         return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));

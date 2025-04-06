@@ -164,7 +164,7 @@ pub const Prop = struct {
         if (properties.volume) {
             return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker, tr);
         } else if (properties.evaluate_visibility) {
-            return shape.visibility(probe.ray, trafo, entity, sampler, scene, tr);
+            return shape.visibility(probe.ray, trafo, entity, sampler, worker, tr);
         } else {
             return !shape.intersectP(probe.ray, trafo);
         }
@@ -177,9 +177,10 @@ pub const Prop = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         const properties = self.properties;
+        const scene = worker.scene;
 
         if (!properties.visible(vertex.probe.depth.surface)) {
             return @splat(0.0);
@@ -194,7 +195,7 @@ pub const Prop = struct {
         frag.trafo = trafo;
         frag.prop = entity;
 
-        return scene.shape(self.shape).emission(vertex, frag, split_threshold, sampler, scene);
+        return scene.shape(self.shape).emission(vertex, frag, split_threshold, sampler, worker);
     }
 
     pub fn scatter(

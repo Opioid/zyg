@@ -2,7 +2,7 @@ const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
-const Scene = @import("../../scene/scene.zig").Scene;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -16,9 +16,9 @@ pub const DetailNormal = struct {
     // Based on a technique described here
     // https://blog.selfshadow.com/publications/blending-in-detail/
 
-    pub fn evaluate(self: DetailNormal, rs: Renderstate, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec2f {
-        const n1 = reconstructNormal(self.base, rs, key, sampler, scene);
-        const n2 = reconstructNormal(self.detail, rs, key, sampler, scene);
+    pub fn evaluate(self: DetailNormal, rs: Renderstate, key: ts.Key, sampler: *Sampler, worker: *const Worker) Vec2f {
+        const n1 = reconstructNormal(self.base, rs, key, sampler, worker);
+        const n2 = reconstructNormal(self.detail, rs, key, sampler, worker);
 
         // Construct a basis
         const xy = math.orthonormalBasis3(n1);
@@ -29,8 +29,8 @@ pub const DetailNormal = struct {
         return .{ r[0], r[1] };
     }
 
-    fn reconstructNormal(map: Texture, rs: Renderstate, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
-        const nm = ts.sample2D_2(key, map, rs, sampler, scene);
+    fn reconstructNormal(map: Texture, rs: Renderstate, key: ts.Key, sampler: *Sampler, worker: *const Worker) Vec4f {
+        const nm = ts.sample2D_2(key, map, rs, sampler, worker);
         const nmz = @sqrt(math.max(1.0 - math.dot2(nm, nm), 0.01));
         return math.normalize3(.{ nm[0], nm[1], nmz, 0.0 });
     }

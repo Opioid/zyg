@@ -74,7 +74,7 @@ pub const Integrator = struct {
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, worker.scene);
+            const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, worker);
             return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
         }
 

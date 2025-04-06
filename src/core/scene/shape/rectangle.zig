@@ -5,6 +5,7 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -108,7 +109,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -136,13 +137,13 @@ pub const Rectangle = struct {
             rs.geo_n = n;
             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-            return scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, scene, tr);
+            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr);
         }
 
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
         const hit = intersect(vertex.probe.ray, frag.trafo);
         if (Intersection.Null == hit.primitive) {
             return @splat(0.0);
@@ -155,9 +156,9 @@ pub const Rectangle = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, worker) orelse return @splat(0.0);
 
-        const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+        const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
 
         return energy * weight;
     }

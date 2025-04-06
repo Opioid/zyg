@@ -3,9 +3,10 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const ro = @import("../ray_offset.zig");
 const Scene = @import("../scene.zig").Scene;
 const Renderstate = @import("../renderstate.zig").Renderstate;
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const mat = @import("../material/material.zig");
 const RadianceResult = @import("../material/material_base.zig").Base.RadianceResult;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
 const Ray = math.Ray;
@@ -100,10 +101,10 @@ pub const Fragment = struct {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, sampler: *Sampler, scene: *const Scene) f32 {
+    pub fn opacity(self: Self, sampler: *Sampler, worker: *const Worker) f32 {
         var rs: Renderstate = undefined;
         rs.uvw = self.uvw;
-        return self.material(scene).super().opacity(rs, sampler, scene);
+        return self.material(worker.scene).super().opacity(rs, sampler, worker);
     }
 
     pub inline fn subsurface(self: Self) bool {
@@ -124,13 +125,13 @@ pub const Fragment = struct {
         return Ray.init(self.offsetP(dir), dir, 0.0, max_t);
     }
 
-    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, scene: *const Scene) ?Vec4f {
+    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, worker: *const Worker) ?Vec4f {
         const volume = self.event;
         if (.Absorb == volume) {
             return self.vol_li;
         }
 
-        const m = self.material(scene);
+        const m = self.material(worker.scene);
         if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Pass != volume) {
             return null;
         }
@@ -143,6 +144,6 @@ pub const Fragment = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return m.evaluateRadiance(wo, rs, sampler, scene);
+        return m.evaluateRadiance(wo, rs, sampler, worker);
     }
 };

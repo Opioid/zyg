@@ -1,7 +1,7 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
-const Scene = @import("../scene.zig").Scene;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -36,7 +36,6 @@ pub const Base = struct {
     pub const Properties = packed struct {
         two_sided: bool = false,
         evaluate_visibility: bool = false,
-        needs_differentials: bool = false,
         caustic: bool = false,
         emissive: bool = false,
         color_map: bool = false,
@@ -57,8 +56,8 @@ pub const Base = struct {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, scene: *const Scene) f32 {
-        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, scene);
+    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, worker: *const Worker) f32 {
+        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, worker);
     }
 
     pub const Start_wavelength = Rainbow.Wavelength_start;
