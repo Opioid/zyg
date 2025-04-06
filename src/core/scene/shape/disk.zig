@@ -280,7 +280,8 @@ pub const Disk = struct {
                 continue;
             }
 
-            buffer[current_sample] = SampleTo.init(ws, wn, dir, @splat(0.0), (nsf * pdf_ * sl) / c);
+            const v = (xy[1] + 1.0) * 0.5;
+            buffer[current_sample] = SampleTo.init(ws, wn, dir, .{ u, v, 0.0, 0.0 }, (nsf * pdf_ * sl) / c);
             current_sample += 1;
         }
 

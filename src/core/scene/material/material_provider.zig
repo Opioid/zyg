@@ -434,9 +434,9 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
     }
 
     if (jvalue.object.get("emission_map")) |em| {
-        emittance.emission_map = readTexture(alloc, em, .Emission, tex, resources);
+        emittance.emission_map = readValue(alloc, em, .Emission, tex, resources);
     } else if (jvalue.object.get("temperature_map")) |tm| {
-        emittance.emission_map = readTexture(alloc, tm, .Roughness, tex, resources);
+        emittance.emission_map = readValue(alloc, tm, .Roughness, tex, resources);
     }
 
     const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
@@ -571,6 +571,7 @@ const TextureDescriptor = struct {
                         var noise: prcd.Noise = undefined;
 
                         noise.class = .Perlin;
+                        noise.absolute = json.readBoolMember(entry.value_ptr.*, "absolute", false);
                         noise.levels = json.readUIntMember(entry.value_ptr.*, "levels", 1);
                         noise.attenuation = json.readFloatMember(entry.value_ptr.*, "attenuation", 0.0);
                         noise.contrast = json.readFloatMember(entry.value_ptr.*, "contrast", 1.0);
@@ -750,7 +751,7 @@ fn createTexture(
 
 fn readValue(alloc: Allocator, value: std.json.Value, usage: TexUsage, tex: Provider.Tex, resources: *Resources) Texture {
     return switch (usage) {
-        .Color, .ColorAndOpacity => readTypedValue(Vec4f, alloc, value, @splat(0.0), usage, tex, resources),
+        .Emission, .Color, .ColorAndOpacity => readTypedValue(Vec4f, alloc, value, @splat(0.0), usage, tex, resources),
         .Normal => readTypedValue(Vec2f, alloc, value, @splat(0.0), usage, tex, resources),
         else => readTypedValue(f32, alloc, value, 0.0, usage, tex, resources),
     };

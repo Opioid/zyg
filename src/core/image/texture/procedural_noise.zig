@@ -18,10 +18,11 @@ pub const Noise = struct {
 
     class: Class,
 
+    absolute: bool,
+
     levels: u32,
 
     attenuation: f32,
-
     contrast: f32,
 
     scale: Vec4f,
@@ -62,8 +63,9 @@ pub const Noise = struct {
             }
         }
 
-        //const unsigned = @abs(value / weight);
-        const unsigned = ((value / weight) + 1.0) * 0.5;
+        value /= weight;
+
+        const unsigned = if (self.absolute) @abs(value) else (value + 1.0) * 0.5;
 
         return math.saturate((unsigned - 0.5) * self.contrast + 0.5);
     }

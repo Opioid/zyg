@@ -57,7 +57,7 @@ pub const Material = struct {
         }
 
         const rad = self.emittance.averageRadiance(area);
-        if (self.emittance.emission_map.isUniform()) {
+        if (!self.emittance.emission_map.isImage()) {
             self.average_emission = rad;
             return self.average_emission;
         }
